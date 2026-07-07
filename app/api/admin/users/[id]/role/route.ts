@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, connection} from 'next/server';
+import { NextRequest, NextResponse, connection } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/database';
 import { isPlatformAdmin, isKnownUserRole } from '@/features/auth/user-role';
@@ -9,13 +9,17 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await connection() // Next.js 16: opt out of prerendering
+  // Ensure no prerendering for this handler in Next.js 16  
+  await connection();
 
   try {
+    // Extract user ID from route parameters (async, as params is a Promise)
     const { id } = await params;
+
+    // Retrieve current session/auth info
     const session = await auth();
 
-    // Check authentication and admin/superadmin role
+    // Ensure the requestor is authenticated and has admin/superadmin privileges
     if (!session?.user || !isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -23,9 +27,10 @@ export async function PUT(
       );
     }
 
+    // Parse new role from JSON request body
     const { role } = await request.json();
 
-    // Validate role
+    // Validate that the requested role is recognized by the system
     if (!isKnownUserRole(role)) {
       return NextResponse.json(
         { error: 'Invalid role' },
@@ -33,6 +38,7 @@ export async function PUT(
       );
     }
 
+    // Fetch user data from the database to ensure the user exists
     const userResult = await db().readDoc<UserRow>('users', id);
     if (!userResult.success || !userResult.data) {
       return NextResponse.json(
@@ -43,12 +49,14 @@ export async function PUT(
 
     const userData = userResult.data;
 
+    // Prepare updated user data with the new role and fresh timestamp
     const updatedUserData = {
       ...userData,
       role,
-      updated_at: new Date()
+      updated_at: new Date() // TODO: Consider using a consistent date/time util if used throughout app
     };
 
+    // Commit the data update back to the database
     const updateResult = await db().updateDoc('users', id, updatedUserData);
     if (!updateResult.success) {
       return NextResponse.json(
@@ -57,12 +65,14 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'User role updated successfully' 
+    // Success response
+    return NextResponse.json({
+      success: true,
+      message: 'User role updated successfully'
     });
 
   } catch (error) {
+    // Log and return a generic error response
     console.error('Error updating user role:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -70,3 +80,6 @@ export async function PUT(
     );
   }
 }
+
+// TODO: `params` is currently typed as a Promise. See if Next.js 16 provides a way to use the Route Handler context pattern directly and avoid needing to resolve a params Promise, improving readability and type-safety.
+// TODO: Evaluate Zod or another schema validator for input validation to ensure extendability and type-safety for more complex requests.

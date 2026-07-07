@@ -8,6 +8,8 @@
 import type { AuthUser } from '@/features/auth/types'
 import { cache } from 'react'
 import { db } from '@/lib/database'
+import { DEFAULT_LOCALE } from '@/lib/locale-config'
+import { getDefaultTheme } from '@/lib/ring-config-core'
 
 /**
  * Resolve user profile by username
@@ -49,7 +51,7 @@ export const getUserByUsername = cache(async (username: string): Promise<AuthUse
       nonce: row.nonce as string | undefined,
       nonceExpires: row.nonceExpires as number | undefined,
       notificationPreferences: (row.notificationPreferences as AuthUser['notificationPreferences']) ?? { email: true, inApp: true, sms: false },
-      settings: (row.settings as AuthUser['settings']) ?? { language: 'en', theme: 'system', notifications: true, notificationPreferences: { email: true, inApp: true, sms: false } }
+      settings: (row.settings as AuthUser['settings']) ?? { language: DEFAULT_LOCALE, theme: getDefaultTheme(), notifications: true, notificationPreferences: { email: true, inApp: true, sms: false } }
     } as AuthUser
   } catch (error) {
     console.error('getUserByUsername: Error:', error)

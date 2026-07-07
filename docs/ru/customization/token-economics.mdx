@@ -11,7 +11,7 @@ description: Проектируйте и запускайте токенную �
 
 Платформы Ring выравнивают стимулы через on-chain utility: членские взносы, потоки маркетплейса, реферальные награды и опциональный стейкинг. В этом руководстве:
 
-- **Эталонная токеномика RING** в `contracts/RingToken.sol` и `contracts/RingMembership.sol`
+- **Эталонная токеномика RING** в `contracts/RingToken.sol` и `contracts/Membership.sol`
 - **Интеграция в Next.js** — кредитные балансы, подписки и price oracle
 - **Собственный токен** для white-label развёртывания
 
@@ -36,7 +36,7 @@ Ring поставляет два upgradeable (UUPS) контракта, рабо
 {`flowchart LR
   User["Кошелёк участника"]
   RT["RingToken\\nERC-20"]
-  RM["RingMembership\\nПодписки"]
+  RM["Membership\\nПодписки"]
   Treasury["Казначейство"]
 
   User -->|"createSubscription()"| RM
@@ -54,7 +54,7 @@ Upgradeable ERC-20 с burn, pause и распределением через к�
 | Параметр | Значение | Примечание |
 |----------|----------|------------|
 | `INITIAL_SUPPLY` | 1 000 000 000 RING | Минт в казначейство при `initialize` |
-| `MEMBERSHIP_FEE` | 1 RING / месяц | Только `RingMembership` вызывает `deductMembershipFee` |
+| `MEMBERSHIP_FEE` | 1 RING / месяц | Только `Membership` вызывает `deductMembershipFee` |
 | `MIN_SUBSCRIPTION_BALANCE` | 12 RING | View-хелпер — год взносов |
 | Decimals | 18 | Стандартная точность ERC-20 |
 
@@ -70,7 +70,7 @@ Upgradeable ERC-20 с burn, pause и распределением через к�
   RING спроектирован как **utility-токен** для доступа к платформе, а не инвестиционный продукт. Проконсультируйтесь с юристами перед обещаниями доходности, прибыли или ликвидности на вторичном рынке.
 </Callout>
 
-### RingMembership (`contracts/RingMembership.sol`)
+### Membership (`contracts/Membership.sol`)
 
 Управляет рекуррентной оплатой членства on-chain.
 
@@ -132,7 +132,7 @@ REFERRAL_REWARD_TOKEN_ADDRESS=0x...
 
 | Сервис | Путь | Роль |
 |--------|------|------|
-| Кредиты | `features/wallet/services/user-credit-service.ts` | Баланс, списания, членский взнос |
+| Кредиты | `features/wallet/services/credit-balance-service.ts` | Баланс, списания, членский взнос |
 | Подписки | `services/membership/subscription-service.ts` | Создание, отмена, продление, batch |
 | Oracle | `services/blockchain/price-oracle-service.ts` | RING/USD с fallback-источниками |
 
@@ -147,7 +147,7 @@ REFERRAL_REWARD_TOKEN_ADDRESS=0x...
 
 - `GET /api/wallet/credit/balance` — баланс и снимок подписки
 - `POST /api/membership/subscription/create` — старт подписки
-- `POST /api/membership/payment/ring` — оплата RING
+- `POST /api/membership/payment/token` — оплата RING
 - `GET /api/prices/ring-usd` — конвертация для UI и чеков
 
 ### Стейкинг (опционально)
@@ -177,7 +177,7 @@ Hardhat-проект: `ring-platform.org/contracts/`.
   npx hardhat run scripts/deploy-testnet.js --network polygon
     ```
 
-    Порядок: `RingToken` → `RingMembership` → `setMembershipContract`. JSON деплоя — `deployments/mumbai-deployment.json`.
+    Порядок: `RingToken` → `Membership` → `setMembershipContract`. JSON деплоя — `deployments/mumbai-deployment.json`.
   </Step>
 
   <Step>
@@ -249,9 +249,9 @@ Hardhat-проект: `ring-platform.org/contracts/`.
 
 ### Шаг 4 — Интеграция с Ring
 
-1. Форкните `RingToken.sol` / `RingMembership.sol` или деплойте как есть со своим казначейством
+1. Форкните `RingToken.sol` / `Membership.sol` или деплойте как есть со своим казначейством
 2. Обновите `constants/web3.ts` и env-адреса
-3. Настройте fee constants в `user-credit-service` и `subscription-service`
+3. Настройте fee constants в `credit-balance-service` и `subscription-service`
 4. Включите wallet UI и гейты членства в portal config
 
 ## Экономическая модель

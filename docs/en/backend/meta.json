@@ -1,0 +1,8 @@
+{
+  "title": "Backend Services",
+  "description": "Firebase Admin SDK, database adapters, caching service, and backend service configuration for Ring Platform.",
+  "pages": [
+    "k8s-postgres-fcm",
+    "firebase"
+  ]
+}

@@ -16,7 +16,7 @@ import { AppProvider } from '@/contexts/app-context'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
 import { GlobalTunnelListeners } from '@/components/providers/global-tunnel-listeners'
-import { CurrencyProvider } from '@/features/store/currency-context'
+import { StoreCurrencyProvider } from '@/features/store/currency-context'
 import { StoreProvider } from '@/features/store/context'
 import GoogleOneTap from '@/features/auth/components/google-one-tap'
 import { Toaster } from '@/components/ui/toaster'
@@ -56,12 +56,12 @@ export function AppClientShell({
                     <CreditBalanceProvider>
                       <GlobalTunnelListeners />
                       <Web3ScopeProvider>
-                        <CurrencyProvider>
+                        <StoreCurrencyProvider>
                           <StoreProvider>
                             {children}
                             <GoogleOneTap />
                           </StoreProvider>
-                        </CurrencyProvider>
+                        </StoreCurrencyProvider>
                       </Web3ScopeProvider>
                     </CreditBalanceProvider>
                     <FCMPermissionPrompt />

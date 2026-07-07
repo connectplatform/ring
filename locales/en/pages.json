@@ -58,29 +58,28 @@
   "home": {
     "hero": {
       "title": "The open-source platform for communities that trade, collaborate, and grow.",
-      "subtitle": "Organizations, opportunities, commerce, messaging, and Web3 — one white-label stack you can clone today.",
-      "pitch": "Ring Platform is the reference implementation behind every Ring-powered ring: verified Entities, tiered Opportunities, a multi-vendor Store, integrated wallet and payments, Messenger, News, and AI opportunity matching — built on React 19, Next.js 16, Auth.js v5, and a PostgreSQL-first data layer. Clone it free from GitHub and self-host, or move to Ringdom when you want LegioX-guided ringization and managed operations.",
+      "subtitlePrefix": "Organizations, opportunities, commerce, messaging, and Web3 in one white-label stack you can clone for free today from ",
+      "subtitleLink": "GitHub",
+      "subtitleSuffix": " and self-host, or become a Ringdom settler to deploy, manage and monitor your PaaS using AI.",
+      "pitch": "Ring Platform is the reference implementation behind every Ring-powered ring: verified Entities, tiered Opportunities, a multi-vendor Store, integrated wallet and payments, Messenger, News, and AI opportunity matching — built on React 19, Next.js 16, Auth.js v5, and a PostgreSQL-first data layer.",
       "ringdomCta": "Explore Ringdom hosting",
       "ringdomUrl": "https://ringdom.org",
       "appPublisher": "Published by Sonoratek LLC (Ringdom, Arizona) 🇺🇦 — our gift to the world, with gratitude for everyone who helped Ukraine prove its right to independence",
       "description": "",
       "features": [
-        "Entities — organization profiles with public → confidential visibility tiers",
-        "Opportunities — offers, requests, and customization briefs with AI matcher alerts",
-        "Multi-vendor Store — WayForPay, wallet rails, orders, and vendor settlements",
-        "Messenger & notifications — real-time collaboration without Firebase lock-in",
-        "Web3 wallet — RING token economy, staking hooks, and an NFT marketplace module",
-        "White-label core — ring-config, locales, and modular features per clone"
+        "Store System — multi-vendor e-commerce with WayForPay, wallet rails, orders, and settlements",
+        "Entities System — organization profiles with public → confidential visibility tiers",
+        "Wallet System — Web3 wallet with RING token, multi-chain, staking and NFT marketplace",
+        "Messaging System — real-time user-to-user and group communications",
+        "Opportunities System — job board, volunteering, and opportunity management with AI matcher",
+        "AI Matcher System — vector similarity matching, preference learning, smart recommendations",
+        "NFT Market System — minting, trading, collection management, royalty system, IPFS",
+        "Staking System — multi-pool staking, rewards, APR tracking, governance voting",
+        "ERP Systems — inventory, supply chain, vendor management, tokenization, commerce"
       ],
       "gitClone": "git clone https://github.com/connectplatform/ring",
       "gitCloneText": "Start from source — free forever:",
       "featuresLabel": "What ships in the box",
-      "marketplaceBand": {
-        "title": "Need humans in the loop?",
-        "subtitle": "Post a customization brief on Opportunities. Registered builders browse listings, apply, and get notified when the AI matcher scores a fit — the Ring-native path from idea to shipped clone.",
-        "postCta": "Post a customization brief",
-        "browseCta": "Browse work as a builder"
-      },
       "cta": "Choose your path",
       "learnMore": "Learn More",
       "ctaCards": {
@@ -119,63 +118,178 @@
           "skillsetsLink": "Skillsets",
           "mcpLink": "MCP servers"
         }
+      },
+      "featureSystems": {
+        "title": "Full Feature Catalog",
+        "items": {
+          "store": {
+            "title": "Store System",
+            "description": "Complete e-commerce platform with vendor management, multi-currency payments, automated settlements, product catalog with categories, shopping cart and checkout, payment integration (RING tokens, WayForPay fiat), order management and tracking, vendor commission system, inventory management.",
+            "terms": [
+              "E-commerce",
+              "Vendor Mgmt",
+              "Multi-currency",
+              "Checkout"
+            ],
+            "purpose": "Run a complete multi-vendor marketplace with automated payments and settlements.",
+            "benefits": "Launch a store in hours, not months. Vendors get automatic commission splits, customers pay via RING or card, and you keep full control."
+          },
+          "entities": {
+            "title": "Entities System",
+            "description": "Organizational structure for businesses, cooperatives, and communities within Ring Platform — entity creation and management, hierarchical organizational structures, member role management, entity profiles and branding, entity-based permissions, multi-entity user membership.",
+            "terms": [
+              "Organizations",
+              "Hierarchy",
+              "Profiles",
+              "Permissions"
+            ],
+            "purpose": "Create organizational structures for businesses, cooperatives, and communities.",
+            "benefits": "Multi-entity membership with role-based access, public-to-confidential visibility tiers, and directory discovery."
+          },
+          "wallet": {
+            "title": "Wallet System",
+            "description": "Modern Web3 wallet with RING token, multi-chain support (Ethereum, Polygon, Arbitrum, Optimism, Base), wagmi v2 + viem + RainbowKit integration, real-time balance tracking, send/receive transactions, transaction history, contact management, Google Auth with auto-wallet creation, PIN-based key encryption for social auth users, token purchasing system.",
+            "terms": [
+              "Web3 Wallet",
+              "Multi-chain",
+              "RING Token",
+              "Transactions"
+            ],
+            "purpose": "Modern Web3 wallet with RING token and multi-chain support.",
+            "benefits": "Send and receive tokens across 5 chains, auto-create wallets via Google Auth, secure PIN-based key encryption, and buy tokens in-app."
+          },
+          "staking": {
+            "title": "Staking System",
+            "description": "RING token staking with rewards and governance integration — multi-pool staking architecture, stake/unstake operations, reward calculations, APR tracking, governance voting integration, liquidity mining support.",
+            "terms": [
+              "DeFi Pools",
+              "Rewards",
+              "Governance",
+              "APR"
+            ],
+            "purpose": "RING token staking with rewards and governance voting.",
+            "benefits": "Earn passive income through multi-pool staking, participate in protocol governance, and track APR in real-time."
+          },
+          "messaging": {
+            "title": "Messaging System",
+            "description": "Real-time messaging system for user-to-user and group communications — direct messaging between users, group chat functionality, real-time message delivery, message history and search, file sharing in messages, notification integration.",
+            "terms": [
+              "Real-time",
+              "Chat",
+              "Groups",
+              "File Share"
+            ],
+            "purpose": "Real-time messaging for user-to-user and group communications.",
+            "benefits": "Direct messages, group chats, file sharing, message history — all connected to opportunities and deals via Tunnel protocol."
+          },
+          "opportunities": {
+            "title": "Opportunities System",
+            "description": "Job board, volunteering, and opportunity management platform — opportunity creation and management, category-based organization, application system, opportunity search and filtering, user opportunity tracking, entity-based opportunity posting.",
+            "terms": [
+              "Job Board",
+              "AI Matching",
+              "Applications",
+              "Search"
+            ],
+            "purpose": "Job board, volunteering, and opportunity management with AI matching.",
+            "benefits": "Post opportunities across categories, receive AI-matched applications, and let the system notify candidates automatically."
+          },
+          "nft": {
+            "title": "NFT Market System",
+            "description": "NFT marketplace with minting, trading, and collection management — NFT minting interface, marketplace listings, buy/sell functionality, collection management, royalty system, IPFS integration.",
+            "terms": [
+              "NFT Minting",
+              "Marketplace",
+              "Collections",
+              "Royalty"
+            ],
+            "purpose": "NFT marketplace with minting, trading, and collection management.",
+            "benefits": "Mint NFTs directly, list on the marketplace, earn royalties on secondary sales, and manage collections with IPFS storage."
+          },
+          "aiMatcher": {
+            "title": "AI Matcher System",
+            "description": "AI-powered matching system for opportunities, products, and connections — vector similarity matching, user preference learning, smart recommendations, semantic search, pattern recognition.",
+            "terms": [
+              "Vector Search",
+              "Recommendations",
+              "Semantic",
+              "Learning"
+            ],
+            "purpose": "AI-powered matching for opportunities, products, and connections.",
+            "benefits": "Vector similarity finds the right people for opportunities, learns user preferences over time, and surfaces smart recommendations without manual search."
+          },
+          "erp": {
+            "title": "ERP Systems",
+            "description": "Enterprise Resource Planning modules — Inventory Management, Supply Chain Tracking, Vendor Management, Sustainability Metrics, Tokenization Systems, Commerce Integration.",
+            "terms": [
+              "Inventory",
+              "Supply Chain",
+              "Vendor Ops",
+              "Tokenization"
+            ],
+            "purpose": "Enterprise Resource Planning for inventory, supply chain, and vendor management.",
+            "benefits": "Track inventory in real-time, manage vendor operations, integrate tokenization, and meet sustainability metrics — all from one module."
+          }
+        },
+        "tabFounder": "Founders",
+        "tabDeveloper": "Developers"
       }
     },
-  "appPublisher": {
-    "title": "Sonoratek LLC — App publisher",
-    "heroLegalName": "Sonoratek LLC",
-    "subtitle": "Sonoratek LLC (Tempe, Arizona) is the Ringdom legal entity that publishes Ring — with gratitude for everyone who helped Ukraine prove its right to independence 🇺🇦",
-    "impactStats": {
-      "globalDeployments": "Global deployments",
-      "peopleServed": "People served",
-      "countriesReached": "Countries reached",
-      "communitiesEmpowered": "Communities empowered"
-    },
-    "teamMembers": {
-      "ray": {
-        "role": "Ringdom Emperor",
-        "specialty": "Visionary & Founder"
+    "appPublisher": {
+      "title": "Sonoratek LLC — App publisher",
+      "heroLegalName": "Sonoratek LLC",
+      "subtitle": "Sonoratek LLC (Tempe, Arizona) is the Ringdom legal entity that publishes Ring — with gratitude for everyone who helped Ukraine prove its right to independence 🇺🇦",
+      "impactStats": {
+        "globalDeployments": "Global deployments",
+        "peopleServed": "People served",
+        "countriesReached": "Countries reached",
+        "communitiesEmpowered": "Communities empowered"
       },
-      "max": {
-        "role": "Ringdom Treasurer",
-        "specialty": "Accounting & vaults"
+      "teamMembers": {
+        "ray": {
+          "role": "Ringdom Emperor",
+          "specialty": "Visionary & Founder"
+        },
+        "max": {
+          "role": "Ringdom Treasurer",
+          "specialty": "Accounting & vaults"
+        },
+        "dima": {
+          "role": "Ringdom Spirit Wizard",
+          "specialty": "Global strategy & development"
+        }
       },
-      "dima": {
-        "role": "Ringdom Spirit Wizard",
-        "specialty": "Global strategy & development"
-      }
+      "mission": "Our Mission",
+      "missionText": "Technology should unite, not divide. Ring enables anyone, anywhere to solve collective needs without expensive developers or vendor lock-in.",
+      "philosophy": "Our Philosophy",
+      "philosophyText": "Ukrainian farmers can deploy the same sophisticated platform as Silicon Valley startups. African artisans access the same AI-powered marketplace as Amazon.",
+      "originStory": "Our Origin Story",
+      "originSubtitle": "How Ringdom built Ring during Ukraine's struggle for independence",
+      "beginning": "The Beginning",
+      "beginningText": "As Russia invaded Ukraine, we witnessed how technology could be a weapon of oppression. Centralized platforms controlled by foreign entities could be shut down or manipulated. We decided to build something different.",
+      "building": "Building Ring",
+      "buildingText": "Working from basements and cafes during air raids, we developed Ring - a platform that puts power back in the hands of communities. No more vendor lock-in, no more expensive developers, no more centralized control.",
+      "impact": "Global Impact",
+      "impactText": "Ring deployments are helping communities worldwide. From agricultural cooperatives in Ukraine to artisan marketplaces in Kenya, Ring is proving that sophisticated technology can be accessible to everyone.",
+      "globalImpact": "Global Impact",
+      "globalImpactSubtitle": "Ring deployments around the world",
+      "worldMapTitle": "Interactive World Map Coming Soon",
+      "worldMapText": "See Ring deployments, use cases per region, and success metrics from live deployments worldwide.",
+      "futureVision": "Future Vision",
+      "futureQuote": "Imagine asking your Ring platform: 'Add a blockchain-verified certificate system for educational courses' - and watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform. This is our roadmap.",
+      "roadmapPhase1Title": "Shipped baseline",
+      "roadmapPhase2Title": "In development",
+      "roadmapPhase3Title": "Next horizon",
+      "roadmap2025q2": "✅ Live on flagship rings: Next.js 16 + Turbopack, React 19, Auth.js v5, PostgreSQL/PostGIS, modular i18n, marketplace and opportunities, Ringdom Maps–class integrations, and white-label propagation (Ring Platform v1.49+ lineage).",
+      "roadmap2025q3": "🔧 In progress: LegioX MCP and NODUS-aligned operator workflows, richer AI-CONTEXT, governed prompt-driven customization, ConnectPlatform/Firebase deployment paths, and staged Cache Components where routes are auth/headers-safe.",
+      "roadmap2026q1": "🔭 Next: durable orchestration, audit-friendly multi-tenant controls, and rings that progressively assemble vetted modules from natural-language intent—with human-in-the-loop approval.",
+      "meetTeam": "Meet the team behind Ring",
+      "teamSubtitle": "Sonoratek LLC and Ringdom contributors",
+      "joinMission": "Join Our Mission",
+      "joinMissionText": "Help us democratize technology access worldwide. Whether you're a developer, organization, or community leader - there's a place for you in the Ring ecosystem.",
+      "cloneRing": "Clone Ring Now",
+      "findProjects": "Find Ring Projects"
     },
-    "mission": "Our Mission",
-    "missionText": "Technology should unite, not divide. Ring enables anyone, anywhere to solve collective needs without expensive developers or vendor lock-in.",
-    "philosophy": "Our Philosophy",
-    "philosophyText": "Ukrainian farmers can deploy the same sophisticated platform as Silicon Valley startups. African artisans access the same AI-powered marketplace as Amazon.",
-    "originStory": "Our Origin Story",
-    "originSubtitle": "How Ringdom built Ring during Ukraine's struggle for independence",
-    "beginning": "The Beginning",
-    "beginningText": "As Russia invaded Ukraine, we witnessed how technology could be a weapon of oppression. Centralized platforms controlled by foreign entities could be shut down or manipulated. We decided to build something different.",
-    "building": "Building Ring",
-    "buildingText": "Working from basements and cafes during air raids, we developed Ring - a platform that puts power back in the hands of communities. No more vendor lock-in, no more expensive developers, no more centralized control.",
-    "impact": "Global Impact",
-    "impactText": "Ring deployments are helping communities worldwide. From agricultural cooperatives in Ukraine to artisan marketplaces in Kenya, Ring is proving that sophisticated technology can be accessible to everyone.",
-    "globalImpact": "Global Impact",
-    "globalImpactSubtitle": "Ring deployments around the world",
-    "worldMapTitle": "Interactive World Map Coming Soon",
-    "worldMapText": "See Ring deployments, use cases per region, and success metrics from live deployments worldwide.",
-    "futureVision": "Future Vision",
-    "futureQuote": "Imagine asking your Ring platform: 'Add a blockchain-verified certificate system for educational courses' - and watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform. This is our roadmap.",
-    "roadmapPhase1Title": "Shipped baseline",
-    "roadmapPhase2Title": "In development",
-    "roadmapPhase3Title": "Next horizon",
-    "roadmap2025q2": "✅ Live on flagship rings: Next.js 16 + Turbopack, React 19, Auth.js v5, PostgreSQL/PostGIS, modular i18n, marketplace and opportunities, Ringdom Maps–class integrations, and white-label propagation (Ring Platform v1.49+ lineage).",
-    "roadmap2025q3": "🔧 In progress: LegioX MCP and NODUS-aligned operator workflows, richer AI-CONTEXT, governed prompt-driven customization, ConnectPlatform/Firebase deployment paths, and staged Cache Components where routes are auth/headers-safe.",
-    "roadmap2026q1": "🔭 Next: durable orchestration, audit-friendly multi-tenant controls, and rings that progressively assemble vetted modules from natural-language intent—with human-in-the-loop approval.",
-    "meetTeam": "Meet the team behind Ring",
-    "teamSubtitle": "Sonoratek LLC and Ringdom contributors",
-    "joinMission": "Join Our Mission",
-    "joinMissionText": "Help us democratize technology access worldwide. Whether you're a developer, organization, or community leader - there's a place for you in the Ring ecosystem.",
-    "cloneRing": "Clone Ring Now",
-    "findProjects": "Find Ring Projects"
-  },
     "rightRail": {
       "ecosystemTitle": "Why Ring Platform",
       "stats": {
@@ -252,5 +366,3 @@
     }
   }
 }
-
-

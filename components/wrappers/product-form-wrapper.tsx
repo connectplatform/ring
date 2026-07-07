@@ -8,7 +8,7 @@
  * Strike Team: Ring Components Specialist
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,13 @@ export default function ProductFormWrapper({
     setMounted(true)
   }, [])
 
+  // Stable callbacks
+  const openTips = useCallback(() => setRightSidebarOpen(true), [])
+  const goToGuide = useCallback(
+    () => router.push(`/${locale}/docs/vendor-guide/products`),
+    [locale, router]
+  )
+
   const tips = [
     { icon: '📸', title: 'Professional Photos', description: 'Upload 1-5 high-quality photos. First photo becomes main display.' },
     { icon: '✍️', title: 'Detailed Description', description: 'Highlight benefits, features, and care instructions.' },
@@ -50,7 +57,7 @@ export default function ProductFormWrapper({
     { icon: '📦', title: 'Stock Management', description: 'Keep inventory updated to prevent overselling.' },
   ]
 
-  const RightSidebarContent = () => (
+  const rightSidebarContent = useMemo(() => (
     <div className="space-y-6">
       {/* Product Creation Tips */}
       <Card>
@@ -90,14 +97,14 @@ export default function ProductFormWrapper({
           <Button
             variant="link"
             className="p-0 h-auto"
-            onClick={() => router.push(`/${locale}/docs/vendor-guide/products`)}
+            onClick={goToGuide}
           >
             View Guide →
           </Button>
         </CardContent>
       </Card>
     </div>
-  )
+  ), [mode, tips, router, locale])
 
   return (
     <div className="min-h-full text-foreground relative transition-colors duration-300">
@@ -113,7 +120,7 @@ export default function ProductFormWrapper({
         {/* Right Sidebar (Desktop only, 1024px+) */}
         <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
           <div className="sticky top-8">
-            <RightSidebarContent />
+            {rightSidebarContent}
           </div>
         </div>
       </div>
@@ -125,7 +132,7 @@ export default function ProductFormWrapper({
         mobileWidth="90%"
         tabletWidth="380px"
       >
-        <RightSidebarContent />
+        {rightSidebarContent}
       </FloatingSidebarToggle>
 
       {/* Floating Action Button (iPad & Mobile) */}
@@ -134,7 +141,7 @@ export default function ProductFormWrapper({
           <Button
             size="lg"
             className="h-14 w-14 rounded-full shadow-2xl"
-            onClick={() => setRightSidebarOpen(true)}
+            onClick={openTips}
             title="Creation Tips"
           >
             <Settings className="h-6 w-6" />

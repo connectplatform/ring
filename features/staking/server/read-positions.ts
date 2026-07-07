@@ -1,138 +1,136 @@
-import { resolveStakingAddresses, getPolygonRpcUrl } from '../staking.config'
-
-type Abi = any[]
+/**
+ * features/staking/server/read-positions.ts — server-side EVM position reader.
+ *
+ * Optional cached/aggregated on-chain reads for the wallet staking page.
+ * Inject through buildEvmStakingConfigFromSSOT({ readPositions }) so the
+ * adapter's getPositions() resolves server-side without client RPC fan-out.
+ * Not required for signing transactions.
+ *
+ * Contract read surface (see legacy sources in daarion/daarion-token/contracts):
+ *   APRStaking.sol      — stakesDAAR(addr), stakesDAARION(addr), totalStakedDAAR(),
+ *                         totalStakedDAARION(), DAAR_APR(), DAARION_APR(),
+ *                         getPendingRewards(addr)  [combined across both APR pools]
+ *   DAARDistributor.sol — stakes(addr), totalStakedDAARION(),
+ *                         getPendingRewardsDAARDistributor(addr),
+ *                         getCurrentEpoch(), epochDuration(), lastEpochTimestamp()
+ */
+import 'server-only'
+import type { EvmAbi } from '../adapters/evm'
+import { isDeployedEvmAddress } from '../adapters/evm'
+import { getEvmChainWalletSlot } from '../slots'
+import { getPolygonRpcUrl } from '../staking.config'
+import type { StakingPosition } from '../types'
 
 export interface ReadPositionsOptions {
-  aprStakingAbi?: Abi
-  feeDistributorAbi?: Abi
+  aprStakingAbi?: EvmAbi
+  feeDistributorAbi?: EvmAbi
   rpcUrl?: string
+  /** Explicit address overrides; default from chains.evm.staking.contracts. */
+  aprStakingAddress?: string
+  feeDistributorAddress?: string
 }
 
-export interface ServerStakingPosition {
-  pool: 'DAAR_APR' | 'DAARION_APR' | 'DAARION_DISTRIBUTOR'
-  token: 'DAAR' | 'DAARION'
-  stakedAmount: string
-  pendingRewards: string
-  apr?: number
-  totalStaked?: string
-  nextEpochTime?: number
-}
+export type ServerStakingPosition = StakingPosition
 
-function formatEtherSafe(value: any): string {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { formatEther } = require('ethers')
-    return formatEther(value)
-  } catch {
-    try {
-      return String(value)
-    } catch {
-      return '0'
-    }
+function contractAddressFrom(raw: unknown): string | undefined {
+  if (typeof raw === 'string') return isDeployedEvmAddress(raw) ? raw : undefined
+  if (typeof raw === 'object' && raw !== null) {
+    const addr = (raw as { address?: unknown }).address
+    return typeof addr === 'string' && isDeployedEvmAddress(addr) ? addr : undefined
   }
+  return undefined
 }
 
 /**
- * Optional server-side reader. Use this to cache/aggregate on-chain reads.
- * Not required for signing transactions.
+ * Read staking positions on the server. Non-fatal by design: individual pool
+ * read failures degrade to omission, never to a thrown 500 on the wallet page.
  */
 export async function readPositionsOnServer(
   walletAddress: string,
   opts: ReadPositionsOptions = {}
 ): Promise<ServerStakingPosition[]> {
+  const slot = getEvmChainWalletSlot()
   const rpcUrl = opts.rpcUrl || getPolygonRpcUrl()
   if (!rpcUrl || !walletAddress) return []
 
-  // Lazy import to keep client bundle slim
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { JsonRpcProvider, Contract } = require('ethers')
+  const { JsonRpcProvider, Contract, formatUnits } = require('ethers')
   const provider = new JsonRpcProvider(rpcUrl)
-  const addresses = resolveStakingAddresses()
+  const decimals = slot.tokenDecimals ?? 18
+  const fmt = (v: unknown): string => {
+    try { return formatUnits(v as bigint, decimals) } catch { return '0' }
+  }
+
+  const aprAddress = opts.aprStakingAddress ?? contractAddressFrom(slot.staking?.contracts?.aprStaking)
+  const distAddress = opts.feeDistributorAddress ?? contractAddressFrom(slot.staking?.contracts?.feeDistributor)
 
   const results: ServerStakingPosition[] = []
 
-  try {
-    if (opts.aprStakingAbi) {
-      const apr = new Contract(addresses.APR_STAKING, opts.aprStakingAbi, provider)
+  // ---- APRStaking pools (DAAR_APR, DAARION_APR) ----
+  if (aprAddress && opts.aprStakingAbi) {
+    const apr = new Contract(aprAddress, opts.aprStakingAbi, provider)
 
-      // DAAR pool
-      try {
-        const [stakeDaar, totalDaar, aprDaar, accDaar, aprPending] = await Promise.all([
-          apr.stakesDAAR(walletAddress),
-          apr.totalStakedDAAR(),
-          apr.DAAR_APR?.() ?? Promise.resolve(2000), // basis points fallback
-          apr.accRewardPerShareDAAR?.() ?? Promise.resolve(0),
-          apr.getPendingRewards(walletAddress)
-        ])
+    try {
+      const [stakeDaar, totalDaar, aprDaar, pendingTotal] = await Promise.all([
+        apr.stakesDAAR(walletAddress),
+        apr.totalStakedDAAR(),
+        apr.DAAR_APR?.() ?? Promise.resolve(2000n),
+        apr.getPendingRewards(walletAddress),
+      ])
+      results.push({
+        pool: 'DAAR_APR',
+        token: 'DAAR',
+        rewardToken: 'DAAR',
+        stakedAmount: fmt(stakeDaar.amount),
+        // getPendingRewards is combined across both APR pools — attribute to
+        // the pool the user actually staked in (0 when unstaked).
+        pendingRewards: Number(fmt(stakeDaar.amount)) > 0 ? fmt(pendingTotal) : '0',
+        apr: Number(aprDaar) / 100,
+        totalStaked: fmt(totalDaar),
+      })
+    } catch { /* pool read degraded — omit */ }
 
-        // Split combined APR pending rewards roughly by share of DAAR vs DAARION
-        const stakedDaar = Number(formatEtherSafe(stakeDaar.amount))
-        const aprPendingTotal = Number(formatEtherSafe(aprPending))
-        const pendingDaar = stakedDaar > 0 ? String(aprPendingTotal) : '0'
+    try {
+      const [stakeDaarion, totalDaarion, aprDaarion, pendingTotal] = await Promise.all([
+        apr.stakesDAARION(walletAddress),
+        apr.totalStakedDAARION(),
+        apr.DAARION_APR?.() ?? Promise.resolve(400n),
+        apr.getPendingRewards(walletAddress),
+      ])
+      results.push({
+        pool: 'DAARION_APR',
+        token: 'DAARION',
+        rewardToken: 'DAAR',
+        stakedAmount: fmt(stakeDaarion.amount),
+        pendingRewards: Number(fmt(stakeDaarion.amount)) > 0 ? fmt(pendingTotal) : '0',
+        apr: Number(aprDaarion) / 100,
+        totalStaked: fmt(totalDaarion),
+      })
+    } catch { /* pool read degraded — omit */ }
+  }
 
-        results.push({
-          pool: 'DAAR_APR',
-          token: 'DAAR',
-          stakedAmount: formatEtherSafe(stakeDaar.amount),
-          pendingRewards: pendingDaar,
-          apr: Number(aprDaar) / 100,
-          totalStaked: formatEtherSafe(totalDaar)
-        })
-      } catch {}
-
-      // DAARION APR pool
-      try {
-        const [stakeDaarion, totalDaarion, aprDaarion, accDaarion, aprPending] = await Promise.all([
-          apr.stakesDAARION(walletAddress),
-          apr.totalStakedDAARION(),
-          apr.DAARION_APR?.() ?? Promise.resolve(400), // basis points fallback
-          apr.accRewardPerShareDAARION?.() ?? Promise.resolve(0),
-          apr.getPendingRewards(walletAddress)
-        ])
-
-        const stakedDaarion = Number(formatEtherSafe(stakeDaarion.amount))
-        const aprPendingTotal = Number(formatEtherSafe(aprPending))
-        const pendingDaarion = stakedDaarion > 0 ? String(aprPendingTotal) : '0'
-
-        results.push({
-          pool: 'DAARION_APR',
-          token: 'DAARION',
-          stakedAmount: formatEtherSafe(stakeDaarion.amount),
-          pendingRewards: pendingDaarion,
-          apr: Number(aprDaarion) / 100,
-          totalStaked: formatEtherSafe(totalDaarion)
-        })
-      } catch {}
-    }
-
-    if (opts.feeDistributorAbi) {
-      const dist = new Contract(addresses.DAAR_DISTRIBUTOR, opts.feeDistributorAbi, provider)
-      try {
-        const [stakeInfo, total, pending, currentEpoch, epochDuration, lastEpochTs] = await Promise.all([
-          dist.stakes(walletAddress),
-          dist.totalStakedDAARION(),
-          dist.getPendingRewards(walletAddress),
-          dist.getCurrentEpoch?.() ?? Promise.resolve(0),
-          dist.epochDuration?.() ?? Promise.resolve(0),
-          dist.lastEpochTimestamp?.() ?? Promise.resolve(0)
-        ])
-        const nextEpochTime = (Number(lastEpochTs) + Number(epochDuration)) * 1000
-        results.push({
-          pool: 'DAARION_DISTRIBUTOR',
-          token: 'DAARION',
-          stakedAmount: formatEtherSafe(stakeInfo.amount),
-          pendingRewards: formatEtherSafe(pending),
-          apr: 0,
-          totalStaked: formatEtherSafe(total),
-          nextEpochTime
-        })
-      } catch {}
-    }
-  } catch {
-    // Keep optional path non-fatal
+  // ---- DAARDistributor pool (DAARION_DISTRIBUTOR) ----
+  if (distAddress && opts.feeDistributorAbi) {
+    const dist = new Contract(distAddress, opts.feeDistributorAbi, provider)
+    try {
+      const [stakeInfo, total, pending, epochDuration, lastEpochTs] = await Promise.all([
+        dist.stakes(walletAddress),
+        dist.totalStakedDAARION(),
+        dist.getPendingRewardsDAARDistributor(walletAddress),
+        dist.epochDuration?.() ?? Promise.resolve(0n),
+        dist.lastEpochTimestamp?.() ?? Promise.resolve(0n),
+      ])
+      results.push({
+        pool: 'DAARION_DISTRIBUTOR',
+        token: 'DAARION',
+        rewardToken: 'DAAR',
+        stakedAmount: fmt(stakeInfo.amount),
+        pendingRewards: fmt(pending),
+        totalStaked: fmt(total),
+        nextEpochTime: (Number(lastEpochTs) + Number(epochDuration)) * 1000,
+      })
+    } catch { /* pool read degraded — omit */ }
   }
 
   return results
 }
-
-

@@ -3,50 +3,49 @@
  * 
  * Ring-native: DatabaseService + React 19 cache()
  * READ operation - cached for performance
+ * 
+ * // TODO: Leverage Next.js 16 route cache APIs for optimal ISR/SSR integration
+ * // TODO: Explore moving this logic directly to a server action if only used server-side
  */
 
-import { cache } from 'react'
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
+import { cache } from 'react'; // React 19 cache() for deduplication/memoization
+import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
 import {
   mapDbDocumentToSerializedOpportunity,
-} from '@/features/opportunities/lib/opportunity-db-mapper'
-import { UserRole } from '@/features/auth/types'
-import { assertKnownUserRole } from '@/features/auth/user-role'
-import { buildOpportunityVisibilityFilters } from '@/features/opportunities/lib/opportunity-visibility-filter'
-import { auth } from '@/auth'
-import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
-import { logger } from '@/lib/logger'
-import { db } from '@/lib/database'
-import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
-
+} from '@/features/opportunities/lib/opportunity-db-mapper'; // Map DB docs to API shape
+import { UserRolesArray, assertKnownUserRole } from '@/features/auth/user-role';
+import { buildOpportunityVisibilityFilters } from '@/features/opportunities/lib/opportunity-visibility-filter';
+import { auth } from '@/auth';
+import {
+  OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError,
+  OpportunityDatabaseError, logRingError
+} from '@/lib/errors';
+import { logger } from '@/lib/logger';
+import { db } from '@/lib/database'; // Upgrade to edge-optimized database client when possible
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination';
 
 /**
- * Fetches a paginated list of opportunities based on user role.
- * 
- * This function performs the following steps:
- * 1. Authenticates the user and retrieves their session.
- * 2. Accesses Firestore using the admin SDK.
- * 3. Builds a query based on the user's role and applies filters.
- * 4. Handles pagination if a startAfter parameter is provided.
- * 5. Executes the query and processes the results.
- * 6. Returns the opportunities and the ID of the last visible document for pagination.
- * 
- * User steps:
- * 1. User requests a list of opportunities (typically through a frontend API call).
- * 2. The function authenticates the user and determines their role.
- * 3. Based on the user's role, the function fetches appropriate opportunities.
- * 4. The function returns the opportunities to be displayed to the user.
- * 
- * @param {number} limit - The maximum number of opportunities to fetch (default: 20)
- * @param {string} [startAfter] - The ID of the last document from the previous page for pagination
- * @returns {Promise<{ opportunities: Opportunity[]; lastVisible: string | null }>} A promise that resolves to an object containing the opportunities and the ID of the last visible document
- * @throws {OpportunityAuthError} If the user is not authenticated
- * @throws {OpportunityDatabaseError} If there's an error accessing the database
- * @throws {OpportunityQueryError} If there's an error executing the query
+ * Fetches a paginated list of opportunities based on user role and query params.
+ *
+ * @param {object} params
+ * @param {UserRolesArray} params.userRole   - The user's assigned role, must be validated.
+ * @param {number} [params.limit=20]        - Max number of docs to fetch.
+ * @param {string} [params.startAfter]      - Pagination cursor for next page (doc ID).
+ * @param {string} [params.query]           - Query string for text search on title.
+ * @param {string[]} [params.types]         - Filter by opportunity types.
+ * @param {string[]} [params.categories]    - Filter by opportunity categories.
+ * @param {string}   [params.location]      - Filter by location (prefix match).
+ * @param {number}   [params.budgetMin]     - Minimum budget filter.
+ * @param {number}   [params.budgetMax]     - Maximum budget filter.
+ * @param {'urgent'|'normal'|'low'} [params.priority] - Priority filter.
+ * @param {'today'|'week'|'month'} [params.deadline]  - Deadline filter (relative).
+ * @param {boolean}  [params.entityVerified]- Only show verified entities if true.
+ * @param {boolean}  [params.hasDeadline]   - Filter for has/not has deadline.
+ * @returns {Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }>}
  */
 export const getOpportunitiesForRole = cache(async (
   params: {
-    userRole: UserRole;
+    userRole: UserRolesArray;
     limit?: number;
     startAfter?: string;
     query?: string;
@@ -61,6 +60,7 @@ export const getOpportunitiesForRole = cache(async (
     hasDeadline?: boolean;
   }
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
+  // Destructure with defaults for safety
   const {
     userRole,
     limit = 20,
@@ -76,25 +76,37 @@ export const getOpportunitiesForRole = cache(async (
     entityVerified,
     hasDeadline
   } = params;
+
   try {
+    // Log start of function for trace/debug
+    // TODO: Remove console log in production; rely on logger.info
     console.log('Services: getOpportunitiesForRole - Starting...', { userRole, limit, startAfter });
 
-    assertKnownUserRole(userRole)
+    // Validate the user role input to prevent any privilege escalation or unknown role bugs
+    assertKnownUserRole(userRole) as UserRolesArray;
 
-    // Step 2: Build optimized query configuration based on user role
-    const queryConfig: any = {
+    // Step 1: Build DB query config with default sorting and limit
+    const queryConfig: {
+      limit: number,
+      orderBy: { field: string, direction: 'desc' | 'asc' }[],
+      where?: any[]
+    } = {
       limit,
       orderBy: [{ field: 'dateCreated', direction: 'desc' }]
     };
 
-    const whereConditions: any[] = [...buildOpportunityVisibilityFilters(userRole)]
+    // Step 2: Assemble filters from user role and supplied params
+    // Role determines global document visibility scope
+    const whereConditions: any[] = [...buildOpportunityVisibilityFilters(userRole)];
 
-    // Apply search and filter conditions
+    // ---------- Dynamic filtering logic for search and filters ----------
+    // Full-text prefix search on title (best effort, not ranked)
     if (query) {
       whereConditions.push({ field: 'title', operator: '>=', value: query });
       whereConditions.push({ field: 'title', operator: '<=', value: query + '\uf8ff' });
     }
 
+    // Type/category filtering if specified
     if (types && types.length > 0) {
       whereConditions.push({ field: 'type', operator: 'in', value: types });
     }
@@ -103,32 +115,33 @@ export const getOpportunitiesForRole = cache(async (
       whereConditions.push({ field: 'category', operator: 'in', value: categories });
     }
 
-    /** Text-prefix location match (not geo radius). */
+    // Location prefix match (not geo/coordinate)
     if (location) {
-      const loc = location.toLowerCase()
+      const loc = location.toLowerCase();
       whereConditions.push({ field: 'location', operator: '>=', value: loc });
       whereConditions.push({ field: 'location', operator: '<=', value: loc + '\uf8ff' });
     }
 
+    // Numeric budget filters
     if (budgetMin !== undefined) {
       whereConditions.push({ field: 'budget.amount', operator: '>=', value: budgetMin });
     }
-
     if (budgetMax !== undefined) {
       whereConditions.push({ field: 'budget.amount', operator: '<=', value: budgetMax });
     }
 
+    // Priority (enum: urgent, normal, low)
     if (priority) {
       whereConditions.push({ field: 'priority', operator: '=', value: priority });
     }
 
+    // Deadline relative queries (today, week, month)
     if (deadline) {
       const now = new Date();
       let deadlineDate: Date;
-
       switch (deadline) {
         case 'today':
-          deadlineDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          deadlineDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1); // midnight next day
           break;
         case 'week':
           deadlineDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -139,14 +152,15 @@ export const getOpportunitiesForRole = cache(async (
         default:
           deadlineDate = now;
       }
-
       whereConditions.push({ field: 'deadline', operator: '<=', value: deadlineDate });
     }
 
+    // Filter for only verified entities (or not)
     if (entityVerified !== undefined) {
       whereConditions.push({ field: 'entity.verified', operator: '=', value: entityVerified });
     }
 
+    // Filter by deadline existence
     if (hasDeadline !== undefined) {
       if (hasDeadline) {
         whereConditions.push({ field: 'deadline', operator: '!=', value: null });
@@ -155,24 +169,30 @@ export const getOpportunitiesForRole = cache(async (
       }
     }
 
+    // Only attach .where property if filters present, for compatibility with DB drivers
     if (whereConditions.length > 0) {
       queryConfig.where = whereConditions;
     }
 
-    // Apply cursor pagination when continuing from a previous page
+    // ------------------ Pagination using ID (cursor) ------------------
     if (startAfter) {
       try {
-        const result = await db().findDocById('opportunities', startAfter)
+        // Find doc by ID so we can use its sort field as the next cursor
+        // MOCK CODE, TODO: Use Firestore cursor or proper DB cursor API; optimize to fetch only required fields
+        const result = await db().findDocById('opportunities', startAfter);
 
         if (result.success && result.data) {
+          // Support for both "dateCreated" and legacy "date_created"
           const cursorDate =
             (result.data as { dateCreated?: string; date_created?: string }).dateCreated ??
-            (result.data as { date_created?: string }).date_created
+            (result.data as { date_created?: string }).date_created;
 
           if (cursorDate) {
-            whereConditions.push({ field: 'dateCreated', operator: '<', value: cursorDate })
+            // Use the date as a sorting pagination cursor
+            whereConditions.push({ field: 'dateCreated', operator: '<', value: cursorDate });
           } else {
-            whereConditions.push({ field: 'id', operator: '!=', value: startAfter })
+            // Fallback: prevent duplicate if no date
+            whereConditions.push({ field: 'id', operator: '!=', value: startAfter });
           }
         }
       } catch (error) {
@@ -189,9 +209,10 @@ export const getOpportunitiesForRole = cache(async (
       }
     }
 
-    // Step 3: Execute query using db.command()
+    // ---------------------- Execute query on DB -----------------------
     let queryResult;
     try {
+      // Build query object for driver (abstracted for DB portability)
       const dbQuery = {
         collection: 'opportunities',
         filters: queryConfig.where || [],
@@ -201,6 +222,7 @@ export const getOpportunitiesForRole = cache(async (
         }
       };
 
+      // MOCK CODE, TODO: Replace with server actions or Next.js native fetch as DB drivers evolve
       queryResult = await db().queryDocs(dbQuery);
     } catch (error) {
       throw new OpportunityQueryError(
@@ -216,35 +238,43 @@ export const getOpportunitiesForRole = cache(async (
       );
     }
 
-    // Step 4: Map query results to SerializedOpportunity objects
+    // ----------- Map raw DB docs to strong API type for output --------
     const opportunities: SerializedOpportunity[] = [];
     if (queryResult.success && queryResult.data) {
       for (const item of queryResult.data) {
+        // All DB results must be sanitized and converted to API format
         opportunities.push(mapDbDocumentToSerializedOpportunity(item));
       }
     }
 
-    // Cursor for next page only when this batch is full (short page = end of feed)
+    // Compute pagination cursor for response (for infinite scroll UIs)
     const { nextCursor: lastVisible } = computePaginationCursor(
       opportunities,
       limit,
       (item) => item.id,
-    )
+    );
 
-    logger.info('Services: getOpportunitiesForRole - Total opportunities fetched:', { opportunities: opportunities.length, lastVisible } );
+    // Log the result for observability (do not log all docs!)
+    logger.info('Services: getOpportunitiesForRole - Total opportunities fetched:', {
+      opportunities: opportunities.length,
+      lastVisible
+    });
 
+    // Return typed and serialized results, and nextPage cursor if available
     return { opportunities, lastVisible };
   } catch (error) {
-    // Enhanced error logging with cause information using centralized logger
+    // Centralized catch for error reporting and output wrapping
     logRingError(error, 'Services: getOpportunitiesForRole - Error');
-    
-    // Re-throw known errors, wrap unknown errors
-    if (error instanceof OpportunityPermissionError ||
-        error instanceof OpportunityQueryError ||
-        error instanceof OpportunityDatabaseError) {
+
+    // If it's a known error, pass through; else, wrap as query error
+    if (
+      error instanceof OpportunityPermissionError ||
+      error instanceof OpportunityQueryError ||
+      error instanceof OpportunityDatabaseError
+    ) {
       throw error;
     }
-    
+
     throw new OpportunityQueryError(
       'Unknown error occurred while fetching opportunities',
       error instanceof Error ? error : new Error(String(error)),
@@ -256,14 +286,22 @@ export const getOpportunitiesForRole = cache(async (
   }
 });
 
-// Convenience wrapper for contexts where session access is needed
-// React 19 cache() wrapper for automatic request deduplication
+// ---------------------------
+// Wrapper for session context
+// ---------------------------
+// React 19 cache() wrapper for automatic deduplication,
+// ensures user session is available. Only use in SSR/server code.
 export const getOpportunities = cache(async (
   limit: number = 20,
   startAfter?: string
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   logger.info('Services: getOpportunities - Starting...');
+
+  // MOCK CODE, TODO: Replace with native Next.js 16 request context reader
+  //                 when fully available for server actions.
   const session = await auth();
+
+  // Authentication guard: Ensure session & user is present
   if (!session || !session.user) {
     throw new OpportunityAuthError('Unauthorized access', undefined, {
       timestamp: Date.now(),
@@ -272,7 +310,10 @@ export const getOpportunities = cache(async (
       operation: 'getOpportunities'
     });
   }
-  const userRole = assertKnownUserRole(session.user.role);
+
+  // Validate and coerce user role before querying
+  const userRole = assertKnownUserRole(session.user.role) as UserRolesArray;
+
+  // Invoke main query with validated role
   return getOpportunitiesForRole({ userRole, limit, startAfter });
 });
-

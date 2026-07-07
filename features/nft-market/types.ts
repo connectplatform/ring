@@ -1,7 +1,9 @@
 export type ChainId = number
 
+import { SUPPORTED_CURRENCIES } from '@/lib/ring-config-chain'
+
 export interface Money {
-  currency: 'NATIVE' | 'DAAR' | 'DAARION'
+  currency: typeof SUPPORTED_CURRENCIES[number]
   amount: string // decimal string
 }
 
@@ -37,7 +39,7 @@ export interface NftItem {
   name: string
   description?: string
   price: string
-  currency: 'DAAR' | 'DAARION'
+  currency: typeof SUPPORTED_CURRENCIES[number]
   creator?: string
   benefits?: string[]
 }

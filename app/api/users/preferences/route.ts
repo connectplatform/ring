@@ -1,9 +1,43 @@
 import { NextResponse, connection} from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/locale-config'
+import { getDefaultTheme, getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
 
 type UserRow = Record<string, unknown> & { id: string }
+
+// ---------------------------------------------------------------------------
+// Preferences schema with Zod preprocess — validates incoming request body
+// and safely parses DB-stored preferences without type assertions.
+// ---------------------------------------------------------------------------
+
+const preferencesSchema = z.object({
+  locale: z
+    .string()
+    .refine(
+      (val) => (SUPPORTED_LOCALES as readonly string[]).includes(val),
+      { message: `Invalid locale. Supported: ${SUPPORTED_LOCALES.join(', ')}` },
+    )
+    .optional(),
+  currency: z.enum(['UAH', 'DAAR']).optional(),
+  theme: z.enum(['light', 'dark', 'system']).optional(),
+})
+
+type UserPreferences = z.infer<typeof preferencesSchema>
+
+/** Normalize raw POST body — extract only known preference keys, reject non-objects. */
+function normalizePreferencesBody(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const body = raw as Record<string, unknown>
+  return {
+    locale: body.locale,
+    currency: body.currency,
+    theme: body.theme,
+  }
+}
+
+const preferencesInputSchema = z.preprocess(normalizePreferencesBody, preferencesSchema)
 
 export async function GET() {
   await connection() // Next.js 16: opt out of prerendering
@@ -16,22 +50,19 @@ export async function GET() {
 
     const result = await db().findDocById<UserRow>('users', session.user.id)
     
+    const defaultPreferences: UserPreferences = {
+      locale: DEFAULT_LOCALE,
+      currency: getDefaultStoreCurrencySymbol() as UserPreferences['currency'],
+      theme: getDefaultTheme() as UserPreferences['theme'],
+    }
+
     if (!result.success || !result.data) {
-      return NextResponse.json({ 
-        preferences: {
-          locale: DEFAULT_LOCALE,
-          currency: 'UAH',
-          theme: 'system'
-        }
-      })
+      return NextResponse.json({ preferences: defaultPreferences })
     }
 
     const userData = result.data
-    const preferences = (userData.preferences as Record<string, unknown>) || {
-      locale: DEFAULT_LOCALE,
-      currency: 'UAH',
-      theme: 'system'
-    }
+    const parsedPrefs = preferencesSchema.safeParse(userData.preferences)
+    const preferences: UserPreferences = parsedPrefs.success ? parsedPrefs.data : defaultPreferences
 
     return NextResponse.json({ preferences })
   } catch (error) {
@@ -53,24 +84,17 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { locale, currency, theme } = body
+    const parsed = preferencesInputSchema.safeParse(body)
 
-    // Validate preferences
-    const validLocales: readonly string[] = SUPPORTED_LOCALES
-    const validCurrencies = ['UAH', 'DAAR']
-    const validThemes = ['light', 'dark', 'system']
-
-    if (locale && !validLocales.includes(locale)) {
-      return NextResponse.json({ error: 'Invalid locale' }, { status: 400 })
+    if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]
+      return NextResponse.json(
+        { error: firstIssue?.message ?? 'Invalid preferences' },
+        { status: 400 },
+      )
     }
 
-    if (currency && !validCurrencies.includes(currency)) {
-      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 })
-    }
-
-    if (theme && !validThemes.includes(theme)) {
-      return NextResponse.json({ error: 'Invalid theme' }, { status: 400 })
-    }
+    const { locale, currency, theme } = parsed.data
 
     const userResult = await db().findDocById<UserRow>('users', session.user.id)
     
@@ -79,7 +103,8 @@ export async function POST(request: Request) {
     }
 
     const userData = userResult.data
-    const currentPreferences = (userData.preferences as Record<string, unknown>) || {}
+    const currentParsed = preferencesSchema.safeParse(userData.preferences)
+    const currentPreferences: UserPreferences = currentParsed.success ? currentParsed.data : {}
 
     const updatedPreferences = {
       ...currentPreferences,

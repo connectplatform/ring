@@ -1,7 +1,6 @@
 {
   "title": "Vendor Dashboard",
   "becomeVendor": "Become a Vendor",
-
   "onboarding": {
     "title": "Become a Vendor on Ring Platform",
     "subtitle": "Join the Ring Marketplace and sell dev kits, AI tools, templates, and expert services",
@@ -59,7 +58,6 @@
       "logoInvalidType": "Logo must be JPG, PNG, or WebP"
     }
   },
-
   "dashboard": {
     "title": "Vendor Dashboard",
     "welcome": "Welcome back",
@@ -86,7 +84,6 @@
     "resourcesDescription": "Learn how to maximize your store's potential",
     "viewVendorGuide": "View Vendor Guide →"
   },
-
   "products": {
     "title": "My Products",
     "myProducts": "My Products",
@@ -99,7 +96,6 @@
     "totalProducts": "{count} products",
     "activeProducts": "{count} active",
     "pendingProducts": "{count} pending review",
-
     "status": {
       "active": "Active",
       "inactive": "Inactive",
@@ -107,7 +103,6 @@
       "approved": "Approved",
       "rejected": "Rejected"
     },
-
     "mainStore": {
       "badge": "Main Store",
       "submit": "Submit to Main Store",
@@ -116,7 +111,6 @@
       "rejected": "❌ Not Approved",
       "notSubmitted": "Not submitted to Main Store"
     },
-
     "actions": {
       "edit": "Edit",
       "duplicate": "Duplicate",
@@ -127,7 +121,6 @@
       "viewInStore": "View in Store",
       "viewInMainStore": "View in Main Store"
     },
-
     "filters": {
       "all": "All Products",
       "active": "Active",
@@ -144,7 +137,6 @@
       "sortNameAsc": "Name: A to Z",
       "sortNameDesc": "Name: Z to A"
     },
-
     "form": {
       "productDetails": "Product Details",
       "mainPhoto": "Main Photo",
@@ -186,9 +178,14 @@
       "referralCommissionPlaceholder": "Inherit ({percent}%)",
       "rep": "Product representative",
       "repHint": "Optional. Assign a Ring user by username to represent this product.",
-      "repPlaceholder": "Search by username…"
+      "repPlaceholder": "Search by username…",
+      "addProductParameter": "Add product parameter",
+      "parameterName": "Parameter name",
+      "parameterValue": "Parameter value",
+      "removeParameter": "Remove parameter",
+      "productAudience": "Member-only product",
+      "productAudienceHint": "Only members and above can view this product in the main store. Public products are visible to all."
     },
-
     "validation": {
       "nameRequired": "Product name is required",
       "nameTooShort": "Product name must be at least 3 characters",
@@ -206,7 +203,6 @@
       "videoInvalidType": "Video must be MP4 or WebM",
       "descriptionTooLong": "Description must be less than 200 characters"
     },
-
     "deleteConfirm": {
       "title": "Delete Product",
       "message": "Are you sure you want to delete '{name}'? This action cannot be undone.",
@@ -214,7 +210,6 @@
       "cancel": "Cancel"
     }
   },
-
   "storefront": {
     "title": "Vendor Store",
     "followVendor": "Follow",
@@ -248,7 +243,6 @@
       "sendMessage": "Send Message"
     }
   },
-
   "orders": {
     "title": "Vendor Orders",
     "description": "Orders containing your products",
@@ -314,7 +308,6 @@
     "stock": "Stock",
     "comingSoon": "Coming Soon"
   },
-
   "notifications": {
     "productCreated": "Product '{name}' created successfully",
     "productUpdated": "Product '{name}' updated successfully",
@@ -325,7 +318,6 @@
     "approvalApproved": "Congratulations! '{name}' has been approved for Main Store",
     "approvalRejected": "Product '{name}' was not approved. Reason: {reason}"
   },
-
   "startWrapper": {
     "setupProgress": "Setup Progress",
     "storeDetails": "Store Details",
@@ -362,7 +354,6 @@
     },
     "progressBenefits": "Progress & Benefits"
   },
-
   "startPage": {
     "title": "Vendor Onboarding",
     "subtitle": "Set up your store and start selling on Ring Platform",

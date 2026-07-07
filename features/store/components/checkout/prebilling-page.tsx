@@ -1,13 +1,24 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+// ===================
+// Imports & Setup
+// ===================
+
+// Import core React hooks and features
+import React, { useState, useEffect, use } from 'react'
+// TODO: Codemod: Migrate all async/side-effectful state that can prefill UI (user preferences, etc) to React 19's `use()` 
+// TODO: Switch local UI state to new native form state API (React 19) instead of manual useState reducers where possible
+// TODO: Consider using `useOptimistic()` for snappier save/setting update feedback (e.g., shipping/payment toggles)
+
+// Feature, UI, and model imports
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/use-auth'
-import { UserRole } from '@/features/auth/types'
-import { useOptionalCurrency } from '@/features/store/currency-context'
+import { UserRolesArray } from '@/features/auth/user-role'
+import { useOptionalStoreCurrency, useStoreCurrency } from '@/features/store/currency-context'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddressManager } from './address-manager'
-import { ShippingMethodSelector, type ShippingMethod } from './shipping-method-selector'
+import ShippingMethodSelector from './shipping-method-selector'
+import type { ShippingMethod } from './shipping-method-selector'
 import { PaymentStep, type PaymentMethod } from './payment-step'
 import { SecurityBadges } from './security-badges'
 import { Input } from '@/components/ui/input'
@@ -25,121 +36,157 @@ import {
   updatePaymentPreference,
   updateLastUsedAddress
 } from '@/app/_actions/store-preferences-actions'
+import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import type { STORE_CURRENCIES, StoreCurrency } from '@/lib/zod/store-product'
 
+// ===================
+// Interfaces & Types
+// ===================
+
+// Props for the checkout page component (cart, currency, callback, etc)
 interface PrebillingPageProps {
   cartItems: any[]
-  cartTotal: number
+  cartTotal: {
+    [key in StoreCurrency]: number
+  }
+  currency: StoreCurrency
+  defaultCurrency: StoreCurrency
   onProceedToPayment: (billingData: BillingData) => void
   returnTo?: string
 }
 
+// Structure sent to payment system on "Proceed"
 export interface BillingData {
-  // User info
   firstName: string
   lastName: string
   email: string
   phone: string
-  
-  // Shipping
   shippingAddress: UserAddress
   shippingMethod: ShippingMethod
   shippingLocation?: NovaPostLocation | null
-  
-  // Payment
   paymentMethod: PaymentMethod
   billingAddressSameAsShipping: boolean
   billingAddress?: UserAddress
-  
-  // Preferences
   savePaymentMethod: boolean
   marketingOptIn: boolean
 }
 
+// ===========================
+// Main Checkout Component
+// ===========================
 export function PrebillingPage({ 
   cartItems, 
   cartTotal, 
   onProceedToPayment,
   returnTo 
 }: PrebillingPageProps) {
+  // Translation util for i18n
   const t = useTranslations('modules.store.checkout')
-  const { user, role, isAuthenticated } = useAuth()
-  const currencyContext = useOptionalCurrency()
-  
-  // Currency conversion helpers
-  const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
-  const formatPrice = currencyContext?.formatPrice || ((price: number) => `${price.toFixed(2)} ₴`)
-  
-  // Form state
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  
-  // Shipping state
-  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null)
-  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('nova-post')
-  const [shippingLocation, setShippingLocation] = useState<NovaPostLocation | null>(null)
-  
-  // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wayforpay')
-  const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true)
-  const [selectedBillingAddress, setSelectedBillingAddress] = useState<UserAddress | null>(null)
-  
-  // Preferences state
-  const [savePaymentMethod, setSavePaymentMethod] = useState(false)
-  const [marketingOptIn, setMarketingOptIn] = useState(false)
-  
-  // Loading state
-  const [isLoading, setIsLoading] = useState(false)
 
-  // Auto-fill user data when authenticated
+  // Auth state, user details, and visitor role
+  const { user, role, isAuthenticated } = useAuth()
+
+  // Currency conversion, formats, current visible currency
+  const { convertPrice, formatPrice: formatCurrencyPrice } = useOptionalStoreCurrency()
+  const currency = useStoreCurrency()
+
+  // ==========================================
+  // UI/Form State (User, Address, Preferences)
+  // ==========================================
+
+  // TODO: Codemod suggestion - migrate all input fields to React 19 native form state API
+
+  // User identity fields
+  const [firstName, setFirstName] = useState('')    // User's first name input value
+  const [lastName, setLastName] = useState('')      // Last name input value
+  const [email, setEmail] = useState('')            // Email input value
+  const [phone, setPhone] = useState('')            // Phone input value (optional)
+
+  // Shipping state for selected address, method, and NovaPost location
+  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null)   // User's selected shipping address
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('nova-post')  // Default to 'nova-post'
+  const [shippingLocation, setShippingLocation] = useState<NovaPostLocation | null>(null) // NovaPost office branch
+
+  // Payment state for user's choices (method, addresses)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wayforpay')     // Default payment method
+  const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true) // Billing = shipping
+  const [selectedBillingAddress, setSelectedBillingAddress] = useState<UserAddress | null>(null) // Separate billing if needed
+
+  // Preferences and subscriptions
+  const [savePaymentMethod, setSavePaymentMethod] = useState(false)                  // Save card on file pref 
+  const [marketingOptIn, setMarketingOptIn] = useState(false)                        // User marketing opt-in
+
+  // For async UI/submit
+  const [isLoading, setIsLoading] = useState(false)                                  // Spinner during async calls
+
+  // ========== Load User Preferences with use() hook ==========
+
+  // TODO: Use `use()` everywhere suitable to load async data for hydrated React 19 context. Here, fetch preferences if user is known
+
+  let userPreferences: Awaited<ReturnType<typeof getUserStorePreferences>> | undefined = undefined
+  // Only run this when in browser and user is fully known
+  if (typeof window !== "undefined" && isAuthenticated && user?.id) {
+    try {
+      // Attempt to hydrate client with user store preferences from server
+      userPreferences = use(getUserStorePreferences())
+    } catch (e) {
+      // Swallow errors for UX; backend fetch fail should not break UI
+      userPreferences = undefined
+    }
+  }
+
+  // ======================
+  // Autofill user info and preferences on auth or pref change
+  // ======================
+
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Split name into first and last if available
+      // Attempt to parse first/last names from user info if available
       if (user.name) {
         const nameParts = user.name.split(' ')
         setFirstName(nameParts[0] || '')
         setLastName(nameParts.slice(1).join(' ') || '')
       }
       setEmail(user.email || '')
-      // Load user preferences
-      loadUserPreferences()
-    }
-  }, [isAuthenticated, user])
 
-  const loadUserPreferences = async () => {
-    if (!user?.id) return
-    
-    try {
-      const prefs = await getUserStorePreferences()
-      if (prefs) {
-        if (prefs.preferredShippingMethod) {
-          setShippingMethod(prefs.preferredShippingMethod)
+      // Hydrate store preferences if available
+      if (userPreferences) {
+        // Select stored shipping method if set
+        if (userPreferences.preferredShippingMethod) {
+          setShippingMethod(userPreferences.preferredShippingMethod)
         }
-        if (prefs.preferredPaymentMethod) {
-          const m = prefs.preferredPaymentMethod as string
+        // Set stored payment method, convert 'ring' legacy to 'credit'
+        if (userPreferences.preferredPaymentMethod) {
+          const m = userPreferences.preferredPaymentMethod as string
           setPaymentMethod(m === 'ring' ? 'credit' : (m as PaymentMethod))
         }
-        setSavePaymentMethod(prefs.savePaymentMethods ?? false)
+        // Load "save payment method" pref, default to false if unset
+        setSavePaymentMethod(userPreferences.savePaymentMethods ?? false)
       }
-    } catch (error) {
-      console.error('Failed to load user preferences:', error)
     }
-  }
+    // Only rerun if the "sources of truth" change (user or preferences)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user, userPreferences])
 
+  // ===========================
+  // Address and Preference Handlers
+  // ===========================
+
+  // Selected address from address manager
   const handleAddressSelect = (address: UserAddress) => {
     setSelectedAddress(address)
-    // Update user preferences
+    // After successful client update, persist selection backend if user is logged in
     if (user?.id && address.id) {
       updateLastUsedAddress(address.id).catch(error => {
+        // Log silent, non-blocking
         console.error('Failed to update last used address:', error)
       })
     }
   }
 
+  // When user changes shipping method, persist to store
   const handleShippingMethodChange = (method: ShippingMethod) => {
     setShippingMethod(method)
-    // Update user preferences
     if (user?.id) {
       updateShippingPreference(method).catch(error => {
         console.error('Failed to update shipping preference:', error)
@@ -147,9 +194,9 @@ export function PrebillingPage({
     }
   }
 
+  // Changing payment method and persist
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setPaymentMethod(method)
-    // Update user preferences
     if (user?.id) {
       updatePaymentPreference(method).catch(error => {
         console.error('Failed to update payment preference:', error)
@@ -157,19 +204,26 @@ export function PrebillingPage({
     }
   }
 
+  // ===========================
+  // Proceed to Payment Handler
+  // ===========================
+
+  // Called on "Proceed" click: validates, builds billing payload, and passes upstream
   const handleProceed = async () => {
+    // Validation: check address present
     if (!selectedAddress) {
       alert(t('pleaseSelectAddress'))
       return
     }
-
+    // If nova-post, branch selection is also required
     if (shippingMethod === 'nova-post' && !shippingLocation) {
       alert(t('pleaseSelectNovaPostLocation'))
       return
     }
 
-    setIsLoading(true)
+    setIsLoading(true) // UI blocks for network
 
+    // Compose billingData as required by payment backend
     const billingData: BillingData = {
       firstName,
       lastName,
@@ -185,29 +239,44 @@ export function PrebillingPage({
       marketingOptIn
     }
 
+    // Pass to caller callback, handle errors gracefully
     try {
       await onProceedToPayment(billingData)
     } catch (error) {
+      // Log only; UI can provide user error message in production
       console.error('Failed to proceed to payment:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
+  // ===========================
+  // Validation
+  // ===========================
+
+  // Check if checkout is ready for submission: must have all key fields
+  // TODO: Codemod: Migrate to Zod or Yup for schema-driven validation (add feedback for user)
   const isFormValid = selectedAddress && 
     firstName.trim() && 
     lastName.trim() && 
     email.trim() &&
     (shippingMethod !== 'nova-post' || shippingLocation)
 
+  // ===========================
+  // Main Render (JSX UI)
+  // ===========================
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        {/* Main Content */}
+        {/* ===== Left column: Main Checkout Steps ===== */}
         <div className="space-y-8">
-          
-          {/* Authentication Section for Visitors */}
-          {role === UserRole.visitor && (
+
+          {/* 
+            Authentication Step:
+            - If user is a non-logged "visitor", prompt login for faster checkout.
+            - Provide option to skip for guest flow.
+          */}
+          {role === UserRolesArray.visitor && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -229,7 +298,10 @@ export function PrebillingPage({
             </Card>
           )}
 
-          {/* Contact Information */}
+          {/* 
+            Contact / Identity panel
+            - Always shown; if logged in, disables (locks) email field
+          */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -238,6 +310,7 @@ export function PrebillingPage({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* First and last name split into two columns on desktop */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">{t('firstName')} *</Label>
@@ -260,7 +333,7 @@ export function PrebillingPage({
                   />
                 </div>
               </div>
-              
+              {/* Email, locks to user account if authenticated */}
               <div className="space-y-2">
                 <Label htmlFor="email">{t('email')} *</Label>
                 <Input
@@ -273,7 +346,7 @@ export function PrebillingPage({
                   required
                 />
               </div>
-              
+              {/* Optional phone number */}
               <div className="space-y-2">
                 <Label htmlFor="phone">{t('phone')}</Label>
                 <Input
@@ -287,7 +360,11 @@ export function PrebillingPage({
             </CardContent>
           </Card>
 
-          {/* Shipping Address */}
+          {/* 
+            Address entry step
+            - Authenticated users: show AddressManager (stored addresses selector)
+            - Guests/visitors: display stubbed address fields (to be implemented)
+          */}
           {isAuthenticated && user && (
             <Card>
               <CardContent className="p-6">
@@ -300,13 +377,20 @@ export function PrebillingPage({
             </Card>
           )}
 
-          {/* Guest Address Input */}
           {!isAuthenticated && (
             <Card>
               <CardHeader>
                 <CardTitle>{t('shippingAddress')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* 
+                  // STUB: Guest checkout address entry (not implemented)
+                  // TODO: Step 1: Add useState for guest address fields: street, city, postal, etc.
+                  // TODO: Step 2: In handleProceed, assemble UserAddress object from these guest fields; call setSelectedAddress before validation.
+                  // TODO: Step 3: Replace these input chunks using React 19's useForm or a 3rd party form lib for validation/registration.
+                  // TODO: Step 4: Implement form validation UI for errors, required fields, etc. (use Zod/Yup or React 19 form validation)
+                  // TODO: Step 5: Remove AddressManager (should stay hidden for guests).
+                */}
                 <div className="space-y-2">
                   <Label htmlFor="guestAddress">{t('addressLine1')} *</Label>
                   <Input
@@ -336,7 +420,10 @@ export function PrebillingPage({
             </Card>
           )}
 
-          {/* Shipping Method */}
+          {/* 
+            Shipping method picker (pickup, nova-post, etc)
+            - If 'nova-post', will also let user select a NP branch/location
+          */}
           <Card>
             <CardContent className="p-6">
               <ShippingMethodSelector
@@ -348,7 +435,9 @@ export function PrebillingPage({
             </CardContent>
           </Card>
 
-          {/* Payment Method */}
+          {/* 
+            Payment method picker; also manages address/billing and "save for future" 
+          */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -361,8 +450,11 @@ export function PrebillingPage({
                 method={paymentMethod}
                 setMethod={handlePaymentMethodChange}
               />
-              
-              {/* Billing Address Option */}
+              {/* 
+                Billing address toggle
+                // STUB: UI for separate billing address not yet implemented
+                // TODO: Add form section for specifying billing address if unchecked
+              */}
               <div className="mt-6 space-y-4">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -374,8 +466,7 @@ export function PrebillingPage({
                     {t('billingAddressSameAsShipping')}
                   </Label>
                 </div>
-                
-                {/* Save Payment Method */}
+                {/* "Save payment"—only for authenticated */}
                 {isAuthenticated && (
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -392,7 +483,7 @@ export function PrebillingPage({
             </CardContent>
           </Card>
 
-          {/* Marketing Opt-in */}
+          {/* Marketing Opt-In: Checkbox for user's consent for offers/news */}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
@@ -409,26 +500,31 @@ export function PrebillingPage({
           </Card>
         </div>
 
-        {/* Order Summary Sidebar */}
+        {/* ===== Right column: Cart/Order Summary, Security, Proceed ===== */}
         <div className="space-y-6">
+
+          {/* Cart/Order summary panel */}
           <Card>
             <CardHeader>
               <CardTitle>{t('orderSummary')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Cart Items */}
+              {/* 
+                Cart listing:
+                - Shows product, variants, per-product price breakdown, line total
+              */}
               <div className="space-y-3">
                 {cartItems.map((item, index) => {
-                  // Phase 2: Use finalPrice if available (includes variant modifiers)
+                  // Determine unit price (allowing override by chosen option/variant)
                   const displayPrice = item.finalPrice || parseFloat(item.product.price)
                   const itemTotal = displayPrice * item.quantity
-                  
+
                   return (
                     <div key={index} className="flex justify-between items-start text-sm pb-3 border-b last:border-b-0 last:pb-0">
                       <div className="flex-1">
                         <div className="font-medium">{item.product.name}</div>
-                        
-                        {/* Phase 2: Display selected variants */}
+
+                        {/* Show variant chips if present (ex: Color: Green) */}
                         {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {Object.entries(item.selectedVariants).map(([name, value]) => (
@@ -441,53 +537,123 @@ export function PrebillingPage({
                             ))}
                           </div>
                         )}
-                        
+                        {/* Show qty and unit price */}
                         <div className="text-muted-foreground mt-1">
-                          {t('quantity')}: {item.quantity} × {formatPrice(convertPrice(displayPrice))}
+                          {t('quantity')}: {item.quantity} × {formatCurrencyPrice(
+                            convertPrice(
+                              displayPrice,
+                              item.product.currency as StoreCurrency,
+                              currency.currency
+                            ),
+                            currency.currency
+                          )}
                         </div>
                       </div>
                       <div className="font-medium ml-4">
-                        {formatPrice(convertPrice(itemTotal))}
+                        {formatCurrencyPrice(
+                          convertPrice(itemTotal, item.product.currency as StoreCurrency, currency.currency),
+                          currency.currency
+                        )}
                       </div>
                     </div>
                   )
                 })}
               </div>
-              
+
               <Separator />
-              
-              {/* Totals */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>{t('subtotal')}</span>
-                  <span>{formatPrice(convertPrice(cartTotal))}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t('shipping')}</span>
-                  <span>
-                    {shippingMethod === 'pickup' ? t('free') : formatPrice(convertPrice(65))}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>{t('total')}</span>
-                  <span>
-                    {formatPrice(convertPrice(cartTotal + (shippingMethod === 'pickup' ? 0 : 65)))}
-                  </span>
-                </div>
-              </div>
+
+              {/* 
+                Order totals breakdown:
+                - Subtotal, shipping cost estimate, grand total
+                - TODO: Codemod to integrate w/ dynamic shipping logic when switching to React 19/Next 16 config
+              */}
+              {(() => {
+                // Compute subtotal from prop (current currency)
+                let subtotal = 0
+                if (typeof cartTotal === 'object' && cartTotal !== null) {
+                  subtotal = cartTotal[currency.currency as StoreCurrency] ?? 0
+                } else {
+                  subtotal = typeof cartTotal === 'number' ? cartTotal : 0
+                }
+
+                // Shipping: 0 for pickup, 65 default for others (replace with dynamic later)
+                let shippingCost = 0
+                if (shippingMethod === 'pickup') {
+                  shippingCost = 0
+                } else {
+                  // STUB: Temporary static shipping; replace with backend or quoting service
+                  shippingCost = 65
+                  // TODO: Replace static 65 with dynamic shipping quote from backend API
+                }
+
+                // Grand total = subtotal + shipping
+                const grandTotal = subtotal + shippingCost
+
+                return (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>{t('subtotal')}</span>
+                      <span>
+                        {formatCurrencyPrice(
+                          convertPrice(
+                            subtotal,
+                            currency.currency, 
+                            currency.currency
+                          ),
+                          currency.currency,
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t('shipping')}</span>
+                      <span>
+                        {shippingMethod === 'pickup'
+                          ? t('free')
+                          : formatCurrencyPrice(
+                              convertPrice(
+                                shippingCost,
+                                currency.currency, 
+                                currency.currency
+                              ),
+                              currency.currency,
+                            )}
+                        {/* TODO: Use dynamic shipping price lookup here */}
+                      </span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-semibold text-lg">
+                      <span>{t('total')}</span>
+                      <span>
+                        {formatCurrencyPrice(
+                          convertPrice(
+                            grandTotal,
+                            currency.currency, 
+                            currency.currency
+                          ),
+                          currency.currency,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
             </CardContent>
           </Card>
 
-          {/* Security Assurance */}
+          {/* Payment security badges section */}
           <SecurityBadges />
 
-          {/* Proceed Button */}
+          {/* 
+            Final "Proceed to Payment" button.
+            - Blocks (disables) unless form is valid and not loading.
+            - Spinner is shown during async API call.
+          */}
           <Button
             onClick={handleProceed}
             disabled={!isFormValid || isLoading}
             className="w-full h-12 text-lg mb-20 md:mb-0"
           >
+            {/* Spinner or proceed call-to-action */}
             {isLoading ? t('processing') : t('proceedToPayment')}
           </Button>
         </div>

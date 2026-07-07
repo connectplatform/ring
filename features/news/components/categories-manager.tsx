@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { NewsCategoryInfo, NewsCategory } from '@/features/news/types'
@@ -45,84 +45,17 @@ import {
   Tag
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  getCategoriesAction,
+  createCategoryAction,
+  updateCategoryAction,
+  deleteCategoryAction,
+  type CategoryFormState,
+} from '@/app/_actions/news'
 
 interface CategoriesManagerProps {
   initialCategories: NewsCategoryInfo[]
   locale: string
-}
-
-interface CategoryFormState {
-  success?: boolean
-  error?: string
-  message?: string
-}
-
-// Mock actions - to be replaced with actual server actions
-async function createCategoryAction(
-  prevState: CategoryFormState | null,
-  formData: FormData
-): Promise<CategoryFormState> {
-  const name = formData.get('name') as string
-  const description = formData.get('description') as string
-  const color = formData.get('color') as string
-  const icon = formData.get('icon') as string
-
-  if (!name?.trim()) {
-    return { error: 'Category name is required' }
-  }
-
-  try {
-    // TODO: Implement actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    return {
-      success: true,
-      message: `Category "${name}" created successfully`
-    }
-  } catch (error) {
-    return { error: 'Failed to create category' }
-  }
-}
-
-async function updateCategoryAction(
-  prevState: CategoryFormState | null,
-  formData: FormData
-): Promise<CategoryFormState> {
-  const id = formData.get('id') as string
-  const name = formData.get('name') as string
-  const description = formData.get('description') as string
-  const color = formData.get('color') as string
-  const icon = formData.get('icon') as string
-
-  if (!id || !name?.trim()) {
-    return { error: 'Category ID and name are required' }
-  }
-
-  try {
-    // TODO: Implement actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    return {
-      success: true,
-      message: `Category "${name}" updated successfully`
-    }
-  } catch (error) {
-    return { error: 'Failed to update category' }
-  }
-}
-
-async function deleteCategoryAction(categoryId: string): Promise<CategoryFormState> {
-  try {
-    // TODO: Implement actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    return {
-      success: true,
-      message: 'Category deleted successfully'
-    }
-  } catch (error) {
-    return { error: 'Failed to delete category' }
-  }
 }
 
 // Color palette for categories
@@ -315,6 +248,13 @@ export function CategoriesManager({
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
 
+  const refreshCategories = useCallback(async () => {
+    const result = await getCategoriesAction()
+    if (result.success && result.data) {
+      setCategories(result.data)
+    }
+  }, [])
+
   const handleDeleteCategory = async (categoryId: string) => {
     if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
       return
@@ -335,15 +275,13 @@ export function CategoriesManager({
 
   const handleCreateSuccess = () => {
     setShowCreateDialog(false)
-    // TODO: Refresh categories list from API
-    window.location.reload()
+    refreshCategories()
   }
 
   const handleEditSuccess = () => {
     setShowEditDialog(false)
     setSelectedCategory(null)
-    // TODO: Refresh categories list from API
-    window.location.reload()
+    refreshCategories()
   }
 
   return (

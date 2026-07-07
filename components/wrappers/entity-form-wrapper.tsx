@@ -5,7 +5,7 @@
  * Locale keys: modules.entities.addEntity.rail.*
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
@@ -65,6 +65,16 @@ export default function EntityFormWrapper({ children, locale }: EntityFormWrappe
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Stable navigation callbacks
+  const goToCreatingDocs = useCallback(
+    () => router.push(`${ROUTES.DOCS(locale)}/entities/creating`),
+    [locale, router]
+  )
+  const goToBestPractices = useCallback(
+    () => router.push(`${ROUTES.DOCS(locale)}/entities/best-practices`),
+    [locale, router]
+  )
 
   const featuredTypes = useMemo(
     () =>
@@ -168,7 +178,7 @@ export default function EntityFormWrapper({ children, locale }: EntityFormWrappe
     },
   ]
 
-  const RightSidebarContent = () => (
+  const rightSidebarContent = useMemo(() => (
     <div className="flex flex-col min-h-0 text-foreground space-y-6">
       {/* What is an entity on Ring Platform */}
       <section className="space-y-2">
@@ -336,21 +346,21 @@ export default function EntityFormWrapper({ children, locale }: EntityFormWrappe
           <Button
             variant="link"
             className="p-0 h-auto text-xs"
-            onClick={() => router.push(`${ROUTES.DOCS(locale)}/entities/creating`)}
+            onClick={goToCreatingDocs}
           >
             {t('creatingEntities')} →
           </Button>
           <Button
             variant="link"
             className="p-0 h-auto text-xs"
-            onClick={() => router.push(`${ROUTES.DOCS(locale)}/entities/best-practices`)}
+            onClick={goToBestPractices}
           >
             {t('bestPractices')} →
           </Button>
         </div>
       </section>
     </div>
-  )
+  ), [featuredTypes, t, tRail, locale, goToCreatingDocs, goToBestPractices])
 
   if (!mounted) {
     return <div className="min-h-[40vh]">{children}</div>
@@ -358,7 +368,7 @@ export default function EntityFormWrapper({ children, locale }: EntityFormWrappe
 
   return (
     <RingRightRailLayout
-      rightRail={<RightSidebarContent />}
+      rightRail={rightSidebarContent}
       isOpen={rightSidebarOpen}
       onToggle={setRightSidebarOpen}
       contentClassName="pb-24 lg:pb-8"

@@ -1,456 +1,361 @@
 ---
-title: Best Practices
-description: Best Practices documentation for Ring Platform
+title: Лучшие практики
+description: Паттерны разработки, специфичные для Ring Platform — серверные действия, доступ к базе данных, аутентификация, платежи и тестирование.
+last_modified: "2026-06-28"
+audience: both
 ---
 
-# Best Practices
+# Лучшие практики
 
-Development best practices and coding standards for Ring Platform.
+Паттерны разработки и конвенции, специфичные для Ring Platform.
 
-## 🎯 General Principles
+<Audience for="founder">
 
-### 1. Code Quality
-- **Readability First** - Code is read more than written
-- **Consistency** - Follow established patterns
-- **Simplicity** - Prefer simple solutions over complex ones
-- **Documentation** - Document complex logic and decisions
+## Принципы разработки
 
-### 2. Performance
-- **Lazy Loading** - Load components and data on demand
-- **Memoization** - Use React.memo, useMemo, useCallback appropriately
-- **Bundle Optimization** - Keep bundle sizes minimal
-- **Database Efficiency** - Optimize queries and reduce calls
+### Качество превыше количества
+Ring Platform — это мультитенантная white-label платформа, обеспечивающая работу более 15 продакшен-клонов. Каждый паттерн должен одинаково работать как в средах с PostgreSQL (`k8s-postgres-fcm`), так и с Firebase. Уровень абстракции `DatabaseService` гарантирует это — пишите один раз в `db()`, работайте везде.
 
-## ⚛️ React Best Practices
+### Безопасность по конвенции
+- `userId` **всегда** получается из `await auth()` в серверном коде, никогда из параметров, предоставленных клиентом.
+- Платежные операции выполняются только на сервере. HMAC-подписи WayForPay верифицируют подлинность обратных вызовов.
+- Загрузка файлов проходит через абстракцию `file()` (`@/lib/file`) — контроль доступа применяется на уровне загрузки, никогда не предполагается со стороны клиента.
 
-### Component Design
+### i18n не является опциональным
+Все строки, ориентированные на пользователя, находятся в JSON-пакетах `locales/{locale}/`, загружаемых через `next-intl`. Строки непосредственно в компонентах являются признаком плохого кода. См. `docs/en/architecture/proxy-and-intl.mdx` для архитектуры i18n.
 
-#### 1. Single Responsibility
-// ❌ Bad - Component doing too much
+### Уважайте режим бэкенда
+`DB_BACKEND_MODE` выбирает адаптер базы данных во время выполнения. Не импортируйте `firebase-admin` или `postgres` напрямую в доменном коде. Используйте исключительно `db()` из `@/lib/database`. См. [Режимы бэкенда и базы данных](/en/docs/architecture/backend-modes-and-databases).
 
-<Code language="typescript" title="TypeScript">
-{`function UserDashboard({ user }: { user: User }) {
-  // Handles user profile, notifications, settings, etc.
-  return (
-    <div>
-      {/* 200+ lines of mixed concerns */}
-    </div>
-  )
-}
+</Audience>
 
-// ✅ Good - Focused components
-function UserDashboard({ user }: { user: User }) {
-  return (
-    <div>
-      <UserProfile user={user} />
-      <NotificationCenter userId={user.id} />
-      <UserSettings userId={user.id} />
-    </div>
-  )
-}`}
-</Code>
+<Audience for="developer">
 
-#### 2. Props Interface Design
-// ❌ Bad - Unclear props
+## Доступ к базе данных
 
-<Code language="typescript" title="TypeScript">
-{`interface Props {
-  data: any
-  onClick: () => void
-  flag: boolean
-}
+### Синглтон `db()`
 
-// ✅ Good - Clear, typed props
-interface EntityCardProps {
-  entity: Entity
-  onEdit?: (entity: Entity) => void
-  isEditable?: boolean
-  variant?: 'default' | 'compact'
-}`}
-</Code>
+Основной интерфейс базы данных — это синглтон `db()` из `@/lib/database`. Он автоматически инициализируется и предоставляет типизированные методы `*Doc`, возвращающие объекты результата `{ success, data, error }`.
 
-#### 3. Custom Hooks
-// ✅ Extract complex logic into custom hooks
+```typescript
+import { db } from '@/lib/database'
 
-<Code language="typescript" title="TypeScript">
-{`function useEntityOperations(entityId: string) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+// Создание
+const result = await db().createDoc('entities', { name: 'Acme', type: 'technology' })
+if (!result.success) throw result.error
 
-  const updateEntity = useCallback(async (data: UpdateEntityData) => {
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      await updateEntityAction(entityId, data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [entityId])
+// Чтение по ID
+const entity = await db().findDocById<Entity>('entities', id)
+if (!entity.success) throw entity.error
 
-  return { updateEntity, isLoading, error }
-}`}
-</Code>
-
-### State Management
-
-#### 1. Local State First
-// ✅ Use local state for component-specific data
-
-<Code language="typescript" title="TypeScript">
-{`function SearchInput() {
-  const [query, setQuery] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-  
-  return (
-    <div>
-      <input 
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-      />
-      {isOpen && <SearchResults query={query} />}
-    </div>
-  )
-}`}
-</Code>
-
-#### 2. Server State with React Query
-// ✅ Use React Query for server state
-
-<Code language="typescript" title="TypeScript">
-{`function EntitiesPage() {
-  const { 
-    data: entities, 
-    isLoading, 
-    error 
-  } = useQuery({
-    queryKey: ['entities'],
-    queryFn: fetchEntities,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
-
-  if (isLoading) return <LoadingSpinner />
-  if (error) return <ErrorMessage error={error} />
-  
-  return <EntitiesList entities={entities} />
-}`}
-</Code>
-
-## 🔧 TypeScript Best Practices
-
-### 1. Strict Type Safety
-// ✅ Use strict types
-
-<Code language="typescript" title="TypeScript">
-{`interface CreateEntityRequest {
-  name: string
-  type: EntityType // Union type, not string
-  description: string
-  tags?: string[] // Optional with specific type
-}
-
-// ❌ Avoid any
-function processData(data: any) { ... }
-
-// ✅ Use generics or specific types
-function processData<T>(data: T): ProcessedData<T> { ... }`}
-</Code>
-
-### 2. Utility Types
-// ✅ Use utility types for transformations
-
-<Code language="typescript" title="TypeScript">
-{`interface Entity {
-  id: string
-  name: string
-  description: string
-  createdAt: Date
-}
-
-// Create types from existing ones
-type CreateEntityData = Omit<Entity, 'id' | 'createdAt'>
-type EntitySummary = Pick<Entity, 'id' | 'name'>
-type PartialEntity = Partial<Entity>`}
-</Code>
-
-### 3. Type Guards
-// ✅ Use type guards for runtime type checking
-
-<Code language="typescript" title="TypeScript">
-{`function isEntity(obj: unknown): obj is Entity {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    'name' in obj &&
-    typeof (obj as Entity).id === 'string'
-  )
-}
-
-// Usage
-if (isEntity(data)) {
-  // TypeScript knows data is Entity here
-  console.log(data.name)
-}`}
-</Code>
-
-## 🗄️ Database Best Practices
-
-### 1. Query Optimization
-// ❌ Bad - Multiple queries
-
-<Code language="typescript" title="TypeScript">
-{`async function getUserWithEntities(userId: string) {
-  const user = await getUser(userId)
-  const entities = await getEntitiesByUserId(userId)
-  return { user, entities }
-}
-
-// ✅ Good - Single optimized query
-async function getUserWithEntities(userId: string) {
-  return await db.collection('users')
-    .doc(userId)
-    .get()
-    .then(async (userDoc) => {
-      const entitiesSnapshot = await db.collection('entities')
-        .where('userId', '==', userId)
-        .get()
-      
-      return {
-        user: userDoc.data(),
-        entities: entitiesSnapshot.docs.map(doc => doc.data())
-      }
-    })
-}`}
-</Code>
-
-### 2. Data Validation
-// ✅ Validate data at boundaries
-
-<Code language="typescript" title="TypeScript">
-{`import { z } from 'zod'
-
-const createEntitySchema = z.object({
-  name: z.string().min(1).max(100),
-  type: z.enum(['technology', 'healthcare', 'finance']),
-  description: z.string().max(500),
+// Запрос с фильтрами
+const results = await db().queryDocs<Entity>({
+  collection: 'entities',
+  filters: [{ field: 'status', operator: '==', value: 'active' }],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  pagination: { limit: 20, offset: 0 },
 })
 
-export async function createEntity(data: unknown) {
-  const validatedData = createEntitySchema.parse(data)
-  // Now TypeScript knows the exact shape
-  return await db.collection('entities').add(validatedData)
-}`}
-</Code>
+// Обновление
+await db().updateDoc('entities', id, { name: 'Acme Corp' })
 
-## 🔒 Security Best Practices
+// Удаление
+await db().deleteDoc('entities', id)
+```
 
-### 1. Authentication Checks
-// ✅ Always verify authentication
+<Callout type="info">
+Синглтон `db()` переживает HMR Next.js благодаря `globalThis.__ringDatabaseService`. База данных инициализируется один раз и использует соединение повторно во время горячих перезагрузок.
+</Callout>
 
-<Code language="typescript" title="TypeScript">
-{`export async function updateEntity(entityId: string, data: UpdateEntityData) {
+### Транзакции
+
+Используйте `db().transaction()` для атомарных многошаговых записей. Обратный вызов транзакции получает `IDatabaseTransaction` с методами `create`, `read`, `update`, `delete`. Ошибки **выбрасываются** — не проверяйте `result.success` внутри транзакции.
+
+```typescript
+import { db } from '@/lib/database'
+
+await db().transaction(async (txn) => {
+  const existing = await txn.read('usernames', usernameKey)
+  if (existing) throw new Error('Username is taken')
+
+  await txn.create('usernames', { userId, reservedAt: new Date() }, { id: usernameKey })
+  await txn.update('users', userId, { username })
+})
+```
+
+### Прямой доступ к сервису (продвинутый)
+
+Для специализированной маршрутизации бэкенда или операций с несколькими адаптерами импортируйте класс `DatabaseService` напрямую:
+
+```typescript
+import { getDatabaseService } from '@/lib/database/DatabaseService'
+const svc = getDatabaseService()
+await svc.initialize()
+```
+
+См. [Режимы бэкенда и базы данных](/en/docs/architecture/backend-modes-and-databases) для деталей по выбору адаптера и синхронизации.
+
+<Callout type="warning">
+**Не** используйте сырые запросы Firestore или pg в коде функций. Каждая операция с базой данных должна проходить через `DatabaseService`, чтобы платформа могла менять бэкенды без переписывания бизнес-логики.
+</Callout>
+
+## Серверные действия
+
+Все серверные действия находятся в `app/_actions/` и следуют согласованному паттерну.
+
+### Конвенции
+
+1. Директива `'use server'` на уровне файла в начале.
+2. `import { auth } from '@/auth'` для сессии — никогда не принимайте `userId` от клиента.
+3. Возвращайте объекты состояния формы `{ success?: boolean, error?: string, message?: string }`.
+4. Используйте `localizedRedirect` для навигации после успеха.
+5. Валидация через Zod или вручную на границе.
+
+```typescript
+'use server'
+
+import { auth } from '@/auth'
+import { db } from '@/lib/database'
+import { revalidatePath } from 'next/cache'
+import { localizedRedirect } from '@/lib/i18n-server-redirect'
+import type { Locale } from '@/i18n/shared'
+
+export interface ActionResult {
+  success?: boolean
+  error?: string
+  message?: string
+  fieldErrors?: Record<string, string>
+}
+
+export async function createEntity(
+  prevState: ActionResult | null,
+  formData: FormData,
+  locale: Locale
+): Promise<ActionResult> {
   const session = await auth()
-  if (!session?.user) {
-    throw new Error('Unauthorized')
-  }
+  if (!session?.user?.id) return { error: 'Authentication required' }
 
-  // Verify ownership
-  const entity = await getEntity(entityId)
-  if (entity.userId !== session.user.id) {
-    throw new Error('Forbidden')
-  }
+  // Валидация
+  const name = formData.get('name') as string
+  if (!name?.trim()) return { error: 'Name is required' }
 
-  return await updateEntityInDb(entityId, data)
-}`}
-</Code>
-
-### 2. Input Sanitization
-// ✅ Sanitize user inputs
-
-<Code language="typescript" title="TypeScript">
-{`import DOMPurify from 'dompurify'
-
-function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em'],
-    ALLOWED_ATTR: []
+  // Запись
+  const result = await db().createDoc('entities', {
+    name: name.trim(),
+    createdBy: session.user.id,
+    createdAt: new Date(),
   })
-}`}
-</Code>
 
-## 🎨 Styling Best Practices
+  if (!result.success) return { error: result.error?.message ?? 'Creation failed' }
 
-### 1. Consistent Design System
-// ✅ Use design tokens
-
-<Code language="typescript" title="TypeScript">
-{`const theme = {
-  colors: {
-    primary: {
-      50: '#eff6ff',
-      500: '#3b82f6',
-      900: '#1e3a8a',
-    }
-  },
-  spacing: {
-    xs: '0.5rem',
-    sm: '1rem',
-    md: '1.5rem',
-  }
-}`}
-</Code>
-
-### 2. Component Variants
-// ✅ Use variant patterns
-
-<Code language="typescript" title="TypeScript">
-{`const buttonVariants = {
-  variant: {
-    default: 'bg-primary text-white',
-    outline: 'border border-primary text-primary',
-    ghost: 'text-primary hover:bg-primary/10',
-  },
-  size: {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg',
-  }
-}`}
-</Code>
-
-## 📝 Documentation Best Practices
-
-### 1. Code Comments
-// ✅ Document complex logic
-
-<Code language="typescript" title="TypeScript">
-{`/**
- * Calculates the confidence score for entity matching
- * based on name similarity, industry overlap, and location proximity.
- * 
- * @param entity1 - First entity to compare
- * @param entity2 - Second entity to compare
- * @returns Confidence score between 0 and 1
- */
-function calculateMatchConfidence(entity1: Entity, entity2: Entity): number {
-  // Weight factors for different matching criteria
-  const NAME_WEIGHT = 0.4
-  const INDUSTRY_WEIGHT = 0.3
-  const LOCATION_WEIGHT = 0.3
-  
-  // ... implementation
-}`}
-</Code>
-
-### 2. README Files
-Feature Name # Usage
-
-<Code language="markdown" title="content">
-{`Brief description of what this feature does.`}
-</Code>typescript
-import { useFeature } from './hooks/use-feature'
-
-function Component() {
-  const { data, isLoading } = useFeature()
-  // ...
+  revalidatePath(`/${locale}/entities`)
+  localizedRedirect({ locale, href: '/entities' })
 }
 ```
 
-## API
+### Обработка ошибок
 
-### `useFeature(options?)`
+- Возвращайте строки ошибок для отображения в форме. Не выбрасывайте ошибки в действиях, возвращающих формы.
+- Выбрасывайте только для невосстановимых ошибок (неправильная конфигурация, отсутствующие переменные окружения).
+- Оборачивайте `localizedRedirect` в try/catch — он выбрасывает `NEXT_REDIRECT`, который должен распространяться.
 
-- `options.enabled` - Whether to enable the query
-- Returns: `{ data, isLoading, error }`
+<Callout type="tip">
+Проверьте `app/_actions/vendor-actions.ts` для комплексного реального примера, охватывающего загрузку файлов (Vercel Blob через `file()`), вложенное создание + обновление и многошаговые потоки онбординга.
+</Callout>
+
+## Аутентификация
+
+### Серверная сторона (`@/auth`)
+
+Импортируйте `auth` из корневого `@/auth` (не напрямую из `next-auth` или `authjs` — Ring Platform предоставляет настроенный экземпляр в `auth.ts`).
+
+```typescript
+import { auth } from '@/auth'
+
+export async function getServerSession() {
+  const session = await auth()
+  return session
+}
 ```
 
-## 🧪 Testing Best Practices
+Вызов `auth()` доступен в:
+- Серверных действиях (`app/_actions/`)
+- Обработчиках маршрутов (`app/api/`)
+- Серверных компонентах (асинхронный компонент)
+- Промежуточном ПО (middleware)
 
-### 1. Test Structure
-// ✅ Arrange, Act, Assert pattern
+### Клиентская сторона (`useSession`)
 
-<Code language="typescript" title="TypeScript">
-{`describe('EntityCard', () => {
-  it('should display entity information', () => {
-    // Arrange
-    const mockEntity = {
-      id: '1',
-      name: 'Test Entity',
-      description: 'Test description'
-    }
+```typescript
+'use client'
 
-    // Act
-    render(<EntityCard entity={mockEntity} />)
+import { useSession } from '@/auth/client'
 
-    // Assert
-    expect(screen.getByText('Test Entity')).toBeInTheDocument()
-    expect(screen.getByText('Test description')).toBeInTheDocument()
+export function UserInfo() {
+  const { data: session, status } = useSession()
+
+  if (status === 'loading') return <div>Loading...</div>
+  if (!session?.user) return <div>Not signed in</div>
+
+  return <div>{session.user.name}</div>
+}
+```
+
+### Конфигурация Auth.js (NextAuth v5)
+
+Каноническая конфигурация auth находится в `auth.ts` в корне проекта. Она настраивает:
+- Провайдера учетных данных (email/пароль)
+- Провайдера Google OAuth
+- Стратегию JWT (с ротацией токенов обновления)
+- Адаптер PostgreSQL (`lib/auth/postgres-adapter.ts`)
+
+Не создавайте дополнительных файлов `auth.ts` в функциональных модулях. Расширяйте корневую конфигурацию.
+
+<Callout type="warning">
+Никогда не передавайте `userId` от клиента в серверное действие или API-маршрут. Получайте его из `await auth()` на сервере. См. `app/_actions/fcm.ts` для канонического паттерна — `userId получается только из auth() — никогда не передавайте userId от клиента`.
+</Callout>
+
+## Push-уведомления (FCM)
+
+Регистрация и отмена регистрации FCM-токенов происходят через серверные действия в `app/_actions/fcm.ts`. Соответствующие операции с БД находятся в `lib/notifications/fcm-token-db.ts`.
+
+```typescript
+'use server'
+
+import { auth } from '@/auth'
+import { upsertFcmTokenForUser, unregisterFcmTokenForUser } from '@/lib/notifications/fcm-token-db'
+import type { UpsertFcmTokenParams, UpsertFcmTokenResult } from '@/lib/notifications/fcm-token-db'
+
+export async function upsertFcmToken(params: UpsertFcmTokenParams): Promise<UpsertFcmTokenResult> {
+  const session = await auth()
+  if (!session?.user?.id) return { error: 'Authentication required' }
+  return upsertFcmTokenForUser(session.user.id, params)
+}
+```
+
+Отправляйте уведомления на стороне сервера с помощью инструмента `ring-mcp_ring-fcm-send` или прямого обмена сообщениями Firebase Admin. Никогда не раскрывайте серверные ключи FCM клиенту.
+
+## Платежи (WayForPay)
+
+Ring Platform использует WayForPay в качестве основного платежного провайдера. Ключевые паттерны:
+
+- **Вся логика платежей исключительно на сервере** — никогда не раскрывайте API-ключи или HMAC-секреты клиенту.
+- **Идемпотентный `orderReference`** — каждая попытка платежа имеет уникальный `orderReference` для предотвращения дублирования списаний.
+- **HMAC-верификация** — обратные вызовы вебхуков верифицируются с помощью HMAC MD5 перед обработкой.
+- **Обработка 3DS** — перенаправления WayForPay управляются через `components/store/checkout/`.
+
+См. `docs/en/architecture/payment-conductor.mdx` для полной архитектуры платежей, потока вебхуков и паттернов возврата средств.
+
+## Границы серверных и клиентских компонентов
+
+- **По умолчанию используйте серверные компоненты** — получайте данные и рендерьте на сервере.
+- **Опускайте клиентские границы вниз** — оборачивайте интерактивные элементы (формы, карты, реальное время) в листьях `'use client'`.
+- **Избегайте useEffect для получения данных** — используйте серверные действия, обработчики маршрутов или `useActionState` в React 19.
+
+```typescript
+// page.tsx — серверный компонент (по умолчанию)
+export default async function EntitiesPage({ params: { locale } }: Props) {
+  const session = await auth()
+
+  const result = await db().queryDocs<Entity>({
+    collection: 'entities',
+    filters: [],
+    pagination: { limit: 20 },
   })
-})`}
-</Code>
 
-### 2. Mock External Dependencies
-// ✅ Mock external services
+  return <EntityList entities={result.data ?? []} session={session} />
+}
+```
 
-<Code language="typescript" title="TypeScript">
-{`jest.mock('@/lib/firebase', () => ({
-  db: {
-    collection: jest.fn(() => ({
-      add: jest.fn().mockResolvedValue({ id: 'mock-id' })
-    }))
-  }
-}))`}
-</Code>
+## Загрузка файлов
 
-## 📊 Performance Best Practices
+Используйте абстракцию `file()` из `@/lib/file` вместо прямого вызова API Vercel Blob или S3.
 
-### 1. React Optimization
-// ✅ Memoize expensive calculations
+```typescript
+import { file } from '@/lib/file'
 
-<Code language="typescript" title="TypeScript">
-{`const ExpensiveComponent = memo(({ data }: { data: ComplexData }) => {
-  const processedData = useMemo(() => {
-    return processComplexData(data)
-  }, [data])
+const result = await file().upload(`entities/${entityId}/logo.webp', fileObject, {
+  access: 'public',
+  addRandomSuffix: false,
+})
+if (!result.success) throw new Error(result.error)
+```
 
-  return <div>{processedData.result}</div>
+## Паттерны тестирования
+
+Тесты находятся в `__tests__/` и используют Jest (с `@jest-environment jsdom` для тестов компонентов) или Vitest.
+
+### Имитируйте внешние сервисы, а не DatabaseService
+
+Тесты Ring Platform имитируют на границе — константы, `next/link`, пакеты переводов — но **не** имитируют `@/lib/database` с фейковым Firestore. Логика, зависящая от базы данных, тестируется либо на реальной тестовой базе данных, либо через интеграционные тесты, которые используют полный стек адаптеров.
+
+<Callout type="tip">
+См. [Руководство по тестированию](/en/docs/development/testing) для полной стратегии тестирования и просмотрите реальные тестовые файлы в `__tests__/features/` (например, `news-visibility-filter.test.ts`, `referral-commission.test.ts`) для паттернов, тестирующих чистую бизнес-логику без имитации базы данных.
+</Callout>
+
+### Пример тестирования компонентов
+
+```typescript
+/**
+ * @jest-environment jsdom
+ */
+
+import { render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import EntityCard from '@/components/EntityCard'
+import type { Locale } from '@/i18n/shared'
+
+// Имитация next/link
+jest.mock('next/link', () => {
+  return ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  )
 })
 
-// ✅ Optimize re-renders
-const OptimizedList = memo(({ items, onItemClick }: Props) => {
-  return (
-    <div>
-      {items.map(item => (
-        <OptimizedItem 
-          key={item.id}
-          item={item}
-          onClick={onItemClick}
-        />
-      ))}
-    </div>
-  )
-})`}
-</Code>
+const mockMessages = {
+  'entities.card.viewDetails': 'View Details',
+}
 
-### 2. Bundle Optimization
-// ✅ Dynamic imports for code splitting
+describe('EntityCard', () => {
+  it('рендерит название сущности', () => {
+    const entity = { id: '1', name: 'Test Entity', type: 'technology' }
 
-<Code language="typescript" title="TypeScript">
-{`const HeavyComponent = lazy(() => import('./HeavyComponent'))
+    render(
+      <NextIntlClientProvider locale="en" messages={mockMessages}>
+        <EntityCard entity={entity} />
+      </NextIntlClientProvider>
+    )
 
-function App() {
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <HeavyComponent />
-    </Suspense>
-  )
-}`}
-</Code>
+    expect(screen.getByText('Test Entity')).toBeInTheDocument()
+  })
+})
+```
+
+## Производительность
+
+### Паттерны запросов к базе данных
+
+- Используйте `db().queryDocs()` с `filters` и `pagination`, чтобы ограничить результаты на уровне базы данных — не получайте все документы и не фильтруйте в коде приложения.
+- Используйте `db().findDocById()` для поиска одного документа вместо `queryDocs({ filters: [{ field: 'id', operator: '==', value: id }] })`.
+- Кэш сущностей в `DatabaseService` обеспечивает TTL 30 секунд для согласованности чтения после записи в коллекции `entities` — ручное кэширование не требуется для базовых случаев.
+
+### Производительность React
+
+- Серверные компоненты по умолчанию — нулевой клиентский JS для чистого рендеринга.
+- `useActionState` (React 19) для управления состоянием формы в клиентских компонентах — не требуется внешняя библиотека состояния.
+- Динамические импорты с `next/dynamic` для тяжелых клиентских компонентов (карты, редакторы, графики).
+
+## Организация кода
+
+- **`app/_actions/`** — все серверные действия, один файл на домен.
+- **`features/{domain}/services/`** — бизнес-логика, которую можно вызывать из серверных действий или обработчиков маршрутов.
+- **`features/{domain}/lib/`** — доменно-специфичные чистые функции и утилиты.
+- **`lib/database/`** — абстракция базы данных. Не добавляйте сюда специфичные для функций запросы к базе данных.
+- **`components/`** — только общие UI-компоненты. Специфичные для функций компоненты находятся в `features/{domain}/components/`.
+
+См. [Структура кода](/en/docs/development/code-structure) для полной схемы директорий.
 
 ---
 
-*Next: [Development Workflow](/ru/docs/development/workflow) - Learn about our Git workflow and development process.*
+*Далее: [Структура кода](/en/docs/development/code-structure) — компоновка App Router, модули функций и организация файлов.*
+*См. также: [Руководство по тестированию](/en/docs/development/testing), [Режимы бэкенда и базы данных](/en/docs/architecture/backend-modes-and-databases)*

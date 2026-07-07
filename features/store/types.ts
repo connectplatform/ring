@@ -4,6 +4,11 @@ import {
   InventorySyncStrategy,
   FulfillmentStatus 
 } from '@/constants/store'
+import { 
+  VendorAcceptedPaymentMethods, 
+  VendorMerchantPayoutRailType,
+} from '@/lib/ring-config-types'
+import type { SupportedCurrencies, SupportedTokens } from '@/lib/ring-config-types'
 
 // Inventory Sync Configuration
 export interface InventorySync {
@@ -56,9 +61,9 @@ export interface ProductCompliance {
   intellectualPropertyStatus?: 'owned' | 'licensed' | 'pending' | 'none'
 }
 
-export type TokenCurrency = 'RING' | 'DAAR' | 'DAARION'
-export type FiatCurrency = 'UAH' | 'USD' | 'EUR'
-export type StoreCurrency = TokenCurrency | FiatCurrency
+export type StoreFiatCurrencies = SupportedCurrencies
+export type StoreCryptoCurrencies = SupportedTokens
+export type StoreCurrency = StoreFiatCurrencies | StoreCryptoCurrencies
 
 // Product Variant Types
 export interface VariantOption {
@@ -231,7 +236,8 @@ export interface VendorSettlement {
   netAmount: number
   status: 'pending' | 'processing' | 'completed' | 'failed'
   processedAt?: string
-  payoutMethod?: string
+  paymentMethod?: VendorAcceptedPaymentMethods
+  payoutRail?: VendorMerchantPayoutRailType
   payoutReference?: string
 }
 
@@ -336,9 +342,7 @@ export interface OrderItem {
 }
 
 export interface OrderTotalsByCurrency {
-  DAAR?: number
-  DAARION?: number
-  RING?: number
+  [currency: string]: number | undefined
 }
 
 // Vendor Order Split

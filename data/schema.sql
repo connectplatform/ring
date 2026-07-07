@@ -1371,3 +1371,130 @@ CREATE INDEX IF NOT EXISTS idx_process_runs_created_at ON process_runs (created_
 CREATE INDEX IF NOT EXISTS idx_process_runs_data_gin ON process_runs USING GIN (data);
 
 COMMENT ON TABLE process_runs IS 'Background pipeline run history (ProcessConductor)';
+
+-- ============================================================================
+-- PIN-GATED WALLET ACCESS TOKENS
+-- ============================================================================
+-- Single-use, time-bound tokens issued after successful PIN verification.
+-- Used for high-value wallet operations (withdrawals, large transfers).
+-- 
+-- Security model (2026-07-03 Flawless Victory):
+--   - tokenHash: sha256(token) — raw token is NEVER stored
+--   - TTL: 15 minutes (configurable via env WALLET_ACCESS_TOKEN_TTL_SECONDS)
+--   - Single-use: consumed atomically via usedAt timestamp
+--   - Revocable: revokedAt short-circuits validation
+--   - Scope-based: 'withdrawal' | 'transfer' | 'admin'
+--   - Audit trail: every issuance + consumption logged in wallet_transactions
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS wallet_access_tokens (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wat_user_id ON wallet_access_tokens ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_wat_token_hash ON wallet_access_tokens ((data->>'tokenHash'));
+CREATE INDEX IF NOT EXISTS idx_wat_expires_at ON wallet_access_tokens ((data->>'expiresAt'));
+CREATE INDEX IF NOT EXISTS idx_wat_status ON wallet_access_tokens ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_wat_data_gin ON wallet_access_tokens USING GIN (data);
+
+COMMENT ON TABLE wallet_access_tokens IS 'PIN-gated single-use access tokens for wallet operations (withdrawal, transfer). Raw token never stored — only sha256 hash.';
+-- ============================================================================
+-- 026_product_custom_fields_schema.sql
+-- Per-category custom product fields for vendors.
+--
+-- User Story: Allow vendors to add custom product fields per-category.
+-- The product-category-custom-fields CRUD block is shown below the
+-- vendor-store-product-category droplist on the vendor-store-product CRUD
+-- page form. All known product custom fields and categories are shipped with
+-- SQL migrations per preset.
+--
+-- Table: product_custom_fields
+-- Columns:
+--   id           — UUID primary key (generated client-side, e.g. crypto.randomUUID())
+--   product_id   — FK to store_products.id (nullable until product is saved)
+--   category     — The product category this field applies to (from ring-config storeCategories)
+--   field_name   — Vendor-defined parameter name (e.g. "Soil Type", "Altitude")
+--   field_value  — The value the vendor entered for this parameter
+--   field_type   — Input type hint: 'text' | 'number' | 'date' | 'boolean' | 'select'
+--   created_at   — ISO timestamp
+--   updated_at   — ISO timestamp
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_custom_fields (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for looking up custom fields by product
+CREATE INDEX IF NOT EXISTS idx_pcf_product_id ON product_custom_fields ((data->>'product_id'));
+
+-- Index for looking up custom fields by category
+CREATE INDEX IF NOT EXISTS idx_pcf_category ON product_custom_fields ((data->>'category'));
+
+-- GIN index for JSONB queries on the data column
+CREATE INDEX IF NOT EXISTS idx_pcf_data_gin ON product_custom_fields USING GIN (data);
+
+COMMENT ON TABLE product_custom_fields IS 'Per-category custom product fields for vendor store products. Vendors can add custom parameters per product category. All known product custom fields and categories are shipped with SQL migrations per preset.';
+-- ============================================================================
+-- 027_auth_accounts_schema.sql
+-- Auth.js v5 PostgreSQL adapter tables.
+--
+-- These tables store OAuth account linkages, sessions, and verification tokens.
+-- Previously stored in Firebase; now migrated to PostgreSQL as part of the
+-- full Firestore → PostgreSQL migration.
+--
+-- Tables:
+--   accounts            — Linked OAuth accounts (Google, Apple, etc.)
+--   sessions            — Auth.js session tokens
+--   verification_tokens — Email magic-link / OTP verification tokens
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_accounts_provider ON accounts ((data->>'provider'));
+CREATE INDEX IF NOT EXISTS idx_accounts_provider_account ON accounts ((data->>'provider'), (data->>'providerAccountId'));
+CREATE INDEX IF NOT EXISTS idx_accounts_data_gin ON accounts USING GIN (data);
+
+COMMENT ON TABLE accounts IS 'Auth.js v5 linked OAuth accounts (Google, Apple, etc.). Each row links a third-party provider account to a Ring user.';
+
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions ((data->>'sessionToken'));
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions ((data->>'expires'));
+CREATE INDEX IF NOT EXISTS idx_sessions_data_gin ON sessions USING GIN (data);
+
+COMMENT ON TABLE sessions IS 'Auth.js v5 session tokens. Cookie-based session management for authenticated users.';
+
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vt_identifier ON verification_tokens ((data->>'identifier'));
+CREATE INDEX IF NOT EXISTS idx_vt_token ON verification_tokens ((data->>'token'));
+CREATE INDEX IF NOT EXISTS idx_vt_data_gin ON verification_tokens USING GIN (data);
+
+COMMENT ON TABLE verification_tokens IS 'Auth.js v5 email magic-link / OTP verification tokens. One-time use, deleted after consumption.';

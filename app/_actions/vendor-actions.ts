@@ -270,11 +270,12 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       return { error: 'Unauthorized: Vendor access required' }
     }
 
-    // Extract form data
+    // Extract form data — using centralized schema from store-product
+    const { isStoreCurrency } = await import('@/lib/zod/store-product')
     const name = (formData.get('name') as string)?.trim()
     const category = formData.get('category') as string
     const currencyRaw = (formData.get('currency') as string)?.trim() || 'UAH'
-    const currency: StoreCurrency = currencyRaw === 'DAAR' ? 'DAAR' : 'UAH'
+    const currency = isStoreCurrency(currencyRaw) ? currencyRaw : 'UAH'
     const rawPrice = parseFloat(formData.get('priceUAH') as string)
     const priceUAH = normalizePriceToUah(rawPrice, currency)
     const stock = parseInt(formData.get('stock') as string, 10)
@@ -283,6 +284,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     const rep = ((formData.get('rep') as string) ?? '').trim()
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
+    const productAudience = (formData.get('productAudience') as string) || 'public'
     const locale = (formData.get('locale') as Locale) || defaultLocale as Locale
     const referralCommissionRaw = (formData.get('referralCommission') as string)?.trim()
     let referralCommission: number | undefined
@@ -506,6 +508,9 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     if (rep) {
       productData.rep = rep
     }
+    if (productAudience) {
+      productData.productAudience = productAudience
+    }
 
     // Create product in database
     const result = await db().createDoc('store_products', productData, { id: productId })
@@ -567,8 +572,9 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     // Extract updated data
     const name = (formData.get('name') as string)?.trim()
     const category = formData.get('category') as string
+    const { isStoreCurrency } = await import('@/lib/zod/store-product')
     const currencyRaw = (formData.get('currency') as string)?.trim() || 'UAH'
-    const currency: StoreCurrency = currencyRaw === 'DAAR' ? 'DAAR' : 'UAH'
+    const currency = isStoreCurrency(currencyRaw) ? currencyRaw : 'UAH'
     const rawPrice = parseFloat(formData.get('priceUAH') as string)
     const priceUAH = normalizePriceToUah(rawPrice, currency)
     const stock = parseInt(formData.get('stock') as string, 10)
@@ -577,6 +583,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     const rep = ((formData.get('rep') as string) ?? '').trim()
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
+    const productAudience = (formData.get('productAudience') as string) || 'public'
     const referralCommissionRaw = (formData.get('referralCommission') as string)?.trim()
     let referralCommission: number | undefined
     if (referralCommissionRaw) {
@@ -761,6 +768,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
           ? { referralCommission }
           : {}),
       ...(rep ? { rep } : { rep: undefined }),
+      ...(productAudience ? { productAudience } : {}),
     })
 
     const updateResult = await db().updateDoc('store_products', productId, updatedData)
@@ -962,3 +970,249 @@ function generateSlugFromName(name: string): string {
     .slice(0, 50) // Max 50 chars
 }
 
+
+// ============================================================================
+// Product Custom Fields CRUD — Per-category custom product parameters
+// ============================================================================
+// User Story: Allow vendors to add custom product fields per-category.
+// The CRUD block is shown below the category droplist on the vendor product form.
+// All known product custom fields and categories are shipped with SQL migrations
+// per preset (see data/migrations/026_product_custom_fields_schema.sql).
+// ============================================================================
+
+export interface ProductCustomField {
+  id: string
+  productId?: string | null
+  category: string
+  fieldName: string
+  fieldValue: string
+  fieldType: 'text' | 'number' | 'date' | 'boolean' | 'select'
+  createdAt?: string
+  updatedAt?: string
+}
+
+/**
+ * Create a custom field for a product.
+ * The vendor must be the owner of the product (or admin).
+ */
+/**
+ * Create a custom field for a product.
+ * The caller must be the vendor who owns the product (or a platform admin).
+ * If no productId is provided, the field is created without product linkage
+ * (useful for pre-creating category templates before product save).
+ */
+export async function createProductCustomField(params: {
+  productId?: string | null
+  category: string
+  fieldName: string
+  fieldValue: string
+  fieldType?: ProductCustomField['fieldType']
+}): Promise<{ success: boolean; field?: ProductCustomField; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Vendor access check: only vendors (or admins) can create custom fields.
+    const vendorEntity = await getVendorEntity(session.user.id)
+    if (!vendorEntity) {
+      return { success: false, error: 'Unauthorized: Vendor access required' }
+    }
+
+    // If a productId is provided, verify the vendor owns this product.
+    if (params.productId) {
+      const productResult = await db().readDoc<Record<string, unknown> & { id: string }>('store_products', params.productId)
+      if (!productResult.success || !productResult.data) {
+        return { success: false, error: 'Product not found' }
+      }
+      if (resolveVendorEntityId(productResult.data) !== vendorEntity.id) {
+        return { success: false, error: 'Unauthorized: This product does not belong to your vendor store' }
+      }
+    }
+
+    const id = `pcf_${crypto.randomUUID()}`
+    const now = new Date().toISOString()
+    const field: ProductCustomField = {
+      id,
+      productId: params.productId ?? null,
+      category: params.category,
+      fieldName: params.fieldName,
+      fieldValue: params.fieldValue,
+      fieldType: params.fieldType ?? 'text',
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    const result = await db().createDoc('product_custom_fields', { ...field }, { id })
+    if (!result.success) {
+      return { success: false, error: result.error?.message ?? 'Failed to create custom field' }
+    }
+
+    return { success: true, field }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to create custom field' }
+  }
+}
+
+/**
+ * Update an existing custom field.
+ * The caller must own the parent product (verified via field → product → vendor chain).
+ */
+export async function updateProductCustomField(params: {
+  fieldId: string
+  fieldName?: string
+  fieldValue?: string
+  fieldType?: ProductCustomField['fieldType']
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Load the existing custom field to verify ownership chain.
+    const fieldResult = await db().readDoc<ProductCustomField & Record<string, unknown>>('product_custom_fields', params.fieldId)
+    if (!fieldResult.success || !fieldResult.data) {
+      return { success: false, error: 'Custom field not found' }
+    }
+    const existingField = fieldResult.data as ProductCustomField
+
+    // If the field is linked to a product, verify vendor ownership.
+    if (existingField.productId) {
+      const productResult = await db().readDoc<Record<string, unknown>>('store_products', existingField.productId)
+      if (!productResult.success || !productResult.data) {
+        return { success: false, error: 'Parent product not found' }
+      }
+      const vendorEntity = await getVendorEntity(session.user.id)
+      if (!vendorEntity || resolveVendorEntityId(productResult.data) !== vendorEntity.id) {
+        return { success: false, error: 'Unauthorized: This custom field belongs to another vendor\'s product' }
+      }
+    } else {
+      // Unlinked fields: require vendor access.
+      const vendorEntity = await getVendorEntity(session.user.id)
+      if (!vendorEntity) {
+        return { success: false, error: 'Unauthorized: Vendor access required' }
+      }
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
+    if (params.fieldName !== undefined) updates.fieldName = params.fieldName
+    if (params.fieldValue !== undefined) updates.fieldValue = params.fieldValue
+    if (params.fieldType !== undefined) updates.fieldType = params.fieldType
+
+    const result = await db().updateDoc('product_custom_fields', params.fieldId, updates)
+    if (!result.success) {
+      return { success: false, error: result.error?.message ?? 'Failed to update custom field' }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update custom field' }
+  }
+}
+
+/**
+ * Delete a custom field.
+ * The caller must own the parent product (verified via field → product → vendor chain).
+ */
+export async function deleteProductCustomField(fieldId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Load the field to verify ownership chain.
+    const fieldResult = await db().readDoc<ProductCustomField & Record<string, unknown>>('product_custom_fields', fieldId)
+    if (!fieldResult.success || !fieldResult.data) {
+      return { success: false, error: 'Custom field not found' }
+    }
+    const existingField = fieldResult.data as ProductCustomField
+
+    // Verify vendor owns the parent product.
+    if (existingField.productId) {
+      const productResult = await db().readDoc<Record<string, unknown>>('store_products', existingField.productId)
+      if (!productResult.success || !productResult.data) {
+        // Orphaned field (product was deleted) — allow deletion.
+      } else {
+        const vendorEntity = await getVendorEntity(session.user.id)
+        if (!vendorEntity || resolveVendorEntityId(productResult.data) !== vendorEntity.id) {
+          return { success: false, error: 'Unauthorized: This custom field belongs to another vendor\'s product' }
+        }
+      }
+    } else {
+      const vendorEntity = await getVendorEntity(session.user.id)
+      if (!vendorEntity) {
+        return { success: false, error: 'Unauthorized: Vendor access required' }
+      }
+    }
+
+    const result = await db().deleteDoc('product_custom_fields', fieldId)
+    if (!result.success) {
+      return { success: false, error: result.error?.message ?? 'Failed to delete custom field' }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to delete custom field' }
+  }
+}
+
+/**
+ * List custom fields scoped to the caller's vendor store.
+ * - If productId is provided, returns only fields for that product
+ *   (and verifies the caller owns the product).
+ * - Otherwise returns all fields in the given category for the caller's store.
+ */
+export async function listProductCustomFields(params: {
+  productId?: string
+  category?: string
+  limit?: number
+}): Promise<ProductCustomField[]> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return []
+    }
+
+    const vendorEntity = await getVendorEntity(session.user.id)
+    if (!vendorEntity) {
+      return []
+    }
+
+    // If productId is provided, verify vendor ownership before listing.
+    if (params.productId) {
+      const productResult = await db().readDoc<Record<string, unknown>>('store_products', params.productId)
+      if (!productResult.success || !productResult.data) {
+        return []
+      }
+      if (resolveVendorEntityId(productResult.data) !== vendorEntity.id) {
+        return [] // Product not owned by this vendor — return empty
+      }
+    }
+
+    const filters: Array<{ field: string; operator: string; value: string }> = []
+    if (params.productId) {
+      filters.push({ field: 'product_id', operator: '==', value: params.productId })
+    }
+    if (params.category) {
+      filters.push({ field: 'category', operator: '==', value: params.category })
+    }
+
+    const result = await db().queryDocs<ProductCustomField & Record<string, unknown>>({
+      collection: 'product_custom_fields',
+      filters: filters.length > 0 ? filters : undefined,
+      orderBy: [{ field: 'created_at', direction: 'desc' }],
+      pagination: { limit: params.limit ?? 100 },
+    })
+
+    if (!result.success || !result.data) {
+      return []
+    }
+
+    return result.data as ProductCustomField[]
+  } catch {
+    return []
+  }
+}

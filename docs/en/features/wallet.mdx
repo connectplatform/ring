@@ -1,340 +1,391 @@
 ---
-title: Web3 Wallet
-description: Unlock financial freedom and earning potential with Ring Platform's revolutionary Web3 wallet system
+title: Wallet & Credit System
+description: Custodial native-token wallets, fiat credit ledger, gasless Solana transfers, Coindesk token conversion, and PIN-wrapped encryption on Ring Platform
+last_modified: "2026-07-03"
+audience: both
 ---
 
-# 💰 Web3 Wallet System
+# Wallet & Credit System
 
-**Financial Freedom Through Blockchain Innovation**
+<Callout type="info">
+  Filter with **Founder** / **Developer** in the docs sidebar. This page reflects the verified v1.6.4 codebase after the 2026-07-03 SSOT refactor (PIN-wrapped encryption, atomic single-write provisioning, wallet_access_tokens token store, SSOT chain-identity consolidation).
+</Callout>
 
-Ring Platform's Web3 wallet system transforms traditional financial interactions into seamless, secure, and rewarding experiences. Our intelligent multi-token wallet automatically handles complex blockchain operations while users focus on earning, spending, and growing their wealth through the platform's comprehensive token economy.
+Ring Platform's wallet system provides two complementary layers:
 
-## 💸 Business Impact & Financial Benefits
+1. **Custodial native-token wallets** — auto-provisioned for signed-in members on all enabled chains (Solana first, EVM/Base enabled per clone config). Private keys encrypted with `WALLET_ENCRYPTION_KEY` using AES-256-GCM + scrypt. PIN-wrapped v2 encryption for withdrawal operations.
+2. **In-app credit ledger** — fiat USD credits stored in `credit_balance` field on user documents. Used for store purchases, subscriptions, and conversions to native tokens via the Coindesk widget.
 
-### Measurable Financial Results
-- **$2.3M+** in platform transaction volume through integrated payments
-- **45% Increase** in user engagement through token rewards
-- **60% Higher Retention** via gamified earning opportunities
-- **$850K+** in staking rewards distributed monthly
-- **92% User Adoption** of wallet features within first month
+Browser routes: `/wallet` (dashboard), `/wallet/topup`, `/wallet/send`, `/wallet/staking`.
 
-### Competitive Financial Advantages
-- **Zero-Transaction Barriers**: No crypto knowledge required for full participation
-- **Automated Token Management**: Intelligent portfolio balancing and optimization
-- **Real-Time Earnings**: Instant visibility into rewards and staking returns
-- **Seamless Payments**: One-click transactions across all platform features
-- **Cross-Platform Compatibility**: Works with major DeFi protocols and exchanges
+<Audience for="founder">
 
-## 🎯 The Web3 Wallet Revolution
+## What members experience
 
-### System Architecture
+<Cards>
+  <Card title="Wallet dashboard — /wallet" href="/docs/features/wallet">
+    Balance hero showing credit balance + native-token balances per chain. Desk widget for converting credits ↔ native tokens.
+  </Card>
+  <Card title="Top-up — /wallet/topup" href="/docs/features/wallet">
+    Add credits via native-token transfer or WayForPay card payment (processing backend TBD).
+  </Card>
+  <Card title="Send tokens — /wallet/send" href="/docs/features/wallet">
+    Gasless transfers to contacts — treasury sponsors transaction fees. Pick recipient from contacts or enter address.
+  </Card>
+  <Card title="Store & credits" href="/docs/features/store">
+    Credit spend at checkout — ledger debits before on-chain settlement in some flows.
+  </Card>
+</Cards>
 
-<Mermaid>
-{`mindmap
-  root((Web3 Wallet))
-    Tokens
-      RING Utility
-      DAAR Governance
-      DAARION Rewards
-    Features
-      Mobile Integration
-      Balance Display
-      Subscription Mgmt
-      Top-up System
-    Security
-      Multi-signature
-      KYC Integration
-      Hardware Security`}
+### Core concepts for clone operators
+
+**Credit balance is always fiat USD.** Members earn or top up credits. These credits can be converted to your clone's native token through the Coindesk widget on `/wallet`. The conversion rate is set via the oracle (`platform_settings.web3.oracle.ringPerUsd`) and managed by superadmins.
+
+**Native token transfers are gasless.** The clone treasury sponsors Solana transaction fees so members never need SOL for gas. An optional transfer tax can be configured per clone for high-frequency send projects.
+
+**Wallet provisioning is automatic.** When a member signs in (Google, Apple, or credentials), the system provisions wallets for all enabled chains via a single atomic `setUserWallets()` write — no JSONB race, max one wallet per chain. No manual setup required.
+
+**PIN-wrapped encryption** (2026-07-03): Wallet private keys are encrypted with AES-256-GCM at rest. Members who set a 4-digit PIN get their keys wrapped with PIN-derived entropy — the PIN is verified server-side before any withdrawal operation, never sent to the client in plaintext. Keys stored before PIN setup remain in v1 format (env-only encryption) and are lazily re-encrypted on first PIN-based operation.
+
+### Typical member flows
+
+- **First login** — wallet auto-provisioned; credit balance initialized at 0.
+- **Check balance** — wallet page shows credit balance + native-token balance per chain.
+- **Send tokens to a contact** — pick recipient from contacts, enter amount, confirm. Gas sponsored by treasury.
+- **Top up credits** — add credits via native-token transfer (enter tx hash for on-chain verification).
+- **Set a wallet PIN** — profile/security page; 4-digit PIN activates v2 PIN-wrapped encryption for all existing wallets.
+- **Authorize a withdrawal** — enter PIN; server validates against the stored encryption envelope; single-use access token issued.
+- **Convert credits to tokens** — use the Desk widget: choose buy/sell direction, get a quote, execute at oracle rate.
+- **Pay in store** — credit balance debited at checkout.
+
+<Callout type="warning">
+  **Custodial model:** Ring signs transfers server-side for auto-provisioned wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use custodial transfer routes. Credits and native-token balances are separate concepts.
+</Callout>
+
+## Related documentation
+
+<Cards>
+  <Card title="Wallet API reference" href="/docs/api/wallet">
+    Server actions and SSOT file listing.
+  </Card>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    Oracle rate, transfer tax, first-settler discounts.
+  </Card>
+  <Card title="Store feature" href="/docs/features/store">
+    Credit spend at checkout.
+  </Card>
+  <Card title="Authentication" href="/docs/features/authentication">
+    Google/Apple/social sign-in triggers wallet provisioning.
+  </Card>
+</Cards>
+
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+The wallet system uses **server actions** (`app/_actions/wallet.ts` — 23 actions) as the primary integration layer. These actions call SSOT service files in `features/wallet/` and `lib/wallet/`.
+
+### Server actions inventory
+
+| # | Action | Layer | Purpose |
+|---|--------|-------|---------|
+| 1 | `ensureUserWallets` | Wallet | Provisions wallets for all enabled chains (atomic single-write) |
+| 2 | `listUserWallets` | Wallet | Lists wallets with on-chain balances |
+| 3 | `getWalletBalance` | Wallet | Native-token balance via viem/Solana RPC |
+| 4 | `getWalletActivity` | Activity | Unified feed: credit + chain transactions |
+| 5 | `getCreditHistory` | Credit | Paginated credit transaction history |
+| 6 | `getCreditBalance` | Credit | Current credit balance (always fiat USD) |
+| 7 | `topUpCredits` | Credit | Add credits after on-chain verification |
+| 8 | `spendCredits` | Credit | Spend credits for purchases/services |
+| 9 | `transferCredits` | Credit | Admin credit adjustment |
+| 10 | `processMembershipFee` | Credit | Monthly membership fee from credits |
+| 11 | `transferNativeTokens` | Token | Gasless native-token transfer (treasury-sponsored) |
+| 12 | `getRingPerUsdRate` | Oracle | Current oracle rate |
+| 13 | `setRingPerUsdRate` | Oracle | Update oracle rate (admin-only) |
+| 14 | `signDeskQuote` | Desk | Sign quote for credit↔token conversion |
+| 15 | `executeDeskQuote` | Desk | Execute signed quote (buy/sell/refund) |
+| 16 | `verifyDeskQuote` | Desk | Verify signed quote token |
+| 17 | `verifyTopUpTransaction` | Verify | Verify on-chain ERC20/SPL transfer |
+| 18 | `listWalletTransactions` | Activity | Read wallet_transactions collection directly |
+| 19 | `setPrimaryWallet` | Wallet | Set default wallet address |
+| 20 | `getSpendSummary` | Credit | Period-based credit spending summary |
+| 21 | `getRewardCreditAddEventSummary` | Credit | Credit rewards summary for user |
+| 22 | `createPinAccessTokenAction` | Security | Issue single-use PIN-gated access token (React 19 `useActionState`) |
+| 23 | `revokePinAccessTokensAction` | Security | Revoke all active PIN access tokens for current user |
+
+### Integration pattern
+
+Server actions follow the SSOT pattern: dynamic import of service → auth check → operation → `revalidatePath('/[locale]/wallet')` for cache invalidation.
+
+<Steps>
+<Step>
+
+**Import and call a server action**
+
+Server actions can be called directly from client components using React 19's `useActionState` hook.
+
+<Code language="typescript" title="useActionState example">{`import { useActionState } from 'react'
+import { topUpCredits } from '@/app/_actions/wallet'
+
+const [state, formAction, isPending] = useActionState(
+  async (prevState, formData) => {
+    const result = await topUpCredits(formData)
+    if (result.success) await refreshBalance()
+    return result
+  },
+  null
+)`}</Code>
+
+</Step>
+<Step>
+
+**Or use with form progressive enhancement**
+
+<Code language="tsx">{`<form action={formAction}>
+  <Input name="amount" type="number" min="0.01" step="0.01" required />
+  <Input name="txHash" placeholder="Transaction hash (optional)" />
+  <Textarea name="description" />
+  <Button type="submit" disabled={isPending}>
+    {isPending ? 'Processing...' : 'Top Up'}
+  </Button>
+</form>`}</Code>
+
+</Step>
+</Steps>
+
+### SSOT service files
+
+| Concern | File | Key exports |
+|---------|------|-------------|
+| Credit CRUD | `features/wallet/services/credit-balance-service.ts` | `addCredits`, `spendCredits`, `addFiatUsd`, `spendFiatUsd`, `getCreditHistory`, `hasSufficientBalance` |
+| Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser(userId, toAddress, amount)` — treasury sponsors gas |
+| Treasury ops | `features/wallet/chains/solana/treasury-transfer-service.ts` | `transferNativeTokenFromTreasury`, `transferNativeTokenToTreasury`, `burnRingFromUser` |
+| Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` — credit↔token conversion |
+| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate` — reads from `platform_settings` table |
+| Wallet DB | `lib/wallet/user-wallet-db.ts` | `getNativeWallet`, `getUserWallets`, `setUserWallets`, `migrateUserWalletsToPin` |
+| Wallet provisioning | `features/wallet/services/ensure-wallet.ts` | `ensureWallet`, `ensureWallets` (multi-chain with encryption, atomic single-write) |
+| Balance fetch | `features/wallet/services/list-wallets.ts` | `listWallets` — gets on-chain balances via viem/Solana RPC |
+| Activity feed | `features/wallet/services/wallet-activity-feed.ts` | `getWalletActivityFeed` — unified credit+chain feed with filters |
+| Top-up verify | `features/wallet/services/topup-verification.ts` | `verifyTopUpTransaction`, `reserveTopUpTxHash` |
+| Encryption | `lib/wallet/encrypt-wallet-secret.ts` | `encryptWalletSecret`, `decryptSecretWithPin`, `reencryptLegacyWallet` (v1→v2 migration) |
+| Wallet decrypt | `lib/wallet/decrypt-user-wallet.ts` | `decryptUserWalletPrivateKey`, `decryptSolanaWalletSecretKey` (Uint8Array), `decryptSolanaWalletSecretKeyWithPin` |
+| PIN access tokens | `lib/wallet/pin-access-token-db.ts` | `issueAccessToken`, `consumeAccessToken`, `revokeActiveTokens` |
+| Credit schemas | `lib/zod/credit-schemas.ts` | `CreditTopUpRequestSchema`, `CreditSpendRequestSchema`, `CreditTransactionType` |
+| Desk schemas | `lib/zod/desk-schemas.ts` | `DeskExecuteRequestSchema`, `DeskQuoteRequestSchema` |
+
+### Wallet pages (verified routes)
+
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/wallet` | `wallet-client.tsx` | Balance hero (credit + native-token), DeskWidget, transaction feed |
+| `/wallet/topup` | `topup-client.tsx` | Native-token transfer + WayForPay (backend TBD) |
+| `/wallet/send` | `send-tokens.tsx` | Gasless transfers to contacts |
+
+### PIN-gated access flow
+
+<Mermaid title="PIN access token flow">
+{`sequenceDiagram
+  participant C as Client (wallet page)
+  participant SA as Server Action
+  participant EW as ensureWallet()
+  participant P as pin-access-token-db
+  participant DB as wallet_access_tokens
+
+  C->>SA: createPinAccessTokenAction({ pin, scope })
+  SA->>SA: auth() check
+  SA->>EW: ensure native wallet
+  SA->>P: issueAccessToken(userId, wallet, pin)
+  P->>P: decryptSecretWithPin() — PIN verify
+  alt PIN wrong
+    P-->>SA: throw
+    SA-->>C: { error: "Incorrect PIN" }
+  else v1 (legacy) wallet
+    P-->>SA: throw "migrate"
+    SA-->>C: { error: "Migrate wallet to set a PIN", requiresMigration: true }
+  else PIN correct
+    P->>DB: store sha256(token) + expiresAt
+    P->>DB: revoke prior active tokens for (userId, scope)
+    P-->>SA: { accessToken, walletAddress, expiresAt }
+    SA-->>C: { success, accessToken, walletAddress, expiresAt }
+  end`}
 </Mermaid>
 
-### Democratizing Blockchain Finance
+#### Encryption envelope format (v2)
 
-Traditional financial systems create barriers that prevent most users from participating in the digital economy. Ring Platform's Web3 wallet eliminates these barriers by:
+Wallets created after the 2026-07-03 refactor use the versioned v2 format:
 
-#### 🚀 **Making Crypto Accessible**
-- **No Technical Knowledge Required**: Automatic wallet creation and management
-- **Intuitive User Interface**: Familiar banking experience with blockchain power
-- **Guided Onboarding**: Step-by-step tutorials and smart defaults
-- **24/7 Support**: Comprehensive help system for all wallet operations
+```
+v2:<scryptSaltHex>:<ivHex>:<encryptedHex>:<authTagHex>[:<pinHashHex>]
+```
 
-#### 💎 **Creating Earning Opportunities**
-- **Staking Rewards**: Earn DAARION tokens by holding RING tokens
-- **Transaction Incentives**: Get rewarded for platform participation
-- **Referral Bonuses**: Earn tokens by bringing new users to the platform
-- **Governance Participation**: Vote on platform decisions and earn rewards
+- **No PIN**: `v2:scryptSalt:iv:encrypted:authTag` — key derived from `WALLET_ENCRYPTION_KEY` + random salt.
+- **With PIN**: same + `:sha256(pin)` appended — key derived from `WALLET_ENCRYPTION_KEY + ":" + sha256(pin)` + random salt.
+- **Fast reject**: stored `pinHash` enables constant-time PIN rejection before running expensive scrypt (DoS defense).
+- **Migration**: `migrateUserWalletsToPin(userId, pin)` re-encrypts all legacy v1 wallets for a user.
 
-#### 🔒 **Ensuring Security & Trust**
-- **Bank-Level Security**: Enterprise-grade encryption and key management
-- **Regulatory Compliance**: Full KYC/AML integration where required
-- **Insurance Coverage**: Protected against common blockchain risks
-- **Recovery Systems**: Multiple backup and restoration options
+Legacy v1 wallets (`iv:encrypted:authTag`) remain readable via `decryptWalletSecretLegacy()`.
 
-## 🔥 Multi-Token Ecosystem
+#### Access token properties
 
-### 💍 **RING Token** - The Heart of Platform Economy
-**Market Value**: Utility token powering all platform transactions
+- **Storage**: `wallet_access_tokens` table (JSONB, sha256-hashed, never raw token persisted)
+- **TTL**: 15 minutes (configurable via `WALLET_ACCESS_TOKEN_TTL_SECONDS` env var)
+- **Single-use**: consumed atomically via `usedAt` timestamp after successful validation
+- **Auto-revoke**: issuing a new token for the same `(userId, scope)` revokes all prior active tokens — prevents replay
+- **Audit**: every issuance creates a `wallet_transactions` row with type `pin_access_granted`
 
-- **Transaction Fees**: Pay for opportunity postings and premium features
-- **Marketplace Payments**: Seamless B2B and freelancer payments
-- **Staking Base**: Lock RING tokens to earn DAARION rewards
-- **Governance Weight**: Increased voting power in platform decisions
-- **Deflationary Mechanics**: Burn mechanisms reduce total supply over time
+### Desk trade flow (credit ↔ token conversion)
 
-**Success Story**: TechStartup reduced payment processing costs by 80% using RING tokens for freelancer payments, saving $50K annually.
+<Mermaid title="Desk trade flow">
+{`sequenceDiagram
+  participant C as Client (wallet page)
+  participant A as Server Action
+  participant O as Oracle
+  participant S as Desk Service
+  participant T as Treasury (Solana)
+  participant D as DB (credits)
 
-### 🎯 **DAAR Token** - Governance & Decision Making
-**Market Value**: Democratic governance enabling community-driven growth
+  C->>A: signDeskQuote({ side: buy, amount })
+  A->>O: getRingPerUsdRate()
+  O-->>A: rate
+  A-->>C: quoteToken + ringAmountUi
+  C->>A: executeDeskQuote({ idempotencyKey, quoteToken })
+  A->>S: executeDesk(userId, idempotencyKey, quoteToken)
+  alt buy (USD → native token)
+    S->>D: spendFiatUsd (debit credits)
+    S->>T: transferNativeTokenFromTreasury (send native token)
+  else sell (native token → USD)
+    S->>T: transferNativeTokenToTreasury + burnRingFromUser
+    S->>D: addFiatUsd (credit USD)
+  end
+  S-->>A: { orderId, txHash }
+  A-->>C: { success, txHash }`}
+</Mermaid>
 
-- **Proposal Creation**: Submit platform improvement proposals
-- **Voting Rights**: Vote on feature updates and strategic decisions
-- **Governance Rewards**: Earn tokens for active participation
-- **Community Treasury**: Manage platform funds democratically
-- **Delegated Voting**: Delegate voting power to trusted community members
+### WalletChain — SSOT identity model
 
-**Success Story**: CommunityDAO raised $2M for development by proposing and voting on strategic partnerships, with all governance participants earning DAAR rewards.
+The chain identity model was consolidated in the 2026-07-03 refactor:
 
-### ⚡ **DAARION Token** - Rewards & Incentives Engine
-**Market Value**: High-yield rewards token driving platform engagement
+| Type | Definition | Purpose |
+|------|-----------|---------|
+| `NativeChain` | `(typeof ringConfig.chains.native)` | Single chain identity (`'solana'` on ring-platform.org) |
+| `SupportedChains` | `(typeof ringConfig.chains.supported)[number]` | All chains the clone supports (`'solana' \| 'evm' \| 'base'`) |
+| `EnabledChains` | `(typeof ringConfig.chains.enabled)[number]` | Subset of supported chains actively in use |
+| `WalletChain` | `EnabledChains` | Chains a user can hold a wallet for (widened from `NativeChain` for story 5) |
+| `DEFAULT_WALLET_CHAIN` | `'evm'` | Fallback for legacy chainless wallet rows (pre-Solana EVM era) |
 
-- **Staking Rewards**: Earn up to 12% APY by staking RING tokens
-- **Activity Bonuses**: Get rewarded for daily platform usage
-- **Referral Program**: Earn 10% of new user transaction fees
-- **Loyalty Program**: Exclusive rewards for long-term platform users
-- **Premium Access**: Unlock advanced features and priority support
+All three previously scattered hardcoded fallbacks (`'solana'` in utils.ts, `'evm'` in user-wallet-db.ts, `'native'` bug in ensure-wallet.ts) now point to `DEFAULT_WALLET_CHAIN`.
 
-**Success Story**: PowerUser earned $15,000 in DAARION rewards within 6 months through staking and platform activity, representing a 150% return on staked RING tokens.
+### Credit schema (Zod SSOT)
 
-## 🚀 Smart Financial Features
+All credit operations use `lib/zod/credit-schemas.ts`. Valid transaction types:
+`payment`, `airdrop`, `reimbursement`, `purchase`, `membership_fee`, `top_up`, `bonus`, `penalty`, `desk_buy`, `desk_sell`, `desk_refund`.
 
-### Intelligent Portfolio Management
-- **Auto-Balancing**: Automatically optimize token allocation for maximum returns
-- **Risk Assessment**: Evaluate investment risk across different tokens
-- **Yield Optimization**: Find highest-yield opportunities automatically
-- **Portfolio Analytics**: Real-time performance tracking and reporting
+Credit balance is **always fiat USD** on ring-platform.org — never native-token denomination:
 
-### Advanced Staking System
-- **Flexible Lock Periods**: Choose from 30 days to 2 years lock periods
-- **Compounding Rewards**: Automatic reinvestment of staking rewards
-- **Liquidity Pools**: Access to high-yield DeFi integration
-- **Unstaking Flexibility**: Emergency unstaking with penalty reduction
+<Code language="typescript">{`// lib/zod/credit-schemas.ts
+export const UserCreditBalanceSchema = z.object({
+  amount: z.string(),       // Fiat balance amount (USD)
+  usd_equivalent: z.string(),
+  fiat_currency: z.string().optional(), // 'USD' on ring-platform.org
+  last_updated: z.number(),
+  subscription_active: z.boolean().default(false),
+})`}</Code>
 
-### Seamless Payment Integration
-- **One-Click Payments**: Instant transactions for all platform services
-- **Recurring Payments**: Set up automatic payments for subscriptions
-- **Batch Payments**: Pay multiple recipients simultaneously
-- **Payment Links**: Share payment requests via secure links
+### Conversion formula
 
-## 📊 Financial Performance Metrics
+Coindesk widget converts at the oracle rate:
+```
+100 user-credit-points (USD) → X native tokens at Y USD per 1 native token
+```
 
-### Token Economy Statistics
-- **$2.3M+ Monthly Transaction Volume** across all platform features
-- **850K+ DAARION Tokens** distributed monthly as rewards
-- **92% User Wallet Adoption** within first 30 days
-- **4.2 Average Transactions** per active user monthly
-- **$15K Average Earnings** for power users through staking
+Rate stored in `platform_settings.web3.oracle.ringPerUsd`. Managed via superadmin action `setRingPerUsdRate`.
 
-### Platform Economic Impact
-- **60% Reduction** in payment processing fees vs traditional methods
-- **40% Increase** in transaction frequency through token incentives
-- **85% User Satisfaction** with wallet user experience
-- **99.7% Uptime** for wallet services and transactions
-- **$1.2M+** in total economic value created for users
+### Environment variables
 
-## 🎯 Who Benefits Most Financially?
+| Variable | Required | Used by |
+|----------|----------|---------|
+| `WALLET_ENCRYPTION_KEY` | Yes | `encrypt-wallet-secret.ts` — AES-256-GCM encryption of private keys |
+| `SOLANA_RPC_URL` | Yes | `solana-client.ts` — on-chain Solana operations |
+| `SOLANA_TREASURY_PRIVATE_KEY` | Yes | `treasury-transfer-service.ts` — sponsored gas transfers |
+| `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default: 900) | `pin-access-token-db.ts` — single-use token TTL |
+| `POLYGON_RPC_URL` | For EVM chains | `get-wallet-balance.ts` — EVM balance fallback path |
+| `ORACLE_QUOTE_SECRET` | For desk | `ring-token-oracle.ts` — desk quote HMAC signing |
 
-### For Individual Users
-- **Freelancers**: Earn more through token-based payments and rewards
-- **Investors**: Access DeFi opportunities with reduced barriers
-- **Entrepreneurs**: Raise funds and incentivize team participation
-- **Content Creators**: Monetize through token-based tipping and subscriptions
-- **Students**: Learn Web3 while earning through platform activities
+Env vars documented here must be added manually to `.env.local` — they are not pre-configured in `env.local.template`. See also `lib/wallet/encrypt-wallet-secret.ts` for the v2 envelope format cryptographic spec.
 
-### For Businesses
-- **Startups**: Access global talent and reduce hiring costs
-- **SMBs**: Compete with enterprises through innovative payment systems
-- **Corporations**: Streamline procurement and vendor payments
-- **E-commerce**: Enhanced checkout experience with crypto payments
-- **Marketplaces**: Reduced transaction fees and increased liquidity
+### Atomic provisioning (race fix)
 
-## 🔄 Integration Ecosystem
+`ensureWallets()` provisions all missing chain wallets into an **in-memory Map** keyed by chain, then persists via **one** `setUserWallets()` write. This eliminates the JSONB read-modify-write race that previous parallel `Promise.all(provisionChainWallet())` designs produced, and guarantees the "max one wallet per enabled chain" invariant (`appendWalletIfMissing` enforces per-chain idempotency).
 
-### Seamless Platform Integration
-- **Opportunities System**: Token-based payments for jobs and partnerships
-- **Store Integration**: RING token payments with automatic conversion
-- **Staking Dashboard**: Real-time yield tracking and optimization
-- **Governance Portal**: DAAR token voting and proposal management
-- **Analytics Platform**: Comprehensive financial reporting and insights
+</Audience>
 
-### DeFi Protocol Integration
-// Connect to external DeFi protocols
+## Related documentation
 
-<Code language="typescript" title="TypeScript">
-{`const defiConnection = await wallet.connectDeFiProtocol({
-  protocol: 'uniswap',
-  tokens: ['RING', 'ETH'],
-  strategy: 'yield-farming'
-})
+<Cards>
+  <Card title="Wallet API reference" href="/docs/api/wallet">
+    Complete server action signatures and response types.
+  </Card>
+  <Card title="Authentication" href="/docs/features/authentication">
+    Social sign-in triggers wallet provisioning.
+  </Card>
+  <Card title="Store feature" href="/docs/features/store">
+    Credit spend at checkout.
+  </Card>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    Oracle rate, transfer tax, first-settler discounts.
+  </Card>
+</Cards>
 
-// Automated yield optimization
-const optimizedYield = await wallet.optimizeYield({
-  tokens: ['RING', 'DAAR'],
-  riskTolerance: 'moderate',
-  lockPeriod: '6-months'
-})`}
-</Code>
+<FutureFeatureBacklog title="Backlog — wallet (TBD)">
 
-## 🏆 Why Choose Ring Platform's Web3 Wallet?
+<FutureFeatureWidget
+  name="Wallet chain-sync service"
+  description="Background chain refresh every 20 seconds — fetch Solana/EVM chain events related to native-token contracts and sync to ring-db for instant reads. Currently chain reads are on-demand per API call."
+  implementationCost={80}
+  labels={['web3', 'performance']}
+  voteCount={0}
+/>
 
-### vs Traditional Banking
-- ✅ **Instant Transactions**: No waiting days for transfers
-- ✅ **Global Accessibility**: Send money anywhere in the world instantly
-- ✅ **Lower Fees**: 80% reduction in transaction costs
-- ✅ **Higher Returns**: Earn staking rewards while holding funds
-- ✅ **Programmable Money**: Smart contracts enable automated financial workflows
+<FutureFeatureWidget
+  name="WalletConductor"
+  description="Orchestration layer for multi-step wallet operations — similar to PaymentConductor pattern. Handles create → ensure → fund → transfer pipelines."
+  implementationCost={64}
+  labels={['architecture', 'wallet']}
+  voteCount={0}
+/>
 
-### vs Other Crypto Wallets
-- ✅ **No Crypto Knowledge Required**: Fully managed wallet experience
-- ✅ **Multi-Token Portfolio**: Unified view of all assets and earnings
-- ✅ **Platform Integration**: Seamless connection to business workflows
-- ✅ **Regulatory Compliance**: Built-in KYC/AML where required
-- ✅ **Insurance Protection**: Protected against common blockchain risks
+<FutureFeatureWidget
+  name="WayForPay wallet top-up"
+  description="Card payment integration (Apple Pay / Google Pay) for non-crypto wallet top-ups. UI exists in topup-client.tsx; processing backend TBD."
+  implementationCost={48}
+  labels={['payments', 'wallet']}
+  voteCount={0}
+/>
 
-### vs DeFi Platforms
-- ✅ **User-Friendly Interface**: Familiar banking experience with DeFi power
-- ✅ **Automated Optimization**: AI-driven yield and portfolio management
-- ✅ **Business Integration**: Connect crypto with real-world business activities
-- ✅ **Educational Resources**: Learn Web3 while using the platform
-- ✅ **Community Support**: 24/7 assistance for all wallet operations
+<FutureFeatureWidget
+  name="Multi-chain staking dashboard"
+  description="Unified view across Solana/EVM staking positions — current staking page shell exists; on-chain integration TBD."
+  implementationCost={96}
+  labels={['staking', 'web3']}
+  voteCount={0}
+/>
 
-## 📱 Mobile Wallet Experience
+<FutureFeatureWidget
+  name="Peer-to-peer credit transfers"
+  description="Allow members to transfer USD credits between each other — currently admin-only via transferCredits."
+  implementationCost={32}
+  labels={['wallet', 'credits']}
+  voteCount={0}
+/>
 
-### Revolutionary Mobile-First Design
-Ring Platform's wallet system delivers a seamless mobile experience that rivals the finest banking applications, with complete functionality accessible on-the-go.
+<FutureFeatureWidget
+  name="Import external wallets (seed phrase)"
+  description="Allow members to import wallets from any enabled chain using a seed phrase. Keys stored encrypted with PIN-wrapping. UI and import service not yet implemented."
+  implementationCost={48}
+  labels={['wallet', 'web3', 'daovote']}
+  voteCount={0}
+/>
 
-#### 🎨 **Mobile Wallet Features**
-- **Profile Integration**: Access full wallet functionality through your profile tabs
-- **Real-Time Balance**: Live RING token balance with USD equivalent display
-- **Subscription Management**: View active subscriptions and next payment dates
-- **Spending Limits**: Monitor monthly limits and remaining balance
-- **Quick Actions**: One-tap access to top-up, balance refresh, and full wallet view
-- **Secure Operations**: Address copying and transaction management on mobile
-
-#### 📊 **Mobile Dashboard Overview**
-// Mobile wallet integration example
-
-<Code language="typescript" title="TypeScript">
-{`const mobileWallet = {
-  balance: "1,250.75 RING",
-  usdValue: "$2,501.50",
-  subscription: {
-    status: "Active",
-    nextPayment: "2025-11-01"
-  },
-  limits: {
-    monthly: "5,000 RING",
-    remaining: "3,749.25 RING"
-  }
-}`}
-</Code>
-
-### Mobile-First User Experience
-- **Intuitive Navigation**: Top-right gradient avatar button for instant profile access
-- **Fullscreen Menu**: 9-dots menu revealing all Ring platform modules
-- **Touch-Optimized**: Large touch targets and gesture-friendly interactions
-- **Offline Capability**: View balance and recent transactions without internet
-- **Push Notifications**: Real-time alerts for balance changes and opportunities
-
-### Mobile Navigation Revolution
-Ring Platform introduces cutting-edge mobile navigation that transforms how users interact with comprehensive business platforms:
-
-#### 🎨 **Modern Navigation Design**
-- **Gradient Avatar Button**: Beautiful top-right positioned avatar with modern gradient borders
-- **9-Dots Menu System**: Clean replacement for traditional navigation bars
-- **Fullscreen Modal**: Immersive menu experience with colorful gradient widgets
-- **8-Module Access**: Complete Ring platform accessibility through organized widgets
-
-#### 📱 **Navigation Architecture**
-// Mobile navigation system
-
-<Code language="typescript" title="TypeScript">
-{`const mobileNavigation = {
-  avatarButton: {
-    position: "top-right",
-    style: "gradient-border",
-    functionality: "profile-access"
-  },
-  menuSystem: {
-    trigger: "9-dots-icon",
-    modal: "fullscreen-gradient-widgets",
-    modules: [
-      "Wallet", "Store", "Entities", "Opportunities",
-      "Docs", "Notifications", "Settings", "Support"
-    ]
-  }
-}`}
-</Code>
-
-### Mobile Architecture Highlights
-- **Component Separation**: Proper architectural patterns with reusable components
-- **Performance Optimized**: Efficient rendering and state management for mobile devices
-- **Accessibility First**: WCAG compliant touch targets and screen reader support
-- **Cross-Platform**: Consistent experience across iOS, Android, and web platforms
-
-## 🚀 Getting Started with Web3 Finance
-
-### Step 1: Automatic Wallet Creation
-Your wallet is created automatically when you join Ring Platform - no extra steps required!
-
-### Step 2: Fund Your Wallet
-Add funds through bank transfer, card payment, or exchange integration
-
-### Step 3: Start Earning
-Begin staking RING tokens and participating in platform activities to earn DAARION rewards
-
-### Step 4: Optimize & Grow
-Use intelligent portfolio management to maximize your returns and financial growth
-
-### Step 5: Scale Your Finance
-Connect external DeFi protocols and explore advanced earning opportunities
-
-## 💡 Advanced Financial Strategies
-
-### Yield Optimization
-// Advanced staking strategy
-
-<Code language="typescript" title="TypeScript">
-{`const stakingStrategy = await wallet.createStakingStrategy({
-  tokens: ['RING', 'DAAR'],
-  totalAmount: '10000',
-  distribution: {
-    highYield: 0.4,    // 40% in high-yield pools
-    mediumYield: 0.4,  // 40% in medium-yield pools
-    conservative: 0.2  // 20% in conservative staking
-  },
-  autoRebalance: true,
-  targetAPY: 12
-})`}
-</Code>
-
-### Automated Portfolio Management
-// Set up automated financial goals
-
-<Code language="typescript" title="TypeScript">
-{`const financialGoals = await wallet.createFinancialGoals({
-  monthlyTarget: 1000,  // Earn $1000/month in rewards
-  riskTolerance: 'moderate',
-  investmentHorizon: '2-years',
-  autoAdjust: true,
-  notifications: true
-})`}
-</Code>
-
----
-
-## 🎯 Ready to Unlock Financial Freedom?
-
-**Join 15,420+ users** already earning, spending, and growing their wealth through Ring Platform's revolutionary Web3 wallet system.
-
-[🚀 Create Your Wallet](/en/docs/getting-started/quick-start) | [📊 View Token Economics](/en/docs/api/wallet#token-economics) | [💬 Get Financial Support](/en/docs/contact)
-
-*Experience the future of finance with Ring Platform's intelligent Web3 wallet - where earning meets simplicity, and wealth building becomes automatic.*
+</FutureFeatureBacklog>

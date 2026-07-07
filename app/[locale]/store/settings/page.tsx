@@ -16,6 +16,7 @@ import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type StoreSettingsParams = Record<string, never>
 
+// Disables SEO indexing for the store settings page for privacy/security.
 const storeSettingsRobots: Metadata['robots'] = { index: false, follow: false }
 
 export async function generateMetadata({
@@ -23,11 +24,18 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
+  // Extract the locale param (async).
   const { locale: localeParam } = await params
+
+  // Validate locale or fallback to default locale.
   const locale = routing.locales.includes(localeParam as Locale)
     ? (localeParam as Locale)
     : routing.defaultLocale
+
+  // Set current request locale for i18n.
   setRequestLocale(locale)
+
+  // Generate localized metadata for SEO/settings.
   return buildLocalizedMetadata({
     locale,
     path: 'store.settings',
@@ -38,64 +46,69 @@ export async function generateMetadata({
 
 /**
  * StoreSettingsPage component
- * Renders the store settings page for managing addresses, payment methods, and store preferences
- * 
- * User steps:
- * 1. User navigates to the store settings page (e.g., /en/store/settings)
- * 2. The page extracts the locale from URL params
- * 3. The page checks for user authentication
- * 4. If not authenticated, user is redirected to localized login
- * 5. If authenticated, the store settings client component is rendered
- * 6. User can manage addresses, payment methods, and store preferences
- * 
- * @param props - The LocalePageProps with params and searchParams as Promises
- * @returns The rendered StoreSettingsPage component
+ * Handles authentication, user migration, and renders the settings page.
  */
-export default async function StoreSettingsPage(props: LocalePageProps<StoreSettingsParams>) {
-  await connection() // Next.js 16: opt out of prerendering
+export default async function StoreSettingsPage(
+  props: LocalePageProps<StoreSettingsParams>
+) {
+  // Opt out of static prerendering for this page in Next.js 16.
+  await connection() // TODO: When stable, consider using Next.js "dynamic = 'force-dynamic'" export for clarity.
 
-  logger.info('StoreSettingsPage: Starting');
+  logger.info('StoreSettingsPage: Starting')
 
-  const params = await props.params;
-  const searchParams = await props.searchParams;
-  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
+  // Await params and searchParams Promises.
+  const params = await props.params
+  const searchParams = await props.searchParams
 
-  const headersList = await headers();
+  // Determine valid locale: use from params if valid, otherwise default.
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale)
+    ? (params.locale as Locale)
+    : (routing.defaultLocale as Locale)
+
+  // Get HTTP headers for request context/debugging.
+  const headersList = await headers()
   logger.info('StoreSettingsPage: Request details', {
     params,
     searchParams,
     validLocale,
     userAgent: headersList.get('user-agent'),
-  });
+  })
 
   try {
-    logger.info('StoreSettingsPage: Authenticating session');
-    const session = await auth();
-    logger.info('StoreSettingsPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+    // Step 1: Ensure user is authenticated, else redirect to login.
+    logger.info('StoreSettingsPage: Authenticating session')
+    const session = await auth()
+    logger.info('StoreSettingsPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id })
 
     if (!session) {
-      logger.info('StoreSettingsPage: No session, redirecting to localized login');
-      redirect(ROUTES.LOGIN(validLocale));
+      logger.info('StoreSettingsPage: No session, redirecting to localized login')
+      redirect(ROUTES.LOGIN(validLocale))
+      // Note: redirect() ends execution.
     }
 
+    // Step 2: Optionally ensure the user's DB document exists (idempotent).
     try {
-      const { userMigrationService } = await import('@/features/auth/services/user-migration');
-      const userExists = await userMigrationService.userDocumentExists(session.user.id);
+      const { userMigrationService } = await import('@/features/auth/services/user-migration')
+      const userExists = await userMigrationService.userDocumentExists(session.user.id)
       if (!userExists) {
-        logger.warn('StoreSettingsPage: User document missing, initializing');
-        await userMigrationService.ensureUserDocument(session.user as any);
-        logger.info('StoreSettingsPage: User document created successfully');
+        logger.warn('StoreSettingsPage: User document missing, initializing')
+        await userMigrationService.ensureUserDocument(session.user as any)
+        logger.info('StoreSettingsPage: User document created successfully')
       }
     } catch (migrationError) {
-      logger.error('StoreSettingsPage: Failed to check/create user document:', migrationError);
+      // User migration step failed but does not block page render.
+      logger.error('StoreSettingsPage: Failed to check/create user document:', migrationError)
     }
 
-    logger.info('StoreSettingsPage: Rendering store settings client');
+    logger.info('StoreSettingsPage: Rendering store settings client')
 
+    // Step 3: Render the actual settings page in a wrapper with a Suspense skeleton.
+    // TODO: With React19, consider replacing fallback skeleton with React's new built-in <Suspense /> features when app architecture permits.
     return (
       <StoreWrapper locale={validLocale}>
         <Suspense
           fallback={
+            // Skeleton loading UI for settings page.
             <div className="container mx-auto px-0 py-0">
               <div className="animate-pulse space-y-6">
                 <div className="h-8 bg-muted rounded w-1/3" />
@@ -111,14 +124,17 @@ export default async function StoreSettingsPage(props: LocalePageProps<StoreSett
         </Suspense>
       </StoreWrapper>
     )
-
   } catch (e) {
-    logger.error('StoreSettingsPage: Error:', e);
-    
+    // Top-level error: session, logic, or dynamic import errors handled here.
+    logger.error('StoreSettingsPage: Error:', e)
+
+    // TODO: Consider using Next.js error.js for global error boundaries instead of inline error UI.
     return (
       <div className="container mx-auto px-0 py-0">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Store Settings Error</h1>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Store Settings Error
+          </h1>
           <p className="text-muted-foreground mb-4">
             Failed to load store settings. Please try again later.
           </p>

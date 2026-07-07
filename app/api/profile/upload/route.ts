@@ -1,7 +1,8 @@
 import { file as fileService } from '@/lib/file'
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
+// TODO: verify if UserRolesArray is beneficial here.
 import { cookies, headers } from 'next/headers'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'

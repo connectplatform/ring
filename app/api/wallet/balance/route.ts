@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
-import { getWalletBalance } from '@/features/wallet/services/get-wallet-balance'
+import { getWalletBalance } from '@/app/_actions/wallet'
 
 /**
  * API route handler for fetching the wallet balance of the authenticated user.

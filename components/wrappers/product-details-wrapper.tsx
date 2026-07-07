@@ -24,7 +24,7 @@
  * - UI/UX Optimization Agent (mobile excellence)
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
@@ -112,13 +112,13 @@ export default function ProductDetailsWrapper({
     { id: 'quality', title: t('qualityGuarantee', { defaultValue: 'Quality Guarantee' }), icon: Award, description: t('qualityGuaranteeDescription', { defaultValue: '100% satisfaction' }) },
   ]
 
-  const handleShare = (optionId: string) => {
+  const handleShare = useCallback((optionId: string) => {
     // TODO: Implement sharing functionality
     console.log('Share via:', optionId)
     setRightSidebarOpen(false)
-  }
+  }, [])
 
-  const RightSidebarContent = () => (
+  const rightSidebarContent = useMemo(() => (
     <div className="space-y-6">
       {/* Similar Products - Vector Matching */}
       {currentProduct ? (
@@ -297,7 +297,7 @@ export default function ProductDetailsWrapper({
         </CardContent>
       </Card>
     </div>
-  )
+  ), [currentProduct, locale, t, handleShare, vendorInfo, reviewsSummary, shareOptions, shoppingGuide, router])
 
   return (
     <ProductAgentChatProvider
@@ -312,7 +312,7 @@ export default function ProductDetailsWrapper({
 
           <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
             <div className="sticky top-8">
-              <RightSidebarContent />
+              {rightSidebarContent}
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function ProductDetailsWrapper({
           mobileWidth="90%"
           tabletWidth="380px"
         >
-          <RightSidebarContent />
+          {rightSidebarContent}
         </FloatingSidebarToggle>
 
         {productId && currentProduct?.id && (

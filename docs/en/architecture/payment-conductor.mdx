@@ -24,6 +24,25 @@ PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer.
 
 ## Request flow
 
+<RingWidgetFlowStepsFive
+  locale="en"
+  title="PaymentConductor Orchestration"
+  subtitle="Conductor actively orchestrates payment operations across gateways and handlers"
+  centerLabel="PaymentConductor"
+  centerIcon="Zap"
+  centerColor="from-amber-500 to-orange-600"
+  spokes={[
+    { label: "UI/Checkout", icon: "ShoppingCart", color: "#10b981", description: "User initiates payment" },
+    { label: "WayForPay", icon: "CreditCard", color: "#3b82f6", description: "Ukrainian payment gateway" },
+    { label: "Stripe", icon: "CreditCard", color: "#8b5cf6", description: "Global payment processor" },
+    { label: "Credit", icon: "Wallet", color: "#f59e0b", description: "Internal RING credit balance" },
+    { label: "Webhook", icon: "Webhook", color: "#ec4899", description: "Payment status callbacks" },
+    { label: "Handlers", icon: "Shield", color: "#6366f1", description: "Store/Membership/News logic" },
+    { label: "Ledger", icon: "Database", color: "#0ea5e9", description: "payment_transactions SSOT" },
+  ]}
+  connectionLabels={{ inbound: "Request", outbound: "Response" }}
+/>
+
 <Mermaid>
 {`sequenceDiagram
     participant UI as Checkout / upgrade UI
@@ -98,7 +117,7 @@ type PaymentTransactionStatus =
 - `getPaymentProvider(purpose)` — resolves WayForPay vs Stripe from env overrides
 - `getProcessorForPurpose(purpose)` — alias of above
 - `isRailEnabled(purpose, rail)` — credit / token gates
-- `getFiatCurrency()` — `PAYMENT_FIAT_CURRENCY` (default `USD`)
+- `getDefaultStoreCurrencySymbol()` — `PAYMENT_FIAT_CURRENCY` (default `USD`)
 - `canSpendCreditForOrderCurrency(orderCurrency)` — `PAYMENT_CREDIT_ACCEPT_ORDER_CURRENCY`
 - `getWebhookUrl(provider)` — `${site}/api/payments/${provider}/webhook`
 
@@ -179,7 +198,7 @@ JSON `data` fields (via `payment-transaction-service.ts`):
 | `POST` | `/api/store/payments/wayforpay` | Store redirect checkout |
 | `GET` | `/api/store/payments/[orderId]/status` | Poll status |
 | `POST` | `/api/store/payments/credit` | Internal credit |
-| `POST` | `/api/membership/payment/ring` | RING membership |
+| `POST` | `/api/membership/payment/token` | RING membership |
 | `POST` | `/api/news/promotion/submit` | News promotion checkout |
 
 </Tab>

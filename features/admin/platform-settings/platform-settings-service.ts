@@ -205,12 +205,12 @@ export async function importPlatformSettingsFromEnv(updatedBy: string): Promise<
   const brandingExisting = await readRow('branding')
   if (!brandingExisting) {
     try {
-      const { getInstanceConfigFromFile } = await import('@/lib/ring-config-core')
-      const fileCfg = getInstanceConfigFromFile()
+      const { getSystemConfigSnapshot } = await import('@/lib/ring-config-core')
+      const fileCfg = getSystemConfigSnapshot()
       const data = platformBrandingDataSchema.parse({
-        name: fileCfg.name,
-        brand: fileCfg.brand,
-        theme: fileCfg.theme || { default: 'system' },
+        name: fileCfg.seo.siteName,
+        brand: fileCfg.branding,
+        theme: fileCfg.theme.default || { default: 'system' },
         features: fileCfg.features,
       })
       await upsertPlatformNamespace('branding', data, {}, updatedBy)

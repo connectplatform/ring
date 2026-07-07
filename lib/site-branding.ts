@@ -1,8 +1,8 @@
 import { routing } from '@/i18n/routing'
-import { blogArticlePathname } from '@/lib/blog/blog-path'
+import { profileArticlePathname } from '@/lib/blog/blog-path'
 import {
   getPlatformIdentity,
-  getRingConfigSnapshot,
+  getSystemConfigSnapshot,
   getRingSeoBranding,
   getSiteBaseUrl,
 } from '@/lib/ring-config-core'
@@ -21,7 +21,7 @@ export function getBrandTagline(): string {
 }
 
 export function getBrandLogoPath(): string {
-  const branding = getRingConfigSnapshot().branding as { logo?: { light?: string } } | undefined
+  const branding = getSystemConfigSnapshot().branding as { logo?: { light?: string } } | undefined
   return (
     process.env.NEXT_PUBLIC_BRAND_LOGO ||
     branding?.logo?.light ||
@@ -47,7 +47,7 @@ export function localeNewsArticleUrl(locale: string, slug: string): string {
 }
 
 export function localeBlogArticleUrl(locale: string, username: string, slug: string): string {
-  return absoluteSiteUrl(`/${locale}${blogArticlePathname(username, slug)}`)
+  return absoluteSiteUrl(`/${locale}${profileArticlePathname(username, slug)}`)
 }
 
 /** Absolute hreflang map for a locale-agnostic path (e.g. `/news/my-slug`). */

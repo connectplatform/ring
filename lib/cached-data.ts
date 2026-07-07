@@ -1,9 +1,9 @@
 import { unstable_cache, revalidateTag } from 'next/cache'
 import { getEntitiesForRole } from '@/features/entities/services/get-entities'
 import { getOpportunitiesForRole } from '@/features/opportunities/services/get-opportunities'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 
-export const getCachedEntitiesForRole = (roleKey: UserRole) =>
+export const getCachedEntitiesForRole = (roleKey: UserRolesArray) =>
   unstable_cache(
     async (limit: number = 20, startAfter?: string) => {
       return getEntitiesForRole({ userRole: roleKey, limit, startAfter })
@@ -12,7 +12,7 @@ export const getCachedEntitiesForRole = (roleKey: UserRole) =>
     { tags: ['entities-list', `entities-role-${roleKey}`] }
   )
 
-export const getCachedOpportunitiesForRole = (roleKey: UserRole) =>
+export const getCachedOpportunitiesForRole = (roleKey: UserRolesArray) =>
   unstable_cache(
     async (limit: number = 20, startAfter?: string) => {
       console.log('Cached data: getCachedOpportunitiesForRole called with:', { roleKey, limit, startAfter });
@@ -40,6 +40,14 @@ export function invalidateEntitiesCache(roleKeys: string[] = []) {
 export function invalidateOpportunitiesCache(roleKeys: string[] = []) {
   revalidateTag('opportunities-list', 'max')
   for (const role of roleKeys) revalidateTag(`opportunities-role-${role}`, 'max')
+}
+
+/**
+ * Invalidate news-stats cache (admin sidebar lightweight aggregate).
+ * Call after any news article create / update / delete / status change.
+ */
+export function invalidateNewsStatsCache() {
+  revalidateTag('news-stats', 'max')
 }
 
 

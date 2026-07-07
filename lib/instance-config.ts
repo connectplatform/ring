@@ -6,7 +6,7 @@ export type { InstanceConfig, PublicInstanceConfig } from '@/lib/ring-config-cor
 export {
   getInstanceConfig,
   getInstanceConfigAsync,
-  getInstanceConfigFromFile,
+  getSystemConfigSnapshot,
   getPublicInstanceConfig,
   getPublicInstanceConfigFromSnapshot,
   getBrandColors,

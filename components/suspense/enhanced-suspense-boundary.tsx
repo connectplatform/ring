@@ -7,27 +7,30 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
+// Props for the main EnhancedSuspenseBoundary component
 interface EnhancedSuspenseBoundaryProps {
   children: React.ReactNode
-  fallback?: React.ReactNode
-  level?: 'page' | 'section' | 'component'
-  name?: string
-  showProgress?: boolean
-  retryEnabled?: boolean
-  // @ts-ignore React 19 serialization - client-side callback
-  onRetry?: () => void
-  description?: string
-  estimatedLoadTime?: number
-  loadingStates?: LoadingState[]
+  fallback?: React.ReactNode // Optional custom fallback, otherwise uses EnhancedLoadingFallback
+  level?: 'page' | 'section' | 'component' // Loading UX size/role
+  name?: string // Used for step auto-detection and UI label
+  showProgress?: boolean // Whether to show step/progress UI
+  retryEnabled?: boolean // Whether retry button is shown
+  // @ts-ignore React 19 serialization - client-side callback (Suppressed for now; revisit after official React 19 stable)
+  onRetry?: () => void // Retry callback for failed loads (client only!)
+  description?: string // Optional extra UI description field
+  estimatedLoadTime?: number // ms
+  loadingStates?: LoadingState[] // List of steps for granular loading animation
 }
 
+// Step for fine loading progress in fallback UI
 interface LoadingState {
   step: number
   label: string
   duration: number
-  icon: React.ReactNode
+  icon: React.ReactNode // Icon for this step
 }
 
+// All props needed for the fallback loader component
 interface EnhancedLoadingFallbackProps {
   level: 'page' | 'section' | 'component'
   name?: string
@@ -40,7 +43,7 @@ interface EnhancedLoadingFallbackProps {
   loadingStates?: LoadingState[]
 }
 
-// Default loading states for different components
+// Default per-type loading flows with icons and durations
 const DEFAULT_LOADING_STATES = {
   entities: [
     { step: 1, label: 'Connecting to database', duration: 800, icon: <Loader2 className="h-4 w-4" /> },
@@ -69,6 +72,7 @@ const DEFAULT_LOADING_STATES = {
   ]
 }
 
+// Fallback UI rendered for the Suspense boundary; handles progress and optional retry
 function EnhancedLoadingFallback({
   level,
   name = 'content',
@@ -79,31 +83,33 @@ function EnhancedLoadingFallback({
   estimatedLoadTime = 2000,
   loadingStates
 }: EnhancedLoadingFallbackProps) {
-  const [currentStep, setCurrentStep] = React.useState(0)
-  const [elapsedTime, setElapsedTime] = React.useState(0)
-  const [isRetrying, setIsRetrying] = React.useState(false)
+  const [currentStep, setCurrentStep] = React.useState(0) // Step index for progress
+  const [elapsedTime, setElapsedTime] = React.useState(0) // ms since load started
+  const [isRetrying, setIsRetrying] = React.useState(false) // Button disabling state
 
-  // Deferred values for smooth animations
+  // React 18+ hook to defer value updates during suspense for faster paint/smoother UI
+  // TODO: Switch to use(transition) or SuspenseList + useOptimisticState when available in Next.js 16+ stable
   const deferredCurrentStep = useDeferredValue(currentStep)
   const deferredElapsedTime = useDeferredValue(elapsedTime)
 
-  // Progress simulation for loading states
+  // Drive the animated progress bar, advancing steps at each state's duration
   React.useEffect(() => {
     if (!loadingStates || !showProgress) return
 
     let timeoutId: NodeJS.Timeout
     let currentTime = 0
 
+    // Progresses through the loading states automatically at fixed rate (100ms tick)
     const simulateProgress = () => {
       const currentState = loadingStates[currentStep]
-      if (!currentState) return
+      if (!currentState) return // Done
 
       currentTime += 100
       setElapsedTime(currentTime)
 
       if (currentTime >= currentState.duration && currentStep < loadingStates.length - 1) {
         setCurrentStep(prev => prev + 1)
-        currentTime = 0
+        currentTime = 0 // Reset for next state
       }
 
       timeoutId = setTimeout(simulateProgress, 100)
@@ -111,12 +117,14 @@ function EnhancedLoadingFallback({
 
     simulateProgress()
 
+    // Cleanup timeouts on deps change/unmount
     return () => {
       if (timeoutId) clearTimeout(timeoutId)
     }
   }, [currentStep, loadingStates, showProgress])
 
-  // Client-side retry handler - not a Server Action
+  // Handler for optional retry button.
+  // TODO: If React19+ supports passing server action/exceptions to retry, upgrade to native Suspense errorRecovery API.
   const handleRetry = () => {
     if (!onRetry) return
 
@@ -127,6 +135,7 @@ function EnhancedLoadingFallback({
     })
   }
 
+  // UI layout/spacing styling varies per UX level (page, section, component)
   const getLayoutByLevel = () => {
     switch (level) {
       case 'page':
@@ -145,12 +154,15 @@ function EnhancedLoadingFallback({
         return {
           containerClass: 'min-h-[200px] flex items-center justify-center',
           cardClass: 'w-full',
-          showDetails: false
+          showDetails: false // component-level: compact/minimal UI
         }
+      // TODO: Consider TS exhaustive check or fallback default
     }
   }
 
   const layout = getLayoutByLevel()
+
+  // Compute progress percentage, based on steps if available, otherwise by elapsed time
   const progressPercentage = loadingStates && currentStep < loadingStates.length
     ? ((currentStep + 1) / loadingStates.length) * 100
     : (deferredElapsedTime / estimatedLoadTime) * 100
@@ -166,21 +178,25 @@ function EnhancedLoadingFallback({
         <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center space-x-2 mb-2">
+              {/* Animated spinning loader */}
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
               >
                 <Loader2 className="h-8 w-8 text-blue-500" />
               </motion.div>
+              {/* Shows "Loading {name}" */}
               <Badge variant="secondary" className="px-3 py-1">
                 Loading {name}
               </Badge>
             </div>
             <CardTitle className="text-lg font-semibold">
+              {/* CardTitle based on UX level */}
               {level === 'page' ? 'Loading Page' : 
                level === 'section' ? 'Loading Section' : 
                'Loading Component'}
             </CardTitle>
+            {/* Optional descriptive text */}
             {description && (
               <CardDescription className="text-sm mt-2">
                 {description}
@@ -189,9 +205,10 @@ function EnhancedLoadingFallback({
           </CardHeader>
 
           <CardContent className="space-y-4">
+            {/* Main progress bar & steps */}
             {showProgress && layout.showDetails && (
               <>
-                {/* Progress Bar */}
+                {/* Progress Bar: animated width as percent */}
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <motion.div
                     className="bg-blue-500 h-2 rounded-full"
@@ -201,7 +218,7 @@ function EnhancedLoadingFallback({
                   />
                 </div>
 
-                {/* Loading Steps */}
+                {/* Loading Steps List with icons and highlighting of current/completed */}
                 {loadingStates && (
                   <div className="space-y-2">
                     <AnimatePresence>
@@ -222,6 +239,7 @@ function EnhancedLoadingFallback({
                                 : 'text-gray-500'
                           }`}
                         >
+                          {/* Spinning icon for current step, static for others */}
                           <motion.div
                             animate={index === deferredCurrentStep ? { rotate: 360 } : {}}
                             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
@@ -229,6 +247,7 @@ function EnhancedLoadingFallback({
                             {state.icon}
                           </motion.div>
                           <span>{state.label}</span>
+                          {/* Check mark for completed states */}
                           {index < deferredCurrentStep && (
                             <motion.div
                               initial={{ scale: 0 }}
@@ -244,14 +263,14 @@ function EnhancedLoadingFallback({
                   </div>
                 )}
 
-                {/* Estimated Time */}
+                {/* Shows estimated time, for UX communication */}
                 <div className="text-center text-xs text-gray-500">
                   Estimated time: {Math.ceil(estimatedLoadTime / 1000)}s
                 </div>
               </>
             )}
 
-            {/* Retry Button */}
+            {/* Retry Button: shown only if explicitly enabled + callback exists + layout is page/section */}
             {retryEnabled && onRetry && layout.showDetails && (
               <div className="text-center pt-2">
                 <Button
@@ -308,20 +327,22 @@ export function EnhancedSuspenseBoundary({
   estimatedLoadTime = 2000,
   loadingStates
 }: EnhancedSuspenseBoundaryProps) {
-  // Auto-detect loading states based on component name
+  // Auto-detect loadingStates list based on `name` heuristics or explicit prop (allows out-of-the-box UX for common use cases)
   const autoLoadingStates = React.useMemo(() => {
     if (loadingStates) return loadingStates
-    
+
+    // Heuristic detection by name substring
     const componentType = name?.toLowerCase()
     if (componentType?.includes('entit')) return DEFAULT_LOADING_STATES.entities
     if (componentType?.includes('opportunit')) return DEFAULT_LOADING_STATES.opportunities
     if (componentType?.includes('profile')) return DEFAULT_LOADING_STATES.profile
     if (componentType?.includes('messag') || componentType?.includes('chat')) return DEFAULT_LOADING_STATES.messaging
     if (componentType?.includes('news') || componentType?.includes('article')) return DEFAULT_LOADING_STATES.news
-    
-    return undefined
+
+    return undefined // No steps, will fallback to basic loader
   }, [name, loadingStates])
 
+  // Fallback is either provided fallback or the built-in EnhancedLoadingFallback component
   const defaultFallback = (
     <EnhancedLoadingFallback
       level={level}
@@ -335,6 +356,8 @@ export function EnhancedSuspenseBoundary({
     />
   )
 
+  // Use the new <Suspense> fallback prop for async boundaries
+  // TODO: When Next.js 16+ supports errorRecovery (React19), allow passing recovery props for retry and granular error UI.
   return (
     <Suspense fallback={fallback || defaultFallback}>
       {children}
@@ -342,7 +365,7 @@ export function EnhancedSuspenseBoundary({
   )
 }
 
-// Specialized Suspense boundaries for different component types
+// Factory wrappers for type-specific Suspense boundaries for smarter UI presets.
 export function EntitySuspenseBoundary({ children, ...props }: Omit<EnhancedSuspenseBoundaryProps, 'name' | 'loadingStates'>) {
   return (
     <EnhancedSuspenseBoundary
@@ -406,4 +429,4 @@ export function NewsSuspenseBoundary({ children, ...props }: Omit<EnhancedSuspen
       {children}
     </EnhancedSuspenseBoundary>
   )
-} 
+}

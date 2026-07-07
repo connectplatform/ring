@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 
 const mockRead = jest.fn()
 const mockUpdate = jest.fn()
@@ -43,7 +43,7 @@ describe('generateNonce', () => {
     expect(mockCreate).toHaveBeenCalledWith(
       'users',
       expect.objectContaining({
-        role: UserRole.subscriber,
+        role: UserRolesArray.subscriber,
         nonce: result.nonce,
         walletAddress: expect.any(String),
       }),
@@ -55,7 +55,7 @@ describe('generateNonce', () => {
   it('updates an existing wallet user', async () => {
     mockRead.mockResolvedValue({
       success: true,
-      data: { data: { email: 'wallet@example.com', role: UserRole.subscriber } },
+      data: { data: { email: 'wallet@example.com', role: UserRolesArray.subscriber } },
     })
     mockUpdate.mockResolvedValue({ success: true })
 

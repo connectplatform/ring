@@ -19,6 +19,22 @@ export const RingGatewayBridge = dynamic(
   { ssr: false, loading: vizPlaceholder },
 )
 
+export const RingPaymentConductorFlow = dynamic(
+  () =>
+    import('@/components/docs/ring-payment-conductor-flow').then((mod) => ({
+      default: mod.RingPaymentConductorFlow,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
+export const RingWidgetFlowStepsFive = dynamic(
+  () =>
+    import('@/components/docs/ring-widget-flow-steps-five').then((mod) => ({
+      default: mod.RingWidgetFlowStepsFive,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
 export const RingCollectiveIntelligenceLoop = dynamic(
   () =>
     import('@/components/docs/ring-welcome-visuals').then((mod) => ({

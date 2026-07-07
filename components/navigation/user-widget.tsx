@@ -1,63 +1,47 @@
 'use client'
 
-/**
- * Revolutionary 2025 User Widget
- * 
- * Features:
- * - Glassmorphism design with frosted glass effect
- * - Avatar with online status indicator
- * - RING balance with shimmer effect
- * - 4-button action row: Notifications, Favorites, Cart, Messages
- * - Real-time counters with pulse animations
- * - Micro-interactions with Framer Motion
- * - Haptic feedback on hover/click
- * - Theme-aware colors
- * 
- * Tech Stack:
- * - React 19 (use hook, useOptimistic)
- * - Framer Motion (micro-interactions)
- * - Tailwind CSS 4 (glassmorphism)
- * - Real-time counters via hooks
- */
+// ========================================================================
+// Revolutionary 2025 User Widget
+// - Highly interactive, visually modern user widget using glassmorphism UI
+// - Leverages Framer Motion for micro-interactions
+// - Real-time state hooks for counters & dynamic content
+// ========================================================================
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Bell, 
-  Heart, 
-  ShoppingCart, 
+import {
+  Bell,
+  Heart,
+  ShoppingCart,
   MessageCircle,
   Sparkles,
-  TrendingUp,
-  Zap
+  TrendingUp
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import { ROUTES } from '@/constants/routes'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
-import { useOptionalCurrency } from '@/features/store/currency-context'
+import { useDisplayPrice, useStoreCurrency } from '@/features/store/currency-context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 import { Badge } from '@/components/ui/badge'
 import { useTranslations } from 'next-intl'
 
+// ========================================================================
+// TYPES
+// ========================================================================
 interface UserWidgetProps {
   className?: string
   variant?: 'desktop' | 'mobile'
 }
 
-/**
- * Action Button Component with Counter Badge
- * Features: Pulse animation when count changes, glassmorphism on hover
- */
 interface ActionButtonProps {
   icon: React.ReactNode
   count: number
@@ -67,11 +51,26 @@ interface ActionButtonProps {
   onClick?: () => void
 }
 
+interface HoverWidgetButtonProps {
+  icon: React.ReactNode
+  count: number
+  label: string
+  color: 'blue' | 'pink' | 'green' | 'purple'
+  children: React.ReactNode
+}
+
+// ========================================================================
+// ActionButton: Circular button for navigation actions, with real-time badge
+// Features: 
+// - Badge animates on value change
+// - Color is theme-specific (blue, pink, green, purple)
+// - Glass and scale hover effect
+// ========================================================================
 function ActionButton({ icon, count, href, label, color, onClick }: ActionButtonProps) {
+  // Track previous count to detect changes
   const [prevCount, setPrevCount] = useState(count)
   const [justUpdated, setJustUpdated] = useState(false)
 
-  // Detect count changes for pulse effect
   useEffect(() => {
     if (count !== prevCount && count > 0) {
       setJustUpdated(true)
@@ -80,7 +79,6 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
     setPrevCount(count)
   }, [count, prevCount])
 
-  // Connect.Software Scientific Color Palette
   const colorMap = {
     blue: {
       bg: 'from-blue-500/20 to-cyan-500/20',
@@ -107,7 +105,6 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
       glow: 'shadow-purple-500/50'
     }
   }
-
   const colors = colorMap[color]
 
   return (
@@ -124,7 +121,7 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
           "cursor-pointer",
           colors.bg
         )}
-        whileHover={{ 
+        whileHover={{
           scale: 1.1,
           boxShadow: `0 8px 32px ${colors.glow}`
         }}
@@ -135,14 +132,13 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
         <span className={cn("transition-colors duration-300", colors.text, "group-hover:scale-110")}>
           {icon}
         </span>
-
-        {/* Counter Badge */}
+        {/* Counter Badge: Shows only if count > 0, animates on change */}
         <AnimatePresence>
           {count > 0 && (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ 
-                scale: 1, 
+              animate={{
+                scale: 1,
                 opacity: 1,
                 ...(justUpdated && {
                   scale: [1, 1.3, 1],
@@ -166,8 +162,7 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Hover glow effect */}
+        {/* Background Glow on hover */}
         <motion.div
           className={cn(
             "absolute inset-0 rounded-full",
@@ -183,23 +178,16 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
   )
 }
 
-/**
- * Smart Hover Widget Button
- * Wraps existing hover components with proper styling to match widget design
- */
-interface HoverWidgetButtonProps {
-  icon: React.ReactNode
-  count: number
-  label: string
-  color: 'blue' | 'pink' | 'green' | 'purple'
-  children: React.ReactNode
-}
-
+// ========================================================================
+// HoverWidgetButton: Wraps a button with a hover panel (for Favorites & Cart)
+// Features:
+// - Shows badge w/ animation
+// - Panel content is rendered as children
+// ========================================================================
 function HoverWidgetButton({ icon, count, label, color, children }: HoverWidgetButtonProps) {
+  // Pulse animation on count change
   const [prevCount, setPrevCount] = useState(count)
   const [justUpdated, setJustUpdated] = useState(false)
-
-  // Detect count changes for pulse effect
   useEffect(() => {
     if (count !== prevCount && count > 0) {
       setJustUpdated(true)
@@ -234,7 +222,6 @@ function HoverWidgetButton({ icon, count, label, color, children }: HoverWidgetB
       glow: 'shadow-purple-500/50'
     }
   }
-
   const colors = colorMap[color]
 
   return (
@@ -251,7 +238,7 @@ function HoverWidgetButton({ icon, count, label, color, children }: HoverWidgetB
           "cursor-pointer",
           colors.bg
         )}
-        whileHover={{ 
+        whileHover={{
           scale: 1.1,
           boxShadow: `0 8px 32px ${colors.glow}`
         }}
@@ -262,14 +249,13 @@ function HoverWidgetButton({ icon, count, label, color, children }: HoverWidgetB
         <span className={cn("transition-colors duration-300", colors.text, "group-hover:scale-110")}>
           {icon}
         </span>
-
         {/* Counter Badge */}
         <AnimatePresence>
           {count > 0 && (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ 
-                scale: 1, 
+              animate={{
+                scale: 1,
                 opacity: 1,
                 ...(justUpdated && {
                   scale: [1, 1.3, 1],
@@ -293,8 +279,7 @@ function HoverWidgetButton({ icon, count, label, color, children }: HoverWidgetB
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Hover glow effect */}
+        {/* Glow on hover */}
         <motion.div
           className={cn(
             "absolute inset-0 rounded-full",
@@ -306,31 +291,36 @@ function HoverWidgetButton({ icon, count, label, color, children }: HoverWidgetB
           )}
         />
       </motion.div>
-      
-      {/* Hover widget content */}
+      {/* Floating panel on hover (children) */}
       {children}
     </div>
   )
 }
 
-/**
- * Smart Favorites Widget - Hover to preview
- */
+// ========================================================================
+// FavoritesWidget: Shows user's "Favorite" store items on hover
+// - Uses localStorage state for favorites
+// - Merges "enhanced" and legacy products to find actual favorite products
+// - Panel appears on hover of icon
+// ========================================================================
 function FavoritesWidget() {
   const locale = useLocale() as Locale
+  // favorites: list of IDs in localStorage
   const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])
   const store = useOptionalStore()
   const [open, setOpen] = useState(false)
+  // STUB: Technically, mounted is unnecessary with Next.js 13+ w/ 'use client'
   const [mounted, setMounted] = useState(false)
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const t = useTranslations('modules.store.favorites')
-  const tCommon = useTranslations('common')
-  
+
+  // Handle mount state: prevent SSR hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  React.useEffect(() => {
+  // Hover logic: show panel while mouse is over button or panel
+  useEffect(() => {
     const node = containerRef.current
     if (!node) return
     let hoverWithin = false
@@ -343,11 +333,13 @@ function FavoritesWidget() {
       node.removeEventListener('mouseleave', onLeave)
     }
   }, [])
-
-  const resolved = React.useMemo(() => {
+  // Find actual product records represented by the favorite IDs. Merge enhanced/legacy.
+  const resolved = useMemo(() => {
+    // allProducts = enhancedProducts + products
     const enhancedList = store?.enhancedProducts || []
     const legacyList = store?.products || []
     const allProducts = [...enhancedList, ...legacyList]
+    // Map favorite IDs to product objects, filter out deleted/missing
     return favorites
       .map(id => allProducts.find(p => p.id === id))
       .filter(Boolean) as Array<{ id: string; name: string; price?: string | number; currency?: string }>
@@ -361,24 +353,28 @@ function FavoritesWidget() {
         label="Favorites"
         color="pink"
       >
+        {/* Hover panel: only rendered while open */}
         {open && (
           <div
             className="fixed left-[5.5rem] top-[8rem] w-[320px] max-h-[calc(100vh-140px)] bg-card/98 backdrop-blur-xl border border-border rounded-lg z-20 overflow-y-auto shadow-2xl"
-            onMouseEnter={() => setOpen(true)} 
+            onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
           >
             <div className="p-4">
+              {/* Panel header: Heart icon, "Favorites", total count */}
               <div className="flex items-center gap-2 mb-4">
                 <Heart className="h-5 w-5 text-pink-500" />
                 <span className="font-semibold">{t('button')}</span>
                 <Badge variant="secondary">{resolved.length}</Badge>
               </div>
+              {/* If empty, show "no favorites" message */}
               {resolved.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-8">
                   {t('empty')}
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {/* List of favorite products */}
                   {resolved.map(p => (
                     <div key={p.id} className="p-3 bg-muted/30 rounded-lg border border-border">
                       <div className="flex items-start justify-between">
@@ -396,6 +392,7 @@ function FavoritesWidget() {
                             </div>
                           )}
                         </div>
+                        {/* Remove from favorites */}
                         <button
                           onClick={() => setFavorites(favorites.filter(id => id !== p.id))}
                           className="text-destructive hover:text-destructive/80 text-sm ml-2 flex-shrink-0"
@@ -406,6 +403,7 @@ function FavoritesWidget() {
                       </div>
                     </div>
                   ))}
+                  {/* Browse Store link */}
                   <div className="border-t border-border pt-3 mt-4">
                     <Link
                       className="w-full text-center py-2 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium block"
@@ -425,29 +423,27 @@ function FavoritesWidget() {
   )
 }
 
-/**
- * Smart Cart Widget - Hover to preview
- */
+// ========================================================================
+// CartWidget: Shows cart contents on hover
+// - Uses shared store context
+// - Real-time display of cart items, quantity, total, removal
+// - Integrates 'useDisplayPrice' for formatting
+// ========================================================================
 function CartWidget() {
   const locale = useLocale() as Locale
   const store = useOptionalStore()
-  const currencyContext = useOptionalCurrency()
+  // STUB: 'formatPrice', 'convertPrice', 'currency' not directly used here, could be removed for performance.
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const tCommon = useTranslations('common')
   const tStore = useTranslations('modules.store')
 
-  // Currency formatting
-  const formatPrice = currencyContext?.formatPrice || ((price: number) => `${price.toFixed(2)} ₴`)
-  const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
-  const selectedCurrency = currencyContext?.currency || 'UAH'
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  // Set mounted (SSR hydration fix if required by localStorage/etc.)
+  useEffect(() => setMounted(true), [])
 
-  React.useEffect(() => {
+  // Hover logic for the floating panel
+  useEffect(() => {
     const node = containerRef.current
     if (!node) return
     let hoverWithin = false
@@ -461,9 +457,9 @@ function CartWidget() {
     }
   }, [])
 
+  // Precompute cart state
   const cartItems = store?.cartItems || []
   const totalItems = store?.totalItems || 0
-  const totalPriceByCurrency = store?.totalPriceByCurrency || { DAAR: 0, DAARION: 0 }
 
   return (
     <div className="relative" ref={containerRef}>
@@ -476,21 +472,24 @@ function CartWidget() {
         {open && (
           <div
             className="fixed left-[9rem] top-[8rem] w-[320px] max-h-[calc(100vh-200px)] bg-card/98 backdrop-blur-xl border border-border rounded-lg z-20 overflow-y-auto shadow-2xl"
-            onMouseEnter={() => setOpen(true)} 
+            onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
           >
             <div className="p-4">
+              {/* Cart panel header: cart icon, total count */}
               <div className="flex items-center gap-2 mb-4">
                 <ShoppingCart className="h-5 w-5 text-green-500" />
                 <span className="font-semibold">{tStore('cart.title')}</span>
                 <Badge variant="secondary">{totalItems}</Badge>
               </div>
+              {/* If empty cart */}
               {cartItems.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-8">
                   {tStore('cart.empty')}
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {/* Map each cart entry */}
                   {cartItems.map(i => (
                     <div key={i.product.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
                       <div className="flex-1 min-w-0">
@@ -505,12 +504,13 @@ function CartWidget() {
                       </button>
                     </div>
                   ))}
+                  {/* Show total, navigation links */}
                   <div className="border-t border-border pt-3 mt-4">
                     <div className="text-sm font-medium mb-3">
-                      {tStore('cart.total')}: {formatPrice(cartItems.reduce((sum, item) => {
-                        const priceUAH = item.finalPrice || parseFloat(item.product.price || '0')
-                        const convertedPrice = convertPrice(priceUAH)
-                        return sum + (convertedPrice * item.quantity)
+                      {tStore('cart.total')}: {useDisplayPrice(cartItems.reduce((sum, item) => {
+                        // Prefer finalPrice (discounted?), else parse original
+                        const priceDefaultCurrency = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price || '0')
+                        return sum + (priceDefaultCurrency * item.quantity)
                       }, 0))}
                     </div>
                     <div className="flex gap-2">
@@ -540,44 +540,46 @@ function CartWidget() {
   )
 }
 
-/**
- * Main User Widget Component
- */
+// ========================================================================
+// Main UserWidget: Entry point, displays avatar, balance, and buttons
+// ========================================================================
 export default function UserWidget({ className, variant = 'desktop' }: UserWidgetProps) {
   const router = useRouter()
   const locale = useLocale() as Locale
   const { data: session } = useSession()
+  // Hydration deviation prevention for persistent client-side state
   const [mounted, setMounted] = useState(false)
 
-  // Real-time data from shared context
+  // Read up-to-date info from global contexts
   const { balance: tokenBalance, isLoading: balanceLoading } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
-  
-  // Cart count from store context
+
+  // Cart count derived from store context
   const cartCount = store?.totalItems || 0
-  
-  // Messages count (TODO: implement unread messages hook)
+
+  // STUB: Messages count handling - needs backend integration for real messages (see below)
   const [messagesCount, setMessagesCount] = useState(0)
 
-  // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
-    // TODO: Fetch unread messages count
-    // const fetchUnreadMessages = async () => {
-    //   const response = await fetch('/api/messages?unreadOnly=true&stats=true')
-    //   if (response.ok) {
-    //     const data = await response.json()
-    //     setMessagesCount(data.unreadCount || 0)
-    //   }
-    // }
-    // fetchUnreadMessages()
+    // STUB: Implement unread messages counter fetch to sync with backend
+    // STUB: Could be implemented using a 'useUnreadMessages' hook or SWR/fetch
+    // TODO: Use the React 19 use hook + server actions for this once API is ready
+    /*
+    use(
+      fetchUnreadMessagesCount()
+      .then(count => setMessagesCount(count))
+    )
+    */
+    // See: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions
   }, [])
 
-  // Balance animation state
+  // Track status of visual balance-change effect (could be used for animating increment/decrement)
   const [showBalanceChange, setShowBalanceChange] = useState(false)
 
+  // Format balance as rounded string with K/M suffixes
   const formatBalance = (balance: string | null) => {
     if (!balance || balance === '0') return '0.00'
     const num = parseFloat(balance)
@@ -585,10 +587,10 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
     if (num >= 1000) return `${(num / 1000).toFixed(2)}K`
     return num.toFixed(2)
   }
-
   const displayBalance = formatBalance(tokenBalance?.amount)
   const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 10
 
+  // Only render after mounting (prevents SSR mismatch with localStorage/session state)
   if (!session?.user || !mounted) return null
 
   return (
@@ -608,7 +610,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      {/* Floating orbs background effect */}
+      {/* Decorative floating gradients (visual polish). Fixed position. */}
       <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
         <motion.div
           className="absolute top-2 right-2 w-24 h-24 bg-blue-500/8 rounded-full blur-2xl"
@@ -628,18 +630,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
         />
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════════════════
-          🎨 DA VINCI MASTERPIECE USER WIDGET 
-          ═══════════════════════════════════════════════════════════════════════════════════
-          Design Philosophy: Renaissance meets Digital
-          - Overlapping circular portraits like classical medallion compositions
-          - Golden ratio spacing and visual hierarchy
-          - Cosmic flowing gradients inspired by the digital frontier
-          - Breathing animations that feel alive
-          - Typography that commands attention yet feels elegant
-          ═══════════════════════════════════════════════════════════════════════════════════ */}
-      
-      {/* The Grand Portrait Composition */}
+      {/* Avatar block: shows logo + user avatar in ring formation for branding */}
       <Link
         href={toAppHref(ROUTES.PROFILE(locale))}
         className="relative group block mb-4"
@@ -650,7 +641,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          {/* Ethereal Glow Background - Breathing effect */}
+          {/* Branded background effect */}
           <motion.div
             className="absolute inset-0 -m-4 rounded-3xl bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 blur-xl"
             animate={{
@@ -660,22 +651,19 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
 
-          {/* The Medallion - Overlapping Portraits */}
+          {/* two medallion icons: logo and user avatar */}
           <div className="relative flex justify-center mb-3">
-            {/* Logo Portrait - Left, slightly elevated */}
+            {/* Left: Logo with colored ring */}
             <motion.div
               className="relative z-10"
-              whileHover={{ 
+              whileHover={{
                 scale: 1.08,
                 rotate: -3,
                 y: -2
               }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
-              {/* Outer glow ring */}
               <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-blue-400/40 via-indigo-500/30 to-purple-400/40 blur-sm" />
-              
-              {/* Logo container - Circular with gradient border */}
               <div className="relative w-16 h-16 rounded-full p-[3px] bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-500 shadow-xl shadow-blue-500/30">
                 <div className="w-full h-full rounded-full bg-background/95 backdrop-blur-sm p-2 flex items-center justify-center overflow-hidden">
                   <Image
@@ -689,21 +677,17 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
                 </div>
               </div>
             </motion.div>
-
-            {/* Avatar Portrait - Right, overlapping */}
+            {/* Right: user avatar, overlapping */}
             <motion.div
               className="relative z-20 -ml-5"
-              whileHover={{ 
+              whileHover={{
                 scale: 1.08,
                 rotate: 3,
                 y: -2
               }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
-              {/* Outer glow ring */}
               <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-purple-400/40 via-pink-500/30 to-rose-400/40 blur-sm" />
-              
-              {/* Avatar container - Circular with gradient border */}
               <div className="relative w-16 h-16 rounded-full p-[3px] bg-gradient-to-br from-purple-400 via-pink-500 to-rose-500 shadow-xl shadow-purple-500/30">
                 <div className="w-full h-full rounded-full overflow-hidden">
                   <Avatar
@@ -716,7 +700,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
                 </div>
               </div>
 
-              {/* Verified Sparkle - Floating above */}
+              {/* Verified sparkle: only for verified users */}
               {session.user.isVerified && (
                 <motion.div
                   className="absolute -top-1 -right-1 z-30"
@@ -734,9 +718,8 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
             </motion.div>
           </div>
 
-          {/* Brand Typography - Elegant Stacked */}
+          {/* Platform/project title + user name display */}
           <div className="text-center space-y-1">
-            {/* Project Name - Hero Typography */}
             <motion.div
               className="relative"
               whileHover={{ scale: 1.02 }}
@@ -747,8 +730,6 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
               </span>
               <span className="font-light text-xl text-purple-600/80 dark:text-purple-400/80"> Platform</span>
             </motion.div>
-
-            {/* User Name - Refined Secondary */}
             <motion.div
               className="flex items-center justify-center gap-1.5"
               initial={{ opacity: 0 }}
@@ -765,7 +746,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
         </motion.div>
       </Link>
 
-      {/* RING Balance - Floating Gem Design */}
+      {/* ==== Balance Display ==== */}
       <Link href={toAppHref(ROUTES.WALLET(locale))} className="block">
         <motion.div
           className="relative mx-auto mb-4 group"
@@ -773,12 +754,12 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
-          {/* Gem glow effect */}
+          {/* Background glow based on balance */}
           <motion.div
             className={cn(
               "absolute inset-0 rounded-2xl blur-md",
-              hasLowBalance 
-                ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30" 
+              hasLowBalance
+                ? "bg-gradient-to-r from-amber-500/30 to-orange-500/30"
                 : "bg-gradient-to-r from-blue-500/30 to-purple-500/30"
             )}
             animate={{
@@ -787,8 +768,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
             }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
-
-          {/* Main balance container */}
+          {/* Container for inner balance display */}
           <div className={cn(
             "relative px-5 py-2.5 rounded-2xl",
             "bg-gradient-to-br from-background/90 to-background/70",
@@ -797,7 +777,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
             "shadow-lg shadow-purple-500/10",
             "transition-all duration-300"
           )}>
-            {/* Shimmer sweep */}
+            {/* Shimmer animation sweeps once every few seconds */}
             <motion.div
               className="absolute inset-0 rounded-2xl overflow-hidden"
               initial={false}
@@ -808,31 +788,27 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
                 transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 2 }}
               />
             </motion.div>
-
+            {/* Balance value and badge */}
             <div className="relative flex items-center justify-center gap-3">
-              {/* Balance amount */}
               <span className={cn(
                 "text-2xl font-black tracking-tight",
                 "bg-gradient-to-r bg-clip-text text-transparent",
-                hasLowBalance 
-                  ? "from-amber-500 to-orange-500" 
+                hasLowBalance
+                  ? "from-amber-500 to-orange-500"
                   : "from-blue-500 via-indigo-500 to-purple-500"
               )}>
                 {balanceLoading ? '···' : displayBalance}
               </span>
-
-              {/* Currency badge */}
               <div className={cn(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
                 "bg-gradient-to-r",
-                hasLowBalance 
-                  ? "from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400" 
+                hasLowBalance
+                  ? "from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400"
                   : "from-blue-500/20 to-purple-500/20 text-purple-600 dark:text-purple-400"
               )}>
                 RING
               </div>
-
-              {/* Trend indicator */}
+              {/* Upward trending icon, bounces if balance is low */}
               <motion.div
                 animate={hasLowBalance ? { y: [0, -2, 0] } : {}}
                 transition={{ duration: 1.5, repeat: Infinity }}
@@ -847,8 +823,9 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
         </motion.div>
       </Link>
 
-      {/* Action Buttons Row - Hover for Favorites & Cart */}
+      {/* ==== Action Row ==== */}
       <div className="flex items-center justify-between gap-2">
+        {/* Notifications (blue) */}
         <ActionButton
           icon={<Bell className="w-5 h-5" />}
           count={notificationCount}
@@ -856,13 +833,13 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
           label="Notifications"
           color="blue"
         />
-        
-        {/* Favorites - Hover to preview */}
+
+        {/* Favorites, Cart: show as floating hover widgets */}
         <FavoritesWidget />
-        
-        {/* Cart - Hover to preview */}
+
         <CartWidget />
-        
+
+        {/* Messages (purple); STUB: badge should become real when unread messages API is available */}
         <ActionButton
           icon={<MessageCircle className="w-5 h-5" />}
           count={messagesCount}
@@ -874,4 +851,3 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
     </motion.div>
   )
 }
-

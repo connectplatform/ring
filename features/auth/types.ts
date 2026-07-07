@@ -1,17 +1,15 @@
 /**
- * UserRole — re-exported from SSOT (`user-role.ts`).
+ * UserRolesArray — re-exported from SSOT (`user-role.ts`).
  * Middleware and edge-safe code should import from `@/features/auth/user-role` directly.
  */
 export {
-  UserRole,
-  ALL_USER_ROLES,
-  ASSIGNABLE_ROLES,
+  ADMIN_GUI_ASSIGNABLE_ROLES,
   CONFIDENTIAL_ACCESS_ROLES,
   PLATFORM_ADMIN_ROLES,
   UPGRADEABLE_ROLES,
   ROLE_LEVEL,
   InvalidUserRoleError,
-  parseUserRole,
+  parseUserRolesArray,
   resolveSessionUserRole,
   isKnownUserRole,
   assertKnownUserRole,
@@ -25,21 +23,25 @@ export {
   opportunitySelectorUserRole,
 } from './user-role'
 
-import type { UserRole } from './user-role'
+import type { SupportedChains } from '@/lib/ring-config-chain';
+import type { UserRolesArray } from './user-role'
 
 /**
  * Wallet interface
  * Defines the structure of a user's wallet
  */
 export interface Wallet {
+  symbol: SupportedChains;
+  chain: SupportedChains;
   address: string;
   encryptedPrivateKey: string;
-  createdAt: string;
+  createdAt: Date;
   label?: string;
   isDefault: boolean;
+  /** Latest on-chain native token balance (formatted string, e.g. "12.345678"). Updated by wallet-balance-cache read-through. */
   balance: string;
-  /** Chain discriminator — missing rows treated as evm for backward compatibility */
-  chain?: 'solana' | 'evm';
+  /** Unix ms timestamp of last on-chain balance fetch — used for DB read-through cache TTL checks. */
+  balanceUpdatedAt?: number;
 }
 
 /**
@@ -65,7 +67,7 @@ export interface GlobalUserIdentity {
   emailVerified: Date | null;
   name?: string | null;
   username?: string;
-  role: UserRole;
+  role: UserRolesArray;
   photoURL?: string | null;
   authProvider: string;
   authProviderId: string;
@@ -163,8 +165,8 @@ export interface ExternalIntegrations {
  * Tracks user role upgrade history
  */
 export interface RoleUpgradeHistory {
-  fromRole: UserRole;
-  toRole: UserRole;
+  fromRole: UserRolesArray;
+  toRole: UserRolesArray;
   upgradedAt: Date;
   paymentReference: string;
   paymentAmount: number;
@@ -580,8 +582,8 @@ export enum UpgradeRequestStatus {
 export interface RoleUpgradeRequest {
   id: string;
   userId: string;
-  fromRole: UserRole;
-  toRole: UserRole;
+  fromRole: UserRolesArray;
+  toRole: UserRolesArray;
   status: UpgradeRequestStatus;
   submittedAt: Date;
   reviewedAt?: Date;

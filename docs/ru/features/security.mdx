@@ -106,8 +106,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 // Определение иерархии ролей
 
 <Code language="typescript" title="TypeScript">
-{`export enum UserRole {
-  VISITOR = 0,      // Только публичный контент
+{`export enum UserRolesArray {
+  visitor = 0,      // Только публичный контент
   SUBSCRIBER = 1,   // Основные аутентифицированные функции
   MEMBER = 2,       // Создание сущностей, платные функции
   CONFIDENTIAL = 3, // Конфиденциальные сущности/возможности

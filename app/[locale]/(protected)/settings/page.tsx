@@ -100,6 +100,27 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
     error = 'Failed to load user settings. Please try again later.';
   }
 
+  // Compute user stats for sidebar (from session or defaults)
+  const userAny = session.user as Record<string, unknown> | undefined;
+  const createdAtRaw = userAny?.createdAt;
+  const createdAt = createdAtRaw ? new Date(String(createdAtRaw)) : new Date();
+  const now = new Date();
+  const accountAgeMs = now.getTime() - createdAt.getTime();
+  const accountAgeDays = Math.floor(accountAgeMs / (1000 * 60 * 60 * 24));
+  const accountAgeStr = accountAgeDays > 365 
+    ? `${Math.floor(accountAgeDays / 365)}y` 
+    : accountAgeDays > 30 
+      ? `${Math.floor(accountAgeDays / 30)}mo` 
+      : `${accountAgeDays}d`;
+
+  const lastLoginRaw = userAny?.lastLogin;
+  const userStats = {
+    accountAge: accountAgeStr,
+    lastLogin: lastLoginRaw ? new Date(String(lastLoginRaw)).toLocaleDateString() : 'Today',
+    createdAt: createdAt.toISOString(),
+    profileCompleteness: 85, // Default - will be refined client-side
+  };
+
   return (
     <>
       <title>{title}</title>
@@ -107,7 +128,7 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
       <link rel="canonical" href={canonicalUrl} />
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
-      <SettingsWrapper locale={validLocale}>
+      <SettingsWrapper locale={validLocale} userStats={userStats}>
         <SettingsContent
           initialSettings={initialSettings}
           initialError={error}

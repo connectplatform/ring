@@ -42,6 +42,7 @@ export interface RingWalletBalanceProps {
  * DaVinci glass RING credit balance hero — theme-aware via CSS tokens.
  * Used in /wallet center pane and reusable in profile rails.
  */
+// TODO: Consider using React Server Components or useOptimistic/useActionState from React19 for async balance updates if suitable.
 export function RingWalletBalance({
   displayBalance,
   usdEquivalent = '0.00',
@@ -53,7 +54,10 @@ export function RingWalletBalance({
   className,
   compact = false,
 }: RingWalletBalanceProps) {
+  // Initialize translation function for "modules.wallet" namespace
   const t = useTranslations('modules.wallet')
+
+  // TODO: For Next.js 16, explore useFormStatus or useFormState for tight button state integration (if applicable).
 
   return (
     <BorderBeam
@@ -66,14 +70,18 @@ export function RingWalletBalance({
       )}
       innerClassName={cn(davinciBeamInnerSurface, compact ? 'p-5' : 'p-6 sm:p-8')}
     >
+      {/* Background ambient effect, with rounded corners and transparency */}
       <HeroAmbient className="rounded-[inherit] opacity-60" />
 
       <div className="relative z-[1]">
+        {/* Header: Wallet icon, balance label, low balance badge, refresh button */}
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
+            {/* Wallet Icon */}
             <span
               className={cn(
                 'flex shrink-0 items-center justify-center rounded-xl',
+                // Border and background use CSS color-mix tokens for branding
                 'border border-[color-mix(in_oklch,var(--davinci-beam)_35%,transparent)]',
                 'bg-[color-mix(in_oklch,var(--davinci-beam)_12%,transparent)]',
                 compact ? 'h-9 w-9' : 'h-10 w-10',
@@ -83,7 +91,9 @@ export function RingWalletBalance({
               <Wallet className={cn('text-[var(--davinci-beam)]', compact ? 'h-4 w-4' : 'h-5 w-5')} />
             </span>
             <div className="min-w-0">
+              {/* Balance label */}
               <p className="text-sm font-medium text-muted-foreground">{t('ringBalance')}</p>
+              {/* Low balance badge (only appears if hasLowBalance is true) */}
               {hasLowBalance && (
                 <Badge
                   variant="secondary"
@@ -96,6 +106,7 @@ export function RingWalletBalance({
             </div>
           </div>
 
+          {/* Refresh Icon Button (if onRefresh prop supplied) */}
           {onRefresh && (
             <Button
               type="button"
@@ -108,31 +119,33 @@ export function RingWalletBalance({
                 'hover:bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)]',
               )}
               onClick={onRefresh}
-              disabled={isRefreshing}
+              disabled={isRefreshing} // disables during refreshing
               aria-label={t('refresh')}
               title={t('refresh')}
             >
               <RefreshCw
                 className={cn(
                   'h-4 w-4 text-[var(--davinci-beam)]',
-                  isRefreshing && 'animate-spin',
+                  isRefreshing && 'animate-spin', // spinning indicator if refreshing
                 )}
               />
             </Button>
           )}
         </div>
 
+        {/* Balance display and Top Up button row */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
+            {/* Actual RING balance (skeleton loading when fetching) */}
             <div
               className={cn(
                 'font-bold tracking-tight text-[var(--davinci-beam)]',
                 compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl',
-                hasLowBalance && 'text-amber-600 dark:text-amber-400',
+                hasLowBalance && 'text-amber-600 dark:text-amber-400', // warning color if low
               )}
             >
               {isLoading ? (
-                <span className="inline-block animate-pulse opacity-60">···</span>
+                <span className="inline-block animate-pulse opacity-60">···</span> // loading placeholder
               ) : (
                 <>
                   {displayBalance}{' '}
@@ -140,9 +153,13 @@ export function RingWalletBalance({
                 </>
               )}
             </div>
-            <p className="mt-1.5 text-sm text-muted-foreground">≈ ${usdEquivalent} USD</p>
+            {/* USD equivalent display */}
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              ≈ ${usdEquivalent} USD
+            </p>
           </div>
 
+          {/* Top Up button action (if onTopUp prop supplied) */}
           {onTopUp && (
             <button
               type="button"

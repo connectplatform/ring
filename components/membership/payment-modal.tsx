@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { getNativeTokenConfig } from '@/lib/payments/payment.config'
 import {
   Coins,
   CreditCard,
@@ -17,14 +18,14 @@ import {
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
-import { RingPaymentModal } from './ring-payment-modal'
+import { MembershipPaymentModal } from './ring-payment-modal'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import type { Locale } from '@/i18n/shared'
 import { initiateMembershipPayment } from '@/app/_actions/membership-payment'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   formatMembershipFiatAmount,
   getMemberFiatTier,
@@ -94,7 +95,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
 
   if (showRingPayment) {
     return (
-      <RingPaymentModal
+      <MembershipPaymentModal
         paymentType="membership_upgrade"
         paymentRail={paymentRail}
         onClose={onClose}
@@ -128,9 +129,9 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                 {creditCurrency}
                 {hasSufficientCredit && <Badge variant="default" className="text-[10px] px-1">OK</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="wallet_ring" className="flex items-center gap-1 text-xs">
+              <TabsTrigger value="wallet_native_token" className="flex items-center gap-1 text-xs">
                 <Wallet className="h-3.5 w-3.5" />
-                RING
+                {getNativeTokenConfig().symbol}
                 {hasSufficientOnChainRing && <Badge variant="default" className="text-[10px] px-1">OK</Badge>}
               </TabsTrigger>
               <TabsTrigger value="card" className="flex items-center justify-center gap-0 px-1">
@@ -185,27 +186,27 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
               </div>
             </TabsContent>
 
-            <TabsContent value="wallet_ring" className="space-y-4">
+            <TabsContent value="wallet_native_token" className="space-y-4">
               <div className="p-4 border border-primary/20 bg-primary/5 rounded-lg space-y-3">
                 <h3 className="font-medium flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-primary" />
-                  {t('payment.wallet_ring.title', { defaultValue: 'Pay with wallet RING' })}
+                  {t('payment.wallet_native_token.title', { defaultValue: 'Pay with wallet {native_token} token' })}
                 </h3>
                 <div className="flex justify-between text-sm">
                   <span>{t('payment.cost', { defaultValue: 'Cost' })}</span>
-                  <span className="font-medium">{membershipRingCost.toFixed(2)} RING</span>
+                  <span className="font-medium">{membershipRingCost.toFixed(2)} {getNativeTokenConfig().symbol}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>{t('payment.on_chain_balance', { defaultValue: 'On-chain balance' })}</span>
                   <span className={cn('font-medium', hasSufficientOnChainRing ? 'text-green-600' : 'text-red-600')}>
-                    {onChainLoading ? '…' : `${walletRingAmount.toFixed(4)} RING`}
+                    {onChainLoading ? '…' : `${walletRingAmount.toFixed(4)} {getNativeTokenConfig().symbol}`}
                   </span>
                 </div>
                 {!hasSufficientOnChainRing && !onChainLoading && (
                   <Alert className="border-orange-200 bg-orange-50">
                     <AlertTriangle className="h-4 w-4 text-orange-600" />
                     <AlertDescription className="text-orange-800 text-xs">
-                      {t('payment.wallet_ring.insufficient', {
+                      {t('payment.wallet_native_token.insufficient', {
                         defaultValue: 'Insufficient on-chain RING. Buy via RingSales desk (coming soon) or use account credit.',
                       })}
                     </AlertDescription>
@@ -219,7 +220,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                   data-testid="button-membership-pay-wallet-ring"
                 >
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  {t('payment.wallet_ring.pay_now', { defaultValue: 'Pay with wallet RING' })}
+                  {t('payment.wallet_native_token.pay_now', { defaultValue: 'Pay with wallet {native_token} token' })}
                 </Button>
               </div>
             </TabsContent>
@@ -243,7 +244,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                   </Alert>
                 )}
 
-                <input type="hidden" name="targetRole" value={UserRole.member} />
+                <input type="hidden" name="targetRole" value={UserRolesArray.member} />
                 {returnTo && <input type="hidden" name="returnUrl" value={returnTo} />}
 
                 <SubmitCardButton label={t('payment.fiat_details.proceed', { defaultValue: 'Proceed to Card Payment' })} />

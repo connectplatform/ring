@@ -9,17 +9,17 @@
   },
 
   "stats": {
-    "deployments": {
+    "stats1": {
       "title": "Ring-Powered Platforms",
       "description": "White-label deployments solving real problems worldwide",
       "value": "47+"
     },
-    "users": {
+    "stats2": {
       "title": "Verified Community Members",
       "description": "Building collective intelligence through AI-orchestrated collaboration",
       "value": "12,847+"
     },
-    "countries": {
+    "stats3": {
       "title": "Countries Reached",
       "description": "Nations gaining technological sovereignty through Ring Platform",
       "value": "23+"
@@ -33,29 +33,29 @@
     "impact": "Human Liberation"
   },
 
-  "stories": {
-    "title": "Human Connection Stories: Ring in Action",
-    "ukraine_war": {
+  "vision": {
+    "title": "Global Connect in Action",
+    "hero": {
       "title": "Ukraine's Digital Defense - Born in Crisis",
       "description": "During Russia's invasion, while writing through power outages and recovering from kidnapping, we built Ring Platform as a bridge beyond conflict. AI-orchestrated opportunity matching connected 2,300 volunteers with defense needs. Our platform processed 15,600 collaboration requests, matched 8,900 experts with urgent tasks, and coordinated €2.8M in emergency funding - all through automated AI notifications that eliminate missed opportunities and connect people who can help."
     },
-    "agricultural": {
-      "title": "Ukrainian Agricultural Revolution",
+    "story1": {
+      "title": "GreenFood Organic Food Marketplace",
       "description": "Ring Platform transformed 50 Ukrainian farms through AI-powered supply chain optimization. Our 8-factor scoring system identified collaboration opportunities, notifying interested parties with 160-char personalized explanations. The result: 87% efficiency improvement and €2.3M annual value creation through collective problem solving."
     },
-    "kenya_marketplace": {
-      "title": "Kenyan Artisan Marketplace - Global Reach",
+    "story2": {
+      "title": "SubiWorx Auto Parts Marketplace",
       "description": "Ring's white-label marketplace connected 200 Kenyan artisans with international buyers. AI matching algorithms analyzed 160+ data points to notify interested parties worldwide. Monthly revenue grew from $8K to $58K through automated opportunity discovery and Ring-powered payment integration."
     },
-    "medical_network": {
-      "title": "European Medical Network - Life-Saving Coordination",
+    "story3": {
+      "title": "Pet Friend App",
       "description": "Ring Platform unified 300 European hospitals during supply shortages. Our AI system analyzed needs, notified interested suppliers with personalized match explanations, and coordinated €15M in critical equipment distribution. Diagnosis time reduced from 47 days to 3.2 days through real-time collaboration."
     },
-    "carpathian_environment": {
-      "title": "Carpathian Environmental Guardianship",
+    "story4": {
+      "title": "Global Environmental Protection Network",
       "description": "Ring-powered environmental monitoring coordinated 89 communities to protect 12,000 hectares of forest. AI matching notified conservation experts worldwide, raising €450K in funding through blockchain-verified impact tracking. Communities now have technological sovereignty over their environmental destiny."
     },
-    "cooperative_economy": {
+    "story5": {
       "title": "Cooperative Economic Sovereignty",
       "description": "156 artisan cooperatives across 8 countries gained economic independence through Ring's AI-orchestrated marketplace. Our platform eliminated artificial deficit by connecting producers directly with global markets, creating €4.2M in new economic value through automated opportunity matching."
     }

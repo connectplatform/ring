@@ -1,5 +1,6 @@
 'use client'
 
+// Core React/Next imports: using React 19+ API features (useTransition, use, etc.)
 import { useState, useEffect, useCallback, useRef, useMemo, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 // ... other imports
@@ -15,7 +16,7 @@ import { ROUTES } from '@/constants/routes'
 import { STORE_VENDOR_CATEGORY_IDS } from '@/constants/store-vendor-categories'
 import type { Locale } from '@/i18n/shared'
 import { useOptionalStore } from '@/features/store/context'
-import { useOptionalCurrency } from '@/features/store/currency-context'
+import { useOptionalStoreCurrency } from '@/features/store/currency-context'
 import { getDefaultStorePriceBounds, PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
 import {
@@ -43,6 +44,7 @@ import {
   Briefcase,
 } from 'lucide-react'
 
+// Props interface for component
 interface StoreFiltersPanelProps {
   locale: Locale
   initialFilters?: Partial<StoreFilterState>
@@ -51,16 +53,23 @@ interface StoreFiltersPanelProps {
   onFiltersApplied?: (filters: StoreFilterState) => void
 }
 
+// Categories imported from constants - extendable for new categories
 const productCategories = [...STORE_VENDOR_CATEGORY_IDS]
 
+// MOCK CODE, TODO: Replace currencies mock with fetched currencies from backend/currencies resource in the future.
+// Steps:
+// 1. Use API request/hook to get allowed/available currencies.
+// 2. Replace with fetched list of currency codes below.
 const currencies = ['USD', 'UAH', 'DAAR', 'DAARION']
 
+// Props extended with persisted and catalog bounds state
 interface StoreFiltersPanelPropsWithPersisted extends StoreFiltersPanelProps {
   persistedFilters?: StoreFilterState
   /** Catalog slice bounds from getStoreProducts (updated when search/category/stock changes). */
   catalogPriceBounds?: CatalogPriceBounds | null
 }
 
+// Main component for store filter panel, managing all local state and notification of filter changes
 export default function StoreFiltersPanel({
   locale,
   initialFilters,
@@ -70,26 +79,37 @@ export default function StoreFiltersPanel({
   persistedFilters,
   catalogPriceBounds,
 }: StoreFiltersPanelPropsWithPersisted) {
+  // Next-intl translation object
   const t = useTranslations('modules.store')
+
+  // Get context for store data and total items
   const store = useOptionalStore()
   const totalItems = store?.totalItems || 0
 
-  const currencyContext = useOptionalCurrency()
-  const displayCurrency = currencyContext?.currency || 'UAH'
+  // Get currency, fallback to 'UAH'
+  const storeCurrencyContext = useOptionalStoreCurrency()
+  const displayCurrency = storeCurrencyContext?.currency || 'UAH'
 
+  // Default price bounds from env/store config
   const envDefaults = getDefaultStorePriceBounds()
+
+  // Track which filter sections are open (collapsible panels)
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['categories']))
+  // Upper bound for price slider (syncs to category selection)
   const [sliderMax, setSliderMax] = useState(envDefaults.maxPrice)
+  // Whether the price filter is currently enabled (products available)
   const priceFilterEnabled = catalogPriceBounds?.enabled ?? false
 
-  // Track if we're currently applying filters to prevent loops
+  // Ref for tracking if filters are being applied, prevents effect loops
   const isApplyingFilters = useRef(false)
+  // Tracks timeout for debounced slider input
   const priceChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // React 19 useTransition for non-blocking filter updates
+  // React 19: useTransition for non-blocking updates
   const [isPending, startTransition] = useTransition()
 
-  // Initialize filters once
+  // State for active filters, initialized from props (persisted or initial)
+  // TODO: Use React 19 use() hook for server-initialized state if possible.
   const [filters, setFilters] = useState<StoreFilterState>(() =>
     persistedFilters || {
       search: '',
@@ -104,7 +124,7 @@ export default function StoreFiltersPanel({
     }
   )
 
-  // ✅ Fixed: updateFilters using functional setState pattern
+  // Utility to update filter state with transition (React 19 pattern)
   const updateFilters = useCallback((updates: Partial<StoreFilterState>) => {
     startTransition(() => {
       setFilters(currentFilters => {
@@ -116,7 +136,7 @@ export default function StoreFiltersPanel({
     })
   }, [startTransition])
 
-  // Notify parent when filters change (React 19 pattern: useEffect instead of setState callback)
+  // Notify parent when filters actually change (React 19 pattern: trigger via useEffect, not inside setState)
   useEffect(() => {
     if (isApplyingFilters.current && onFiltersApplied) {
       onFiltersApplied(filters)
@@ -124,12 +144,13 @@ export default function StoreFiltersPanel({
     }
   }, [filters, onFiltersApplied])
 
-  // Sync slider bounds when catalog result set changes (server action on filter change)
+  // When catalog result set changes (from server action or parent props), sync [sliderMax] and [filters.priceMin/max]
   useEffect(() => {
     if (!catalogPriceBounds) return
 
     setSliderMax(catalogPriceBounds.maxPrice)
 
+    // Only update filter bounds if enabled (don't overwrite if unavailable)
     if (!catalogPriceBounds.enabled) {
       return
     }
@@ -140,37 +161,39 @@ export default function StoreFiltersPanel({
         priceMin: catalogPriceBounds.minPrice,
         priceMax: catalogPriceBounds.maxPrice,
       }
-      isApplyingFilters.current = true
+      isApplyingFilters.current = true // signal for parent update
       return next
     })
   }, [catalogPriceBounds])
 
-  // ✅ Debounced price change handler
+  // Handler for moving price slider, updates state immediately and debounces API/filter notification
   const handlePriceChange = useCallback((values: number[]) => {
-    // Clear existing timeout
+    // Clear previous debounce if still active
     if (priceChangeTimeoutRef.current) {
       clearTimeout(priceChangeTimeoutRef.current)
     }
-    // Update local state immediately for UI responsiveness
+
+    // Optimistically update slider UI (local state)
     setFilters(current => ({
       ...current,
       priceMin: values[0],
       priceMax: values[1]
     }))
-    // Debounce the actual filter application
+
+    // Debounce filter notification (avoid sending every minor slider move)
     priceChangeTimeoutRef.current = setTimeout(() => {
       updateFilters({ priceMin: values[0], priceMax: values[1] })
     }, 300) // 300ms debounce
   }, [updateFilters])
 
-  // Update currency when context changes
+  // Update currency in filter state if displayCurrency from context changes (e.g. user switches)
   useEffect(() => {
     if (displayCurrency !== filters.currency) {
       updateFilters({ currency: displayCurrency })
     }
   }, [displayCurrency, filters.currency, updateFilters])
 
-  // Cleanup timeout on unmount
+  // Cleanup price slider debounce on component unmount
   useEffect(() => {
     return () => {
       if (priceChangeTimeoutRef.current) {
@@ -179,6 +202,7 @@ export default function StoreFiltersPanel({
     }
   }, [])
 
+  // Reset all filters and immediately push to parent
   const handleClearFilters = useCallback(() => {
     const clearedFilters: StoreFilterState = {
       search: '',
@@ -194,6 +218,8 @@ export default function StoreFiltersPanel({
     onFiltersApplied?.(clearedFilters)
   }, [priceFilterEnabled, catalogPriceBounds, sliderMax, displayCurrency, onFiltersApplied])
 
+  // Toggle selection of a category chip (add/remove to filters.categories)
+  // TODO: If category list is large, replace with controlled virtual list component for efficiency
   const toggleCategory = useCallback((categoryId: string) => {
     updateFilters({
       categories: filters.categories.includes(categoryId)
@@ -202,7 +228,7 @@ export default function StoreFiltersPanel({
     })
   }, [filters.categories, updateFilters])
 
-  // ✅ Memoize computed values
+  // Memoized flag to quickly check if ANY filter is active (for UI bages/buttons)
   const hasActiveFilters = useMemo(() => {
     return filters.search ||
       filters.categories.length > 0 ||
@@ -215,8 +241,11 @@ export default function StoreFiltersPanel({
       filters.inStock !== null
   }, [filters, priceFilterEnabled, catalogPriceBounds, sliderMax])
 
+  // Which record count to show (filtered if defined, else total)
   const displayRecords = filteredRecords !== undefined ? filteredRecords : totalRecords
 
+  // Category icon selector - extend here for new icons/types
+  // MOCK CODE, TODO: Abstract icon assignment to configuration object if more categories added.
   function getCategoryIcon(category: string) {
     switch (category) {
       case 'ring-platform':     return <Layers className="w-4 h-4" />
@@ -231,7 +260,7 @@ export default function StoreFiltersPanel({
     }
   }
 
-  // Handler for toggling section (categories collapsible)
+  // Section (collapsible) open/close handler for multi-section support
   const toggleSection = useCallback((section: string) => {
     setOpenSections(prev => {
       const next = new Set(prev)
@@ -244,15 +273,17 @@ export default function StoreFiltersPanel({
     })
   }, [])
 
+  // TODO: Replace <div> layout with <section><header><main> for better semantics and accessibility.
+
   return (
     <div className="flex flex-col relative min-h-0 text-foreground">
-      {/* Fixed Header - Top Controls */}
+      {/* Fixed Header - filter label and count */}
       <div className="flex-shrink-0 pb-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Store className="w-5 h-5" />
           {t('filters.searchLabel')}
         </h2>
-        {/* Result Count Display */}
+        {/* Display filtered/total result counts */}
         <p className="text-xs text-muted-foreground mt-1">
           {hasActiveFilters && filteredRecords !== undefined ? (
             <>
@@ -266,10 +297,10 @@ export default function StoreFiltersPanel({
         </p>
       </div>
 
-      {/* Scrollable Content Area - Fills remaining vertical space */}
+      {/* Scrollable area for filter controls (fills available space) */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="space-y-4">
-          {/* Search Bar */}
+          {/* Search Input (always visible) */}
           <div className="space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -283,7 +314,7 @@ export default function StoreFiltersPanel({
             </div>
           </div>
 
-          {/* Active Filters Display */}
+          {/* Display active filter chips & clear all button */}
           {hasActiveFilters && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -298,6 +329,7 @@ export default function StoreFiltersPanel({
                   {t('filters.clearAll')}
                 </Button>
               </div>
+              {/* Filter chips: categories and price, with remove buttons */}
               <div className="flex flex-wrap gap-1">
                 {filters.categories.map(category => (
                   <Badge key={category} variant="secondary" className="text-xs">
@@ -316,6 +348,7 @@ export default function StoreFiltersPanel({
                   (filters.priceMin !== (catalogPriceBounds?.minPrice ?? PRICE_MIN) ||
                     filters.priceMax !== (catalogPriceBounds?.maxPrice ?? sliderMax)) && (
                   <Badge variant="secondary" className="text-xs">
+                    {/* TODO: Intl.NumberFormat using displayCurrency for proper formatting */}
                     💰 {filters.priceMin} - {filters.priceMax} {filters.currency}
                     <Button
                       variant="ghost"
@@ -338,7 +371,7 @@ export default function StoreFiltersPanel({
 
           <Separator />
 
-          {/* Price Range — bounds follow catalog filters; disabled when no products */}
+          {/* Price filtering, with slider input and min/max display */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label
@@ -355,7 +388,7 @@ export default function StoreFiltersPanel({
                 </span>
               )}
             </div>
-
+            {/* Show price slider only if enabled; else, explain why unavailable */}
             {!priceFilterEnabled ? (
               <p className="text-xs text-muted-foreground">{t('filters.priceRangeUnavailable')}</p>
             ) : (
@@ -365,6 +398,7 @@ export default function StoreFiltersPanel({
                 step={10}
                 disabled={!priceFilterEnabled}
                 value={[
+                  // Bound to filter state with min/max enforced
                   Math.max(
                     catalogPriceBounds?.minPrice ?? PRICE_MIN,
                     filters.priceMin ?? PRICE_MIN,
@@ -382,7 +416,7 @@ export default function StoreFiltersPanel({
 
           <Separator />
 
-          {/* Availability - Always Visible Toggle */}
+          {/* Toggle for product availability (all/in-stock only) */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">{t('filters.availability')}</Label>
             <div className="flex gap-2">
@@ -408,7 +442,7 @@ export default function StoreFiltersPanel({
 
           <Separator />
 
-          {/* Categories - Open by Default, fills remaining space */}
+          {/* Categories filter with collapsible section (open by default) */}
           <div className="flex-1 flex flex-col min-h-0">
             <Collapsible
               open={openSections.has('categories')}
@@ -426,6 +460,7 @@ export default function StoreFiltersPanel({
               </CollapsibleTrigger>
               <CollapsibleContent className="flex-1 min-h-0 flex flex-col">
                 <div className="flex-1 overflow-y-auto">
+                  {/* TODO: Virtualized list if productCategories is very large */}
                   <div className="grid grid-cols-1 gap-2 pb-4">
                     {productCategories.map((category) => {
                       const isSelected = filters.categories.includes(category)

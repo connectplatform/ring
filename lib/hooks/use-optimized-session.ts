@@ -7,8 +7,8 @@
 
 import { useSession } from 'next-auth/react'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { AuthUser, UserRole } from '@/features/auth/types'
-
+import { AuthUser } from '@/features/auth/types'
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 interface OptimizedSessionOptions {
   /**
    * How often to check session validity (in milliseconds)
@@ -153,8 +153,8 @@ export function useOptimizedSession(options: OptimizedSessionOptions = {}): Opti
     email: session.user.email || '',
     emailVerified: (session.user as any).emailVerified || null,
     name: session.user.name || null,
-    role: (session.user as any).role || UserRole.subscriber,
-    photoURL: session.user.image || null,
+    role: assertKnownUserRole((session.user as any).role as UserRolesArray) || UserRolesArray.subscriber as UserRolesArray,
+    photoURL: (session.user as any).photoURL || null,
     wallets: [],
     authProvider: (session.user as any).provider || 'credentials',
     authProviderId: session.user.id || '',

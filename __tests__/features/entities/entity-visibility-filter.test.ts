@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, it } from '@jest/globals'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   buildEntityVisibilityFilters,
   canViewEntity,
@@ -10,21 +10,21 @@ import {
 
 describe('entity-visibility-filter', () => {
   it('subscriber sees public and subscriber visibility only', () => {
-    expect(getAllowedEntityVisibilityValues(UserRole.subscriber)).toEqual([
+    expect(getAllowedEntityVisibilityValues(UserRolesArray.subscriber)).toEqual([
       'public',
       'subscriber',
     ])
   })
 
   it('admin has unrestricted visibility list', () => {
-    expect(getAllowedEntityVisibilityValues(UserRole.admin)).toBeNull()
+    expect(getAllowedEntityVisibilityValues(UserRolesArray.admin)).toBeNull()
   })
 
   it('subscriber cannot view member-only entity by id', () => {
     expect(
       canViewEntity(
         { visibility: 'member', isConfidential: false },
-        { userRole: UserRole.subscriber },
+        { userRole: UserRolesArray.subscriber },
       ),
     ).toBe(false)
   })
@@ -33,7 +33,7 @@ describe('entity-visibility-filter', () => {
     expect(
       canViewEntity(
         { visibility: 'member', isConfidential: false },
-        { userRole: UserRole.member },
+        { userRole: UserRolesArray.member },
       ),
     ).toBe(true)
   })
@@ -42,13 +42,13 @@ describe('entity-visibility-filter', () => {
     expect(
       canViewEntity(
         { visibility: 'public', isConfidential: true },
-        { userRole: UserRole.member },
+        { userRole: UserRolesArray.member },
       ),
     ).toBe(false)
   })
 
   it('buildEntityVisibilityFilters excludes confidential rows for subscribers', () => {
-    const filters = buildEntityVisibilityFilters(UserRole.subscriber)
+    const filters = buildEntityVisibilityFilters(UserRolesArray.subscriber)
     expect(filters).toEqual(
       expect.arrayContaining([
         { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },
@@ -66,7 +66,7 @@ describe('entity-visibility-filter', () => {
           isConfidential: false,
           moderationStatus: 'blocked',
         } as any,
-        { userRole: UserRole.subscriber },
+        { userRole: UserRolesArray.subscriber },
       ),
     ).toBe(false)
   })

@@ -178,3 +178,36 @@ open http://localhost:3000/docs/integrations`}
     `Cards`, `Callout`, `Mermaid`, and Ring doc widgets used on these pages.
   </Card>
 </Cards>
+
+<FutureFeatureBacklog title="Backlog — planned integrations">
+<FutureFeatureWidget
+  name="Stripe Connect marketplace payouts"
+  description="Automated vendor settlement payouts via Stripe Connect, replacing the current simulated payout mode with real multi-party payment rails."
+  implementationCost={160}
+  labels={['payments', 'stripe', 'operator']}
+/>
+<FutureFeatureWidget
+  name="Google Maps geocoding fallback"
+  description="Swap Nominatim for Google Maps Geocoding API when an API key is configured, improving address resolution accuracy for profile location pickers."
+  implementationCost={24}
+  labels={['geo', 'maps', 'ux']}
+/>
+<FutureFeatureWidget
+  name="WhatsApp Business messaging bridge"
+  description="Send Ring notification digests and matcher alerts via WhatsApp Business API, expanding reach to WhatsApp-first markets."
+  implementationCost={72}
+  labels={['messaging', 'whatsapp', 'growth']}
+/>
+<FutureFeatureWidget
+  name="Viber public account bot"
+  description="Receive Ring opportunity matches and store order updates via Viber bot, covering Eastern European markets with deep Viber penetration."
+  implementationCost={56}
+  labels={['messaging', 'viber', 'growth']}
+/>
+<FutureFeatureWidget
+  name="Instagram OAuth + shop sync"
+  description="Link Instagram accounts for identity verification and sync product listings to Ring storefronts via Instagram Graph API."
+  implementationCost={80}
+  labels={['social', 'instagram', 'store']}
+/>
+</FutureFeatureBacklog>

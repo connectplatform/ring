@@ -7,17 +7,13 @@ import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { NotificationList } from '@/features/notifications/components/notification-list';
-import { Button } from '@/components/ui/button';
-import { Settings, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n/shared';
-import SettingsWrapper from '@/components/wrappers/settings-wrapper';
+import NotificationsWrapper from '@/components/wrappers/notifications-wrapper';
 import { connection } from 'next/server';
 import { routing } from '@/i18n/routing';
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants/routes';
 import { logger } from '@/lib/logger';
 
 interface NotificationsPageProps {
@@ -39,6 +35,7 @@ export async function generateMetadata({ params }: NotificationsPageProps): Prom
     robots: { index: false, follow: false },
   })
 }
+
 export default async function NotificationsPage({ params }: NotificationsPageProps) {
   await connection();
 
@@ -73,7 +70,7 @@ export default async function NotificationsPage({ params }: NotificationsPagePro
     const canonicalUrl = validLocale === routing.defaultLocale ? `${baseUrl}/notifications` : `${baseUrl}/${validLocale}/notifications`;
 
     return (
-    <SettingsWrapper locale={validLocale}>
+    <NotificationsWrapper locale={validLocale}>
       <>
         {/* React 19 Native Document Metadata - Authenticated Page */}
         <title>{title}</title>
@@ -85,41 +82,11 @@ export default async function NotificationsPage({ params }: NotificationsPagePro
         <meta name="googlebot" content="noindex, nofollow" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-4">
-                  <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="w-5 h-5 mr-2" />
-                    Back to Dashboard
-                  </Link>
-                </div>
-                
-                <Link href="/settings/notifications">
-                  <Button variant="outline" size="sm">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Notification Settings
-                  </Button>
-                </Link>
-              </div>
-              
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">
-                  Notifications
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  Stay up to date with all your Zemna AI activities
-                </p>
-              </div>
-            </div>
-
-            {/* Notification List */}
-            <NotificationList />
-          </div>
+        <div className="min-h-[60vh]">
+          {/* Notification List — title row moved to right-sidebar (site-wide pattern) */}
+          <NotificationList />
         </div>
       </>
-    </SettingsWrapper>
+    </NotificationsWrapper>
   );
-} 
+}

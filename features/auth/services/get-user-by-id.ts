@@ -6,7 +6,6 @@
 
 import {
   AuthUser,
-  UserRole,
   Wallet,
   GlobalUserIdentity,
   CommunicationChannels,
@@ -18,18 +17,23 @@ import {
   UIExperiencePreferences,
   ExternalIntegrations
 } from '@/features/auth/types';
+import { UserRolesArray } from '@/features/auth/user-role';
 import { cache } from 'react';
 import { db } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role';
+import { DEFAULT_LOCALE } from '@/lib/locale-config';
+import { getDefaultTheme } from '@/lib/ring-config-core';
 
 /**
  * Process enhanced user profiling data from database JSONB format
+ * Converts raw user object from DB into a structured AuthUser, including handling legacy and nested sources.
  * @param userData Raw user data from database
  * @returns Structured AuthUser with enhanced profiling fields
  */
 function processEnhancedUserProfile(userData: any): AuthUser {
+  // Utility to convert any possible timestamp to a Date object
   const convertTimestamp = (timestamp: any): Date => {
     if (timestamp && timestamp._seconds) {
       return new Date(timestamp._seconds * 1000);
@@ -40,14 +44,14 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     return new Date();
   };
 
-  // Extract global user identity
+  // Assemble global identity details, prioritizing standard and then legacy fields
   const globalIdentity: GlobalUserIdentity = {
     globalUserId: userData?.global_user_id || userData?.id,
     email: userData?.email,
     emailVerified: userData?.emailVerified ? convertTimestamp(userData.emailVerified) : null,
     name: userData?.name,
     username: userData?.username,
-    role: userData?.role || UserRole.subscriber,
+    role: userData?.role || UserRolesArray.subscriber,
     photoURL: userData?.photoURL || userData?.image,
     authProvider: userData?.authProvider || 'credentials',
     authProviderId: userData?.authProviderId || userData?.id,
@@ -59,7 +63,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     deactivationReason: userData?.deactivationReason
   };
 
-  // Process communication channels - check both nested object (from JSONB) and snake_case columns
+  // Combine nested or top-level communication details
   const commData = userData?.communication || {};
   const communication: CommunicationChannels | undefined = 
     userData?.communication || userData?.telegram_username || userData?.whatsapp_number || userData?.preferred_contact_method ? {
@@ -69,7 +73,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     preferredContactMethod: commData?.preferredContactMethod || userData?.preferred_contact_method || 'email'
   } : undefined;
 
-  // Process cultural context - check both nested object (from JSONB) and column data
+  // Gather cultural context, trying nested and fallback keys
   const cultData = userData?.cultural || {};
   const cultural: CulturalContext | undefined = 
     userData?.cultural || userData?.languages || userData?.cultural_background || userData?.country || userData?.timezone ? {
@@ -79,7 +83,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     culturalBackground: cultData?.culturalBackground || userData?.cultural_background
   } : undefined;
 
-  // Process ethical AI profiling
+  // Extract ethical AI profiling data if present
   const ethicalAI: EthicalAIProfiling | undefined = userData?.personality_insights || userData?.evolution_potential ? {
     personalityInsights: userData?.personality_insights,
     evolutionPotential: userData?.evolution_potential,
@@ -88,14 +92,14 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     growthTrajectory: userData?.growth_trajectory
   } : undefined;
 
-  // Process global analytics
+  // Collate global analytics info
   const analytics: GlobalAnalytics | undefined = userData?.global_engagement_score !== undefined ? {
     globalEngagementScore: userData?.global_engagement_score || 0,
     globalContributionScore: userData?.global_contribution_score || 0,
     globalTrustScore: userData?.global_trust_score || 0.5
   } : undefined;
 
-  // Process privacy consent - check both nested object (from JSONB) and snake_case columns
+  // Privacy consent detail extraction
   const privData = userData?.privacy || {};
   const privacy: PrivacyConsent | undefined = 
     userData?.privacy || userData?.data_sharing_consent ? {
@@ -109,7 +113,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     }
   } : undefined;
 
-  // Process evolution tracking
+  // Evolution tracking (gamification/progress)
   const evolution: EvolutionTracking | undefined = userData?.achievements_unlocked ? {
     achievementsUnlocked: userData?.achievements_unlocked || [],
     growthMilestones: userData?.growth_milestones || [],
@@ -117,20 +121,20 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     collaborationHistory: userData?.collaboration_history || []
   } : undefined;
 
-  // Process UI experience preferences - check both nested object (from JSONB) and snake_case columns
+  // UI experience preferences
   const expData = userData?.experience || {};
   const experience: UIExperiencePreferences | undefined = 
     userData?.experience || userData?.notification_settings ? {
     opportunityPreferences: expData?.opportunityPreferences || userData?.opportunity_preferences,
     notificationSettings: expData?.notificationSettings || userData?.notification_settings,
     uiCustomizations: expData?.uiCustomizations || userData?.ui_customizations || {
-      theme: 'system',
-      language: 'en',
+      theme: getDefaultTheme(),
+      language: DEFAULT_LOCALE,
       compactView: false
     }
   } : undefined;
 
-  // Process external integrations - check both nested object (from JSONB) and snake_case columns
+  // Linked external accounts or wallets
   const intData = userData?.integrations || {};
   const integrations: ExternalIntegrations | undefined = 
     userData?.integrations || userData?.external_accounts || userData?.social_profiles ? {
@@ -139,10 +143,10 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     socialProfiles: intData?.socialProfiles || userData?.social_profiles
   } : undefined;
 
-  // Build complete AuthUser object
+  // Construct the consolidated AuthUser profile, preserving legacy/compatibility fields
   const authUser: AuthUser = {
     ...globalIdentity,
-    // Backward compatibility: id field
+    // Legacy id
     id: globalIdentity.globalUserId,
     communication,
     cultural,
@@ -153,7 +157,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     experience,
     integrations,
 
-    // Legacy fields for backward compatibility
+    // Backward compatibility and legacy profile fields
     bio: userData?.bio,
     canPostconfidentialOpportunities: userData?.canPostconfidentialOpportunities || false,
     canViewconfidentialOpportunities: userData?.canViewconfidentialOpportunities || false,
@@ -161,16 +165,14 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     savedopportunities: userData?.savedopportunities || [],
     nonce: userData?.nonce,
     nonceExpires: userData?.nonceExpires,
-    // notificationPreferences - check nested object first (from JSONB), then snake_case
     notificationPreferences: userData?.notificationPreferences || userData?.notification_preferences || {
       email: true,
       inApp: true,
       sms: false
     },
-    // settings - check nested object first (from JSONB)
     settings: userData?.settings || {
-      language: 'en',
-      theme: 'system',
+      language: DEFAULT_LOCALE,
+      theme: getDefaultTheme(),
       notifications: true
     },
     kycVerification: userData?.kycVerification,
@@ -179,41 +181,38 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     organization: userData?.organization,
     position: userData?.position,
     lastRoleUpgrade: userData?.lastRoleUpgrade,
-
-    // Metadata
     dataVersion: userData?.data_version || 1,
     lastProfileUpdate: userData?.last_profile_update ? convertTimestamp(userData.last_profile_update) : undefined,
-
-    // Wallets (legacy format)
     wallets: userData?.wallets || []
   };
 
   return authUser;
 }
 
+// TODO: Move getUserById() to React 19 cache()-wrapped export for deduplication and stateless request coalescing
+//       Add React's unstable_cache when Next.js supports SSR/page-cache on RSC routes to increase efficiency
+//       Use edge runtime config for better cold start, if available on your Next.js version
+
 /**
- * Retrieve a user's full profile from Firestore by their ID, with authentication and role-based access control.
- * 
- * User steps:
- * 1. An authenticated user or admin requests another user's profile
- * 2. Function authenticates the requesting user
- * 3. If authenticated and authorized, the function retrieves the requested user's profile from Firestore
- * 4. The function returns the appropriate user data based on the requesting user's role
+ * Retrieve a user's full profile from Firestore by their ID, applying authentication, authorization, and privacy filtering.
+ * Steps:
+ *  - Authenticates the requesting user (session).
+ *  - Checks whether requesting user is authorized by role or ownership.
+ *  - Retrieves the profile from DB; handles DB and app-level errors gracefully (returns null for not found).
+ *  - Returns either full profile (for admin/own account) or privacy-filtered partial profile otherwise.
  * 
  * @param userId - The ID of the user to retrieve
- * @returns A promise that resolves to the AuthUser object or null if not found or not authorized.
- * 
- * Error handling:
- * - Throws an error if the requesting user is not authenticated
- * - Returns null if there's an error retrieving the profile from Firestore or if not authorized
+ * @returns Promise with AuthUser object or null if not authorized/not found.
  */
 export async function getUserById(userId: string): Promise<Partial<AuthUser> | null> {
+  // Log retrieval attempt for tracing/debug
   console.log(`🔍 getUserById - Starting retrieval process for user ID: ${userId}`);
 
   try {
-    // Step 1: Authenticate and get session of the requesting user
+    // Step 1: Authenticate the requesting user; must have a valid session with a user
     const session = await auth();
     if (!session || !session.user) {
+      // Not authenticated; abort
       throw new Error('Unauthorized access');
     }
 
@@ -221,17 +220,18 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
 
     console.log(`Services: getUserById - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
-    // Step 2: Check authorization
+    // Step 2: Ensure either admin or fetching own profile (authorization check)
     if (requestingUserId !== userId && !isPlatformAdmin(assertKnownUserRole(requestingUserRole))) {
+      // Not allowed to access this profile
       console.log(`Services: getUserById - Unauthorized access attempt to user ${userId} by user ${requestingUserId}`);
-      return null; // Only allow users to access their own profile or admins to access any profile
+      return null; // Privacy: never leak not-found vs unauthorized
     }
 
-    // Step 3: Retrieve the user document using database abstraction layer
+    // Step 3: Fetch user document from database, abstracted
     console.log(`🔍 getUserById - Using database abstraction layer for user: ${userId}`);
 
     try {
-      console.log(`🔍 getUserById - Attempting to read user from database:`, userId);
+      // Query DB for user doc by ID; uses platform DB abstraction
       const userResult = await db().readDoc<Record<string, unknown>>('users', userId);
       console.log(`🔍 getUserById - Database read result:`, {
         success: userResult.success,
@@ -239,6 +239,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
         error: userResult.error
       });
 
+      // Handle document not found or failed
       if (!userResult.success) {
         if (userResult.metadata?.operation === 'initialize') {
           console.error(`❌ getUserById - Database initialization failed:`, userResult.error);
@@ -259,81 +260,64 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
         documentKeys: dbDocument ? Object.keys(dbDocument) : []
       });
 
-    // Convert timestamps to Date objects consistently
-    const convertTimestamp = (timestamp: any): Date => {
-      if (timestamp && timestamp._seconds) {
-        // Firebase timestamp format
-        return new Date(timestamp._seconds * 1000);
+      // STUB: If the readDoc call is a stub/mocked, implement DB read using the actual provider:
+      //       1. Connect to users collection/table (Firebase/Firestore or Postgres etc)
+      //       2. Lookup document by userId
+      //       3. Parse/validate returned data shape
+
+      // Here we process the DB's user doc—this is the actual user profile payload
+      const userData = dbDocument;
+      console.log(`Services: getUserById - Extracted user data:`, {
+        hasData: !!userData,
+        dataKeys: userData ? Object.keys(userData) : [],
+        dataType: typeof userData
+      });
+
+      if (!userData) {
+        console.log(`Services: getUserById - No data found in database document`);
+        return null;
       }
-      if (timestamp instanceof Date) {
-        return timestamp;
+
+      // Step 5: Reformat raw data to rich AuthUser profile with privacy/culture/external, etc
+      console.log(`Services: getUserById - Processing enhanced user profile for ID: ${userId}`);
+      const enhancedUserProfile = processEnhancedUserProfile(userData);
+
+      // Step 6: Return data according to privacy rules
+      // - Admin or own profile: return full detail
+      // - Others: strip sensitive data
+      
+      const isOwnProfile = requestingUserId === userId;
+      if (isPlatformAdmin(assertKnownUserRole(requestingUserRole)) || isOwnProfile) {
+        // Full profile to owner or admins
+        console.log(`Services: getUserById - ${isOwnProfile ? 'User accessing own profile' : 'Admin user'} retrieved full enhanced profile for ID: ${userId}`);
+        return enhancedUserProfile;
+      } else {
+        // Privacy filter for non-owners/non-admins
+        console.log(`Services: getUserById - Non-admin user retrieved safe profile data for ID: ${userId}`);
+
+        // Filter out sensitive fields before return
+        const safeUserData: Partial<AuthUser> = {
+          ...enhancedUserProfile,
+          ethicalAI: undefined,     // Remove ethical AI profile analytics
+          analytics: undefined,     // Remove internal analytics
+          evolution: undefined,     // Remove in-depth progress/gamification details
+          privacy: undefined        // Remove privacy settings object
+        };
+        return safeUserData;
       }
-      if (typeof timestamp === 'string') {
-        return new Date(timestamp);
-      }
-      // PostgreSQL timestamp format (ISO string)
-      if (typeof timestamp === 'object' && timestamp.toISOString) {
-        return timestamp;
-      }
-      return new Date();
-    };
-
-    const userData = dbDocument;
-    console.log(`Services: getUserById - Extracted user data:`, {
-      hasData: !!userData,
-      dataKeys: userData ? Object.keys(userData) : [],
-      dataType: typeof userData
-    });
-
-    if (!userData) {
-      console.log(`Services: getUserById - No data found in database document`);
-      return null;
-    }
-
-    // Step 5: Process enhanced user profile data
-    console.log(`Services: getUserById - Processing enhanced user profile for ID: ${userId}`);
-    const enhancedUserProfile = processEnhancedUserProfile(userData);
-
-    // Step 6: Return appropriate data based on user role and ownership
-    // Users can always see their own full profile data (including privacy settings)
-    const isOwnProfile = requestingUserId === userId;
-    
-    if (isPlatformAdmin(assertKnownUserRole(requestingUserRole)) || isOwnProfile) {
-      console.log(`Services: getUserById - ${isOwnProfile ? 'User accessing own profile' : 'Admin user'} retrieved full enhanced profile for ID: ${userId}`);
-      return enhancedUserProfile;
-    } else {
-      // For non-admin users viewing OTHER users' profiles, return a privacy-filtered subset
-      console.log(`Services: getUserById - Non-admin user retrieved safe profile data for ID: ${userId}`);
-
-      // Filter out sensitive data when viewing other users' profiles
-      const safeUserData: Partial<AuthUser> = {
-        ...enhancedUserProfile,
-
-        // Remove sensitive ethical AI profiling data
-        ethicalAI: undefined,
-        analytics: undefined,
-
-        // Remove detailed evolution tracking
-        evolution: undefined,
-
-        // Remove privacy preferences when viewing other users
-        privacy: undefined
-      };
-
-      return safeUserData;
-    }
 
     } catch (error) {
+      // Gracefully handle DB errors, logging for internal debugging
       console.error('Services: getUserById - Error retrieving user profile:', error);
       console.error('Services: getUserById - Error details:', {
         message: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined
       });
-      return null; // Indicate failure by returning null
+      return null; // Always null on failure for privacy
     }
   } catch (error) {
+    // Authorization error, invalid session, etc—return null for fail-closed
     console.error('Services: getUserById - Authentication or authorization error:', error);
-    return null; // Indicate failure by returning null
+    return null;
   }
 }
-

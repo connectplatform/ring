@@ -1,5 +1,5 @@
 import type { NextAuthConfig } from "next-auth"
-import { UserRole } from "@/features/auth/user-role"
+import { UserRolesArray } from "@/features/auth/user-role"
 import { withLocale } from "@/constants/routes"
 import { defaultLocale, type Locale } from "@/i18n/shared"
 import { routing } from "@/i18n/routing"
@@ -71,14 +71,14 @@ export default {
     },
     jwt({ token, user }) {
       if (user) {
-        token.role = token.role || user.role || UserRole.subscriber
+        token.role = token.role || user.role || UserRolesArray.subscriber as UserRolesArray,
         token.isVerified = (user as any).isVerified || false
       }
       return token
     },
     session({ session, token }) {
       if (token) {
-        session.user.role = token.role as UserRole
+        session.user.role = token.role as UserRolesArray
         ;(session.user as any).isVerified = token.isVerified as boolean
       }
       return session

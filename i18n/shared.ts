@@ -98,8 +98,6 @@ export const sharedPathnames = {
   '/dao/[slug]': '/dao/[slug]',
   '/calculator': '/calculator',
   '/roadmap': '/roadmap',
-  '/blog/[username]': '/blog/[username]',
-  '/blog/[username]/[slug]': '/blog/[username]/[slug]',
 }
 
 export const locales = SUPPORTED_LOCALES

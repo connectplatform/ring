@@ -30,7 +30,7 @@ import { getClientCreditCurrencyCode } from '@/lib/payments/credit-currency-clie
 
 export type MembershipPaymentRail = 'account_credit' | 'on_chain_ring'
 
-interface RingPaymentModalProps {
+interface MembershipPaymentModalProps {
   onClose: () => void
   onSuccess?: () => void
   paymentType: 'membership_upgrade' | 'subscription_renewal' | 'membership_fee'
@@ -50,13 +50,13 @@ interface PaymentOption {
   recommended?: boolean
 }
 
-export function RingPaymentModal({ 
+export function MembershipPaymentModal({ 
   onClose, 
   onSuccess, 
   paymentType,
   paymentRail = 'account_credit',
   returnTo 
-}: RingPaymentModalProps) {
+}: MembershipPaymentModalProps) {
   const t = useTranslations('modules.membership')
   const locale = useLocale() as Locale
   const router = useRouter()
@@ -74,7 +74,7 @@ export function RingPaymentModal({
   useEffect(() => {
     const loadPaymentInfo = async () => {
       try {
-        const response = await fetch(`/api/membership/payment/ring?type=${paymentType}`)
+        const response = await fetch(`/api/membership/payment/token?type=${paymentType}`)
         if (response.ok) {
           const info = await response.json()
           setPaymentInfo(info)
@@ -172,7 +172,7 @@ export function RingPaymentModal({
         auto_subscribe: autoSubscribe && paymentType === 'membership_upgrade',
       }
 
-      const response = await fetch('/api/membership/payment/ring', {
+      const response = await fetch('/api/membership/payment/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -95,7 +95,7 @@ ring-image-create prompt "community meetup photo, warm lighting" aspectRatio 16:
 
 <Step>
 
-**Enable the MCP gateway** on the Ring clone — set `RING_MCP_SERVICE_TOKENS` in `.env.local` and restart `npm run dev`.
+**Enable the MCP gateway** on the Ring clone — set `RING_MCP_ACCESS_KEY` in `.env.local` and restart `npm run dev`.
 
 </Step>
 
@@ -107,7 +107,7 @@ ring-image-create prompt "community meetup photo, warm lighting" aspectRatio 16:
 
 <Step>
 
-**Register `ring-mcp`** in Cursor with matching `RING_SERVICE_TOKEN` and `RING_API_BASE_URL` (e.g. `http://localhost:3000` for ring-platform.org).
+**Register `ring-mcp`** in Cursor with matching `RING_MCP_ACCESS_KEY` and `RING_API_BASE_URL` (e.g. `http://localhost:3000` for ring-platform.org).
 
 </Step>
 
@@ -125,7 +125,7 @@ ring-image-create prompt "community meetup photo, warm lighting" aspectRatio 16:
 
 <Code language="bash" title="curl — gateway direct">
 {`curl -s -X POST http://localhost:3000/api/mcp/v1/images/generate \\
-  -H "Authorization: Bearer YOUR_RING_MCP_TOKEN" \\
+  -H "Authorization: Bearer YOUR_RING_MCP_ACCESS_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "prompt": "professional tech referral banner, vibrant gradient",
@@ -188,7 +188,7 @@ MCP gateway wraps the conductor result in `{ success, data }`:
 
 <Code language="env" title=".env.local (clone)">
 {`# MCP gateway
-RING_MCP_SERVICE_TOKENS=your-long-random-token
+RING_MCP_ACCESS_KEY=your-long-random-token
 
 # ImageConductor
 IMAGE_GEN_PROVIDER=xai
@@ -219,7 +219,7 @@ Migration `data/migrations/006_generated_images_schema.sql` adds the `generated_
 
 | Symptom | Check |
 |---------|--------|
-| `Invalid service token` / 401 | `RING_SERVICE_TOKEN` in MCP client matches `RING_MCP_SERVICE_TOKENS` on clone |
+| `Invalid service token` / 401 | `RING_MCP_ACCESS_KEY` in MCP client matches `RING_MCP_ACCESS_KEY` on clone |
 | `prompt is required` | Pass non-empty `prompt` |
 | `XAI_API_KEY is not configured` | Key in `.env.local`, restart dev server |
 | Upload failed | `RINGBASE_API_TOKEN`, `FILE_BACKEND=ringbase` |

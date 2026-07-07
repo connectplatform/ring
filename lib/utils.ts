@@ -1,16 +1,19 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
 import { Timestamp, FieldValue } from 'firebase/firestore'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import { UtilityError, FetchError, ValidationError, logRingError } from '@/lib/errors'
 
-/**
- * Combines multiple class names using clsx and tailwind-merge
- * @param inputs - Class names to be combined
- * @returns Combined and optimized class name string
- */
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+export function cn(...inputs: (string | undefined | null | false | Record<string, boolean | undefined | null>)[]) {
+  return inputs
+    .map((input) => {
+      if (!input) return ''
+      if (typeof input === 'string') return input
+      return Object.entries(input)
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(' ')
+    })
+    .filter(Boolean)
+    .join(' ')
 }
 
 /**

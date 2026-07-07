@@ -1,453 +1,361 @@
 ---
 title: Найкращі практики
-description: Документація найкращих практик для платформи Ring
+description: Патерни розробки, специфічні для Ring Platform — серверні дії, доступ до бази даних, автентифікація, платежі та тестування.
+last_modified: "2026-06-28"
+audience: both
 ---
 
 # Найкращі практики
 
-Найкращі практики розробки та стандарти кодування для платформи Ring.
+Патерни розробки та конвенції, специфічні для Ring Platform.
 
-## 🎯 Загальні принципи
+<Audience for="founder">
 
-### 1. Якість коду
-- **Читабельність понад усе** - Код читають частіше, ніж пишуть
-- **Послідовність** - Дотримуйтесь встановлених патернів
-- **Простота** - Віддавайте перевагу простим рішенням над складними
-- **Документація** - Документуйте складну логіку та рішення
+## Принципи розробки
 
-### 2. Продуктивність
-- **Ліниве завантаження** - Завантажуйте компоненти та дані за потребою
-- **Мемоізація** - Використовуйте React.memo, useMemo, useCallback доречно
-- **Оптимізація бандлу** - Тримайте розміри бандлів мінімальними
-- **Ефективність бази даних** - Оптимізуйте запити та зменшуйте кількість викликів
+### Якість понад кількість
+Ring Platform — це мультитенантна white-label платформа, що забезпечує роботу понад 15 продакшен-клонів. Кожен патерн має однаково працювати як у середовищах з PostgreSQL (`k8s-postgres-fcm`), так і з Firebase. Рівень абстракції `DatabaseService` гарантує це — пишіть один раз у `db()`, працюйте будь-де.
 
-## ⚛️ Найкращі практики React
+### Безпека за конвенцією
+- `userId` **завжди** отримується з `await auth()` у серверному коді, ніколи з параметрів, наданих клієнтом.
+- Платіжні операції виконуються лише на сервері. HMAC-підписи WayForPay верифікують автентичність зворотних викликів.
+- Завантаження файлів проходить через абстракцію `file()` (`@/lib/file`) — контроль доступу застосовується на рівні завантаження, ніколи не передбачається з боку клієнта.
 
-### Дизайн компонентів
+### i18n не є опціональним
+Усі рядки, орієнтовані на користувача, знаходяться в JSON-пакетах `locales/{locale}/`, які завантажуються через `next-intl`. Рядки безпосередньо в компонентах є ознакою поганого коду. Див. `docs/en/architecture/proxy-and-intl.mdx` для архітектури i18n.
 
-#### 1. Єдина відповідальність
-// ❌ Погано - Компонент робить занадто багато
+### Поважайте режим бекенду
+`DB_BACKEND_MODE` обирає адаптер бази даних під час виконання. Не імпортуйте `firebase-admin` або `postgres` безпосередньо в доменному коді. Використовуйте виключно `db()` з `@/lib/database`. Див. [Режими бекенду та бази даних](/en/docs/architecture/backend-modes-and-databases).
 
-<Code language="typescript" title="TypeScript">
-{`function UserDashboard({ user }: { user: User }) {
-  // Обробляє профіль користувача, сповіщення, налаштування тощо
-  return (
-    <div>
-      {/* 200+ рядків змішаних обов'язків */}
-    </div>
-  )
-}
+</Audience>
 
-// ✅ Добре - Сфокусовані компоненти
-function UserDashboard({ user }: { user: User }) {
-  return (
-    <div>
-      <UserProfile user={user} />
-      <NotificationCenter userId={user.id} />
-      <UserSettings userId={user.id} />
-    </div>
-  )
-}`}
-</Code>
+<Audience for="developer">
 
-#### 2. Props Interface Design
-// ❌ Погано - Неясні пропси
+## Доступ до бази даних
 
-<Code language="typescript" title="TypeScript">
-{`interface Props {
-  data: any
-  onClick: () => void
-  flag: boolean
-}
+### Синглтон `db()`
 
-// ✅ Добре - Чіткі, типізовані пропси
-interface EntityCardProps {
-  entity: Entity
-  onEdit?: (entity: Entity) => void
-  isEditable?: boolean
-  variant?: 'default' | 'compact'
-}`}
-</Code>
+Основний інтерфейс бази даних — це синглтон `db()` з `@/lib/database`. Він автоматично ініціалізується та надає типізовані методи `*Doc`, які повертають об'єкти результату `{ success, data, error }`.
 
-#### 3. Custom Hooks
-// ✅ Виносьте складну логіку в користувацькі хуки
+```typescript
+import { db } from '@/lib/database'
 
-<Code language="typescript" title="TypeScript">
-{`function useEntityOperations(entityId: string) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+// Створення
+const result = await db().createDoc('entities', { name: 'Acme', type: 'technology' })
+if (!result.success) throw result.error
 
-  const updateEntity = useCallback(async (data: UpdateEntityData) => {
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      await updateEntityAction(entityId, data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [entityId])
+// Читання за ID
+const entity = await db().findDocById<Entity>('entities', id)
+if (!entity.success) throw entity.error
 
-  return { updateEntity, isLoading, error }
-}`}
-</Code>
-
-### Управління станом
-
-#### 1. Спочатку локальний стан
-<Code language="typescript" title="TypeScript">
-{`// ✅ Використовуйте локальний стан для даних специфічних для компонента
-function SearchInput() {
-  const [query, setQuery] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-  
-  return (
-    <div>
-      <input 
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-      />
-      {isOpen && <SearchResults query={query} />}
-    </div>
-  )
-}`}
-</Code>
-
-#### 2. Серверний стан з React Query
-// ✅ Використовуйте React Query для серверного стану
-
-<Code language="typescript" title="TypeScript">
-{`function EntitiesPage() {
-  const { 
-    data: entities, 
-    isLoading, 
-    error 
-  } = useQuery({
-    queryKey: ['entities'],
-    queryFn: fetchEntities,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
-
-  if (isLoading) return <LoadingSpinner />
-  if (error) return <ErrorMessage error={error} />
-  
-  return <EntitiesList entities={entities} />
-}`}
-</Code>
-
-## 🔧 Найкращі практики TypeScript
-
-### 1. Сувора типобезпека
-// ✅ Використовуйте суворі типи
-
-<Code language="typescript" title="TypeScript">
-{`interface CreateEntityRequest {
-  name: string
-  type: EntityType // Тип об'єднання, не string
-  description: string
-  tags?: string[] // Опціональний з конкретним типом
-}
-
-// ❌ Уникайте any
-function processData(data: any) { ... }
-
-// ✅ Використовуйте дженерики або конкретні типи
-function processData<T>(data: T): ProcessedData<T> { ... }`}
-</Code>
-
-### 2. Допоміжні типи
-// ✅ Використовуйте utility типи для трансформацій
-
-<Code language="typescript" title="TypeScript">
-{`interface Entity {
-  id: string
-  name: string
-  description: string
-  createdAt: Date
-}
-
-// Створюйте типи на основі існуючих
-type CreateEntityData = Omit<Entity, 'id' | 'createdAt'>
-type EntitySummary = Pick<Entity, 'id' | 'name'>
-type PartialEntity = Partial<Entity>`}
-</Code>
-### 3. Захисники типів
-<Code language="typescript" title="TypeScript">
-{`// ✅ Використовуйте захисники типів для перевірки типів під час виконання
-function isEntity(obj: unknown): obj is Entity {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    'name' in obj &&
-    typeof (obj as Entity).id === 'string'
-  )
-}
-
-// Використання
-if (isEntity(data)) {
-  // TypeScript знає, що data є Entity тут
-  console.log(data.name)
-}`}
-</Code>
-
-## 🗄️ Найкращі практики роботи з базою даних
-
-### 1. Оптимізація запитів
-// ❌ Bad - Multiple queries
-
-<Code language="typescript" title="TypeScript">
-{`async function getUserWithEntities(userId: string) {
-  const user = await getUser(userId)
-  const entities = await getEntitiesByUserId(userId)
-  return { user, entities }
-}
-
-// ✅ Good - Single optimized query
-async function getUserWithEntities(userId: string) {
-  return await db.collection('users')
-    .doc(userId)
-    .get()
-    .then(async (userDoc) => {
-      const entitiesSnapshot = await db.collection('entities')
-        .where('userId', '==', userId)
-        .get()
-      
-      return {
-        user: userDoc.data(),
-        entities: entitiesSnapshot.docs.map(doc => doc.data())
-      }
-    })
-}`}
-</Code>
-
-### 2. Data Validation
-// ✅ Validate data at boundaries
-
-<Code language="typescript" title="TypeScript">
-{`import { z } from 'zod'
-
-const createEntitySchema = z.object({
-  name: z.string().min(1).max(100),
-  type: z.enum(['technology', 'healthcare', 'finance']),
-  description: z.string().max(500),
+// Запит з фільтрами
+const results = await db().queryDocs<Entity>({
+  collection: 'entities',
+  filters: [{ field: 'status', operator: '==', value: 'active' }],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  pagination: { limit: 20, offset: 0 },
 })
 
-export async function createEntity(data: unknown) {
-  const validatedData = createEntitySchema.parse(data)
-  // Now TypeScript knows the exact shape
-  return await db.collection('entities').add(validatedData)
-}`}
-</Code>
+// Оновлення
+await db().updateDoc('entities', id, { name: 'Acme Corp' })
 
-## 🔒 Security Best Practices
+// Видалення
+await db().deleteDoc('entities', id)
+```
 
-### 1. Authentication Checks
-// ✅ Always verify authentication
+<Callout type="info">
+Синглтон `db()` переживає HMR Next.js завдяки `globalThis.__ringDatabaseService`. База даних ініціалізується один раз і використовує з'єднання повторно під час гарячих перезавантажень.
+</Callout>
 
-<Code language="typescript" title="TypeScript">
-{`export async function updateEntity(entityId: string, data: UpdateEntityData) {
+### Транзакції
+
+Використовуйте `db().transaction()` для атомарних багатокрокових записів. Зворотний виклик транзакції отримує `IDatabaseTransaction` з методами `create`, `read`, `update`, `delete`. Помилки **викидаються** — не перевіряйте `result.success` всередині транзакції.
+
+```typescript
+import { db } from '@/lib/database'
+
+await db().transaction(async (txn) => {
+  const existing = await txn.read('usernames', usernameKey)
+  if (existing) throw new Error('Username is taken')
+
+  await txn.create('usernames', { userId, reservedAt: new Date() }, { id: usernameKey })
+  await txn.update('users', userId, { username })
+})
+```
+
+### Прямий доступ до сервісу (просунутий)
+
+Для спеціалізованої маршрутизації бекенду або операцій з кількома адаптерами імпортуйте клас `DatabaseService` безпосередньо:
+
+```typescript
+import { getDatabaseService } from '@/lib/database/DatabaseService'
+const svc = getDatabaseService()
+await svc.initialize()
+```
+
+Див. [Режими бекенду та бази даних](/en/docs/architecture/backend-modes-and-databases) для деталей щодо вибору адаптера та синхронізації.
+
+<Callout type="warning">
+**Не** використовуйте сирі запити Firestore або pg у коді функцій. Кожна операція з базою даних має проходити через `DatabaseService`, щоб платформа могла змінювати бекенди без переписування бізнес-логіки.
+</Callout>
+
+## Серверні дії
+
+Усі серверні дії знаходяться в `app/_actions/` і слідують узгодженому патерну.
+
+### Конвенції
+
+1. Директива `'use server'` на рівні файлу на початку.
+2. `import { auth } from '@/auth'` для сесії — ніколи не приймайте `userId` від клієнта.
+3. Повертайте об'єкти стану форми `{ success?: boolean, error?: string, message?: string }`.
+4. Використовуйте `localizedRedirect` для навігації після успіху.
+5. Валідація через Zod або вручну на межі.
+
+```typescript
+'use server'
+
+import { auth } from '@/auth'
+import { db } from '@/lib/database'
+import { revalidatePath } from 'next/cache'
+import { localizedRedirect } from '@/lib/i18n-server-redirect'
+import type { Locale } from '@/i18n/shared'
+
+export interface ActionResult {
+  success?: boolean
+  error?: string
+  message?: string
+  fieldErrors?: Record<string, string>
+}
+
+export async function createEntity(
+  prevState: ActionResult | null,
+  formData: FormData,
+  locale: Locale
+): Promise<ActionResult> {
   const session = await auth()
-  if (!session?.user) {
-    throw new Error('Unauthorized')
-  }
+  if (!session?.user?.id) return { error: 'Authentication required' }
 
-  // Verify ownership
-  const entity = await getEntity(entityId)
-  if (entity.userId !== session.user.id) {
-    throw new Error('Forbidden')
-  }
+  // Валідація
+  const name = formData.get('name') as string
+  if (!name?.trim()) return { error: 'Name is required' }
 
-  return await updateEntityInDb(entityId, data)
-}`}
-</Code>
-
-### 2. Input Sanitization
-// ✅ Sanitize user inputs
-
-<Code language="typescript" title="TypeScript">
-{`import DOMPurify from 'dompurify'
-
-function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em'],
-    ALLOWED_ATTR: []
+  // Запис
+  const result = await db().createDoc('entities', {
+    name: name.trim(),
+    createdBy: session.user.id,
+    createdAt: new Date(),
   })
-}`}
-</Code>
 
-## 🎨 Styling Best Practices
+  if (!result.success) return { error: result.error?.message ?? 'Creation failed' }
 
-### 1. Consistent Design System
-// ✅ Use design tokens
-
-<Code language="typescript" title="TypeScript">
-{`const theme = {
-  colors: {
-    primary: {
-      50: '#eff6ff',
-      500: '#3b82f6',
-      900: '#1e3a8a',
-    }
-  },
-  spacing: {
-    xs: '0.5rem',
-    sm: '1rem',
-    md: '1.5rem',
-  }
-}`}
-</Code>
-
-### 2. Component Variants
-// ✅ Use variant patterns
-
-<Code language="typescript" title="TypeScript">
-{`const buttonVariants = {
-  variant: {
-    default: 'bg-primary text-white',
-    outline: 'border border-primary text-primary',
-    ghost: 'text-primary hover:bg-primary/10',
-  },
-  size: {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg',
-  }
-}`}
-</Code>
-
-## 📝 Documentation Best Practices
-
-### 1. Code Comments
-// ✅ Document complex logic
-
-<Code language="typescript" title="TypeScript">
-{`/**
- * Calculates the confidence score for entity matching
- * based on name similarity, industry overlap, and location proximity.
- * 
- * @param entity1 - First entity to compare
- * @param entity2 - Second entity to compare
- * @returns Confidence score between 0 and 1
- */
-function calculateMatchConfidence(entity1: Entity, entity2: Entity): number {
-  // Weight factors for different matching criteria
-  const NAME_WEIGHT = 0.4
-  const INDUSTRY_WEIGHT = 0.3
-  const LOCATION_WEIGHT = 0.3
-  
-  // ... implementation
-}`}
-</Code>
-
-### 2. README Files
-Feature Name # Usage
-
-<Code language="markdown" title="content">
-{`Brief description of what this feature does.`}
-</Code>typescript
-import { useFeature } from './hooks/use-feature'
-
-function Component() {
-  const { data, isLoading } = useFeature()
-  // ...
+  revalidatePath(`/${locale}/entities`)
+  localizedRedirect({ locale, href: '/entities' })
 }
 ```
 
-## API
+### Обробка помилок
 
-### `useFeature(options?)`
+- Повертайте рядки помилок для відображення у формі. Не викидайте помилки в діях, що повертають форми.
+- Викидайте лише для невідновлюваних помилок (неправильна конфігурація, відсутні змінні середовища).
+- Обгортайте `localizedRedirect` у try/catch — він викидає `NEXT_REDIRECT`, який має поширюватися.
 
-- `options.enabled` - Whether to enable the query
-- Returns: `{ data, isLoading, error }`
+<Callout type="tip">
+Перевірте `app/_actions/vendor-actions.ts` для комплексного реального прикладу, що охоплює завантаження файлів (Vercel Blob через `file()`), вкладене створення + оновлення та багатокрокові потоки онбордингу.
+</Callout>
+
+## Автентифікація
+
+### Серверна сторона (`@/auth`)
+
+Імпортуйте `auth` з кореневого `@/auth` (не напряму з `next-auth` або `authjs` — Ring Platform надає налаштований екземпляр у `auth.ts`).
+
+```typescript
+import { auth } from '@/auth'
+
+export async function getServerSession() {
+  const session = await auth()
+  return session
+}
 ```
 
-## 🧪 Testing Best Practices
+Виклик `auth()` доступний у:
+- Серверних діях (`app/_actions/`)
+- Обробниках маршрутів (`app/api/`)
+- Серверних компонентах (асинхронний компонент)
+- Проміжному ПЗ (middleware)
 
-### 1. Test Structure
-// ✅ Arrange, Act, Assert pattern
+### Клієнтська сторона (`useSession`)
 
-<Code language="typescript" title="TypeScript">
-{`describe('EntityCard', () => {
-  it('should display entity information', () => {
-    // Arrange
-    const mockEntity = {
-      id: '1',
-      name: 'Test Entity',
-      description: 'Test description'
-    }
+```typescript
+'use client'
 
-    // Act
-    render(<EntityCard entity={mockEntity} />)
+import { useSession } from '@/auth/client'
 
-    // Assert
-    expect(screen.getByText('Test Entity')).toBeInTheDocument()
-    expect(screen.getByText('Test description')).toBeInTheDocument()
+export function UserInfo() {
+  const { data: session, status } = useSession()
+
+  if (status === 'loading') return <div>Loading...</div>
+  if (!session?.user) return <div>Not signed in</div>
+
+  return <div>{session.user.name}</div>
+}
+```
+
+### Конфігурація Auth.js (NextAuth v5)
+
+Канонічна конфігурація auth знаходиться в `auth.ts` у корені проекту. Вона налаштовує:
+- Провайдера облікових даних (email/пароль)
+- Провайдера Google OAuth
+- Стратегію JWT (з ротацією токенів оновлення)
+- Адаптер PostgreSQL (`lib/auth/postgres-adapter.ts`)
+
+Не створюйте додаткових файлів `auth.ts` у функціональних модулях. Розширюйте кореневу конфігурацію.
+
+<Callout type="warning">
+Ніколи не передавайте `userId` від клієнта до серверної дії або API-маршруту. Отримуйте його з `await auth()` на сервері. Див. `app/_actions/fcm.ts` для канонічного патерну — `userId отримується лише з auth() — ніколи не передавайте userId від клієнта`.
+</Callout>
+
+## Push-сповіщення (FCM)
+
+Реєстрація та скасування реєстрації FCM-токенів відбуваються через серверні дії в `app/_actions/fcm.ts`. Відповідні операції з БД знаходяться в `lib/notifications/fcm-token-db.ts`.
+
+```typescript
+'use server'
+
+import { auth } from '@/auth'
+import { upsertFcmTokenForUser, unregisterFcmTokenForUser } from '@/lib/notifications/fcm-token-db'
+import type { UpsertFcmTokenParams, UpsertFcmTokenResult } from '@/lib/notifications/fcm-token-db'
+
+export async function upsertFcmToken(params: UpsertFcmTokenParams): Promise<UpsertFcmTokenResult> {
+  const session = await auth()
+  if (!session?.user?.id) return { error: 'Authentication required' }
+  return upsertFcmTokenForUser(session.user.id, params)
+}
+```
+
+Надсилайте сповіщення на стороні сервера за допомогою інструменту `ring-mcp_ring-fcm-send` або прямого обміну повідомленнями Firebase Admin. Ніколи не розкривайте серверні ключі FCM клієнту.
+
+## Платежі (WayForPay)
+
+Ring Platform використовує WayForPay як основний платіжний провайдер. Ключові патерни:
+
+- **Уся логіка платежів виключно на сервері** — ніколи не розкривайте API-ключі або HMAC-секрети клієнту.
+- **Ідемпотентний `orderReference`** — кожна спроба платежу має унікальний `orderReference` для запобігання дублюванню списань.
+- **HMAC-верифікація** — зворотні виклики вебхуків верифікуються за допомогою HMAC MD5 перед обробкою.
+- **Обробка 3DS** — перенаправлення WayForPay керуються через `components/store/checkout/`.
+
+Див. `docs/en/architecture/payment-conductor.mdx` для повної архітектури платежів, потоку вебхуків та патернів повернення коштів.
+
+## Межі серверних і клієнтських компонентів
+
+- **За замовчуванням використовуйте серверні компоненти** — отримуйте дані та рендерте на сервері.
+- **Опускайте клієнтські межі вниз** — обгортайте інтерактивні елементи (форми, мапи, реальний час) у листках `'use client'`.
+- **Уникайте useEffect для отримання даних** — використовуйте серверні дії, обробники маршрутів або `useActionState` у React 19.
+
+```typescript
+// page.tsx — серверний компонент (за замовчуванням)
+export default async function EntitiesPage({ params: { locale } }: Props) {
+  const session = await auth()
+
+  const result = await db().queryDocs<Entity>({
+    collection: 'entities',
+    filters: [],
+    pagination: { limit: 20 },
   })
-})`}
-</Code>
 
-### 2. Mock External Dependencies
-// ✅ Mock external services
+  return <EntityList entities={result.data ?? []} session={session} />
+}
+```
 
-<Code language="typescript" title="TypeScript">
-{`jest.mock('@/lib/firebase', () => ({
-  db: {
-    collection: jest.fn(() => ({
-      add: jest.fn().mockResolvedValue({ id: 'mock-id' })
-    }))
-  }
-}))`}
-</Code>
+## Завантаження файлів
 
-## 📊 Performance Best Practices
+Використовуйте абстракцію `file()` з `@/lib/file` замість прямого виклику API Vercel Blob або S3.
 
-### 1. React Optimization
-// ✅ Memoize expensive calculations
+```typescript
+import { file } from '@/lib/file'
 
-<Code language="typescript" title="TypeScript">
-{`const ExpensiveComponent = memo(({ data }: { data: ComplexData }) => {
-  const processedData = useMemo(() => {
-    return processComplexData(data)
-  }, [data])
+const result = await file().upload(`entities/${entityId}/logo.webp', fileObject, {
+  access: 'public',
+  addRandomSuffix: false,
+})
+if (!result.success) throw new Error(result.error)
+```
 
-  return <div>{processedData.result}</div>
+## Патерни тестування
+
+Тести знаходяться в `__tests__/` і використовують Jest (з `@jest-environment jsdom` для тестів компонентів) або Vitest.
+
+### Імітуйте зовнішні сервіси, а не DatabaseService
+
+Тести Ring Platform імітують на межі — константи, `next/link`, пакунки перекладів — але **не** імітують `@/lib/database` з фейковим Firestore. Логіка, що залежить від бази даних, тестується або на реальній тестовій базі даних, або через інтеграційні тести, які використовують повний стек адаптерів.
+
+<Callout type="tip">
+Див. [Посібник з тестування](/en/docs/development/testing) для повної стратегії тестування та перегляньте реальні тестові файли в `__tests__/features/` (наприклад, `news-visibility-filter.test.ts`, `referral-commission.test.ts`) для патернів, що тестують чисту бізнес-логіку без імітації бази даних.
+</Callout>
+
+### Приклад тестування компонентів
+
+```typescript
+/**
+ * @jest-environment jsdom
+ */
+
+import { render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import EntityCard from '@/components/EntityCard'
+import type { Locale } from '@/i18n/shared'
+
+// Імітація next/link
+jest.mock('next/link', () => {
+  return ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  )
 })
 
-// ✅ Optimize re-renders
-const OptimizedList = memo(({ items, onItemClick }: Props) => {
-  return (
-    <div>
-      {items.map(item => (
-        <OptimizedItem 
-          key={item.id}
-          item={item}
-          onClick={onItemClick}
-        />
-      ))}
-    </div>
-  )
-})`}
-</Code>
+const mockMessages = {
+  'entities.card.viewDetails': 'View Details',
+}
 
-### 2. Bundle Optimization
-// ✅ Dynamic imports for code splitting
+describe('EntityCard', () => {
+  it('рендерить назву сутності', () => {
+    const entity = { id: '1', name: 'Test Entity', type: 'technology' }
 
-<Code language="typescript" title="TypeScript">
-{`const HeavyComponent = lazy(() => import('./HeavyComponent'))
+    render(
+      <NextIntlClientProvider locale="en" messages={mockMessages}>
+        <EntityCard entity={entity} />
+      </NextIntlClientProvider>
+    )
 
-function App() {
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <HeavyComponent />
-    </Suspense>
-  )
-}`}
-</Code>
+    expect(screen.getByText('Test Entity')).toBeInTheDocument()
+  })
+})
+```
+
+## Продуктивність
+
+### Патерни запитів до бази даних
+
+- Використовуйте `db().queryDocs()` з `filters` та `pagination`, щоб обмежити результати на рівні бази даних — не отримуйте всі документи та не фільтруйте в коді застосунку.
+- Використовуйте `db().findDocById()` для пошуку одного документа замість `queryDocs({ filters: [{ field: 'id', operator: '==', value: id }] })`.
+- Кеш сутностей у `DatabaseService` забезпечує TTL 30 секунд для узгодженості читання після запису в колекції `entities` — ручне кешування не потрібне для базових випадків.
+
+### Продуктивність React
+
+- Серверні компоненти за замовчуванням — нульовий клієнтський JS для чистого рендерингу.
+- `useActionState` (React 19) для керування станом форми в клієнтських компонентах — не потрібна зовнішня бібліотека стану.
+- Динамічні імпорти з `next/dynamic` для важких клієнтських компонентів (мапи, редактори, графіки).
+
+## Організація коду
+
+- **`app/_actions/`** — усі серверні дії, один файл на домен.
+- **`features/{domain}/services/`** — бізнес-логіка, яку можна викликати з серверних дій або обробників маршрутів.
+- **`features/{domain}/lib/`** — доменно-специфічні чисті функції та утиліти.
+- **`lib/database/`** — абстракція бази даних. Не додавайте сюди специфічні для функцій запити до бази даних.
+- **`components/`** — лише спільні UI-компоненти. Специфічні для функцій компоненти знаходяться в `features/{domain}/components/`.
+
+Див. [Структура коду](/en/docs/development/code-structure) для повної схеми директорій.
 
 ---
 
-*Next: [Development Workflow](/uk/docs/development/workflow) - Learn about our Git workflow and development process.*
+*Далі: [Структура коду](/en/docs/development/code-structure) — компонування App Router, модулі функцій та організація файлів.*
+*Див. також: [Посібник з тестування](/en/docs/development/testing), [Режими бекенду та бази даних](/en/docs/architecture/backend-modes-and-databases)*

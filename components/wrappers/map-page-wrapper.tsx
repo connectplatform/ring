@@ -27,7 +27,7 @@
  * @see components/wrappers/opportunities-page-wrapper.tsx for 3-column alternative
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Home } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -63,6 +63,8 @@ export function MapPageWrapper({
     setMounted(true)
   }, [])
 
+  const goHome = useCallback(() => router.push(`/${locale}`), [locale, router])
+
   // Dynamic brand name (supports white-label customization)
   const displayBrand = brandName || process.env.NEXT_PUBLIC_BRAND_NAME || 'Ring Platform'
 
@@ -83,7 +85,7 @@ export function MapPageWrapper({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push(`/${locale}`)}
+                onClick={goHome}
               >
                 {t('home')}
               </Button>

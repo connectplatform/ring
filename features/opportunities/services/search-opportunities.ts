@@ -8,7 +8,7 @@ import { Opportunity, SerializedOpportunity } from '@/features/opportunities/typ
 import {
   mapDbDocumentToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   assertKnownUserRole,
   InvalidUserRoleError,
@@ -117,7 +117,7 @@ export const searchOpportunities = cache(async (
       })
     }
 
-    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role)
+    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role) as UserRolesArray
     const userId = session?.user?.id ?? mcpActor?.id
 
     // Step 2: Build comprehensive search filters

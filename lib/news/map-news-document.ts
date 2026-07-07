@@ -47,6 +47,8 @@ export function mapNewsDocument(
     siteWideCategory: d.siteWideCategory as string | undefined,
     aiScore: d.aiScore as NewsArticle['aiScore'],
     payment: d.payment as NewsArticle['payment'],
+    deletedAt: d.deletedAt as NewsArticle['deletedAt'],
+    deletedBy: d.deletedBy as string | undefined,
   }
 }
 

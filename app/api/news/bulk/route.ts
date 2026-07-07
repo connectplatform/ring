@@ -101,7 +101,12 @@ export async function POST(request: NextRequest) {
             break
 
           case 'delete':
-            batch.delete(articleRef)
+            batch.update(articleRef, {
+              status: 'deleted' as NewsStatus,
+              deletedAt: FieldValue.serverTimestamp(),
+              deletedBy: session.user.id || session.user.email || '',
+              updatedAt: FieldValue.serverTimestamp(),
+            })
             break
 
           case 'updateCategory':
@@ -138,6 +143,18 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
+
+      // Invalidate news-stats cache + revalidate admin paths after successful bulk
+      const { syncNewsDiscovery } = await import('@/features/news/lib/news-mutation-sync')
+      const eventMap: Record<string, 'published' | 'deleted' | 'updated' | 'status_changed'> = {
+        publish: 'published',
+        archive: 'status_changed',
+        delete: 'deleted',
+        updateCategory: 'updated',
+      }
+      await syncNewsDiscovery({
+        event: eventMap[operation] || 'updated',
+      })
     }
 
     // Prepare response

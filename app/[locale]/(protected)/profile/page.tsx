@@ -4,8 +4,8 @@ import { headers } from 'next/headers'
 import ProfileWrapper from '@/components/wrappers/profile-wrapper'
 import { auth } from '@/auth'
 import { AuthUser } from '@/features/auth/types'
-import { ensureWallet } from '@/features/wallet/services/ensure-wallet'
-import { getWalletBalance as getUserWalletBalance } from '@/features/wallet/services/get-wallet-balance'
+import { ensureWallet } from '@/features/wallet/services'
+import { getWalletBalance } from '@/app/_actions/wallet'
 import { getUserById } from '@/features/auth/services/get-user-by-id'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
@@ -99,23 +99,29 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
       } as unknown as AuthUser
     }
 
-    let walletAddress = ''
+    let walletAddress = '';
+    let userWalletBalance: string | null = null;
     try {
-      const wallet = await ensureWallet()
-      walletAddress = wallet.address
+      const wallet = await ensureWallet();
+      if (wallet && wallet.address) {
+        walletAddress = wallet.address;
+        try {
+          const balanceResult = await getWalletBalance();
+          userWalletBalance = balanceResult.balance ?? null;
+        } catch (balanceError) {
+          logger.warn('ProfilePage: on-chain balance unavailable:', {
+            message: balanceError instanceof Error ? balanceError.message : String(balanceError),
+          });
+          userWalletBalance = null;
+          logger.error('ProfilePage: Error fetching wallet balance:', balanceError);
+        }
+      } else {
+        logger.warn('ProfilePage: Wallet or wallet address is missing, skipping balance fetch.');
+      }
     } catch (walletError) {
-      logger.error('ProfilePage: ensureWallet failed:', walletError)
+      logger.error('ProfilePage: ensureWallet failed:', walletError);
     }
 
-    let userWalletBalance = '0'
-    try {
-      userWalletBalance = await getUserWalletBalance()
-    } catch (balanceError) {
-      logger.warn('ProfilePage: on-chain balance unavailable (using 0):', {
-        message: balanceError instanceof Error ? balanceError.message : String(balanceError),
-      })
-      userWalletBalance = '0'
-    }
 
     initialUser = {
       ...session.user,

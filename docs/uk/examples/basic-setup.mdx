@@ -1,242 +1,192 @@
 ---
 title: Базове налаштування
-description: Документація базового налаштування для платформи Ring
+description: Швидкий запуск екземпляра Ring Platform з PostgreSQL, Auth.js v5 та мінімальною конфігурацією — для засновників та розробників
+last_modified: "2026-06-28"
+audience: both
 ---
 
-# Приклад базового налаштування
+# Базове налаштування
 
-Повнофункціональний екземпляр платформи Ring за 5 хвилин - **готовий до копіювання** з усіма включеними залежностями.
+Цей посібник описує мінімальне локальне налаштування Ring Platform. Це найшвидший спосіб побачити працюючий екземпляр після клонування репозиторію.
 
-## 🎯 Що ви створите
+<Callout type="info" title="Передумови">
+  Node.js 20+, PostgreSQL 16 та Git. Повний перелік вимог описано у [Посібнику зі встановлення](/docs/en/getting-started/installation).
+</Callout>
 
-Повнофункціональну платформу Ring з:
-- ✅ **Автентифікація** - Google OAuth працює
-- ✅ **База даних** - Firestore підключена та заповнена
-- ✅ **Сутності** - Створення та управління організаціями
-- ✅ **Можливості** - Розміщення вакансій та партнерств
-- ✅ **Реальний час** - WebSocket сповіщення працюють
+<Audience for="founder">
 
-## ⚡ 5-хвилинний швидкий старт
+## Що ви отримуєте
 
-### Крок 1: Клонування та встановлення
-<Code language="bash" title="terminal">
-{`git clone https://github.com/connectplatform/ring.git
+Працюючий екземпляр Ring Platform з:
+
+- **PostgreSQL** як база даних додатку (режим `k8s-postgres-fcm`)
+- **Auth.js v5** аутентифікація з Google OAuth входом
+- **Керування сутностями** — створення та управління організаціями
+- **Маркетплейс можливостей** — публікація та пошук оголошень
+- **Сповіщення в реальному часі** через WebSocket тунель
+
+Платформа працює на `http://localhost:3000`. Для базової локальної роботи не потрібні хмарні сервіси.
+
+## Подальші кроки після налаштування
+
+Після перевірки локального екземпляра див. [Локальне налаштування](/docs/en/development/local-setup) для white-label кастомізації, прапорців функцій та розширеної конфігурації. Для продакшн-розгортання див. [Конфігурація середовища](/docs/en/deployment/environment).
+
+</Audience>
+
+<Audience for="developer">
+
+## Покрокове налаштування
+
+### Клонування та встановлення
+
+```bash
+git clone https://github.com/connectplatform/ring.git
 cd ring
-npm install`}
-</Code>
-
-### Step 2: Environment Setup
-Копіювання шаблону середовища Генерація ключа шифрування
-
-<Code language="bash" title="terminal">
-{`cp env.local.template .env.local
-
-openssl rand -hex 32`}
-</Code>
-
-### Крок 3: Налаштування середовища
-.env.local Google OAuth (get from Google Cloud Console) Firebase (get from Firebase Console)
-
-<Code language="bash" title="terminal">
-{`NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-nextauth-secret-here
-WALLET_ENCRYPTION_KEY=your-generated-key-here
-
-AUTH_GOOGLE_ID=your-google-client-id
-AUTH_GOOGLE_SECRET=your-google-client-secret
-
-AUTH_FIREBASE_PROJECT_ID=your-project-id
-AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-AUTH_FIREBASE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com`}
-</Code>
-### Крок 4: Запуск розробки
-<Code language="bash" title="terminal">
-{`npm run dev`}
-</Code>
-
-🎉 **Успіх!** Відвідайте http://localhost:3000
-
-## ✅ Перевірка успішності
-
-Після налаштування перевірте, що це працює:
-
-### 1. Тест автентифікації
-- [ ] Відвідайте `/login`
-- [ ] Натисніть "Увійти через Google"
-- [ ] Успішне перенаправлення на панель керування
-- [ ] Ваше ім'я з'являється в навігації
-
-### 2. Тест бази даних
-- [ ] Відвідайте `/entities`
-- [ ] Натисніть "Створити сутність"
-- [ ] Заповніть форму та надішліть
-- [ ] Нова сутність з'являється в списку
-
-### 3. Тест API
-Should return: {"status":"ok","timestamp":"..."}
-
-<Code language="bash" title="terminal">
-{`curl http://localhost:3000/api/health`}
-</Code>
-
-### 4. Тест реального часу
-- [ ] Відкрийте дві вкладки браузера
-- [ ] Створіть можливість в одній вкладці
-- [ ] Побачте сповіщення в іншій вкладці
-
-## 📁 Структура проєкту
-
+npm install
 ```
-ring/
-├── app/                   # Next.js App Router
-│   ├── (auth)/            # Сторінки автентифікації
-│   ├── entities/          # Управління сутностями
-│   ├── opportunities/     # Ринок можливостей
-│   └── api/               # API маршрути
-├── components/            # React компоненти
-├── lib/                   # Утиліти та конфігурації
-├── features/              # Модулі функцій
-└── public/                # Статичні ресурси
+
+### Налаштування середовища
+
+Скопіюйте шаблон і відредагуйте необхідні змінні:
+
+```bash
+cp env.local.template .env.local
 ```
-## 🔧 Пояснення ключових файлів
 
-### Конфігурація автентифікації
-// auth.ts
+Як мінімум, встановіть у `.env.local`:
 
-<Code language="typescript" title="TypeScript">
-{`import NextAuth from "next-auth"
-import Google from "next-auth/providers/google"
+```bash
+# Database backend (required)
+DB_BACKEND_MODE=k8s-postgres-fcm
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
-  callbacks: {
-    async session({ session, token }) {
-      // Add user ID to session
-      session.user.id = token.sub
-      return session
-    }
-  }
-})`}
-</Code>
-### Конфігурація бази даних
-// lib/firebase.ts
+# Auth.js secret (required)
+AUTH_SECRET=your-secret
 
-<Code language="typescript" title="TypeScript">
-{`import { initializeApp, getApps } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+# Database connection (required for k8s-postgres-fcm)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
 
-const firebaseConfig = {
-  projectId: process.env.AUTH_FIREBASE_PROJECT_ID,
-  // ... other config
-}
+# Google OAuth (required for sign-in)
+AUTH_GOOGLE_ID=your-client-id
+AUTH_GOOGLE_SECRET=your-client-secret
+```
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-export const db = getFirestore(app)`}
-</Code>
-### Приклад API маршруту
-// app/api/entities/route.ts
+<Callout type="tip" title="Генерація AUTH_SECRET">
+  Auth.js v5 може згенерувати секрет автоматично при першому запуску. Або використовуйте `npx auth secret` для явної генерації. Підхід `openssl rand -hex 32` не потрібен.
+</Callout>
 
-<Code language="typescript" title="TypeScript">
-{`import { auth } from '@/auth'
-import { NextRequest } from 'next/server'
+Повна довідка змінних — у [Конфігурація середовища](/docs/en/deployment/environment). Для локальної розробки рекомендується `AUTH_TRUST_HOST=true`.
 
-export async function POST(request: NextRequest) {
-  const session = await auth()
-  
-  if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+### Налаштування бази даних
 
-  const data = await request.json()
-  
-  // Create entity in database
-  const entity = await createEntity({
-    ...data,
-    userId: session.user.id
-  })
+Запустіть PostgreSQL та створіть базу даних:
 
-  return Response.json({ entity })
-}`}
-</Code>
-## 🎨 Швидкі налаштування персоналізації
+```bash
+docker run -d --name ring-postgres-dev \
+  -e POSTGRES_USER=ring_user \
+  -e POSTGRES_PASSWORD=ring_password_2024 \
+  -e POSTGRES_DB=ring_platform \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
 
-### Зміна логотипу
-// app/layout.tsx
+Застосуйте схему та міграції:
 
-<Code language="typescript" title="TypeScript">
-{`const navbar = (
-  <Navbar 
-    logo={
-      <>
-        <span className="mr-2 font-extrabold text-2xl">🏢</span>
-        <span className="font-bold text-xl">Your Company</span>
-      </>
-    }
-  />
-)`}
-</Code>
-### Оновлення кольорів
-/* app/globals.css */
+```bash
+export DATABASE_URL="postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform"
+psql "$DATABASE_URL" -f data/schema.sql
+psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
+psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+```
 
-<Code language="css" title="styles">
-{`:root {
-  --color-primary: #your-brand-color;
-  --color-secondary: #your-accent-color;
-}`}
-</Code>
-### Додавання власного типу сутності
-// types/entity.ts
+Або використовуйте скрипт встановлення, який виконує налаштування бази даних:
 
-<Code language="typescript" title="TypeScript">
-{`export type EntityType = 
-  | 'technology' 
-  | 'healthcare' 
-  | 'finance'
-  | 'your-custom-type' // Add your type here`}
-</Code>
-## 🚨 Поширені проблеми та рішення
+```bash
+./install.sh --quick
+```
 
-### Проблема: Помилка "FETCH_FAILED"
-**Рішення**: Перевірте конфігурацію Firebase
-Verify project ID Check service account key format Should show: -----BEGIN PRIVATE KEY-----
+Див. [Встановлення > Налаштування PostgreSQL](/docs/en/getting-started/installation#postgresql-setup) для додаткових варіантів.
 
-<Code language="bash" title="terminal">
-{`echo $AUTH_FIREBASE_PROJECT_ID
+### Запуск сервера розробки
 
-echo $AUTH_FIREBASE_PRIVATE_KEY | head -1`}
-</Code>
+```bash
+npm run dev
+```
 
-### Issue: Google OAuth Not Working
-**Solution**: Verify OAuth configuration
-1. Check Google Cloud Console OAuth settings
-2. Add `http://localhost:3000` to authorized origins
-3. Add `http://localhost:3000/api/auth/callback/google` to redirect URIs
+Користувацький `server.ts` запускає Next.js 16 з WebSocket тунелем на порту 3000.
 
-### Issue: Database Permission Denied
-**Solution**: Update Firestore rules
-// Firestore Rules
+### Перевірка
 
-<Code language="javascript" title="JavaScript">
-{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}`}
-</Code>
-## 🚀 Наступні кроки
+```bash
+curl http://localhost:3000/api/health
+```
 
-Після того, як базове налаштування працює:
+Очікувана відповідь: `{"status":"ok","timestamp":"..."}`
 
-1. **[Налаштування брендингу](/uk/docs/examples/custom-branding)** - Зробіть платформу своєю
-2. **[Додавання функцій](/uk/docs/features)** - Дослідіть можливості платформи
-3. **[Розгортання у продакшн](/uk/docs/deployment)** - Запустіть з Vercel
-4. **[Приєднання до спільноти](/uk/docs/discord)** - Отримайте допомогу та діліться ідеями
+Відкрийте `http://localhost:3000/login` для тестування входу через Google OAuth.
 
----
+## Ключові файли
 
-**🎉 Вітаємо!** Тепер у вас є робочий екземпляр платформи Ring. Можливості безмежні!
+| Файл | Призначення |
+|------|---------|
+| `auth.ts` | Конфігурація Auth.js v5 — провайдери, колбеки, стратегія JWT сесії |
+| `lib/database/DatabaseService.ts` | Уніфікована абстракція бази даних (PostgreSQL або Firestore) |
+| `lib/firebase-admin.server.ts` | Firebase Admin SDK для FCM push (лише серверна частина) |
+| `public/firebase-messaging-sw.js` | Сервіс-воркер з Firebase клієнтським SDK для push-сповіщень |
+| `lib/tunnel/` | Транспорт реального часу через WebSocket |
+| `data/schema.sql` | Схема PostgreSQL v4 |
 
-*Виникли проблеми? Приєднуйтесь до нашої [Discord спільноти](https://discord.gg/ring-platform) за допомогою.*
+<Callout type="warning" title="Немає lib/firebase.ts">
+  Ring Platform **не** має клієнтського файлу ініціалізації `lib/firebase.ts`. Клієнтський Firebase SDK завантажується виключно всередині сервіс-воркера (`public/firebase-messaging-sw.js`) через CDN `importScripts()`. Клієнтського об'єкта `firebaseConfig` не існує. Серверний Firebase Admin використовує `lib/firebase-admin.server.ts` з явними обліковими даними сервісного акаунта.
+</Callout>
+
+## Технологічний стек
+
+| Компонент | Версія / Провайдер |
+|-----------|--------------------|
+| Framework | Next.js 16 App Router |
+| UI | React 19 |
+| Auth | Auth.js v5 (`auth()` / `useSession()`) |
+| Database | PostgreSQL 16 + PostGIS (або Firestore через `DB_BACKEND_MODE=firebase-full`) |
+| Push | Firebase Cloud Messaging (серверний Admin SDK, клієнтський сервіс-воркер) |
+| Payments | WayForPay (серверна HMAC верифікація) |
+| Locales | `next-intl`, підтримувані мови: en, uk, ru |
+
+## Вирішення проблем
+
+### "FETCH_FAILED" або помилки підключення до бази даних
+
+Переконайтеся, що PostgreSQL запущено та облікові дані у `.env.local` збігаються:
+
+```bash
+psql "postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform" -c "SELECT 1"
+```
+
+### Google OAuth не працює
+
+1. Перевірте Google Cloud Console — додайте `http://localhost:3000` до Authorized JavaScript origins
+2. Додайте `http://localhost:3000/api/auth/callback/google` до Authorized redirect URIs
+3. Переконайтеся, що `AUTH_GOOGLE_ID` та `AUTH_GOOGLE_SECRET` вказано у `.env.local`
+
+### Помилки секрету аутентифікації
+
+Переконайтеся, що `AUTH_SECRET` встановлено у `.env.local`. Згенеруйте за допомогою:
+
+```bash
+npx auth secret
+```
+
+Потім скопіюйте результат у `AUTH_SECRET`.
+
+## Подальші кроки
+
+- [Посібник зі встановлення](/docs/en/getting-started/installation) — повне налаштування зі скриптом встановлення та розширеною конфігурацією бази даних
+- [Локальне налаштування](/docs/en/development/local-setup) — white-label конфігурація, прапорці функцій та робочий процес розробки
+- [Конфігурація середовища](/docs/en/deployment/environment) — довідка всіх змінних середовища
+- [Розширені можливості](/docs/en/examples/advanced-features) — AI-матчер, верифікація, PaymentConductor та інше
+
+</Audience>

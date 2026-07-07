@@ -1,17 +1,28 @@
-import { NextRequest, NextResponse, connection } from 'next/server'
+import { NextRequest, NextResponse, connection, after } from 'next/server'
 import { dispatchStripeWebhook } from '@/lib/payments/conductor/webhook-dispatcher'
+import { stripeWebhookInputSchema } from '@/lib/payments/stripe-webhook-schema'
 import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   await connection()
   try {
     const rawBody = await request.text()
-    const signature = request.headers.get('stripe-signature') ?? ''
-    const result = await dispatchStripeWebhook(rawBody, signature)
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error ?? 'Webhook failed' }, { status: 400 })
+    // Validate raw body shape before proceeding
+    const parsed = stripeWebhookInputSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
     }
+
+    const signature = request.headers.get('stripe-signature') ?? ''
+
+    // Defer signature verification + dispatch — Stripe needs 200 fast.
+    // The after() callback fires after the response is sent (Next.js 16).
+    after(async () => {
+      await dispatchStripeWebhook(rawBody, signature).catch(() => {
+        logger.error('Stripe webhook: background dispatch failed', { rawBodyLen: rawBody.length })
+      })
+    })
 
     return NextResponse.json({ received: true })
   } catch (error) {

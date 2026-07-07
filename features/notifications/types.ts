@@ -3,7 +3,7 @@
  * Defines the complete notification system structure for Ring platform
  */
 
-import { UserRole } from '@/features/auth/types';
+import { UserRolesArray } from '@/features/auth/user-role';
 
 /**
  * NotificationType enum
@@ -136,7 +136,7 @@ export interface NotificationData {
   // User-related data
   userId?: string;
   userName?: string;
-  userRole?: UserRole;
+  userRole?: UserRolesArray;
   
   // Wallet-related data
   walletAddress?: string;
@@ -178,7 +178,7 @@ export interface NotificationTemplate {
   image?: string;
   supportedChannels: NotificationChannel[];
   variables: string[]; // Template variables like {{userName}}, {{opportunityTitle}}
-  requiredRoles?: UserRole[];
+  requiredRoles?: UserRolesArray[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -300,7 +300,7 @@ export interface NotificationBatch {
   type: NotificationType;
   templateId: string;
   targetUsers: string[]; // User IDs
-  targetRoles?: UserRole[];
+  targetRoles?: UserRolesArray[];
   scheduledFor?: Date;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   totalCount: number;

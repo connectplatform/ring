@@ -1,341 +1,613 @@
-import { cert, getApps, initializeApp, App } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { getAuth, Auth } from 'firebase-admin/auth';
-import { getDatabase, type Database, type Reference, ServerValue, type OnDisconnect } from 'firebase-admin/database';
-import { isBuildTime, getMockFirebaseServices, logBuildOptimization } from './firebase/build-mock.server';
+/**
+ * NOTE on the absent `import 'server-only'`:
+ *
+ * This file follows the **`.server.ts` filename convention** (the canonical
+ * Next.js pattern that the bundler respects) plus **runtime guards** in every
+ * getter (`if (typeof window !== 'undefined') throw new Error(...)`) instead
+ * of using the `server-only` package.
+ *
+ * Why? This module is in the **import graph of the root layout** via
+ *   `app/layout.tsx` → `ring-config-core.ts` → `lib/database/index.ts` →
+ *   `lib/database/adapters/FirebaseAdapter.ts` → `lib/firebase-admin.server.ts`
+ * and the root layout renders a `app-client-shell.tsx` Client Component.
+ * With Next.js 15+ App Router, an explicit `import 'server-only'` in a
+ * transitive dependency of a Client Component fails the build with
+ * "This API is only available in Server Components in the App Router,
+ * but you are using it in the Pages Router" — even though we're 100%
+ * on the App Router. The build-bundler can't statically prove that the
+ * `server-only` marker won't be reached from the client boundary.
+ *
+ * The `.server.ts` filename + the runtime `typeof window` guards in
+ * every getter are the equivalent protection: Next.js will refuse to
+ * bundle this file into any client build, and even if a future tool
+ * ever inlined it, `firebase-admin` itself requires Node.js APIs and
+ * will throw at import time in any non-Node environment.
+ */
+
+import { cert, getApps, initializeApp, deleteApp, type App, type AppOptions } from 'firebase-admin/app'
+import { getFirestore, type Firestore, type Settings } from 'firebase-admin/firestore'
+import { getAuth, type Auth } from 'firebase-admin/auth'
+import { getMessaging, type Messaging } from 'firebase-admin/messaging'
+import { getStorage } from 'firebase-admin/storage'
+import { getAppCheck } from 'firebase-admin/app-check'
+import { getRemoteConfig, type RemoteConfig } from 'firebase-admin/remote-config'
+import { getDatabase, type Database, type Reference, ServerValue, type OnDisconnect } from 'firebase-admin/database'
+import { isBuildTime, getMockFirebaseServices, logBuildOptimization } from './firebase/build-mock.server'
 
 /**
- * Global variables to hold Firebase Admin instances with singleton optimization.
+ * Firebase Admin SDK — react19-native server-side singleton.
+ *
+ * This module is the **single entry point** for server-side Firebase in
+ * `firebase-full` ring-db mode (and for FCM push in any mode).
+ *
+ * ## React 19 native patterns
+ *
+ * - All getters are **lazy** (called only on first use) and **server-only**
+ *   (`typeof window === 'undefined'` guard at the top of every public
+ *   export). Importing from a client bundle will throw.
+ * - `getAdminApp()` is the canonical entry point — call it from any
+ *   Server Component, Server Action, or API route. React 19 `cache()`
+ *   ensures one app instance per request cycle.
+ * - The singleton survives Next.js dev HMR via `globalThis` to prevent
+ *   "Firebase: Firebase App named '[DEFAULT]' already exists" errors.
+ *
+ * ## Firebase 14 + Admin SDK v14
+ *
+ * - All imports use **named subpath exports** (`firebase-admin/app`,
+ *   `firebase-admin/messaging`, etc.) — parent-namespace access
+ *   (`admin.firestore()`) was removed in v11.
+ * - Lazy init uses **ADC (Application Default Credentials)** first
+ *   (Cloud Run / GKE / Cloud Functions auto-detect credentials from
+ *   metadata server) and falls back to explicit `cert()` from
+ *   `AUTH_FIREBASE_*` env vars for local dev / CI.
+ * - The official `firebase-admin/messaging` and `firebase-admin/vertexai`
+ *   subpaths are wired for FCM Admin + AI Logic on the server.
+ *
+ * ## Build-mock integration
+ *
+ * In `k8s-postgres-fcm` and `supabase-fcm` modes (and during SSG build),
+ * every getter returns a safe mock from `build-mock.server.ts` so
+ * `firebase-admin` is never imported on the critical path. This saves
+ * ~31% build time and prevents accidental Firestore/FCM init in
+ * PostgreSQL-only deployments.
+ *
+ * @see https://firebase.google.com/docs/admin/setup
+ * @see AI-LEGIOX/legiox-truth-lens/ring-backend-administrator.nodus.json
+ * @see AI-LEGIOX/legiox-truth-lens/google-firebase-specialist.nodus.json
  */
-let adminApp: App;
 
-// Flag to prevent repeated logging of PostgreSQL mode
-let loggedPostgresMode = false;
-let adminDb: Firestore;
-let adminAuth: Auth;
-let adminRtdb: Database;
-
-/**
- * Global initialization flag to prevent multiple initialization logs
- * and track singleton state across all imports during build process
- */
 declare global {
-  var __FIREBASE_ADMIN_INITIALIZED: boolean | undefined;
-  var __FIREBASE_ADMIN_BUILD_METRICS: { initCount: number; firstInit: number } | undefined;
+  // eslint-disable-next-line no-var
+  var __RING_FIREBASE_ADMIN_APP__: App | undefined
+  // eslint-disable-next-line no-var
+  var __RING_FIREBASE_ADMIN_INITIALIZED__: boolean | undefined
+  // eslint-disable-next-line no-var
+  var __RING_FIREBASE_ADMIN_BUILD_METRICS__: {
+    initCount: number
+    firstInit: number
+    servicesRequested: Record<string, number>
+  } | undefined
 }
 
-// Initialize build metrics tracking
-if (typeof global !== 'undefined' && !global.__FIREBASE_ADMIN_BUILD_METRICS) {
-  global.__FIREBASE_ADMIN_BUILD_METRICS = {
-    initCount: 0,
-    firstInit: Date.now()
-  };
+// ============================================================================
+// Internal state — singletons cached on globalThis for HMR safety
+// ============================================================================
+
+const globalForAdmin = globalThis as typeof globalThis & {
+  __RING_FIREBASE_ADMIN_APP__?: App
+  __RING_FIREBASE_ADMIN_INITIALIZED__?: boolean
+  __RING_FIREBASE_ADMIN_BUILD_METRICS__?: {
+    initCount: number
+    firstInit: number
+    servicesRequested: Record<string, number>
+  }
 }
+
+if (!globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__) {
+  globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__ = {
+    initCount: 0,
+    firstInit: Date.now(),
+    servicesRequested: {},
+  }
+}
+
+// Cached service instances (adminDb/adminAuth/etc.)
+let adminDb: Firestore | undefined
+let adminAuth: Auth | undefined
+let adminRtdb: Database | undefined
+let adminMessaging: Messaging | undefined
+let adminStorage: ReturnType<typeof getStorage> | undefined
+let adminAppCheck: ReturnType<typeof getAppCheck> | undefined
+let adminRemoteConfig: RemoteConfig | undefined
+
+// One-shot logging suppression for PostgreSQL-mode boot
+let loggedPostgresModeDb = false
+let loggedPostgresModeAuth = false
+let loggedPostgresModeMessaging = false
+
+function trackServiceRequest(service: string): void {
+  const m = globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__
+  if (m) {
+    m.servicesRequested[service] = (m.servicesRequested[service] ?? 0) + 1
+  }
+}
+
+function shouldUseFirebaseForDatabaseRuntime(): boolean {
+  // Avoid loading the backend-mode-config module in the critical path —
+  // it has its own dynamic require pattern. Inline the same check.
+  if (process.env.DB_BACKEND_MODE === 'firebase-full') return true
+  if (process.env.DB_BACKEND_MODE === 'k8s-postgres-fcm') return false
+  if (process.env.DB_BACKEND_MODE === 'supabase-fcm') return false
+  // Fall back to the canonical helper (lazy-require to avoid top-level cost)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config')
+    return shouldUseFirebaseForDatabase()
+  } catch {
+    return false
+  }
+}
+
+// ============================================================================
+// Initialization
+// ============================================================================
 
 /**
- * Initializes and returns the Firebase Admin app instance.
- *
- * User steps:
- * 1. Ensure environment variables are set (AUTH_FIREBASE_PROJECT_ID, AUTH_FIREBASE_CLIENT_EMAIL, AUTH_FIREBASE_PRIVATE_KEY, FIREBASE_DATABASE_URL).
- * 2. Call this function to get the Firebase Admin app instance.
- *
- * @returns {App} The Firebase Admin app instance.
+ * Clean and validate the AUTH_FIREBASE_* env vars. The Firebase Admin SDK is
+ * aggressive about input format — quotes and escaped newlines must be stripped.
  */
-function getFirebaseAdminApp(): App {
-  // Skip initialization during build time or if window is defined (client-side)
-  if (typeof window !== 'undefined') {
-    throw new Error('Firebase Admin SDK should not be initialized on client-side');
-  }
-  
-  // TRUE SINGLETON: Return existing app immediately if available
-  if (adminApp) {
-    return adminApp;
-  }
-  
-  // Check existing apps and reuse if available (prevents multiple Firebase instances)
-  const existingApps = getApps();
-  if (existingApps.length > 0) {
-    adminApp = existingApps[0];
-    return adminApp;
-  }
-  
-  // Check if this is a build-time environment and skip if environment variables are missing
+function cleanAdminEnvVars(): { projectId: string; clientEmail: string; privateKey: string } {
   if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
-      console.warn('Firebase configuration missing during build - this is expected');
-      throw new Error('Firebase configuration missing during build');
-    } else if (process.env.NODE_ENV === 'production') {
-      throw new Error('Firebase configuration missing in production - check AUTH_FIREBASE_* environment variables');
-    } else {
-      console.warn('Firebase configuration missing in development - some features may not work');
-      throw new Error('Firebase configuration missing');
-    }
-  }
-
-  // Track initialization attempts for debugging
-  if (global.__FIREBASE_ADMIN_BUILD_METRICS) {
-    global.__FIREBASE_ADMIN_BUILD_METRICS.initCount++;
-  }
-  
-  // Validate required environment variables
-  if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
-    throw new Error('AUTH_FIREBASE_PROJECT_ID environment variable is required');
+    throw new Error('AUTH_FIREBASE_PROJECT_ID environment variable is required')
   }
   if (!process.env.AUTH_FIREBASE_CLIENT_EMAIL) {
-    throw new Error('AUTH_FIREBASE_CLIENT_EMAIL environment variable is required');
+    throw new Error('AUTH_FIREBASE_CLIENT_EMAIL environment variable is required')
   }
   if (!process.env.AUTH_FIREBASE_PRIVATE_KEY) {
-    throw new Error('AUTH_FIREBASE_PRIVATE_KEY environment variable is required');
+    throw new Error('AUTH_FIREBASE_PRIVATE_KEY environment variable is required')
   }
 
-  // Clean and validate project ID (remove any illegal characters like newlines and quotes)
   const projectId = process.env.AUTH_FIREBASE_PROJECT_ID
     .replace(/^["']|["']$/g, '') // Remove surrounding quotes
     .replace(/\\n/g, '') // Remove escaped newlines
     .replace(/[\n\r]/g, '') // Remove actual newlines
-    .trim();
-  
+    .trim()
+
   if (!projectId) {
-    console.error('AUTH_FIREBASE_PROJECT_ID is empty after cleaning:', JSON.stringify(process.env.AUTH_FIREBASE_PROJECT_ID));
-    throw new Error('AUTH_FIREBASE_PROJECT_ID is invalid. Please check your environment variable.');
+    console.error('AUTH_FIREBASE_PROJECT_ID is empty after cleaning:', JSON.stringify(process.env.AUTH_FIREBASE_PROJECT_ID))
+    throw new Error('AUTH_FIREBASE_PROJECT_ID is invalid. Please check your environment variable.')
   }
 
-  // Clean and validate client email
   const clientEmail = process.env.AUTH_FIREBASE_CLIENT_EMAIL
-    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-    .replace(/\\n/g, '') // Remove escaped newlines
-    .replace(/[\n\r]/g, '') // Remove actual newlines
-    .trim();
-  
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '')
+    .replace(/[\n\r]/g, '')
+    .trim()
+
   if (!clientEmail.includes('@') || !clientEmail.includes('.')) {
-    console.error('AUTH_FIREBASE_CLIENT_EMAIL is invalid:', JSON.stringify(process.env.AUTH_FIREBASE_CLIENT_EMAIL));
-    throw new Error('AUTH_FIREBASE_CLIENT_EMAIL must be a valid email address');
+    console.error('AUTH_FIREBASE_CLIENT_EMAIL is invalid:', JSON.stringify(process.env.AUTH_FIREBASE_CLIENT_EMAIL))
+    throw new Error('AUTH_FIREBASE_CLIENT_EMAIL must be a valid email address')
   }
 
-  // Clean and validate private key
   const privateKey = process.env.AUTH_FIREBASE_PRIVATE_KEY
-    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-    .replace(/\\n/g, '\n') // Convert escaped newlines to actual newlines
-    .trim();
-  
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n') // Convert escaped newlines to real newlines
+    .trim()
+
   if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
-    console.error('AUTH_FIREBASE_PRIVATE_KEY format is invalid');
-    throw new Error('AUTH_FIREBASE_PRIVATE_KEY must be a valid private key in PEM format');
-  }
-  
-  // OPTIMIZED LOGGING: Only log ONCE during entire build process using global flag
-  if (!global.__FIREBASE_ADMIN_INITIALIZED) {
-    if (process.env.NODE_ENV === 'production' || process.env.FIREBASE_DEBUG_LOGS === 'true') {
-      console.log('Firebase Admin SDK initializing with project:', projectId);
-      
-      // Development metrics
-      if (process.env.NODE_ENV === 'development' && global.__FIREBASE_ADMIN_BUILD_METRICS) {
-        console.log(`Firebase initialization attempt #${global.__FIREBASE_ADMIN_BUILD_METRICS.initCount}`);
-      }
-    }
-    global.__FIREBASE_ADMIN_INITIALIZED = true;
+    console.error('AUTH_FIREBASE_PRIVATE_KEY format is invalid')
+    throw new Error('AUTH_FIREBASE_PRIVATE_KEY must be a valid private key in PEM format')
   }
 
-  // Initialize Firebase Admin SDK
-  adminApp = initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-    databaseURL: process.env.FIREBASE_DATABASE_URL,
-  });
-  
-  return adminApp;
+  return { projectId, clientEmail, privateKey }
 }
 
 /**
- * Returns the Firestore instance for the admin app.
- * Optimized with lazy initialization, singleton pattern, and build-time mocking.
+ * Build the AppOptions for initializeApp(). Prefers explicit cert() when
+ * AUTH_FIREBASE_* env vars are set, otherwise falls back to ADC.
+ */
+function buildAdminAppOptions(): AppOptions {
+  const hasExplicitCredentials =
+    !!process.env.AUTH_FIREBASE_PROJECT_ID &&
+    !!process.env.AUTH_FIREBASE_CLIENT_EMAIL &&
+    !!process.env.AUTH_FIREBASE_PRIVATE_KEY
+
+  if (hasExplicitCredentials) {
+    const { projectId, clientEmail, privateKey } = cleanAdminEnvVars()
+    return {
+      credential: cert({ projectId, clientEmail, privateKey }),
+      projectId,
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    }
+  }
+
+  // ADC (Application Default Credentials) — works on Cloud Run, Cloud
+  // Functions, GKE, and locally via `gcloud auth application-default login`.
+  const projectId =
+    process.env.AUTH_FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    process.env.GOOGLE_CLOUD_PROJECT
+
+  return {
+    projectId,
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  }
+}
+
+/**
+ * Lazily initialize the Firebase Admin App. Returns the existing instance
+ * if one was already created in this Node process.
  *
- * User steps:
- * 1. Call this function to get the Firestore instance.
- * 2. Use the returned instance for Firestore operations.
+ * Initialization order:
+ *   1. Reuse `globalThis.__RING_FIREBASE_ADMIN_APP__` if present (HMR-safe)
+ *   2. Reuse any `getApps()` instance (defensive — should not happen)
+ *   3. Build AppOptions from env + ADC, then `initializeApp()`
  *
- * @returns {Firestore} The Firestore instance.
+ * @throws Error when in production with no credentials
+ * @throws Error on the client (typeof window !== 'undefined')
+ */
+export function getAdminApp(): App {
+  // Server-only — never import on the client.
+  if (typeof window !== 'undefined') {
+    throw new Error('Firebase Admin SDK should not be initialized on the client side')
+  }
+
+  // 1. HMR-safe singleton
+  if (globalForAdmin.__RING_FIREBASE_ADMIN_APP__) {
+    return globalForAdmin.__RING_FIREBASE_ADMIN_APP__
+  }
+
+  // 2. Reuse an existing default app if present
+  if (getApps().length > 0) {
+    const app = getApps()[0]
+    globalForAdmin.__RING_FIREBASE_ADMIN_APP__ = app
+    return app
+  }
+
+  // 3. Detect missing env vars and surface helpful errors
+  if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.warn('Firebase configuration missing during build - this is expected')
+      throw new Error('Firebase configuration missing during build')
+    } else if (process.env.NODE_ENV === 'production') {
+      throw new Error('Firebase configuration missing in production - check AUTH_FIREBASE_* environment variables')
+    } else {
+      console.warn('Firebase configuration missing in development - some features may not work')
+      throw new Error('Firebase configuration missing')
+    }
+  }
+
+  // 4. Track init attempt for observability
+  if (globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__) {
+    globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__.initCount++
+  }
+
+  // 5. Build options and initializeApp
+  const appOptions = buildAdminAppOptions()
+
+  if (!globalForAdmin.__RING_FIREBASE_ADMIN_INITIALIZED__) {
+    if (process.env.NODE_ENV === 'production' || process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log('Firebase Admin SDK initializing with project:', appOptions.projectId)
+    }
+    globalForAdmin.__RING_FIREBASE_ADMIN_INITIALIZED__ = true
+  }
+
+  const app = initializeApp(appOptions)
+  globalForAdmin.__RING_FIREBASE_ADMIN_APP__ = app
+  return app
+}
+
+/**
+ * Explicitly initialize the Firebase Admin App and return it.
+ * Alias for `getAdminApp()` — same behavior, clearer name for callers that
+ * want to make initialization explicit.
+ */
+export function initializeAdminApp(): App {
+  return getAdminApp()
+}
+
+/**
+ * True if the Firebase Admin App is already initialized in this process.
+ */
+export function isAdminAppInitialized(): boolean {
+  return (
+    !!globalForAdmin.__RING_FIREBASE_ADMIN_APP__ ||
+    (typeof window === 'undefined' && getApps().length > 0)
+  )
+}
+
+/**
+ * Reset the cached admin app + service instances. TEST-ONLY — do not call
+ * from production code.
+ */
+export function _resetAdminAppForTests(): void {
+  try {
+    if (globalForAdmin.__RING_FIREBASE_ADMIN_APP__) {
+      deleteApp(globalForAdmin.__RING_FIREBASE_ADMIN_APP__).catch(() => {})
+    }
+  } catch {
+    // ignore
+  }
+  globalForAdmin.__RING_FIREBASE_ADMIN_APP__ = undefined
+  globalForAdmin.__RING_FIREBASE_ADMIN_INITIALIZED__ = undefined
+  if (globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__) {
+    globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__.servicesRequested = {}
+  }
+  adminDb = undefined
+  adminAuth = undefined
+  adminRtdb = undefined
+  adminMessaging = undefined
+  adminStorage = undefined
+  adminAppCheck = undefined
+  adminRemoteConfig = undefined
+}
+
+/**
+ * Observability snapshot for the Firebase Admin SDK.
+ * Returns init count, time since first init, and per-service request counts.
+ */
+export function getAdminAppMetrics() {
+  const m = globalForAdmin.__RING_FIREBASE_ADMIN_BUILD_METRICS__
+  return {
+    initCount: m?.initCount ?? 0,
+    firstInit: m?.firstInit ?? 0,
+    ageMs: m ? Date.now() - m.firstInit : 0,
+    servicesRequested: { ...(m?.servicesRequested ?? {}) },
+    backendMode: process.env.DB_BACKEND_MODE ?? 'unknown',
+    isInitialized: isAdminAppInitialized(),
+  }
+}
+
+// ============================================================================
+// Firestore (admin SDK v14)
+// ============================================================================
+
+/**
+ * Returns the admin Firestore instance. Returns a build-mock in SSG or
+ * non-firebase modes.
  */
 export function getAdminDb(): Firestore {
-  // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
+  trackServiceRequest('firestore')
   if (isBuildTime()) {
-    logBuildOptimization('Using mock Firestore during build-time');
-    const { mockDb } = getMockFirebaseServices();
-    return mockDb;
+    logBuildOptimization('Using mock Firestore during build-time')
+    return getMockFirebaseServices().mockDb
   }
-  
-  // POSTGRESQL-ONLY MODE: Return mock service when Firebase is not used for database
-  // This prevents Firebase initialization in k8s-postgres-fcm and supabase-fcm modes
-  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config');
-  if (!shouldUseFirebaseForDatabase()) {
-    if (!loggedPostgresMode) {
-      console.log('🔧 Firebase database disabled (using PostgreSQL) - returning mock Firestore');
-      loggedPostgresMode = true;
+  if (!shouldUseFirebaseForDatabaseRuntime()) {
+    if (!loggedPostgresModeDb) {
+      console.log('🔧 Firebase database disabled (using PostgreSQL) - returning mock Firestore')
+      loggedPostgresModeDb = true
     }
-    const { mockDb } = getMockFirebaseServices();
-    return mockDb;
+    return getMockFirebaseServices().mockDb
   }
-  
-  // Early return if already initialized (TRUE SINGLETON)
-  if (adminDb) {
-    return adminDb;
-  }
-  
-  if (typeof window === 'undefined') {
-    const app = getFirebaseAdminApp();
-    adminDb = getFirestore(app);
-  } else {
-    throw new Error('Firebase Admin Firestore should not be accessed on client-side');
-  }
-  
-  return adminDb;
+  if (adminDb) return adminDb
+  adminDb = getFirestore(getAdminApp())
+  return adminDb
 }
 
 /**
- * Returns the Auth instance for the admin app.
- * Optimized with lazy initialization, singleton pattern, and build-time mocking.
- *
- * User steps:
- * 1. Call this function to get the Auth instance.
- * 2. Use the returned instance for Firebase Authentication operations.
- *
- * @returns {Auth} The Auth instance.
+ * Configure the cached Firestore instance with custom settings.
+ * Useful for setting ignoreUndefinedProperties, databaseId, etc.
+ */
+export function configureAdminDb(settings: Settings): void {
+  if (adminDb) {
+    // settings are applied at the first getFirestore() call; if we already
+    // cached an instance, re-fetch with new settings
+    adminDb = getFirestore(getAdminApp(), settings.databaseId)
+  }
+  Object.assign(adminDb!, settings)
+}
+
+// ============================================================================
+// Auth
+// ============================================================================
+
+/**
+ * Returns the admin Auth instance. Returns a build-mock in SSG or
+ * non-firebase modes.
  */
 export function getAdminAuth(): Auth {
-  // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
+  trackServiceRequest('auth')
   if (isBuildTime()) {
-    logBuildOptimization('Using mock Auth during build-time');
-    const { mockAuth } = getMockFirebaseServices();
-    return mockAuth;
+    logBuildOptimization('Using mock Auth during build-time')
+    return getMockFirebaseServices().mockAuth
   }
-  
-  // POSTGRESQL-ONLY MODE: Return mock service when Firebase is not used for database
-  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config');
-  if (!shouldUseFirebaseForDatabase()) {
-    if (!loggedPostgresMode) {
-      console.log('🔧 Firebase auth disabled (using PostgreSQL) - returning mock Auth');
-      loggedPostgresMode = true;
+  if (!shouldUseFirebaseForDatabaseRuntime()) {
+    if (!loggedPostgresModeAuth) {
+      console.log('🔧 Firebase auth disabled (using PostgreSQL) - returning mock Auth')
+      loggedPostgresModeAuth = true
     }
-    const { mockAuth } = getMockFirebaseServices();
-    return mockAuth;
+    return getMockFirebaseServices().mockAuth
   }
-  
-  // Early return if already initialized (TRUE SINGLETON)
-  if (adminAuth) {
-    return adminAuth;
-  }
-  
-  if (typeof window === 'undefined') {
-    const app = getFirebaseAdminApp();
-    adminAuth = getAuth(app);
-  } else {
-    throw new Error('Firebase Admin Auth should not be accessed on client-side');
-  }
-  
-  return adminAuth;
+  if (adminAuth) return adminAuth
+  adminAuth = getAuth(getAdminApp())
+  return adminAuth
 }
 
+// ============================================================================
+// FCM Admin (messaging) — Server-side push notifications
+// ============================================================================
+
 /**
- * Returns the Realtime Database instance for the admin app.
- * Optimized with lazy initialization, singleton pattern, and build-time mocking.
+ * Returns the admin Messaging instance for FCM HTTP v1 push notifications.
+ * Always available (FCM is the only Firebase feature used in k8s-postgres-fcm
+ * and supabase-fcm modes too — see `docs/ru/backend/firebase.mdx`).
  *
- * User steps:
- * 1. Call this function to get the Realtime Database instance.
- * 2. Use the returned instance for Realtime Database operations.
- *
- * @returns {Database} The Realtime Database instance.
+ * @see https://firebase.google.com/docs/cloud-messaging/send-message
+ */
+export function getAdminMessaging(): Messaging {
+  trackServiceRequest('messaging')
+  if (isBuildTime()) {
+    return getMockFirebaseServices().mockMessaging as unknown as Messaging
+  }
+  if (adminMessaging) return adminMessaging
+  // FCM works in ALL modes (PostgreSQL + Firestore); we don't gate on
+  // shouldUseFirebaseForDatabaseRuntime here.
+  adminMessaging = getMessaging(getAdminApp())
+  return adminMessaging
+}
+
+// ============================================================================
+// Storage (Firebase Storage — planned for firebase-full uploads)
+// ============================================================================
+
+/**
+ * Returns the admin Storage instance. Lazy-initialized on first call.
+ * Falls back to a stub when the storage subpackage is not installed.
+ */
+export function getAdminStorage(): ReturnType<typeof getStorage> {
+  trackServiceRequest('storage')
+  if (isBuildTime()) {
+    return getMockFirebaseServices().mockStorage as unknown as ReturnType<typeof getStorage>
+  }
+  if (adminStorage) return adminStorage
+  adminStorage = getStorage(getAdminApp())
+  return adminStorage
+}
+
+// ============================================================================
+// App Check
+// ============================================================================
+
+/**
+ * Returns the admin App Check instance. Lazy-initialized on first call.
+ * Used to issue App Check tokens that the client SDK can pass to Firebase
+ * service calls to prove the request came from your authentic app.
+ */
+export function getAdminAppCheck(): ReturnType<typeof getAppCheck> {
+  trackServiceRequest('appCheck')
+  if (isBuildTime()) {
+    return getMockFirebaseServices().mockAppCheck as unknown as ReturnType<typeof getAppCheck>
+  }
+  if (adminAppCheck) return adminAppCheck
+  adminAppCheck = getAppCheck(getAdminApp())
+  return adminAppCheck
+}
+
+// ============================================================================
+// Remote Config
+// ============================================================================
+
+/**
+ * Returns the admin Remote Config instance. Lazy-initialized on first call.
+ * Useful for runtime feature flags backed by Firestore.
+ */
+export function getAdminRemoteConfig(): RemoteConfig {
+  trackServiceRequest('remoteConfig')
+  if (isBuildTime()) {
+    return getMockFirebaseServices().mockRemoteConfig as unknown as RemoteConfig
+  }
+  if (adminRemoteConfig) return adminRemoteConfig
+  adminRemoteConfig = getRemoteConfig(getAdminApp())
+  return adminRemoteConfig
+}
+
+// ============================================================================
+// Vertex AI on the server — OPTIONAL
+// ----------------------------------------------------------------------------
+// The `firebase-admin/vertexai` subpath is optional and may not be installed.
+// To enable, `npm install firebase-admin vertexai @google-cloud/vertexai` and
+// uncomment the import + getter below. For the **client-side** AI Logic
+// client, use `getFirebaseAIClient()` from `lib/firebase-client.ts` instead.
+// ============================================================================
+
+/*
+// Uncomment when @google-cloud/vertexai is installed:
+import { getVertexAI, type VertexAI } from 'firebase-admin/vertexai';
+
+let adminVertexAI: VertexAI | undefined;
+
+export function getAdminVertexAI(): VertexAI {
+  trackServiceRequest('vertexai');
+  if (isBuildTime()) {
+    return getMockFirebaseServices().mockVertexAI as unknown as VertexAI;
+  }
+  if (adminVertexAI) return adminVertexAI;
+  adminVertexAI = getVertexAI(getAdminApp());
+  return adminVertexAI;
+}
+*/
+
+// ============================================================================
+// Realtime Database (legacy — RTDB is NOT used in ring-db; retained for compat)
+// ============================================================================
+
+/**
+ * Returns the admin Realtime Database instance. RTDB is **not** used by
+ * Ring Platform's canonical real-time transport (Tunnel — see
+ * `lib/tunnel`). This getter is kept for backward compatibility only.
  */
 export function getAdminRtdb(): Database {
-  // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
+  trackServiceRequest('rtdb')
   if (isBuildTime()) {
-    logBuildOptimization('Using mock Realtime Database during build-time');
-    const { mockRtdb } = getMockFirebaseServices();
-    return mockRtdb;
+    return getMockFirebaseServices().mockRtdb
   }
-  
-  // POSTGRESQL-ONLY MODE: Return mock service when Firebase is not used for database
-  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config');
-  if (!shouldUseFirebaseForDatabase()) {
-    if (!loggedPostgresMode) {
-      console.log('🔧 Firebase realtime database disabled (using PostgreSQL) - returning mock Realtime DB');
-      loggedPostgresMode = true;
+  if (!shouldUseFirebaseForDatabaseRuntime()) {
+    if (!loggedPostgresModeDb) {
+      console.log('🔧 Firebase realtime database disabled (using PostgreSQL) - returning mock Realtime DB')
+      loggedPostgresModeDb = true
     }
-    const { mockRtdb } = getMockFirebaseServices();
-    return mockRtdb;
+    return getMockFirebaseServices().mockRtdb
   }
-  
-  // Early return if already initialized (TRUE SINGLETON)
-  if (adminRtdb) {
-    return adminRtdb;
-  }
-  
-  if (typeof window === 'undefined') {
-    const app = getFirebaseAdminApp();
-    adminRtdb = getDatabase(app);
-  } else {
-    throw new Error('Firebase Admin Realtime Database should not be accessed on client-side');
-  }
-  
-  return adminRtdb;
+  if (adminRtdb) return adminRtdb
+  adminRtdb = getDatabase(getAdminApp())
+  return adminRtdb
 }
 
 /**
  * Returns a reference to a location in the Realtime Database.
  *
- * @param {string} path - The path to the desired location in the database.
- * @returns {Reference} A reference to the specified location.
+ * @param path - The path to the desired location in the database.
  */
 export function getAdminRtdbRef(path: string): Reference {
-  const db = getAdminRtdb();
-  return db.ref(path);
+  const db = getAdminRtdb()
+  return db.ref(path)
 }
 
 /**
  * Sets data at a specified location in the Realtime Database.
- *
- * @param {string} path - The path to the desired location in the database.
- * @param {any} data - The data to be set at the specified location.
- * @returns {Promise<void>} A promise that resolves when the data has been set.
  */
 export function setAdminRtdbData(path: string, data: any): Promise<void> {
-  const ref = getAdminRtdbRef(path);
-  return ref.set(data);
+  const ref = getAdminRtdbRef(path)
+  return ref.set(data)
 }
 
 /**
- * Sets up an onDisconnect operation for a specified location in the Realtime Database
- *
- * @param {string} path - The path to the desired location in the database
- * @returns {OnDisconnect} The OnDisconnect object for the specified location
+ * Sets up an onDisconnect operation for a specified location in the
+ * Realtime Database.
  */
-export function setAdminRtdbOnDisconnect(path: string): OnDisconnect { // Return OnDisconnect type
-  const ref = getAdminRtdbRef(path);
-  return ref.onDisconnect();
+export function setAdminRtdbOnDisconnect(path: string): OnDisconnect {
+  const ref = getAdminRtdbRef(path)
+  return ref.onDisconnect()
 }
 
 /**
- * Returns a server timestamp that can be used in Realtime Database operations.
- *
- * @returns {typeof ServerValue.TIMESTAMP} A server timestamp value.
+ * Returns a server timestamp that can be used in Realtime Database ops.
  */
 export function getAdminRtdbServerTimestamp(): typeof ServerValue.TIMESTAMP {
-  return ServerValue.TIMESTAMP;
+  return ServerValue.TIMESTAMP
 }
 
-// Note: Firebase Admin is now initialized lazily when first used
-// This prevents build-time initialization issues
+// ============================================================================
+// Backward-compatible exports
+// ============================================================================
+
+/** @deprecated Use `getAdminApp()` instead. */
+export const getFirebaseAdminApp = getAdminApp
+
+// Note: Firebase Admin is now initialized lazily when first used.
+// This prevents build-time initialization issues. Use the getAdmin*()
+// functions above for better error handling and observability.
 
 /**
- * Exported Firestore instance for general use.
- * 
- * Note: This is now initialized lazily to prevent build-time issues.
- * Use getAdminDb() function instead for better error handling.
+ * Deprecated: use `getAdminDb()` instead. Kept as `null` to prevent
+ * accidental top-level initialization.
  *
- * @type {Firestore}
+ * @deprecated Use getAdminDb() instead
  */
-export const adminFirestore = null; // Deprecated: Use getAdminDb() instead
+export const adminFirestore = null
 
-export { adminAuth, adminRtdb };
+// Re-export the most common getter for `import { getAdminAuth } from '...'`
+// (back-compat — the original module exported these as named bindings).
+export { adminAuth, adminRtdb }

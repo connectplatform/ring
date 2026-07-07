@@ -11,7 +11,7 @@ import {
   MainPageStatus,
   NewsContentType,
 } from '@/features/news/types'
-import { UserRole, assertKnownUserRole, resolveSessionUserRole } from '@/features/auth/user-role'
+import { assertKnownUserRole, isSuperadmin, resolveSessionUserRole } from '@/features/auth/user-role'
 import {
   canCreateNewsArticle,
   canDeleteNewsArticle,
@@ -25,7 +25,9 @@ import {
 import { logger } from '@/lib/logger'
 import { translitSlug } from '@/lib/news/translit-slug'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
+import { UserRolesArray } from '@/features/auth/user-role'
 
+// Interface for the result of creating a news article
 interface CreateNewsResult {
   success: boolean
   data?: NewsArticle
@@ -33,6 +35,7 @@ interface CreateNewsResult {
   message?: string
 }
 
+// Interface for the result of updating a news article
 interface UpdateNewsResult {
   success: boolean
   data?: NewsArticle
@@ -42,11 +45,13 @@ interface UpdateNewsResult {
 
 // Author permission helpers live in news-permissions.ts
 
+// Interface for representing a news article's author
 export interface NewsArticleAuthor {
   id: string
   name: string
 }
 
+// Extra options for creating a news article
 export interface CreateNewsArticleExtras {
   locale?: string
   translationGroupId?: string
@@ -57,10 +62,17 @@ export interface CreateNewsArticleExtras {
   contentType?: NewsContentType
 }
 
+/**
+ * Create a (sanitized) slug for the article based on the title or explicit slug.
+ * If no slug is specified, performs transliteration for maximum compatibility.
+ * This helps ensure URLs are user-friendly and unique.
+ */
 function buildArticleSlug(title: string, explicitSlug?: string): string {
   if (explicitSlug?.trim()) {
+    // Prefer explicit slug if provided and non-empty
     return explicitSlug.trim()
   }
+  // Normalize title to a URL-friendly slug with ascii characters
   const asciiSlug = title
     .toLowerCase()
     .replace(/[^a-z0-9 -]/g, '')
@@ -68,15 +80,22 @@ function buildArticleSlug(title: string, explicitSlug?: string): string {
     .replace(/-+/g, '-')
     .trim()
   if (asciiSlug) return asciiSlug
+  // Fallback to transliteration for non-latin titles
   return translitSlug(title)
 }
 
+/**
+ * Create a news article using the provided author and optional extras.
+ * Checks for required fields and handles slug uniqueness.
+ * Returns a result with success/data or error message.
+ */
 export async function createNewsArticleForAuthor(
   formData: NewsFormData,
   author: NewsArticleAuthor,
   extras?: CreateNewsArticleExtras
 ): Promise<CreateNewsResult> {
   try {
+    // Validate required fields for news article creation
     if (!formData.title || !formData.content || !formData.excerpt) {
       return {
         success: false,
@@ -86,6 +105,7 @@ export async function createNewsArticleForAuthor(
 
     const slug = buildArticleSlug(formData.title, formData.slug)
 
+    // Check for duplicate slug (unique article URL requirement)
     const slugResult = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'slug', operator: '==', value: slug }],
@@ -93,12 +113,14 @@ export async function createNewsArticleForAuthor(
     })
 
     if (slugResult.success && slugResult.data && slugResult.data.length > 0) {
+      // Article with identical slug found, return error
       return {
         success: false,
         error: 'Article with this slug already exists',
       }
     }
 
+    // Build new article document with all the provided fields/defaults
     const now = new Date()
     const locale = extras?.locale || formData.locale || 'en'
     const newArticle = {
@@ -132,6 +154,7 @@ export async function createNewsArticleForAuthor(
       mainPageStatus: extras?.mainPageStatus,
     }
 
+    // Create article document in database
     const createResult = await db().createDoc('news', newArticle)
     if (!createResult.success || !createResult.data) {
       throw createResult.error || new Error('Failed to create news article')
@@ -151,10 +174,15 @@ export async function createNewsArticleForAuthor(
   }
 }
 
+/**
+ * Create a news article for the currently authenticated user.
+ * Ensures the user has the proper role/permissions.
+ */
 export async function createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult> {
   try {
     const session = await auth()
 
+    // Auth required to create news
     if (!session?.user) {
       return {
         success: false,
@@ -163,6 +191,7 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
     }
 
     const userRole = assertKnownUserRole(session.user.role)
+    // Permission: only preapproved roles can create articles
     if (!canCreateNewsArticle(userRole)) {
       return {
         success: false,
@@ -170,6 +199,7 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       }
     }
 
+    // Use user's ID or email as unique reference, fallback username if not provided
     return createNewsArticleForAuthor(formData, {
       id: session.user.id || session.user.email || '',
       name: session.user.name || 'Unknown Author',
@@ -183,6 +213,10 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
   }
 }
 
+/**
+ * Update a news article.
+ * Verifies authentication, permission, and checks unique slug unless unchanged.
+ */
 export async function updateNewsArticle(articleId: string, formData: NewsFormData): Promise<UpdateNewsResult> {
   try {
     const session = await auth()
@@ -195,6 +229,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
     }
 
     const userRole = assertKnownUserRole(session.user.role)
+    // Fetch article from DB by ID
     const articleResult = await db().readDoc<Record<string, unknown>>('news', articleId)
 
     if (!articleResult.success || !articleResult.data) {
@@ -205,6 +240,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
     }
 
     const articleData = articleResult.data
+    // Only author or authorized admin can edit
     if (!canEditNewsArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
       return {
         success: false,
@@ -212,6 +248,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       }
     }
 
+    // Basic content validation
     if (!formData.title || !formData.content || !formData.excerpt) {
       return {
         success: false,
@@ -219,8 +256,10 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       }
     }
 
+    // Check if new status/visibility is allowed for this user's role
     assertNewsVisibilityPatch(userRole, { visibility: formData.visibility })
 
+    // Generate the new slug (or keep the original if not changed)
     const slug = formData.slug || formData.title
       .toLowerCase()
       .replace(/[^a-z0-9 -]/g, '')
@@ -228,6 +267,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       .replace(/-+/g, '-')
       .trim()
 
+    // If slug changed, check for collision
     if (slug !== articleData.slug) {
       const slugResult = await db().queryDocs({
         collection: 'news',
@@ -243,6 +283,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       }
     }
 
+    // Generate update payload, preserve previous publish date if not transitioning draft->published
     const now = new Date()
     const updateData = {
       title: formData.title,
@@ -263,6 +304,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       seo: formData.seo || null,
     }
 
+    // Perform update in database
     const updateResult = await db().updateDoc('news', articleId, updateData)
     if (!updateResult.success || !updateResult.data) {
       throw updateResult.error || new Error('Failed to update news article')
@@ -283,8 +325,13 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
 }
 
 /**
- * Get news articles with filters
- * READ operation - uses React 19 cache() for performance
+ * Get news articles with filters.
+ * Utilizes React 19's cache() for built-in deduplication and improved server action caching performance.
+ * Filters and sorts articles based on provided NewsFilters; optionally applies search and tag filtering as well.
+ * Applies role-based visibility filtering and discovery logic before returning to the frontend.
+ * 
+ * // TODO: When Next.js supports partial hydration and async/streaming directly from cache() calls,
+ * migrate filter/search to client for large datasets; currently will scale to ~100-200 articles/query fine.
  */
 export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<{
   success: boolean
@@ -294,23 +341,30 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
   error?: string
 }> => {
   try {
+    // Try to obtain session, can be unauthenticated (show public news)
     const session = await auth()
     const userRole = session?.user
       ? assertKnownUserRole(session.user.role)
-      : UserRole.visitor
+      : UserRolesArray.visitor as UserRolesArray
     const userId = session?.user?.id
 
+    // Build up DB query filters based on NewsFilters
     const queryFilters: { field: string; operator: string; value: unknown }[] = []
 
     if (filters.category) {
       queryFilters.push({ field: 'category', operator: '==', value: filters.category })
     }
     if (filters.status) {
+      // Explicit filter by status
       queryFilters.push({ field: 'status', operator: '==', value: filters.status })
+    } else if (!isSuperadmin(userRole)) {
+      // Non-superadmins: hide soft-deleted articles
+      queryFilters.push({ field: 'status', operator: '!=', value: 'deleted' })
     }
     if (filters.visibility) {
       queryFilters.push({ field: 'visibility', operator: '==', value: filters.visibility })
     } else {
+      // Otherwise, build permission-based visibility (e.g. public, member-only)
       queryFilters.push(...buildNewsVisibilityFilters(userRole))
     }
     if (filters.featured !== undefined) {
@@ -320,6 +374,7 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
       queryFilters.push({ field: 'authorId', operator: '==', value: filters.authorId })
     }
 
+    // Query sorted by publish date (or other user-provided sort)
     const queryResult = await db().queryDocs({
       collection: 'news',
       filters: queryFilters,
@@ -333,6 +388,7 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
 
     let articles = queryResult.data.map((row) => mapNewsDocument(row))
 
+    // If search term specified, further filter client-side by basic fields/tags text match
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase()
       articles = articles.filter(article =>
@@ -343,12 +399,14 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
       )
     }
 
+    // If filtering by tags, ensure article tags array overlaps filter
     if (filters.tags && filters.tags.length > 0) {
       articles = articles.filter(article =>
         filters.tags!.some(tag => article.tags.includes(tag))
       )
     }
 
+    // Enforce final role-based filtering/censorship as needed
     articles = filterNewsForDiscovery(articles, { userRole, userId })
 
     return {
@@ -371,8 +429,9 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
 })
 
 /**
- * Get articles by author (for "My News" section)
- * READ operation - uses React 19 cache() for performance
+ * Get articles by author (for "My News" section).
+ * Uses React 19's cache() for memoizing/stale-while-revalidate perf.
+ * Also generates stats (counts, views, likes) for UI summary.
  */
 export const getMyArticles = cache(async (authorId: string, filters: NewsFilters = {}): Promise<{
   success: boolean
@@ -388,6 +447,7 @@ export const getMyArticles = cache(async (authorId: string, filters: NewsFilters
   error?: string
 }> => {
   try {
+    // Query articles for this author's ID only, sorted newest first
     const authorResult = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'authorId', operator: '==', value: authorId }],
@@ -401,10 +461,12 @@ export const getMyArticles = cache(async (authorId: string, filters: NewsFilters
 
     let articles = authorResult.data.map((row) => mapNewsDocument(row))
 
+    // Filter by a specific status (e.g., published, draft)
     if (filters.status) {
       articles = articles.filter(article => article.status === filters.status)
     }
 
+    // Collect user stats for quick analytic displays
     const totalArticles = articles.length
     const publishedArticles = articles.filter(a => a.status === 'published').length
     const draftArticles = articles.filter(a => a.status === 'draft').length
@@ -437,8 +499,10 @@ export const getMyArticles = cache(async (authorId: string, filters: NewsFilters
 })
 
 /**
- * Get user article statistics
- * READ operation - uses React 19 cache() for performance
+ * Get extended statistics for a user's articles.
+ * Reads all articles by author, computes statistics such as averages,
+ * most-viewed article, and recent 30-day author activity by day.
+ * Uses React 19 cache() for server performance.
  */
 export const getUserArticleStats = cache(async (authorId: string): Promise<{
   success: boolean
@@ -463,6 +527,7 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
   error?: string
 }> => {
   try {
+    // Query all news by this user (for stats, not pagination)
     const result = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'authorId', operator: '==', value: authorId }],
@@ -475,6 +540,7 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
 
     const articles = result.data.map((row) => mapNewsDocument(row))
 
+    // Compute detailed user stats from article array
     const totalArticles = articles.length
     const publishedArticles = articles.filter(a => a.status === 'published').length
     const draftArticles = articles.filter(a => a.status === 'draft').length
@@ -487,14 +553,17 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
     const averageViews = totalArticles > 0 ? Math.round(totalViews / totalArticles) : 0
     const averageLikes = totalArticles > 0 ? Math.round(totalLikes / totalArticles) : 0
 
+    // Find article with the most views
     const mostViewedArticle = articles.reduce((max, current) =>
       (current.views || 0) > (max.views || 0) ? current : max,
       articles[0] || null
     )
 
+    // Build recent activity for the past 30 days by calendar day
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+    // Helper function to robustly parse date fields from document data
     const toDate = (value: NewsArticle['createdAt']): Date => {
       if (!value) return new Date(0)
       if (value instanceof Date) return value
@@ -504,11 +573,13 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
       return new Date(String(value))
     }
 
+    // Get only recent articles (last 30 days)
     const recentArticles = articles.filter(a => {
       if (!a.createdAt) return false
       return toDate(a.createdAt) >= thirtyDaysAgo
     })
 
+    // Aggregate counts/metrics per day over last 30 days
     const activityMap = new Map<string, { articles: number; views: number; likes: number }>()
 
     recentArticles.forEach(article => {
@@ -522,6 +593,7 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
       })
     })
 
+    // Convert activityMap to sorted array
     const recentActivity = Array.from(activityMap.entries())
       .map(([date, stats]) => ({ date, ...stats }))
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -552,8 +624,10 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
 })
 
 /**
- * Delete news article
- * Authors can delete their own articles, admins can delete any
+ * Soft delete a news article.
+ * - Only authors can delete their own articles,
+ * - admins, moderators, etc. can delete any.
+ * - Article is not physically removed, but marked as deleted for forensics/retention.
  */
 export async function deleteNewsArticle(articleId: string): Promise<{
   success: boolean
@@ -563,6 +637,7 @@ export async function deleteNewsArticle(articleId: string): Promise<{
   try {
     const session = await auth()
 
+    // Require auth for deleting news
     if (!session?.user) {
       return {
         success: false,
@@ -570,6 +645,7 @@ export async function deleteNewsArticle(articleId: string): Promise<{
       }
     }
 
+    // Check user role and permissions
     const userRole = assertKnownUserRole(session.user.role)
     const articleResult = await db().readDoc<Record<string, unknown>>('news', articleId)
 
@@ -581,6 +657,7 @@ export async function deleteNewsArticle(articleId: string): Promise<{
     }
 
     const articleData = articleResult.data
+    // Only allow delete if author or admin allowed
     if (!canDeleteNewsArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
       return {
         success: false,
@@ -588,7 +665,14 @@ export async function deleteNewsArticle(articleId: string): Promise<{
       }
     }
 
-    const deleteResult = await db().deleteDoc('news', articleId)
+    // Soft delete: mark as deleted (retention before potential purge)
+    const now = new Date()
+    const deleteResult = await db().updateDoc('news', articleId, {
+      status: 'deleted',
+      deletedAt: now,
+      deletedBy: session.user.id || session.user.email || '',
+      updatedAt: now,
+    })
     if (!deleteResult.success) {
       throw deleteResult.error || new Error('Failed to delete article')
     }

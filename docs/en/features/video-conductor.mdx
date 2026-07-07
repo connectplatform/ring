@@ -94,7 +94,7 @@ SSOT: `lib/video/video-presets.json`. Effective mode is resolved by `resolveEffe
 
 | Surface | Entry | Auth |
 |---------|--------|------|
-| **MCP** | `ring-video-create` → `POST /api/mcp/v1/videos/generate` | `RING_MCP_SERVICE_TOKENS` bearer |
+| **MCP** | `ring-video-create` → `POST /api/mcp/v1/videos/generate` | `RING_MCP_ACCESS_KEY` bearer |
 | **Scripted CLI** | `node scripts/ring-viral-video/run-scripted-video.mjs <request.json>` | Local `XAI_API_KEY` + gateway token |
 | **Legacy CLI** | `node scripts/ring-viral-video/generate-xai-videos.mjs` | Direct xAI (bypasses gateway) |
 | **Server code** | `VideoConductor.generate` / `.remaster` / `.editFromSource` | App runtime |
@@ -262,10 +262,10 @@ XAI_VIDEO_ASPECT_RATIO=16:9
 # XAI_VIDEO_MODEL=grok-imagine-video
 
 # MCP gateway (ring-video-create)
-# RING_MCP_SERVICE_TOKENS=dev-only-change-me`}</Code>
+# RING_MCP_ACCESS_KEY=dev-only-change-me`}</Code>
 
 <Callout type="warning" title="Security">
-Never commit `XAI_API_KEY` or `RING_MCP_SERVICE_TOKENS` to the repository. MCP routes are bearer-gated via `withMcpGuard`.
+Never commit `XAI_API_KEY` or `RING_MCP_ACCESS_KEY` to the repository. MCP routes are bearer-gated via `withMcpGuard`.
 </Callout>
 
 ## Architecture

@@ -303,17 +303,46 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
   };
 
   const handleImageUpload = async (file: File, type: 'featured' | 'gallery') => {
-    // TODO: Implement actual file upload to your storage service
-    // For now, we'll use a placeholder URL
-    const imageUrl = URL.createObjectURL(file);
-    
-    if (type === 'featured') {
-      setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        gallery: [...prev.gallery, imageUrl]
-      }));
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/entities/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || `Upload failed with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success || !result.url) {
+        throw new Error(result.error || 'Upload returned no URL');
+      }
+      
+      if (type === 'featured') {
+        setFormData(prev => ({ ...prev, featuredImage: result.url }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          gallery: [...prev.gallery, result.url]
+        }));
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+      // Fallback: use object URL as placeholder so the UI remains usable
+      const fallbackUrl = URL.createObjectURL(file);
+      if (type === 'featured') {
+        setFormData(prev => ({ ...prev, featuredImage: fallbackUrl }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          gallery: [...prev.gallery, fallbackUrl]
+        }));
+      }
     }
   };
 

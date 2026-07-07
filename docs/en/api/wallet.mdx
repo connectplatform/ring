@@ -1,21 +1,20 @@
 ---
 title: Wallet API
-description: Verified `/api/wallet/*` routes for custodial wallets, RING transfers, in-app credit ledger, and Solana desk quotes
-last_modified: "2026-06-22"
+description: Server actions and API routes for custodial wallets, native-token transfers, credit ledger, PIN-gated access tokens, and Solana desk quotes on Ring Platform
+last_modified: "2026-07-03"
 audience: both
 ---
 
 # Wallet API
 
 <Callout type="info">
-  Filter with **Founder** / **Developer** in the docs sidebar. Legacy copy claimed **10 endpoints**, HSM multi-sig, DEX swaps, NFT APIs, KYC/AML engines, and `Authorization: Bearer` JWT — **none verified**. Below matches `app/api/wallet/**/route.ts` as of v1.6.0.
+  Filter with **Founder** / **Developer** in the docs sidebar. This page documents both the **server actions** (preferred integration pattern) and the legacy **REST API routes** (preserved for backward compatibility). Updated for 2026-07-03 SSOT refactor (PIN-wrapped encryption, wallet_access_tokens, atomic provisioning).
 </Callout>
 
-Ring wallet HTTP handlers cover three layers:
+Ring Platform wallet operations are available through two layers:
 
-1. **Custodial chain wallets** — auto-created for signed-in members; private keys encrypted with `WALLET_ENCRYPTION_KEY`.
-2. **On-chain RING** — balance + send via native chain from `ring-config.json` (`chains.native`, default **Solana**; EVM Polygon path also wired).
-3. **In-app credit ledger** — Postgres/Firestore-backed RING credits for store, subscriptions, and top-ups (distinct from on-chain balance).
+1. **Server Actions** (preferred) — `app/_actions/wallet.ts` — 23 type-safe actions for direct call from React 19 components via `useActionState`.
+2. **API Routes** (legacy) — `app/api/wallet/**/route.ts` — HTTP handlers preserved for external integration and MCP tools.
 
 Browser calls use **Auth.js session cookies** on the same origin — see [API reference](/docs/api). UI entry: `/wallet` (protected).
 
@@ -25,88 +24,161 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
 
 <Cards>
   <Card title="Wallet feature" href="/docs/features/wallet">
-    Tokens tab, send flow, top-up, staking page shell.
+    Wallet dashboard, credit balance concept, desk widget for token conversion, gasless transfers.
   </Card>
   <Card title="Store & credits" href="/docs/features/store">
     Credit spend at checkout — ledger debits before on-chain settlement in some flows.
   </Card>
   <Card title="Authentication" href="/docs/api/authentication">
-    Google/Apple/social sign-in triggers `POST /api/wallet/ensure`.
+    Google/Apple/social sign-in triggers automatic wallet provisioning.
   </Card>
   <Card title="Web3 desk (admin)" href="/docs/api/admin">
     Superadmin oracle rate + gas reserve — not member-facing.
   </Card>
 </Cards>
 
+### Server actions vs API routes
+
+**Server actions** are the preferred integration pattern for React 19 components. They offer type safety, automatic cache invalidation (`revalidatePath`), and progressive enhancement (forms work without JavaScript). The **API routes** are preserved for webhook consumers, MCP tools, and non-React integrations.
+
 ### Typical member flows
 
-- **First login** — app calls `POST /api/wallet/ensure` → custodial address returned (Solana or EVM per clone config).
-- **Check RING** — wallet page → `GET /api/wallet/ring/balance`.
-- **Send RING to a contact** — `POST /api/wallet/ring/transfer` with `toAddress`, `amount`, optional `ringContactId`.
-- **Top up credits** — `POST /api/wallet/credit/topup` (optional on-chain `tx_hash` proof when chain verification is enabled).
-- **Pay in store** — `POST /api/wallet/credit/spend` with order metadata.
+- **First login** — `ensureUserWallets` action provisions custodial address (Solana or EVM per clone config) — atomic single-write, max one wallet per chain.
+- **Check balance** — wallet page calls `listUserWallets` + `getWalletBalance`.
+- **Set a wallet PIN** — calls `createPinAccessTokenAction` to validate PIN; activates PIN-wrapped encryption.
+- **Send tokens** — `transferNativeTokens` with toAddress + amount; gas sponsored by treasury.
+- **Top up credits** — `topUpCredits` with optional chain verification.
+- **Pay in store** — `spendCredits` with order metadata.
 
 <Callout type="warning">
-  **Custodial model:** Ring signs transfers server-side for social-auth wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use these custodial POST routes.
+  **Custodial model:** Ring signs transfers server-side for social-auth wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use these custodial server actions.
 </Callout>
 
 </Audience>
 
 <Audience for="developer">
 
+## Server actions (preferred)
+
+All 23 server actions are in `app/_actions/wallet.ts`. They follow the SSOT pattern: dynamic import of service → auth check → operation → cache invalidation.
+
+### Complete inventory
+
+| # | Action | Signature | Returns |
+|---|--------|-----------|---------|
+| 1 | `ensureUserWallets` | `() => Promise<{ success, nativeWallet?, walletCount? }>` | Provisioned wallet count |
+| 2 | `listUserWallets` | `() => Promise<WalletListResult>` | Wallet list with balances |
+| 3 | `getWalletBalance` | `() => Promise<{ success, balance? }>` | Native-token balance |
+| 4 | `getWalletActivity` | `(opts?) => Promise<ActivityResult>` | Unified credit+chain feed |
+| 5 | `getCreditHistory` | `(opts?) => Promise<CreditHistoryResult>` | Paginated transactions |
+| 6 | `getCreditBalance` | `() => Promise<CreditBalanceResult>` | Current credit balance |
+| 7 | `topUpCredits` | `(formData) => Promise<{ success, newBalance?, txHash? }>` | Add credits to balance |
+| 8 | `spendCredits` | `(formData) => Promise<{ success, newBalance? }>` | Spend credits |
+| 9 | `transferCredits` | `(formData) => Promise<WalletActionResult>` | Admin credit adjustment |
+| 10 | `processMembershipFee` | `(formData) => Promise<{ success, transactionId? }>` | Monthly fee from credits |
+| 11 | `transferNativeTokens` | `(formData) => Promise<{ success, txHash?, chain? }>` | Gasless native-token transfer |
+| 12 | `getRingPerUsdRate` | `() => Promise<OracleRateResult>` | Oracle rate (read) |
+| 13 | `setRingPerUsdRate` | `(formData) => Promise<OracleRateResult>` | Oracle rate (admin write) |
+| 14 | `signDeskQuote` | `(formData) => Promise<{ success, quoteToken? }>` | Sign desk quote |
+| 15 | `executeDeskQuote` | `(formData) => Promise<{ success, orderId?, txHash? }>` | Execute desk trade |
+| 16 | `verifyDeskQuote` | `(formData) => Promise<{ success, payload? }>` | Verify signed quote |
+| 17 | `verifyTopUpTransaction` | `(formData) => Promise<{ success, verified? }>` | Verify on-chain transfer |
+| 18 | `listWalletTransactions` | `(opts?) => Promise<{ success, transactions? }>` | Read wallet_transactions collection |
+| 19 | `setPrimaryWallet` | `(formData) => Promise<WalletActionResult>` | Set default wallet address |
+| 20 | `getSpendSummary` | `() => Promise<{ success, summary? }>` | Period-based spending summary |
+| 21 | `getRewardCreditAddEventSummary` | `() => Promise<{ success, totalReceived? }>` | Credit rewards summary |
+| 22 | `createPinAccessTokenAction` | `(prev, formData) => Promise<PinAccessTokenState>` | Issue single-use PIN-gated access token |
+| 23 | `revokePinAccessTokensAction` | `() => Promise<WalletActionResult>` | Revoke all active tokens |
+
+### PIN access token action
+
+<Code language="typescript" title="createPinAccessTokenAction">{`// app/_actions/wallet.ts
+export interface PinAccessTokenState {
+  success: boolean
+  accessToken?: string      // Raw token — one-time, never persisted
+  walletAddress?: string
+  expiresAt?: string        // ISO timestamp, default 15-min TTL
+  scope?: 'withdrawal' | 'transfer' | 'admin'
+  error?: string
+  requiresMigration?: boolean  // True when wallet needs v2 PIN re-encrypt
+}
+
+// Client usage:
+const [tokenState, pinAction, isPending] = useActionState(
+  createPinAccessTokenAction, null
+)`}</Code>
+
+### Integration with React 19
+
+Server actions are called directly from client components using `useActionState`:
+
+<Code language="typescript" title="useActionState pattern">{`import { useActionState } from 'react'
+import { topUpCredits } from '@/app/_actions/wallet'
+
+const [state, formAction, isPending] = useActionState(
+  async (prevState, formData) => {
+    const result = await topUpCredits(formData)
+    if (result.success) await refreshCreditBalance()
+    return result
+  },
+  null
+)`}</Code>
+
+Or with form progressive enhancement:
+
+<Code language="tsx">{`<form action={formAction}>
+  <Input name="amount" type="number" min="0.01" step="0.01" required />
+  <Input name="txHash" placeholder="Transaction hash (optional)" />
+  <Textarea name="description" />
+  <Button type="submit" disabled={isPending}>
+    {isPending ? 'Processing...' : 'Top Up'}
+  </Button>
+</form>`}</Code>
+
 ## Auth pattern
 
-<Mermaid title="Wallet route handler">
+<Mermaid title="Server action handler">
 {`sequenceDiagram
-  participant C as Client (cookie)
-  participant R as /api/wallet/*
-  participant A as auth()
-  participant S as Wallet service
+  participant C as Client (useActionState)
+  participant A as Server Action
+  participant S as auth()
+  participant V as Service (dynamic import)
 
-  C->>R: fetch credentials include
-  R->>A: session
+  C->>A: formAction(formData)
+  A->>S: session
   alt not signed in
-    R-->>C: 401
+    A-->>C: { success: false, error: "Authentication required" }
   else authorized
-    R->>S: Zod / service call
-    S-->>R: balance | txHash | ledger row
-    R-->>C: JSON`}
+    A->>V: dynamic import + call
+    V-->>A: result
+    A->>A: revalidatePath('/[locale]/wallet')
+    A-->>C: { success: true, ... }
+  end`}
 </Mermaid>
 
-<Code language="bash" title="Same-origin session">{`curl -s "http://localhost:3000/api/wallet/ring/balance" \\
-  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE" | jq .`}</Code>
+## API routes (legacy — for external consumers)
 
-**Required env (custodial signing):** `WALLET_ENCRYPTION_KEY` (32-byte hex). **Chain:** `NEXT_PUBLIC_RING_TOKEN_ADDRESS`, `POLYGON_RPC_URL`, `SOLANA_RPC_URL` per [Environment](/docs/deployment/environment). Native chain: `getNativeChain()` from `lib/ring-config-chain.ts`.
-
-## Route inventory (verified)
+The REST API routes are preserved for backward compatibility. New integrations should use server actions.
 
 ### Wallet lifecycle
 
-| Method | Path | Auth | Notes |
-|--------|------|------|-------|
-| GET | `/api/wallet/list` | Session | `{ wallets: Wallet[] }` from `listWallets()` |
-| POST | `/api/wallet/create` | Session | Body `{ label? }` → `{ wallet }`; visitors forbidden |
-| POST | `/api/wallet/ensure` | Session | Idempotent create-if-missing; returns `address`, `chain`, `wallets[]` |
-| GET | `/api/wallet/balance` | Session | Default wallet **native POL** balance on Polygon via viem |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/wallet/list` | `{ wallets: Wallet[] }` from `listWallets()` |
+| POST | `/api/wallet/ensure` | Idempotent create-if-missing; returns `address`, `chain` |
+| GET | `/api/wallet/balance` | Default wallet native-token balance by chain |
 
-**Not implemented:** `GET /api/wallet` root, mnemonic export, multi-sig config JSON.
+**Deprecated routes:**
+- `POST /api/wallet/create` — returns 410 Gone; wallets created via `ensureUserWallets` server action, not direct POST.
+- `POST /api/wallet/pin-access` — returns 410 Gone; replaced by `createPinAccessTokenAction` server action (uses `wallet_access_tokens` table, sha256-hashed, 15-min TTL, single-use).
 
-### RING on-chain
+### Native-token on-chain operations
 
-| Method | Path | Body / query | Notes |
-|--------|------|--------------|-------|
-| GET | `/api/wallet/ring/balance` | — | `{ balance, address, chain, symbol: "RING" }` |
-| POST | `/api/wallet/ring/transfer` | `{ toAddress, amount, contactUserId?, ringContactId?, notes? }` | Zod-validated; writes `wallet_transactions` row |
-
-Native chain follows `ring-config.json` → `chains.native` (`solana` \| `evm`). Solana transfers may use fee sponsorship when configured.
-
-### Legacy / deprecated
-
-| Method | Path | Status |
-|--------|------|--------|
-| POST | `/api/wallet/transfer` | **Deprecated** — POL-only; logs warn to use `/api/wallet/ring/transfer` |
-| GET | `/api/wallet/history` | **410 Gone** → use `/api/wallet/activity` |
-| POST | `/api/wallet/pin-access` | **410 Gone** — PIN flow removed; server-side encryption only |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/wallet/token/balance` | `{ balance, address, chain, symbol }` |
+| POST | `/api/wallet/token/transfer` | Zod-validated; writes `wallet_transactions` row |
+| POST | `/api/wallet/transfer` | **Deprecated** — legacy EVM POL/MATIC transfer (viem + Polygon); use `/api/wallet/token/transfer` for native-token path |
 
 ### Activity feed
 
@@ -114,18 +186,19 @@ Native chain follows `ring-config.json` → `chains.native` (`solana` \| `evm`).
 |--------|------|-------|-------|
 | GET | `/api/wallet/activity` | `filter=all\|credit\|chain`, `limit`, `walletAddress?` | Unified feed via `getWalletActivityFeed()` |
 
+**Deprecated:** `GET /api/wallet/history` — returns 410 Gone; use `/api/wallet/activity`.
+
 ### Credit ledger
 
-| Method | Path | Auth | Notes |
-|--------|------|------|-------|
-| GET | `/api/wallet/credit/balance` | Session | Balance, subscription stub, spend limits (partially hard-coded) |
-| PUT | `/api/wallet/credit/balance` | Platform admin | `{ user_id, amount, reason }` — admin airdrop |
-| POST | `/api/wallet/credit/topup` | Session | `CreditTopUpRequestSchema`; optional `tx_hash` verification |
-| POST | `/api/wallet/credit/spend` | Session | Debit for purchases; enforces min/max per tx |
-| GET | `/api/wallet/credit/spend` | Session | `period=day\|week\|month\|year` spending summary |
-| GET | `/api/wallet/credit/history` | Session | `limit`, `after_id`, `type`, date filters |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/wallet/credit/balance` | Balance, subscription stub, spend limits |
+| PUT | `/api/wallet/credit/balance` | `{ user_id, amount, reason }` — admin airdrop |
+| POST | `/api/wallet/credit/topup` | `CreditTopUpRequestSchema`; optional `tx_hash` verification |
+| POST | `/api/wallet/credit/spend` | Debit for purchases; enforces min/max per tx |
+| GET | `/api/wallet/credit/history` | `limit`, `after_id`, `type`, date filters |
 
-SSOT schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/user-credit-service.ts`.
+SSOT schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/credit-balance-service.ts`.
 
 ### Solana desk (quote / execute)
 
@@ -134,48 +207,78 @@ SSOT schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/us
 | GET | `/api/wallet/desk/quote` | Query `side`, `amount` → desk quote token |
 | POST | `/api/wallet/desk/execute` | `{ idempotencyKey, quoteToken }` → on-chain desk swap |
 
-Desk oracle + compliance limits: superadmin `GET/POST /api/admin/web3/settings` ([Admin API](/docs/api/admin)).
+## SSOT file reference
 
-### Example — send RING
+For direct service integration (bypassing actions), refer to:
+
+| Concern | File | Key exports |
+|---------|------|-------------|
+| Credit CRUD | `features/wallet/services/credit-balance-service.ts` | `addCredentials`, `spendCredits`, `getCreditHistory` |
+| Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser` |
+| Treasury ops | `features/wallet/chains/solana/treasury-transfer-service.ts` | `transferNativeTokenFromTreasury`, `transferNativeTokenToTreasury` |
+| Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` |
+| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `signQuote`, `verifyQuoteToken` |
+| Wallet DB | `lib/wallet/user-wallet-db.ts` | `getUserWallets`, `getNativeWallet`, `migrateUserWalletsToPin` |
+| Encryption (v2) | `lib/wallet/encrypt-wallet-secret.ts` | `encryptWalletSecret`, `decryptSecretWithPin`, `reencryptLegacyWallet` |
+| Wallet decrypt | `lib/wallet/decrypt-user-wallet.ts` | `decryptUserWalletPrivateKey`, `decryptSolanaWalletSecretKey` |
+| PIN access tokens | `lib/wallet/pin-access-token-db.ts` | `issueAccessToken`, `consumeAccessToken`, `revokeActiveTokens` |
+| Credit schemas | `lib/zod/credit-schemas.ts` | `CreditTopUpRequestSchema`, `CreditSpendRequestSchema` |
+| Desk schemas | `lib/zod/desk-schemas.ts` | `DeskExecuteRequestSchema`, `DeskQuoteRequestSchema` |
+
+### Example — send native tokens via server action
 
 <Steps>
 <Step>
 
-### Ensure wallet exists
+**Import and call**
 
-<Code language="bash" title="curl">{`curl -X POST "http://localhost:3000/api/wallet/ensure" \\
-  -H "Cookie: authjs.session-token=..."`}</Code>
+<Code language="typescript">{`import { transferNativeTokens } from '@/app/_actions/wallet'
+
+// In a client component:
+const [sendState, sendAction, isSending] = useActionState(
+  async (prev, formData) => {
+    const result = await transferNativeTokens(formData)
+    if (result.success) toast({ title: \`Sent \${result.amount} tokens\` })
+    return result
+  },
+  null
+)`}</Code>
 
 </Step>
 <Step>
 
-### Transfer
+**Wire to form**
 
-<Code language="bash" title="curl">{`curl -X POST "http://localhost:3000/api/wallet/ring/transfer" \\
-  -H "Content-Type: application/json" \\
-  -H "Cookie: authjs.session-token=..." \\
-  -d '{"toAddress":"RECIPIENT","amount":"10.5"}'`}</Code>
-
-</Step>
-<Step>
-
-### Confirm in activity feed
-
-<Code language="bash" title="curl">{`curl -s "http://localhost:3000/api/wallet/activity?filter=chain&limit=10" \\
-  -H "Cookie: authjs.session-token=..." | jq .`}</Code>
+<Code language="tsx">{`<form action={sendAction}>
+  <Input name="toAddress" placeholder="Recipient address" required />
+  <Input name="amount" type="number" placeholder="0.00" required />
+  <Textarea name="notes" placeholder="Optional note" />
+  <Button type="submit" disabled={isSending}>
+    {isSending ? 'Sending...' : 'Send Tokens'}
+  </Button>
+</form>`}</Code>
 
 </Step>
 </Steps>
 
-### Client-side Web3 (not these routes)
+### Environment variables
 
-External wallet connect uses **wagmi + viem + RainbowKit** (`contexts/web3-context.tsx`, `constants/web3.ts`). Token addresses come from env — not from `GET /api/wallet/tokens` (not implemented).
+| Variable | Required | Used by |
+|----------|----------|---------|
+| `WALLET_ENCRYPTION_KEY` | Yes | `encrypt-wallet-secret.ts` — AES-256-GCM encryption of private keys |
+| `SOLANA_RPC_URL` | Yes | `solana-client.ts` — on-chain Solana operations |
+| `SOLANA_TREASURY_PRIVATE_KEY` | Yes | `treasury-transfer-service.ts` — sponsored gas transfers |
+| `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default: 900) | `pin-access-token-db.ts` — single-use token TTL |
+| `POLYGON_RPC_URL` | For EVM chains | `get-wallet-balance.ts` — EVM balance fallback path |
 
 </Audience>
 
 ## Related documentation
 
 <Cards>
+  <Card title="Wallet feature" href="/docs/features/wallet">
+    Wallet architecture, credit balance concept, desk widget, gasless transfers.
+  </Card>
   <Card title="API index" href="/docs/api">
     Session auth model and domain map.
   </Card>
@@ -188,66 +291,50 @@ External wallet connect uses **wagmi + viem + RainbowKit** (`contexts/web3-conte
   <Card title="Store feature" href="/docs/features/store">
     Credit spend at checkout.
   </Card>
-  <Card title="Environment" href="/docs/deployment/environment">
-    `WALLET_ENCRYPTION_KEY`, RPC URLs, token addresses.
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    Oracle rate, transfer tax, first-settler discounts.
   </Card>
 </Cards>
 
 <FutureFeatureBacklog title="Backlog — wallet API (TBD)">
 
 <FutureFeatureWidget
-  name="GET /api/wallet (profile aggregate)"
-  description="Legacy doc returned networks, tokens, multiSig flags, and USD values in one call — use list + ring/balance + credit/balance instead."
-  implementationCost={24}
-  labels={['api', 'wallet']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="HardwareSecurityManager (HSM)"
-  description="Enterprise HSM key generation and multi-signature recovery partitions — fiction removed from legacy doc."
-  implementationCost={200}
-  labels={['security', 'web3']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="NetworkOptimizer multi-chain router"
-  description="Automatic L1/L2 selection by gas/speed score — not in lib/; native chain is ring-config only."
+  name="Wallet chain-sync service"
+  description="Background chain refresh every 20s — sync Solana/EVM native-token events to ring-db. Currently chain reads are on-demand per API call."
   implementationCost={80}
   labels={['web3', 'performance']}
   voteCount={0}
 />
 
 <FutureFeatureWidget
-  name="GET /api/wallet/tokens + POST /api/wallet/tokens/add"
-  description="Platform token catalog and custom token tracking APIs — use constants/web3.ts + wagmi client-side."
+  name="WalletConductor"
+  description="Orchestration layer for multi-step wallet operations (similar to PaymentConductor) — handles create → ensure → fund → transfer pipelines."
+  implementationCost={64}
+  labels={['architecture', 'wallet']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="WayForPay wallet top-up (server action)"
+  description="Non-crypto card payment integration for wallet top-ups. UI shell exists; backend integration TBD."
+  implementationCost={48}
+  labels={['payments', 'wallet']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Peer-to-peer credit transfers"
+  description="Allow members to transfer USD credits between each other — currently admin-only via transferCredits."
   implementationCost={32}
-  labels={['api', 'web3']}
+  labels={['wallet', 'credits']}
   voteCount={0}
 />
 
 <FutureFeatureWidget
   name="GET /api/wallet/nfts"
-  description="Cross-chain NFT gallery with floor prices — not implemented; NFT hooks exist for marketplace UI only."
+  description="Cross-chain NFT gallery — not implemented; NFT hooks exist for marketplace UI only."
   implementationCost={64}
   labels={['web3', 'nft']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="POST /api/wallet/export"
-  description="Encrypted JSON/PDF wallet backup download — custodial keys never exposed to client today."
-  implementationCost={40}
-  labels={['security', 'wallet']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="DEXManager swap API"
-  description="Uniswap/Sushi/QuickSwap aggregated swap with MEV protection — legacy class not in tree."
-  implementationCost={120}
-  labels={['defi', 'web3']}
   voteCount={0}
 />
 
@@ -260,26 +347,10 @@ External wallet connect uses **wagmi + viem + RainbowKit** (`contexts/web3-conte
 />
 
 <FutureFeatureWidget
-  name="ComplianceManager KYC/AML"
-  description="Multi-provider KYC and transaction sanction screening — not wired to wallet routes."
-  implementationCost={160}
-  labels={['compliance', 'wallet']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="WalletAnalytics portfolio report"
-  description="Sharpe ratio, drawdown, diversification recommendations — legacy analytics engine removed."
-  implementationCost={72}
-  labels={['analytics', 'wallet']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="POST /api/wallet/transactions/{id}/confirm"
-  description="Speed-up or cancel pending tx — not implemented; viem receipt wait is synchronous on transfer routes."
-  implementationCost={32}
-  labels={['api', 'web3']}
+  name="Wallet import via seed phrase API"
+  description="POST /api/wallet/import — accept encrypted mnemonic, derive keypair, encrypt with PIN-wrapped v2, store via upsertUserWallet. Not implemented."
+  implementationCost={48}
+  labels={['wallet', 'web3']}
   voteCount={0}
 />
 

@@ -5,7 +5,7 @@
   "balance": "Баланс",
   "lowBalance": "Низький баланс",
   "refresh": "Оновити",
-  "balanceUpdated": "Баланс оновлено",
+  "balanceUpdated": "Баланс щойно оновлено",
   "loadingWallets": "Завантаження гаманців…",
   "loadingWallet": "Завантаження гаманця…",
   "errorLoadingWallet": "Помилка завантаження гаманця",
@@ -140,5 +140,8 @@
     "sendSuccess": "Надіслано {amount} RING — {name}",
     "sendFailed": "Не вдалося надіслати RING. Спробуйте ще раз.",
     "recipientFallback": "отримувачу"
-  }
+  },
+  "refreshingBalances": "Оновлення балансів…",
+  "balanceStale": "Баланс може бути застарілим — натисніть Оновити",
+  "autoRefreshEvery": "Автоматичне оновлення кожні 60 секунд"
 }

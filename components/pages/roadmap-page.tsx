@@ -3,12 +3,11 @@
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
-import type { TimelineItemModel } from 'react-chrono'
+import type { TimelineItem } from 'react-chrono'
 import {
   ArrowRight,
   BookOpen,
   Coins,
-  Github,
   Image as ImageIcon,
   Map,
   Newspaper,
@@ -17,6 +16,7 @@ import {
   Terminal,
   Wallet,
 } from 'lucide-react'
+import { GithubIcon } from '@/components/ui/icons/github-icon'
 import { Callout } from '@/components/docs/callout'
 import { CodeSandbox } from '@/components/docs/code-sandbox'
 import { Math } from '@/components/docs/math'
@@ -47,7 +47,7 @@ export function RoadmapPage() {
   const locale = useLocale()
   const spec = VISUALIZATION_ROADMAP
 
-  const timelineItems = t.raw('timelineItems') as TimelineItemModel[]
+  const timelineItems = t.raw('timelineItems') as TimelineItem[]
   const shippedItems = t.raw('shipped.items') as ShippedItem[]
   const docLinks = t.raw('docs.links') as DocLink[]
   const platformPhases = [0, 1, 2].map((index) => ({
@@ -88,7 +88,7 @@ export function RoadmapPage() {
             </Button>
             <Button asChild variant="outline" size="lg">
               <a href="https://github.com/connectplatform/ring" target="_blank" rel="noopener noreferrer">
-                <Github className="h-4 w-4 mr-2" />
+                <GithubIcon className="h-4 w-4 mr-2" />
                 {t('hero.cloneCta')}
               </a>
             </Button>

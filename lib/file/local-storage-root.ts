@@ -1,5 +1,10 @@
 import { join } from 'node:path'
 
+// Extract process.cwd() to a module-level variable so Turbopack's AST tracer
+// recognizes the turbopackIgnore annotation at the declaration site. Inline
+// comments inside join() arguments are NOT recognized by the tracer.
+/* turbopackIgnore: true */ const PROJECT_ROOT = process.cwd()
+
 export type ResolveLocalStorageRootOptions = {
   /** Project root; defaults to `process.cwd()`. */
   cwd?: string
@@ -20,10 +25,10 @@ export function resolveLocalStorageRoot(
   let configured =
     options?.configuredDir ??
     process.env.LOCAL_STORAGE_DIR ??
-    join('public', 'uploads')
+    'public/uploads'
 
   if (!configured || configured.trim() === '') {
-    configured = join('public', 'uploads')
+    configured = 'public/uploads'
   }
 
   if (configured.startsWith('/')) {
@@ -34,5 +39,5 @@ export function resolveLocalStorageRoot(
   if (root) {
     return join(root, configured)
   }
-  return join(/* turbopackIgnore: true */ process.cwd(), configured)
+  return join(/* turbopackIgnore: true */ PROJECT_ROOT, configured)
 }

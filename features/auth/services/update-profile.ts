@@ -4,8 +4,9 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { ProfileFormData, UserRole } from '@/features/auth/types';
-import { isPlatformAdmin } from '@/features/auth/user-role';
+import { ProfileFormData } from '@/features/auth/types';
+import { UserRolesArray } from '@/features/auth/user-role';
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role';
 
 import { cache } from 'react';
 import { db } from '@/lib/database';
@@ -45,8 +46,8 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
     console.log(`Services: updateProfile - User authenticated with ID ${userId} and role ${userRole}`);
 
     // Step 2: Apply role validation (if needed)
-    if (data.role && !isPlatformAdmin(userRole)) {
-      throw new Error('Only platform admin users can update the role field.');
+    if (data.role && !isPlatformAdmin(assertKnownUserRole(userRole as UserRolesArray))) {
+      throw new Error('Only platform admin users can update the role field. User role: ' + userRole);
     }
 
     // Step 4: Prepare update data

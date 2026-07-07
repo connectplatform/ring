@@ -10,7 +10,8 @@ import {
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { getVendorProfile } from '@/features/store/services/vendor-profile'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
+// TODO: verify if UserRolesArray is beneficial here.
 
 // Validation schema for payment request
 const createPaymentSchema = z.object({

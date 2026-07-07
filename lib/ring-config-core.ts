@@ -1,15 +1,25 @@
 /**
- * Clone config — safe for client and server (reads ring-config.json + template).
- * Single source of truth for install-time whitelabel + platform identity.
- * Server components may prefer getRingConfig() from @/lib/ring-config (cached).
+ * Clone config utilities — safe for both client and server environments.
+ * Reads from ring-config.json (concrete, install-time) and template (defaults). 
+ * Used as a single source of truth for all whitelabel/platform config values.
+ *
+ * Server components may prefer getRingConfig() from @/lib/ring-config (cached for perf).
+ *
+ * Stateless utility exports such as getSystemConfigSnapshot and config accessors now leverage
+ * React 19's `cache()` for request-scoped caching to optimize performance.
  */
+
+import { cache } from 'react'  // React19+ for stateless caching
 import template from '@/ring-config.template.json'
 import concrete from '@/ring-config.json'
+
 import type {
   InstanceConfig,
   PublicInstanceConfig,
   RingConfig,
   SidebarStatConfig,
+  SupportedCurrencies,
+  SupportedCrypto,
 } from '@/lib/ring-config-types'
 
 export type {
@@ -17,8 +27,11 @@ export type {
   PublicInstanceConfig,
   RingConfig,
   RingBranding,
-  RingThemeConfig,
-  RingNavigationConfig,
+  ThemeConfig,
+  NavigationConfigSchema,
+  LegalConfig,
+  DeploymentConfig,
+  IntegrationConfig,
   RingHeroConfig,
   SidebarLinkConfig,
   SidebarCommunityLinkConfig,
@@ -26,81 +39,158 @@ export type {
   SidebarStatValueKey,
 } from '@/lib/ring-config-types'
 
-const SERVER_FEATURE_KEYS = ['entities', 'opportunities', 'messaging', 'admin', 'news'] as const
+export type {
+  NativeChainConfig,
+} from '@/lib/ring-config-chain'
+const SERVER_FEATURE_KEYS = [
+  'entities',
+  'opportunities',
+  'messaging',
+  'admin',
+  'news',
+] as const;
 
-function mergeDeep(base: RingConfig, override: Partial<RingConfig>): RingConfig {
-  return {
-    ...base,
-    ...override,
-    branding: {
-      ...base.branding,
-      ...override.branding,
-      logo: { ...base.branding?.logo, ...override.branding?.logo },
-      colors: { ...base.branding?.colors, ...override.branding?.colors },
-      darkColors: { ...base.branding?.darkColors, ...override.branding?.darkColors },
-      fonts: { ...base.branding?.fonts, ...override.branding?.fonts },
-    },
-    features: { ...base.features, ...override.features },
-    theme: { ...base.theme, ...override.theme },
-    navigation: override.navigation ?? base.navigation,
-    hero: override.hero ?? base.hero,
-    sidebar: override.sidebar ?? base.sidebar,
-    calculator: override.calculator ?? base.calculator,
-    roadmap: override.roadmap ?? base.roadmap,
-    productFields: override.productFields ?? base.productFields,
-    productBadges: override.productBadges ?? base.productBadges,
-    contact: override.contact ?? base.contact,
-    platform: { ...base.platform, ...override.platform },
-    tokens: {
-      ...base.tokens,
-      ring: { ...base.tokens?.ring, ...override.tokens?.ring },
-    },
-    social: { ...base.social, ...override.social },
-    seo: { ...base.seo, ...override.seo },
-    legal: { ...base.legal, ...override.legal },
-    domains: { ...base.domains, ...override.domains },
-    clone: { ...base.clone, ...override.clone },
-    matcher: { ...base.matcher, ...override.matcher },
-    publicPools: { ...base.publicPools, ...override.publicPools },
-    founders: override.founders ?? base.founders,
-    chains: {
-      ...base.chains,
-      ...override.chains,
-      solana: { ...base.chains?.solana, ...override.chains?.solana },
-      evm: { ...base.chains?.evm, ...override.chains?.evm },
-      base: { ...base.chains?.base, ...override.chains?.base },
-      enabled: override.chains?.enabled ?? base.chains?.enabled,
-      native: override.chains?.native ?? base.chains?.native,
-    },
+/**
+ * Deep merge utility for RingConfig shape.
+ * Takes a base config and overlays any present values from the 'override'
+ * Argument, including for partials and nested fields.
+ * @param base The template/default config (RingConfig)
+ * @param override The concrete install or overlay config (Partial<RingConfig>)
+ */
+function mergeDeep(base: any, override: any): any {
+  if (
+    typeof base !== 'object' || base === null ||
+    typeof override !== 'object' || override === null
+  ) {
+    return override !== undefined ? override : base;
   }
+
+  // Both are objects. Merge recursively.
+  const result: any = Array.isArray(base) ? [...base] : { ...base };
+
+  // Merge all override keys into result
+  for (const key of Object.keys(override)) {
+    if (
+      override[key] !== undefined &&
+      typeof override[key] === 'object' &&
+      !Array.isArray(override[key]) &&
+      typeof base[key] === 'object' &&
+      base[key] !== null &&
+      !Array.isArray(base[key])
+    ) {
+      // Special case: fix for deployment.resources type mismatch (flatten to strings)
+      if (
+        key === 'deployment' &&
+        typeof override[key] === 'object' &&
+        'resources' in override[key] &&
+        typeof override[key].resources === 'object' &&
+        override[key].resources !== null
+      ) {
+        const mergedResources: Record<string, string> = {
+          ...(base[key]?.resources as Record<string, string> || {}),
+          ...(override[key]?.resources as Record<string, string> || {}),
+        }
+        result[key] = {
+          ...mergeDeep(base[key], override[key]),
+          resources: Object.fromEntries(
+            Object.entries(mergedResources).map(([k, v]) => [k, String(v)])
+          ),
+        }
+      } else {
+        result[key] = mergeDeep(base[key], override[key]);
+      }
+    } else if (override[key] !== undefined) {
+      result[key] = override[key];
+    }
+    // else leave base[key] as is
+  }
+  return result;
 }
 
-/** Install-time public pool defaults — clone scope + queue/funding thresholds. */
-export function getPublicPoolConfig(): {
+// --- Stateless utility exports now use React 19+ native cache() where effective --- //
+
+/**
+ * Returns the current merged RingConfig object for this clone,
+ * merging concrete (install/instance) values over the template defaults.
+ * Request-scoped stateless cache via React 19's cache().
+ * @returns The canonical RingConfig for this instance.
+ */
+export const getSystemConfigSnapshot = cache(function getSystemConfigSnapshot(): RingConfig {
+  const merged = mergeDeep(template, concrete);
+
+  // Fix deployment.resources post-merge (see original version for rationale)
+  if (
+    typeof merged === 'object' &&
+    merged !== null &&
+    'deployment' in merged &&
+    typeof (merged as any).deployment === 'object' &&
+    (merged as any).deployment !== null &&
+    'resources' in (merged as any).deployment
+  ) {
+    const dep = (merged as any).deployment;
+    if (dep.resources && typeof dep.resources === 'object' && !Array.isArray(dep.resources)) {
+      const fixed: Record<string, string> = {};
+      Object.entries(dep.resources).forEach(([k, v]) => {
+        if (typeof v === 'string') {
+          fixed[k] = v;
+        } else {
+          fixed[k] = JSON.stringify(v);
+        }
+      });
+      dep.resources = fixed;
+    }
+  }
+
+  return merged as RingConfig;
+});
+
+/**
+ * Accessor: Returns product fields presets config or null.
+ */
+export const getProductFieldsPresets = cache((): Record<string, { storeCategories?: string[] }> | null => {
+  const config = getSystemConfigSnapshot()
+  return (config as unknown as { productFields?: { presets?: Record<string, { storeCategories?: string[] }> } }).productFields?.presets ?? null
+})
+
+/**
+ * Accessor: Returns the active product fields preset name (singular).
+ */
+export const getProductFieldsPreset = cache((): string => {
+  const presets = getProductFieldsPresets()
+  return presets ? Object.keys(presets)[0] ?? 'platform' : 'platform'
+})
+
+/**
+ * Retrieves current config defaults for public pools, using React 19's cache() for memoization.
+ */
+export const getPublicPoolConfig = cache((): {
   cloneId: string
   minGoalHours: number
   ringPerMachineHour: number
   likeQueueThreshold: number
-} {
-  const config = getRingConfigSnapshot()
-  const pp = config.publicPools ?? {}
+} => {
+  const { clone, daoPools } = getSystemConfigSnapshot()
   return {
-    cloneId: config.clone.name,
-    minGoalHours: pp.minGoalHours ?? 1,
-    ringPerMachineHour: pp.ringPerMachineHour ?? 1,
-    likeQueueThreshold: pp.likeQueueThreshold ?? 100,
+    cloneId: clone?.name ?? '',
+    minGoalHours: daoPools?.minGoalHours ?? 1,
+    ringPerMachineHour: daoPools?.ringPerMachineHour ?? 1,
+    likeQueueThreshold: daoPools?.likeQueueThreshold ?? 100,
   }
-}
+})
 
-/** Install-time matcher defaults from ring-config (not DB overlay). */
-export function getMatcherInstallDefaults(): {
+/**
+ * Returns matcher module install-time (file-based) config defaults.
+ * DB overlays (admin settings) not included here.
+ * @returns Matcher settings with smart defaults for each
+ */
+export const getMatcherInstallDefaults = cache((): {
   scoreThreshold: number
   maxMatches: number
   autoApprove: boolean
   autoApproveMinScore: number
   llmConfidenceGate: number
-} {
-  const m = getRingConfigSnapshot().matcher ?? {}
+} => {
+  const m = getSystemConfigSnapshot().matcher ?? {}
   return {
     scoreThreshold: m.scoreThreshold ?? 0.7,
     maxMatches: m.maxMatches ?? 10,
@@ -108,37 +198,53 @@ export function getMatcherInstallDefaults(): {
     autoApproveMinScore: m.autoApproveMinScore ?? 0.7,
     llmConfidenceGate: m.llmConfidenceGate ?? 0.8,
   }
-}
+})
 
-export function getRingConfigSnapshot(): RingConfig {
-  return mergeDeep(template as RingConfig, concrete as Partial<RingConfig>)
-}
+/**
+ * Determines if the roadmap module should be enabled for the current instance.
+ * By default, enabled unless explicitly set false in config.
+ * Now cached with React 19+ cache().
+ */
+export const isRoadmapModuleEnabled = cache(
+  (config: RingConfig = getSystemConfigSnapshot()): boolean => {
+    return config.features?.roadmap?.enabled !== false
+  }
+);
 
-/** Whether the public roadmap page and /about roadmap widget are active for this clone. */
-export function isRoadmapModuleEnabled(config: RingConfig = getRingConfigSnapshot()): boolean {
-  return config.roadmap?.enabled !== false
-}
-
-export function resolveFeatureFlags(
-  features: RingConfig['features'] = {},
-): Record<string, boolean> {
-  const result: Record<string, boolean> = {}
-  for (const key of SERVER_FEATURE_KEYS) {
-    const val = features[key]
-    if (typeof val === 'boolean') {
-      result[key] = val
-    } else if (val && typeof val === 'object' && 'enabled' in val) {
-      result[key] = Boolean((val as { enabled?: boolean }).enabled)
-    } else {
-      result[key] = true
+/**
+ * Converts features config into strict boolean flags for server-side logic.
+ * - Flattens 'enabled' keys from legacy/complex objects.
+ * - Only returns SERVER_FEATURE_KEYS and expertServicesMarketplace flag.
+ * @param features Features config (from RingConfig)
+ * Now cached for typical usage across stateless runtime boundary.
+ */
+export const resolveFeatureFlags = cache(
+  (features: RingConfig['features'] = {}): Record<string, boolean> => {
+    const result: Record<string, boolean> = {}
+    for (const key of SERVER_FEATURE_KEYS) {
+      const val = features[key]
+      if (typeof val === 'boolean') {
+        result[key] = val
+      } else if (val && typeof val === 'object' && 'enabled' in val) {
+        result[key] = Boolean((val as { enabled?: boolean }).enabled)
+      } else {
+        result[key] = true
+      }
     }
+    if (typeof features.expertServicesMarketplace === 'boolean') {
+      result.expertServicesMarketplace = features.expertServicesMarketplace
+    }
+    return result
   }
-  if (typeof features.expertServicesMarketplace === 'boolean') {
-    result.expertServicesMarketplace = features.expertServicesMarketplace
-  }
-  return result
-}
+);
 
+/**
+ * Computes a string value for a sidebar stat cell.
+ * Recognizes special valueKeys for version, license.
+ * @param stat SidebarStatConfig item
+ * @param config Active RingConfig object
+ * @returns String to render in the UI
+ */
 function resolveSidebarStatValue(stat: SidebarStatConfig, config: RingConfig): string {
   if (stat.valueKey === 'clone.version') {
     return config.clone?.version ?? '1.0.0'
@@ -149,20 +255,38 @@ function resolveSidebarStatValue(stat: SidebarStatConfig, config: RingConfig): s
   return stat.value ?? '—'
 }
 
-export function getResolvedSidebarStats(): Array<{ labelKey: string; value: string }> {
-  const config = getRingConfigSnapshot()
-  return (config.sidebar?.stats ?? []).map((stat) => ({
+/**
+ * Returns sidebar stats mapped to concrete display values (labelKey & value).
+ * Cached via React 19 cache() for stateless perf.
+ */
+export const getResolvedSidebarStats = cache((): Array<{ labelKey: string; value: string }> => {
+  const config = getSystemConfigSnapshot()
+  return (config.branding?.sidebar?.stats ?? []).map((stat) => ({
     labelKey: stat.labelKey,
     value: resolveSidebarStatValue(stat, config),
   }))
-}
+})
 
-export function resolveSocialUrlFromConfig(urlKey: string, config = getRingConfigSnapshot()): string {
+/**
+ * Helper: Given a 'social.<platform>' key, returns its config value or "#" if unset.
+ * Uses config snapshot, now cached for perf.
+ */
+export const resolveSocialUrlFromConfig = cache((
+  urlKey: string,
+  config = getSystemConfigSnapshot()
+): string => {
   const key = urlKey.replace(/^social\./, '') as keyof NonNullable<RingConfig['social']>
   return config.social?.[key] ?? '#'
-}
+})
 
-export function ringConfigToInstanceConfig(config: RingConfig): InstanceConfig {
+/**
+ * Converts a full RingConfig to an InstanceConfig (runtime shape for components).
+ * Applies default/fallback values for all essential fields (colors, SEO, etc.).
+ * @param config Any valid, complete RingConfig object
+ * @returns InstanceConfig object ready for use
+ * Cached across the request for perf.
+ */
+export const ringConfigToInstanceConfig = cache((config: RingConfig): InstanceConfig => {
   const colors = config.branding?.colors
   const siteName = config.seo?.siteName ?? config.clone?.displayName ?? 'Ring Platform'
   return {
@@ -182,15 +306,22 @@ export function ringConfigToInstanceConfig(config: RingConfig): InstanceConfig {
     seo: {
       titleSuffix: config.seo?.titleSuffix ?? ` · ${siteName}`,
       defaultDescription:
-        config.seo?.siteDescription ?? config.clone?.description ?? 'Open white-label professional network.',
+        config.seo?.siteDescription ??
+        config.clone?.description ??
+        'Open white-label professional network.',
     },
     navigation: config.navigation,
     hero: config.hero,
     features: resolveFeatureFlags(config.features),
   }
-}
+})
 
-export function toPublicInstanceConfig(cfg: InstanceConfig): PublicInstanceConfig {
+/**
+ * Public config serializer — strips out any private/admin-only values.
+ * Only includes client-safe fields for hydration or static use.
+ * Now uses request cache as well.
+ */
+export const toPublicInstanceConfig = cache((cfg: InstanceConfig): PublicInstanceConfig => {
   return {
     name: cfg.name,
     brand: {
@@ -210,12 +341,17 @@ export function toPublicInstanceConfig(cfg: InstanceConfig): PublicInstanceConfi
     hero: cfg.hero,
     features: cfg.features,
   }
-}
+})
 
-/** File/snapshot-only public config — safe for client static fallbacks. */
-export function getPublicInstanceConfigFromSnapshot(): PublicInstanceConfig {
-  return toPublicInstanceConfig(ringConfigToInstanceConfig(getRingConfigSnapshot()))
-}
+/**
+ * Returns a snapshot-based public config object,
+ * suitable for SSG (static) exports and client fallback.
+ */
+export const getPublicInstanceConfigFromSnapshot = cache((): PublicInstanceConfig => {
+  return toPublicInstanceConfig(ringConfigToInstanceConfig(getSystemConfigSnapshot()))
+})
+
+// --- Instance config caching and DB overlay management ---
 
 let cachedInstance: InstanceConfig | null = null
 let cachedFromDb: InstanceConfig | null = null
@@ -251,13 +387,17 @@ async function loadInstanceConfigFromDb(): Promise<InstanceConfig | null> {
       '@/features/admin/platform-settings/platform-settings-service'
     )
     const branding = await getPlatformBrandingData()
-    const snapshot = ringConfigToInstanceConfig(getRingConfigSnapshot())
+    const snapshot = ringConfigToInstanceConfig(getSystemConfigSnapshot())
     return applyDbBrandingOverlay(snapshot, branding)
   } catch {
     return null
   }
 }
 
+/**
+ * Async entry point: Returns up-to-date instance config, overlays DB settings if available.
+ * Caches config after first load. Only invalidated via explicit call.
+ */
 export async function getInstanceConfigAsync(): Promise<InstanceConfig> {
   if (cachedFromDb) return cachedFromDb
   if (!dbLoadAttempted) {
@@ -268,40 +408,57 @@ export async function getInstanceConfigAsync(): Promise<InstanceConfig> {
   return getInstanceConfig()
 }
 
+/**
+ * Synchronous getter for instance config, including (if available) DB overlays.
+ * Uses cached values for performance unless cache is manually invalidated.
+ */
 export function getInstanceConfig(): InstanceConfig {
   if (cachedFromDb) return cachedFromDb
   if (cachedInstance) return cachedInstance
-  cachedInstance = ringConfigToInstanceConfig(getRingConfigSnapshot())
+  cachedInstance = ringConfigToInstanceConfig(getSystemConfigSnapshot())
   return cachedInstance
 }
 
-/** @deprecated ring-config.json is the source file; kept for platform-settings seed compatibility. */
-export function getInstanceConfigFromFile(): InstanceConfig {
-  return ringConfigToInstanceConfig(getRingConfigSnapshot())
-}
-
+/**
+ * Complete cache reset for both file and DB-config paths.
+ * Call after admin branding or settings changes.
+ */
 export function invalidateInstanceConfigCache(): void {
   cachedInstance = null
   cachedFromDb = null
   dbLoadAttempted = false
+  // When Next/React's invalidation APIs stabilize, migrate to those.
 }
 
-export function getBrandColors() {
+/**
+ * Returns the active primary brand colors object from current instance config.
+ */
+export const getBrandColors = cache(() => {
   return getInstanceConfig().brand.colors
-}
+})
 
-export function isFeatureEnabled(key: string, defaultValue = true): boolean {
+/**
+ * Predicate to check if a named feature is enabled, using current config.
+ * Defaults to true if feature state is missing.
+ */
+export const isFeatureEnabled = cache((key: string, defaultValue = true): boolean => {
   const { features } = getInstanceConfig()
   return features[key] ?? defaultValue
-}
+})
 
-export function getPublicInstanceConfig(): PublicInstanceConfig {
+/**
+ * Retrieves the safe, public instance config for client exposure or SEO export.
+ */
+export const getPublicInstanceConfig = cache((): PublicInstanceConfig => {
   return toPublicInstanceConfig(getInstanceConfig())
-}
+})
 
-/** Canonical public site origin — env overrides ring-config domains. */
-export function getSiteBaseUrl(): string {
-  const config = getRingConfigSnapshot()
+/**
+ * Resolves the canonical base URL for this Ring clone/platform; 
+ * checks env vars in priority order, then falls back to config defaults.
+ */
+export const getSiteBaseUrl = cache((): string => {
+  const config = getSystemConfigSnapshot()
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -312,29 +469,36 @@ export function getSiteBaseUrl(): string {
     config.platform?.baseUrl ||
     'https://ring-platform.org'
   ).replace(/\/$/, '')
-}
+})
 
-export function getRingSeoBranding(): {
+/**
+ * Provides SEO branding info: siteName, Twitter, OG image.
+ * Used for meta tags, social/embedding, sharing, SEO enhancements.
+ */
+export const getRingSeoBranding = cache((): {
   siteName: string
   twitterSite: string
   ogImage: string
-} {
-  const config = getRingConfigSnapshot()
+} => {
+  const config = getSystemConfigSnapshot()
   return {
     siteName: config.seo?.siteName ?? config.clone?.displayName ?? 'Ring Platform',
-    twitterSite: config.seo?.twitterHandle ?? '@RingPlatform',
-    ogImage: config.seo?.ogImage ?? '/og-ring-platform-1200x630.jpg',
+    twitterSite: config.seo?.twitterHandle ?? '@ringdomx',
+    ogImage: config.seo?.ogImage ?? '/og-ring-platform-1280x720.jpg',
   }
-}
+})
 
-export function getSocialLinks(): {
+/**
+ * Returns all configured public social media URLs for this clone/platform.
+ */
+export const getSocialLinks = cache((): {
   github: string
   twitter: string
   linkedin: string
   discord: string
   telegram: string
-} {
-  const social = getRingConfigSnapshot().social ?? {}
+} => {
+  const social = getSystemConfigSnapshot().social ?? {}
   return {
     github: social.github ?? '',
     twitter: social.twitter ?? '',
@@ -342,15 +506,20 @@ export function getSocialLinks(): {
     discord: social.discord ?? '',
     telegram: social.telegram ?? '',
   }
-}
+})
 
-export function getPlatformIdentity(): {
+/**
+ * Outputs platform identity info for display/onboarding/etc.
+ */
+export const getPlatformIdentity = cache((): {
   name: string
   shortName: string
   domain: string
   demoUserEmail: string
-} {
-  const config = getRingConfigSnapshot()
+  nativeTokenSymbol?: string
+  nativeTokenName?: string
+} => {
+  const config = getSystemConfigSnapshot()
   const production = config.domains?.production ?? config.platform?.baseUrl ?? ''
   let domain = production
   try {
@@ -371,10 +540,50 @@ export function getPlatformIdentity(): {
       config.clone?.contactEmail ??
       config.contact?.email ??
       '',
+    nativeTokenSymbol: config.tokens?.nativeToken?.tokenSymbol ?? 'RING',
+    nativeTokenName: config.tokens?.nativeToken?.tokenName ?? 'RING Governance Token',
   }
-}
+})
 
-export function getRingTokenSymbol(): string {
-  const config = getRingConfigSnapshot()
-  return process.env.PAYMENT_TOKEN_SYMBOL || config.tokens?.ring?.symbol || 'RING'
-}
+
+/** 
+ * Returns the default UI theme for the clone from config/template.
+ */
+export const getDefaultTheme = cache((): 'light' | 'dark' | 'system' => {
+  return getSystemConfigSnapshot().theme?.default ?? 'system'
+})
+
+/**
+ * Returns the configured store currency unit for the instance.
+ */
+export const getDefaultStoreCurrencySymbol = cache((): SupportedCurrencies => {
+  return getSystemConfigSnapshot().store?.defaultCurrency ?? 'USD'
+})
+
+/**
+ * Returns all supported fiat currency symbols (e.g. ['USD', 'UAH']).
+ * SSOT accessor — replaces raw ringConfig.currencies.map(c => c.symbol).
+ */
+export const getSupportedCurrencies = cache((): SupportedCurrencies[] => {
+  const config = getSystemConfigSnapshot()
+  return (config.currencies ?? []).map((c: { symbol: SupportedCurrencies }) => c.symbol)
+})
+
+/**
+ * Returns all supported crypto/token symbols (e.g. ['RING', 'SOL', 'POL']).
+ * SSOT accessor — replaces raw ringConfig.tokens.supported.
+ */
+export const getSupportedCrypto = cache((): SupportedCrypto[] => {
+  const config = getSystemConfigSnapshot()
+  return config.tokens?.supported ?? []
+})
+
+/**
+ * Returns exchange rates Record<currency, number> relative to DEFAULT_CURRENCY.
+ * All rates are relative to DEFAULT_CURRENCY (rate == 1 for the base currency).
+ * SSOT accessor — replaces raw ringConfig.exchangeRates.
+ */
+export const getExchangeRates = cache((): Record<string, number> => {
+  const config = getSystemConfigSnapshot()
+  return (config as unknown as { exchangeRates?: Record<string, number> }).exchangeRates ?? {}
+})

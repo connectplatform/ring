@@ -17,7 +17,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
 import { useAuth } from '@/hooks/use-auth'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import type { Locale } from '@/i18n/shared'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
@@ -344,7 +344,7 @@ export default function BottomNavigation() {
             setShowOpportunitySelector(false)
             setShowAddMenu(false)
           }}
-          userRole={hasRole(UserRole.member) ? 'member' : 'subscriber'}
+          userRole={hasRole(UserRolesArray.member as UserRolesArray) ? UserRolesArray.member as UserRolesArray : UserRolesArray.subscriber as UserRolesArray}
           locale={locale}
         />
       )}

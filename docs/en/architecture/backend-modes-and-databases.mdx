@@ -1,56 +1,187 @@
 ---
 title: Backend modes and databases
-description: DB_BACKEND_MODE, PostgreSQL vs Firebase vs Supabase, FCM-only Firebase, Tunnel transports.
-last_modified: "2026-05-15"
+description: DB_BACKEND_MODE, PostgreSQL vs Firebase vs Supabase, FCM-only Firebase, Tunnel transports, React 19 cache() SSOT helpers.
+last_modified: "2026-07-01"
+audience: both
 ---
 
 # Backend modes and databases
 
-Ring Platform uses a **single application codebase** with a **required** runtime switch: **`DB_BACKEND_MODE`**. The value selects which database adapters are registered, whether Firestore is used for application data, and how push notifications are wired.
+<Callout type="info">
+  Use the **Founder** / **Developer** tabs to filter this page for your role. The `DB_BACKEND_MODE` environment variable is **required** — the platform will not start without it.
+</Callout>
 
-This page is the **canonical reference** for operators and clone maintainers. Implementation lives in `lib/database/backend-mode-config.ts`, `lib/database/DatabaseService.ts`, and `lib/database/BackendSelector.ts`.
+Ring Platform uses a **single codebase** with a **required** runtime switch: **`DB_BACKEND_MODE`**. The value selects which database adapters are registered, whether Firestore is used for application data, and how push notifications are wired.
 
-## `DB_BACKEND_MODE` (required)
+| Mode | Primary database | Firebase use | Best for |
+|------|-----------------|--------------|----------|
+| **`k8s-postgres-fcm`** | PostgreSQL 16 + PostGIS | FCM push only | Production self-hosted, local dev |
+| **`firebase-full`** | Firestore **(first-class)** | Everything: DB, FCM, Storage, AI, Hosting | Vercel Edge, clones, rapid prototyping, no-PostgreSQL |
+| **`supabase-fcm`** | Supabase PostgreSQL | FCM push only | Managed cloud PostgreSQL |
 
-| Mode | Primary application database | Firebase Admin used for DB / Firestore? | Push (FCM / Apple) |
-|------|------------------------------|------------------------------------------|---------------------|
-| **`k8s-postgres-fcm`** | PostgreSQL (your cluster — e.g. k3s + CloudNativePG / PostGIS) | **No** — `shouldUseFirebaseForDatabase()` is false; `getAdminDb()` returns a **mock** Firestore when not in `firebase-full` | **FCM** (and Apple where configured) via Firebase Admin **messaging** and web config; not Firestore as source of truth |
-| **`firebase-full`** | Firestore / Firebase-backed paths | **Yes** | FCM as part of full Firebase stack |
-| **`supabase-fcm`** | PostgreSQL hosted on **Supabase** (connection via env) | **No** (same pattern as k8s mode for Firestore) | **FCM** + Apple as configured |
+**Naming:** Production on your own Postgres is often described as "self‑hosted PostgreSQL + FCM" or "Postgres‑primary mode." The enum value remains `k8s-postgres-fcm` — renaming the string would break every deployment, secret store, and clone without a coordinated migration.
 
-**Narrative names:** Production on your own Postgres is often described as **“self‑hosted PostgreSQL + FCM”** or **“Postgres‑primary mode.”** The **enum value remains `k8s-postgres-fcm`** — renaming the string would break every deployment, secret store, and clone without a coordinated migration.
+**Implementation files:** `lib/database/backend-mode-config.ts` (config), `lib/database/DatabaseService.ts` (service), `lib/database/BackendSelector.ts` (router), `lib/services/firebase-service-manager.ts` (SSOT helpers for `firebase-full`).
 
-## Firebase in `k8s-postgres-fcm` and `supabase-fcm`
+<Cards>
+  <Card href="/docs/backend/firebase" title="Firebase integration" description="Full Firebase 14 Enterprise stack: Admin SDK, adapter, SSOT helpers, FCM, AI Logic, Hosting." />
+  <Card href="/docs/backend/k8s-postgres-fcm" title="k8s-postgres-fcm mode" description="Recommended production mode — PostgreSQL with FCM-only Firebase." />
+  <Card href="/docs/features/push-notifications-fcm" title="Push notifications (FCM)" description="FCM token registration, Server Action upsert, lifecycle management." />
+  <Card href="/docs/customization/database-selection" title="Database selection guide" description="Operator decision guide for choosing your backend mode." />
+  <Card href="/docs/deployment/environment" title="Environment variables" description="Complete env var reference for all backend modes." />
+  <Card href="/docs/features/tunnel-protocol" title="Tunnel protocol" description="Real-time transports vs DB_BACKEND_MODE — WebSocket, SSE, polling." />
+</Cards>
 
-- **Application data** (collections routed through `DatabaseService` / `BackendSelector`) goes to **PostgreSQL** via `PostgreSQLAdapter`.
-- **`lib/firebase-admin.server.ts`** explicitly avoids real Firestore when `shouldUseFirebaseForDatabase()` is false (see comments around `getAdminDb()` / `getAdminAuth()`).
-- **FCM** still uses Firebase project credentials where enabled (`shouldInitializeFirebaseFCM()`, `NEXT_PUBLIC_FIREBASE_*`, service account vars). That is **push delivery**, not the primary transactional store.
+<Audience for="founder">
 
-So “we moved off Firebase for the database” is accurate for Postgres‑primary modes; **Firebase remains the standard FCM path** if you need push.
+## Which mode should I choose?
 
-## Supabase: two different roles
+| Scenario | Recommended mode | Why |
+|----------|----------------|-----|
+| Self-hosted production (k3s, K8s) | **k8s-postgres-fcm** | Full data sovereignty, PostgreSQL performance, PostGIS spatial queries |
+| Rapid prototyping / MVP | **firebase-full** | Zero database provisioning, free FCM push, auto-scale, Firebase Hosting deploy |
+| Ring clone (white-label) | **firebase-full** | No PostgreSQL dependency for the clone operator — clone is fully self-contained |
+| Vercel Edge deployment | **firebase-full** | Vercel Edge Runtime + Firestore = no cold-start DB connection |
+| Cloud PostgreSQL (no K8s) | **supabase-fcm** | Managed PostgreSQL with Supabase, FCM push |
+| Push notifications needed | Any mode | FCM is optional and available in all three modes |
 
-1. **`DB_BACKEND_MODE=supabase-fcm`** — Postgres runs on Supabase; same “Postgres primary + FCM” pattern as k8s mode for Firestore.
-2. **Tunnel realtime (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`)** — optional **Realtime** channel in `lib/tunnel/transports/supabase-transport.ts`, using `@supabase/supabase-js` and `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. This is **orthogonal** to which SQL backend owns your tables; do not assume “Supabase in env” always equals `supabase-fcm` mode.
+### firebase-full: first-class ring-db mode
 
-## Vercel and “serverless Postgres”
+**firebase-full** was elevated from prototyping to **first-class** production mode on 2026-06-30. It now includes:
 
-Ring Platform does **not** use **`@vercel/postgres`** as the primary database driver in this tree. **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) is used for file/blob storage where configured — that is **not** the relational database.
+- **30+ React 19 `cache()`-native SSOT helpers** for credit balance, subscriptions, payment transactions, wallet transactions, desk orders, and order history — all in `lib/services/firebase-service-manager.ts`
+- **3 atomic write primitives** — single Firestore transaction for credit balance adjust, subscription status update, and payment transaction status append (ACID, no race conditions)
+- **Firebase 14 Enterprise features** — pipeline operations, change streams, text search, geospatial search
+- **FCM Admin HTTP v1 bridge** — push notifications with automatic invalid-token cleanup
+- **AI Logic (Gemini 2.5/3.x)** — server-side text generation and chat
+- **Firebase Hosting** — `firebase deploy --only hosting` deploys your Ring clone with canonical rewrite rules
 
-- **`DB_BACKEND_MODE`** — global deployment mode (Postgres‑primary vs full Firebase vs Supabase Postgres).
+### Cost comparison
 
-## Auth.js and PostgreSQL
+| Aspect | k8s-postgres-fcm | firebase-full | supabase-fcm |
+|--------|-----------------|---------------|--------------|
+| Database | Infrastructure cost only | Pay-per-read/write | Supabase tier pricing |
+| Push (FCM) | Free | Free | Free |
+| Storage | Vercel Blob / self-hosted | Firebase Storage (free tier) | Supabase Storage |
+| Compute | K8s / Docker | Vercel Edge / Cloud Run | Vercel / Cloud Run |
+| AI | LLM client via `lib/ai/llm-client.ts` | Firebase AI Logic + Gemini 2.5/3.x | LLM client via `lib/ai/llm-client.ts` |
 
-Auth tables (`users`, `accounts`, `sessions`, `verification_tokens`, …) are part of the **Postgres** schema when using the PostgreSQL adapter. See `lib/auth/postgres-adapter.ts` and `data/schema.sql`. Multi‑mode support is summarized in [Authentication](./authentication).
+</Audience>
+
+<Audience for="developer">
+
+## Architecture by mode
+
+<Mermaid title="Three-mode architecture comparison">{`
+flowchart LR
+  subgraph k8s_mode["k8s-postgres-fcm"]
+    K8sApp["Next.js App"]
+    K8sPG["PostgreSQLAdapter"]
+    K8sFCM["Firebase Admin\n(FCM push only)"]
+    K8sFS[(PostgreSQL 16\n+ PostGIS)]
+    K8sFH["BuildMock\n(never connects)"]
+    K8sApp --> K8sPG
+    K8sPG --> K8sFS
+    K8sApp --> K8sFCM
+    K8sFCM -->|mock| K8sFH
+  end
+  subgraph firebase_mode["firebase-full"]
+    FbApp["Next.js App"]
+    FbAdapter["FirebaseAdapter"]
+    FbSSOT["firebase-service-manager.ts\n30+ SSOT helpers"]
+    FbFS[(Firestore\nAll collections)]
+    FbApp --> FbAdapter
+    FbApp --> FbSSOT
+    FbSSOT --> FbAdapter
+    FbAdapter --> FbFS
+  end
+  subgraph supabase_mode["supabase-fcm"]
+    SaApp["Next.js App"]
+    SaPG["PostgreSQLAdapter"]
+    SaFCM["Firebase Admin\n(FCM push only)"]
+    SaFS[(Supabase PostgreSQL)]
+    SaApp --> SaPG
+    SaPG --> SaFS
+    SaApp --> SaFCM
+  end
+`}</Mermaid>
+
+### Backend selection in code
+
+```typescript
+// lib/database/backend-mode-config.ts
+export type BackendMode = 'k8s-postgres-fcm' | 'firebase-full' | 'supabase-fcm'
+
+export function detectBackendMode(): BackendMode {
+  const mode = process.env.DB_BACKEND_MODE as BackendMode | undefined
+  if (!mode) throw new Error('DB_BACKEND_MODE is required')
+  return mode
+}
+
+export function shouldUseFirebaseForDatabase(): boolean {
+  return detectBackendMode() === 'firebase-full'
+}
+```
+
+### Firebase in k8s-postgres-fcm and supabase-fcm
+
+- **Application data** (collections routed through `DatabaseService` / `BackendSelector`) goes to **PostgreSQL** via `PostgreSQLAdapter`
+- **`lib/firebase-admin.server.ts`** explicitly avoids real Firestore when `shouldUseFirebaseForDatabase()` is false — `getAdminDb()` returns a **mock** Firestore that never connects
+- **FCM** still uses Firebase project credentials where enabled. That is **push delivery only**, not the primary transactional store
+- **`build-mock.server.ts`** now provides **7 mock classes** (`MockFirestore`, `MockAuth`, `MockDatabase`, `MockMessaging`, `MockStorage`, `MockAppCheck`, `MockRemoteConfig`) — all returned as type-compatible mocks during SSG and k8s-postgres-fcm mode
+
+### Firebase in firebase-full mode
+
+- **ALL application data** (every collection routed through `DatabaseService`) goes to **Firestore** via `FirebaseAdapter`
+- **`lib/services/firebase-service-manager.ts`** provides **30+ React 19 `cache()`-native SSOT helpers** for the canonical collection shapes: `users/{userId}.credit_balance` (fiat USD), `users/{userId}.credit_transactions[]` (array), `subscription_ledger` (single source of truth), `payment_transactions` (PaymentConductor), `wallet_transactions` (chain activity), `desk_orders` (credit↔token conversion), `orders` (membership + store)
+- **3 atomic write primitives** (`creditBalanceAdjustAtomic`, `subscriptionStatusUpdateAtomic`, `paymentTransactionAppendStatusAtomic`) wrap read-modify-write in a single Firestore transaction — prevents the race that affected the legacy `addCredits`/`spendCredits` pattern
+- **6 real-time listener factories** (`createCreditBalanceListener`, `createSubscriptionListener`, `createPaymentTransactionListener`, `createWalletTransactionListener`, `createDeskOrderListener`, `createOrderListener`) pair with Tunnel for live UI updates without polling
+- **Firebase 14 Enterprise** features available via `FirebaseAdapter`: pipeline operations (`runPipeline`), change streams (`onCollectionChange`), text search (`textSearch`), geospatial (`geoSearch`)
+
+### React 19 cache() pattern
+
+Every SSOT read helper in `firebase-service-manager.ts` is wrapped in React 19 `cache()`:
+
+```typescript
+import { cache } from 'react'
+
+export const getCachedUserCreditBalance = cache(async (userId: string) => {
+  // Firestore read — cached for the duration of the request
+})
+
+export const getCachedActiveSubscription = cache(async (userId: string) => {
+  // Query subscription_ledger — deduplicated if called twice
+})
+```
+
+This eliminates duplicate Firestore reads within a single SSG/SSR cycle — typical 3–7× reduction in read operations.
+
+### Supabase: two different roles
+
+1. **`DB_BACKEND_MODE=supabase-fcm`** — PostgreSQL runs on Supabase; same "Postgres primary + FCM" pattern as k8s mode
+2. **Tunnel realtime (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`)** — optional **Realtime** channel in `lib/tunnel/transports/supabase-transport.ts`, using `@supabase/supabase-js` and `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. This is **orthogonal** to which SQL backend owns your tables — do not assume "Supabase in env" always equals `supabase-fcm` mode
+
+### Auth.js and database mode
+
+Auth tables (`users`, `accounts`, `sessions`, `verification_tokens`, …) are part of the **PostgreSQL** schema when using the PostgreSQL adapter (k8s-postgres-fcm, supabase-fcm) or live in **Firestore** when using the Firebase adapter (firebase-full). See `lib/auth/postgres-adapter.ts` / `data/schema.sql` for the SQL path, and `lib/auth/firebase-adapter.ts` for the Firestore path.
+
+### React 19 + React 16 compatibility
+
+All SSOT helpers and adapter methods are `async` (Promise-based) so they are compatible with:
+- React 19 `use()` for Suspense-based data fetching
+- `useActionState` for Server Action forms
+- Regular `await` in Server Components and Route Handlers
 
 ## Related documentation
 
-- [Environment configuration](../deployment/environment) — where secrets and URLs are grouped (includes pointer to backend modes).
-- [Push notifications (FCM)](../features/push-notifications-fcm) — token storage follows `BackendSelector` + mode.
-- [Tunnel protocol](../features/tunnel-protocol) — transports vs `DB_BACKEND_MODE`.
-- [Database backend selection (customization)](../customization/database-selection) — operator decision guide; align env with this page.
-- Production wiring: `k8s/ENV-PROD-WIRING.md` (cluster secrets, build args, `DB_BACKEND_MODE` in image vs runtime).
+<Cards>
+  <Card href="/docs/backend/firebase" title="Firebase integration" description="Full Firebase 14 Enterprise stack: Admin SDK, adapter, SSOT helpers, FCM, AI Logic, Hosting." />
+  <Card href="/docs/backend/k8s-postgres-fcm" title="k8s-postgres-fcm mode" description="Recommended production mode — PostgreSQL with FCM-only Firebase." />
+  <Card href="/docs/customization/database-selection" title="Database selection guide" description="Operator decision guide for choosing your backend mode." />
+  <Card href="/docs/deployment/environment" title="Environment variables" description="Complete env var reference for all backend modes." />
+  <Card href="/docs/features/push-notifications-fcm" title="Push notifications (FCM)" description="FCM token registration, Server Action upsert, lifecycle management." />
+  <Card href="/docs/features/tunnel-protocol" title="Tunnel protocol" description="Real-time transports vs DB_BACKEND_MODE — WebSocket, SSE, polling." />
+  <Card href="/docs/development/code-structure" title="Code structure" description="Source tree map — all lib/ and features/ directories." />
+</Cards>
 
-## Open decision (naming)
-
-If you want the **string** `k8s-postgres-fcm` to read as `self-hosted` or `postgres` in **env only**, that requires: new accepted value in `backend-mode-config.ts`, deployment manifests, all rings’ secrets, CI, and docs — **or** a long deprecation with alias support. **Docs‑only** rename to “self‑hosted” is safe and already reflected above.
+</Audience>

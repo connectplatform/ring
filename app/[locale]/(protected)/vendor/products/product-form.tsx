@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Upload, X, Loader2, Save, ArrowLeft, Link as LinkIcon } from 'lucide-react'
+import { Upload, X, Loader2, Save, ArrowLeft, Link as LinkIcon, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,9 +45,10 @@ import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import NicheProductFieldsSection from '@/components/vendor/niche-product-fields-section'
 import ProductRepSelect from '@/components/store/product-rep-select'
-import { useCurrency } from '@/features/store/currency-context'
+import { useStoreCurrency } from '@/features/store/currency-context'
 import { displayPriceFromUah, getCurrencySymbol } from '@/lib/zod/store-product'
-import ringConfig from '@/ring-config.json'
+import { getProductFieldsPresets } from '@/lib/ring-config-core'
+import type { StoreCurrency } from '@/lib/zod/store-product'
 
 interface ProductFormProps {
   mode: 'create' | 'edit'
@@ -60,7 +61,7 @@ interface ProductFormProps {
 }
 
 const PRODUCT_CATEGORIES = [...STORE_PRODUCT_CATEGORIES]
-const HAS_NICHE_PRODUCT_FIELDS = ringConfig.productFields?.preset === 'agricultural'
+const HAS_NICHE_PRODUCT_FIELDS = getProductFieldsPresets() !== null && Object.keys(getProductFieldsPresets() ?? {}).length > 0
 
 export default function ProductForm({
   mode,
@@ -77,8 +78,8 @@ export default function ProductForm({
   const tAdminForm = useTranslations('modules.admin.storeHub.productsPage.form')
   const tCat = useTranslations('vendor.onboarding.categories')
   const router = useRouter()
-  const { currency } = useCurrency()
-  const currencySymbol = getCurrencySymbol(currency)
+  const { currency, convertPrice, formatPrice: formatCurrencyPrice } = useStoreCurrency()
+  const currencySymbol = getCurrencySymbol(currency as StoreCurrency)
 
   const pageTitle =
     variant === 'admin'
@@ -136,7 +137,10 @@ export default function ProductForm({
   const [videoPreview, setVideoPreview] = useState<string | null>(existingProduct?.data?.videoUrl || null)
   const [activeInMyStore, setActiveInMyStore] = useState<boolean>(existingProduct?.status === 'active' || true)
   const [submitToMainStore, setSubmitToMainStore] = useState(false)
+  const [productAudience, setProductAudience] = useState<'public' | 'member'>(existingProduct?.productAudience ?? existingProduct?.audience ?? 'public')
+  const [selectedCategory, setSelectedCategory] = useState<string>(existingProduct?.category || '')
   const [repUsername, setRepUsername] = useState<string>(existingProduct?.rep ?? '')
+  const [customFields, setCustomFields] = useState<Array<{ id: string; fieldName: string; fieldValue: string; fieldType: string }>>([])
   const [priceInput, setPriceInput] = useState(() => {
     if (!existingProduct?.price) return ''
     return String(displayPriceFromUah(Number(existingProduct.price), currency))
@@ -272,6 +276,7 @@ export default function ProductForm({
         <input type="hidden" name="rep" value={repUsername} />
         <input type="hidden" name="activeInMyStore" value={activeInMyStore ? 'true' : 'false'} />
         <input type="hidden" name="submitToMainStore" value={submitToMainStore ? 'true' : 'false'} />
+        <input type="hidden" name="productAudience" value={productAudience} />
 
         {variant === 'admin' && adminVendors && mode === 'create' && (
           <Card className="mb-6">
@@ -373,7 +378,13 @@ export default function ProductForm({
             {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">{tForm('category')} *</Label>
-              <Select name="category" defaultValue={existingProduct?.category || ''} disabled={isPending} required>
+              <Select
+                name="category"
+                defaultValue={existingProduct?.category || selectedCategory || ''}
+                disabled={isPending}
+                required
+                onValueChange={(val) => setSelectedCategory(val)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={tForm('categoryPlaceholder')} />
                 </SelectTrigger>
@@ -385,6 +396,62 @@ export default function ProductForm({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Custom Product Fields (injected via sql migrations on deploy per ring-store-niche preset) */}
+            {HAS_NICHE_PRODUCT_FIELDS && (
+              <div className="pt-4 border-t">
+                <NicheProductFieldsSection
+                  isPending={isPending}
+                  existingData={existingProduct?.data}
+                  category={selectedCategory}
+                />
+              </div>
+            )}
+
+            {/* Add product parameter — vendor custom fields CRUD */}
+            <div className="space-y-2 pt-4 border-t">
+              {!isPending && (
+                <button
+                  type="button"
+                  onClick={() => setCustomFields((prev) => [...prev, { id: crypto.randomUUID(), fieldName: '', fieldValue: '', fieldType: 'text' }])}
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  {tForm('addProductParameter')}
+                </button>
+              )}
+              {customFields.map((cf) => (
+                <div key={cf.id} className="flex items-start gap-2">
+                  <input type="hidden" name={`customField_${cf.id}_name`} value={cf.fieldName} />
+                  <input type="hidden" name={`customField_${cf.id}_value`} value={cf.fieldValue} />
+                  <input type="hidden" name={`customField_${cf.id}_type`} value={cf.fieldType} />
+                  <input type="hidden" name={`customField_${cf.id}_category`} value={selectedCategory} />
+                  <Input
+                    placeholder={tForm('parameterName')}
+                    value={cf.fieldName}
+                    onChange={(e) => setCustomFields((prev) => prev.map(p => p.id === cf.id ? { ...p, fieldName: e.target.value } : p))}
+                    disabled={isPending}
+                    className="h-9 text-sm flex-1"
+                  />
+                  <Input
+                    placeholder={tForm('parameterValue')}
+                    value={cf.fieldValue}
+                    onChange={(e) => setCustomFields((prev) => prev.map(p => p.id === cf.id ? { ...p, fieldValue: e.target.value } : p))}
+                    disabled={isPending}
+                    className="h-9 text-sm flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCustomFields((prev) => prev.filter(p => p.id !== cf.id))}
+                    disabled={isPending}
+                    className="text-destructive hover:text-destructive/80 p-1"
+                    aria-label={tForm('removeParameter')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
             </div>
 
             {/* Referral commission (optional per-product override) */}
@@ -476,16 +543,6 @@ export default function ProductForm({
               />
             </div>
 
-            {/* Agricultural ERP Fields (Optional — agricultural preset only) */}
-            {HAS_NICHE_PRODUCT_FIELDS && (
-              <div className="pt-4 border-t">
-                <NicheProductFieldsSection 
-                  isPending={isPending}
-                  existingData={existingProduct?.data}
-                />
-              </div>
-            )}
-
             {/* Toggles */}
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center justify-between">
@@ -510,6 +567,19 @@ export default function ProductForm({
                   id="submitToMainStore"
                   checked={submitToMainStore}
                   onCheckedChange={setSubmitToMainStore}
+                  disabled={isPending}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="productAudience">{tForm('productAudience')}</Label>
+                  <p className="text-xs text-muted-foreground">{tForm('productAudienceHint')}</p>
+                </div>
+                <Switch
+                  id="productAudience"
+                  checked={productAudience === 'member'}
+                  onCheckedChange={(checked) => setProductAudience(checked ? 'member' : 'public')}
                   disabled={isPending}
                 />
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useActionState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,6 +24,8 @@ import {
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 import type { Locale } from '@/i18n/shared'
+import { topUpCredits } from '@/app/_actions/wallet'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 
 interface WalletTopUpClientProps {
   locale: Locale
@@ -32,9 +34,36 @@ interface WalletTopUpClientProps {
 
 export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpClientProps) {
   const t = useTranslations('modules.wallet')
+  const { refresh: refreshCreditBalance } = useCreditBalanceContext()
 
   // React 19 useTransition for non-blocking tab and payment method changes
   const [isPending, startTransition] = useTransition()
+
+  // React 19 useActionState for RING token top-up (server action)
+  const [ringState, ringFormAction, ringIsPending] = useActionState(
+    async (prevState: any, formData: FormData) => {
+      const result = await topUpCredits(formData)
+      
+      if (result.success) {
+        // Refresh credit balance after successful top-up
+        await refreshCreditBalance()
+        
+        logger.info('RING top-up successful via server action', { 
+          amount: formData.get('amount'), 
+          method: 'blockchain_transfer',
+          txHash: result.txHash 
+        })
+      } else {
+        logger.error('RING top-up failed via server action', { 
+          amount: formData.get('amount'), 
+          error: result.error 
+        })
+      }
+      
+      return result
+    },
+    null
+  )
 
   const [activeTab, setActiveTab] = useState<string>('ring')
   
@@ -42,8 +71,6 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
   const [ringAmount, setRingAmount] = useState('')
   const [ringDescription, setRingDescription] = useState('')
   const [txHash, setTxHash] = useState('')
-  const [isSubmittingRing, setIsSubmittingRing] = useState(false)
-  const [ringResult, setRingResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // WayForPay state
   const [fiatAmount, setFiatAmount] = useState('')
@@ -51,81 +78,22 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
   const [isSubmittingFiat, setIsSubmittingFiat] = useState(false)
   const [fiatResult, setFiatResult] = useState<{ success: boolean; message: string } | null>(null)
 
-  const handleRingTopUp = async () => {
-    if (!ringAmount) return
-
-    const amountNum = parseFloat(ringAmount)
-    if (amountNum <= 0 || amountNum > 10000) {
-      setRingResult({
-        success: false,
-        message: t('topup.error.invalid_amount', {
-          defaultValue: 'Amount must be between 0.01 and 10000 RING',
-        })
-      })
+  const handleRingTopUp = async (formData: FormData) => {
+    // Validate before submitting
+    const amount = formData.get('amount') as string
+    if (!amount || parseFloat(amount) <= 0) {
       return
     }
 
-    setIsSubmittingRing(true)
-    setRingResult(null)
+    // Submit via server action
+    ringFormAction(formData)
 
-    try {
-      const requestBody = {
-        amount: ringAmount,
-        description: ringDescription || `Top-up via Blockchain Transfer`,
-        tx_hash: txHash || undefined,
-        metadata: {
-          method: 'blockchain_transfer',
-          user_initiated: true,
-        },
-      }
-
-      const response = await fetch('/api/wallet/credit/topup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Top-up failed')
-      }
-
-      setRingResult({
-        success: true,
-        message: result.message || t('topup.success', { 
-          defaultValue: 'Successfully added {amount} RING to your balance',
-          amount: ringAmount
-        })
-      })
-
-      logger.info('RING top-up successful', { 
-        amount: ringAmount, 
-        method: 'blockchain_transfer',
-        transactionId: result.transaction_id 
-      })
-
-      // Reset form after success
-      setTimeout(() => {
-        setRingAmount('')
-        setRingDescription('')
-        setTxHash('')
-        setRingResult(null)
-      }, 3000)
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setRingResult({
-        success: false,
-        message: errorMessage
-      })
-      
-      logger.error('RING top-up failed', { amount: ringAmount, error })
-    } finally {
-      setIsSubmittingRing(false)
-    }
+    // Reset form after submission
+    setTimeout(() => {
+      setRingAmount('')
+      setRingDescription('')
+      setTxHash('')
+    }, 3000)
   }
 
   const handleWayForPayTopUp = async () => {
@@ -196,27 +164,28 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
 
         {/* RING Token Transfer Tab */}
         <TabsContent value="ring" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                {t('topup.methods.blockchain.name', { defaultValue: 'Blockchain Transfer' })}
-              </CardTitle>
-              <CardDescription>
-                {t('topup.methods.blockchain.description', { defaultValue: 'Transfer RING tokens directly from your wallet' })}
-              </CardDescription>
-            </CardHeader>
+          <form action={handleRingTopUp}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-primary" />
+                  {t('topup.methods.blockchain.name', { defaultValue: 'Blockchain Transfer' })}
+                </CardTitle>
+                <CardDescription>
+                  {t('topup.methods.blockchain.description', { defaultValue: 'Transfer RING tokens directly from your wallet' })}
+                </CardDescription>
+              </CardHeader>
             <CardContent className="space-y-6">
               {/* Success/Error Display */}
-              {ringResult && (
-                <Alert className={ringResult.success ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}>
-                  {ringResult.success ? (
+              {ringState && (
+                <Alert className={ringState.success ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}>
+                  {ringState.success ? (
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                   )}
-                  <AlertDescription className={ringResult.success ? 'text-green-800' : 'text-destructive'}>
-                    {ringResult.message}
+                  <AlertDescription className={ringState.success ? 'text-green-800' : 'text-destructive'}>
+                    {ringState.message || ringState.error}
                   </AlertDescription>
                 </Alert>
               )}
@@ -229,6 +198,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                 <div className="relative">
                   <Input
                     id="ring-amount"
+                    name="amount"
                     type="number"
                     placeholder="0.00"
                     value={ringAmount}
@@ -255,6 +225,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                 </Label>
                 <Input
                   id="tx-hash"
+                  name="txHash"
                   placeholder="0x..."
                   value={txHash}
                   onChange={(e) => setTxHash(e.target.value)}
@@ -274,6 +245,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                 </Label>
                 <Textarea
                   id="ring-description"
+                  name="description"
                   placeholder={t('topup.description_placeholder', { 
                     defaultValue: 'Add a note for this top-up...' 
                   })}
@@ -311,12 +283,12 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
 
               {/* Action Button */}
               <Button 
-                onClick={handleRingTopUp}
-                disabled={!ringAmount || parseFloat(ringAmount) <= 0 || isSubmittingRing}
+                type="submit"
+                disabled={!ringAmount || parseFloat(ringAmount) <= 0 || ringIsPending}
                 className="w-full"
                 size="lg"
               >
-                {isSubmittingRing ? (
+                {ringIsPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {t('topup.processing', { defaultValue: 'Processing...' })}
@@ -340,6 +312,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
               </Alert>
             </CardContent>
           </Card>
+          </form>
         </TabsContent>
 
         {/* WayForPay Tab */}

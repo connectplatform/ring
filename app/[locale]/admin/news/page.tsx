@@ -15,6 +15,7 @@ import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
 import { isPlatformAdmin } from '@/features/auth/user-role';
 import { connection } from 'next/server';
+import { getNewsStats } from '@/features/news/services/get-news-stats';
 
 async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
@@ -82,9 +83,10 @@ export default async function AdminNewsPage({
 
   const articles = await getNewsArticles();
   const adminLabels = buildModulesAdminLabels(t);
+  const newsStats = await getNewsStats();
 
   return (
-    <AdminWrapper locale={validLocale} pageContext="news" labels={adminLabels}>
+    <AdminWrapper locale={validLocale} pageContext="news" labels={adminLabels} newsStats={newsStats}>
       <div className="container mx-auto px-0 py-0">
         <div className="mb-8">
           <h1 className="mb-2 text-3xl font-bold text-foreground">{t('newsManagement')}</h1>

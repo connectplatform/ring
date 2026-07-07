@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import WalletActionsRail from '@/components/wallet/wallet-actions-rail'
 import { CreditHistoryProvider } from '@/components/providers/credit-history-provider'
@@ -10,12 +10,18 @@ import type { Locale } from '@/i18n/shared'
 
 interface WalletWrapperProps {
   children: React.ReactNode
-  locale: string
+  locale: Locale
 }
 
 export default function WalletWrapper({ children, locale }: WalletWrapperProps) {
-  const resolvedLocale = locale as Locale
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+
+  const closeRail = useCallback(() => setRightSidebarOpen(false), [])
+
+  const rightRail = useMemo(
+    () => <WalletActionsRail locale={locale} onNavigate={closeRail} />,
+    [locale, closeRail],
+  )
 
   return (
     <WalletListProvider>
@@ -25,12 +31,7 @@ export default function WalletWrapper({ children, locale }: WalletWrapperProps) 
             isOpen={rightSidebarOpen}
             onToggle={setRightSidebarOpen}
             contentClassName="pb-24 md:pt-2 lg:pb-8"
-            rightRail={
-              <WalletActionsRail
-                locale={resolvedLocale}
-                onNavigate={() => setRightSidebarOpen(false)}
-              />
-            }
+            rightRail={rightRail}
           >
             {children}
           </RingRightRailLayout>

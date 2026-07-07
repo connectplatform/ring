@@ -1,57 +1,43 @@
 /**
  * Create User Service
- * 
+ *
  * Creates new user in PostgreSQL database
  * Uses React 19 cache() for request deduplication
  */
+// TODO: Consider using React 19's `cache()` to deduplicate identical user creation requests server-side and
+// memoize findUserByEmail lookup during a single request cycle for efficiency
+// TODO: Next.js 16 now supports async Server Actions with improved error propagation and streaming, allowing potential codemods for direct invocation of this service from the server using server actions
 
-import { AuthUser, UserRole } from '@/features/auth/types'
+import { AuthUser } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import { auth } from '@/auth'
-import {
-  assertKnownUserRole,
-  hasConfidentialAccess,
-  isPlatformAdmin,
-} from '@/features/auth/user-role'
+import { assertKnownUserRole, hasConfidentialAccess, isPlatformAdmin } from '@/features/auth/user-role'
 import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors'
 import { db } from '@/lib/database'
-import { findUserByEmail, normalizeAuthEmail } from '@/features/auth/services/user-resolve'
+import { findUserByEmail, normalizeAuthEmail } from '@/features/auth/services/user-resolve';
+import { DEFAULT_LOCALE } from '@/lib/locale-config';
+import { getDefaultTheme } from '@/lib/ring-config-core';
 
 /**
- * Create a new user in Firestore, with authentication and role-based access control.
+ * Create a new user in the DB, with authentication and role-based access control.
  * 
- * This function performs the following steps:
- * 1. Authenticates the requesting user (if applicable)
- * 2. Validates the input data
- * 3. Prepares the user data with default values
- * 4. Creates a new user document in Firestore
- * 
- * User steps:
- * 1. A new user signs up or an admin creates a new user account
- * 2. The function is called with the new user's data
- * 3. If successful, a new user document is created in Firestore
- * 
- * @param {Partial<AuthUser>} userData - The data for the new user to be created
- * @param {string} [userData.id] - Optional user ID. If not provided, a new ID will be generated
- * @param {string} userData.email - The email address of the new user (required)
- * @param {string} userData.name - The name of the new user (required)
- * @param {UserRole} [userData.role] - The role of the new user. Defaults to SUBSCRIBER if not provided
- * @param {string} [userData.authProvider] - The authentication provider. Defaults to 'credentials'
- * @param {string} [userData.authProviderId] - The ID from the auth provider. Defaults to the user's Firestore ID
- * @param {boolean} [userData.isVerified] - Whether the user is verified. Defaults to false
- * @param {Date} [userData.emailVerified] - The date the email was verified. Defaults to null
- * 
- * @returns {Promise<AuthUser | null>} A promise that resolves to the created AuthUser object or null if creation failed
- * @throws {AuthError} If user authentication fails
- * @throws {AuthPermissionError} If user lacks permission to create users
- * @throws {ValidationError} If required user data is missing or invalid
- * @throws {EntityDatabaseError} If database operations fail
+ * Implementation Steps:
+ * 1. Authenticate request (if session present)
+ * 2. Validate input
+ * 3. Check for equivalent email in DB
+ * 4. Compose full defaulted user object
+ * 5. Insert into DB
+ *
+ * @param {Partial<AuthUser>} userData - Data for the new user
+ * @returns {Promise<AuthUser | null>}
  */
 export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser | null> {
   try {
     console.log('Services: createUser - Starting user creation process...');
 
-    // Step 1: Validate required fields
+    // Step 1: Validate required fields, fail fast and informatively
     if (!userData.email) {
+      // A ValidationError is thrown if email is missing
       throw new ValidationError('Email is required for user creation', undefined, {
         timestamp: Date.now(),
         providedData: userData,
@@ -61,6 +47,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
     }
 
     if (!userData.name) {
+      // Name is also mandatory for user creation
       throw new ValidationError('Name is required for user creation', undefined, {
         timestamp: Date.now(),
         providedData: userData,
@@ -69,15 +56,17 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       });
     }
 
-    // Step 2: Authenticate the requesting user (for admin-created users)
+    // Step 2: Optionally authenticate current session user for admin-based creation
+    // NOTE: In Next.js 16, you might migrate this to a server action for improved security
     const session = await auth();
-    
-    // If there's a session, validate permissions for admin-created users
+
+    // If this creation is being performed while logged in, apply RBAC validation
     if (session && session.user) {
+      // Normalize and check requesting user's role
       const requestingUserRole = assertKnownUserRole(session.user.role);
-      
-      // Only platform admins can create users with roles other than SUBSCRIBER
-      if (userData.role && userData.role !== UserRole.subscriber) {
+
+      // Only platform admins can create users with non-default roles (other than SUBSCRIBER)
+      if (userData.role && userData.role !== UserRolesArray.subscriber) {
         if (!isPlatformAdmin(requestingUserRole)) {
           throw new AuthPermissionError(
             'Only admin users can create users with non-SUBSCRIBER roles',
@@ -93,11 +82,14 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
         }
       }
     }
-    // Step 3: Check if user already exists by email
-    const email = normalizeAuthEmail(userData.email)
+
+    // Step 3: Normalize email and check if user already exists in DB
+    const email = normalizeAuthEmail(userData.email);
     try {
-      const existing = await findUserByEmail(email)
+      // TODO (React 19): Wrap this lookup into cache() to deduplicate during request batch
+      const existing = await findUserByEmail(email);
       if (existing) {
+        // Fail if a user with this email already exists
         throw new ValidationError(
           'User with this email already exists',
           undefined,
@@ -107,10 +99,11 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
             existingUserId: existing.id,
             operation: 'createUser'
           }
-        )
+        );
       }
     } catch (error) {
-      if (error instanceof ValidationError) throw error
+      // Surface ValidationError directly, otherwise wrap DB errors
+      if (error instanceof ValidationError) throw error;
       throw new EntityDatabaseError(
         'Failed to check for existing user',
         error instanceof Error ? error : new Error(String(error)),
@@ -119,29 +112,31 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           email,
           operation: 'existing_user_check'
         }
-      )
+      );
     }
 
-    // Step 4: Generate user ID and prepare user data with defaults  
-    const userId = userData.id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Step 4: Generate user ID and merge with defaults
+    // TODO: Move ID generation to a utility that guarantees uniqueness (e.g. use nanoid or database ID)
+    const userId = userData.id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // STUB: Replace with robust id generation
     const now = new Date();
-    
+
+    // Compose a full AuthUser object with sensible defaults and received (partial) input
     const newUser: AuthUser = {
       id: userId,
       globalUserId: userData.globalUserId || userId,
       email,
       name: userData.name,
-      role: userData.role || UserRole.subscriber,
+      role: userData.role || UserRolesArray.subscriber,
       authProvider: userData.authProvider || 'credentials',
       authProviderId: userData.authProviderId || userId,
       isVerified: userData.isVerified || false,
       emailVerified: userData.emailVerified || null,
       createdAt: now,
       lastLogin: userData.lastLogin || null,
-      accountStatus: 'ACTIVE', // New users start as active
+      accountStatus: 'ACTIVE', // New users default to active
       settings: userData.settings || {
-        language: 'en',
-        theme: 'system',
+        language: DEFAULT_LOCALE,
+        theme: getDefaultTheme(),
         notifications: true,
         notificationPreferences: {
           email: true,
@@ -161,10 +156,14 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       wallets: userData.wallets || [],
     };
 
-    // Step 5: Create the user document using DatabaseService
+    // Step 5: Insert new user document into database
     try {
-      const createResult = await db().createDoc('users', newUser as unknown as Record<string, unknown>, { id: newUser.id })
-      
+      // NOTE: db().createDoc should atomically insert the new user
+      // STUB: Validate that db().createDoc handles unique index violation and error surfacing gracefully
+      // TODO: Replace with useDatabaseMutation (if Next.js 16 Polyfills/provides) for native data mutation reliability
+      const createResult = await db().createDoc('users', newUser as unknown as Record<string, unknown>, { id: newUser.id });
+
+      // Verify insertion was entirely successful
       if (!createResult.success) {
         throw new EntityDatabaseError(
           'Failed to create user document',
@@ -175,10 +174,11 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
             email: newUser.email,
             operation: 'user_creation'
           }
-        )
+        );
       }
     } catch (error) {
-      if (error instanceof EntityDatabaseError) throw error
+      // Rethrow database errors or surface other lower-level errors as standardized EntityDatabaseError
+      if (error instanceof EntityDatabaseError) throw error;
       throw new EntityDatabaseError(
         'Failed to create user document',
         error instanceof Error ? error : new Error(String(error)),
@@ -188,25 +188,28 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           email: newUser.email,
           operation: 'user_creation'
         }
-      )
+      );
     }
 
+    // Success: User was created and inserted
     console.log(`Services: createUser - User created successfully with ID: ${newUser.id}`);
     return newUser;
 
   } catch (error) {
-    // Enhanced error logging with cause information
+    // Comprehensive error logging--logs the stack/cause as permitted by error shape
     logRingError(error, 'Services: createUser - Error creating user');
-    
-    // Re-throw known errors, wrap unknown errors
-    if (error instanceof AuthError || 
-        error instanceof AuthPermissionError ||
-        error instanceof ValidationError ||
-        error instanceof EntityDatabaseError) {
+
+    // Propagate specific expected errors to be handled by upper layers
+    if (
+      error instanceof AuthError ||
+      error instanceof AuthPermissionError ||
+      error instanceof ValidationError ||
+      error instanceof EntityDatabaseError
+    ) {
       throw error;
     }
-    
-    // For unknown errors, still return null for backward compatibility
+
+    // Unexpected: Log and fallback return null for legacy compatibility
     console.error('Services: createUser - Unknown error occurred:', error);
     return null;
   }

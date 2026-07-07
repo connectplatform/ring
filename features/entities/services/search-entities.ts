@@ -7,7 +7,7 @@ import { SerializedEntity, EntityType } from '@/features/entities/types'
 import {
   mapDbDocumentToSerializedEntity,
 } from '@/features/entities/lib/entity-db-mapper'
-import { UserRole, assertKnownUserRole } from '@/features/auth/user-role'
+import { UserRolesArray, assertKnownUserRole } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { getMcpActor } from '@/lib/auth/mcp-actor-context'
 import { logger } from '@/lib/logger'
@@ -110,7 +110,7 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
       })
     }
 
-    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role)
+    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role) as UserRolesArray
     const userId = session?.user?.id ?? mcpActor?.id
     const blockedEntityIds = userId ? await getUserBlockedEntityIds(userId) : []
 

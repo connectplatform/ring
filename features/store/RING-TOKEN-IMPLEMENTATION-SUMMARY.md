@@ -8,13 +8,13 @@ Successfully implemented a complete RING token-based membership payment system t
 
 ### **Phase 1: Smart Contracts** ✅ **COMPLETED**
 - **RingToken.sol**: ERC20 upgradeable token with membership fee deduction
-- **RingMembership.sol**: Subscription management with automatic renewals
+- **Membership.sol**: Subscription management with automatic renewals
 - **Deployment Scripts**: Production-ready deployment for Polygon testnet/mainnet
 - **Testing Suite**: Comprehensive smart contract tests
 
 ### **Phase 2: Credit Balance System** ✅ **COMPLETED** 
 - **User Profile Extension**: Added `credit_balance` field with transaction history
-- **UserCreditService**: Complete credit management with add/spend/history operations
+- **creditBalanceService**: Complete credit management with add/spend/history operations
 - **Transaction Types**: Support for payments, airdrops, reimbursements, purchases, etc.
 - **Firebase Integration**: Server-side admin SDK integration for data safety
 
@@ -34,7 +34,7 @@ Successfully implemented a complete RING token-based membership payment system t
 - **Credit Balance APIs**: `/api/wallet/credit/*` - Balance, history, top-up, spend
 - **Price APIs**: `/api/prices/*` - RING/USD rates, conversion
 - **Subscription APIs**: `/api/membership/subscription/*` - Create, status, cancel
-- **Payment APIs**: `/api/membership/payment/ring` - RING token payments
+- **Payment APIs**: `/api/membership/payment/token` - RING token payments
 
 ### **Phase 6: Documentation** ✅ **COMPLETED**
 - **AI Context Files**: Updated AI-CONTEXT-INDEX.json with RING token system
@@ -58,12 +58,12 @@ graph TB
     C --> C3[Payment APIs]
     C --> C4[Price APIs]
     
-    D --> D1[UserCreditService]
+    D --> D1[creditBalanceService]
     D --> D2[SubscriptionService]
     D --> D3[PriceOracleService]
     
     E --> E1[RingToken.sol]
-    E --> E2[RingMembership.sol]
+    E --> E2[Membership.sol]
     
     G --> G1[Chainlink]
     G --> G2[CoinGecko]

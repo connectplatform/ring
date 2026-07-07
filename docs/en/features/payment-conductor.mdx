@@ -1,44 +1,61 @@
 ---
 title: PaymentConductor
-description: Unified payment orchestration for store, membership, and news promotion with WayForPay, Stripe, and internal credit
-last_modified: "2026-06-06"
+description: Unified payment orchestration for store checkout, membership upgrades, and news promotion — WayForPay, Stripe, and internal credit. One ledger, config-driven processor selection, and unified webhook dispatcher.
+last_modified: "2026-06-30"
+audience: both
 ---
 
 # PaymentConductor
 
 PaymentConductor (v1, 2026-05-22) is Ring Platform's config-driven payment layer. One ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, and news promotion.
 
-## Architecture
-
-```
-Checkout / upgrade / promotion
-        ↓
-lib/payments/conductor/payment-conductor.ts
-        ↓
-Processors: wayforpay | stripe | internal_credit
-        ↓
-payment_transactions (PostgreSQL)
-```
-
-Implementation: `lib/payments/conductor/`, `lib/payments/processors/`, `lib/payments/payment.config.ts`.
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see configuration and business value; developers see architecture, modules, and webhook flows.
+</Callout>
 
 ## Payment purposes
 
 | Purpose | Handler | Typical processor |
-|---------|---------|-----------------|
+|---------|---------|-------------------|
 | `store_order` | `handlers/store-order.ts` | WayForPay or Stripe |
 | `membership_upgrade` | `handlers/membership-upgrade.ts` | WayForPay or Stripe |
 | `news_promotion` | `handlers/news-promotion.ts` | WayForPay or Stripe |
 
-Per-purpose override via env: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` or `stripe`).
+<Audience for="founder">
 
-## Rails
+## What founders get from PaymentConductor
 
-- **merchant_redirect** — WayForPay / Stripe hosted checkout
-- **internal_credit** — Wallet credit balance (`PAYMENT_STORE_ALLOW_CREDIT`)
-- **native_token** — RING token (optional, `PAYMENT_STORE_ALLOW_TOKEN`)
+- **One payment layer for everything** — store, membership, and news all route through the same conductor. One ledger to audit, one webhook path to monitor.
+- **Config-driven gateway selection** — choose your card processor in `ring-config.json`; override per-deployment via env vars. No code changes needed.
+- **Fee pass-through** — gateway fees are deducted per transaction; net revenue visible on the admin dashboard.
+- **Internal credit rail** — users can pay with RING credit balance (zero gateway fee).
+- **RING token rail** — optional on-chain Solana payment path.
 
-## Environment variables
+### Gateway fee rates (ring-config.json)
+
+| Gateway | Fee % | Fixed Fee | Currency | Status |
+|---------|-------|-----------|----------|--------|
+| WayForPay | 2.5% | — | UAH | ✅ Live |
+| Stripe | 2.9% | $0.30 | USD | ✅ Live (Phase S3) |
+| Credit Balance | 0% | — | USD | ✅ Live |
+| RING Token | 0% | — | RING | ✅ Live |
+
+### Quick setup
+
+```json
+{
+  "payment": {
+    "cardPaymentProcessor": "wayforpay",
+    "supportedMethods": ["wayforpay", "credit_balance", "native_token"],
+    "gateways": {
+      "wayforpay": { "enabled": true, "feePercent": 2.5, "currency": "UAH" },
+      "stripe": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" }
+    }
+  }
+}
+```
+
+Set env vars for each gateway:
 
 ```bash
 PAYMENT_DEFAULT_PROCESSOR=wayforpay
@@ -46,17 +63,88 @@ WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
 WAYFORPAY_SECRET_KEY=your_secret
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-PAYMENT_FIAT_CURRENCY=UAH
+PAYMENT_FIAT_CURRENCY=USD
 ```
 
-Webhooks: `/api/payments/wayforpay/webhook`, `/api/payments/stripe/webhook` — dispatched by `webhook-dispatcher.ts`.
+### Per-purpose processor override
 
-## Database
+```bash
+PAYMENT_STORE_PROCESSOR=stripe        # Override store checkout to Stripe
+PAYMENT_MEMBERSHIP_PROCESSOR=stripe   # Override membership to Stripe
+PAYMENT_NEWS_PROCESSOR=wayforpay      # News stays on WayForPay
+```
 
-Apply migration `data/migrations/004_payment_transactions.sql` before enabling PaymentConductor in production.
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+<RingWidgetFlowStepsFive
+  locale="en"
+  centerLabel="PaymentConductor"
+  centerIcon="Zap"
+  centerColor="from-amber-500 to-orange-600"
+  spokes={[
+    { label: "Checkout", icon: "ShoppingCart", color: "#10b981", description: "User initiates payment" },
+    { label: "WayForPay", icon: "CreditCard", color: "#3b82f6", description: "Ukrainian payment gateway" },
+    { label: "Stripe", icon: "CreditCard", color: "#8b5cf6", description: "Global payment processor" },
+    { label: "Credit", icon: "Wallet", color: "#f59e0b", description: "Internal RING credit balance" },
+    { label: "Webhook", icon: "Webhook", color: "#ec4899", description: "Payment status callbacks" },
+    { label: "Handlers", icon: "Shield", color: "#6366f1", description: "Store/Membership/News logic" },
+    { label: "Ledger", icon: "Database", color: "#0ea5e9", description: "payment_transactions SSOT" },
+  ]}
+  connectionLabels={{ inbound: "Request", outbound: "Response" }}
+/>
+
+Implementation: `lib/payments/conductor/`, `lib/payments/processors/`, `lib/payments/payment.config.ts`.
+
+### Key modules
+
+| Module | Path | Role |
+|--------|------|------|
+| Conductor | `lib/payments/conductor/payment-conductor.ts` | Routes payments by purpose + processor |
+| Config | `lib/payments/payment.config.ts` | Reads `ring-config.json` + env overrides |
+| WayForPay | `lib/payments/processors/wayforpay.ts` | HMAC verify, form generation |
+| Stripe | `lib/payments/processors/stripe.ts` | Stripe Checkout, webhook |
+| Internal credit | `lib/payments/processors/internal-credit.ts` | Credit balance deduction |
+| Webhook dispatcher | `lib/payments/webhook-dispatcher.ts` | Unified dispatcher for all providers |
+| Purpose handlers | `lib/payments/handlers/store-order.ts`, `handlers/membership-upgrade.ts`, `handlers/news-promotion.ts` | Per-purpose logic (validation, post-payment hooks) |
+
+### Rails
+
+| Rail | Description | Env gate |
+|------|-------------|----------|
+| `merchant_redirect` | WayForPay / Stripe hosted checkout | Default |
+| `internal_credit` | Wallet credit balance | `PAYMENT_STORE_ALLOW_CREDIT` |
+| `native_token` | RING token on-chain | `PAYMENT_STORE_ALLOW_TOKEN` |
+
+### Webhook endpoints
+
+| Endpoint | Provider | |
+|----------|----------|---|
+| `/api/payments/wayforpay/webhook` | WayForPay | HMAC signature verification |
+| `/api/payments/stripe/webhook` | Stripe | `STRIPE_WEBHOOK_SECRET` verification |
+
+### Database
+
+Apply migration `data/migrations/004_payment_transactions.sql` before enabling the conductor in production. All transactions persist in the `payment_transactions` collection using the `DatabaseService` result contract `{ success, data, error }`.
+
+</Audience>
 
 ## Related
 
-- [Payments overview](/docs/features/payments)
-- [WayForPay integration](/docs/features/wayforpay-integration)
-- [Architecture: PaymentConductor](/docs/architecture/payment-conductor)
+<Cards>
+  <Card title="Payments overview" href="/docs/features/payments">
+    High-level payment integration — store, membership, news, and gateway selection.
+  </Card>
+  <Card title="SubscriptionConductor" href="/docs/features/subscriptions">
+    Multi-provider membership subscription billing with cron pipelines.
+  </Card>
+  <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
+    HMAC verification, idempotent orderReference, and 3DS handling.
+  </Card>
+  <Card title="Architecture: PaymentConductor" href="/docs/architecture/payment-conductor">
+    Deep-dive architecture with data model and webhook dispatch sequences.
+  </Card>
+</Cards>

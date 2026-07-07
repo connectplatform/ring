@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
-import { db } from '@/lib/database';
-import { NewsFilters, NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
-import { assertKnownUserRole } from '@/features/auth/user-role';
+import { assertKnownUserRole, isSuperadmin } from '@/features/auth/user-role';
 import { canCreateNewsArticle } from '@/features/news/lib/news-permissions';
 import { revalidatePath } from 'next/cache';
 import { computePaginationCursor } from '@/lib/pagination/cursor-pagination';
+import { db } from '@/lib/database';
+import { NewsFilters, NewsFormData } from '@/features/news/types';
 
 type NewsRow = Record<string, unknown> & { id: string };
 
@@ -17,6 +17,12 @@ export async function GET(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
   try {
+    const session = await auth();
+    const userRole = session?.user?.role
+      ? assertKnownUserRole(session.user.role)
+      : null;
+    const isSuperAdmin = userRole ? isSuperadmin(userRole) : false;
+
     const { searchParams } = new URL(request.url);
 
     // Parse query parameters
@@ -51,6 +57,9 @@ export async function GET(request: NextRequest) {
 
     if (filters.status) {
       queryFilters.push({ field: 'status', operator: '==', value: filters.status });
+    } else {
+      // Exclude deleted articles from default listing (superadmin can explicitly query status=deleted)
+      queryFilters.push({ field: 'status', operator: '!=', value: 'deleted' });
     }
 
     if (filters.visibility) {
@@ -242,6 +251,13 @@ export async function POST(request: NextRequest) {
     // Revalidate (React 19 pattern - MUTATION!)
     revalidatePath('/[locale]/news')
     revalidatePath(`/[locale]/news/${slug}`)
+
+    // Invalidate news-stats cache + revalidate admin paths
+    const { syncNewsDiscovery } = await import('@/features/news/lib/news-mutation-sync')
+    await syncNewsDiscovery({
+      articleId: createResult.data?.id,
+      event: 'created',
+    })
 
     return NextResponse.json({
       success: true,

@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 export const CreditTransactionType = z.enum([
   'payment',
-  'airdrop',
+  'reward_credit_add',
   'reimbursement',
   'purchase',
   'membership_fee',

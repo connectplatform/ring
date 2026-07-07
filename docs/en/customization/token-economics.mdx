@@ -1,7 +1,7 @@
 ---
 title: Token Economics Setup
 description: Design and operate your Ring clone economy — off-chain credit ledger, RING reference contracts, PaymentConductor rails, and referral token rewards
-last_modified: "2026-06-15"
+last_modified: "2026-07-01"
 ---
 
 # Token Economics Setup
@@ -40,13 +40,13 @@ last_modified: "2026-06-15"
 | Utility-first | Tokens gate features and settle platform fees — not investment promises |
 | Postgres-primary | Credit balances and subscriptions live in `users.data` + `ring_subscriptions` when `DB_BACKEND_MODE=k8s-postgres-fcm` |
 | Fiat + credit coexist | WayForPay/Stripe for card rails; `internal_credit` spends the same ledger |
-| Per-clone branding | `ring-config.json` → `tokens.ring.symbol` drives UI copy via `getRingTokenSymbol()` |
+| Per-clone branding | `ring-config.json` → `tokens.native.symbol` drives UI copy via `getNativeTokenSymbol()` |
 
 <Mermaid title="Three economic layers">
 {`flowchart TB
   subgraph App["Ring app (Next.js 16)"]
     PC[PaymentConductor]
-    UCS[UserCreditService]
+    UCS[creditBalanceService]
     SUB[SubscriptionService]
     ORA[PriceOracleService]
   end
@@ -59,7 +59,7 @@ last_modified: "2026-06-15"
 
   subgraph Chain["Polygon (optional)"]
     RT[RingToken UUPS]
-    RM[RingMembership UUPS]
+    RM[Membership UUPS]
     REF[ReferralRewards UUPS]
   end
 
@@ -75,7 +75,7 @@ last_modified: "2026-06-15"
 
 ## Layer 1 — Off-chain credit ledger (production path today)
 
-Most membership and store flows debit an **application credit balance** — denominated in your clone token symbol (default **RING**) — without requiring a wallet signature on every renewal.
+Most membership and store flows debit an **application credit balance** — denominated in **fiat USD** (default), not the token symbol. On ring-platform.org, credits are always fiat USD. RING is a separate native token on Solana for optional on-chain operations. The [Desk widget](/docs/features/wallet) converts credits ↔ native tokens at the oracle rate.
 
 ### Data model
 
@@ -91,7 +91,7 @@ Schema comment: `users.data` JSONB in `data/schema.sql` v4+.
 
 | Service | Path | Role |
 |---------|------|------|
-| **UserCreditService** | `features/wallet/services/user-credit-service.ts` | Balance read/write, spend, top-up, membership fee debit, tunnel publish on change |
+| **creditBalanceService** | `features/wallet/services/credit-balance-service.ts` | Balance read/write, spend, top-up, membership fee debit, tunnel publish on change |
 | **SubscriptionService** | `services/membership/subscription-service.ts` | Create/cancel/renew; 1 RING/month; upgrades `membership.tier` → `member` |
 | **PriceOracleService** | `services/blockchain/price-oracle-service.ts` | RING/USD via viem + Chainlink/CoinGecko/CMC/Binance fallbacks |
 | **Internal credit checkout** | `lib/payments/processors/internal-credit.processor.ts` | PaymentConductor rail for store + membership spend |
@@ -111,7 +111,7 @@ Schema comment: `users.data` JSONB in `data/schema.sql` v4+.
 
 ### User tops up or receives airdrop
 
-`POST /api/wallet/credit/topup` (admin/ops) or fulfillment after `wallet_topup` PaymentConductor purpose adds credits via `userCreditService.addCredits()`.
+`POST /api/wallet/credit/topup` (admin/ops) or fulfillment after `wallet_topup` PaymentConductor purpose adds credits via `creditBalanceService.addCredits()`.
 
 </Step>
 
@@ -149,7 +149,7 @@ When `PAYMENT_STORE_ALLOW_CREDIT=true`, PaymentConductor `internal_credit` rail 
 | `/api/membership/subscription/create` | POST | Start membership |
 | `/api/membership/subscription/status` | GET | Subscription state |
 | `/api/membership/subscription/cancel` | POST | Cancel |
-| `/api/membership/payment/ring` | POST | Membership payment variants |
+| `/api/membership/payment/token` | POST | Membership payment variants |
 
 Client hook: `hooks/use-credit-balance.ts` — initial REST fetch + tunnel push updates (no polling).
 
@@ -168,9 +168,9 @@ Ring ships **UUPS upgradeable** reference contracts for clones that want treasur
 
 **Owner functions:** `setMembershipContract`, `setTreasury`, `creditTokens` (treasury airdrops), `pause` / `unpause`.
 
-**Membership-only:** `deductMembershipFee(member)` — callable only by linked `RingMembership`.
+**Membership-only:** `deductMembershipFee(member)` — callable only by linked `Membership`.
 
-### RingMembership (`contracts/RingMembership.sol`)
+### Membership (`contracts/Membership.sol`)
 
 | Constant | Value |
 |----------|-------|
@@ -186,7 +186,7 @@ Ring ships **UUPS upgradeable** reference contracts for clones that want treasur
 {`flowchart LR
   Member["Member wallet"]
   RT["RingToken"]
-  RM["RingMembership"]
+  RM["Membership"]
   Treasury["Treasury"]
 
   Member -->|"createSubscription()"| RM
@@ -200,12 +200,12 @@ Ring ships **UUPS upgradeable** reference contracts for clones that want treasur
 </Callout>
 
 <Callout type="development" title="On-chain ↔ ledger sync">
-  App subscriptions today run on the **credit ledger**. On-chain `RingMembership` is the reference for treasury policy and future sync; wire batch renewal cron to `subscriptionService.processBatchPayments()` when you bridge both layers.
+  App subscriptions today run on the **credit ledger**. On-chain `Membership` is the reference for treasury policy and future sync; wire batch renewal cron to `subscriptionService.processBatchPayments()` when you bridge both layers.
 </Callout>
 
 ### Deploy reference contracts
 
-Hardhat project: `contracts/`. **ReferralRewards** compiles from `contracts/contracts-src/`; **RingToken** / **RingMembership** live at `contracts/*.sol` — align `hardhat.config.js` `paths.sources` or copy sources before compile if factories fail.
+Hardhat project: `contracts/`. **ReferralRewards** compiles from `contracts/contracts-src/`; **RingToken** / **Membership** live at `contracts/*.sol` — align `hardhat.config.js` `paths.sources` or copy sources before compile if factories fail.
 
 <Steps>
 
@@ -230,7 +230,7 @@ npx hardhat compile`}
 npx hardhat run scripts/deploy-testnet.js --network polygon`}
 </Code>
 
-Deploy order: `RingToken` → `RingMembership` → `ringToken.setMembershipContract(...)`. Output: `contracts/deployments/mumbai-deployment.json`.
+Deploy order: `RingToken` → `Membership` → `ringToken.setMembershipContract(...)`. Output: `contracts/deployments/mumbai-deployment.json`.
 
 </Step>
 
@@ -329,15 +329,14 @@ Apply `data/migrations/004_payment_transactions.sql` before production payments.
 
 <Code language="json" title="ring-config.template.json — tokens">
 {`"tokens": {
-  "ring": {
+  "nativeToken": {
     "symbol": "RING",
     "name": "RING Governance Token",
     "decimals": 18
   }
-}`}
-</Code>
+}`}</Code>
 
-`getRingTokenSymbol()` and `getNativeTokenConfig()` read this for checkout labels, wallet UI, and payment copy. Fork the symbol/name for vertical clones (e.g. `GFT`, `DAAR`) without renaming Solidity unless you deploy a new ERC-20.
+`getNativeTokenSymbol()` and `getNativeTokenConfig()` read this for checkout labels, wallet UI, and payment copy. Fork the symbol/name for vertical clones (e.g. `GFT`, `DAAR`) without renaming Solidity unless you deploy a new ERC-20.
 
 ### Sidebar and public pages
 
@@ -389,7 +388,7 @@ Map fees in `constants/store.ts` / ERP commission helpers for marketplace cuts.
 
 ### Integrate with Ring services
 
-1. Deploy or fork `RingToken.sol` / `RingMembership.sol` (optional)
+1. Deploy or fork `RingToken.sol` / `Membership.sol` (optional)
 2. Update `ring-config.json` + `constants/web3.ts` addresses
 3. Set `RING_TOKEN_CONTRACT_ADDRESS` + membership env vars
 4. Enable `PAYMENT_STORE_ALLOW_CREDIT` if store should spend credits

@@ -168,7 +168,23 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'likes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'reviews', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'conversations', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
-      { collection: 'fcm_tokens', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false }
+      { collection: 'fcm_tokens', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Auth.js collections — required for OAuth login/link/session flows
+      { collection: 'accounts', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'sessions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'verification_tokens', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Actively-queried collections that were missing from route table
+      { collection: 'credit_add_event', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'refcodes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'notification_preferences', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'subscriptions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'public_pools', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'vendor_profiles', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'vendors', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'usernames', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'products', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'inventory_levels', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'inventory_reservations', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
     ];
 
     // Apply custom routes

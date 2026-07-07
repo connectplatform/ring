@@ -10,10 +10,13 @@ import { getTranslations } from 'next-intl/server'
 import { NewsAnalyticsDashboard } from '@/features/news/components/news-analytics-dashboard'
 import { db } from '@/lib/database'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
-import { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
-import NewsWrapper from '@/components/wrappers/news-wrapper'
+import type { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
 import { connection } from 'next/server'
 import { isPlatformAdmin } from '@/features/auth/user-role'
+import AdminWrapper from '@/components/wrappers/admin-wrapper'
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
+import { getNewsStats } from '@/features/news/services/get-news-stats'
+import { getNewsWebVitals } from '@/features/news/services/get-news-web-vitals'
 
 function toDate(value: unknown): Date {
   if (value instanceof Date) return value
@@ -31,6 +34,7 @@ function toDate(value: unknown): Date {
 
 /**
  * Get news analytics - Server Component async/await (React 19)
+ * Always returns 365 days of data; client filters by selected timeRange
  */
 async function getNewsAnalytics(): Promise<NewsAnalytics> {
   try {
@@ -60,12 +64,13 @@ async function getNewsAnalytics(): Promise<NewsAnalytics> {
       .map(([category, count]) => ({ category: category as NewsCategory, count }))
       .sort((a, b) => b.count - a.count)
 
-    // Recent activity (last 30 days)
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    // Recent activity (365 days for client-side filtering)
+    const days = 365
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
 
     const recentActivity = []
-    for (let i = 29; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
       const date = new Date()
       date.setDate(date.getDate() - i)
       
@@ -132,7 +137,8 @@ export default async function AdminNewsAnalyticsPage({
 
   const { locale } = await params
   const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale)
-  const t = await getTranslations('modules.admin.matcher')
+  const tAnalytics = await getTranslations('modules.admin.newsAnalytics')
+  const tAdmin = await getTranslations('modules.admin')
   
   // Check authentication and admin role
   const session = await auth()
@@ -146,33 +152,29 @@ export default async function AdminNewsAnalyticsPage({
   }
   
   const analytics = await getNewsAnalytics()
+  const newsWebVitals = await getNewsWebVitals()
 
-  // Prepare stats for the news wrapper sidebar
-  const stats = {
-    totalArticles: analytics.totalArticles,
-    publishedArticles: analytics.totalArticles, // Analytics shows all published articles
-    draftArticles: 0, // Analytics don't show draft status
-    recentViews: analytics.totalViews // Total views from analytics
-  }
+  const adminLabels = buildModulesAdminLabels(tAdmin)
+  const newsStats = await getNewsStats()
 
   return (
-    <NewsWrapper
-      pageContext="analytics"
-      stats={stats}
-    >
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          {t('analytics.title') || 'News Analytics'}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Comprehensive insights and performance metrics for your news content
-        </p>
-      </div>
+    <AdminWrapper locale={validLocale} pageContext="news" labels={adminLabels} newsStats={newsStats}>
+      <div className="container mx-auto px-0 py-0">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            {tAnalytics('title')}
+          </h1>
+          <p className="text-muted-foreground">
+            {tAnalytics('subtitle')}
+          </p>
+        </div>
 
-      <NewsAnalyticsDashboard
-        analytics={analytics}
-        locale={validLocale}
-      />
-    </NewsWrapper>
+        <NewsAnalyticsDashboard
+          analytics={analytics}
+          webVitals={newsWebVitals}
+          locale={validLocale}
+        />
+      </div>
+    </AdminWrapper>
   )
 } 

@@ -1,6 +1,6 @@
 'use client'
 
-import { ErrorBoundary } from 'react-error-boundary'
+import { ErrorBoundary } from '@/lib/error-boundary'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Home, ArrowLeft, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'

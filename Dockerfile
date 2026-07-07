@@ -346,7 +346,7 @@ ENV SKIP_TYPE_CHECK=1
 # 8GiB Node heap; Colima VM should be >=12GiB (see ~/.colima/default/colima.yaml).
 # Do not set NODE_OPTIONS inside npm scripts — it would override this RUN env.
 RUN --mount=type=cache,target=/app/.next/cache \
-    NODE_OPTIONS="--no-deprecation --max-old-space-size=8192" npm run build:skip-types
+    NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
 
 # Trim devDependencies for runtime copy (avoids second npm ci in runtime stage)
 RUN npm prune --omit=dev

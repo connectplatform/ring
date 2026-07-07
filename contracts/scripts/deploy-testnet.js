@@ -34,16 +34,16 @@ async function main() {
     console.log("✅ RingToken deployed to:", ringToken.address);
 
     // Deploy Ring Membership contract
-    console.log("\n📄 Deploying RingMembership contract...");
-    const RingMembership = await ethers.getContractFactory("RingMembership");
+    console.log("\n📄 Deploying Membership contract...");
+    const Membership = await ethers.getContractFactory("Membership");
     const ringMembership = await upgrades.deployProxy(
-      RingMembership,
+      Membership,
       [ringToken.address, config.owner],
       { initializer: "initialize", kind: "uups" }
     );
 
     await ringMembership.deployed();
-    console.log("✅ RingMembership deployed to:", ringMembership.address);
+    console.log("✅ Membership deployed to:", ringMembership.address);
 
     // Set membership contract in token contract
     console.log("\n🔗 Linking contracts...");
@@ -56,7 +56,7 @@ async function main() {
     console.log("=====================");
     console.log("Network: Polygon Mumbai Testnet");
     console.log("RingToken Address:", ringToken.address);
-    console.log("RingMembership Address:", ringMembership.address);
+    console.log("Membership Address:", ringMembership.address);
     console.log("Treasury Address:", config.treasury);
     console.log("Owner Address:", config.owner);
     
@@ -82,7 +82,7 @@ async function main() {
           address: ringToken.address,
           implementation: await upgrades.erc1967.getImplementationAddress(ringToken.address),
         },
-        RingMembership: {
+        Membership: {
           address: ringMembership.address,
           implementation: await upgrades.erc1967.getImplementationAddress(ringMembership.address),
         },

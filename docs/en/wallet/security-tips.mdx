@@ -1,11 +1,19 @@
 ---
 title: Wallet Security Tips
-description: Recognize phishing and protect your RING wallet on Ring Platform
+description: Recognize phishing and protect your custodial wallet on Ring Platform — PIN-wrapped encryption, single-use access tokens, and account safety
+last_modified: "2026-07-03"
 ---
 
 # Wallet Security Tips
 
-Ring Platform combines platform credit balances with optional on-chain wallets. Follow these practices to avoid scams and account loss.
+Ring Platform uses custodial wallets — your private keys are encrypted server-side with `WALLET_ENCRYPTION_KEY` and stored in ring-db. PIN-wrapped v2 encryption adds an extra layer for withdrawal operations. Follow these practices to avoid scams and account loss.
+
+## Set a wallet PIN
+
+- Set a 4-digit PIN from your wallet security page. This activates v2 encryption — your private key is re-encrypted with PIN-derived entropy.
+- Use the PIN to authorize high-value operations: withdrawals, large transfers, wallet export.
+- If PIN verification fails repeatedly (wrong PIN), the operation is blocked server-side — no rate-limit bypass possible.
+- **Never share your PIN.** Ring staff will never ask for it.
 
 ## Verify the domain
 
@@ -15,20 +23,20 @@ Ring Platform combines platform credit balances with optional on-chain wallets. 
 
 ## Never share secrets
 
-- **Ring staff will never ask** for your password, recovery phrase, private key, or one-time codes.
-- Do not paste seed phrases or export files into chat, forms, or "verification" pages.
-- Wallet export and backup flows (when available) run only inside your authenticated profile after re-verification.
+- **Ring staff will never ask** for your password, private key, or one-time codes.
+- Private keys are custodial — you do not see raw private keys in normal operation. Wallet export (when available) requires PIN re-verification.
+- Access tokens issued by the system are single-use, time-bound (15-minute TTL), and never stored in plaintext — treat them like passwords during their active window.
 
 ## Payment and transfer safety
 
-- Confirm recipient addresses character-by-character before sending on-chain RING.
+- Confirm recipient addresses character-by-character before sending on-chain tokens.
 - For store checkout, verify order totals and merchant name on the checkout screen before paying with credit balance.
 - If a deal pressures you to pay outside the platform, treat it as a red flag.
 
 ## Report suspicious activity
 
 - Use **Contact** or your admin channel to report phishing sites impersonating Ring.
-- If you suspect unauthorized access, change your password and review active sessions under **Profile → Security**.
+- If you suspect unauthorized access, change your password, review active sessions under **Profile → Security**, and revoke all wallet access tokens from the security page.
 
 ## Related documentation
 

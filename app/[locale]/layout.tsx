@@ -11,20 +11,23 @@ import { buildMessages } from '@/lib/i18n'
 import { LocaleAppChrome } from '@/components/layout/locale-app-chrome'
 import { LocaleLayoutFallback } from '@/components/layout/locale-layout-fallback'
 
+// Props for the LocaleLayout component; children to render and async Next.js params
 interface LocaleLayoutProps {
   children: React.ReactNode
   params: Promise<{ locale: string }>
 }
 
+// Generate static params for all supported locales for build-time routing
 export function generateStaticParams() {
   return supportedLocales.map((locale) => ({ locale }))
 }
 
 /**
  * Unified locale layout — single chrome for all routes.
- * Sync shell → Suspense → async inner resolves params/messages (Next 16 pattern).
+ * Synchronous shell containing a Suspense boundary for async locale/message resolution.
  */
 export default function LocaleLayout({ children, params }: LocaleLayoutProps) {
+  // Outer Suspense provides fallback UI while LocaleLayoutInner awaits params/messages
   return (
     <Suspense fallback={<LocaleLayoutFallback />}>
       <LocaleLayoutInner params={params}>{children}</LocaleLayoutInner>
@@ -32,6 +35,7 @@ export default function LocaleLayout({ children, params }: LocaleLayoutProps) {
   )
 }
 
+// Main async inner layout responsible for loading locale data and messages
 async function LocaleLayoutInner({
   children,
   params,
@@ -39,24 +43,36 @@ async function LocaleLayoutInner({
   children: React.ReactNode
   params: Promise<{ locale: string }>
 }) {
+  // Await Next.js route params, which include the parsed locale from the URL
   const { locale } = await params
 
+  // Guard: Ensure requested locale is supported
   if (!routing.locales.includes(locale as Locale)) {
-    notFound()
+    notFound() // Triggers Next.js 404 logic for unsupported locales
   }
 
   const validLocale = locale as Locale
+
+  // Register the request's active locale for downstream i18n logic
   setRequestLocale(validLocale)
+
+  // Optionally set up resource preloading hooks
   setupResourcePreloading()
 
-  // Full corpus: unified shell persists across public/authenticated/admin nav;
-  // scoped bundles from getRequestConfig do not refresh on client segment changes.
+  // Get translation messages for the full app corpus, not segment bundles
+  // This ensures unified shell does not refresh unnecessarily on client-side nav
   const messages = await buildMessages(validLocale, 'full')
+
+  // Get request headers (headers() must be awaited in app router)
   const headersList = await headers()
+  // Compute the pathname *without* the locale prefix for hreflang/SEO
   const hreflangPath = pathnameWithoutLocale(headersList.get('x-pathname') ?? '/')
+
+  // Determine if user is in the /account section; set shell variant accordingly
   const isAccountShell =
     hreflangPath === '/account/suspended' || hreflangPath.startsWith('/account/')
 
+  // Render app chrome, passing locale, loaded messages, non-localized path, and shell variant
   return (
     <LocaleAppChrome
       locale={validLocale}
@@ -68,3 +84,8 @@ async function LocaleLayoutInner({
     </LocaleAppChrome>
   )
 }
+
+// TODO: When adopting React 19/Next 16 full server components with async/await support in components, 
+// consider migration to direct async layout functions (eliminating Suspense wrapper and splitting logic)
+// and replace Suspense/Promise param pattern with canonical async function layouts for cleaner semantics.
+// TODO: Evaluate if headers(), setRequestLocale(), and similar can be directly invoked at the top scope in Next 16 layouts.

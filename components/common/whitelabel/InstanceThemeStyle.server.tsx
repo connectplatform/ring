@@ -1,5 +1,5 @@
 // Server Component: injects CSS variables for brand colors at runtime
-import { getInstanceConfig } from '@/lib/ring-config-core'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 
 function hexToRgb(hex: string) {
   const normalized = hex.replace('#', '')
@@ -34,8 +34,8 @@ function hexToHslTriplet(hex: string) {
 }
 
 export default function InstanceThemeStyle() {
-  const cfg = getInstanceConfig()
-  const { primary, accent } = cfg.brand.colors
+  const cfg = getSystemConfigSnapshot()
+  const { primary, accent } = cfg.branding.colors
 
   // Keep background/foreground from the theme defaults to avoid inverted colors.
   // Only brand primary and accent are injected at runtime.

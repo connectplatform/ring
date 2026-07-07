@@ -24,17 +24,17 @@ The Ring Platform now features a complete RING token-based membership payment sy
 - **Features**: Admin controls, emergency pause, treasury management
 - **Location**: `ring/contracts/RingToken.sol`
 
-#### RingMembership.sol
+#### Membership.sol
 - **Type**: Subscription Management Contract
 - **Subscription Period**: 30 days
 - **Grace Period**: 7 days after payment due
 - **Features**: Automatic renewals, batch processing, failed payment handling
-- **Location**: `ring/contracts/RingMembership.sol`
+- **Location**: `ring/contracts/Membership.sol`
 
 ### Core Services
 
-#### UserCreditService
-- **File**: `ring/services/wallet/user-credit-service.ts`
+#### creditBalanceService
+- **File**: `ring/services/wallet/credit-balance-service.ts`
 - **Purpose**: Manage user credit balances and transaction history
 - **Key Methods**:
   - `getUserCreditBalance(userId)` - Get user's current balance
@@ -55,12 +55,12 @@ The Ring Platform now features a complete RING token-based membership payment sy
 
 #### PriceOracleService
 - **File**: `ring/services/blockchain/price-oracle-service.ts`
-- **Purpose**: Multi-source RING/USD price feeds with caching
+- **Purpose**: Multi-source native token/USD price feeds with caching
 - **Price Sources**: Chainlink (primary), CoinGecko, CoinMarketCap, Binance
 - **Key Methods**:
-  - `getRingUsdPrice()` - Get current price with fallbacks
-  - `convertRingToUsd(amount)` - Convert RING to USD
-  - `convertUsdToRing(amount)` - Convert USD to RING
+  - `getNativeTokenUsdPrice()` - Get current price with fallbacks
+  - `convertNativeTokenToUsd(amount)` - Convert native token to USD
+  - `convertUsdToNativeToken(amount)` - Convert USD to native token
 
 ## API Endpoints
 
@@ -72,28 +72,28 @@ The Ring Platform now features a complete RING token-based membership payment sy
 - `POST /api/wallet/credit/spend` - Spend credits from user balance
 
 ### Pricing & Conversion
-- `GET /api/prices/ring-usd` - Get current RING/USD exchange rate
-- `POST /api/prices/ring-usd` - Refresh price cache (admin only)
-- `POST /api/prices/conversion` - Convert between RING and USD amounts
+- `GET /api/prices/native-token-usd` - Get current native token/USD exchange rate
+- `POST /api/prices/native-token-usd` - Refresh price cache (admin only)
+- `POST /api/prices/conversion` - Convert between native token and USD amounts
 - `GET /api/prices/conversion` - Get conversion rates and supported currencies
 
 ### Subscription Management
-- `POST /api/membership/subscription/create` - Create RING token subscription
+- `POST /api/membership/subscription/create` - Create native token subscription
 - `GET /api/membership/subscription/status` - Get subscription status and info
 - `PUT /api/membership/subscription/status` - Update subscription settings
 - `POST /api/membership/subscription/cancel` - Cancel active subscription
 - `GET /api/membership/subscription/cancel` - Get cancellation preview and options
 
 ### Payment Processing
-- `POST /api/membership/payment/ring` - Process RING token payment for membership
-- `GET /api/membership/payment/ring` - Get payment options and pricing
+- `POST /api/membership/payment/token` - Process native token payment for membership
+- `GET /api/membership/payment/token` - Get payment options and pricing
 
 ## Data Models
 
 ### User Profile Extension
 ```typescript
 interface UserCreditBalance {
-  amount: string;                              // RING tokens as string for precision
+  amount: string;                              // native token tokens as string for precision
   usd_equivalent: string;                      // USD equivalent
   last_updated: number;                        // Timestamp
   subscription_active: boolean;                // Has active subscription
@@ -130,14 +130,14 @@ interface SubscriptionStatus {
   next_payment_due?: number;                  // Next payment due timestamp
   failed_attempts: number;                    // Failed payment attempts
   auto_renew: boolean;                        // Auto-renewal enabled
-  total_paid: string;                         // Total RING paid
+  total_paid: string;                         // Total native token paid
   payments_count: number;                     // Number of payments made
 }
 ```
 
 ## Transaction Types
 
-- `payment` - Direct payment/purchase with RING tokens
+- `payment` - Direct payment/purchase with native token tokens
 - `airdrop` - Free tokens given to user
 - `reimbursement` - Refund or compensation
 - `purchase` - Store purchase using credits
@@ -186,18 +186,18 @@ POLYGONSCAN_API_KEY=your_api_key        # For contract verification
 ### Server-Side Service Usage
 
 ```typescript
-import { userCreditService } from '@/services/wallet/user-credit-service';
+import { creditBalanceService } from '@/services/wallet/credit-balance-service';
 import { subscriptionService } from '@/services/membership/subscription-service';
 import { priceOracleService } from '@/services/blockchain/price-oracle-service';
 
 // Check user credit balance
-const balance = await userCreditService.getUserCreditBalance(userId);
+const balance = await creditBalanceService.getUserCreditBalance(userId);
 
 // Create subscription
 const subscription = await subscriptionService.createSubscription(userId);
 
 // Get current RING price
-const priceData = await priceOracleService.getRingUsdPrice();
+const priceData = await priceOracleService.getNativeTokenUsdPrice();
 ```
 
 ### API Usage Examples
@@ -213,12 +213,12 @@ const subscriptionResponse = await fetch('/api/membership/subscription/create', 
   body: JSON.stringify({ auto_renew: true })
 });
 
-// Convert RING to USD
+// Convert native token to USD
 const conversionResponse = await fetch('/api/prices/conversion', {
   method: 'POST',
   body: JSON.stringify({
     amount: '10.5',
-    from: 'RING',
+    from: '{native_token}',
     to: 'USD'
   })
 });
@@ -228,16 +228,16 @@ const conversionResponse = await fetch('/api/prices/conversion', {
 
 ### Membership Upgrade Flow
 1. User has SUBSCRIBER role
-2. Check RING balance >= 1 token
-3. Process initial payment via userCreditService
+2. Check native token balance >= 1 token
+3. Process initial payment via creditBalanceService
 4. Create subscription via subscriptionService
 5. Update user role to MEMBER
 6. Set next payment due date (30 days from now)
 
 ### Monthly Renewal Process
 1. Cron job finds subscriptions due for payment
-2. Check user RING balance for each subscription
-3. Process payment via userCreditService
+2. Check user native token balance for each subscription
+3. Process payment via creditBalanceService
 4. Update subscription next payment date
 5. Handle failed payments with 7-day grace period
 6. Mark subscription as expired if grace period exceeded
@@ -286,7 +286,7 @@ npm run gas-report         # Generate gas usage report
 
 ### Key Metrics
 - Total active subscriptions
-- Monthly recurring revenue in RING tokens
+- Monthly recurring revenue in native token tokens
 - Failed payment rates and reasons
 - Price oracle accuracy and response times
 - User credit balance distribution
@@ -303,9 +303,9 @@ npm run gas-report         # Generate gas usage report
 
 ### Common Issues
 
-#### "Insufficient RING balance" Error
-- **Cause**: User doesn't have enough RING tokens for payment
-- **Solution**: Direct user to top-up balance or purchase RING tokens
+#### "Insufficient native token balance" Error
+- **Cause**: User doesn't have enough native token tokens for payment
+- **Solution**: Direct user to top-up balance or purchase native token tokens
 
 #### Price Oracle Failures
 - **Cause**: External API failures or network issues
@@ -329,11 +329,11 @@ npm run gas-report         # Generate gas usage report
 
 - **RING Staking Rewards**: Reward long-term subscribers with staking yields
 - **Bulk Payments**: Organization-level bulk membership management
-- **Cross-Chain Support**: Expand RING token to other blockchains
+- **Cross-Chain Support**: Expand native token to other blockchains
 - **DeFi Integration**: Yield farming and liquidity provision options
 - **NFT Benefits**: Special NFTs for long-term subscribers
-- **Mobile Wallet**: Dedicated mobile app for RING token management
-- **Fiat On-Ramp**: Direct RING token purchases with credit cards
+- **Mobile Wallet**: Dedicated mobile app for native token token management
+- **Fiat On-Ramp**: Direct native token token purchases with credit cards
 
 ## Support & Resources
 
@@ -345,7 +345,7 @@ npm run gas-report         # Generate gas usage report
 
 ## Contributing
 
-When contributing to the RING token system:
+When contributing to the native token token system:
 
 1. Follow existing code patterns and naming conventions
 2. Add comprehensive tests for new features

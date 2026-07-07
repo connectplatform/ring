@@ -1,12 +1,17 @@
 /**
  * Main Database Service
  *
- * Unified entry point for all database operations in Ring Platform
- * Provides high-level abstraction over backend selector with configuration management
+ * Unified entry point for all database operations in Ring Platform.
+ * Provides high-level abstraction over backend selector with configuration management.
+ *
+ * // TODO: (React 19/Next.js 16) Consider using React Server Actions or Next.js cache for async data/state 
+ * sharing in Next.js 16+ apps instead of global fordb instance.
  */
 
+// Core utility imports
 import { monotime } from './timer'
 import { isBuildTime, shouldSkipDatabaseConnect } from '@/lib/build-cache/phase-detector'
+// All types/interfaces for DB contract
 import {
   IDatabaseService,
   DatabaseResult,
@@ -22,9 +27,18 @@ import {
 import { BackendSelector, BackendRoute } from './BackendSelector';
 import { unwrapDbQueryRow } from './document';
 
-/** Flat domain row with guaranteed document id. */
+/** Flat domain row representation with guaranteed document id. */
 export type DbRow<T> = T & { id: string };
 
+/**
+ * Top level DB service configuration object
+ *
+ * Known missing options:
+ *   - logging level
+ *   - healthcheck interval
+ *   - backup/restore config
+ *   - per-backend custom options (not just "options")
+ */
 export interface DatabaseConfig {
   backends: DatabaseBackendConfig[];
   sync: DatabaseSyncConfig;
@@ -35,58 +49,72 @@ export interface DatabaseConfig {
 }
 
 /**
- * Entity Cache for read-after-write consistency
+ * Entity Cache for read-after-write consistency (used only for 'entities' collection).
+ *   Caches most-recent value for entity reads after entity writes for 30s.
  */
 class EntityCache {
   private cache = new Map<string, { data: any; timestamp: number }>();
   private readonly TTL = 30000; // 30 seconds
 
   set(key: string, data: any) {
+    // Cache value with timestamp for TTL expiry check
     this.cache.set(key, { data, timestamp: monotime() });
   }
 
   get(key: string) {
     const entry = this.cache.get(key);
     if (entry && (monotime() - entry.timestamp) < this.TTL) {
+      // If still in TTL, return cached value
       return entry.data;
     }
+    // Otherwise, evict
     this.cache.delete(key);
     return null;
   }
 
   invalidate(key: string) {
+    // Remove cache entry
     this.cache.delete(key);
   }
 
   clear() {
+    // Clear all cache entries
     this.cache.clear();
   }
 
   size() {
+    // Current number of entries in cache
     return this.cache.size;
   }
 }
 
 /**
  * Main Database Service Class
- * Provides unified interface for all database operations
+ * High-level unified interface for all DB operations (CRUD, query, migration, etc.).
  */
 export class DatabaseService {
-  private selector: BackendSelector;
+  private selector: BackendSelector; // chooses backend for operations, also runs commands
   private config: DatabaseConfig;
   private connected: boolean = false;
   private static initialized: boolean = false;
   private entityCache = new EntityCache();
 
+  /**
+   * Returns whether the global DatabaseService was ever initialized during this process/session.
+   */
   public static isInitialized(): boolean {
     return DatabaseService.initialized;
   }
-
+  /**
+   * Mark as initialized (or not).
+   */
   public static setInitialized(initialized: boolean): void {
     DatabaseService.initialized = initialized;
   }
 
-
+  /**
+   * Construct service with provided configuration (or from global if not provided).
+   */
   constructor(config: DatabaseConfig) {
     this.config = config;
     this.selector = new BackendSelector(
@@ -97,10 +125,12 @@ export class DatabaseService {
   }
 
   /**
-   * Initialize database connections
+   * Initialize database connections. Safe for multiple calls.
+   * Skips if shouldSkipDatabaseConnect() is true (e.g., build time).
    */
   async initialize(): Promise<DatabaseResult<void>> {
     if (shouldSkipDatabaseConnect()) {
+      // During build time or test, pretend success with zero-duration
       return {
         success: true,
         data: undefined,
@@ -113,6 +143,7 @@ export class DatabaseService {
       }
     }
     if (this.connected) {
+      // Already connected, short-circuit success
       return {
         success: true,
         data: undefined,
@@ -125,12 +156,14 @@ export class DatabaseService {
       }
     }
     try {
+      // Connect via selector (which in turn connects to all backends)
       const result = await this.selector.connect();
       if (result.success) {
         this.connected = true;
       }
       return result;
     } catch (error) {
+      // On error, return metadata so callers can show diagnostics
       return {
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),
@@ -145,7 +178,8 @@ export class DatabaseService {
   }
 
   /**
-   * Shutdown database connections
+   * Shutdown all backend database connections.
+   * No-op safe if never initialized.
    */
   async shutdown(): Promise<DatabaseResult<void>> {
     try {
@@ -153,9 +187,10 @@ export class DatabaseService {
       if (result.success) {
         this.connected = false;
       }
-      this.selector.destroy();
+      this.selector.destroy(); // Force cleanup/release
       return result;
     } catch (error) {
+      // On error shutting down
       return {
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),
@@ -170,7 +205,8 @@ export class DatabaseService {
   }
 
   /**
-   * Health check for all backends
+   * Health check for all configured backends.
+   * Returns whether all backends are healthy, and their statuses (BackendSelector).
    */
   async healthCheck(): Promise<DatabaseResult<boolean>> {
     if (!this.connected) {
@@ -186,25 +222,26 @@ export class DatabaseService {
       };
     }
 
+    // Relay selector's multi-backend health
     return await this.selector.healthCheck();
   }
 
   /**
-   * Get backend health status
+   * Get backend health status as reported by current selector.
    */
   getBackendHealth() {
     return this.selector.getHealthStatus();
   }
 
   /**
-   * Get routing configuration
+   * Get routing table, indicating which collections go to which backends.
    */
   getRoutes() {
     return this.selector.getRoutes();
   }
 
   /**
-   * Update routing for a collection
+   * Update backend routing for a specific collection at runtime.
    */
   updateRoute(collection: string, route: Partial<BackendRoute>) {
     this.selector.updateRoute(collection, route);
@@ -215,7 +252,8 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Create a new document
+   * Create a new document in collection.
+   * If writing 'entities', caches value for future `read` for ~30s.
    */
   async create<T = any>(
     collection: string,
@@ -223,12 +261,13 @@ export class DatabaseService {
     options: { id?: string; merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     if (!this.connected) {
+      // Not yet initialized, error
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'create', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
 
     const result = await this.selector.create(collection, data, options);
 
-    // Cache newly created entities to prevent read-after-write consistency issues
+    // Cache newly created entities to prevent read-after-write consistency issues (see get)
     if (collection === 'entities' && result.success && result.data) {
       this.entityCache.set(result.data.id, result.data);
     }
@@ -237,7 +276,8 @@ export class DatabaseService {
   }
 
   /**
-   * Read a document by ID
+   * Read a document by ID from given collection.
+   * Uses cache for 'entities' for ~30s window after writes to workaround eventual consistency.
    */
   async read<T = any>(
     collection: string,
@@ -247,10 +287,11 @@ export class DatabaseService {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'read', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
 
-    // Use cache for entities to prevent read-after-write consistency issues
+    // Use cache for entities only
     if (collection === 'entities') {
       const cached = this.entityCache.get(id);
       if (cached) {
+        // Already available, skip backend call
         return {
           success: true,
           data: cached,
@@ -259,9 +300,16 @@ export class DatabaseService {
       }
     }
 
+    // Otherwise, fetch from backend
     return await this.selector.read<T>(collection, id);
   }
 
+  /**
+   * Read all documents from a collection (limited!).
+   * @param options.limit - Max rows (default 1000)
+   * @param options.offset - Offset (default 0)
+   * @param options.orderBy - Order by one (default none)
+   */
   async readAll<T = any>(
     collection: string,
     options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
@@ -270,10 +318,11 @@ export class DatabaseService {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'readAll', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
 
+    // TODO: Use 'find' instead with empty filters for more uniformity
     const query: DatabaseQuery = {
       collection,
       pagination: {
-        limit: options.limit || 1000, // Reasonable default limit
+        limit: options.limit || 1000,
         offset: options.offset || 0
       }
     };
@@ -285,6 +334,10 @@ export class DatabaseService {
     return await this.selector.query<T>(query);
   }
 
+  /**
+   * Find documents by one field.
+   * Missing: Operator (assumes '==')
+   */
   async findByField<T = any>(
     collection: string,
     field: string,
@@ -295,6 +348,7 @@ export class DatabaseService {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'findByField', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
 
+    // TODO: Accept operator option (currently only == supported)
     const query: DatabaseQuery = {
       collection,
       filters: [{
@@ -314,6 +368,9 @@ export class DatabaseService {
     return await this.selector.query<T>(query);
   }
 
+  /**
+   * Check whether an ID exists for a collection.
+   */
   async exists(
     collection: string,
     id: string
@@ -323,6 +380,7 @@ export class DatabaseService {
     }
 
     try {
+      // Query the selector for that id
       const result = await this.selector.read(collection, id);
       return {
         success: true,
@@ -350,7 +408,8 @@ export class DatabaseService {
   }
 
   /**
-   * Update a document
+   * Update part (or all) of a document.
+   * If 'entities' cache exists, invalidates cache for id after update.
    */
   async update<T = any>(
     collection: string,
@@ -364,7 +423,7 @@ export class DatabaseService {
 
     const result = await this.selector.update(collection, id, data, options);
 
-    // Invalidate cache for updated entities
+    // Invalidate entity cache after update so next read fetches fresh value
     if (collection === 'entities') {
       this.entityCache.invalidate(id);
     }
@@ -373,7 +432,8 @@ export class DatabaseService {
   }
 
   /**
-   * Delete a document
+   * Delete a document by ID.
+   * Invalidates for entity cache if in 'entities'.
    */
   async delete(
     collection: string,
@@ -385,7 +445,6 @@ export class DatabaseService {
 
     const result = await this.selector.delete(collection, id);
 
-    // Invalidate cache for deleted entities
     if (collection === 'entities') {
       this.entityCache.invalidate(id);
     }
@@ -398,12 +457,13 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Query documents with filters, sorting, and pagination
+   * Query documents (with filters, orderBy, pagination, etc.)
    */
   async query<T = any>(
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     if (shouldSkipDatabaseConnect()) {
+      // During build/test, simulate empty query
       return {
         success: true,
         data: [],
@@ -422,7 +482,7 @@ export class DatabaseService {
   }
 
   /**
-   * Count documents matching filters
+   * Count number of documents for given filters (fast if supported).
    */
   async count(
     collection: string,
@@ -435,7 +495,8 @@ export class DatabaseService {
   }
 
   /**
-   * Find documents by simple filters
+   * Find documents for a collection matching arbitrary filters.
+   * @param options can include orderBy, limit, offset
    */
   async find<T = any>(
     collection: string,
@@ -460,7 +521,7 @@ export class DatabaseService {
   }
 
   /**
-   * Find first document matching filters
+   * Find first document matching filter (or null if none).
    */
   async findOne<T = any>(
     collection: string,
@@ -480,7 +541,7 @@ export class DatabaseService {
   }
 
   /**
-   * Find document by ID (convenience method)
+   * Find document by ID (identical to read).
    */
   async findById<T = any>(
     collection: string,
@@ -494,7 +555,8 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Create multiple documents in batch
+   * Create multiple documents at once (batch).
+   * @returns Array of new documents.
    */
   async batchCreate<T = any>(
     collection: string,
@@ -507,7 +569,7 @@ export class DatabaseService {
   }
 
   /**
-   * Update multiple documents in batch
+   * Update multiple documents in a batch.
    */
   async batchUpdate<T = any>(
     collection: string,
@@ -520,7 +582,7 @@ export class DatabaseService {
   }
 
   /**
-   * Delete multiple documents in batch
+   * Delete many documents by their IDs.
    */
   async batchDelete(
     collection: string,
@@ -537,7 +599,8 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Execute operations in a transaction
+   * Run provided operations in a database transaction.
+   * Throws if operation or transaction fails.
    */
   async transaction<T>(
     operation: (transaction: IDatabaseTransaction) => Promise<T>
@@ -546,9 +609,7 @@ export class DatabaseService {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'transaction', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
     const result = await this.selector.runTransaction(operation);
-    // Transactions THROW on failure (unlike CRUD result-contract): every caller relies on
-    // rollback errors propagating — silent {success:false} broke username uniqueness and
-    // inventory reservations.
+    // Transactions THROW on failure (unlike CRUD result contract): never swallow errors.
     if (!result.success) {
       throw result.error || new Error('Transaction failed');
     }
@@ -560,7 +621,8 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Subscribe to real-time changes
+   * Subscribe to real-time changes for a set of filters on a collection.
+   * @returns { unsubscribe: () => void } for clean up
    */
   async subscribe<T = any>(
     collection: string,
@@ -570,6 +632,7 @@ export class DatabaseService {
     if (!this.connected) {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'subscribe', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
+    // NOTE: not all backends support realtime, may error or no-op
     return await this.selector.subscribe(collection, filters, callback);
   }
 
@@ -578,7 +641,8 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Create a new collection/table
+   * Create a new collection / table with optional schema.
+   * @param schema - backend-dependent object
    */
   async createCollection(
     collection: string,
@@ -587,6 +651,7 @@ export class DatabaseService {
     if (!this.connected) {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'createCollection', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
+    // TODO: Validate schema param (missing types!)
     return await this.selector.createCollection(collection, schema);
   }
 
@@ -595,7 +660,8 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Migrate data between collections or backends
+   * Migrate data from one collection/backend to another.
+   * Optionally provide a transform (eg. for schema upgrades).
    */
   async migrateData(
     fromCollection: string,
@@ -605,6 +671,7 @@ export class DatabaseService {
     if (!this.connected) {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'migrateData', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
+    // Note: Errors per document are collected in result.errors
     return await this.selector.migrateData(fromCollection, toCollection, transform);
   }
 
@@ -613,7 +680,7 @@ export class DatabaseService {
   // ============================================================================
 
   /**
-   * Get service statistics
+   * Get current DB connection/service statistics for diagnostics and observability.
    */
   getStats() {
     return {
@@ -625,14 +692,14 @@ export class DatabaseService {
   }
 
   /**
-   * Check if service is connected
+   * Return true if currently connected/initialized.
    */
   isConnected(): boolean {
     return this.connected;
   }
 
   /**
-   * Get current backend type (for debugging)
+   * Get backend type string (for debugging, e.g. 'postgresql', 'firebase').
    */
   getCurrentBackend(): string {
     return this.selector.getBackendType();
@@ -644,9 +711,12 @@ export class DatabaseService {
 // ============================================================================
 
 /**
- * Create a database service with default configuration
+ * Create a database service with default configuration.
+ * Supports partial overrides (used for unit-test, stubbing).
+ * // TODO: Add missing support for more DBs (sqlite, memory, mongo, etc.)
  */
 export function createDatabaseService(config?: Partial<DatabaseConfig>): DatabaseService {
+  // Build default config, mostly using env vars (falling back to hardcoded values)
   const defaultConfig: DatabaseConfig = {
     backends: [
       {
@@ -678,14 +748,18 @@ export function createDatabaseService(config?: Partial<DatabaseConfig>): Databas
     enableTracing: process.env.DB_TRACING_ENABLED === 'true'
   };
 
+  // Merge incoming partial config for overrides
   const finalConfig = { ...defaultConfig, ...config };
   return new DatabaseService(finalConfig);
 }
 
 /**
- * Create a database service with Firebase and PostgreSQL
+ * Create a hybrid database service supporting both Firebase and PostgreSQL.
+ * Used in environments where data may be replicated.
+ * // TODO: Add options for enabling/disabling sync per backend, and credentials rotation.
  */
 export function createHybridDatabaseService(): DatabaseService {
+  // Extract config from env
   const config: DatabaseConfig = {
     backends: [
       {
@@ -742,28 +816,33 @@ export function createHybridDatabaseService(): DatabaseService {
 }
 
 // ============================================================================
-// GLOBAL INSTANCE
+// GLOBAL INSTANCE (managed by globalThis - for hot reload/NEXT.js)
 // ============================================================================
 
 /**
- * Global database service instance (survives Next.js dev HMR via globalThis).
+ * Store a global DB service (per process; survives Next.js HMR via globalThis).
+ * // TODO: Use Next.js app router's request-scoped cache or server context when available
  */
 const globalForDb = globalThis as typeof globalThis & {
   __ringDatabaseService?: DatabaseService | null
 }
 
+// Load from global if present, else null
 let globalDatabaseService: DatabaseService | null =
   globalForDb.__ringDatabaseService ?? null;
 
+/**
+ * Store the provided service instance on globalThis and module-local var.
+ */
 function persistGlobalDatabaseService(service: DatabaseService | null): void {
   globalDatabaseService = service;
   globalForDb.__ringDatabaseService = service;
 }
 
 /**
- * Get or create global database service instance
- * Uses DB_BACKEND_MODE configuration (k8s-postgres-fcm, firebase-full, supabase-fcm)
- * No backward compatibility - DB_BACKEND_MODE is REQUIRED
+ * Get or (lazily) create a global database service instance.
+ * Uses new DB_BACKEND_MODE config system for all Next.js 13+ apps.
+ * // STUB: If DB_BACKEND_MODE not present, import fallback config loader and throw.
  */
 export function getDatabaseService(): DatabaseService {
   if (!globalDatabaseService) {
@@ -786,11 +865,12 @@ export function getDatabaseService(): DatabaseService {
 }
 
 // ============================================================================
-// COMMAND-BASED ABSTRACTION LAYER
+// COMMAND-BASED ABSTRACTION LAYER (higher-level DB API)
 // ============================================================================
 
 /**
- * Database Command Types
+ * Enumerates all supported database command API method names.
+ * // KNOWN-MISSING: upsert, aggregate, collectionStats, changeStream (future expansion)
  */
 export type DatabaseCommandType =
   | 'create'
@@ -811,7 +891,8 @@ export type DatabaseCommandType =
   | 'migrateData';
 
 /**
- * Database Command Parameters
+ * Parameter contracts for each DatabaseCommandType.
+ * // KNOWN-MISSING: upsert, aggregate, advanced subscription, logical deletes/restore
  */
 export interface DatabaseCommandParams {
   create: {
@@ -889,7 +970,7 @@ export interface DatabaseCommandParams {
 }
 
 /**
- * Database Command Result Types
+ * Result types for each command. (Strongly types results for TS intellisense)
  */
 export type DatabaseCommandResult<T extends DatabaseCommandType> =
   T extends 'create' ? DatabaseResult<DatabaseDocument> :
@@ -911,7 +992,8 @@ export type DatabaseCommandResult<T extends DatabaseCommandType> =
   DatabaseResult<any>;
 
 /**
- * Centralized Database Command Interface
+ * Central DB command processor wraps DatabaseService with async, fully typed methods.
+ * All parameter and return types enforced by DatabaseCommandParams/DatabaseCommandResult.
  */
 export class DatabaseCommand {
   private service: DatabaseService;
@@ -921,13 +1003,16 @@ export class DatabaseCommand {
   }
 
   /**
-   * Execute a database command
+   * Execute a database command per DatabaseCommandType enum.
+   * @param command Name of db command
+   * @param params Parameters for command type
+   * Handles all CRUD, batch, meta, and advanced DB commands.
    */
   async execute<T extends DatabaseCommandType>(
     command: T,
     params: DatabaseCommandParams[T]
   ): Promise<DatabaseCommandResult<T>> {
-    // Transaction must propagate throws (rollback / conflict errors). Do not wrap in execute's catch.
+    // Transaction command: propagate errors-only, don't catch, since all callers expect rollback errors to throw.
     if (command === 'transaction') {
       const data = await this.transaction(
         (params as DatabaseCommandParams['transaction']).operation
@@ -944,6 +1029,7 @@ export class DatabaseCommand {
       } as DatabaseCommandResult<T>;
     }
 
+    // Wrap in try...catch for all CRUD/etc methods (always return {success:false} not throw)
     try {
       switch (command) {
         case 'create':
@@ -952,13 +1038,11 @@ export class DatabaseCommand {
             (params as DatabaseCommandParams['create']).data,
             (params as DatabaseCommandParams['create']).options
           ) as DatabaseCommandResult<T>;
-
         case 'read':
           return await this.service.read(
             (params as DatabaseCommandParams['read']).collection,
             (params as DatabaseCommandParams['read']).id
           ) as DatabaseCommandResult<T>;
-
         case 'update':
           return await this.service.update(
             (params as DatabaseCommandParams['update']).collection,
@@ -966,83 +1050,72 @@ export class DatabaseCommand {
             (params as DatabaseCommandParams['update']).data,
             (params as DatabaseCommandParams['update']).options
           ) as DatabaseCommandResult<T>;
-
         case 'delete':
           return await this.service.delete(
             (params as DatabaseCommandParams['delete']).collection,
             (params as DatabaseCommandParams['delete']).id
           ) as DatabaseCommandResult<T>;
-
         case 'query':
           return await this.service.query(
             (params as DatabaseCommandParams['query']).querySpec
           ) as DatabaseCommandResult<T>;
-
         case 'count':
           return await this.service.count(
             (params as DatabaseCommandParams['count']).collection,
             (params as DatabaseCommandParams['count']).filters
           ) as DatabaseCommandResult<T>;
-
         case 'find':
           return await this.service.find(
             (params as DatabaseCommandParams['find']).collection,
             (params as DatabaseCommandParams['find']).filters,
             (params as DatabaseCommandParams['find']).options
           ) as DatabaseCommandResult<T>;
-
         case 'findOne':
           return await this.service.findOne(
             (params as DatabaseCommandParams['findOne']).collection,
             (params as DatabaseCommandParams['findOne']).filters
           ) as DatabaseCommandResult<T>;
-
         case 'findById':
           return await this.service.findById(
             (params as DatabaseCommandParams['findById']).collection,
             (params as DatabaseCommandParams['findById']).id
           ) as DatabaseCommandResult<T>;
-
         case 'batchCreate':
           return await this.service.batchCreate(
             (params as DatabaseCommandParams['batchCreate']).collection,
             (params as DatabaseCommandParams['batchCreate']).documents
           ) as DatabaseCommandResult<T>;
-
         case 'batchUpdate':
           return await this.service.batchUpdate(
             (params as DatabaseCommandParams['batchUpdate']).collection,
             (params as DatabaseCommandParams['batchUpdate']).updates
           ) as DatabaseCommandResult<T>;
-
         case 'batchDelete':
           return await this.service.batchDelete(
             (params as DatabaseCommandParams['batchDelete']).collection,
             (params as DatabaseCommandParams['batchDelete']).ids
           ) as DatabaseCommandResult<T>;
-
         case 'subscribe':
           return await this.service.subscribe(
             (params as DatabaseCommandParams['subscribe']).collection,
             (params as DatabaseCommandParams['subscribe']).filters,
             (params as DatabaseCommandParams['subscribe']).callback
           ) as DatabaseCommandResult<T>;
-
         case 'createCollection':
           return await this.service.createCollection(
             (params as DatabaseCommandParams['createCollection']).collection,
             (params as DatabaseCommandParams['createCollection']).schema
           ) as DatabaseCommandResult<T>;
-
         case 'migrateData':
           return await this.service.migrateData(
             (params as DatabaseCommandParams['migrateData']).fromCollection,
             (params as DatabaseCommandParams['migrateData']).toCollection,
             (params as DatabaseCommandParams['migrateData']).transform
           ) as DatabaseCommandResult<T>;
-
-        default:
+        default: {
+          // STUB: Future command type implementation
           throw new Error(`Unknown database command: ${command}`);
+        }
       }
     } catch (error) {
       return {
@@ -1058,6 +1131,10 @@ export class DatabaseCommand {
     }
   }
 
+  /**
+   * Ensure DB is initialized (single-flight, safe for parallel calls).
+   * // TODO: Use Next.js 16 new server-side singleton or request context API
+   */
   private async ensureInitialized(): Promise<DatabaseResult<void>> {
     const init = await initializeDatabase();
     if (!init.success) {
@@ -1075,6 +1152,10 @@ export class DatabaseCommand {
     return { success: true, data: undefined, metadata: init.metadata };
   }
 
+  /**
+   * Convert a result to query rows array.
+   * Supports both {data:[]} and [] forms.
+   */
   private normalizeQueryRows(raw: unknown): unknown[] {
     if (Array.isArray(raw)) {
       return raw;
@@ -1090,10 +1171,16 @@ export class DatabaseCommand {
     return [];
   }
 
+  /**
+   * Convert a backend database document row to a domain row (typed + id).
+   */
   private toDbRow<T extends object>(row: unknown): DbRow<T> {
     return unwrapDbQueryRow<T>(row as Record<string, unknown>);
   }
 
+  /**
+   * Read one doc by id, ensuring initialization. Returns as DbRow w/ id.
+   */
   async readDoc<T extends object = Record<string, unknown>>(
     collection: string,
     id: string
@@ -1116,6 +1203,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Find one doc by id, using findById.
+   */
   async findDocById<T extends object = Record<string, unknown>>(
     collection: string,
     id: string
@@ -1138,6 +1228,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Query docs by querySpec, returning DbRow[].
+   */
   async queryDocs<T extends object = Record<string, unknown>>(
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DbRow<T>[]>> {
@@ -1157,6 +1250,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Find one document by filters. Returns typed domain row or null.
+   */
   async findOneDoc<T extends object = Record<string, unknown>>(
     collection: string,
     filters?: DatabaseFilter[]
@@ -1179,6 +1275,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Find all docs (array) by filters/options. Returns array of typed domain rows.
+   */
   async findDocs<T extends object = Record<string, unknown>>(
     collection: string,
     filters?: DatabaseFilter[],
@@ -1204,6 +1303,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Create one doc (id optional), returns resulting typed doc.
+   */
   async createDoc<T extends object = Record<string, unknown>>(
     collection: string,
     data: T,
@@ -1231,6 +1333,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Update one doc by id. Throws if not found. Returns resulting doc (typed).
+   */
   async updateDoc<T extends object = Record<string, unknown>>(
     collection: string,
     id: string,
@@ -1259,6 +1364,9 @@ export class DatabaseCommand {
     };
   }
 
+  /**
+   * Delete one doc by id. (Returns result)
+   */
   async deleteDoc(collection: string, id: string): Promise<DatabaseResult<void>> {
     const gate = await this.ensureInitialized();
     if (!gate.success) {
@@ -1267,6 +1375,9 @@ export class DatabaseCommand {
     return this.execute('delete', { collection, id });
   }
 
+  /**
+   * Count docs by collection and filters.
+   */
   async countDocs(
     collection: string,
     filters?: DatabaseFilter[]
@@ -1280,9 +1391,7 @@ export class DatabaseCommand {
 
   /**
    * Run operations in a database transaction.
-   * Ensures initialization (like *Doc methods). Throws on init or transaction
-   * failure — callers rely on rollback errors propagating (username uniqueness,
-   * inventory reservations).
+   * Ensures initialization, throws on failure (contract relied on by upstream).
    */
   async transaction<T>(
     operation: (transaction: IDatabaseTransaction) => Promise<T>
@@ -1297,18 +1406,18 @@ export class DatabaseCommand {
 }
 
 // ============================================================================
-// GLOBAL DB COMMAND INSTANCE
+// GLOBAL DB COMMAND INSTANCE (stateful singleton, module local)
 // ============================================================================
 
 /**
- * Global database command instance
+ * Global database command instance (singleton per process).
+ * // TODO: Next 16 — replace with server context/request scoping if possible
  */
 let globalDbCommand: DatabaseCommand | null = null;
 
 /**
  * Get global database command instance.
- * Payload `*Doc` methods are the standard for domain code; `transaction()` for
- * atomic multi-step writes; `execute()` for batches, subscribe, and advanced cases.
+ * . Payload `*Doc` methods are for domain code. Use transaction() for atomic writes, etc.
  */
 export function db(): DatabaseCommand {
   if (!globalDbCommand) {
@@ -1318,7 +1427,8 @@ export function db(): DatabaseCommand {
 }
 
 /**
- * Initialize database command system
+ * Initialize global database command system (creates new db() if success).
+ * Returns underlying DatabaseService.initialize() result.
  */
 export async function initializeDbCommand(): Promise<DatabaseResult<void>> {
   const service = getDatabaseService();
@@ -1332,7 +1442,9 @@ export async function initializeDbCommand(): Promise<DatabaseResult<void>> {
 }
 
 /**
- * Initialize global database service (single-flight — safe under Promise.all).
+ * Initialize global DB (only one in flight at a time).
+ * Uses single-flight pattern to avoid parallel/duplicate connects.
+ * // TODO: Replace global singleton for test with DI/context for better isolation.
  */
 let initializeDatabaseInFlight: Promise<DatabaseResult<void>> | null = null;
 
@@ -1357,6 +1469,7 @@ export async function initializeDatabase(): Promise<DatabaseResult<void>> {
   }
 
   if (initializeDatabaseInFlight) {
+    // Wait for in-flight
     return initializeDatabaseInFlight;
   }
 
@@ -1379,7 +1492,8 @@ export async function initializeDatabase(): Promise<DatabaseResult<void>> {
 }
 
 /**
- * Shutdown global database service
+ * Shutdown and cleanup global database service instance.
+ * (Clears both local and globalThis singleton.)
  */
 export async function shutdownDatabase(): Promise<DatabaseResult<void>> {
   if (globalDatabaseService) {
@@ -1389,6 +1503,7 @@ export async function shutdownDatabase(): Promise<DatabaseResult<void>> {
     return result;
   }
 
+  // Not initialized, immediate success
   return {
     success: true,
     metadata: {

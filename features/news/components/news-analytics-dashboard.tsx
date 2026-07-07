@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { NewsAnalytics, NewsArticle } from '@/features/news/types'
+import type { NewsWebVitalsSummary } from '@/features/news/services/get-news-web-vitals'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,58 +23,218 @@ import {
   Heart, 
   MessageCircle, 
   FileText,
-  Users,
   Calendar,
-  BarChart3,
-  PieChart,
-  LineChart,
+  PieChart as PieChartIcon,
   Target,
   Award,
   Zap
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import Link from 'next/link'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 
 interface NewsAnalyticsDashboardProps {
   analytics: NewsAnalytics
+  webVitals?: NewsWebVitalsSummary
   locale: string
 }
 
-// Mock chart components (replace with actual chart library like Recharts)
-function MockLineChart({ data, title }: { data: any[], title: string }) {
-  return (
-    <div className="h-64 flex items-center justify-center bg-gray-50 rounded border-2 border-dashed border-gray-300">
-      <div className="text-center">
-        <LineChart className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-        <p className="text-sm text-gray-600">{title}</p>
-        <p className="text-xs text-gray-500">Chart visualization</p>
+// Color palette for charts
+const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+
+/**
+ * Real Line Chart for activity timeline using Recharts
+ */
+function ActivityLineChart({ data }: { data: Array<{ date: string; views: number; likes: number; comments: number }> }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-muted-foreground">
+        <p>No activity data available</p>
       </div>
-    </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis 
+          dataKey="date" 
+          className="text-xs"
+          tick={{ fontSize: 12 }}
+          tickFormatter={(value) => {
+            const date = new Date(value)
+            return `${date.getMonth() + 1}/${date.getDate()}`
+          }}
+        />
+        <YAxis className="text-xs" tick={{ fontSize: 12 }} />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            fontSize: '12px'
+          }}
+        />
+        <Legend wrapperStyle={{ fontSize: '12px' }} />
+        <Line 
+          type="monotone" 
+          dataKey="views" 
+          stroke="#3b82f6" 
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
+        />
+        <Line 
+          type="monotone" 
+          dataKey="likes" 
+          stroke="#10b981" 
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
+        />
+        <Line 
+          type="monotone" 
+          dataKey="comments" 
+          stroke="#f59e0b" 
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
   )
 }
 
-function MockBarChart({ data, title }: { data: any[], title: string }) {
-  return (
-    <div className="h-64 flex items-center justify-center bg-gray-50 rounded border-2 border-dashed border-gray-300">
-      <div className="text-center">
-        <BarChart3 className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-        <p className="text-sm text-gray-600">{title}</p>
-        <p className="text-xs text-gray-500">Chart visualization</p>
+/**
+ * Real Bar Chart for engagement metrics using Recharts
+ */
+function EngagementBarChart({ data }: { data: Array<{ date: string; views: number; likes: number; comments: number }> }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-muted-foreground">
+        <p>No engagement data available</p>
       </div>
-    </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis 
+          dataKey="date" 
+          className="text-xs"
+          tick={{ fontSize: 12 }}
+          tickFormatter={(value) => {
+            const date = new Date(value)
+            return `${date.getMonth() + 1}/${date.getDate()}`
+          }}
+        />
+        <YAxis className="text-xs" tick={{ fontSize: 12 }} />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            fontSize: '12px'
+          }}
+        />
+        <Legend wrapperStyle={{ fontSize: '12px' }} />
+        <Bar dataKey="views" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="likes" fill="#10b981" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="comments" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   )
 }
 
-function MockPieChart({ data, title }: { data: any[], title: string }) {
-  return (
-    <div className="h-64 flex items-center justify-center bg-gray-50 rounded border-2 border-dashed border-gray-300">
-      <div className="text-center">
-        <PieChart className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-        <p className="text-sm text-gray-600">{title}</p>
-        <p className="text-xs text-gray-500">Chart visualization</p>
+/**
+ * Real Pie Chart for category distribution using Recharts
+ */
+function CategoryPieChart({ data }: { data: Array<{ category: string; count: number }> }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-muted-foreground">
+        <p>No category data available</p>
       </div>
-    </div>
+    )
+  }
+
+  const chartData = data.map((item, index) => ({
+    name: item.category.replace('-', ' '),
+    value: item.count,
+    color: CHART_COLORS[index % CHART_COLORS.length],
+  }))
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <PieChart>
+        <Pie
+          data={chartData}
+          cx="50%"
+          cy="50%"
+          labelLine={false}
+          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+          outerRadius={90}
+          fill="#8884d8"
+          dataKey="value"
+        >
+          {chartData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'hsl(var(--popover))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            fontSize: '12px'
+          }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
   )
+}
+
+/**
+ * Format a web-vitals metric value for display.
+ * CLS is unitless (3 decimals), others are milliseconds.
+ */
+function formatVitalValue(name: string, value: number): string {
+  if (name === 'CLS') return value.toFixed(3)
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`
+  return `${Math.round(value)}ms`
+}
+
+/**
+ * Get badge color class for web-vitals rating.
+ */
+function ratingBadgeClass(rating: string): string {
+  switch (rating) {
+    case 'good':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+    case 'needs-improvement':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+    case 'poor':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+  }
 }
 
 function MetricCard({ 
@@ -125,10 +286,18 @@ function MetricCard({
 
 export function NewsAnalyticsDashboard({ 
   analytics, 
+  webVitals,
   locale, 
 }: NewsAnalyticsDashboardProps) {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d')
   const [selectedMetric, setSelectedMetric] = useState<'views' | 'likes' | 'comments'>('views')
+
+  // Filter recentActivity based on selected timeRange
+  const filteredActivity = React.useMemo(() => {
+    const daysMap = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 } as const
+    const days = daysMap[timeRange]
+    return analytics.recentActivity.slice(-days)
+  }, [analytics.recentActivity, timeRange])
 
   // Calculate trends (mock data)
   const trends = {
@@ -228,10 +397,7 @@ export function NewsAnalyticsDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <MockLineChart 
-                  data={analytics.recentActivity} 
-                  title="Daily Activity" 
-                />
+                <ActivityLineChart data={filteredActivity} />
               </CardContent>
             </Card>
 
@@ -239,7 +405,7 @@ export function NewsAnalyticsDashboard({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <PieChart className="h-5 w-5" />
+                  <PieChartIcon className="h-5 w-5" />
                   Category Distribution
                 </CardTitle>
                 <CardDescription>
@@ -247,10 +413,7 @@ export function NewsAnalyticsDashboard({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <MockPieChart 
-                  data={topCategories} 
-                  title="Content Categories" 
-                />
+                <CategoryPieChart data={topCategories} />
               </CardContent>
             </Card>
           </div>
@@ -362,15 +525,54 @@ export function NewsAnalyticsDashboard({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <MockBarChart 
-                data={analytics.recentActivity} 
-                title="Engagement Over Time" 
-              />
+              <EngagementBarChart data={filteredActivity} />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-6">
+          {/* Web Vitals Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Core Web Vitals
+              </CardTitle>
+              <CardDescription>
+                Real user experience metrics for news pages (filtered from platform-wide telemetry)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!webVitals?.hasData ? (
+                <div className="flex items-center justify-center h-32 text-muted-foreground">
+                  <div className="text-center">
+                    <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No web-vitals data collected yet for news pages</p>
+                    <p className="text-xs mt-1">Metrics will appear once users browse news articles</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {webVitals.metrics.map((metric) => (
+                    <div key={metric.name} className="p-3 border rounded-lg text-center">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-muted-foreground">{metric.name}</span>
+                        <Badge className={`text-[10px] px-1.5 py-0 ${ratingBadgeClass(metric.rating)}`}>
+                          {metric.rating}
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold">{formatVitalValue(metric.name, metric.value)}</div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        n={metric.sampleCount}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Engagement Performance */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
@@ -380,10 +582,14 @@ export function NewsAnalyticsDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600">8.4%</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {analytics.totalViews > 0 
+                    ? `${((analytics.totalLikes + analytics.totalComments) / analytics.totalViews * 100).toFixed(1)}%`
+                    : '0%'
+                  }
+                </div>
                 <div className="text-sm text-gray-600 mt-1">
-                  <TrendingUp className="h-3 w-3 inline mr-1" />
-                  +2.1% vs last month
+                  (likes + comments) / views
                 </div>
               </CardContent>
             </Card>
@@ -391,15 +597,19 @@ export function NewsAnalyticsDashboard({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  Bounce Rate
+                  <Eye className="h-5 w-5" />
+                  Avg. Views per Article
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600">24.7%</div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {analytics.totalArticles > 0
+                    ? Math.round(analytics.totalViews / analytics.totalArticles)
+                    : 0
+                  }
+                </div>
                 <div className="text-sm text-gray-600 mt-1">
-                  <TrendingDown className="h-3 w-3 inline mr-1" />
-                  -1.2% vs last month
+                  Across {analytics.totalArticles} articles
                 </div>
               </CardContent>
             </Card>
@@ -407,15 +617,19 @@ export function NewsAnalyticsDashboard({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Avg. Time on Page
+                  <MessageCircle className="h-5 w-5" />
+                  Comments per Article
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-purple-600">3:24</div>
+                <div className="text-3xl font-bold text-purple-600">
+                  {analytics.totalArticles > 0
+                    ? (analytics.totalComments / analytics.totalArticles).toFixed(1)
+                    : '0'
+                  }
+                </div>
                 <div className="text-sm text-gray-600 mt-1">
-                  <TrendingUp className="h-3 w-3 inline mr-1" />
-                  +0:15 vs last month
+                  Discussion engagement
                 </div>
               </CardContent>
             </Card>

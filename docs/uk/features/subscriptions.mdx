@@ -1,0 +1,218 @@
+---
+title: SubscriptionConductor
+description: Мульти-провайдерна система членських підписок — Stripe, WayForPay, RING-кредити, ончейн-токен, NFT-гейт та PayPal. Один реєстр, конфігуровані шлюзи, cron-пайплайни та адмін-панель.
+last_modified: "2026-06-30"
+audience: both
+---
+
+# SubscriptionConductor
+
+<Callout type="info">
+  Фільтруйте цю сторінку як **Founder** / **Developer** у бічній панелі. Засновники дізнаються *що* коштує кожен провайдер і як налаштувати комісії; розробники — архітектуру, контракти модулів провайдерів і деталі cron-пайплайнів.
+</Callout>
+
+SubscriptionConductor (v1, Фаза S4) — мульти-провайдерна система білінгу членських підписок Ring Platform. Один SSOT-реєстр (`subscription_ledger`) відстежує всі стани підписників незалежно від способу оплати. Шість модулів провайдерів реалізують спільний контракт `SubscriptionProviderModule`, а п'ять cron-пайплайнів підтримують підписки актуальними.
+
+Реалізація: `lib/payments/subscription/`.
+
+<Audience for="founder">
+
+## Що отримують засновники від SubscriptionConductor
+
+Ваша платформа заробляє регулярний дохід через членські підписки — з нульовою комісією платформи на внутрішні методи (кредитний баланс, RING-токен, NFT-гейт). Оберіть, які шлюзи увімкнути, налаштуйте перекладення комісій і відстежуйте чистий дохід в адмін-панелі.
+
+### Статус функцій
+
+| Провайдер | Деталі | Шлюз | Статус |
+|----------|---------|---------|--------|
+| WayForPay | рекурентний білінг через recToken | WayForPay (UAH) | ✅ Доступно |
+| Кредитний баланс | автосписання з внутрішніх RING-кредитів | Кредитні бали | ✅ Доступно |
+| RING-токен | ончейн-платіж у Solana | RING (Токени) | ✅ Доступно |
+| Stripe | Stripe Subscriptions API | Stripe (USD) | 🔮 TBD |
+| NFT-гейт | 12-місячний доступ через soulbound NFT | NFT Сертифікат | 🔮 TBD |
+| PayPal | PayPal рекурентний білінг | PayPal (USD) | 🔮 TBD |
+
+### Тарифи комісій і чистий дохід
+
+Кожен шлюз утримує власну комісію. Внутрішні методи (кредитний баланс, RING-токен, NFT-гейт) стягують **0%** — кожен долар іде вашій платформі.
+
+| Провайдер | Комісія % | Фіксована комісія | Валюта |
+|----------|-------|-----------|----------|
+| WayForPay | 2.5% | — | UAH |
+| Stripe | 2.9% | $0.30 | USD |
+| Кредитний баланс | 0% | — | USD |
+| RING-токен | 0% | — | RING (Токени) |
+| NFT-гейт | 0% | — | RING |
+| PayPal | 2.9% | $0.30 | USD |
+
+**Формула чистого доходу:** `net = gross - (gross × feePercent / 100) - feeFixed`. Функція `calculateNetRevenue()` у `subscription-config.ts` обчислює це на сервері; адмін-панель показує gross, fee та net для кожної підписки.
+
+### Конфігурація (ring-config.json)
+
+Усі налаштування провайдерів зберігаються в `ring-config.json` у секції `payment.gateways`:
+
+```json
+{
+  "payment": {
+    "cardPaymentProcessor": "wayforpay",
+    "supportedMethods": ["wayforpay", "credit_balance", "ring_token"],
+    "futureMethods": ["stripe", "paypal", "nft_gate"],
+    "gateways": {
+      "wayforpay": { "enabled": true, "feePercent": 2.5, "currency": "UAH" },
+      "stripe": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" },
+      "credit_balance": { "enabled": true, "feePercent": 0, "currency": "USD" },
+      "ring_token": { "enabled": true, "feePercent": 0, "currency": "RING", "label": "Tokens" },
+      "paypal": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" },
+      "nft_gate": { "enabled": false, "feePercent": 0, "currency": "RING", "label": "NFT Certificate" }
+    }
+  }
+}
+```
+
+- `cardPaymentProcessor` — картковий шлюз за замовчуванням (`wayforpay` або `stripe`). Перевизначення через `PAYMENT_MEMBERSHIP_PROCESSOR=stripe`.
+- `supportedMethods` — провайдери, доступні користувачам при оформленні.
+- `futureMethods` — провайдери з позначкою "Незабаром" в UI.
+- `gateways.<provider>.feePercent` — відсоткова комісія, що утримується перед вашим чистим доходом.
+
+### Адмін-панель
+
+Супер-адміни мають доступ до `/admin/subscriptions`:
+
+- **Список підписок** — фільтр за провайдером, статусом, користувачем; кожен рядок показує gross, fee та net дохід.
+- **Агрегована статистика** — `/api/admin/subscriptions/stats` повертає `total_active`, `due_for_payment`, розбивки `by_provider` та `by_method`.
+- **Відстеження доходу** — `calculateNetRevenue()` викликається для кожного рядка, щоб засновники бачили реальний дохід після комісій шлюзів.
+
+</Audience>
+
+<Audience for="developer">
+
+## Архітектура
+
+```
+Membership upgrade / checkout
+        ↓
+lib/payments/subscription/subscription-conductor.ts
+        ↓
+Модулі провайдерів: stripe | wayforpay | credit_balance | ring_token | nft_gate | paypal
+        ↓
+subscription_ledger (PostgreSQL — провайдер-агностичний SSOT)
+        ↓
+Cron-пайплайни: expiry + payment + credit-balance + solana-batch + nft-gate
+```
+
+### Реєстр провайдерів
+
+Шість модулів провайдерів реалізують контракт `SubscriptionProviderModule` (`lib/payments/subscription/subscription-types.ts`). Conductor визначає їх за ID провайдера:
+
+| ID провайдера | Модуль | Джерело |
+|-------------|--------|--------|
+| `credit_balance` | `ringCreditSubscriptionProvider` | `providers/ring-credit-subscription.ts` |
+| `ring_token` | `ringTokenSubscriptionProvider` | `providers/ring-token-subscription.ts` |
+| `stripe` | `stripeSubscriptionProvider` | `providers/stripe-subscription.ts` |
+| `wayforpay` | `wayforpaySubscriptionProvider` | `providers/subscription-provider-stubs.ts` |
+| `nft_gate` | `nftGateSubscriptionProvider` | `providers/subscription-provider-stubs.ts` |
+| `paypal` | `paypalSubscriptionProvider` | `providers/subscription-provider-stubs.ts` |
+
+Заглушки для WayForPay, NFT Gate та PayPal є заповнювачами; Stripe, Credit Balance та RING Token мають повні реалізації.
+
+### Схема subscription_ledger
+
+SSOT-колекція: `subscription_ledger`. Схема визначена в `lib/payments/subscription/subscription-ledger-schema.ts` (Zod).
+
+Ключові поля:
+
+| Поле | Тип | Опис |
+|-------|------|-------------|
+| `id` | `string` | ID рядка реєстру (`sub_<ts>_<userIdSuffix>`) |
+| `user_id` | `string` | ID користувача-власника |
+| `provider` | `enum` | `stripe`, `wayforpay`, `credit_balance`, `ring_token`, `nft_gate`, `paypal` |
+| `gateway` | `string` | Людино-читана мітка (напр. "Stripe", "WayForPay") |
+| `method` | `enum` | `card`, `credit_balance`, `crypto`, `nft` |
+| `status` | `enum` | `active`, `expired`, `cancelled`, `suspended`, `grace_period` |
+| `amount` | `number` | Ціна підписки (у мінорних одиницях) |
+| `currency` | `string` | Валюта білінгу |
+| `gateway_fee_percent` | `number` | Відсоткова комісія (напр. `2.9`) |
+| `gateway_fee_fixed` | `number` | Фіксована комісія в мінорних одиницях (напр. `30` для Stripe) |
+| `stripe_subscription_id` | `string?` | Stripe-посилання (якщо провайдер Stripe) |
+| `wayforpay_rec_token` | `string?` | Рекурентний токен WayForPay |
+| `solana_tx_signature` | `string?` | Ончейн-підпис транзакції |
+| `nft_mint_address` | `string?` | Адреса мінту NFT-сертифіката |
+| `start_time` | `number` | Початок підписки (мс епохи) |
+| `next_payment_due` | `number` | Час наступного платежу |
+| `failed_attempts` | `number` | Послідовні невдачі платежу (макс 3 → авто expiring) |
+| `auto_renew` | `boolean` | Прапор автоподовження |
+| `total_paid` | `string` | Загалом сплачено за весь час |
+| `payments_count` | `number` | Кількість успішних платежів |
+
+### API Conductor
+
+`SubscriptionConductor` (`lib/payments/subscription/subscription-conductor.ts`) надає:
+
+| Операція | Сигнатура | Опис |
+|-----------|-----------|-------------|
+| `createSubscription` | `(input: CreateSubscriptionInput) → CreateSubscriptionResult` | Маршрутизація до модуля провайдера, вставка рядка реєстру |
+| `cancelSubscription` | `(userId, provider, gatewayRef?) → CancelSubscriptionResult` | Скасування у провайдера + позначка рядків реєстру |
+| `renewSubscription` | `(userId, provider, gatewayRef?) → RenewSubscriptionResult` | Поновлення у провайдера + оновлення реєстру |
+| `getSubscription` | `(userId) → SubscriptionLedgerRow \| null` | Остання активна підписка користувача |
+| `getSubscriptions` | `(filter) → SubscriptionLedgerRow[]` | Запит за користувачем, провайдером, статусом, методом, вікном оплати |
+| `getStats` | `() → SubscriptionStats` | Агреговані підрахунки за статусом, провайдером, методом |
+| `calculateNetRevenue` | `(row) → { gross, fee, net, currency }` | Чистий дохід на рядок |
+
+### API-маршрути
+
+| Метод | Шлях | Призначення | Авторизація |
+|--------|------|---------|------|
+| `POST` | `/api/membership/subscription/create` | Створення підписки через conductor | Сесія |
+| `GET` | `/api/membership/subscription/status` | Статус підписки + баланс | Сесія |
+| `POST` | `/api/membership/subscription/cancel` | Скасування підписки | Сесія |
+| `POST` | `/api/membership/payment/token` | Обробка токен-платежу | Сесія |
+| `GET` | `/api/admin/subscriptions` | Список усіх підписок | Суперадмін |
+| `GET` | `/api/admin/subscriptions/stats` | Агрегована статистика | Суперадмін |
+
+### Cron-пайплайни
+
+П'ять cron-пайплайнів зареєстровані в `lib/processes/registry.ts` у категорії `membership`:
+
+| ID пайплайну | Cron-шлях | Обробник | Розклад |
+|-------------|-----------|---------|----------|
+| `subscription-expiry-check` | `/api/cron/subscription-expiry` | `runSubscriptionExpiryCheck` | Щодня опівночі |
+| `credit-balance-monthly` | `/api/cron/credit-balance-monthly` | `runCreditBalanceMonthly` | Щогодини |
+| `subscription-payment` | `/api/cron/subscription-payment` | `runSubscriptionPaymentCheck` | Щодня о 2:00 |
+| `solana-batch-payment` | `/api/cron/solana-batch-payment` | `runSolanaBatchPayment` | Щодня о 3:00 |
+| `nft-gate-expiry` | `/api/cron/nft-gate-expiry` | `runNftGateExpiry` | Щодня о 4:00 |
+
+Пайплайни запускаються через HTTP cron-завдання за `cronPath`. Обробники імпортуються з `lib/processes/subscription/`:
+
+- `expiry-check.ts` — позначає прострочені підписки як `expired` і знижує ролі користувачів
+- `credit-balance-monthly.ts` — списує щомісячну плату з кредитного балансу
+- `subscription-payment.ts` — обробляє рекурентні платежі Stripe/WayForPay
+- `solana-nft-stubs.ts` — пакетні перекази RING-токенів і закінчення терміну NFT-гейту
+
+### Додавання нового провайдера
+
+1. Реалізуйте контракт `SubscriptionProviderModule` у `providers/<name>-subscription.ts`
+2. Зареєструйте в `subscription-conductor.ts` у `providerRegistry` Map
+3. Додайте конфігурацію шлюзу в `ring-config.json` `payment.gateways.<provider>`
+4. Додайте до масиву `SUBSCRIPTION_PROVIDERS` у `subscription-ledger-schema.ts`
+5. Оновіть `getMembershipPaymentOptions()` у `subscription-config.ts`
+6. За потреби додайте обробник cron-пайплайну в `lib/processes/subscription/`
+
+### Змінні середовища
+
+```bash
+PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay    # Перевизначення карткового шлюзу для членства
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+</Audience>
+
+## Пов’язане
+
+- [PaymentConductor](/docs/features/payment-conductor) — оркестрація одноразових платежів
+- [WayForPay інтеграція](/docs/features/wayforpay-integration)
+- [Гаманець і кредити](/docs/features/wallet)
+- [Магазин](/docs/features/store) — потік оформлення членства
+- [Адмін-панель](/docs/features/admin)

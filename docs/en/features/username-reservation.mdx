@@ -9,6 +9,114 @@ description: Intelligent username reservation with automatic expiration and tran
 
 Ring Platform implements an intelligent username reservation system that prevents username squatting while ensuring data integrity through automatic expiration and transaction rollback protection.
 
+## 🌐 Public Profile URL
+
+Once confirmed, your username becomes your **personalized public profile page** at:
+
+```
+/[locale]/[username]
+```
+
+**Examples:** `/en/ray`, `/uk/ivan`, `/ru/alex`
+
+The route is a Next.js 16 App Router dynamic segment at `app/[locale]/[username]/page.tsx`. The server-side `getUserByUsername()` function performs a case-insensitive lookup (`.toLowerCase()`) in the `users` collection to resolve the username to a user profile. If the username doesn't exist, the route returns a 404 page.
+
+### What's on the public profile page:
+- Avatar + Display name + `@username` handle
+- Bio paragraph
+- NFT listings gallery (client-side fetch)
+- "Message User" button (requires authentication)
+- Blog link (if membership active)
+- Staking portfolio (via staking module)
+- Right rail with Activity, Share, Achievements
+
+## 👁️ Visibility Toggles
+
+Users control whether their profile page is publicly visible via the **SetUsernameModal**:
+
+1. Go to **Settings → Profile**
+2. Click **"Change"** next to your `@username`
+3. Toggle the **"Personal page"** switch
+
+The `publicProfile` boolean field is stored in the user's JSONB data:
+
+```typescript
+// When saving via SetUsernameModal
+formData.append('publicProfile', publicProfile ? 'true' : 'false')
+// Stored in the users table as a top-level JSONB field
+```
+
+**When public:** The profile page at `/[locale]/[username]` is visible to everyone — including avatar, name, bio, NFT listings, and blog articles.
+
+**When private:** The route returns a **404 Not Found** — the user's profile is completely hidden from public view.
+
+<Callout type="info" title="Coming Soon">
+Individual toggles for each contact field (email, phone, location, social links) will give founders granular control over what contact data is displayed on the public profile.
+</Callout>
+
+## 🤖 Telegram Account Verification
+
+Users can link their Telegram account for identity verification, enhancing trust for marketplace transactions and blog credibility.
+
+**How it works:**
+1. User clicks "Link Telegram" in their profile settings
+2. The Telegram Login Widget opens (via `features/auth/components/telegram-linking-modal.tsx`)
+3. Telegram sends a verification code through the bot
+4. The callback at `app/api/auth/telegram/callback/route.ts` validates the HMAC auth hash
+5. Once confirmed, the user's `isVerified` field is set and a **"Verified by Telegram" badge** appears on their public profile
+
+**Benefits:**
+- Builds trust for NFT marketplace transactions
+- Adds credibility to blog articles
+- Future: optional display of Telegram contact on public profile
+
+## 🔌 API Reference
+
+### Check Username Availability
+
+```
+GET /api/auth/check-username?username={name}
+```
+
+**Response (available):**
+```json
+{ "available": true, "username": "johndoe" }
+```
+
+**Response (taken — username already in use):**
+```json
+{ "available": false, "username": "johndoe" }
+```
+
+**Response (validation error — insufficient length):**
+```json
+{ "available": false, "error": "Username must be at least 3 characters long" }
+```
+
+**Response (validation error — invalid characters):**
+```json
+{ "available": false, "error": "Username can only contain letters, numbers, hyphens, and underscores" }
+```
+
+**Notes:**
+- Returns `username` normalized to lowercase in all responses
+- Client-side validation (3–32 chars, `/^[a-zA-Z0-9_-]+$/`) happens before the API call in the SetUsernameModal
+- If the API returns `available: false` without an `error` field, the modal falls back to the `usernameTaken` locale string
+
+This endpoint is called by the SetUsernameModal when the user clicks the "Check" button before saving.
+
+### Complete Username Flow
+
+```
+1. User enters desired username in SetUsernameModal
+2. Client validates: 3-32 chars, /^[a-zA-Z0-9_-]+$/
+3. GET /api/auth/check-username?username=johndoe
+4. If available → "Save" button activates
+5. Client calls updateProfile server action (POST)
+6. Server creates reservation in 'usernames' collection (5-min expiry)
+7. On success → reservation confirmed (expiry removed), username linked permanently
+```
+
 ## 🔒 Dual Protection Architecture
 
 ### 1. Temporary Reservation (5 Minutes)

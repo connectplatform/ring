@@ -1,0 +1,253 @@
+---
+title: Интеграция Firebase
+description: Firebase Admin SDK v14, FirebaseAdapter, FCM push, кэширование через service-manager, имитация на этапе сборки и настройка клиентского service worker для Ring Platform.
+last_modified: "2026-06-28"
+---
+
+# Интеграция Firebase
+
+Ring Platform использует **Firebase в двух отдельных направлениях** — **серверный Admin SDK** для FCM push и серверных операций, и **клиентский браузерный SDK** для регистрации push-токенов и отображения уведомлений. Эти направления используют разные стратегии учётных данных и разные версии SDK.
+
+<Callout type="info">
+  В режимах `k8s-postgres-fcm` и `supabase-fcm` Firebase Admin используется **только для FCM push**. Абстракция базы данных (`DatabaseService`) маршрутизирует к PostgreSQL, а не к Firestore. Только `DB_BACKEND_MODE=firebase-full` активирует Firestore как основное хранилище данных.
+</Callout>
+
+## Серверные файлы
+
+| Файл | Назначение | Стратегия учётных данных |
+|------|------------|-------------------------|
+| `lib/firebase-admin.server.ts` | Singleton Firebase Admin SDK — FCM, Auth, Firestore, RTDB | **Всегда явный `cert()`** — требует `AUTH_FIREBASE_CLIENT_EMAIL` + `AUTH_FIREBASE_PRIVATE_KEY` |
+| `lib/database/adapters/FirebaseAdapter.ts` | Абстракция базы данных для Firestore (активен только в режиме `firebase-full`) | **ADC-first** — запасной `cert()` при наличии учётных данных в конфигурации |
+| `lib/services/firebase-service-manager.ts` | Кэшированные чтения Firestore с использованием React 19 `cache()`, пакетные операции, транзакции | Делегирует к `firebase-admin.server.ts` |
+| `lib/firebase/build-mock.server.ts` | Имитация сервисов во время SSG-сборки Next.js — предотвращает 22+ лишних инициализаций | Возвращает имитации без подключения |
+
+## Клиентские файлы
+
+| Файл | Назначение |
+|------|------------|
+| `public/firebase-messaging-sw.js` | Service worker — Firebase compat SDK v12.9.0 загружается с CDN, обрабатывает push-события и фоновые сообщения |
+
+**Файл `lib/firebase.ts` отсутствует** — клиентский Firebase инициализируется исключительно внутри service worker через `importScripts()` с CDN. Регистрация FCM-токена в браузере происходит в React-компонентах с помощью хука `use-fcm.ts` внутри `FCMProvider`.
+
+<Audience for="founder">
+
+## Когда мне нужен Firebase?
+
+Ваш Ring-клон требует учётных данных Firebase в **двух контекстах**:
+
+1. **Push-уведомления (FCM)** — опционально для всех значений `DB_BACKEND_MODE`. Firebase является только транспортным средством доставки push; ваши данные приложения остаются в основной базе данных (PostgreSQL или Firestore).
+2. **Полноценный бэкенд Firestore** — только когда `DB_BACKEND_MODE=firebase-full`. Firebase Admin SDK служит основной базой данных.
+
+**Если вам не нужны push-уведомления**, вы можете опустить все переменные окружения Firebase. Платформа работает на одном PostgreSQL.
+
+## Какие функции Firebase НЕ используются
+
+- Firebase Authentication (Auth.js v5 обрабатывает всю аутентификацию — Google, Apple, email, криптокошелёк)
+- Firebase Storage (загрузка файлов осуществляется через Vercel Blob или `/api/entities/upload`)
+- Firebase Realtime Database (не подключена к данным приложения; экспорт RTDB существует в `firebase-admin.server.ts`, но не используется в режиме `firebase-full`)
+- Firebase Hosting (Ring Platform работает на k3s, Vercel или Docker)
+- FirebaseUI / клиентский auth SDK (файл `lib/firebase.ts` отсутствует)
+
+</Audience>
+
+<Audience for="developer">
+
+## Firebase Admin SDK (`firebase-admin.server.ts`)
+
+Admin SDK инициализируется с **явными учётными данными сервисного аккаунта** через `cert()`. Все три переменные окружения `AUTH_FIREBASE_*` являются **обязательными** — запасной вариант ADC в этом файле отсутствует.
+
+<Code language="typescript" title="lib/firebase-admin.server.ts (стратегия учётных данных)">
+{`import { cert, getApps, initializeApp } from 'firebase-admin/app'
+import { getFirestore, Firestore } from 'firebase-admin/firestore'
+import { getAuth, Auth } from 'firebase-admin/auth'
+
+adminApp = initializeApp({
+  credential: cert({
+    projectId: cleanedProjectId,
+    clientEmail: cleanedClientEmail,
+    privateKey: cleanedPrivateKey,
+  }),
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+})`}
+</Code>
+
+**Экспорты:**
+
+| Экспорт | Возвращает | Примечания |
+|---------|------------|-----------|
+| `getAdminDb()` | `Firestore` или **имитация** | Возвращает имитацию в режимах postgres-primary и во время сборки |
+| `getAdminAuth()` | `Auth` или **имитация** | Та же логика имитации |
+| `getAdminRtdb()` | `Database` или **имитация** | RTDB — активно не используется в маршрутах приложения |
+
+В режимах `k8s-postgres-fcm` и `supabase-fcm` все три возвращают **имитации** из `build-mock.server.ts`. Имитация удовлетворяет типам TypeScript, но никогда не подключается к Firebase. Это предотвращает инициализацию Firebase, когда активен только PostgreSQL.
+
+**Очистка переменных окружения (важно):**
+
+SDK агрессивно очищает входные данные переменных окружения — удаляет внешние кавычки, преобразует `\\n` в реальные новые строки, обрезает пробелы. Согласованность двойных кавычек в `env.local.template` для `AUTH_FIREBASE_PRIVATE_KEY` является намеренной:
+
+```bash
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQ...\n-----END PRIVATE KEY-----\n"
+```
+
+## FirebaseAdapter (`FirebaseAdapter.ts`)
+
+`FirebaseAdapter` реализует `IDatabaseService` и используется **только когда `DB_BACKEND_MODE=firebase-full`**. По умолчанию он использует **Application Default Credentials (ADC)**:
+
+<Code language="typescript" title="Стратегия учётных данных">
+{`// Продакшн (Cloud Run, GKE, Cloud Functions):
+//   ADC автоматически определяется из окружения — ручной cert() не требуется.
+//   Нужен только AUTH_FIREBASE_PROJECT_ID.
+
+// Локальная разработка / CI:
+//   Запасной вариант — явный cert(), когда credentials.clientEmail и
+//   credentials.privateKey присутствуют в конфигурации бэкенда.`}
+</Code>
+
+Адаптер предоставляет стандартный контракт `DatabaseService`:
+
+<Code language="typescript">
+{`// Одиночный документ
+await db.findById('users', userId)
+// => { success, data: T | null, error? }
+
+// Запрос с фильтрами, сортировкой, пагинацией
+await db.query({
+  collection: 'entities',
+  filters: [{ field: 'status', operator: 'eq', value: 'active' }],
+  orderBy: [{ field: 'createdAt', direction: 'desc' }],
+  pagination: { limit: 20, offset: 0 },
+})
+// => { success, data: T[], error? }
+
+// Мутации
+await db.create('users', data)
+await db.update('users', id, { name: 'New' })
+await db.delete('users', id)
+
+// Транзакции
+await db.transaction(async (txn) => { ... })`}
+</Code>
+
+## firebase-service-manager (`firebase-service-manager.ts`)
+
+Предоставляет **кэшированные операции Firebase** с использованием React 19 `cache()` для дедупликации на один запрос. Используется только когда `getAdminDb()` возвращает реальный (не имитированный) экземпляр Firestore.
+
+Ключевые экспорты:
+
+| Экспорт | Описание |
+|---------|---------|
+| `getCachedDocument(collection, docId)` | Одиночный документ с дедупликацией через `cache()` |
+| `getCachedCollection(collection, options)` | Запрос коллекции с кэшированием |
+| `getCachedDocumentBatch(requests)` | Пакетное получение нескольких документов |
+| `getCachedCollectionAdvanced(collection, queryConfig)` | Сложные запросы (where, orderBy, paginate) |
+| `getCachedSubcollection(parentCol, parentId, subCol, options)` | Запросы вложенных коллекций |
+| `getCachedCollectionGroup(collectionId, options)` | Межколлекционные запросы |
+| `createDocument`, `updateDocument`, `deleteDocument` | Операции записи (без кэширования) |
+| `createBatchWriter` / `executeBatch` | Пакетная запись |
+| `runTransaction` | Атомные транзакции |
+| `getCacheMetrics` / `logCachePerformance` | Отладочные метрики (только для разработки) |
+
+**Оптимизация на этапе сборки:** Все кэшированные функции вызываются только когда `getAdminDb()` возвращает реальный Firestore. Во время сборки (SSG) методы имитированного Firestore возвращают пустые результаты, а слой `cache()` дедуплицирует в пределах каждого запроса.
+
+## Имитация на этапе сборки (`build-mock.server.ts`)
+
+Во время статической генерации Next.js (`NEXT_PHASE=phase-production-build`) вызовы Firebase Admin перехватываются имитированными сервисами:
+
+<Code language="typescript" title="lib/firebase/build-mock.server.ts">
+{`export function isBuildTime(): boolean {
+  return (
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    process.env.NEXT_PHASE === 'phase-development-build' ||
+    process.env.NODE_ENV === 'production' && process.argv.includes('build')
+  )
+}
+
+export function getMockFirebaseServices() {
+  // Возвращает mockFirestore, mockAuth, mockRtdb
+  // Все методы возвращают безопасные значения по умолчанию
+}`}
+</Code>
+
+Это предотвращает примерно 22 лишних инициализации Firebase Admin во время SSG и сокращает время сборки примерно на 31%.
+
+## Клиентский Firebase (FCM service worker)
+
+Service worker по адресу `public/firebase-messaging-sw.js` загружает Firebase compat SDK v12.9.0 с Google CDN:
+
+<Code language="javascript" title="public/firebase-messaging-sw.js">
+{`importScripts('https://www.gstatic.com/firebasejs/12.9.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/12.9.0/firebase-messaging-compat.js')
+
+firebase.initializeApp({
+  apiKey: self.FIREBASE_API_KEY,
+  projectId: self.FIREBASE_PROJECT_ID,
+  // ... self.* переменные внедряются во время выполнения
+})
+
+const messaging = firebase.messaging()
+messaging.onBackgroundMessage((payload) => {
+  // Показывает уведомление с типизированной обработкой
+  // Типы: chat, opportunity, news, entity, admin, default
+})`}
+</Code>
+
+Service worker поддерживает **внедрённую во время выполнения** конфигурацию Firebase через переменные `self.*` (устанавливаются заполнителями `env.local.template` на этапе сборки или внедряются в развёртываниях k8s).
+
+**Процесс регистрации FCM-токена:**
+
+1. React-компонент `'use client'` вызывает `Notification.requestPermission()`
+2. После предоставления разрешения вызывает `getToken(messaging, { vapidKey })`
+3. Токен сохраняется через Server Action `upsertFcmToken` в основную базу данных (PostgreSQL или Firestore в зависимости от `DB_BACKEND_MODE`)
+4. При выходе из системы `useAuth().signOut()` вызывает `unregisterCurrentDeviceFcmToken()`, которая запускает `deleteToken` Firebase + инвалидацию на стороне сервера
+
+## Переменные окружения
+
+### Admin SDK (серверная часть)
+
+```bash
+# Обязательные для FCM + инициализации Firebase Admin (все три):
+AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
+AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# Опционально:
+FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
+FIREBASE_PRIVATE_KEY_ID=your_firebase_private_key_id
+FIREBASE_CLIENT_ID="your_firebase_client_id"
+FIREBASE_FIRESTORE_DEBUG=true
+```
+
+### Client SDK (браузерная часть)
+
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-YCZKPV315E
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key
+```
+
+## Ключевые различия между двумя направлениями Firebase
+
+| Аспект | Admin SDK (`firebase-admin.server.ts`) | Адаптер (`FirebaseAdapter.ts`) |
+|--------|----------------------------------------|-------------------------------|
+| Учётные данные | Всегда явный `cert()` | ADC-first, запасной `cert()` |
+| Переменные окружения | Все 3 `AUTH_FIREBASE_*` обязательны | Только `AUTH_FIREBASE_PROJECT_ID` для ADC |
+| Активен в | Все значения DB_BACKEND_MODE (FCM) | Только `firebase-full` |
+| Имитация в postgres-primary | Да — возвращает имитированные Firestore/Auth | Нет — адаптер не зарегистрирован |
+| Путь импорта | `firebase-admin/app`, `firebase-admin/firestore` | То же |
+| Версия | v14 (именованные подпути импорта) | v14 |
+
+## Связанная документация
+
+<Cards>
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Режимы бэкенда" description="Матрица DB_BACKEND_MODE — когда Firebase Admin используется как база данных, а когда только для FCM." />
+  <Card href="/docs/features/push-notifications-fcm" title="Push-уведомления (FCM)" description="Сквозная настройка FCM: регистрация токенов, Server Actions, жизненный цикл." />
+  <Card href="/docs/deployment/environment" title="Переменные окружения" description="Полный справочник переменных окружения — все переменные Firebase и их область применения." />
+  <Card href="/docs/architecture/authentication" title="Аутентификация" description="Auth.js v5 — Firebase не используется для аутентификации." />
+</Cards>
+
+</Audience>

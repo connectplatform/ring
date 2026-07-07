@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, it } from '@jest/globals'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   assertEntityVisibilityPatch,
   canCreateEntity,
@@ -9,34 +9,34 @@ import {
 
 describe('entity-permissions', () => {
   it('member can create non-confidential entity', () => {
-    expect(canCreateEntity(UserRole.member)).toBe(true)
+    expect(canCreateEntity(UserRolesArray.member)).toBe(true)
   })
 
   it('subscriber cannot create entity', () => {
-    expect(canCreateEntity(UserRole.subscriber)).toBe(false)
+    expect(canCreateEntity(UserRolesArray.subscriber)).toBe(false)
   })
 
   it('confidential role can create confidential entity', () => {
-    expect(canCreateEntity(UserRole.confidential, { isConfidential: true })).toBe(true)
+    expect(canCreateEntity(UserRolesArray.confidential, { isConfidential: true })).toBe(true)
   })
 
   it('member cannot create confidential entity', () => {
-    expect(canCreateEntity(UserRole.member, { isConfidential: true })).toBe(false)
+    expect(canCreateEntity(UserRolesArray.member, { isConfidential: true })).toBe(false)
   })
 
   it('member can set member visibility but not confidential', () => {
-    expect(canSetEntityVisibility(UserRole.member, 'member')).toBe(true)
-    expect(canSetEntityVisibility(UserRole.member, 'confidential')).toBe(false)
-    expect(canSetEntityVisibility(UserRole.member, undefined, { isConfidential: true })).toBe(false)
+    expect(canSetEntityVisibility(UserRolesArray.member, 'member')).toBe(true)
+    expect(canSetEntityVisibility(UserRolesArray.member, 'confidential')).toBe(false)
+    expect(canSetEntityVisibility(UserRolesArray.member, undefined, { isConfidential: true })).toBe(false)
   })
 
   it('admin can set confidential visibility', () => {
-    expect(canSetEntityVisibility(UserRole.admin, 'confidential', { isConfidential: true })).toBe(true)
+    expect(canSetEntityVisibility(UserRolesArray.admin, 'confidential', { isConfidential: true })).toBe(true)
   })
 
   it('assertEntityVisibilityPatch rejects member escalation', () => {
     expect(() =>
-      assertEntityVisibilityPatch(UserRole.member, { visibility: 'confidential' }),
+      assertEntityVisibilityPatch(UserRolesArray.member, { visibility: 'confidential' }),
     ).toThrow(/cannot set this visibility/)
   })
 })

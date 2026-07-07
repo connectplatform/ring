@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { getSiteBaseUrl } from '@/lib/ring-config'
+import { getSiteBaseUrl } from '@/lib/ring-config-core'
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
 import { auth } from "@/auth"

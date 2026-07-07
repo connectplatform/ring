@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, connection} from 'next/server';
+import { NextRequest, NextResponse, connection, after } from 'next/server';
 import { 
   getCachedNewsCategoriesCollection,
   getCachedDocument,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       .replace(/-+/g, '-')
       .trim() as NewsCategory;
 
-    // Check if category already exists using firebase-service-manager
+    // Check if category already exists — must happen before write
     const existingCategory = await getCachedDocument('newsCategories', categoryId);
     if (existingCategory && existingCategory.exists) {
       return NextResponse.json(
@@ -88,24 +88,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new category with all required fields
-    const newCategory = {
+    // Prepare category data (local timestamps for the response)
+    const now = new Date().toISOString()
+    const categoryData = {
       id: categoryId,
       name: name.trim(),
       description: description?.trim() || '',
       color: color.trim(),
       icon: icon.trim(),
-      createdAt: FieldValue.serverTimestamp() as any,
-      updatedAt: FieldValue.serverTimestamp() as any,
-    };
+    }
 
-    await createDocument('newsCategories', newCategory, categoryId);
-
-    const createdCategory = await getCachedDocument('newsCategories', categoryId);
+    // Defer DB write — respond immediately, category creation is non-blocking
+    after(async () => {
+      await createDocument(
+        'newsCategories',
+        {
+          ...categoryData,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        categoryId,
+      ).catch((err: unknown) =>
+        console.error('[news/categories] background write failed:', err),
+      )
+    })
 
     return NextResponse.json({
       success: true,
-      data: { id: categoryId, ...createdCategory.data() },
+      data: { ...categoryData, createdAt: now, updatedAt: now },
       message: 'Category created successfully',
     });
 

@@ -5,7 +5,7 @@
  * Auth.js handles session management and role claims
  */
 
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
@@ -28,7 +28,7 @@ import { db } from '@/lib/database'
  * - Throws an error if the current user is not authenticated or not an admin
  * - Returns false if there's an error updating the role in Firestore or Firebase Auth
  */
-export async function updateUserRole(userId: string, newRole: UserRole): Promise<boolean> {
+export async function updateUserRole(userId: string, newRole: UserRolesArray): Promise<boolean> {
   console.log(`Services: updateUserRole - Starting role update process for user ${userId} to ${newRole}`);
 
   try {

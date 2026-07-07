@@ -9,6 +9,8 @@ import { UserSettings } from '@/features/auth/types'
 import { cache } from 'react'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
+import { DEFAULT_LOCALE } from '@/lib/locale-config'
+import { getDefaultTheme } from '@/lib/ring-config-core'
 
 /**
  * Retrieve user settings from PostgreSQL database
@@ -35,8 +37,8 @@ export async function getUserSettings(): Promise<UserSettings | null> {
       console.log('getUserSettings: User document not found')
       // Return default settings
       return {
-        language: 'en',
-        theme: 'system',
+        language: DEFAULT_LOCALE,
+        theme: getDefaultTheme(),
         notifications: true,
         notificationPreferences: {
           email: true,
@@ -47,8 +49,8 @@ export async function getUserSettings(): Promise<UserSettings | null> {
     }
 
     const userSettings: UserSettings = (result.data.settings as UserSettings) || {
-      language: 'en',
-      theme: 'system',
+      language: DEFAULT_LOCALE,
+      theme: getDefaultTheme(),
       notifications: true,
       notificationPreferences: {
         email: true,

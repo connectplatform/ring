@@ -1,7 +1,6 @@
 {
   "title": "Панель продавца",
   "becomeVendor": "Стать продавцом",
-
   "onboarding": {
     "title": "Станьте продавцом на Ring Platform",
     "subtitle": "Присоединяйтесь к Ring Marketplace и продавайте dev-киты, AI-инструменты, шаблоны и экспертные услуги",
@@ -59,7 +58,6 @@
       "logoInvalidType": "Логотип должен быть JPG, PNG или WebP"
     }
   },
-
   "dashboard": {
     "title": "Панель продавца",
     "welcome": "Добро пожаловать",
@@ -86,7 +84,6 @@
     "resourcesDescription": "Узнайте, как раскрыть потенциал вашего магазина",
     "viewVendorGuide": "Руководство продавца →"
   },
-
   "products": {
     "title": "Мои продукты",
     "myProducts": "Мои продукты",
@@ -99,7 +96,6 @@
     "totalProducts": "{count} продуктов",
     "activeProducts": "{count} активных",
     "pendingProducts": "{count} на рассмотрении",
-
     "status": {
       "active": "Активный",
       "inactive": "Неактивный",
@@ -107,7 +103,6 @@
       "approved": "Одобрено",
       "rejected": "Отклонено"
     },
-
     "mainStore": {
       "badge": "Главный магазин",
       "submit": "Подать в главный магазин",
@@ -116,7 +111,6 @@
       "rejected": "❌ Не одобрено",
       "notSubmitted": "Не подано в главный магазин"
     },
-
     "actions": {
       "edit": "Редактировать",
       "duplicate": "Дублировать",
@@ -127,7 +121,6 @@
       "viewInStore": "Просмотреть в магазине",
       "viewInMainStore": "Просмотреть в главном магазине"
     },
-
     "filters": {
       "all": "Все продукты",
       "active": "Активные",
@@ -144,7 +137,6 @@
       "sortNameAsc": "Название: А до Я",
       "sortNameDesc": "Название: Я до А"
     },
-
     "form": {
       "productDetails": "Детали продукта",
       "mainPhoto": "Главное фото",
@@ -186,9 +178,14 @@
       "referralCommissionPlaceholder": "По умолчанию ({percent}%)",
       "rep": "Представитель товара",
       "repHint": "Необязательно. Назначьте пользователя Ring по имени пользователя.",
-      "repPlaceholder": "Поиск по username…"
+      "repPlaceholder": "Поиск по username…",
+      "addProductParameter": "Добавить параметр продукта",
+      "parameterName": "Название параметра",
+      "parameterValue": "Значение параметра",
+      "removeParameter": "Удалить параметр",
+      "productAudience": "Только для участников",
+      "productAudienceHint": "Только участники и выше могут просматривать этот продукт в главном магазине. Публичные продукты видны всем."
     },
-
     "validation": {
       "nameRequired": "Название продукта обязательно",
       "nameTooShort": "Название должно быть не менее 3 символов",
@@ -206,7 +203,6 @@
       "videoInvalidType": "Видео должно быть MP4 или WebM",
       "descriptionTooLong": "Описание должно быть менее 200 символов"
     },
-
     "deleteConfirm": {
       "title": "Удалить продукт",
       "message": "Вы уверены, что хотите удалить '{name}'? Это действие нельзя отменить.",
@@ -214,7 +210,6 @@
       "cancel": "Отменить"
     }
   },
-
   "storefront": {
     "title": "Магазин продавца",
     "followVendor": "Подписаться",
@@ -248,7 +243,6 @@
       "sendMessage": "Отправить сообщение"
     }
   },
-
   "orders": {
     "title": "Заказы продавца",
     "description": "Заказы с вашими товарами",
@@ -303,7 +297,6 @@
     "restocking": "Добавление…",
     "quantity": "Количество"
   },
-
   "navbar": {
     "myStore": "Мой магазин",
     "dashboard": "Панель управления",
@@ -315,7 +308,6 @@
     "stock": "Склад",
     "comingSoon": "Скоро"
   },
-
   "notifications": {
     "productCreated": "Продукт '{name}' успешно создан",
     "productUpdated": "Продукт '{name}' успешно обновлен",
@@ -326,7 +318,6 @@
     "approvalApproved": "Поздравляем! '{name}' одобрен для главного магазина",
     "approvalRejected": "Продукт '{name}' не одобрен. Причина: {reason}"
   },
-
   "startWrapper": {
     "setupProgress": "Прогресс настройки",
     "storeDetails": "Информация о магазине",
@@ -363,7 +354,6 @@
     },
     "progressBenefits": "Прогресс и преимущества"
   },
-
   "startPage": {
     "title": "Регистрация продавца",
     "subtitle": "Настройте свой магазин и начните продавать на Ring Platform",

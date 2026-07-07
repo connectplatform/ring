@@ -3,54 +3,53 @@
 /**
  * Vendor Storefront - Public Page
  * 
- * Customer-facing vendor store with vendor branding and products.
- * 
+ * Public-facing vendor page showing branding, vendor stats, and products.
  * Features:
- * - Vendor header (cover photo, avatar, name, trust badge, rating, sales)
- * - Tabs (Products, About, Reviews, Contact)
- * - Products grid (vendor's active products)
- * - Vendor branding colors
- * - "Powered by" platform footer (locale-driven brand)
+ * - Vendor header (cover image, avatar, trust badge, stats)
+ * - Tabs for Products, About, Reviews, Contact
+ * - Product grid display
+ * - Vendor branding and theming
+ * - "Powered by" localized platform footer
  * 
- * Tech: React 19 + Ring Platform theme
+ * Tech: React 19 + Next 16 + Ring Platform Theme
  */
 
-import React, { useState, useTransition, useCallback } from 'react'
+import React, { useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { 
-  Store, 
-  MapPin, 
-  Star, 
-  TrendingUp, 
-  Calendar, 
-  Award, 
-  Clock,
+import {
+  Store,
+  Star,
+  TrendingUp,
+  Calendar,
+  Award,
   Heart,
-  MessageCircle 
+  MessageCircle
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar' // TODO: vendor avatar
 import { cn } from '@/lib/utils'
 
 interface VendorStorefrontProps {
   locale: string
-  vendorEntity: any
-  products: any[]
+  vendorEntity: any // TODO: Type vendorEntity properly
+  products: any[]   // TODO: Type products properly
 }
 
 export default function VendorStorefront({ locale, vendorEntity, products }: VendorStorefrontProps) {
   const t = useTranslations('vendor.storefront')
   const tConfig = useTranslations('config')
 
-  // React 19 useTransition for non-blocking tab changes
+  // Non-blocking tab transitions (React 19)
   const [isPending, startTransition] = useTransition()
 
+  // 'products' tab is active by default
   const [activeTab, setActiveTab] = useState('products')
 
+  // Vendor info logic with fallbacks for missing data
   const vendorName = vendorEntity.name || 'Vendor Store'
   const vendorDescription = vendorEntity.description || ''
   const vendorLogo = vendorEntity.storeLogo || '/placeholder-vendor.jpg'
@@ -58,9 +57,9 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
   const vendorRating = vendorEntity.vendorRating || 0
   const vendorSales = vendorEntity.vendorTotalSales || 0
   const memberSince = new Date(vendorEntity.createdAt || Date.now()).getFullYear()
-  const categories = vendorEntity.storeCategories || []
+  const categories = vendorEntity.storeCategories || [] // array of string (category names)
 
-  // Trust tier badge colors
+  // Map vendor tier keys to Tailwind color classes
   const tierColors = {
     NEW: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
     BRONZE: 'bg-orange-500/20 text-orange-700 border-orange-500/30',
@@ -69,28 +68,32 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
     PREMIUM: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30'
   }
 
+  // TODO: Consider extracting logic-heavy blocks (like vendor header and product grid) into their own components for clarity and to leverage React 19's improved streaming/async capabilities.
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Vendor Header (Hero) */}
+      {/* === Header Section: Vendor Hero === */}
       <div className="relative h-64 bg-gradient-to-br from-emerald-500/20 via-green-500/20 to-lime-500/20 border-b">
-        {/* Cover Photo (placeholder for now) */}
+        {/* Faint gradient background for cover */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 to-lime-600 opacity-30" />
         
-        {/* Vendor Info Overlay */}
+        {/* Overlay containing vendor avatar, info, and actions */}
         <div className="absolute bottom-0 left-0 right-0 pb-6">
           <div className="container mx-auto px-4">
             <div className="flex items-end gap-6">
-              {/* Vendor Avatar */}
+              {/* === Vendor Avatar + Trust Badge === */}
               <div className="relative">
+                {/* Avatar Circle with fallback initials */}
                 <div className="w-32 h-32 rounded-full border-4 border-background shadow-2xl overflow-hidden bg-gradient-to-br from-emerald-600 to-lime-600 flex items-center justify-center text-white text-3xl font-bold">
                   {vendorLogo ? (
+                    // Logo image
                     <Image src={vendorLogo} alt={vendorName} fill className="object-cover" />
                   ) : (
+                    // Fallback: First 2 chars of vendor name
                     vendorName.slice(0, 2).toUpperCase()
                   )}
                 </div>
-                
-                {/* Trust Badge */}
+                {/* Trust Badge, colored by tier */}
                 <div className="absolute -bottom-2 -right-2">
                   <Badge className={cn(
                     "text-xs px-2 py-1",
@@ -102,25 +105,24 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
                 </div>
               </div>
               
-              {/* Vendor Details */}
+              {/* === Vendor Info and Stats === */}
               <div className="flex-1 pb-2">
                 <h1 className="text-3xl font-bold text-foreground mb-2">{vendorName}</h1>
                 <p className="text-muted-foreground max-w-2xl">{vendorDescription}</p>
-                
-                {/* Stats Row */}
                 <div className="flex items-center gap-6 mt-3 text-sm">
+                  {/* Rating */}
                   <div className="flex items-center gap-1.5">
                     <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                     <span className="font-medium">{vendorRating.toFixed(1)}</span>
                     <span className="text-muted-foreground">{t('rating')}</span>
                   </div>
-                  
+                  {/* Total Sales */}
                   <div className="flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
                     <span className="font-medium">{vendorSales}</span>
                     <span className="text-muted-foreground">{t('totalSales')}</span>
                   </div>
-                  
+                  {/* Member Since */}
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">
@@ -130,12 +132,14 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
                 </div>
               </div>
               
-              {/* Action Buttons */}
+              {/* === Follow and Message Actions === */}
               <div className="flex items-center gap-3 pb-2">
+                {/* Follow Vendor */}
                 <Button className="bg-emerald-600 hover:bg-emerald-700">
                   <Heart className="w-4 h-4 mr-2" />
                   {t('followVendor')}
                 </Button>
+                {/* Message Vendor */}
                 <Button variant="outline">
                   <MessageCircle className="w-4 h-4 mr-2" />
                   {t('messageVendor')}
@@ -146,10 +150,15 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* === Main Tabs Content === */}
       <div className="container mx-auto px-0 py-0">
-        <Tabs value={activeTab} onValueChange={(value) => startTransition(() => setActiveTab(value))} className="space-y-6">
-          {/* Tabs Navigation */}
+        {/* TODO: Consider using React 19 <Tab> components with async streaming for heavy content */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => startTransition(() => setActiveTab(value))}
+          className="space-y-6"
+        >
+          {/* === Tab Navigation === */}
           <TabsList className="bg-muted">
             <TabsTrigger value="products">{t('tabs.products')}</TabsTrigger>
             <TabsTrigger value="about">{t('tabs.about')}</TabsTrigger>
@@ -157,9 +166,10 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
             <TabsTrigger value="contact">{t('tabs.contact')}</TabsTrigger>
           </TabsList>
 
-          {/* Products Tab */}
+          {/* === Products Tab Content === */}
           <TabsContent value="products" className="space-y-6">
             {products.length === 0 ? (
+              // No products state
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <Store className="w-16 h-16 text-muted-foreground mb-4" />
@@ -167,6 +177,7 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
                 </CardContent>
               </Card>
             ) : (
+              // Products grid (desktop: 3 or 4 columns)
               <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {products.map(product => (
                   <Card key={product.id} className="overflow-hidden hover:shadow-xl transition-all">
@@ -181,9 +192,11 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
                     <CardContent className="p-4">
                       <h3 className="font-semibold text-sm line-clamp-2 mb-2">{product.name}</h3>
                       <div className="flex items-center justify-between">
+                        {/* TODO: Localize pricing per currency/locale */}
                         <p className="font-bold text-emerald-600">
                           {product.price.toFixed(2)} {product.currency}
                         </p>
+                        {/* TODO: Add handler for add-to-cart with optimistic update/state */}
                         <Button size="sm">Add to Cart</Button>
                       </div>
                     </CardContent>
@@ -193,15 +206,16 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
             )}
           </TabsContent>
 
-          {/* About Tab */}
+          {/* === About Tab Content === */}
           <TabsContent value="about">
             <Card>
               <CardContent className="pt-6 space-y-6">
+                {/* Vendor story/description */}
                 <div>
                   <h3 className="font-semibold text-lg mb-3">{t('about.story')}</h3>
                   <p className="text-muted-foreground">{vendorDescription}</p>
                 </div>
-                
+                {/* Categories list (if any) */}
                 {categories.length > 0 && (
                   <div>
                     <h3 className="font-semibold text-lg mb-3">Categories</h3>
@@ -216,10 +230,11 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
             </Card>
           </TabsContent>
 
-          {/* Reviews Tab */}
+          {/* === Reviews Tab Content === */}
           <TabsContent value="reviews">
             <Card>
               <CardContent className="pt-6">
+                {/* TODO: Implement fetching and streaming of reviews (React 19 Suspense boundary) */}
                 <p className="text-center text-muted-foreground py-8">
                   No reviews yet. Be the first to review this vendor!
                 </p>
@@ -227,10 +242,11 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
             </Card>
           </TabsContent>
 
-          {/* Contact Tab */}
+          {/* === Contact Tab Content === */}
           <TabsContent value="contact">
             <Card>
               <CardContent className="pt-6">
+                {/* TODO: Render vendor contact info if available */}
                 <p className="text-center text-muted-foreground py-8">
                   Contact information will be displayed here.
                 </p>
@@ -240,7 +256,7 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
         </Tabs>
       </div>
 
-      {/* Footer */}
+      {/* === Footer with Platform Branding === */}
       <footer className="border-t py-8 mt-16">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
@@ -251,4 +267,3 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
     </div>
   )
 }
-

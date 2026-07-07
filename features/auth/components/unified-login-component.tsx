@@ -6,10 +6,7 @@ import { useLocale } from 'next-intl'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
-import { AiFillApple } from 'react-icons/ai'
-import { FaEthereum } from 'react-icons/fa'
-import { FcGoogle } from 'react-icons/fc'
-import { HiMail } from 'react-icons/hi'
+import { Apple, Diamond, Mail } from 'lucide-react'
 import { signIn, useSession, getProviders } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -212,7 +209,7 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
         <div className="space-y-4">
           {emailSent ? (
             <div className="text-center py-8">
-                <HiMail className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                <Mail className="mx-auto h-12 w-12 text-green-500 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">{tAuth('signIn.magicLink.sent')}</h3>
                 <p className="text-muted-foreground mb-4">
                   {tAuth('signIn.magicLink.sentDescription')} <strong>{email}</strong>
@@ -246,7 +243,7 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                     variant="outline"
                     className="h-12 text-sm font-medium"
                   >
-                    <AiFillApple className="mr-2 h-5 w-5" />
+                    <Apple className="mr-2 h-5 w-5" />
                     {isAuthenticating ? tAuth('signIn.loading') : tAuth('signIn.providers.apple')}
                   </Button>
                   <Button
@@ -255,7 +252,7 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                     variant="outline"
                     className="h-12 text-sm font-medium"
                   >
-                    <FaEthereum className="mr-2 h-5 w-5" />
+                    <Diamond className="mr-2 h-5 w-5" />
                     {isAuthenticating ? tAuth('signIn.loading') : tAuth('signIn.providers.metamask')}
                   </Button>
                 </div>
@@ -284,7 +281,7 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                         required
                       />
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <HiMail className="h-5 w-5 text-muted-foreground" />
+                        <Mail className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </div>
                     

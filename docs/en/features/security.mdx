@@ -106,21 +106,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 // Role hierarchy definition
 
 <Code language="typescript" title="TypeScript">
-{`export enum UserRole {
-  VISITOR = 0,      // Public content only
-  SUBSCRIBER = 1,   // Basic authenticated features
-  MEMBER = 2,       // Entity creation, paid features
-  CONFIDENTIAL = 3, // Confidential entities/opportunities
-  admin = 4         // Full system administration
+{`export enum UserRolesArray {
+  visitor = 0,      // Public content only
+  subscriber = 1,   // Basic authenticated features
+  member = 2,       // Entity creation, paid features
+  confidential = 3, // Confidential entities/opportunities
+  admin = 4,         // Full system administration
+  superadmin = 5     // Manager of admins 
 }
 
 // Permission matrix
 const rolePermissions = {
-  [UserRole.visitor]: ['read:public'],
-  [UserRole.subscriber]: ['read:public', 'read:authenticated'],
-  [UserRole.member]: ['read:public', 'read:authenticated', 'write:entities'],
-  [UserRole.confidential]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
-  [UserRole.admin]: ['*']
+  [UserRolesAdmin.visitor]: ['read:public'],
+  [UserRolesAdmin.subscriber]: ['read:public', 'read:authenticated'],
+  [UserRolesAdmin.member]: ['read:public', 'read:authenticated', 'write:entities'],
+  [UserRolesAdmin.confidential]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
+  [UserRolesAdmin.admin]: ['*']
 }`}
 </Code>
 
@@ -172,7 +173,7 @@ export async function createEntity(formData: FormData) {
   // Get entity and verify ownership
   const entity = await getEntity(entityId)
 
-  if (entity.userId !== session.user.id && session.user.role < UserRole.admin) {
+  if (entity.userId !== session.user.id && session.user.role < UserRolesAdmin.admin) {
     throw new Error('Forbidden: Not entity owner')
   }
 
@@ -214,7 +215,7 @@ export async function createEntity(formData: FormData) {
   id: string
   email: string           // Required for auth
   name?: string          // Optional, for personalization
-  role: UserRole         // Required for authorization
+  role: UserRolesArray         // Required for authorization
   createdAt: Date       // Required for audit
   // No unnecessary fields
 }`}

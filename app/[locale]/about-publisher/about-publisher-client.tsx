@@ -7,36 +7,45 @@ import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/docs/callout';
 import { RingWidgetsContact } from '@/components/ring-widgets/contact';
 import type { RingWidgetsContactProps } from '@/lib/ring-widgets/contact-schema';
-import { Heart, Users, Globe, Code, Target, Sparkles, MapPin, Award, Github, ExternalLink } from 'lucide-react';
+import { Heart, Users, Globe, Code, Target, Sparkles, MapPin, Award, ExternalLink, BookIcon } from 'lucide-react';
+import { GithubIcon } from '@/components/ui/icons/github-icon';
+// NOTE: LinkedinIcon, FacebookIcon, TwitterIcon are imported but not used here
+// TODO: Remove unused imports (LinkedinIcon, FacebookIcon, TwitterIcon) for optimization if not used elsewhere in the module
+
 import Image from 'next/image';
 import Link from 'next/link';
 
+// Props type for the main component
 export type AboutPublisherClientProps = {
   primaryFounder: RingWidgetsContactProps | null;
 };
 
+// Main client component rendering About Publisher page
 export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientProps) {
+  // Load translations for about-publisher namespace
   const t = useTranslations('about-publisher');
+  // TODO: With Next.js 16/React 19, consider useOptimistic or use() for async data, but here t is synchronous
 
   return (
     <div className="mx-4">
-      {/* Hero Section */}
+      {/* Hero Section: Title, subtitle, and feature badges */}
       <section className="relative py-20 px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary/10"></div>
         <div className="relative max-w-4xl mx-auto space-y-8">
           <div className="flex items-center justify-center space-x-4 mb-8">
             <div className="text-6xl">🇺🇦</div>
             <div className="text-center">
+              {/* Main title with gradient effect */}
               <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent">
                 {t('title')}
               </h1>
             </div>
           </div>
-
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+          {/* Hero description */}
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             {t('hero.description')}
           </p>
-
+          {/* Feature badges */}
           <div className="flex flex-wrap justify-center gap-4 mt-8">
             <Badge variant="secondary" className="px-4 py-2 text-sm">
               <Code className="w-4 h-4 mr-2" />
@@ -54,7 +63,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
         </div>
       </section>
 
-      {/* Origin Story */}
+      {/* Origin Story Section: Three main story cards */}
       <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
@@ -63,9 +72,9 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
               {t('sections.origin.subtitle')}
             </p>
           </div>
-
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
+              {/* Story: Crisis */}
               <div className="space-y-4">
                 <h3 className="text-2xl font-semibold flex items-center">
                   <MapPin className="w-6 h-6 mr-3 text-primary" />
@@ -75,7 +84,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                   {t('sections.origin.stories.crisis.description')}
                 </p>
               </div>
-
+              {/* Story: Liberation */}
               <div className="space-y-4">
                 <h3 className="text-2xl font-semibold flex items-center">
                   <Target className="w-6 h-6 mr-3 text-primary" />
@@ -85,7 +94,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                   {t('sections.origin.stories.liberation.description')}
                 </p>
               </div>
-
+              {/* Story: Gratitude */}
               <div className="space-y-4">
                 <h3 className="text-2xl font-semibold flex items-center">
                   <Heart className="w-6 h-6 mr-3 text-red-500" />
@@ -96,23 +105,11 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                 </p>
               </div>
             </div>
-
-            <div className="relative">
-              <div className="aspect-square bg-gradient-to-br from-muted to-muted dark:from-muted/50 dark:to-muted/50 rounded-2xl p-8 flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <div className="text-8xl">🌍</div>
-                  <p className="text-lg font-medium">Technology for Everyone</p>
-                  <p className="text-sm text-muted-foreground">
-                    No developers required. No vendor lock-in. Just collective solutions.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* Mission & Philosophy */}
+      {/* Mission & Philosophy: Three cards grid and callout */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
@@ -121,8 +118,8 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
               {t('sections.mission.subtitle')}
             </p>
           </div>
-
           <div className="grid md:grid-cols-3 gap-8">
+            {/* Mission Card: Unite */}
             <Card className="text-center p-6">
               <CardContent className="space-y-4">
                 <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -134,7 +131,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                 </p>
               </CardContent>
             </Card>
-
+            {/* Mission Card: Democratize */}
             <Card className="text-center p-6">
               <CardContent className="space-y-4">
                 <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -146,7 +143,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                 </p>
               </CardContent>
             </Card>
-
+            {/* Mission Card: EndDeficit */}
             <Card className="text-center p-6">
               <CardContent className="space-y-4">
                 <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -159,17 +156,16 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
               </CardContent>
             </Card>
           </div>
-
+          {/* Vision Callout */}
           <div className="mt-16 text-center">
             <Callout type="info">
-              <strong>Our Vision:</strong> A future where platforms write their own code. Autonomous AI evolution guided by human needs,
-              not corporate profits. Communities that govern themselves through token democracy, not centralized control.
+              <strong>Our Vision:</strong> Ring clones write their own code, guided by human needs, communities that govern themselves with a token of their own value.
             </Callout>
           </div>
         </div>
       </section>
 
-      {/* Global Impact */}
+      {/* Global Impact: Stats and stories grids */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -178,29 +174,27 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
               {t('sections.impact.subtitle')}
             </p>
           </div>
-
+          {/* Impact Statistics */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             <Card className="text-center p-6">
               <CardContent>
+                {/* TODO: If values can change, consider fetching from API/server and using React 19's use() or useOptimistic */}
                 <div className="text-3xl font-bold text-primary mb-2">50+</div>
                 <div className="text-sm text-muted-foreground">{t('sections.impact.stats.deployments')}</div>
               </CardContent>
             </Card>
-
             <Card className="text-center p-6">
               <CardContent>
                 <div className="text-3xl font-bold text-primary mb-2">€500M+</div>
                 <div className="text-sm text-muted-foreground">{t('sections.impact.stats.value')}</div>
               </CardContent>
             </Card>
-
             <Card className="text-center p-6">
               <CardContent>
                 <div className="text-3xl font-bold text-primary mb-2">2.5M+</div>
                 <div className="text-sm text-muted-foreground">{t('sections.impact.stats.benefiting')}</div>
               </CardContent>
             </Card>
-
             <Card className="text-center p-6">
               <CardContent>
                 <div className="text-3xl font-bold text-orange-600 mb-2">40+</div>
@@ -208,12 +202,13 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
               </CardContent>
             </Card>
           </div>
-
+          {/* Impact stories and democratization */}
           <div className="grid md:grid-cols-2 gap-12">
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold">{t('sections.impact.stories.title')}</h3>
-
               <div className="space-y-4">
+                {/* TODO: Story items map is a candidate for array.map for DRY in React 19 using fragment refs if dynamic */}
+                {/* Agricultural Impact Story */}
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
@@ -225,7 +220,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                     </div>
                   </div>
                 </div>
-
+                {/* Marketplace Impact Story */}
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
@@ -237,7 +232,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                     </div>
                   </div>
                 </div>
-
+                {/* Medical Impact Story */}
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
@@ -251,20 +246,18 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                 </div>
               </div>
             </div>
-
+            {/* Democratization Section */}
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold">{t('sections.impact.democratization.title')}</h3>
-
               <div className="space-y-4 text-muted-foreground">
                 <p>
                   {t('sections.impact.democratization.description')}
                 </p>
               </div>
-
               <div className="p-4 bg-gradient-to-r from-muted to-muted dark:from-muted/50 dark:to-muted/50 rounded-lg">
                 <p className="text-sm italic">
-                  "Ring doesn't just give communities technology - it gives them technological sovereignty.
-                  The ability to evolve their platforms based on their own needs, not corporate roadmaps."
+                  "Ring gives communities technological sovereignty: 
+                  the ability to evolve their platforms based on their own needs, different from global corporations."
                 </p>
               </div>
             </div>
@@ -272,19 +265,19 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
         </div>
       </section>
 
-      {/* Future Vision */}
+      {/* Future Vision: What the platform aims to achieve */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-8">{t('sections.future.title')}</h2>
-
           <div className="space-y-8">
             <div className="max-w-2xl mx-auto">
               <p className="text-xl text-muted-foreground leading-relaxed mb-8">
                 {t('sections.future.description')}
               </p>
             </div>
-
+            {/* Three pillars: AI, Inter-Platform, Real-time */}
             <div className="grid md:grid-cols-3 gap-6 mt-12">
+              {/* Pillar: AI Autonomous Evolution */}
               <div className="text-center">
                 <div className="text-4xl mb-4">🤖</div>
                 <h3 className="text-lg font-semibold mb-2">AI Autonomous Evolution</h3>
@@ -292,7 +285,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                   Platforms that write their own code based on natural language requirements
                 </p>
               </div>
-
+              {/* Pillar: Inter-Platform Learning */}
               <div className="text-center">
                 <div className="text-4xl mb-4">🌐</div>
                 <h3 className="text-lg font-semibold mb-2">Inter-Platform Learning</h3>
@@ -300,7 +293,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                   Ring instances teaching other Ring instances, accelerating global evolution
                 </p>
               </div>
-
+              {/* Pillar: Real-time Adaptation */}
               <div className="text-center">
                 <div className="text-4xl mb-4">⚡</div>
                 <h3 className="text-lg font-semibold mb-2">Real-time Adaptation</h3>
@@ -309,16 +302,16 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
                 </p>
               </div>
             </div>
-
+            {/* Roadmap Callout */}
             <Callout type="success">
-              <strong>This is our roadmap:</strong> From human-guided platforms to autonomous AI evolution.
-              From centralized control to community governance. From technology deficit to technological abundance.
+              <strong>This is our roadmap:</strong> From human moderation to fully autonomous AI orchestration guided by human needs.
+              From centralized control to community governance. From technology deficit to abundance.
             </Callout>
           </div>
         </div>
       </section>
 
-      {/* Team & Gratitude */}
+      {/* Team & Gratitude: Show primary founder if present, action buttons, and thank you callout */}
       <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
@@ -327,54 +320,51 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
               {t('thankYou.subtitle')}
             </p>
           </div>
-
           <div className="text-center space-y-8">
             <div className="max-w-2xl mx-auto">
               <p className="text-lg text-muted-foreground leading-relaxed">
                 {t('thankYou.description')}
               </p>
             </div>
-
+            {/* If a primary founder exists, show their contact */}
             {primaryFounder ? (
               <div className="max-w-lg mx-auto text-left space-y-3">
                 <div className="text-center space-y-1">
                   <h3 className="text-xl font-semibold">{t('founders.contactTitle')}</h3>
                   <p className="text-sm text-muted-foreground">{t('founders.contactSubtitle')}</p>
                 </div>
+                {/* Founder's contact widget */}
                 <RingWidgetsContact {...primaryFounder} />
               </div>
             ) : null}
-
+            {/* Action Buttons: Clone, Token, Source */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
               <Button asChild size="lg">
-                <Link href="/docs/white-label/quick-start">
-                  <Github className="w-4 h-4 mr-2" />
+                <Link href="/docs/deployment/quick-start">
+                  <BookIcon className="w-4 h-4 mr-2" />
                   {t('actions.cloneRing')}
                 </Link>
               </Button>
-
               <Button variant="outline" size="lg" asChild>
                 <Link href="/token-economy">
                   <Award className="w-4 h-4 mr-2" />
                   {t('actions.learnTokens')}
                 </Link>
               </Button>
-
               <Button variant="outline" size="lg" asChild>
                 <a href="https://github.com/connectplatform/ring" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4 mr-2" />
+                  <GithubIcon className="w-4 h-4 mr-2" />
                   {t('actions.viewSource')}
                 </a>
               </Button>
             </div>
-
+            {/* Thank You Section */}
             <div className="mt-16 p-8 bg-gradient-to-r from-muted to-muted dark:from-muted/50 dark:to-muted/50 rounded-2xl">
               <div className="flex items-center justify-center space-x-2 mb-4">
                 <Heart className="w-6 h-6 text-red-500" />
                 <span className="text-lg font-medium">{t('thankYou.slogan')}</span>
                 <Heart className="w-6 h-6 text-red-500" />
               </div>
-
               <p className="text-muted-foreground">
                 {t('thankYou.message')}
               </p>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useTransition, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -91,28 +91,29 @@ export default function MyOpportunitiesWrapper({
     return filtered
   }, [initialOpportunities, urlSearch, urlTypesKey, urlCategoriesKey])
 
-  const pushView = useCallback(
-    (nextView: MyOpportunitiesView) => {
-      startTransition(() => setView(nextView))
-      const url = new URL(window.location.href)
-      url.searchParams.set('view', nextView)
-      url.searchParams.delete('filter')
-      url.searchParams.delete('tab')
-      router.push(url.pathname + url.search)
-    },
-    [router, startTransition],
-  )
+  const routerRef = useRef(router)
+  routerRef.current = router
+  const startTransitionRef = useRef(startTransition)
+  startTransitionRef.current = startTransition
+  const isArchiveViewRef = useRef(isArchiveView)
+  isArchiveViewRef.current = isArchiveView
 
-  const handleTabChange = useCallback(
-    (value: string) => {
-      pushView(value as MyOpportunitiesView)
-    },
-    [pushView],
-  )
+  const pushView = useCallback((nextView: MyOpportunitiesView) => {
+    startTransitionRef.current(() => setView(nextView))
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', nextView)
+    url.searchParams.delete('filter')
+    url.searchParams.delete('tab')
+    routerRef.current.push(url.pathname + url.search)
+  }, [])
+
+  const handleTabChange = useCallback((value: string) => {
+    pushView(value as MyOpportunitiesView)
+  }, [])
 
   const handleArchiveToggle = useCallback(() => {
-    pushView(isArchiveView ? 'all' : 'archived')
-  }, [isArchiveView, pushView])
+    pushView(isArchiveViewRef.current ? 'all' : 'archived')
+  }, [])
 
   const handleDelete = async (opportunity: SerializedOpportunity) => {
     if (!canOwnerDeleteOpportunity(opportunity.status)) {

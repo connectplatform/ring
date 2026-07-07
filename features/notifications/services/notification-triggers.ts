@@ -11,12 +11,19 @@ import {
   NotificationChannel,
   CreateNotificationRequest 
 } from '@/features/notifications/types';
-import { UserRole } from '@/features/auth/types';
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role';
+
+// ------------------------------------------------------------------------------
+// Opportunity-related notification triggers
+// ------------------------------------------------------------------------------
 
 /**
- * Opportunity-related notification triggers
+ * Triggers a notification when a new opportunity is created.
+ * @param opportunityId - The ID of the created opportunity.
+ * @param opportunityTitle - The title of the created opportunity.
+ * @param createdBy - The userId of the creator.
+ * @param isConfidential - Whether the opportunity is confidential.
  */
-
 export async function notifyOpportunityCreated(
   opportunityId: string,
   opportunityTitle: string,
@@ -24,10 +31,11 @@ export async function notifyOpportunityCreated(
   isConfidential: boolean = false
 ): Promise<void> {
   console.log('NotificationTriggers: Opportunity created', { opportunityId, opportunityTitle });
-
   try {
-    // TODO: Get users who should be notified (subscribers, followers, etc.)
-    // For now, we'll just notify the creator
+    // STUB: Get users who should be notified (e.g. subscribers, followers, team members)
+    // TODO: Implement logic to fetch subscribers/followers of the opportunity for notification
+
+    // For now, only notify the creator
     const notificationRequest: CreateNotificationRequest = {
       userId: createdBy,
       type: NotificationType.OPPORTUNITY_CREATED,
@@ -46,19 +54,28 @@ export async function notifyOpportunityCreated(
 
     await createNotification(notificationRequest);
   } catch (error) {
+    // Error handling: logs error if notification could not be created
     console.error('NotificationTriggers: Error notifying opportunity created:', error);
   }
 }
 
+/**
+ * Triggers a notification when an opportunity is updated.
+ * @param opportunityId - The ID of the updated opportunity.
+ * @param opportunityTitle - The title of the updated opportunity.
+ * @param updatedBy - The userId who performed the update.
+ */
 export async function notifyOpportunityUpdated(
   opportunityId: string,
   opportunityTitle: string,
   updatedBy: string
 ): Promise<void> {
   console.log('NotificationTriggers: Opportunity updated', { opportunityId, opportunityTitle });
-
   try {
-    // TODO: Notify interested users (saved by, applied to, etc.)
+    // STUB: Notify interested users (saved by, applied to, etc.)
+    // TODO: Implement logic to get interested users who interacted with the opportunity
+
+    // Notifying the user who performed the update (placeholder)
     const notificationRequest: CreateNotificationRequest = {
       userId: updatedBy,
       type: NotificationType.OPPORTUNITY_UPDATED,
@@ -81,13 +98,18 @@ export async function notifyOpportunityUpdated(
   }
 }
 
+/**
+ * Triggers a notification when an opportunity expires for the creator.
+ * @param opportunityId - The expired opportunity's ID.
+ * @param opportunityTitle - The opportunity title.
+ * @param createdBy - The creator's user ID.
+ */
 export async function notifyOpportunityExpired(
   opportunityId: string,
   opportunityTitle: string,
   createdBy: string
 ): Promise<void> {
   console.log('NotificationTriggers: Opportunity expired', { opportunityId, opportunityTitle });
-
   try {
     const notificationRequest: CreateNotificationRequest = {
       userId: createdBy,
@@ -111,10 +133,16 @@ export async function notifyOpportunityExpired(
   }
 }
 
-/**
- * Entity-related notification triggers
- */
+// ------------------------------------------------------------------------------
+// Entity-related notification triggers
+// ------------------------------------------------------------------------------
 
+/**
+ * Triggers a notification when a new entity is created by a user.
+ * @param entityId - The created entity's ID.
+ * @param entityName - The created entity's name.
+ * @param createdBy - The creator's user ID.
+ */
 export async function notifyEntityCreated(
   entityId: string,
   entityName: string,
@@ -145,6 +173,12 @@ export async function notifyEntityCreated(
   }
 }
 
+/**
+ * Triggers a notification when an entity is verified.
+ * @param entityId - Verified entity's ID.
+ * @param entityName - Verified entity's name.
+ * @param ownerId - Owner's user ID.
+ */
 export async function notifyEntityVerified(
   entityId: string,
   entityName: string,
@@ -175,14 +209,21 @@ export async function notifyEntityVerified(
   }
 }
 
-/**
- * User account-related notification triggers
- */
+// ------------------------------------------------------------------------------
+// User account-related notification triggers
+// ------------------------------------------------------------------------------
 
+/**
+ * Notifies a user of their submission for a role upgrade request.
+ * @param userId - The user submitting the request.
+ * @param fromRole - The current role.
+ * @param toRole - The requested role.
+ * @param requestId - The upgrade request ID.
+ */
 export async function notifyRoleUpgradeRequest(
   userId: string,
-  fromRole: UserRole,
-  toRole: UserRole,
+  fromRole: UserRolesArray,
+  toRole: UserRolesArray,
   requestId: string
 ): Promise<void> {
   console.log('NotificationTriggers: Role upgrade request', { userId, fromRole, toRole });
@@ -210,9 +251,15 @@ export async function notifyRoleUpgradeRequest(
   }
 }
 
+/**
+ * Notifies a user when their role upgrade is approved.
+ * @param userId - The user who is upgraded.
+ * @param newRole - The new user role after upgrade.
+ * @param approvedBy - The admin/approver's user ID.
+ */
 export async function notifyRoleUpgradeApproved(
   userId: string,
-  newRole: UserRole,
+  newRole: UserRolesArray,
   approvedBy: string
 ): Promise<void> {
   console.log('NotificationTriggers: Role upgrade approved', { userId, newRole });
@@ -240,9 +287,15 @@ export async function notifyRoleUpgradeApproved(
   }
 }
 
+/**
+ * Notifies a user if their role upgrade is rejected, with reason.
+ * @param userId - The user who requested the upgrade.
+ * @param requestedRole - The requested role.
+ * @param rejectionReason - Reason for rejection.
+ */
 export async function notifyRoleUpgradeRejected(
   userId: string,
-  requestedRole: UserRole,
+  requestedRole: UserRolesArray,
   rejectionReason: string
 ): Promise<void> {
   console.log('NotificationTriggers: Role upgrade rejected', { userId, requestedRole });
@@ -270,10 +323,15 @@ export async function notifyRoleUpgradeRejected(
   }
 }
 
-/**
- * Wallet-related notification triggers
- */
+// ------------------------------------------------------------------------------
+// Wallet-related notification triggers
+// ------------------------------------------------------------------------------
 
+/**
+ * Notifies a user when a new wallet is created for them.
+ * @param userId - The user to notify.
+ * @param walletAddress - The wallet address created.
+ */
 export async function notifyWalletCreated(
   userId: string,
   walletAddress: string
@@ -302,6 +360,15 @@ export async function notifyWalletCreated(
   }
 }
 
+/**
+ * Notifies a user of a wallet transaction.
+ * @param userId - The wallet owner.
+ * @param walletAddress - Their wallet address.
+ * @param transactionHash - Transaction hash.
+ * @param amount - Amount transacted.
+ * @param currency - Currency symbol.
+ * @param type - 'sent' or 'received'.
+ */
 export async function notifyWalletTransaction(
   userId: string,
   walletAddress: string,
@@ -338,10 +405,16 @@ export async function notifyWalletTransaction(
   }
 }
 
-/**
- * System-related notification triggers
- */
+// ------------------------------------------------------------------------------
+// System-related notification triggers
+// ------------------------------------------------------------------------------
 
+/**
+ * Broadcast a system maintenance notice to a group of users.
+ * @param userIds - Array of user IDs to notify.
+ * @param maintenanceWindow - Scheduled time for maintenance.
+ * @param description - Additional maintenance information.
+ */
 export async function notifySystemMaintenance(
   userIds: string[],
   maintenanceWindow: string,
@@ -351,7 +424,7 @@ export async function notifySystemMaintenance(
 
   try {
     const notificationRequest: CreateNotificationRequest = {
-      userIds,
+      userIds, // Field supports bulk notification for multiple users
       type: NotificationType.SYSTEM_MAINTENANCE,
       priority: NotificationPriority.HIGH,
       title: 'Scheduled Maintenance Notice',
@@ -371,6 +444,12 @@ export async function notifySystemMaintenance(
   }
 }
 
+/**
+ * Notifies a user of a security alert event.
+ * @param userId - User to notify.
+ * @param alertType - Type of alert (e.g. "login_attempt", "password_change", etc)
+ * @param description - Additional message/description.
+ */
 export async function notifySecurityAlert(
   userId: string,
   alertType: string,
@@ -390,7 +469,11 @@ export async function notifySecurityAlert(
         metadata: { description },
         actionUrl: `/security/alerts`
       },
-      channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL, NotificationChannel.SMS],
+      channels: [
+        NotificationChannel.IN_APP,
+        NotificationChannel.EMAIL,
+        NotificationChannel.SMS // TODO: In future, integrate more finely controlled preferences for SMS
+      ],
       actionText: 'Review Security',
       actionUrl: `/security/alerts`
     };
@@ -401,10 +484,15 @@ export async function notifySecurityAlert(
   }
 }
 
-/**
- * KYC-related notification triggers
- */
+// ------------------------------------------------------------------------------
+// KYC-related notification triggers
+// ------------------------------------------------------------------------------
 
+/**
+ * Notifies a user that KYC (identity verification) is required, with the reason as context.
+ * @param userId - The user ID needing KYC.
+ * @param reason - Why KYC is required.
+ */
 export async function notifyKYCRequired(
   userId: string,
   reason: string
@@ -433,6 +521,11 @@ export async function notifyKYCRequired(
   }
 }
 
+/**
+ * Notifies a user that their KYC (identity verification) has been approved.
+ * @param userId - The user ID who completed KYC.
+ * @param verificationLevel - Level of verification approved.
+ */
 export async function notifyKYCApproved(
   userId: string,
   verificationLevel: string
@@ -459,4 +552,14 @@ export async function notifyKYCApproved(
   } catch (error) {
     console.error('NotificationTriggers: Error notifying KYC approved:', error);
   }
-} 
+}
+
+/**
+ * CODEMOD SUGGESTIONS FOR React 19 / Next 16 (not immediately applicable):
+ * // TODO: If converting to React Server Components & Next.js 16 App router, 
+ * - Consider moving notification triggers to server actions or API routes for secure and stateless processing
+ * - Migrate repeated notificationRequest logic to a utility/builder function to apply DRY principle
+ * - Use TypeScript type inference improvements for stricter notification type safety
+ * - Use parallel Promise APIs for bulk notifications (see notifySystemMaintenance)
+ * Note: This file is backend logic, so direct `use` of React/Next features likely happens at callsite not in this module.
+ */

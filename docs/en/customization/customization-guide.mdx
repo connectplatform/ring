@@ -1,7 +1,7 @@
 ---
 title: Customization Guide
 description: Brand and configure your Ring clone — ring-config.json, HomeWrapper, locales, features, and propagation exclusions (v1.6.0)
-last_modified: "2026-06-12"
+last_modified: "2026-07-01"
 ---
 
 # Customization Guide
@@ -182,14 +182,14 @@ Avoid editing generated design tokens in unrelated clones — prefer `ring-confi
   "features": {
     "web3": {
       "enabled": true,
-      "ringToken": true,
-      "defaultChain": "polygon"
+      "nativeToken": true,
+      "defaultChain": "solana"
     }
   }
 }
 ```
 
-Contract addresses and treasury: env + [Token economics](/docs/customization/token-economics). Set `tokens.ring` in `ring-config.json` for display metadata.
+Contract addresses and treasury: env + [Token economics](/docs/customization/token-economics). Set `tokens.native` in `ring-config.json` for display metadata.
 
 ## 7. Reggie propagation exclusions
 

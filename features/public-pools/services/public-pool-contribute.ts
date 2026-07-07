@@ -2,8 +2,8 @@ import 'server-only'
 
 import { getNativeChain } from '@/lib/ring-config-chain'
 import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
-import { transferRingToTreasury } from '@/features/wallet/chains/solana/treasury-transfer-service'
-import { ringUiToRaw } from '@/lib/wallet/ring-amount'
+import { transferTokenToTreasury } from '@/features/wallet/chains/solana/treasury-transfer-service'
+import { nativeTokenUiToRaw } from '@/lib/wallet/native-token-amount'
 import { createWalletTransaction } from '@/lib/wallet/wallet-transaction-db'
 import {
   findContributionByIdempotency,
@@ -11,6 +11,7 @@ import {
   updateContribution,
 } from '@/features/public-pools/lib/public-pool-db'
 import type { PublicPoolDoc } from '@/lib/zod/public-pool-schemas'
+import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 
 export class PublicPoolEscrowNotAvailableError extends Error {
   constructor() {
@@ -67,12 +68,12 @@ export async function executeNativePoolContribution(params: {
     throw new Error('User wallet not found — call POST /api/wallet/ensure first')
   }
 
-  const amountRaw = ringUiToRaw(params.amountRing)
+  const amountRaw = nativeTokenUiToRaw(params.amountRing)
   if (amountRaw <= 0n) {
     throw new Error('Invalid contribution amount')
   }
 
-  const { txHash, toAddress } = await transferRingToTreasury(wallet, amountRaw)
+  const { txHash, toAddress } = await transferTokenToTreasury(wallet, amountRaw)
 
   await updateContribution(contributionId!, {
     status: 'confirmed',
@@ -88,8 +89,8 @@ export async function executeNativePoolContribution(params: {
     fromAddress: wallet.address,
     toAddress,
     amount: params.amountRing,
-    tokenSymbol: 'RING',
-    chain: 'solana',
+    tokenSymbol: getNativeTokenSymbol(),
+    chain: getNativeChain(),
     notes: `pool:${params.pool.id}`,
   })
 

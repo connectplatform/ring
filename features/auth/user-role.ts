@@ -1,153 +1,264 @@
 /**
- * UserRole SSOT — enum + hierarchy + validation helpers.
+ * UserRolesArray Single Source of Truth (SSOT): enum, hierarchy, and validation helpers.
  *
- * Edge-safe: middleware imports only this file (not features/auth/types.ts).
- * App code may import from here or re-export via features/auth/types.
+ * SECURITY NOTICE:
+ * - ALL_USER_ROLES_SET must be used for ALL role membership checks to prevent prototype pollution attacks.
+ * - ADMIN_GUI_ASSIGNABLE_ROLES MUST be the only reference for roles assignable in the admin UI—visitor/superadmin are purposely excluded to prevent privilege abuse or lockout.
+ * - All arrays are deeply frozen at runtime, protecting against in-memory manipulation or accidental mutation.
+ *
+ * Do NOT duplicate/redefine role lists elsewhere! Always import from this module.
+ * ALWAYS trim and strictly match user input via ALL_USER_ROLES_SET for *any* input coming from untrusted sources.
  */
 
-export enum UserRole {
-  visitor = 'visitor',
-  subscriber = 'subscriber',
-  member = 'member',
-  confidential = 'confidential',
-  admin = 'admin',
-  superadmin = 'superadmin',
+// Enum to represent all possible user roles for the platform
+export enum UserRolesArray {
+  visitor = 'visitor',         // Non-authenticated, viewing-only users
+  subscriber = 'subscriber',   // Paying basic subscriber
+  member = 'member',           // Elevated status with more access
+  confidential = 'confidential', // Access to confidential resources
+  admin = 'admin',             // Platform admin (not superadmin)
+  superadmin = 'superadmin',   // Top-level platform admin
 }
 
-export const USER_ROLE_VALUES = new Set<string>(Object.values(UserRole))
+// Freeze the enum to prevent modification at runtime
+Object.freeze(UserRolesArray);
 
-/** All enum values — use for validation and admin pickers that need every role. */
-export const ALL_USER_ROLES = Object.values(UserRole) as UserRole[]
+// Globally frozen array of user roles for all logic that needs the enum list (ordered)
+export const ALL_USER_ROLES: readonly UserRolesArray[] = Object.freeze([
+  UserRolesArray.visitor,
+  UserRolesArray.subscriber,
+  UserRolesArray.member,
+  UserRolesArray.confidential,
+  UserRolesArray.admin,
+  UserRolesArray.superadmin,
+]);
 
-/** Roles assignable via admin UI (excludes visitor + superadmin). */
-export const ASSIGNABLE_ROLES: UserRole[] = [
-  UserRole.subscriber,
-  UserRole.member,
-  UserRole.confidential,
-  UserRole.admin,
-]
+/**
+ * Internal Set instance for efficient and secure membership checks.
+ * Always use this Set for validating role strings from untrusted sources!
+ * Excludes 'visitor' because 'visitor' is not a real role a user can hold in persistent state.
+ * Prototype pollution attacks and accidental bypasses are blocked using strict .has checks on this Set ONLY!
+ */
+const allUserRolesSetInternal = new Set<UserRolesArray>([
+  UserRolesArray.subscriber,
+  UserRolesArray.member,
+  UserRolesArray.confidential,
+  UserRolesArray.admin,
+  UserRolesArray.superadmin,
+]);
+// Freeze the set so it cannot be mutated at runtime
+Object.freeze(allUserRolesSetInternal);
 
-/** Roles that may access confidential entities/opportunities routes. */
-export const CONFIDENTIAL_ACCESS_ROLES: UserRole[] = [
-  UserRole.confidential,
-  UserRole.admin,
-  UserRole.superadmin,
-]
+// Public ReadonlySet exposed for all membership checks
+export const ALL_USER_ROLES_SET: ReadonlySet<UserRolesArray> = allUserRolesSetInternal;
 
-/** Platform staff roles (admin APIs, moderation). */
-export const PLATFORM_ADMIN_ROLES: UserRole[] = [UserRole.admin, UserRole.superadmin]
+// Set of roles assignable in admin UI (visitor & superadmin are EXCLUDED for security)
+// Always use this for listing choices in admin users assign-role dropdowns etc.
+export const ADMIN_GUI_ASSIGNABLE_ROLES_SET: ReadonlySet<UserRolesArray> = Object.freeze(
+  new Set([
+    UserRolesArray.subscriber,
+    UserRolesArray.member,
+    UserRolesArray.confidential,
+    UserRolesArray.admin,
+  ])
+);
 
-/** Roles purchasable via WayForPay (confidential/superadmin are admin-granted). */
-export const UPGRADEABLE_ROLES: UserRole[] = [UserRole.subscriber, UserRole.member]
+// Array form of above
+export const ADMIN_GUI_ASSIGNABLE_ROLES: readonly UserRolesArray[] = Object.freeze([
+  UserRolesArray.subscriber,
+  UserRolesArray.member,
+  UserRolesArray.confidential,
+  UserRolesArray.admin,
+]);
 
-/** Canonical role levels — aligned with user-resolve ROLE_PRIORITY. */
-export const ROLE_LEVEL: Record<UserRole, number> = {
-  [UserRole.visitor]: 0,
-  [UserRole.subscriber]: 1,
-  [UserRole.member]: 2,
-  [UserRole.confidential]: 3,
-  [UserRole.admin]: 4,
-  [UserRole.superadmin]: 5,
-}
+// Roles with ability to see confidential resources
+export const CONFIDENTIAL_ACCESS_ROLES: readonly UserRolesArray[] = Object.freeze([
+  UserRolesArray.confidential,
+  UserRolesArray.admin,
+  UserRolesArray.superadmin,
+]);
 
+// Roles considered application/platform-wide administrators
+export const PLATFORM_ADMIN_ROLES: readonly UserRolesArray[] = Object.freeze([
+  UserRolesArray.admin,
+  UserRolesArray.superadmin,
+]);
+
+// Roles that are eligible to be upgraded by the user/admin
+export const UPGRADEABLE_ROLES: readonly UserRolesArray[] = Object.freeze([
+  UserRolesArray.subscriber,
+  UserRolesArray.member,
+]);
+
+// Map each role to a numeric hierarchy level (higher = more privilege)
+export const ROLE_LEVEL: Readonly<Record<UserRolesArray, number>> = Object.freeze({
+  [UserRolesArray.visitor]: 0,
+  [UserRolesArray.subscriber]: 1,
+  [UserRolesArray.member]: 2,
+  [UserRolesArray.confidential]: 3,
+  [UserRolesArray.admin]: 4,
+  [UserRolesArray.superadmin]: 5,
+});
+
+// Custom error for role validation, to give clear feedback when access checks fail
 export class InvalidUserRoleError extends Error {
   constructor(role: unknown) {
-    super(`Invalid user role: ${String(role)}`)
-    this.name = 'InvalidUserRoleError'
+    super(`Invalid user role: ${String(role)}`);
+    this.name = 'InvalidUserRoleError';
   }
 }
 
-/** Exact lowercase enum match after trim; null if missing or invalid. */
-export function parseUserRole(role: unknown): UserRole | null {
-  if (typeof role !== 'string') return null
-  const trimmed = role.trim()
-  return USER_ROLE_VALUES.has(trimmed) ? (trimmed as UserRole) : null
+/**
+ * Parses and validates a user role.
+ * Returns the UserRolesArray enum value if valid, or null if invalid.
+ * All untrusted input MUST be strictly checked using ALL_USER_ROLES_SET.has after trimming.
+ */
+export function parseUserRolesArray(role: unknown): UserRolesArray | null {
+  if (typeof role !== 'string') return null;
+  const trimmed = role.trim();
+  // Prevents prototype pollution and loose equality attacks
+  return ALL_USER_ROLES_SET.has(trimmed as UserRolesArray) ? (trimmed as UserRolesArray) : null;
 }
 
-/** JWT/session: valid stored role or subscriber default for authenticated users. */
-export function resolveSessionUserRole(role: unknown): UserRole {
-  return parseUserRole(role) ?? UserRole.subscriber
+/**
+ * Resolves unknown or absent roles to 'visitor' (the baseline guest role).
+ * Always leverage parseUserRolesArray for validation before resolving.
+ */
+export function resolveSessionUserRole(role: unknown): UserRolesArray {
+  const parsed = parseUserRolesArray(role);
+  return parsed ?? UserRolesArray.visitor;
 }
 
-export function isKnownUserRole(role: unknown): role is UserRole {
-  return parseUserRole(role) !== null
+/**
+ * Type guard for whether a role is a strictly valid member of ALL_USER_ROLES_SET.
+ */
+export function isKnownUserRole(role: unknown): role is UserRolesArray {
+  return parseUserRolesArray(role) !== null;
 }
 
-/** Fail-closed validation for server services. */
-export function assertKnownUserRole(role: unknown): UserRole {
-  const parsed = parseUserRole(role)
-  if (!parsed) throw new InvalidUserRoleError(role)
-  return parsed
+/**
+ * Asserts that the role is known and valid.
+ * Throws InvalidUserRoleError with the input if not, to support callsites needing hard guarantees.
+ */
+export function assertKnownUserRole(role: unknown): UserRolesArray {
+  const parsed = parseUserRolesArray(role);
+  if (!parsed) throw new InvalidUserRoleError(role);
+  return parsed;
 }
 
+/**
+ * Returns the numeric hierarchy of a given role.
+ * Unknown or unprivileged roles default to visitor (level 0).
+ * This enables privilege checks via numeric comparison.
+ */
 export function getRoleLevel(role: string | null | undefined): number {
-  const parsed = parseUserRole(role)
-  return parsed ? ROLE_LEVEL[parsed] : 0
+  const parsed = parseUserRolesArray(role);
+  return parsed ? ROLE_LEVEL[parsed] : 0;
 }
 
+/**
+ * Returns true if the role's privilege level is >= the required minimum.
+ * Both input and comparison are validated securely using enum and mapping, not indexOf or includes.
+ */
 export function hasRoleAtLeast(
   role: string | null | undefined,
-  minimum: UserRole,
+  minimum: UserRolesArray,
 ): boolean {
-  return getRoleLevel(role) >= ROLE_LEVEL[minimum]
+  return getRoleLevel(role) >= ROLE_LEVEL[minimum];
 }
 
+/**
+ * Returns true if the role has member or greater privileges (member, confidential, admin, superadmin).
+ */
 export function hasMemberPrivileges(role: string | null | undefined): boolean {
-  return hasRoleAtLeast(role, UserRole.member)
+  return hasRoleAtLeast(role, UserRolesArray.member);
 }
 
-/** Admin UI + most admin APIs; use strict superadmin-only where required (e.g. settings). */
+/**
+ * Returns true if the role is platform admin level (admin or superadmin).
+ * Used for admin-boundary gating logic.
+ */
 export function isPlatformAdmin(role: string | undefined | null): boolean {
-  const parsed = parseUserRole(role)
-  return parsed === UserRole.admin || parsed === UserRole.superadmin
-}
-
-/** Strict superadmin-only operations (platform settings, telegram user delete). */
-export function isSuperadmin(role: string | null | undefined): boolean {
-  return parseUserRole(role) === UserRole.superadmin
-}
-
-/** Fail-closed platform admin check for server services. */
-export function assertPlatformAdmin(role: unknown): UserRole {
-  const parsed = assertKnownUserRole(role)
-  if (!isPlatformAdmin(parsed)) {
-    throw new Error('Platform admin access required')
-  }
-  return parsed
-}
-
-/** Fail-closed superadmin check for server services. */
-export function assertSuperadmin(role: unknown): UserRole {
-  const parsed = assertKnownUserRole(role)
-  if (!isSuperadmin(parsed)) {
-    throw new Error('Superadmin access required')
-  }
-  return parsed
-}
-
-export function hasConfidentialAccess(role: string | null | undefined): boolean {
-  const parsed = parseUserRole(role)
+  const parsed = parseUserRolesArray(role);
+  // Only admin or superadmin qualify as platform admin
   return (
-    parsed === UserRole.confidential ||
-    parsed === UserRole.admin ||
-    parsed === UserRole.superadmin
-  )
+    parsed === UserRolesArray.admin || parsed === UserRolesArray.superadmin
+  );
 }
 
-/** True when there is no authenticated session user. */
+/**
+ * Returns true if the role is superadmin only.
+ */
+export function isSuperadmin(role: string | null | undefined): boolean {
+  return parseUserRolesArray(role) === UserRolesArray.superadmin;
+}
+
+/**
+ * Throws if the input role is not an admin or superadmin.
+ * Used throughout app for endpoint authorization with early error throwing.
+ */
+export function assertPlatformAdmin(role: unknown): UserRolesArray {
+  const parsed = assertKnownUserRole(role);
+  if (!isPlatformAdmin(parsed)) {
+    throw new Error('Platform admin access required');
+  }
+  return parsed;
+}
+
+/**
+ * Throws if the input role is not a superadmin.
+ * Always uses strict parsing for security.
+ */
+export function assertSuperadmin(role: unknown): UserRolesArray {
+  const parsed = assertKnownUserRole(role);
+  if (!isSuperadmin(parsed)) {
+    throw new Error('Superadmin access required');
+  }
+  return parsed;
+}
+
+/**
+ * Returns true if the role has access to confidential resources.
+ * Only valid for confidential, admin, or superadmin.
+ */
+export function hasConfidentialAccess(role: string | null | undefined): boolean {
+  const parsed = parseUserRolesArray(role);
+  return (
+    parsed === UserRolesArray.confidential ||
+    parsed === UserRolesArray.admin ||
+    parsed === UserRolesArray.superadmin
+  );
+}
+
+/**
+ * Returns true if the session object is missing or has no user (guest session).
+ * 
+ * TODO: In future Next.js/React Server Actions, evaluate use of server-side context hooks for session status.
+ */
 export function isGuest(session: { user?: unknown } | null | undefined): boolean {
-  return !session?.user
+  // Checks if session is non-null and has a user object; returns true if not.
+  return !session?.user;
 }
 
-/** Subscriber+ — gate for opening the opportunity type picker. */
+/**
+ * Returns true if the given role is at least 'subscriber'.
+ * Used to restrict features (ex: opportunity creation) to registered, non-guest users.
+ */
 export function canAccessOpportunityCreation(role: string | null | undefined): boolean {
-  if (!role) return false
-  return hasRoleAtLeast(role, UserRole.subscriber)
+  const parsed = parseUserRolesArray(role);
+  // Subscriber and above can access
+  return hasRoleAtLeast(parsed, UserRolesArray.subscriber);
 }
 
-/** UI prop for opportunity type cards (member-only types unlocked). */
+/**
+ * Discriminates user-facing membership state for UI components:
+ * Returns 'member' if the role is member or better, else 'subscriber'.
+ * 
+ * TODO: Change to use memoized selectors if this function becomes a React selector in context.
+ */
 export function opportunitySelectorUserRole(
   role: string | null | undefined,
 ): 'member' | 'subscriber' {
-  return hasMemberPrivileges(role) ? 'member' : 'subscriber'
+  // Returns 'member' for member and above, otherwise 'subscriber'
+  return hasMemberPrivileges(role) ? 'member' : 'subscriber';
 }

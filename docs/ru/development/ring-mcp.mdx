@@ -38,7 +38,7 @@ last_modified: "2026-06-09"
 ### 1 — Клон: включить gateway
 
 ```bash
-RING_MCP_SERVICE_TOKENS=replace-with-long-random-string
+RING_MCP_ACCESS_KEY=replace-with-long-random-string
 ```
 
 ### 2 — Установить ring-mcp
@@ -59,7 +59,7 @@ node ring-mcp-server.js --test
   "args": ["/path/to/AI-RING/ring-mcp/ring-mcp-server.js"],
   "env": {
     "RING_API_BASE_URL": "http://localhost:3000",
-    "RING_SERVICE_TOKEN": "same-as-RING_MCP_SERVICE_TOKENS-entry",
+    "RING_MCP_ACCESS_KEY": "same-as-RING_MCP_ACCESS_KEY-entry",
     "RING_CLONE_NAME": "my-clone"
   }
 }

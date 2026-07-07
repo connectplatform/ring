@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import { defaultLocale, type Locale } from '@/i18n/shared'
-import { getRingSeoBranding, getSiteBaseUrl } from '@/lib/ring-config'
+import { getRingSeoBranding, getSiteBaseUrl } from '@/lib/ring-config-core'
 
 export interface SEOData {
   title?: string

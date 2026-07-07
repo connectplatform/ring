@@ -1,456 +1,361 @@
 ---
 title: Best Practices
-description: Best Practices documentation for Ring Platform
+description: Ring Platform-specific development patterns for Server Actions, database access, authentication, payments, and testing.
+last_modified: "2026-06-28"
+audience: both
 ---
 
 # Best Practices
 
-Development best practices and coding standards for Ring Platform.
+Development patterns and conventions specific to Ring Platform.
 
-## 🎯 General Principles
+<Audience for="founder">
 
-### 1. Code Quality
-- **Readability First** - Code is read more than written
-- **Consistency** - Follow established patterns
-- **Simplicity** - Prefer simple solutions over complex ones
-- **Documentation** - Document complex logic and decisions
+## Development Principles
 
-### 2. Performance
-- **Lazy Loading** - Load components and data on demand
-- **Memoization** - Use React.memo, useMemo, useCallback appropriately
-- **Bundle Optimization** - Keep bundle sizes minimal
-- **Database Efficiency** - Optimize queries and reduce calls
+### Quality over quantity
+Ring Platform is a multi-tenant white-label platform powering 15+ production clones. Every pattern must work identically across PostgreSQL-primary (`k8s-postgres-fcm`) and Firebase-backed deployments. The `DatabaseService` abstraction layer ensures this — write to `db()` once, run anywhere.
 
-## ⚛️ React Best Practices
+### Security by convention
+- `userId` is **always** derived from `await auth()` in server code, never from client-supplied parameters.
+- Payment operations run server-side only. WayForPay HMAC signatures verify callback authenticity.
+- File uploads go through `file()` abstraction (`@/lib/file`) — access controls are enforced at the upload layer, never assumed from the client.
 
-### Component Design
+### i18n is not optional
+All user-facing strings live in `locales/{locale}/` JSON bundles loaded by `next-intl`. Inline strings in components are a code smell. See `docs/en/architecture/proxy-and-intl.mdx` for the i18n architecture.
 
-#### 1. Single Responsibility
-// ❌ Bad - Component doing too much
+### Respect the backend mode
+`DB_BACKEND_MODE` selects the database adapter at runtime. Do not import `firebase-admin` or `postgres` directly in domain code. Use `db()` from `@/lib/database` exclusively. See [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases).
 
-<Code language="typescript" title="TypeScript">
-{`function UserDashboard({ user }: { user: User }) {
-  // Handles user profile, notifications, settings, etc.
-  return (
-    <div>
-      {/* 200+ lines of mixed concerns */}
-    </div>
-  )
-}
+</Audience>
 
-// ✅ Good - Focused components
-function UserDashboard({ user }: { user: User }) {
-  return (
-    <div>
-      <UserProfile user={user} />
-      <NotificationCenter userId={user.id} />
-      <UserSettings userId={user.id} />
-    </div>
-  )
-}`}
-</Code>
+<Audience for="developer">
 
-#### 2. Props Interface Design
-// ❌ Bad - Unclear props
+## Database Access
 
-<Code language="typescript" title="TypeScript">
-{`interface Props {
-  data: any
-  onClick: () => void
-  flag: boolean
-}
+### The `db()` singleton
 
-// ✅ Good - Clear, typed props
-interface EntityCardProps {
-  entity: Entity
-  onEdit?: (entity: Entity) => void
-  isEditable?: boolean
-  variant?: 'default' | 'compact'
-}`}
-</Code>
+The primary database interface is the `db()` singleton from `@/lib/database`. It auto-initializes and provides typed `*Doc` methods that return `{ success, data, error }` result objects.
 
-#### 3. Custom Hooks
-// ✅ Extract complex logic into custom hooks
+```typescript
+import { db } from '@/lib/database'
 
-<Code language="typescript" title="TypeScript">
-{`function useEntityOperations(entityId: string) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+// Create
+const result = await db().createDoc('entities', { name: 'Acme', type: 'technology' })
+if (!result.success) throw result.error
 
-  const updateEntity = useCallback(async (data: UpdateEntityData) => {
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      await updateEntityAction(entityId, data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [entityId])
+// Read by ID
+const entity = await db().findDocById<Entity>('entities', id)
+if (!entity.success) throw entity.error
 
-  return { updateEntity, isLoading, error }
-}`}
-</Code>
-
-### State Management
-
-#### 1. Local State First
-// ✅ Use local state for component-specific data
-
-<Code language="typescript" title="TypeScript">
-{`function SearchInput() {
-  const [query, setQuery] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-  
-  return (
-    <div>
-      <input 
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-      />
-      {isOpen && <SearchResults query={query} />}
-    </div>
-  )
-}`}
-</Code>
-
-#### 2. Server State with React Query
-// ✅ Use React Query for server state
-
-<Code language="typescript" title="TypeScript">
-{`function EntitiesPage() {
-  const { 
-    data: entities, 
-    isLoading, 
-    error 
-  } = useQuery({
-    queryKey: ['entities'],
-    queryFn: fetchEntities,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
-
-  if (isLoading) return <LoadingSpinner />
-  if (error) return <ErrorMessage error={error} />
-  
-  return <EntitiesList entities={entities} />
-}`}
-</Code>
-
-## 🔧 TypeScript Best Practices
-
-### 1. Strict Type Safety
-// ✅ Use strict types
-
-<Code language="typescript" title="TypeScript">
-{`interface CreateEntityRequest {
-  name: string
-  type: EntityType // Union type, not string
-  description: string
-  tags?: string[] // Optional with specific type
-}
-
-// ❌ Avoid any
-function processData(data: any) { ... }
-
-// ✅ Use generics or specific types
-function processData<T>(data: T): ProcessedData<T> { ... }`}
-</Code>
-
-### 2. Utility Types
-// ✅ Use utility types for transformations
-
-<Code language="typescript" title="TypeScript">
-{`interface Entity {
-  id: string
-  name: string
-  description: string
-  createdAt: Date
-}
-
-// Create types from existing ones
-type CreateEntityData = Omit<Entity, 'id' | 'createdAt'>
-type EntitySummary = Pick<Entity, 'id' | 'name'>
-type PartialEntity = Partial<Entity>`}
-</Code>
-
-### 3. Type Guards
-// ✅ Use type guards for runtime type checking
-
-<Code language="typescript" title="TypeScript">
-{`function isEntity(obj: unknown): obj is Entity {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    'name' in obj &&
-    typeof (obj as Entity).id === 'string'
-  )
-}
-
-// Usage
-if (isEntity(data)) {
-  // TypeScript knows data is Entity here
-  console.log(data.name)
-}`}
-</Code>
-
-## 🗄️ Database Best Practices
-
-### 1. Query Optimization
-// ❌ Bad - Multiple queries
-
-<Code language="typescript" title="TypeScript">
-{`async function getUserWithEntities(userId: string) {
-  const user = await getUser(userId)
-  const entities = await getEntitiesByUserId(userId)
-  return { user, entities }
-}
-
-// ✅ Good - Single optimized query
-async function getUserWithEntities(userId: string) {
-  return await db.collection('users')
-    .doc(userId)
-    .get()
-    .then(async (userDoc) => {
-      const entitiesSnapshot = await db.collection('entities')
-        .where('userId', '==', userId)
-        .get()
-      
-      return {
-        user: userDoc.data(),
-        entities: entitiesSnapshot.docs.map(doc => doc.data())
-      }
-    })
-}`}
-</Code>
-
-### 2. Data Validation
-// ✅ Validate data at boundaries
-
-<Code language="typescript" title="TypeScript">
-{`import { z } from 'zod'
-
-const createEntitySchema = z.object({
-  name: z.string().min(1).max(100),
-  type: z.enum(['technology', 'healthcare', 'finance']),
-  description: z.string().max(500),
+// Query with filters
+const results = await db().queryDocs<Entity>({
+  collection: 'entities',
+  filters: [{ field: 'status', operator: '==', value: 'active' }],
+  orderBy: [{ field: 'name', direction: 'asc' }],
+  pagination: { limit: 20, offset: 0 },
 })
 
-export async function createEntity(data: unknown) {
-  const validatedData = createEntitySchema.parse(data)
-  // Now TypeScript knows the exact shape
-  return await db.collection('entities').add(validatedData)
-}`}
-</Code>
+// Update
+await db().updateDoc('entities', id, { name: 'Acme Corp' })
 
-## 🔒 Security Best Practices
+// Delete
+await db().deleteDoc('entities', id)
+```
 
-### 1. Authentication Checks
-// ✅ Always verify authentication
+<Callout type="info">
+The `db()` singleton survives Next.js dev HMR via `globalThis.__ringDatabaseService`. The database initializes once and reuses the connection across hot reloads.
+</Callout>
 
-<Code language="typescript" title="TypeScript">
-{`export async function updateEntity(entityId: string, data: UpdateEntityData) {
+### Transactions
+
+Use `db().transaction()` for atomic multi-step writes. The transaction callback receives an `IDatabaseTransaction` with `create`, `read`, `update`, `delete` methods. Errors **throw** — do not check `result.success` inside a transaction.
+
+```typescript
+import { db } from '@/lib/database'
+
+await db().transaction(async (txn) => {
+  const existing = await txn.read('usernames', usernameKey)
+  if (existing) throw new Error('Username is taken')
+
+  await txn.create('usernames', { userId, reservedAt: new Date() }, { id: usernameKey })
+  await txn.update('users', userId, { username })
+})
+```
+
+### Direct service access (advanced)
+
+For custom backend routing or multi-adapter operations, import the `DatabaseService` class directly:
+
+```typescript
+import { getDatabaseService } from '@/lib/database/DatabaseService'
+const svc = getDatabaseService()
+await svc.initialize()
+```
+
+See [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases) for details on adapter selection and sync.
+
+<Callout type="warning">
+Do **not** use raw Firestore or pg queries in feature code. Every database operation must go through `DatabaseService` so the platform can switch backends without rewriting business logic.
+</Callout>
+
+## Server Actions
+
+All Server Actions live in `app/_actions/` and follow a consistent pattern.
+
+### Conventions
+
+1. File-level `'use server'` directive at the top.
+2. `import { auth } from '@/auth'` for session — never accept `userId` from the client.
+3. Return form-state objects `{ success?: boolean, error?: string, message?: string }`.
+4. Use `localizedRedirect` for navigation after success.
+5. Zod or manual validation at the boundary.
+
+```typescript
+'use server'
+
+import { auth } from '@/auth'
+import { db } from '@/lib/database'
+import { revalidatePath } from 'next/cache'
+import { localizedRedirect } from '@/lib/i18n-server-redirect'
+import type { Locale } from '@/i18n/shared'
+
+export interface ActionResult {
+  success?: boolean
+  error?: string
+  message?: string
+  fieldErrors?: Record<string, string>
+}
+
+export async function createEntity(
+  prevState: ActionResult | null,
+  formData: FormData,
+  locale: Locale
+): Promise<ActionResult> {
   const session = await auth()
-  if (!session?.user) {
-    throw new Error('Unauthorized')
-  }
+  if (!session?.user?.id) return { error: 'Authentication required' }
 
-  // Verify ownership
-  const entity = await getEntity(entityId)
-  if (entity.userId !== session.user.id) {
-    throw new Error('Forbidden')
-  }
+  // Validate
+  const name = formData.get('name') as string
+  if (!name?.trim()) return { error: 'Name is required' }
 
-  return await updateEntityInDb(entityId, data)
-}`}
-</Code>
-
-### 2. Input Sanitization
-// ✅ Sanitize user inputs
-
-<Code language="typescript" title="TypeScript">
-{`import DOMPurify from 'dompurify'
-
-function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em'],
-    ALLOWED_ATTR: []
+  // Write
+  const result = await db().createDoc('entities', {
+    name: name.trim(),
+    createdBy: session.user.id,
+    createdAt: new Date(),
   })
-}`}
-</Code>
 
-## 🎨 Styling Best Practices
+  if (!result.success) return { error: result.error?.message ?? 'Creation failed' }
 
-### 1. Consistent Design System
-// ✅ Use design tokens
-
-<Code language="typescript" title="TypeScript">
-{`const theme = {
-  colors: {
-    primary: {
-      50: '#eff6ff',
-      500: '#3b82f6',
-      900: '#1e3a8a',
-    }
-  },
-  spacing: {
-    xs: '0.5rem',
-    sm: '1rem',
-    md: '1.5rem',
-  }
-}`}
-</Code>
-
-### 2. Component Variants
-// ✅ Use variant patterns
-
-<Code language="typescript" title="TypeScript">
-{`const buttonVariants = {
-  variant: {
-    default: 'bg-primary text-white',
-    outline: 'border border-primary text-primary',
-    ghost: 'text-primary hover:bg-primary/10',
-  },
-  size: {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg',
-  }
-}`}
-</Code>
-
-## 📝 Documentation Best Practices
-
-### 1. Code Comments
-// ✅ Document complex logic
-
-<Code language="typescript" title="TypeScript">
-{`/**
- * Calculates the confidence score for entity matching
- * based on name similarity, industry overlap, and location proximity.
- * 
- * @param entity1 - First entity to compare
- * @param entity2 - Second entity to compare
- * @returns Confidence score between 0 and 1
- */
-function calculateMatchConfidence(entity1: Entity, entity2: Entity): number {
-  // Weight factors for different matching criteria
-  const NAME_WEIGHT = 0.4
-  const INDUSTRY_WEIGHT = 0.3
-  const LOCATION_WEIGHT = 0.3
-  
-  // ... implementation
-}`}
-</Code>
-
-### 2. README Files
-Feature Name # Usage
-
-<Code language="markdown" title="content">
-{`Brief description of what this feature does.`}
-</Code>typescript
-import { useFeature } from './hooks/use-feature'
-
-function Component() {
-  const { data, isLoading } = useFeature()
-  // ...
+  revalidatePath(`/${locale}/entities`)
+  localizedRedirect({ locale, href: '/entities' })
 }
 ```
 
-## API
+### Error handling
 
-### `useFeature(options?)`
+- Return error strings for form display. Do not throw in form-returning actions.
+- Throw only for non-recoverable errors (misconfiguration, missing env vars).
+- Wrap `localizedRedirect` in try/catch — it throws `NEXT_REDIRECT` which must propagate.
 
-- `options.enabled` - Whether to enable the query
-- Returns: `{ data, isLoading, error }`
+<Callout type="tip">
+Check `app/_actions/vendor-actions.ts` for a comprehensive real-world example covering file uploads (Vercel Blob via `file()`), nested create + update, and multi-step onboarding flows.
+</Callout>
+
+## Authentication
+
+### Server-side (`@/auth`)
+
+Import `auth` from the project root `@/auth` (not `next-auth` or `authjs` directly — Ring Platform provides a configured instance at `auth.ts`).
+
+```typescript
+import { auth } from '@/auth'
+
+export async function getServerSession() {
+  const session = await auth()
+  return session
+}
 ```
 
-## 🧪 Testing Best Practices
+The `auth()` call is available in:
+- Server Actions (`app/_actions/`)
+- Route handlers (`app/api/`)
+- Server Components (async component)
+- Middleware
 
-### 1. Test Structure
-// ✅ Arrange, Act, Assert pattern
+### Client-side (`useSession`)
 
-<Code language="typescript" title="TypeScript">
-{`describe('EntityCard', () => {
-  it('should display entity information', () => {
-    // Arrange
-    const mockEntity = {
-      id: '1',
-      name: 'Test Entity',
-      description: 'Test description'
-    }
+```typescript
+'use client'
 
-    // Act
-    render(<EntityCard entity={mockEntity} />)
+import { useSession } from '@/auth/client'
 
-    // Assert
-    expect(screen.getByText('Test Entity')).toBeInTheDocument()
-    expect(screen.getByText('Test description')).toBeInTheDocument()
+export function UserInfo() {
+  const { data: session, status } = useSession()
+
+  if (status === 'loading') return <div>Loading...</div>
+  if (!session?.user) return <div>Not signed in</div>
+
+  return <div>{session.user.name}</div>
+}
+```
+
+### Auth.js (NextAuth v5) configuration
+
+The canonical auth config is at `auth.ts` in the project root. It configures:
+- Credentials provider (email/password)
+- Google OAuth provider
+- JWT strategy (with refresh token rotation)
+- PostgreSQL adapter (`lib/auth/postgres-adapter.ts`)
+
+Do not create additional `auth.ts` files in features. Extend the root config.
+
+<Callout type="warning">
+Never pass `userId` from the client to a Server Action or API route. Derive it from `await auth()` server-side. See `app/_actions/fcm.ts` for the canonical pattern — `userId is derived from auth() only — never pass userId from the client`.
+</Callout>
+
+## Push Notifications (FCM)
+
+FCM token registration and unregistration flow through Server Actions in `app/_actions/fcm.ts`. The underlying DB operations live in `lib/notifications/fcm-token-db.ts`.
+
+```typescript
+'use server'
+
+import { auth } from '@/auth'
+import { upsertFcmTokenForUser, unregisterFcmTokenForUser } from '@/lib/notifications/fcm-token-db'
+import type { UpsertFcmTokenParams, UpsertFcmTokenResult } from '@/lib/notifications/fcm-token-db'
+
+export async function upsertFcmToken(params: UpsertFcmTokenParams): Promise<UpsertFcmTokenResult> {
+  const session = await auth()
+  if (!session?.user?.id) return { error: 'Authentication required' }
+  return upsertFcmTokenForUser(session.user.id, params)
+}
+```
+
+Send notifications server-side using `ring-mcp_ring-fcm-send` tool or direct Firebase Admin messaging. Never expose FCM server keys to the client.
+
+## Payments (WayForPay)
+
+Ring Platform uses WayForPay as the primary payment provider. Key patterns:
+
+- **All payment logic is server-side only** — never expose API keys or HMAC secrets to the client.
+- **Idempotent `orderReference`** — every payment attempt has a unique `orderReference` to prevent duplicate charges.
+- **HMAC verification** — webhook callbacks are verified using HMAC MD5 before processing.
+- **3DS handling** — WayForPay redirects are managed through `components/store/checkout/`.
+
+See `docs/en/architecture/payment-conductor.mdx` for the full payment architecture, webhook flow, and refund patterns.
+
+## Server vs Client Component Boundaries
+
+- **Default to Server Components** — fetch data and render on the server.
+- **Push client boundaries down** — wrap interactive elements (forms, maps, real-time) in `'use client'` leaves.
+- **Avoid useEffect for data fetching** — use Server Actions, Route Handlers, or `useActionState` in React 19.
+
+```typescript
+// page.tsx — Server Component (default)
+export default async function EntitiesPage({ params: { locale } }: Props) {
+  const session = await auth()
+
+  const result = await db().queryDocs<Entity>({
+    collection: 'entities',
+    filters: [],
+    pagination: { limit: 20 },
   })
-})`}
-</Code>
 
-### 2. Mock External Dependencies
-// ✅ Mock external services
+  return <EntityList entities={result.data ?? []} session={session} />
+}
+```
 
-<Code language="typescript" title="TypeScript">
-{`jest.mock('@/lib/firebase', () => ({
-  db: {
-    collection: jest.fn(() => ({
-      add: jest.fn().mockResolvedValue({ id: 'mock-id' })
-    }))
-  }
-}))`}
-</Code>
+## File Uploads
 
-## 📊 Performance Best Practices
+Use the `file()` abstraction from `@/lib/file` rather than directly calling Vercel Blob or S3 APIs.
 
-### 1. React Optimization
-// ✅ Memoize expensive calculations
+```typescript
+import { file } from '@/lib/file'
 
-<Code language="typescript" title="TypeScript">
-{`const ExpensiveComponent = memo(({ data }: { data: ComplexData }) => {
-  const processedData = useMemo(() => {
-    return processComplexData(data)
-  }, [data])
+const result = await file().upload(`entities/${entityId}/logo.webp', fileObject, {
+  access: 'public',
+  addRandomSuffix: false,
+})
+if (!result.success) throw new Error(result.error)
+```
 
-  return <div>{processedData.result}</div>
+## Testing Patterns
+
+Tests live in `__tests__/` and use Jest (with `@jest-environment jsdom` for component tests) or Vitest.
+
+### Mock external services, not DatabaseService
+
+Ring Platform tests mock at the boundary — constants, `next/link`, translation bundles — but do **not** mock `@/lib/database` with fake Firestore. Database-dependent logic is tested either against a real test database or through integration tests that exercise the full adapter stack.
+
+<Callout type="tip">
+See [Testing Guide](/en/docs/development/testing) for the full testing strategy, and examine real test files in `__tests__/features/` (e.g. `news-visibility-filter.test.ts`, `referral-commission.test.ts`) for patterns that test pure business logic without database mocking.
+</Callout>
+
+### Component testing example
+
+```typescript
+/**
+ * @jest-environment jsdom
+ */
+
+import { render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import EntityCard from '@/components/EntityCard'
+import type { Locale } from '@/i18n/shared'
+
+// Mock next/link
+jest.mock('next/link', () => {
+  return ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  )
 })
 
-// ✅ Optimize re-renders
-const OptimizedList = memo(({ items, onItemClick }: Props) => {
-  return (
-    <div>
-      {items.map(item => (
-        <OptimizedItem 
-          key={item.id}
-          item={item}
-          onClick={onItemClick}
-        />
-      ))}
-    </div>
-  )
-})`}
-</Code>
+const mockMessages = {
+  'entities.card.viewDetails': 'View Details',
+}
 
-### 2. Bundle Optimization
-// ✅ Dynamic imports for code splitting
+describe('EntityCard', () => {
+  it('renders entity name', () => {
+    const entity = { id: '1', name: 'Test Entity', type: 'technology' }
 
-<Code language="typescript" title="TypeScript">
-{`const HeavyComponent = lazy(() => import('./HeavyComponent'))
+    render(
+      <NextIntlClientProvider locale="en" messages={mockMessages}>
+        <EntityCard entity={entity} />
+      </NextIntlClientProvider>
+    )
 
-function App() {
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <HeavyComponent />
-    </Suspense>
-  )
-}`}
-</Code>
+    expect(screen.getByText('Test Entity')).toBeInTheDocument()
+  })
+})
+```
+
+## Performance
+
+### Database query patterns
+
+- Use `db().queryDocs()` with `filters` and `pagination` to limit results at the database level — do not fetch all documents and filter in application code.
+- Use `db().findDocById()` for single-document lookups instead of `queryDocs({ filters: [{ field: 'id', operator: '==', value: id }] })`.
+- The entity cache in `DatabaseService` provides 30-second TTL for read-after-write consistency on `entities` collection — no manual caching needed for basic cases.
+
+### React performance
+
+- Server Components by default — zero client JS for pure rendering.
+- `useActionState` (React 19) for form state management in client components — no external state library needed.
+- Dynamic imports with `next/dynamic` for heavy client components (maps, editors, charts).
+
+## Code Organization
+
+- **`app/_actions/`** — all Server Actions, one file per domain.
+- **`features/{domain}/services/`** — business logic that can be called from Server Actions or Route Handlers.
+- **`features/{domain}/lib/`** — domain-specific pure functions and utilities.
+- **`lib/database/`** — database abstraction. Do not add feature-specific database queries here.
+- **`components/`** — shared UI components only. Feature-specific components live in `features/{domain}/components/`.
+
+See [Code Structure](/en/docs/development/code-structure) for the full directory layout.
 
 ---
 
-*Next: [Development Workflow](/en/docs/development/workflow) - Learn about our Git workflow and development process.*
+*Next: [Code Structure](/en/docs/development/code-structure) — App Router layout, feature modules, and file organization.*
+*See also: [Data Validation](/en/docs/architecture/data-validation), [Testing Guide](/en/docs/development/testing), [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases)*

@@ -17,7 +17,7 @@ export type MainPageStatus =
   | 'none';
 
 // News status
-export type NewsStatus = 'draft' | 'published' | 'archived';
+export type NewsStatus = 'draft' | 'published' | 'archived' | 'deleted';
 
 // News categories
 export type NewsCategory = 
@@ -84,6 +84,9 @@ export interface NewsArticle {
   siteWideCategory?: string;
   aiScore?: NewsAiScore;
   payment?: NewsPromotionPayment;
+  // Soft-delete forensics
+  deletedAt?: Timestamp;
+  deletedBy?: string;
 }
 
 export interface NewsStatusHistoryEntry {
@@ -167,6 +170,7 @@ export interface NewsFormData {
   blogUsername?: string;
   promoteToMainPage?: boolean;
   locale?: string;
+  deletedAt?: Date;
 }
 
 // News query filters
@@ -200,6 +204,17 @@ export interface NewsAnalytics {
     likes: number;
     comments: number;
   }[];
+}
+
+// Lightweight news statistics for admin sidebar (avoids full NewsAnalytics query)
+export interface NewsStatsSummary {
+  totalArticles: number;
+  publishedArticles: number;
+  draftArticles: number;
+  archivedArticles: number;
+  totalViews: number;
+  totalLikes: number;
+  totalComments: number;
 }
 
 // News RSS feed item

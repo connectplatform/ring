@@ -107,7 +107,7 @@
     "pickContactTitle": "Select Recipient",
     "sendingTo": "Sending to: {name}",
     "amount": "Amount",
-    "tokenRingOnly": "RING token only",
+    "tokenNativeTokenOnly": "{token} token only",
     "notes": "Notes (optional)",
     "notesPlaceholder": "Add a note to this transfer…",
     "sendButton": "Send {amount} RING",
@@ -125,5 +125,9 @@
     "sendSuccess": "Sent {amount} RING to {name}",
     "sendFailed": "Failed to send RING. Please try again.",
     "recipientFallback": "recipient"
-  }
+  },
+  "refreshingBalances": "Refreshing balances…",
+  "balanceUpdated": "Balance updated just now",
+  "balanceStale": "Balance may be outdated — tap Refresh",
+  "autoRefreshEvery": "Auto-refreshes every 60 seconds"
 }

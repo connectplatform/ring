@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
-import type { LocalePageProps } from '@/utils/page-props'
 import type { Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import StoreWrapper from '@/components/wrappers/store-wrapper'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type CollectionParams = { slug: string }
@@ -14,10 +12,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>
 }): Promise<Metadata> {
   const { locale: localeParam, slug } = await params
+
   const locale = routing.locales.includes(localeParam as Locale)
     ? (localeParam as Locale)
     : routing.defaultLocale
+
   setRequestLocale(locale)
+
   return buildLocalizedMetadata({
     locale,
     path: 'nft.collection',
@@ -26,32 +27,41 @@ export async function generateMetadata({
   })
 }
 
-export default async function CollectionPage(props: LocalePageProps<CollectionParams>) {
-  const params = await props.params
-  const locale = routing.locales.includes(params.locale as Locale) ? params.locale : routing.defaultLocale
-  const { slug } = params
-  const t = await getTranslations('nft.collection')
-  
-  return (
-    <StoreWrapper locale={locale as Locale}>
-      <div className="container mx-auto px-0 py-0">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            {t('metadata.title') || 'Collection'}: {slug}
-          </h1>
-          <p className="text-muted-foreground">
-            {t('metaDescription.subtitle') || 'Subtitle'}
-          </p>
-        </div>
+// Single NFT collection detail page.
+// FIX 2026-07-06: removed StoreWrapper (store-specific) — this page renders a
+//     native <div> as children, and StoreWrapper.cloneElement was spreading
+//     onCountsUpdate/onPriceRangeUpdate onto the DOM element.
+export default async function CollectionPage({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>
+}) {
+  const { locale: localeParam, slug } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
 
-        <div className="bg-card border border-border rounded-lg p-8 text-center">
-          <p className="text-muted-foreground">
-            {t('metadata.comingSoon') || 'Coming soon'}
-          </p>
-        </div>
+  const t = await getTranslations('nft.collection')
+
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          {t('metadata.title') || 'Collection'}: {slug}
+        </h1>
+        <p className="text-muted-foreground">
+          {t('metaDescription.subtitle') || 'Subtitle'}
+        </p>
       </div>
-    </StoreWrapper>
+
+      {/* TODO: Replace with actual collection items grid (NFT cards) once the
+           collection detail query is implemented. See features/nft-market/adapters/
+           for chain-specific NFT metadata + ownership resolution. */}
+      <div className="bg-card border border-border rounded-lg p-8 text-center">
+        <p className="text-muted-foreground">
+          {t('metadata.comingSoon') || 'Coming soon'}
+        </p>
+      </div>
+    </div>
   )
 }
-
-

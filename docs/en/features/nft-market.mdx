@@ -9,7 +9,7 @@ Complete NFT marketplace where members can list, search, buy and sell NFTs via W
 
 ## Overview
 
-The Ring Platform NFT marketplace enables authenticated members to create NFT listings, browse collections, and execute secure blockchain transactions while showcasing their NFT collections through public profiles at `/u/[username]`.
+The Ring Platform NFT marketplace enables authenticated members to create NFT listings, browse collections, and execute secure blockchain transactions while showcasing their NFT collections through public profiles at `/[locale]/[username]` (e.g., `/en/johndoe`).
 
 ## Key Features
 
@@ -27,11 +27,11 @@ The Ring Platform NFT marketplace enables authenticated members to create NFT li
 
 ### Public Profile Integration
 
-**User Profile Pages** at `/u/[username]`
-// Public profile route structure
+**User Profile Pages** at `/[locale]/[username]`
+// Public profile route structure (Next.js 16 App Router)
 
 <Code language="typescript" title="TypeScript">
-{`/[locale]/u/[username]  // e.g., /en/u/johndoe`}
+{`/[locale]/[username]  // e.g., /en/johndoe`}
 </Code>
 
 **Profile Features**

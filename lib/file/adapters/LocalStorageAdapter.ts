@@ -25,7 +25,7 @@ export class LocalStorageAdapter implements IFileService {
         ? file
         : Buffer.from(await (file as File).arrayBuffer());
       const safeName = sanitizeStoragePath(filename);
-      const fullPath = join(this.storageDir, safeName);
+      const fullPath = join(/* turbopackIgnore: true */ this.storageDir, safeName);
 
       await mkdir(dirname(fullPath), { recursive: true });
       await writeFile(fullPath, content);
@@ -106,8 +106,8 @@ export class LocalStorageAdapter implements IFileService {
 
   private resolvePath(url: string): string {
     const direct = sanitizeStoragePath(toRelativePath(url, this.publicUrlPrefix));
-    const fullPath = resolve(join(this.storageDir, direct));
-    const basePath = resolve(this.storageDir);
+    const fullPath = resolve(join(/* turbopackIgnore: true */ this.storageDir, direct));
+    const basePath = resolve(/* turbopackIgnore: true */ this.storageDir);
 
     if (!fullPath.startsWith(basePath + '/')) {
       throw new Error('Invalid storage key');

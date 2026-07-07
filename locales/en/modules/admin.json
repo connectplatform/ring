@@ -485,12 +485,13 @@
     "noHistory": "No runs recorded yet.",
     "dashboardTitle": "Background Processes",
     "dashboardDescription": "Monitor cron jobs, view run history, and trigger pipelines manually",
-    "dashboardStats": "6 cron pipelines · run ledger · SUPERADMIN",
+    "dashboardStats": "13 cron pipelines · run ledger · SUPERADMIN",
     "categories": {
       "email": "Email",
       "cleanup": "Cleanup",
       "rewards": "Rewards",
-      "ai": "AI"
+      "ai": "AI",
+      "commerce": "Commerce"
     },
     "status": {
       "running": "Running",
@@ -538,7 +539,46 @@
         "label": "Settlement Payout Batch",
         "description": "Process due vendor settlements and record payout batches",
         "schedule": "Daily or hourly"
+      },
+      "cleanup-news-deleted": {
+        "label": "News Cleanup",
+        "description": "Permanently delete soft-deleted news articles after retention period",
+        "schedule": "Weekly"
+      },
+      "subscription-expiry-check": {
+        "label": "Subscription Expiry Check",
+        "description": "Mark expired subscriptions and downgrade user roles",
+        "schedule": "Daily at midnight"
+      },
+      "credit-balance-monthly": {
+        "label": "Credit Balance Monthly",
+        "description": "Auto-renew credit_balance subscribers and handle failures",
+        "schedule": "Hourly"
+      },
+      "subscription-payment": {
+        "label": "Subscription Payment Check",
+        "description": "Sync Stripe subscription statuses and WayForPay recurring payments",
+        "schedule": "Daily at 2am"
+      },
+      "solana-batch-payment": {
+        "label": "Solana Batch Payment",
+        "description": "Call Membership.processBatchPayments() on-chain (Phase S6)",
+        "schedule": "Daily at 3am"
+      },
+      "nft-gate-expiry": {
+        "label": "NFT Gate Expiry",
+        "description": "Check NFT ownership for nft_gate subscribers (Phase S7)",
+        "schedule": "Daily at 4am"
       }
     }
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "subtitle": "Multi-provider subscription management and revenue tracking",
+    "loadError": "Failed to load subscription data"
+  },
+  "newsAnalytics": {
+    "title": "News Analytics",
+    "subtitle": "Comprehensive insights and performance metrics for your news content"
   }
 }

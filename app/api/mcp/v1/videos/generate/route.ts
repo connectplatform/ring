@@ -1,12 +1,12 @@
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
-import { readJsonBody } from '@/app/api/mcp/v1/_lib/query'
+import { queryString } from '@/app/api/mcp/v1/_lib/query'
 import { generateVideoBodySchema } from '@/lib/media/schemas'
 import { VideoConductor } from '@/lib/video/conductor/video-conductor'
 import type { GenerateVideoContext } from '@/lib/video/conductor/types'
 
 export const POST = withMcpGuard(async (request, actor) => {
-  const raw = await readJsonBody<unknown>(request)
+  const raw = await queryString(request, 'body')
   const parsed = generateVideoBodySchema.safeParse(raw)
 
   if (!parsed.success) {

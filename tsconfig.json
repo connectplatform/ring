@@ -66,6 +66,7 @@
     "temp/**/*",
     "tmp/**/*",
     "cache/**/*",
+    "lib/connect-platform-sdk/**/*",
     "temp/**/*",
     "__tests__/**/*",
     "**/*.test.ts",
@@ -81,6 +82,7 @@
     "jest.config.ts",
     "jest.setup.js",
     "jest.setup.ts",
+    "jest.globals.ts",
     "**/__mocks__/**/*"
   ],
   "ts-node": {

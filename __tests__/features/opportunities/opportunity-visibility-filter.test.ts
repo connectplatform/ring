@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, it } from '@jest/globals'
-import { UserRole } from '@/features/auth/user-role'
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import {
   buildOpportunityVisibilityFilters,
   canViewOpportunity,
@@ -9,21 +9,21 @@ import {
 
 describe('opportunity-visibility-filter', () => {
   it('subscriber sees public and subscriber visibility only', () => {
-    expect(getAllowedVisibilityValues(UserRole.subscriber)).toEqual([
+    expect(getAllowedVisibilityValues(UserRolesArray.subscriber)).toEqual([
       'public',
       'subscriber',
     ])
   })
 
   it('admin has unrestricted visibility list', () => {
-    expect(getAllowedVisibilityValues(UserRole.admin)).toBeNull()
+    expect(getAllowedVisibilityValues(UserRolesArray.admin)).toBeNull()
   })
 
   it('subscriber cannot view member-only opportunity by id', () => {
     expect(
       canViewOpportunity(
         { visibility: 'member', isConfidential: false },
-        { userRole: UserRole.subscriber },
+        { userRole: UserRolesArray.subscriber },
       ),
     ).toBe(false)
   })
@@ -32,7 +32,7 @@ describe('opportunity-visibility-filter', () => {
     expect(
       canViewOpportunity(
         { visibility: 'member', isConfidential: false },
-        { userRole: UserRole.member },
+        { userRole: UserRolesArray.member },
       ),
     ).toBe(true)
   })
@@ -41,7 +41,7 @@ describe('opportunity-visibility-filter', () => {
     expect(
       canViewOpportunity(
         { visibility: 'public', isConfidential: true },
-        { userRole: UserRole.member },
+        { userRole: UserRolesArray.member },
       ),
     ).toBe(false)
   })

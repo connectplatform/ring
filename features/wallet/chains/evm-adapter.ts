@@ -1,12 +1,15 @@
 import 'server-only'
 
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import type { ChainWalletAdapter } from './types'
+import type { ChainWalletAdapter } from '@/features/wallet/types/wallet'
+import { getEvmTokenSymbol } from '@/lib/ring-config-chain'
 
 export const evmAdapter: ChainWalletAdapter = {
   chain: 'evm',
-  label: 'Ring Wallet (EVM)',
-
+  label: getEvmTokenSymbol(),
+  getChainLabel(): string {
+    return this.label
+  },
   async generate() {
     const privateKey = generatePrivateKey()
     const account = privateKeyToAccount(privateKey)
@@ -14,7 +17,7 @@ export const evmAdapter: ChainWalletAdapter = {
       chain: 'evm',
       address: account.address,
       secret: privateKey,
-      label: 'Ring Wallet (EVM)',
+      label: getEvmTokenSymbol(),
     }
   },
 }

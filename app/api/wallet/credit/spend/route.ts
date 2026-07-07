@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
-import { userCreditService } from '@/features/wallet/services/user-credit-service';
+import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { CreditSpendRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
 import { formatCreditAmount, getCreditCurrencyCode } from '@/lib/payments/credit-currency';
 import { UserCreditBalanceSchema } from '@/lib/zod/credit-schemas';
+// TODO: implement zod here
+import { nativeTokenPriceOracleService } from '@/services/blockchain/price-oracle-service';
+import { getNativeChain, getNativeChainConfig } from '@/lib/ring-config-chain';
 
 /**
  * POST /api/wallet/credit/spend
@@ -72,13 +75,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has sufficient balance before attempting transaction
-    const hasSufficientBalance = await userCreditService.hasSufficientBalance(
+    const hasSufficientBalance = await creditBalanceService.hasSufficientBalance(
       userId, 
       validatedRequest.amount
     );
 
     if (!hasSufficientBalance) {
-      const currentBalance = await userCreditService.getUserCreditBalance(userId);
+      const currentBalance = await creditBalanceService.getUserCreditBalance(userId);
       
       logger.warn('Insufficient balance for spend request', { 
         userId, 
@@ -97,9 +100,16 @@ export async function POST(request: NextRequest) {
     }
 
     // TODO: Get current RING/USD rate from price oracle service
-    const usdRate = '1.00'; // $1 USD per RING (placeholder)
+    const usdRate = await nativeTokenPriceOracleService.getNativeTokenUsdPrice(getNativeChainConfig().evm?.chainId as number);
+    if (!usdRate) {
+      return NextResponse.json(
+        { error: 'Failed to get native token price' },
+        { status: 500 }
+      );
+    }
 
     // Determine transaction type based on metadata or order context
+    // TODO TBD: reconsider supported credit balance payment types, possibly leaving only 'obtain_token' type of credit spend.
     let transactionType: 'purchase' | 'membership_fee' | 'payment' = 'purchase';
     
     if (validatedRequest.metadata?.type === 'membership') {
@@ -109,11 +119,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Spend credits from user balance
-    const result = await userCreditService.spendCredits(
+    const result = await creditBalanceService.spendCredits(
       userId,
       validatedRequest,
       transactionType,
-      usdRate
+      usdRate.price.toString()
     );
 
     logger.info('Credits spent successfully', { 
@@ -202,7 +212,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get spending history for the period
-    const spendingHistory = await userCreditService.getCreditHistory(userId, {
+    const spendingHistory = await creditBalanceService.getCreditHistory(userId, {
       limit: 100,
       type: 'purchase', // Only get purchase transactions
       start_date: startDate.getTime(),

@@ -1,39 +1,33 @@
+import 'server-only'
+
 import { auth } from '@/auth'
 import { selectDefaultWallet } from '@/features/wallet/services/utils'
 import { getUserWallets } from '@/lib/wallet/user-wallet-db'
-import { getEvmRingBalance } from '@/features/wallet/chains/evm/ring-transfer'
-import { getSolanaRingBalance } from '@/features/wallet/chains/solana/ring-transfer'
-import { getRingConfigSnapshot } from '@/lib/ring-config-core'
-import { getRingCreditFiatCurrency } from '@/lib/ring-config-chain'
+import { getCachedBalancesForUser } from '@/lib/wallet/wallet-balance-cache'
+import { getNativeTokenSymbol, SupportedChains } from '@/lib/ring-config-chain'
+import { DEFAULT_WALLET_CHAIN } from '@/features/wallet/types/wallet'
+import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { logger } from '@/lib/logger'
 
 export interface WalletInfo {
   address: string
   isPrimary: boolean
   label?: string
   createdAt?: string
+  /** Cached or freshly-fetched on-chain native token balance (formatted string). */
   balance?: string
   nativeBalance?: string
   tokenSymbol?: string
   creditFiatCurrency?: string
-  chain?: 'solana' | 'evm'
-}
-
-async function fetchNativeBalance(
-  address: string,
-  chain: 'solana' | 'evm',
-): Promise<string> {
-  try {
-    if (chain === 'solana') {
-      return await getSolanaRingBalance(address)
-    }
-    return await getEvmRingBalance(address)
-  } catch {
-    return '0'
-  }
+  chain?: SupportedChains
 }
 
 /**
  * Lists custodial wallets for the authenticated user from users.wallets[].
+ * Uses the DB read-through batch cache (lib/wallet/wallet-balance-cache.ts)
+ * to avoid unnecessary on-chain RPC calls — balances within TTL are served
+ * from DB. Stale balances are fetched in parallel and persisted atomically
+ * (no JSONB read-modify-write race).
  */
 export async function listWallets(): Promise<WalletInfo[]> {
   const session = await auth()
@@ -42,6 +36,11 @@ export async function listWallets(): Promise<WalletInfo[]> {
   }
 
   const userId = session.user.id
+
+  // Single call: batch-fetch all stale balances, write once
+  const balanceCache = await getCachedBalancesForUser(userId)
+
+  // Re-read wallets after the potential cache write to get latest state
   const wallets = await getUserWallets(userId)
 
   if (wallets.length === 0) {
@@ -49,25 +48,26 @@ export async function listWallets(): Promise<WalletInfo[]> {
   }
 
   const defaultWallet = selectDefaultWallet(wallets)
-  const config = getRingConfigSnapshot()
-  const tokenSymbol = config.tokens?.ring?.symbol ?? 'RING'
-  const creditFiatCurrency = getRingCreditFiatCurrency()
+  const tokenSymbol = getNativeTokenSymbol()
+  const creditFiatCurrency = getDefaultStoreCurrencySymbol()
 
-  return Promise.all(
-    wallets.map(async (wallet) => {
-      const chain = wallet.chain ?? 'evm'
-      const nativeBalance = await fetchNativeBalance(wallet.address, chain)
-      return {
-        address: wallet.address,
-        isPrimary: defaultWallet?.address === wallet.address,
-        label: wallet.label,
-        createdAt: wallet.createdAt,
-        balance: wallet.balance,
-        nativeBalance,
-        tokenSymbol,
-        creditFiatCurrency,
-        chain,
-      }
-    }),
-  )
+  const walletsInfo = wallets.map((wallet) => {
+    const chain = wallet.chain ?? DEFAULT_WALLET_CHAIN
+    const cached = balanceCache.get(wallet.address)
+    const nativeBalance = cached?.balance ?? wallet.balance ?? '0'
+
+    return {
+      address: wallet.address,
+      isPrimary: defaultWallet?.address === wallet.address,
+      label: wallet.label,
+      createdAt: wallet.createdAt.toISOString(),
+      balance: wallet.balance,
+      nativeBalance,
+      tokenSymbol,
+      creditFiatCurrency,
+      chain,
+    }
+  })
+
+  return walletsInfo
 }

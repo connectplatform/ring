@@ -1,530 +1,121 @@
 ---
-title: Payment Integration
-description: PaymentConductor with WayForPay, Stripe, internal credit — store, membership, and news promotion
-last_modified: "2026-06-06"
+title: Payments Overview
+description: PaymentConductor with WayForPay, Stripe, internal credit — store checkout, membership upgrades, and news promotion. Links to deep-dive articles.
+last_modified: "2026-06-30"
+audience: both
 ---
 
-# Payment Integration
+# Payments Overview
 
-Ring Platform **v1.6.0** routes all card and credit flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay remains the primary PSP for Ukraine; Stripe is supported for international rails.
+Ring Platform v1.6 routes all card and credit flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe is supported for international rails.
 
-> **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor)
+> **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor) · [SubscriptionConductor](/docs/features/subscriptions)
 
-## Overview
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
+</Callout>
 
-PaymentConductor supports:
+## What PaymentConductor covers
 
-- **Store checkout** — `store_order` purpose, WayForPay/Stripe redirect or internal credit
-- **Membership upgrades** — `membership_upgrade` purpose
-- **News promotion** — `news_promotion` purpose (News Kingdom)
-- **Ledger** — `payment_transactions` table (migration 004)
-- **Webhooks** — Unified dispatcher for WayForPay and Stripe
+| Purpose | Description | PSP |
+|---------|-------------|-----|
+| Store checkout | Product purchases via cart → checkout | WayForPay / Stripe |
+| Membership upgrades | Role upgrade (e.g. SUBSCRIBER → MEMBER) | WayForPay / Stripe |
+| News promotion | News Kingdom sponsored articles | WayForPay / Stripe |
+| Internal credit | Credit balance wallet spend | Internal |
+| RING token | On-chain Solana token payments | RING |
 
-Legacy WayForPay-only flows below remain accurate for merchant configuration; orchestration is now conductor-driven.
+<Audience for="founder">
 
-## Payment Methods
+## What founders get
 
-### WayForPay Integration
+- **One payment layer for everything** — store, membership, and news use the same `payment_transactions` ledger.
+- **Config-driven gateway selection** — set `PAYMENT_DEFAULT_PROCESSOR` in env; override per-purpose with `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`.
+- **Net revenue per transaction** — gross, fee, and net displayed on the admin dashboard per payment.
 
-**Primary payment processor for Ukrainian market**
+### Ring-config.json payment section
 
-<Code language="typescript" title="interface WayForPayConfig {">
-{`merchantAccount: string
-  secretKey: string
-  domainName: string
-  webhookUrl: string
-}`}
-</Code>
-
-#### Supported Payment Methods
-- 💳 **Bank Cards**: Visa, MasterCard
-- 📱 **Digital Wallets**: Apple Pay, Google Pay
-- 🏦 **Banking**: Privat24, LiqPay
-- 📅 **Installments**: PayParts, instant installments
-- 📱 **QR Code**: QR code payments
-
-### Cryptocurrency Payments
-
-**Web3 wallet integration for RING tokens**
-
-<Code language="typescript" title="interface CryptoPayment {">
-{`networks: ['Polygon', 'Ethereum']
-  tokens: ['RING', 'MATIC', 'ETH']
-  features: ['Non-custodial', 'Automatic conversion']
-}`}
-</Code>
-
-## Membership Upgrade Flow
-
-### User Journey
-
-<Mermaid>
-{`sequenceDiagram
-    participant U as User (SUBSCRIBER)
-    participant R as Ring Platform
-    participant W as WayForPay
-    participant D as Database
-
-    U->>R: Click "Add Entity"
-    R->>R: Check user role
-    R->>U: Show MembershipUpgradeModal
-    U->>R: Click "Upgrade Now"
-    R->>R: Create payment session
-    R->>W: Generate WayForPay form
-    W->>U: Display payment form
-    U->>W: Enter payment details
-    W->>W: Process payment
-    W->>R: Send webhook notification
-    R->>R: Verify signature & update role
-    R->>U: Redirect to success page
-    R->>D: Upgrade SUBSCRIBER → MEMBER`}
-</Mermaid>
-
-### Implementation
-
-#### Payment Modal Component
-
-<Code language="typescript" title="'use client'">
-{`import { useState } from 'react'
-import { createPaymentSession } from '@/actions/payments'
-
-export function MembershipUpgradeModal() {
-  const [isProcessing, setIsProcessing] = useState(false)
-
-  const handleUpgrade = async () => {
-    setIsProcessing(true)
-
-    const paymentUrl = await createPaymentSession({
-      amount: 299,
-      currency: 'UAH',
-      productName: 'Membership Upgrade',
-      returnUrl: '/payment/success',
-      webhookUrl: '/api/payments/webhook'
-    })
-
-    // Redirect to WayForPay
-    window.location.href = paymentUrl
-  }
-
-  return (
-    <div className="modal">
-      <h2>Upgrade to MEMBER Status</h2>
-      <div className="benefits">
-        <h3>Benefits:</h3>
-        <ul>
-          <li>✅ Create and manage entities</li>
-          <li>✅ Access premium features</li>
-          <li>✅ Enhanced opportunities</li>
-          <li>✅ Priority support</li>
-        </ul>
-      </div>
-      <div className="pricing">
-        <p className="price">₴299 UAH</p>
-        <p className="note">One-time payment, lifetime access</p>
-      </div>
-      <button
-        onClick={handleUpgrade}
-        disabled={isProcessing}
-        className="upgrade-button"
-      >
-        {isProcessing ? 'Processing...' : 'Upgrade Now'}
-      </button>
-    </div>
-  )
-}`}
-</Code>
-
-#### Webhook Handler
-
-// app/api/payments/webhook/route.ts
-
-<Code language="typescript" title="TypeScript">
-{`import { NextRequest } from 'next/server'
-import { verifyWayForPaySignature } from '@/lib/payments/wayforpay'
-import { upgradeUserRole } from '@/lib/auth/role-upgrade'
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-
-    // Verify WayForPay signature
-    const isValid = verifyWayForPaySignature(body)
-    if (!isValid) {
-      return Response.json({ error: 'Invalid signature' }, { status: 400 })
+```json
+{
+  "payment": {
+    "cardPaymentProcessor": "wayforpay",
+    "supportedMethods": ["wayforpay", "credit_balance", "native_token"],
+    "futureMethods": ["stripe", "paypal", "nft_gate"],
+    "gateways": {
+      "wayforpay": { "enabled": true, "feePercent": 2.5, "currency": "UAH" },
+      "stripe": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" },
+      "credit_balance": { "enabled": true, "feePercent": 0, "currency": "USD" },
+      "native_token": { "enabled": true, "feePercent": 0, "currency": "RING", "label": "Tokens" }
     }
-
-    // Check payment status
-    if (body.transactionStatus === 'Approved') {
-      await upgradeUserRole(body.orderReference, 'MEMBER')
-
-      // Send confirmation email
-      await sendUpgradeConfirmation(body.clientEmail)
-    }
-
-    // Respond to WayForPay
-    return Response.json({
-      orderReference: body.orderReference,
-      status: 'accept',
-      time: Math.floor(Date.now() / 1000)
-    })
-
-  } catch (error) {
-    console.error('Webhook processing failed:', error)
-    return Response.json({ error: 'Processing failed' }, { status: 500 })
   }
-}`}
-</Code>
-
-## Store Checkout Integration
-
-### Multi-Vendor Payment Flow
-
-<Mermaid>
-{`graph TD
-    A[User adds to cart] --> B[Select payment method]
-    B --> C{WayForPay?}
-    C -->|Yes| D[Generate WayForPay form]
-    C -->|No| E{Crypto?}
-    E -->|Yes| F[Connect wallet]
-    E -->|No| G{RING tokens?}
-    G -->|Yes| H[Process RING payment]
-
-    D --> I[Redirect to WayForPay]
-    I --> J[Payment processing]
-    J --> K{Payment success?}
-    K -->|Yes| L[Update order status]
-    K -->|No| M[Payment failed]
-
-    F --> N[Wallet transaction]
-    N --> O[Confirm transaction]
-    O --> P{Confirmed?}
-    P -->|Yes| L
-    P -->|No| M
-
-    H --> Q[Token transfer]
-    Q --> R{Transfer success?}
-    R -->|Yes| L
-    R -->|No| M
-
-    L --> S[Create vendor settlements]
-    S --> T[Send confirmation emails]
-    T --> U[Redirect to success page]`}
-</Mermaid>
-
-## WayForPay + RING Token Dual Payment System
-
-### Complete Payment Flow Architecture
-
-<Mermaid>
-{`flowchart TD
-    User[User Initiates Payment] --> Choice{Payment Method?}
-
-    Choice -->|Fiat Currency| WFP[WayForPay Gateway]
-    Choice -->|RING Tokens| Crypto[Crypto Wallet]
-
-    WFP --> CardInput[Enter Card Details]
-    CardInput --> WFPProcess[WayForPay Processing]
-    WFPProcess --> WFPVerify{Payment Successful?}
-
-    WFPVerify -->|Yes| WFPWebhook[Webhook Notification]
-    WFPVerify -->|No| WFPRetry[Retry Payment]
-    WFPWebhook --> DBUpdate[Update Order Status]
-
-    Crypto --> WalletCheck{Sufficient Balance?}
-    WalletCheck -->|No| TopUp[Top-up Required]
-    WalletCheck -->|Yes| Deduct[Deduct RING Tokens]
-    TopUp --> Deduct
-
-    Deduct --> SmartContract[Execute Smart Contract]
-    SmartContract --> BlockchainTx[Blockchain Transaction]
-    BlockchainTx --> TxConfirm[Transaction Confirmed]
-    TxConfirm --> DBUpdate
-
-    DBUpdate --> Notify[Notify User]
-    Notify --> Complete[Order Complete]
-
-    WFPRetry --> CardInput`}
-</Mermaid>
-
-### Store Payment API
-
-// app/api/store/payments/wayforpay/route.ts
-
-<Code language="typescript" title="TypeScript">
-{`import { NextRequest } from 'next/server'
-import { auth } from '@/auth'
-import { createWayForPayPayment } from '@/lib/payments/store-payments'
-
-export async function POST(request: NextRequest) {
-  const session = await auth()
-
-  if (!session?.user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  try {
-    const { orderId, amount, currency, products } = await request.json()
-
-    const paymentUrl = await createWayForPayPayment({
-      orderId,
-      amount,
-      currency,
-      products,
-      customer: {
-        email: session.user.email,
-        firstName: session.user.name?.split(' ')[0],
-        lastName: session.user.name?.split(' ')[1]
-      },
-      returnUrl: `/store/order/${orderId}/success`,
-      webhookUrl: `/api/store/payments/webhook`
-    })
-
-    return Response.json({ paymentUrl })
-
-  } catch (error) {
-    return Response.json({ error: 'Payment creation failed' }, { status: 500 })
-  }
-}`}
-</Code>
-
-### Vendor Settlement Processing
-
-// lib/payments/vendor-settlement.ts
-
-<Code language="typescript" title="TypeScript">
-{`interface VendorSettlement {
-  vendorId: string
-  orderId: string
-  amount: number
-  commission: number // Based on vendor trust tier
-  netAmount: number  // Amount after commission
-  currency: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
 }
+```
 
-export async function processVendorSettlement(orderId: string) {
-  // Get order details
-  const order = await getOrder(orderId)
-  const vendorTier = await getVendorTrustTier(order.vendorId)
+</Audience>
 
-  // Calculate commission based on tier
-  const commissionRates = {
-    NEW: 0.20,      // 20%
-    BASIC: 0.18,    // 18%
-    VERIFIED: 0.16, // 16%
-    TRUSTED: 0.14,  // 14%
-    PREMIUM: 0.12   // 12%
-  }
+<Audience for="developer">
 
-  const commission = order.total * commissionRates[vendorTier]
-  const netAmount = order.total - commission
+## Architecture
 
-  // Create settlement record
-  await createSettlement({
-    vendorId: order.vendorId,
-    orderId,
-    amount: order.total,
-    commission,
-    netAmount,
-    currency: order.currency,
-    status: 'pending'
-  })
+```
+Checkout / upgrade / promotion
+        ↓
+lib/payments/conductor/payment-conductor.ts
+        ↓
+Processors: wayforpay | stripe | internal_credit
+        ↓
+payment_transactions (PostgreSQL, migration 004)
+```
 
-  // Process payout (could be manual or automated)
-  await processPayout(netAmount, vendorId)
-}`}
-</Code>
+### Key modules
 
-## Security & Compliance
+| Module | Path | Role |
+|--------|------|------|
+| Conductor | `lib/payments/conductor/payment-conductor.ts` | Routes payments by purpose + processor |
+| Config | `lib/payments/payment.config.ts` | Reads `ring-config.json` + env overrides |
+| WayForPay | `lib/payments/processors/wayforpay.processor.ts` | HMAC verify, form generation, webhook |
+| Stripe | `lib/payments/processors/stripe.processor.ts` | Stripe Checkout, webhook |
+| Internal credit | `lib/payments/processors/internal-credit.processor.ts` | Credit balance deduction |
+| Webhooks | `app/api/payments/wayforpay/webhook`, `app/api/payments/stripe/webhook` | Unified dispatcher |
 
-### PCI DSS Compliance
+### Environment variables
 
-// Security measures for payment processing
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_FIAT_CURRENCY=USD
+```
 
-<Code language="typescript" title="TypeScript">
-{`const paymentSecurity = {
-  // Never store card data
-  noCardStorage: true,
+### Database
 
-  // Use WayForPay hosted forms
-  hostedPaymentForms: true,
+Apply `data/migrations/004_payment_transactions.sql` before enabling the conductor in production. All transactions are persisted in the `payment_transactions` collection with the `DatabaseService` result contract `{ success, data, error }`.
 
-  // Encrypt all payment data
-  encryption: 'AES-256',
+### Per-purpose processor override
 
-  // Secure signature verification
-  signatureVerification: true,
+```bash
+PAYMENT_STORE_PROCESSOR=stripe        # Override store checkout to Stripe
+PAYMENT_MEMBERSHIP_PROCESSOR=stripe   # Override membership to Stripe
+PAYMENT_NEWS_PROCESSOR=wayforpay      # News stays on WayForPay
+```
 
-  // Rate limiting on payment endpoints
-  rateLimiting: {
-    paymentCreation: '10 requests/hour per user',
-    webhookCalls: 'unlimited (with signature verification)'
-  }
-}`}
-</Code>
+</Audience>
 
-### GDPR Compliance
+## Related
 
-// Payment data handling
-
-<Code language="typescript" title="TypeScript">
-{`const gdprCompliance = {
-  // No unnecessary data collection
-  dataMinimization: true,
-
-  // User consent for payment processing
-  explicitConsent: true,
-
-  // Right to data deletion
-  deletionGracePeriod: '30 days',
-
-  // Audit trail for all payment activities
-  auditLogging: true
-}`}
-</Code>
-
-## Error Handling
-
-### Payment Failure Scenarios
-
-// Payment failure handling
-
-<Code language="typescript" title="TypeScript">
-{`export async function handlePaymentFailure(orderReference: string, reason: string) {
-  // Log failure details
-  await logPaymentFailure({
-    orderReference,
-    reason,
-    timestamp: new Date(),
-    userAgent: getUserAgent(),
-    ipAddress: getClientIP()
-  })
-
-  // Update order status
-  await updateOrderStatus(orderReference, 'payment_failed')
-
-  // Send failure notification
-  await sendPaymentFailureEmail(orderReference)
-
-  // Provide retry options
-  const retryUrl = generateRetryUrl(orderReference)
-  return { retryUrl, reason }
-}`}
-</Code>
-
-### Webhook Error Handling
-
-// Robust webhook processing
-
-<Code language="typescript" title="TypeScript">
-{`export async function processWebhookSafely(webhookData: any) {
-  try {
-    // Verify signature
-    if (!verifySignature(webhookData)) {
-      throw new Error('Invalid webhook signature')
-    }
-
-    // Check for duplicate processing
-    if (await isWebhookProcessed(webhookData.orderReference)) {
-      return { status: 'already_processed' }
-    }
-
-    // Process payment
-    await processPaymentUpdate(webhookData)
-
-    // Mark as processed
-    await markWebhookProcessed(webhookData.orderReference)
-
-    return { status: 'success' }
-
-  } catch (error) {
-    // Log error with full context
-    await logWebhookError({
-      webhookData,
-      error: error.message,
-      timestamp: new Date()
-    })
-
-    // Don't expose internal errors to WayForPay
-    throw new Error('Webhook processing failed')
-  }
-}`}
-</Code>
-
-## Testing & Monitoring
-
-### Payment Testing
-
-// Test payment scenarios
-
-<Code language="typescript" title="TypeScript">
-{`const paymentTests = {
-  successfulPayment: async () => {
-    const result = await testWayForPayPayment({
-      amount: 299,
-      currency: 'UAH',
-      testMode: true
-    })
-    expect(result.status).toBe('approved')
-  },
-
-  failedPayment: async () => {
-    const result = await testWayForPayPayment({
-      amount: 0, // Invalid amount
-      currency: 'UAH'
-    })
-    expect(result.status).toBe('declined')
-  },
-
-  webhookProcessing: async () => {
-    const webhook = generateTestWebhook('approved')
-    const result = await processWebhookSafely(webhook)
-    expect(result.status).toBe('success')
-  }
-}`}
-</Code>
-
-### Payment Monitoring
-
-// Payment metrics tracking
-
-<Code language="typescript" title="TypeScript">
-{`const paymentMetrics = {
-  successRate: () => {
-    // Calculate success rate over time period
-    return calculatePaymentSuccessRate('24h')
-  },
-
-  averageProcessingTime: () => {
-    // Track payment processing latency
-    return getAveragePaymentLatency()
-  },
-
-  failureReasons: () => {
-    // Analyze common failure patterns
-    return analyzePaymentFailures()
-  }
-}`}
-</Code>
-
-## Integration Checklist
-
-### Pre-Launch Checklist
-- [ ] WayForPay merchant account configured
-- [ ] Environment variables set in production
-- [ ] Webhook endpoints secured and tested
-- [ ] SSL certificates installed
-- [ ] PCI DSS compliance verified
-- [ ] Error handling implemented
-- [ ] Monitoring and alerting configured
-
-### Production Deployment
-- [ ] Test payments in staging environment
-- [ ] Load testing completed
-- [ ] Rollback plan prepared
-- [ ] Support team trained
-- [ ] Customer communication ready
-
----
-
-*This payment integration provides enterprise-grade security and reliability for Ring Platform's commercial features.*
+<Cards>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    Deep-dive: architecture, rails, and webhook flows.
+  </Card>
+  <Card title="SubscriptionConductor" href="/docs/features/subscriptions">
+    Multi-provider membership billing with recurring revenue.
+  </Card>
+  <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
+    HMAC verification, idempotent orderReference, 3DS handling.
+  </Card>
+  <Card title="Wallet & Credits" href="/docs/features/wallet">
+    Credit balance and internal payment methods.
+  </Card>
+</Cards>

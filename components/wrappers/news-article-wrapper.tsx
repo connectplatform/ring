@@ -49,15 +49,15 @@ import {
   ExternalLink,
   MessageCircle,
   ThumbsUp,
-  Twitter,
-  Facebook,
-  Linkedin,
   Copy,
   Calendar,
   User,
   Eye
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
+import { TwitterIcon } from '@/components/ui/icons/twitter-icon'
+import { FacebookIcon } from '@/components/ui/icons/facebook-icon'
+import { LinkedinIcon } from '@/components/ui/icons/linkedin-icon'
 
 interface NewsArticleWrapperProps {
   children: React.ReactNode
@@ -140,21 +140,21 @@ export default function NewsArticleWrapper({
     {
       id: 'twitter',
       label: 'Twitter',
-      icon: Twitter,
+      icon: TwitterIcon,
       color: 'hover:text-blue-500',
       url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(articleData?.title || 'Check out this article')}&url=${encodeURIComponent(window?.location?.href || '')}`
     },
     {
       id: 'facebook',
       label: 'Facebook',
-      icon: Facebook,
+      icon: FacebookIcon,
       color: 'hover:text-blue-600',
       url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window?.location?.href || '')}`
     },
     {
       id: 'linkedin',
       label: 'LinkedIn',
-      icon: Linkedin,
+      icon: LinkedinIcon,
       color: 'hover:text-blue-700',
       url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window?.location?.href || '')}`
     },

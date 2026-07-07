@@ -69,11 +69,11 @@ async function main() {
     await ringToken.deployTransaction.wait(3); // Wait for 3 confirmations
 
     // Deploy Ring Membership contract
-    console.log("\n📄 Deploying RingMembership contract...");
-    const RingMembership = await ethers.getContractFactory("RingMembership");
+    console.log("\n📄 Deploying Membership contract...");
+    const Membership = await ethers.getContractFactory("Membership");
     
     const membershipDeployTx = await upgrades.deployProxy(
-      RingMembership,
+      Membership,
       [ringToken.address, config.owner],
       { 
         initializer: "initialize", 
@@ -84,7 +84,7 @@ async function main() {
 
     console.log("   Waiting for deployment confirmation...");
     const ringMembership = await membershipDeployTx.deployed();
-    console.log("✅ RingMembership deployed to:", ringMembership.address);
+    console.log("✅ Membership deployed to:", ringMembership.address);
 
     // Wait for additional confirmations
     console.log("   Waiting for additional confirmations...");
@@ -104,7 +104,7 @@ async function main() {
     console.log("Network: Polygon Mainnet");
     console.log("Chain ID: 137");
     console.log("RingToken Address:", ringToken.address);
-    console.log("RingMembership Address:", ringMembership.address);
+    console.log("Membership Address:", ringMembership.address);
     console.log("Treasury Address:", config.treasury);
     console.log("Owner Address:", config.owner);
     
@@ -147,7 +147,7 @@ async function main() {
           implementation: await upgrades.erc1967.getImplementationAddress(ringToken.address),
           deployTx: ringToken.deployTransaction.hash,
         },
-        RingMembership: {
+        Membership: {
           address: ringMembership.address,
           implementation: await upgrades.erc1967.getImplementationAddress(ringMembership.address),
           deployTx: ringMembership.deployTransaction.hash,
@@ -184,7 +184,7 @@ async function main() {
     console.log("\n🌐 POLYGON SCAN LINKS");
     console.log("=====================");
     console.log(`RingToken: https://polygonscan.com/address/${ringToken.address}`);
-    console.log(`RingMembership: https://polygonscan.com/address/${ringMembership.address}`);
+    console.log(`Membership: https://polygonscan.com/address/${ringMembership.address}`);
     
     console.log("\n✨ MAINNET DEPLOYMENT COMPLETED SUCCESSFULLY!");
     console.log("\n📝 IMPORTANT NEXT STEPS:");

@@ -1,112 +1,34 @@
-export interface WalletAccount {
-  address: string
-  primary?: boolean
-  label?: string
-  createdAt?: string
-}
+/**
+ * Wallet types — Barreled exports from centralized SSOT (Single Source of Truth).
+ *
+ * New code should import from `@/features/wallet/types` directly.
+ * This file exists for backward compatibility.
+ */
 
-export interface TokenBalance {
-  symbol: string
-  name: string
-  balance: string
-  decimals: number
-  usdValue?: string
-  tokenAddress?: string
-}
+// Exporting wallet type definitions from the core SSOT. Consumers should migrate to new import paths.
+// TODO: Codemod legacy imports to direct `@/features/wallet/types` to improve tree-shaking and future maintainability.
+export type {
+  Wallet,
+  WalletChain,
+  WalletAccount,
+  WalletInfo,
+  GeneratedChainWallet,
+  ChainWalletAdapter,
+  WalletContact,
+  EnsureWalletResult,
+} from '@/features/wallet/types/wallet'
 
-export interface WalletBalances {
-  RING?: string
-  POL?: string
-  USDT?: string
-  USDC?: string
-  [key: string]: string | undefined
-}
+// Exporting transaction types from the transaction SSOT.
+// TODO: Adapt consumers to import directly from `@/features/wallet/types/transaction`.
+export type {
+  WalletTransactionKind,
+  WalletTransactionExcerpt,
+  WalletTransactionDetails,
+} from '@/features/wallet/types/transaction'
 
-export interface WalletTransaction {
-  id: string
-  timestamp: string
-  walletAddress: string
-  txHash: string
-  recipient: string
-  amount: string
-  tokenSymbol: string
-  status: 'success' | 'pending' | 'failed'
-  networkId: number
-  blockNumber?: number
-  gasUsed?: string
-  gasPrice?: string
-  from?: string
-  to?: string
-  value?: string
-  type?: 'send' | 'receive' | 'stake' | 'unstake' | 'claim' | 'buy'
-  notes?: string
-}
-
-export interface WalletContact {
-  id: string
-  name: string
-  address: string
-  notes?: string
-  isFavorite?: boolean
-  isDefault?: boolean
-  addedAt: string
-  lastUsed?: string
-}
-
-export interface StakingPosition {
-  poolId: string
-  poolName: string
-  stakedAmount: string
-  pendingRewards: string
-  apr: number
-  tokenSymbol: string
-  rewardSymbol: string
-  lastClaimTime?: number
-  lockEndTime?: number
-}
-
-export interface WalletAdapter {
-  getPrimaryAccount(): Promise<WalletAccount | null>
-  getBalances(address: string): Promise<WalletBalances>
-  getTokenBalances?(address: string): Promise<TokenBalance[]>
-  getTransactionHistory?(address: string, limit?: number): Promise<WalletTransaction[]>
-  sendTransaction?(params: {
-    from: string
-    to: string
-    amount: string
-    tokenAddress?: string
-    data?: string
-  }): Promise<string>
-  getStakingPositions?(address: string): Promise<StakingPosition[]>
-}
-
-// ============================================================================
-// PROJECT-SPECIFIC WALLET TYPES
-// ============================================================================
-
-export interface ProjectWalletData {
-  id: string
-  globalUserId: string
-  projectSlug: string
-  address: string
-  primary: boolean
-  label: string
-  encryptedPrivateKey: string
-  publicKey: string
-  networkId: number
-  createdAt: Date
-  lastUsed: Date
-}
-
-export interface ProjectWalletService {
-  // Wallet Management
-  ensureProjectWallet(globalUserId: string): Promise<WalletAccount>
-  getProjectWallets(globalUserId: string): Promise<WalletAccount[]>
-  hasProjectWallet(globalUserId: string): Promise<boolean>
-  getPrimaryProjectWallet(globalUserId: string): Promise<WalletAccount | null>
-
-  // Transaction History (legacy project_wallet_transactions)
-  getTransactionHistory(globalUserId: string, limit?: number): Promise<WalletTransaction[]>
-}
-
-
+// Exporting wallet activity related types.
+// TODO: Refactor all imports to use direct `@/features/wallet/types/activity` for improved clarity.
+export type {
+  WalletActivitySource,
+  WalletActivityRow,
+} from '@/features/wallet/types/activity'

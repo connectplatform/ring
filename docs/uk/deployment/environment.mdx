@@ -1,68 +1,238 @@
 ---
-title: Environment
-description: Environment documentation for Ring Platform
-last_modified: "2026-06-10"
+title: Конфігурація Середовища
+description: Обов'язкові та опціональні змінні середовища для Ring Platform — бекенд бази даних, Firebase Admin SDK, FCM, платежі, локалі, Tunnel.
+last_modified: "2026-06-28"
+audience: both
 ---
 
-# Environment Variables (Production)
+# Конфігурація Середовища
 
-## Локалі (v1.6.0)
+<Callout type="info">
+  Ця сторінка є **канонічним довідником** для кожної змінної середовища, яку використовує Ring Platform.
+  Джерелом правди є `env.local.template` у корені репозиторію — коли сумніваєтеся, звертайтеся до цього файлу.
+  Використовуйте вкладки **Засновник** / **Розробник** у бічній панелі для фільтрації за аудиторією.
+</Callout>
+
+## `DB_BACKEND_MODE` (обов'язково)
+
+Ring Platform потребує `DB_BACKEND_MODE` під час виконання. Він визначає, який адаптер бази даних активний і як налаштовані FCM push сповіщення.
+
+| Значення | База даних додатку | Firebase Admin для Firestore? | Push |
+|----------|-------------------|-------------------------------|------|
+| `k8s-postgres-fcm` | PostgreSQL (ваш кластер) | Ні — mock Firestore | FCM через Firebase Admin messaging |
+| `firebase-full` | Firestore | Так | FCM як частина повного стеку Firebase |
+| `supabase-fcm` | Supabase PostgreSQL | Ні — mock Firestore | FCM через Firebase Admin messaging |
+
+Див. [Режими бекенду та бази даних](/docs/architecture/backend-modes-and-databases) для глибокого порівняння.
+
+<Audience for="founder">
+
+## Firebase: коли це потрібно?
+
+Ваш Ring клон **може** потребувати облікових даних Firebase у двох контекстах:
+
+1. **Push сповіщення (FCM)** — потрібно у всіх трьох значеннях `DB_BACKEND_MODE`, якщо ви хочете доставку push. Firebase використовується як транспорт FCM; ваші дані додатку залишаються в PostgreSQL.
+2. **Повний Firestore бекенд** — лише коли `DB_BACKEND_MODE=firebase-full`. У цьому режимі Firebase Admin SDK служить основною базою даних.
+
+**Якщо вам не потрібні push сповіщення**, ви можете пропустити всі змінні середовища Firebase. Платформа працює на PostgreSQL самостійно.
+
+Firebase Admin SDK v14 використовує **Application Default Credentials (ADC)** у `FirebaseAdapter` (рівень абстракції бази даних). Для шляху FCM/auth (`firebase-admin.server.ts`) явні облікові дані сервісного акаунту через `AUTH_FIREBASE_CLIENT_EMAIL` + `AUTH_FIREBASE_PRIVATE_KEY` все ще потрібні, коли ADC не налаштовано.
+
+У продакшені (Cloud Run, Cloud Functions, GKE) ADC автоматично визначає облікові дані з середовища. Вам потрібен лише `AUTH_FIREBASE_PROJECT_ID`. У локальній розробці або CI надайте повний набір ключів сервісного акаунту.
+
+</Audience>
+
+<Audience for="developer">
+
+## Бекенд бази даних
+
+```bash
+# Обов'язково — вибирає адаптер бази даних + FCM підключення
+DB_BACKEND_MODE=k8s-postgres-fcm
+
+# PostgreSQL підключення (обов'язково для k8s-postgres-fcm та supabase-fcm)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
+DB_POOL_SIZE=20
+DB_TIMEOUT=30000
+DB_RETRIES=3
+DB_SSL=false
+```
+
+Канонічна dev настройка використовує `ring-postgres-dev` (postgres:16-alpine). Див. `docker-compose.dev.yml`.
+
+## Firebase Admin SDK (серверна частина)
+
+```bash
+# Мінімум для FCM-тільки використання:
+AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
+
+# Потрібно коли ADC не налаштовано (локальна розробка / CI):
+AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+AUTH_FIREBASE_PRIVATE_KEY="your_firebase_private_key"
+
+# Опціонально
+FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
+FIREBASE_PRIVATE_KEY_ID=your_firebase_private_key_id
+FIREBASE_CLIENT_ID="your_firebase_client_id"
+FIREBASE_FIRESTORE_DEBUG=true
+```
+
+- **`lib/firebase-admin.server.ts`** (FCM + Auth шлях): завжди потребує `AUTH_FIREBASE_PROJECT_ID`. Коли `AUTH_FIREBASE_CLIENT_EMAIL` та `AUTH_FIREBASE_PRIVATE_KEY` присутні, використовує явний `cert()`. Відкочується до ADC якщо вони відсутні.
+- **`lib/database/adapters/FirebaseAdapter.ts`** (абстракція бази даних): використовує ADC спочатку. Якщо `credentials.clientEmail` і `credentials.privateKey` є в конфігурації бекенду, відкочується до явного `cert()`. Цей шлях активний лише в режимі `firebase-full`.
+
+<Callout type="tip">
+  На Cloud Run / Cloud Functions / GKE: встановіть лише `AUTH_FIREBASE_PROJECT_ID`. SDK автоматично визначає облікові дані через ADC.
+  У локальній розробці: встановіть `AUTH_FIREBASE_CLIENT_EMAIL` та `AUTH_FIREBASE_PRIVATE_KEY` з вашого JSON ключа сервісного акаунту.
+</Callout>
+
+## Firebase Client SDK (браузерна частина)
+
+Потрібно коли ваш Ring клон використовує Firebase для **клієнтських функцій** (реєстрація FCM push токенів, FirebaseUI auth):
+
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-YCZKPV315E
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key
+```
+
+Отримайте їх з **Firebase Console → Project Settings → General → Web apps**.
+
+## Провайдери аутентифікації
+
+```bash
+# Auth.js core
+AUTH_SECRET=your_auth_secret
+AUTH_TRUST_HOST=true
+
+# Google OAuth (обов'язково для входу через Google)
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
+
+# Apple Sign-In (обов'язково для входу через Apple)
+AUTH_APPLE_ID=your_apple_client_id
+AUTH_APPLE_SECRET=your_apple_private_key
+
+# Magic links (опціонально — використовує Resend)
+AUTH_RESEND_KEY=your_resend_api_key
+AUTH_RESEND_FROM=noreply@ring-platform.org
+```
+
+Auth.js v5 читає змінні з префіксом `AUTH_*` автоматично для кожного провайдера. Див. [Архітектура аутентифікації](/docs/architecture/authentication).
+
+## Платежі (PaymentConductor)
+
+```bash
+# Процесор за замовчуванням
+PAYMENT_DEFAULT_PROCESSOR=wayforpay
+
+# Перевизначення за призначенням (опціонально)
+PAYMENT_STORE_PROCESSOR=wayforpay
+PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay
+PAYMENT_NEWS_PROCESSOR=wayforpay
+
+# WayForPay
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+
+# Stripe (альтернатива)
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_FIAT_CURRENCY=UAH
+```
+
+Застосуйте `data/migrations/004_payment_transactions.sql` перед продакшн платежами.
+
+## Локалі
 
 ```bash
 NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
 NEXT_PUBLIC_DEFAULT_LOCALE=en
 ```
 
-Див. `lib/locale-config.ts` та [Система локалей](/docs/features/locale-system).
+Див. `lib/locale-config.ts`. Підтримувані локалі: `en`, `uk`, `ru`.
 
-## PaymentConductor (v1.6.0)
-
-```bash
-PAYMENT_DEFAULT_PROCESSOR=wayforpay
-PAYMENT_STORE_PROCESSOR=wayforpay
-WAYFORPAY_MERCHANT_ACCOUNT=
-WAYFORPAY_SECRET_KEY=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-```
-
-Див. [PaymentConductor](/docs/features/payment-conductor).
-
-## Email AI-CRM {#email-ai-crm}
-
-У **`.env.local`** (повний блок — `env.local.template`):
+## Генеративні кондуктори (xAI Grok)
 
 ```bash
-IMAP_HOST=mail.example.com
-IMAP_USER=info@example.com
-IMAP_PASSWORD=
-SMTP_HOST=mail.example.com
-SMTP_USER=info@example.com
-SMTP_PASSWORD=
-ANTHROPIC_API_KEY=
-CRON_SECRET=generate-a-long-random-string
-EMAIL_AUTO_SEND_ENABLED=false
-EMAIL_CRM_PERSISTENCE=memory
+XAI_API_KEY=your_xai_key
+XAI_API_BASE_URL=https://api.x.ai/v1
 ```
 
-Міграції `009` + `010` для Postgres; cron `POST /api/cron/email-processor` з `{"action":"poll"}`.
+Префікси за призначенням:
+- `IMAGE_GEN_*` / `XAI_IMAGE_*` — ImageConductor
+- `TEXT_GEN_*` / `XAI_TEXT_*` — TextConductor (цитовані статті)
+- `TTS_*` / `XAI_TTS_*` — AudioConductor (озвучення)
+- `NEWS_AUTOGEN_*` — стандартні налаштування новинної редакції
 
-> **EN canonical:** [Environment — Email AI-CRM (EN)](/docs/deployment/environment#email-ai-crm) · [Гайд розробника](/docs/examples/email-ai-crm)
+Потребує `FILE_BACKEND=ringbase` з `RINGBASE_API_URL` та `RINGBASE_API_TOKEN` для CDN завантажень.
 
-## Основні змінні
+## Ring Tunnel (реальний час)
 
-<Code language="dotenv" title="AUTH_SECRET=">
-{`NEXTAUTH_URL=
-AUTH_FIREBASE_PROJECT_ID=
-AUTH_FIREBASE_CLIENT_EMAIL=
-AUTH_FIREBASE_PRIVATE_KEY=
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-BLOB_READ_WRITE_TOKEN=
-WALLET_ENCRYPTION_KEY=
-WAYFORPAY_MERCHANT_ACCOUNT=
-WAYFORPAY_SECRET_KEY=`}
-</Code>
+```bash
+# vercel | k8s | self-hosted
+RING_DEPLOY_TARGET=self-hosted
+NEXT_PUBLIC_RING_DEPLOY_TARGET=self-hosted
 
+# Опціональна явна WS URL (за замовчуванням: той самий хост /api/tunnel/ws)
+# NEXT_PUBLIC_TUNNEL_WS_URL=wss://ring-platform.org/api/tunnel/ws
+```
 
-<Callout type="warning">Never commit secrets to Git.</Callout>
+## Функціональні прапорці
+
+```bash
+FEATURE_DOCUMENTATION=true
+FEATURE_NETWORKING=true
+FEATURE_MESSAGING=true
+FEATURE_WALLET=true
+FEATURE_AI_MATCHER=true
+FEATURE_WEB3_INTEGRATION=true
+```
+
+## Платформа
+
+```bash
+NEXT_PUBLIC_BASE_URL=https://ring-platform.org
+NODE_ENV=development
+```
+
+## Опціонально — Email AI-CRM, CRON, резервне копіювання
+
+Див. `env.local.template` для повного коментованого довідника. Ключові опціональні блоки:
+
+```bash
+# Email CRM (IMAP опитування + адмін інтерфейс)
+# IMAP_HOST=mail.example.com
+# IMAP_PORT=993
+# ...
+
+# CRON захист
+# CRON_SECRET=generate-a-long-random-string
+
+# Резервне копіювання та відповідність
+# BACKUP_ENABLED=true
+# BACKUP_SCHEDULE=0 2 * * *
+```
+
+<Callout type="warning">
+  **Ніколи не комітьте реальні секрети в Git.** Файл `env.local.template` використовує значення-заповнювачі. Скопіюйте його в `.env.local` (gitignored) і заповніть своїми продакшн значеннями. Використовуйте K8s секрети або сховище секретів вашої системи розгортання для продакшну.
+</Callout>
+
+</Audience>
+
+## Пов'язана документація
+
+<Cards>
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Режими бекенду та бази даних" description="Порівняння DB_BACKEND_MODE та архітектура Firebase vs PostgreSQL." />
+  <Card href="/docs/customization/database-selection" title="Вибір бази даних" description="Посібник з вибору режиму бекенду для вашого клону." />
+  <Card href="/docs/architecture/authentication" title="Аутентифікація" description="Конфігурація провайдерів Auth.js v5." />
+  <Card href="/docs/deployment/docker" title="Docker розгортання" description="Створення контейнера та розгортання." />
+</Cards>

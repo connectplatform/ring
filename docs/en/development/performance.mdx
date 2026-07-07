@@ -1,248 +1,174 @@
 ---
 title: Performance
-description: Performance documentation for Ring Platform
+description: Ring Platform-specific performance patterns — React 19 cache(), build-time Firebase mocking, DatabaseService query optimization, Server Components, and Firebase Admin SDK.
+last_modified: "2026-06-28"
+audience: both
 ---
 
 # Performance Optimization
 
-Profiling and optimization strategies for Ring Platform applications.
+Profiling and optimization strategies specific to Ring Platform. This document covers real codebase patterns. For user-facing performance expectations, see [Performance](/docs/en/features/performance). For production hardening, see [Deployment Performance](/docs/en/deployment/performance). For general development conventions, see [Best Practices](/docs/en/development/best-practices).
 
-## ⚡ React 19 Performance Patterns
+<Callout type="warning">
+  Ring Platform does **not** use client-side Firestore. Firebase is Admin SDK only via `lib/firebase-admin.server.ts`. The only client-side Firebase code is `public/firebase-messaging-sw.js` for FCM push notifications.
+</Callout>
 
-### Server Components Optimization
-// Fetch data at the server component level
+<Audience for="founder">
 
-<Code language="typescript" title="TypeScript">
-{`export default async function EntitiesPage() {
-  // This runs on the server, reducing client-side work
-  const entities = await getEntities()
+## What Affects Load Times
 
-  return (
-    <div>
-      <EntitiesList entities={entities} />
-      <ClientComponent />
-    </div>
-  )
-}`}
-</Code>
+Ring Platform loads fast because most pages are **React Server Components** rendered on the server. Key factors that influence performance:
 
-### useOptimistic Hook
-<Code language="typescript" title="'use client'">
-{`import { useOptimistic } from 'react'
+- **Server data caching** — repeated Firestore reads during a single request are deduplicated with React 19 `cache()`.
+- **Build-time optimizations** — Firebase Admin is mocked during static generation, cutting build time by ~31%.
+- **Minimal client JavaScript** — only pages with interactivity (forms, maps, checkout) use client components.
+- **CDN-served assets** — static pages are pre-built and served from edge cache.
 
-export function EntityForm({ entities, addEntity }) {
-  const [optimisticEntities, addOptimisticEntity] = useOptimistic(
-    entities,
-    (state, newEntity) => [...state, { ...newEntity, id: 'temp-' + Date.now() }]
-  )
+## Performance Optimizations Available
 
-  async function handleSubmit(formData) {
-    addOptimisticEntity(formData)
-    await addEntity(formData)
-  }
+| Optimization | Benefit |
+|---|---|
+| React 19 cache() | Deduplicates Firestore reads per request |
+| Build-time Firebase mocking | ~31% faster builds, prevents 22+ redundant initializations |
+| DatabaseService query layer | Unified PostgreSQL + Firestore with caching |
+| Server Components by default | No client JS for most pages |
+| WayForPay server-side only | No payment logic exposed to the client |
+| FCM service worker | Push notifications handled off main thread |
 
-  return (
-    <form action={handleSubmit}>
-      {/* Form fields */}
-    </form>
-  )
-}`}
-</Code>
+</Audience>
 
-## 🚀 Next.js 16 Optimizations
+<Audience for="developer">
 
-### Static Generation
-// Generate static pages at build time
+## React 19 cache() for Data Deduplication
 
-<Code language="typescript" title="TypeScript">
-{`export async function generateStaticParams() {
-  const entities = await getPublicEntities()
-  
-  return entities.map((entity) => ({
-    id: entity.id
-  }))
+The `firebase-service-manager.ts` module wraps every Firestore Admin SDK read with React 19 `cache()`. This prevents duplicate requests within the same Server Component render pass.
+
+```typescript
+import { getCachedDocument, getCachedCollection } from '@/lib/services/firebase-service-manager'
+
+// Multiple calls to the same document during SSG resolve to one Firestore read
+const entity = await getCachedDocument('entities', 'abc123')
+const sameEntity = await getCachedDocument('entities', 'abc123') // cache hit
+
+// Collection queries also cached per-request
+const activeEntities = await getCachedCollection('entities', {
+  where: { field: 'status', operator: '==', value: 'active' },
+  orderBy: { field: 'createdAt', direction: 'desc' },
+  limit: 20
+})
+```
+
+The `cache()` function is imported from React 19 — it is not a custom implementation. All cached read functions are in `lib/services/firebase-service-manager.ts` and work with `firebase-admin/firestore`.
+
+<Callout type="tip">
+  Cache scope is the current Server Component render pass only. After the response is sent, the cache is discarded. For longer-lived caching, use `revalidate` on fetch or a dedicated cache layer.
+</Callout>
+
+## Build-time Firebase Mocking
+
+During `next build`, `NEXT_PHASE=phase-production-build` is set. The module at `lib/firebase/build-mock.server.ts` detects this and returns mock Firestore, Auth, and RTDB instances. This prevents ~22 Firebase Admin initializations that would otherwise run during static generation.
+
+```typescript
+import { isBuildTime, getMockFirebaseServices } from '@/lib/firebase/build-mock.server'
+
+if (isBuildTime()) {
+  const { mockDb, mockAuth } = getMockFirebaseServices()
+  // mockDb.collection('test').get() returns empty results
+  // No Firebase credentials needed during build
 }
+```
 
-export default async function EntityPage({ params }) {
-  const entity = await getEntity(params.id)
-  return <EntityDetails entity={entity} />
-}`}
-</Code>
+The mock layer implements the full Firestore query interface with chainable `where()`, `orderBy()`, `limit()`, and pagination methods — all returning empty result sets. Auth methods return safe default user objects. This is active at `lib/firebase/build-mock.server.ts:36`.
 
-### Edge Runtime
-// Use Edge Runtime for faster cold starts
+## DatabaseService Query Optimization
 
-<Code language="typescript" title="TypeScript">
-{`export const runtime = 'edge'
+The database abstraction layer at `lib/database/DatabaseService.ts` provides a unified query API over PostgreSQL and Firestore, with built-in 30-second entity caching.
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q')
-  
-  // Fast API response from edge
-  return Response.json({ results: await searchEntities(query) })
-}`}
-</Code>
+```typescript
+import { getDatabaseService } from '@/lib/database/DatabaseService'
 
-## 📦 Bundle Optimization
-
-### Code Splitting
-// Dynamic imports for code splitting
-
-<Code language="typescript" title="TypeScript">
-{`import dynamic from 'next/dynamic'
-
-const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
-  loading: () => <div>Loading...</div>,
-  ssr: false // Skip SSR for client-only components
+const db = getDatabaseService()
+const result = await db.query({
+  collection: 'entities',
+  filters: { status: 'active' },
+  orderBy: { field: 'createdAt', direction: 'desc' },
+  pagination: { limit: 20 }
 })
 
-export default function Page() {
-  return (
-    <div>
-      <h1>Page Content</h1>
-      <HeavyComponent />
-    </div>
-  )
-}`}
-</Code>
-
-### Tree Shaking
-// Import only what you need
-
-<Code language="typescript" title="TypeScript">
-{`import { debounce } from 'lodash/debounce' // ✅ Good
-import _ from 'lodash' // ❌ Imports entire library
-
-// Use ES modules for better tree shaking
-import { Button } from '@/components/ui' // ✅ Tree-shakeable`}
-</Code>
-
-## 🎯 Performance Monitoring
-
-### Web Vitals Tracking
-// pages/_app.tsx or app/layout.tsx
-
-<Code language="typescript" title="TypeScript">
-{`export function reportWebVitals(metric) {
-  switch (metric.name) {
-    case 'CLS':
-    case 'FID':
-    case 'FCP':
-    case 'LCP':
-    case 'TTFB':
-      // Send to analytics
-      analytics.track('web-vital', {
-        name: metric.name,
-        value: metric.value,
-        id: metric.id
-      })
-      break
-  }
-}`}
-</Code>
-
-### Performance Profiling
-// Use React Profiler for component performance
-
-<Code language="typescript" title="TypeScript">
-{`import { Profiler } from 'react'
-
-function onRender(id, phase, actualDuration, baseDuration, startTime, commitTime) {
-  // Log or send to analytics
-  console.log('Performance:', {
-    component: id,
-    phase,
-    duration: actualDuration
-  })
+if (!result.success) {
+  throw result.error || new Error('Query failed')
 }
+```
 
-export default function App() {
-  return (
-    <Profiler id="App" onRender={onRender}>
-      <MainContent />
-    </Profiler>
-  )
-}`}
-</Code>
+The service includes an `EntityCache` class with TTL-based invalidation. For read-after-write consistency, write operations invalidate the affected keys.
 
-## 🗄️ Database Optimization
+<Callout type="warning">
+  Do not call `db.users.findById()` or similar patterns. The DatabaseService API uses `db.query({ collection, filters })` with a single options object. See `lib/database/DatabaseService.ts:74` for the full interface.
+</Callout>
 
-### Firestore Query Optimization
-// Use compound indexes for complex queries
+## Server Components by Default
 
-<Code language="typescript" title="TypeScript">
-{`import { query, where, orderBy, limit } from 'firebase/firestore'
+All pages in `app/` are Server Components unless they carry a `'use client'` directive. This eliminates client-side JavaScript for most routes. Client components are used only for:
 
-// Efficient query with proper indexing
-const entitiesQuery = query(
-  entitiesCollection,
-  where('userId', '==', userId),
-  where('status', '==', 'active'),
-  orderBy('createdAt', 'desc'),
-  limit(20)
-)`}
-</Code>
+- Interactive forms (checkout, vendor onboarding)
+- Map views (Ringdom Maps)
+- Wallet and payment UIs
+- Admin dashboards
 
-### Caching Strategies
-// Use React cache for deduplication
+Search `'use client'` in `app/` to see the full inventory of client components.
 
-<Code language="typescript" title="TypeScript">
-{`import { cache } from 'react'
+## FCM Background Message Handling
 
-export const getEntity = cache(async (id: string) => {
-  const entity = await fetchEntityFromDB(id)
-  return entity
-})
+Firebase Cloud Messaging is handled entirely in the service worker at `public/firebase-messaging-sw.js`. Push events are processed without waking the main JavaScript thread. The client only registers the service worker and forwards the FCM token to the server.
 
-// Multiple calls to getEntity(id) will be deduplicated`}
-</Code>
+## WayForPay Server-Side Only
 
-## 🖼️ Image Optimization
+Payment requests are server-side only. No WayForPay merchant credentials, HMAC keys, or payment logic are exposed to the browser. The client submits an order reference; the server constructs and verifies all payment payloads. See [WayForPay Integration](/docs/en/features/wayforpay-integration).
 
-### Next.js Image Component
-import Image from 'next/image'
+## Next.js 16 Rendering Strategies
 
-<Code language="typescript" title="TypeScript">
-{`export function EntityAvatar({ entity }) {
-  return (
-    <Image
-      src={entity.avatar}
-      alt={entity.name}
-      width={64}
-      height={64}
-      priority={entity.featured} // Load important images first
-      placeholder="blur"
-      blurDataURL="data:image/jpeg;base64,..."
-    />
-  )
-}`}
-</Code>
+Use `force-dynamic`, `force-static`, or `revalidate` exports per page to control rendering:
 
-## 📊 Performance Metrics
+```typescript
+// Static page, revalidated every 60 seconds
+export const revalidate = 60
 
-### Target Metrics
-- **First Contentful Paint**: < 1.5s
-- **Largest Contentful Paint**: < 2.5s
-- **First Input Delay**: < 100ms
-- **Cumulative Layout Shift**: < 0.1
-- **Time to Interactive**: < 3.5s
+// Fully dynamic — no caching
+export const dynamic = 'force-dynamic'
+```
 
-### Monitoring Tools
-Lighthouse CI Bundle analyzer Performance profiling
+Static generation is the default. Explicitly mark pages as `force-dynamic` when they display user-specific data.
 
-<Code language="bash" title="terminal">
-{`npm install -g @lhci/cli
-lhci autorun
+## Performance Metrics
 
+- First Contentful Paint: < 1.5s
+- Largest Contentful Paint: < 2.5s
+- First Input Delay: < 100ms
+- Cumulative Layout Shift: < 0.1
+- Build time reduction with Firebase mocking: ~31%
+
+## Monitoring
+
+Web Vitals are collected in production. Configure analytics tracking in the deployment environment. For build-time analysis, run:
+
+```bash
 npm run build
 npm run analyze
+```
 
-npm run dev:profile`}
-</Code>
+The `firebase-service-manager.ts` module also exposes internal cache metrics:
+
+```typescript
+import { getCacheMetrics } from '@/lib/services/firebase-service-manager'
+
+const metrics = getCacheMetrics()
+console.log(`Hit rate: ${metrics.hitRate.toFixed(1)}%`)
+```
+
+</Audience>
 
 ---
 
-<Callout type="development" title="Documentation in progress">
-Complete performance optimization documentation is being expanded.
+<Callout type="info">
+  For user-facing performance expectations, refer to [Performance (User)](/docs/en/features/performance). For production monitoring and infrastructure tuning, see [Deployment Performance](/docs/en/deployment/performance). For general development conventions, see [Best Practices](/docs/en/development/best-practices).
 </Callout>

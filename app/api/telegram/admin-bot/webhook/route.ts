@@ -22,7 +22,7 @@ import { parseAdminCommand, validateToolInput } from '@/lib/telegram/admin-bot/a
 import { executeCommand } from '@/lib/telegram/admin-bot/ring-api-executor'
 import { formatResponse } from '@/lib/telegram/admin-bot/response-formatter'
 import { logInteraction, logFailedRequest } from '@/lib/telegram/admin-bot/audit-logger'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 import { handleNewsCallback } from '@/lib/telegram/admin-bot/news-callback-handler'
 
@@ -132,11 +132,11 @@ async function processAdminCommand(
 
   try {
     // Get user role for permission checks
-    let userRole = UserRole.admin // Default to ADMIN
+    let userRole = UserRolesArray.admin // Default to ADMIN
     if (userId) {
       const userResult = await db().findDocById<{ role?: string; name?: string }>('users', userId)
       if (userResult.success && userResult.data?.role) {
-        userRole = userResult.data.role as UserRole
+        userRole = assertKnownUserRole((userResult.data.role as UserRolesArray))
       }
     }
 

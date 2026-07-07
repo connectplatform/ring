@@ -1,6 +1,6 @@
 'use server'
 
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 import { db } from '@/lib/database'
 
@@ -9,7 +9,7 @@ export type PaymentStatus = 'initiated' | 'completed' | 'failed' | 'cancelled'
 export interface PaymentAttempt {
   orderId: string
   userId: string
-  targetRole: UserRole
+  targetRole: UserRolesArray
   amount: number
   currency: string
   status: PaymentStatus
@@ -27,7 +27,7 @@ type PaymentRow = PaymentAttempt & Record<string, unknown>
 export async function recordPaymentAttempt(data: {
   userId: string
   orderId: string
-  targetRole: UserRole
+  targetRole: UserRolesArray
   amount: number
   currency: string
   status: PaymentStatus

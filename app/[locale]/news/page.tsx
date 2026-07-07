@@ -1,38 +1,43 @@
 import type { Metadata } from 'next'
+// Sets locale on the request context for next-intl i18n
 import { setRequestLocale } from 'next-intl/server'
+// Provides locale routing info and helpers
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import React from 'react'
-import Link from 'next/link';
-import { NewsList } from '@/features/news/components/news-list';
-import { FeaturedCarousel } from '@/features/news/components/featured-carousel';
-import NewsPageWrapper from '@/components/wrappers/news-page-wrapper';
+import Link from 'next/link'
+import { NewsList } from '@/features/news/components/news-list'
+import { FeaturedCarousel } from '@/features/news/components/featured-carousel'
+import NewsPageWrapper from '@/components/wrappers/news-page-wrapper'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { buildNewsVisibilityFilters } from '@/features/news/lib/news-visibility-filter'
-import { assertKnownUserRole, UserRole } from '@/features/auth/user-role'
-import { mapNewsDocument, mapNewsCategoryDocument } from '@/lib/news/map-news-document';
-import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types';
-import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
+import { hasRoleAtLeast } from '@/features/auth/types'
+import { mapNewsDocument, mapNewsCategoryDocument } from '@/lib/news/map-news-document'
+import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types'
+import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale } from '@/i18n/shared'
 import { loadTranslations } from '@/i18n/load-translations'
-import { Rss } from 'lucide-react';
+import { Rss } from 'lucide-react'
 
+// Dictionary of category info for rendering category metadata and icons
 const categoryInfo: Record<NewsCategory, { name: string; description: string; color: string; icon: string; articleCount: number }> = {
+  // STUB: Static info for each category, counts must be hydrated from backend if needed
   'platform-updates': {
     name: 'Platform Updates',
     description: 'Latest updates, features, and improvements to Ring Platform',
     color: 'bg-blue-500',
     icon: '🚀',
-    articleCount: 0
+    articleCount: 0 // STUB: Should calculate actual count - todo: count from backend
   },
   'partnerships': {
     name: 'Partnerships',
     description: 'Collaborations, integrations, and partnership announcements',
     color: 'bg-green-500',
     icon: '🤝',
-    articleCount: 0
+    articleCount: 0 // STUB: See above
   },
   'community': {
     name: 'Community',
@@ -99,46 +104,52 @@ const categoryInfo: Record<NewsCategory, { name: string; description: string; co
   }
 }
 
-type NewsParams = {};
+// Type for route params for eventual extension (currently empty)
+type NewsParams = {}
 
-// Allow caching for better performance - news listings can be cached with periodic refresh
+// TODO: If scalability needed, migrate to React cache() or Next.js fetch caching for network/db requests
 
 /**
- * Get initial news articles
- * Server Component - native async/await (React 19 pattern)
+ * Fetches initial news articles (max 12), applying user role for visibility filtering.
+ * Uses server-only authentication and DB access.
  */
 async function getInitialNews(): Promise<NewsArticle[]> {
   try {
+    // Get current session and resolve user role
     const session = await auth()
+    // Use the highest role given, fallback to visitor role if unauthenticated
     const userRole = session?.user
-      ? assertKnownUserRole(session.user.role)
-      : UserRole.visitor
+      ? hasRoleAtLeast(session.user.role as UserRolesArray, UserRolesArray.visitor as UserRolesArray)
+      : UserRolesArray.visitor as UserRolesArray
 
+    // Query the news collection with filters and ordering for news feed
     const result = await db().queryDocs({
       collection: 'news',
       filters: [
         { field: 'status', operator: '==', value: 'published' },
-        ...buildNewsVisibilityFilters(userRole),
+        ...buildNewsVisibilityFilters(userRole as UserRolesArray),
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
       pagination: { limit: 12 },
     })
 
     if (!result.success) {
+      // Log error and prevent throwing to avoid server error breaking the page
       console.error('Error fetching news:', result.error)
       return []
     }
 
+    // Transform each doc to NewsArticle type for uniform rendering
     return result.data.map((row) => mapNewsDocument(row))
   } catch (error) {
-    console.error('Error fetching initial news:', error);
-    return [];
+    // Defensive catch in case of major DB/network/auth errors
+    console.error('Error fetching initial news:', error)
+    return []
   }
 }
 
 /**
- * Get news categories
- * Server Component - native async/await (React 19 pattern)
+ * Fetches list of news categories from DB, sorted by name ascending.
  */
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
@@ -148,32 +159,39 @@ async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
     })
 
     if (!result.success) {
+      // Log and fallback empty
       console.error('Error fetching categories:', result.error)
       return []
     }
 
+    // Normalizes Mongo/firestore/etc doc shape to NewsCategoryInfo
     return result.data.map((row) => mapNewsCategoryDocument(row))
   } catch (error) {
-    console.error('Error fetching news categories:', error);
-    return [];
+    console.error('Error fetching news categories:', error)
+    return []
   }
 }
 
+// TODO: After Next.js 16+ stable, refactor this to use generateMetadata as a top-level `export const generateMetadata = ...`
+// Accepts locale via route params (async supported for edge compatibility)
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
+  // Await the params as a Promise (Next 13+ dynamic route pattern)
   const { locale: localeParam } = await params
+  // Get valid locale (falls back to default if not recognized)
   const locale = routing.locales.includes(localeParam as Locale)
     ? (localeParam as Locale)
     : routing.defaultLocale
-  setRequestLocale(locale)
+  setRequestLocale(locale) // i18n: set context for current request
+  // Generate metadata for SEO (including OpenGraph/Twitter etc)
   return buildLocalizedMetadata({
     locale,
     path: 'news.list',
     variables: { 
-      count: '12' // Default article count
+      count: '12' // Expose count for internationalized title/meta
     },
     pathname: '/news',
     siteName: 'Ring Platform',
@@ -181,66 +199,76 @@ export async function generateMetadata({
   })
 }
 
+/**
+ * NewsPage: Main entry for /news route (i18n server component).
+ * Loads translations and article data in parallel, then renders header, carousel, and full list.
+ * @param props.locale - locale code from dynamic route
+ */
 export default async function NewsPage(props: LocalePageProps<NewsParams>) {
-  // Resolve params and searchParams
-  const params = await props.params;
-  const searchParams = await props.searchParams;
+  // Get params & searchParams (for future extensibility: paging/filtering by query, etc)
+  const params = await props.params
+  const searchParams = await props.searchParams // Currently unused, but ready for filter/search
+  // Validate locale (fallback to default if absent/invalid)
+  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
+  // For tracing/debug: print resolved locale to server logs
+  console.log('NewsPage: Using locale', locale)
+  // Load translations for this locale eagerly (can be streamed in future)
+  const translations = await loadTranslations(locale)
 
-  // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('NewsPage: Using locale', locale);
-  // Load translations for the current locale
-  const translations = await loadTranslations(locale);
-
+  // Fetch articles + categories in parallel for efficiency (React server pattern)
   const [initialArticles, categories] = await Promise.all([
     getInitialNews(),
     getNewsCategories(),
-  ]);
+  ])
+
+  // TODO: If categories/articleCount should be hydrated, perform aggregation in backend and merge counts into categoryInfo
 
   return (
     <NewsPageWrapper 
-        locale={locale}
-        categoryInfo={categoryInfo}
-        translations={translations}
-      >
-        {/* Content Header */}
-        <div className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm mb-8">
-          <div className="container mx-auto px-6 py-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                {translations.news?.title || 'News & Updates'}
-              </h1>
-              <p className="text-xl text-muted-foreground max-w-3xl">
-                {translations.news?.description || 'Stay informed with the latest news, platform updates, partnership announcements, and community highlights from Ring Platform.'}
-              </p>
-            </div>
+      locale={locale}
+      categoryInfo={categoryInfo}
+      translations={translations}
+    >
+      {/* Sticky header with background and blurred border, optimized for top nav */}
+      <div className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm mb-8">
+        <div className="container mx-auto px-6 py-6">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">
+              {/* Fallback to default English if translation missing */}
+              {translations.news?.title || 'News & Updates'}
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-3xl">
+              {translations.news?.description ||
+                'Stay informed with the latest news, platform updates, partnership announcements, and community highlights from Ring Platform.'}
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Main Content */}
-        <div className="container mx-auto px-6 max-w-5xl">
-          {/* Featured Articles Carousel */}
-          <FeaturedCarousel
-            articles={initialArticles}
+      {/* Main Content Section */}
+      <div className="container mx-auto px-6 max-w-5xl">
+        {/* Carousel of featured articles (use initialArticles for now) */}
+        <FeaturedCarousel
+          articles={initialArticles}
+          locale={locale}
+          translations={translations}
+        />
+
+        {/* Main Articles List Section */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-semibold mb-6">
+            {translations.news?.allArticles || 'All Articles'}
+          </h2>
+          <NewsList
+            initialArticles={initialArticles}
+            categories={categories}
+            showFilters={true}
+            showSearch={true}
+            limit={12}
             locale={locale}
-            translations={translations}
           />
-
-          {/* All Articles */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-6">
-              {translations.news?.allArticles || 'All Articles'}
-            </h2>
-            <NewsList
-              initialArticles={initialArticles}
-              categories={categories}
-              showFilters={true}
-              showSearch={true}
-              limit={12}
-              locale={locale}
-            />
-          </div>
         </div>
-      </NewsPageWrapper>
-  );
-} 
+      </div>
+    </NewsPageWrapper>
+  )
+}

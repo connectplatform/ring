@@ -1,6 +1,6 @@
 ---
 title: Member Blogs
-description: Per-member blog URLs at /blog/username/slug with kingdom news promotion
+description: Membership-gated per-member blog URLs at /blog/username/slug with News Kingdom promotion, PaymentConductor monetization, Telegram verification, and public profile integration
 last_modified: "2026-06-06"
 ---
 
@@ -18,6 +18,49 @@ v1.6.0 fixes member blog routing and integrates with the News Kingdom promotion 
 Routes: `app/(public)/[locale]/blog/[username]/page.tsx` and `.../[slug]/page.tsx`.
 
 Path helpers: `lib/blog/blog-path.ts` — use these instead of hardcoding URLs.
+
+## Prerequisites
+
+A member must have:
+
+1. **A confirmed username** — the blog handle matches the public profile username
+2. **Membership payment activated** — blog capability is unlocked by a paid membership subscription processed through PaymentConductor (WayForPay)
+
+Without an active membership, the blog route returns 404.
+
+## Benefits for Founders
+
+Paid membership unlocks powerful founder benefits:
+
+### Personal Blog Space
+Every member with an active membership gets a personal blog at `/blog/{username}`. Write, edit, and publish articles under your own `@username` handle. The blog is fully integrated with your public profile at `/[locale]/[username]`.
+
+### News Kingdom Promotion
+Blog articles can be promoted to the main `/news` feed via the News Kingdom pipeline. Use the `promoteToMainPage` and `mainPageStatus` fields to submit articles for editorial review. Approved posts appear in the main news feed with full SEO metadata.
+
+### Payment Monetization
+Promotion to the main news feed is processed through PaymentConductor (WayForPay), enabling paid content distribution. Members invest in reach — the platform handles payment verification and status tracking.
+
+### Content Favorites
+Authenticated users can bookmark your blog articles via `POST /api/user/favorites` and the `useContentFavorite` React hook, building a loyal readership.
+
+### SEO Optimization
+Each blog article generates auto-metadata via `generateMetadata()`, ensuring search engine indexing. Article slugs, titles, and descriptions are optimized for discoverability.
+
+## Public Profile Integration
+
+When a member has a blog:
+- Their public profile page at `/[locale]/[username]` includes a **"Blog" link** pointing to `/blog/{username}`
+- The blog handle uses the same username — **one identity across the platform**
+- Blog articles are discoverable through the member's public profile `generateMetadata()`
+
+## Telegram Account Verification
+
+Members can enhance their blog credibility by linking their Telegram account via the **Telegram Login Widget**. A "Verified by Telegram" badge appears on the public profile and can be optionally displayed on blog articles.
+
+- Verification flow: `features/auth/components/telegram-linking-modal.tsx`
+- Auth callback: `app/api/auth/telegram/callback/route.ts`
+- The `isVerified` field is stored in the user's JSONB data and exposed on the public profile
 
 ## History (2026-05-29)
 

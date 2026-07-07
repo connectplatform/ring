@@ -13,11 +13,12 @@
  */
 
 import { db } from '@/lib/database'
-import { UserRole, isSuperadmin } from '@/features/auth/user-role'
+import { UserRolesArray, isSuperadmin } from '@/features/auth/user-role'
 import { ParsedCommand } from './anthropic-router'
 import { generateNewsArticle } from '@/features/news/services/article-generator'
 import { sendArticleDraftApprovalToChat } from '@/features/news/services/news-telegram-approval'
 
+// -- Common result interface for all command executions
 export interface ExecutionResult {
   success: boolean
   data?: any
@@ -29,6 +30,7 @@ export interface ExecutionResult {
   }
 }
 
+// -- Passed context for execution, such as telegram chat/user
 export interface ExecutionContext {
   chatId?: string
   userId?: string | null
@@ -38,17 +40,15 @@ export interface ExecutionContext {
 /**
  * Execute a ring_crud operation
  * Maps Anthropic tool calls to DatabaseService API
- * 
- * @param toolInput - Parsed tool input from Anthropic
- * @param userRole - User role (admin or SUPERADMIN)
- * @returns Execution result with data or error
+ * Checks permission restrictions and calls appropriate database methods.
  */
 async function executeRingCrud(
   toolInput: any,
-  userRole: UserRole
+  userRole: UserRolesArray
 ): Promise<ExecutionResult> {
   const { operation, entity, id, data, filters, limit } = toolInput
 
+  // Restrict admin from deleting users; only superadmin can do so
   if (operation === 'delete' && entity === 'users' && !isSuperadmin(userRole)) {
     return {
       success: false,
@@ -56,6 +56,7 @@ async function executeRingCrud(
     }
   }
 
+  // Restrict admin from modifying 'settings'; only superadmin can do so
   if (
     (operation === 'create' || operation === 'update') &&
     entity === 'settings' &&
@@ -70,6 +71,7 @@ async function executeRingCrud(
   try {
     switch (operation) {
       case 'create': {
+        // Fail if missing data
         if (!data) {
           return {
             success: false,
@@ -77,8 +79,9 @@ async function executeRingCrud(
           }
         }
 
+        // Attempt creation in DB
         const result = await db().createDoc(entity, data)
-
+        // Check if DB layer reports failure
         if (!result.success) {
           return {
             success: false,
@@ -98,6 +101,7 @@ async function executeRingCrud(
       }
 
       case 'read': {
+        // ID must be provided
         if (!id) {
           return {
             success: false,
@@ -125,6 +129,7 @@ async function executeRingCrud(
       }
 
       case 'update': {
+        // Both ID and data required
         if (!id || !data) {
           return {
             success: false,
@@ -153,6 +158,7 @@ async function executeRingCrud(
       }
 
       case 'delete': {
+        // ID must be provided for deletion
         if (!id) {
           return {
             success: false,
@@ -161,7 +167,6 @@ async function executeRingCrud(
         }
 
         const result = await db().deleteDoc(entity, id)
-
         if (!result.success) {
           return {
             success: false,
@@ -181,6 +186,7 @@ async function executeRingCrud(
       }
 
       case 'list': {
+        // Construct filter array for DB query (default empty array)
         const queryFilters = filters
           ? Object.entries(filters).map(([field, value]) => ({
               field,
@@ -189,6 +195,7 @@ async function executeRingCrud(
             }))
           : []
 
+        // Limit results to 100
         const result = await db().queryDocs({
           collection: entity,
           filters: queryFilters,
@@ -204,7 +211,6 @@ async function executeRingCrud(
         }
 
         const records = result.data || []
-
         return {
           success: true,
           data: records,
@@ -217,12 +223,14 @@ async function executeRingCrud(
       }
 
       default:
+        // Unknown CRUD operation requested
         return {
           success: false,
           error: `Unknown operation: ${operation}`,
         }
     }
   } catch (error: any) {
+    // Log error for troubleshooting
     console.error('[RING API EXECUTOR] Error executing CRUD:', error)
     return {
       success: false,
@@ -235,8 +243,7 @@ async function executeRingCrud(
  * Execute a ring_report operation
  * Generates summary reports via DatabaseService queries
  * 
- * @param toolInput - Parsed tool input from Anthropic
- * @returns Execution result with report data
+ * Returns summary statistics like active users, daily orders, etc.
  */
 async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
   const { report_type } = toolInput
@@ -244,6 +251,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
   try {
     switch (report_type) {
       case 'users_summary': {
+        // Fetch all users
         const result = await db().queryDocs<{
           role?: string
           accountStatus?: string
@@ -257,6 +265,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
         }
 
         const users = result.data || []
+        // Aggregate roles and active accounts
         const summary = {
           total: users.length,
           by_role: users.reduce((acc: Record<string, number>, user) => {
@@ -275,6 +284,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
       }
 
       case 'orders_today': {
+        // Get today's date in ISO string (YYYY-MM-DD)
         const today = new Date().toISOString().split('T')[0]
         const result = await db().queryDocs<{ created_at?: string }>({
           collection: 'orders',
@@ -286,6 +296,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
         }
 
         const orders = result.data || []
+        // Only include orders from today
         const todayOrders = orders.filter((order) => {
           const createdDate = new Date(order.created_at || '').toISOString().split('T')[0]
           return createdDate === today
@@ -302,6 +313,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
       }
 
       case 'subscriptions_active': {
+        // Query for subscriptions with active status
         const result = await db().queryDocs({
           collection: 'subscriptions',
           filters: [
@@ -326,6 +338,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
       }
 
       default:
+        // Report type not supported
         return {
           success: false,
           error: `Unsupported report type: ${report_type}`,
@@ -340,6 +353,14 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
   }
 }
 
+/**
+ * Generates a news article from input/request context.
+ * Sends generated article draft for approval to Telegram, if possible.
+ * 
+ * @param toolInput - Article details for generation
+ * @param context - ExecutionContext including chat and user info
+ * @returns ExecutionResult with articleId or error
+ */
 async function executeArticleGeneration(
   toolInput: {
     source?: 'url' | 'search' | 'text'
@@ -351,7 +372,9 @@ async function executeArticleGeneration(
   context?: ExecutionContext
 ): Promise<ExecutionResult> {
   const source = toolInput.source
+  // Clean up value (user-passed content)
   const value = toolInput.value?.trim()
+  // Validate required params
   if (!source || !value) {
     return { success: false, error: 'source and value are required for article generation' }
   }
@@ -359,6 +382,7 @@ async function executeArticleGeneration(
     return { success: false, error: 'Linked Ring user required for article author' }
   }
 
+  // Attempt to generate article using service
   const result = await generateNewsArticle({
     source,
     value,
@@ -371,11 +395,15 @@ async function executeArticleGeneration(
     enableImage: toolInput.enableImage,
   })
 
+  // Article failed or did not return articleId
   if (!result.success || !result.articleId) {
     return { success: false, error: result.error || 'Article generation failed' }
   }
 
+  // If a Telegram chat is linked, notify with draft approval request
   if (context.chatId) {
+    // No error thrown/handled for approval process; should be safe-fire
+    // STUB: Consider handling errors that might be thrown here; Add audit logging
     await sendArticleDraftApprovalToChat(context.chatId, result.articleId, {
       title: result.title || 'Untitled draft',
       locale: result.locale || 'en',
@@ -399,29 +427,40 @@ async function executeArticleGeneration(
  * @param userRole - User role for permission checks
  * @returns Execution result
  */
+// TODO: Replace custom switch/case routing with Next.js 16 middleware or server actions
+// TODO: Use native React19/Next16 "Server Functions" for improved request isolation and easier SSR integration
+// TODO: Codemod suggestion: Convert to async server action (export `executeCommand` as server action if in Next16 app directory)
 export async function executeCommand(
   parsedCommand: ParsedCommand,
-  userRole: UserRole,
+  userRole: UserRolesArray,
   context?: ExecutionContext
 ): Promise<ExecutionResult> {
   const { toolName, toolInput } = parsedCommand
+
+  // Normalize Anthropics' tool names to internal handlers
   const normalizedTool = toolName === 'entity_crud'
     ? 'ring_crud'
     : toolName === 'entity_report'
       ? 'ring_report'
       : toolName
 
+  // Route to handler based on normalized tool name
   switch (normalizedTool) {
     case 'ring_crud':
+      // CRUD operations (calls DB with validation)
       return executeRingCrud(toolInput, userRole)
 
     case 'ring_report':
+      // Report / summary operations (statistical DB queries)
       return executeRingReport(toolInput)
 
     case 'generate_news_article':
+      // Article generation (calls AI + posts to telegram if needed)
       return executeArticleGeneration(toolInput, context)
 
     case 'clarify':
+      // Clarify handler - just echoes input clarification and suggestions
+      // STUB: Clarify tool returns inputs as output. // TODO: Implement deeper clarification flow if needed.
       return {
         success: true,
         data: { clarification: toolInput.question, suggestions: toolInput.suggestions },
@@ -429,6 +468,7 @@ export async function executeCommand(
       }
 
     default:
+      // Unknown tool received; return error
       return {
         success: false,
         error: `Unknown tool: ${toolName}`,

@@ -1,7 +1,6 @@
 {
   "title": "Панель продавця",
   "becomeVendor": "Стати продавцем",
-
   "onboarding": {
     "title": "Станьте продавцем на Ring Platform",
     "subtitle": "Приєднайтесь до Ring Marketplace та продавайте dev-кити, AI-інструменти, шаблони та експертні послуги",
@@ -59,7 +58,6 @@
       "logoInvalidType": "Логотип має бути JPG, PNG або WebP"
     }
   },
-
   "dashboard": {
     "title": "Панель продавця",
     "welcome": "Ласкаво просимо",
@@ -86,7 +84,6 @@
     "resourcesDescription": "Дізнайтеся, як розкрити потенціал вашого магазину",
     "viewVendorGuide": "Посібник продавця →"
   },
-
   "products": {
     "title": "Мої продукти",
     "myProducts": "Мої продукти",
@@ -99,7 +96,6 @@
     "totalProducts": "{count} продуктів",
     "activeProducts": "{count} активних",
     "pendingProducts": "{count} на розгляді",
-
     "status": {
       "active": "Активний",
       "inactive": "Неактивний",
@@ -107,7 +103,6 @@
       "approved": "Схвалено",
       "rejected": "Відхилено"
     },
-
     "mainStore": {
       "badge": "Головний магазин",
       "submit": "Подати до головного магазину",
@@ -116,7 +111,6 @@
       "rejected": "❌ Не схвалено",
       "notSubmitted": "Не подано до головного магазину"
     },
-
     "actions": {
       "edit": "Редагувати",
       "duplicate": "Дублювати",
@@ -127,7 +121,6 @@
       "viewInStore": "Переглянути в магазині",
       "viewInMainStore": "Переглянути в головному магазині"
     },
-
     "filters": {
       "all": "Всі продукти",
       "active": "Активні",
@@ -144,7 +137,6 @@
       "sortNameAsc": "Назва: А до Я",
       "sortNameDesc": "Назва: Я до А"
     },
-
     "form": {
       "productDetails": "Деталі продукту",
       "mainPhoto": "Головне фото",
@@ -186,9 +178,14 @@
       "referralCommissionPlaceholder": "Успадкувати ({percent}%)",
       "rep": "Представник товару",
       "repHint": "Необов'язково. Призначте користувача Ring за ім'ям користувача.",
-      "repPlaceholder": "Пошук за username…"
+      "repPlaceholder": "Пошук за username…",
+      "addProductParameter": "Додати параметр продукту",
+      "parameterName": "Назва параметра",
+      "parameterValue": "Значення параметра",
+      "removeParameter": "Видалити параметр",
+      "productAudience": "Тільки для учасників",
+      "productAudienceHint": "Лише учасники та вище можуть переглядати цей продукт у головному магазині. Публічні продукти видимі для всіх."
     },
-
     "validation": {
       "nameRequired": "Назва продукту обов'язкова",
       "nameTooShort": "Назва має бути не менше 3 символів",
@@ -206,7 +203,6 @@
       "videoInvalidType": "Відео має бути MP4 або WebM",
       "descriptionTooLong": "Опис має бути менше 200 символів"
     },
-
     "deleteConfirm": {
       "title": "Видалити продукт",
       "message": "Ви впевнені, що хочете видалити '{name}'? Цю дію неможливо скасувати.",
@@ -214,7 +210,6 @@
       "cancel": "Скасувати"
     }
   },
-
   "storefront": {
     "title": "Магазин продавця",
     "followVendor": "Підписатися",
@@ -248,7 +243,6 @@
       "sendMessage": "Надіслати повідомлення"
     }
   },
-
   "orders": {
     "title": "Замовлення продавця",
     "description": "Замовлення з вашими товарами",
@@ -303,7 +297,6 @@
     "restocking": "Додавання…",
     "quantity": "Кількість"
   },
-
   "navbar": {
     "myStore": "Мій магазин",
     "dashboard": "Панель управління",
@@ -315,7 +308,6 @@
     "stock": "Склад",
     "comingSoon": "Незабаром"
   },
-
   "notifications": {
     "productCreated": "Продукт '{name}' успішно створено",
     "productUpdated": "Продукт '{name}' успішно оновлено",
@@ -326,7 +318,6 @@
     "approvalApproved": "Вітаємо! '{name}' схвалено для головного магазину",
     "approvalRejected": "Продукт '{name}' не схвалено. Причина: {reason}"
   },
-
   "startWrapper": {
     "setupProgress": "Прогрес налаштування",
     "storeDetails": "Інформація про магазин",
@@ -363,7 +354,6 @@
     },
     "progressBenefits": "Прогрес та переваги"
   },
-
   "startPage": {
     "title": "Реєстрація продавця",
     "subtitle": "Налаштуйте свій магазин та почніть продавати на Ring Platform",

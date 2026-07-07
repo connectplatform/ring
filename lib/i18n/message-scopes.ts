@@ -214,12 +214,12 @@ export function resolveMessageScope(pathname: string): MessageScope {
     /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications|my-news)(\/|$)/.test(
       normalized,
     ) ||
-    normalized.startsWith('/u/') ||
     normalized.startsWith('/membership/success') ||
     normalized.startsWith('/membership/failure')
   ) {
     return 'authenticated'
   }
+  // /[username] profile — falls through to `return 'public'` below
   if (normalized.startsWith('/store/checkout') || normalized.startsWith('/store/settings')) {
     return 'authenticated'
   }

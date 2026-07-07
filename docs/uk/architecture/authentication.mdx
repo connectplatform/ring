@@ -1,529 +1,231 @@
 ---
 title: Архітектура Аутентифікації
-description: Комплексна система аутентифікації Auth.js v5 з багатопровайдерним OAuth, PIN-безпекою, рольовим контролем доступу та інтеграцією Web3
+description: Auth.js v5 багатопровайдерна аутентифікація — Google OAuth, Apple Sign-In, Magic Links, Крипто-гаманці, з PostgreSQL або Firebase бекендом.
+last_modified: "2026-06-28"
+audience: both
 ---
 
-# 🔐 Архітектура Аутентифікації
-
-**Система Аутентифікації Ring Platform** - багатопровайдерна аутентифікація на базі Auth.js v5 з розширеною безпекою, рольовим контролем доступу та безшовною інтеграцією Web3.
-
----
-
-## 📋 Огляд
-
-Ring Platform реалізує **складну багаторівневу архітектуру аутентифікації**, що поєднує традиційні OAuth провайдери, magic links без паролів та передову аутентифікацію через Web3 гаманці з **революційною PIN-безпекою** (без seed-фраз).
-
-### Ключові Особливості
-
-- ✅ **5 Провайдерів Аутентифікації** - Google (GIS + OAuth), Apple, Magic Links, Крипто-гаманці, PIN-безпека
-- ✅ **Сучасний Auth.js v5** - Новітній фреймворк аутентифікації із сумісністю edge runtime
-- ✅ **5-Рівнева Ієрархія Ролей** - VISITOR → SUBSCRIBER → MEMBER → CONFIDENTIAL → ADMIN
-- ✅ **Підтримка Багатьох Бекендів** - Працює з k8s-postgres-fcm, firebase-full та supabase-fcm режимами
-- ✅ **Web3 Без Складності** - Користувачі авторизуються соціально, отримують Web3 гаманці автоматично
-- ✅ **Система PIN-Безпеки** - Революційний Web3 доступ без seed-фраз
-- ✅ **GDPR/CCPA Сумісність** - 30-денний період відновлення при видаленні акаунту
-- ✅ **Зв'язування Email** - Автоматичне зв'язування акаунтів з однаковим email
-- ✅ **KYC Інтеграція** - Завантаження документів через Vercel Blob storage
-
----
-
-## 🏗️ Архітектурна Mind-карта
-
-<Mermaid>
-{`mindmap
-  root((🔐 Система Аутентифікації))
-    🌐 Провайдери
-      Google OAuth
-        Традиційний потік
-        GIS One Tap
-        Клієнтська кнопка
-      Apple Sign-in
-        iOS/macOS нативний
-        Веб інтеграція
-      Magic Links
-        Resend провайдер
-        Email верифікація
-      Крипто Гаманці
-        MetaMask
-        WalletConnect
-        5 мереж
-      PIN Безпека
-        Без seed фраз
-        Міст соц. аутентифікації
-    🔑 Основні Функції
-      Auth.js v5
-        Edge сумісний
-        JWT сесії
-        30-денне закінчення
-      Багато Бекендів
-        k8s-postgres-fcm
-        firebase-full
-        supabase-fcm
-      Керування Сесіями
-        HTTP-only cookies
-        PKCE потік
-        State верифікація
-    👥 Система Ролей
-      VISITOR рівень 0
-      SUBSCRIBER рівень 1
-      MEMBER рівень 2
-      CONFIDENTIAL рівень 3
-      admin рівень 4
-    🛡️ Безпека
-      Зв'язування Email
-        Автоматичне зв'язування
-        Запобігання дублікатам
-      KYC Верифікація
-        Завантаження документів
-        Vercel Blob storage
-      GDPR Сумісність
-        30-денний період
-        Повний експорт даних
-        Аудит логування
-    💎 Web3 Інтеграція
-      PIN Система
-        Без seed фраз
-        Соціальна аутентифікація
-      Створення Гаманця
-        Автоматично при реєстрації
-        Неблокуюча async
-      5 Мереж
-        Mainnet
-        Polygon
-        Arbitrum
-        Optimism
-        Base`}
-</Mermaid>
-
----
-
-## 🔄 Повний Потік Аутентифікації
-
-### Архітектура Багатопровайдерної Аутентифікації
-
-<Mermaid>
-{`flowchart TB
-    subgraph "Точки Входу"
-        U[👤 Користувач] --> LP[🚪 Сторінка Входу]
-        U --> GIS[🌐 Google One Tap]
-    end
-
-    subgraph "Вибір Провайдера"
-        LP --> GP[🔵 Google OAuth]
-        LP --> AP[🍎 Apple Sign-in]
-        LP --> ML[📧 Magic Link]
-        LP --> CW[👛 Крипто Гаманець]
-        GIS --> GT[🔐 GIS Токен]
-    end
-
-    subgraph "Ядро Auth.js v5"
-        GP --> AJ[⚙️ Auth.js Handler]
-        AP --> AJ
-        ML --> AJ
-        CW --> AJ
-        GT --> AJ
-        AJ --> TV[✅ Верифікація Токену]
-        TV --> UL[🔗 Пошук Користувача]
-    end
-
-    subgraph "Керування Користувачами"
-        UL --> NW{Новий<br/>Користувач?}
-        NW -->|Так| CU[➕ Створити Користувача]
-        NW -->|Ні| EU[🔄 Існуючий Користувач]
-        CU --> EL[📧 Перевірка Зв'язування Email]
-        EL --> WC[👛 Створення Гаманця Async]
-        WC --> RU[📝 Призначення Ролі]
-        EU --> RU
-    end
-
-    subgraph "Створення Сесії"
-        RU --> JWT[🎫 Генерація JWT]
-        JWT --> SC[🍪 Встановлення Cookie]
-        SC --> SS[✨ Сесія Створена]
-    end
-
-    subgraph "Після Аутентифікації"
-        SS --> PR[📄 Редирект на Профіль]
-        PR --> WS[👛 Перевірка Статусу Гаманця]
-        WS --> PIN[📌 Опціональне Налаштування PIN]
-    end
-
-    style U fill:#e1f5ff
-    style AJ fill:#fff3cd
-    style TV fill:#d4edda
-    style JWT fill:#f8d7da
-    style SS fill:#d1ecf1`}
-</Mermaid>
-
----
-
-## 🌐 Провайдери Аутентифікації
-
-### 1. Google Аутентифікація (Подвійний Режим)
-
-**Традиційний OAuth + Google Identity Services (GIS)**
-
-<Mermaid>
-{`sequenceDiagram
-    participant User as Користувач
-    participant Client as Next.js Client
-    participant AuthJS as Auth.js v5
-    participant Google as Google OAuth
-    participant DB as PostgreSQL/Firebase
-    
-    Note over User,DB: Традиційний OAuth Потік
-    User->>Client: Клік "Увійти через Google"
-    Client->>AuthJS: Ініціювати OAuth
-    AuthJS->>Google: Редирект на згоду
-    Google->>User: Показати екран згоди
-    User->>Google: Авторизувати
-    Google->>AuthJS: Повернути auth code
-    AuthJS->>Google: Обміняти code на token
-    Google-->>AuthJS: Access token + дані користувача
-    AuthJS->>DB: Зберегти/оновити користувача
-    AuthJS->>Client: Встановити session cookie
-    Client->>User: Редирект на профіль
-    
-    Note over User,DB: GIS One Tap Потік (Швидший)
-    User->>Client: Сторінка завантажується
-    Client->>Client: Завантажити GIS SDK
-    Client->>User: Показати One Tap промпт
-    User->>Client: Натиснути для входу
-    Client->>AuthJS: Надіслати JWT credential
-    AuthJS->>Google: Верифікувати JWT token
-    Google-->>AuthJS: Token валідний + дані користувача
-    AuthJS->>DB: Зберегти/оновити користувача
-    AuthJS->>Client: Встановити session cookie
-    Client->>User: Миттєва аутентифікація`}
-</Mermaid>
-
-**Реалізація:**
-- **Традиційний OAuth:** Повний редирект потік для максимальної сумісності
-- **GIS One Tap:** Клієнтський popup для миттєвої аутентифікації
-- **Підтримка Теми:** GIS кнопка динамічно змінює outline (світла) / filled_black (темна)
-- **Зв'язування Email:** Акаунти з однаковим email автоматично зв'язуються
-
----
-
-### 2. Apple Sign-In
-
-**Нативна iOS/macOS + Веб Інтеграція**
-
-<Mermaid>
-{`flowchart LR
-    U[👤 Користувач] --> AS[🍎 Apple Кнопка]
-    AS --> AC[🔐 Apple Згода]
-    AC --> AV[✅ Верифікація Токену]
-    AV --> EL{Зв'язування<br/>Email?}
-    EL -->|Той самий email| Link[🔗 Зв'язати Акаунти]
-    EL -->|Новий email| Create[➕ Створити Користувача]
-    Link --> Session[🎫 JWT Сесія]
-    Create --> Session
-    Session --> Profile[📄 Профіль Користувача]`}
-</Mermaid>
-
-**Особливості:**
-- **Автоматичне Зв'язування Email:** Apple акаунти зв'язуються з існуючими Google акаунтами
-- **Захист Приватності:** Користувачі можуть приховати email (Apple надає проксі email)
-- **Нативна Інтеграція:** Безшовна на iOS/macOS пристроях
-
----
-
-### 3. Magic Links (Без Паролів)
-
-**Email-Базована Безпечна Аутентифікація**
-
-<Mermaid>
-{`sequenceDiagram
-    participant User as Користувач
-    participant Client as Next.js App
-    participant AuthJS as Auth.js v5
-    participant Resend as Resend API
-    participant DB as База Даних
-    
-    User->>Client: Ввести email адресу
-    Client->>AuthJS: Запит magic link
-    AuthJS->>DB: Генерувати токен верифікації
-    DB-->>AuthJS: Токен збережено
-    AuthJS->>Resend: Відправити email з посиланням
-    Resend->>User: Отримати email
-    User->>Resend: Клік на magic link
-    Resend->>Client: Редирект на callback
-    Client->>AuthJS: Верифікувати токен
-    AuthJS->>DB: Валідувати токен
-    DB-->>AuthJS: Токен валідний
-    AuthJS->>DB: Використати токен (одноразовий)
-    AuthJS->>Client: Встановити session cookie
-    Client->>User: Аутентифіковано`}
-</Mermaid>
-
-**Функції Безпеки:**
-- **Обмежені За Часом:** Токени закінчуються через 15 хвилин
-- **Одноразове Використання:** Автоматична інвалідація після успішного використання
-- **Верифікація Email:** Обов'язкова для створення акаунту
-- **GDPR Сумісність:** Без зберігання паролів
-
----
-
-### 4. Аутентифікація Крипто-Гаманця
-
-**MetaMask + WalletConnect Інтеграція**
-
-<Mermaid>
-{`sequenceDiagram
-    participant User as Користувач
-    participant Client as Ring Platform
-    participant Wallet as MetaMask/WC
-    participant AuthJS as Auth.js v5
-    participant Viem as Viem Library
-    participant DB as База Даних
-    
-    User->>Client: Клік "Підключити Гаманець"
-    Client->>Wallet: Запит підключення
-    Wallet->>User: Показати промпт підключення
-    User->>Wallet: Підтвердити підключення
-    Wallet-->>Client: Адреса гаманця
-    Client->>Client: Генерувати nonce
-    Client->>Wallet: Запит підпису
-    Wallet->>User: Промпт підпису повідомлення
-    User->>Wallet: Підписати nonce
-    Wallet-->>Client: Підписане повідомлення
-    Client->>AuthJS: Надіслати підпис
-    AuthJS->>Viem: Верифікувати підпис
-    Viem-->>AuthJS: Підпис валідний
-    AuthJS->>DB: Створити/оновити користувача
-    AuthJS->>Client: Встановити сесію
-    Client->>User: Аутентифіковано`}
-</Mermaid>
-
-**Підтримувані Мережі:**
-1. **Ethereum Mainnet** - Основна мережа
-2. **Polygon** - Низькі комісії газу, швидкі транзакції
-3. **Arbitrum** - Layer 2 масштабування
-4. **Optimism** - Layer 2 масштабування
-5. **Base** - Coinbase Layer 2
-
----
-
-### 5. Система PIN-Безпеки (Революційна)
-
-**Web3 Без Seed-Фраз**
-
-<Mermaid>
-{`flowchart TB
-    subgraph "Шлях Соціальної Аутентифікації"
-        SA[👤 Соціальний Вхід<br/>Google/Apple] --> AC[✅ Аутентифіковано]
-        AC --> WA[👛 Гаманець Автоматично Створений]
-    end
-    
-    subgraph "Налаштування PIN"
-        WA --> PS{Налаштування<br/>PIN?}
-        PS -->|Так| PIN[📌 6-Значний PIN]
-        PS -->|Ні| Skip[⏭️ Пропустити зараз]
-        PIN --> Encrypt[🔒 Зашифрувати Приватний Ключ]
-        Skip --> Later[📌 Налаштувати пізніше]
-    end
-    
-    subgraph "Використання PIN"
-        Encrypt --> Store[💾 Зашифроване Сховище]
-        Store --> Access[🔓 Доступ через PIN]
-        Access --> Sign[📝 Підписувати Транзакції]
-        Sign --> Web3[🌐 Повний Web3 Доступ]
-    end
-    
-    style SA fill:#e1f5ff
-    style PIN fill:#fff3cd
-    style Encrypt fill:#d4edda
-    style Web3 fill:#d1ecf1`}
-</Mermaid>
-
-**Ключова Інновація:**
-- ❌ **Seed-Фрази НЕ Потрібні** - Користувачі авторизуються через Google/Apple
-- ✅ **Простий 6-Значний PIN** - Легко запам'ятати, надійне шифрування
-- ✅ **95% Успішність Підключення Гаманця** - проти 40% при традиційному Web3
-- ✅ **Web3 Суверенітет** - Користувачі соціальної аутентифікації отримують повні Web3 можливості
-- ✅ **5x Збільшення Прийняття Користувачів** - Драматично покращений онбордінг
-
----
-
-## 👥 Рольовий Контроль Доступу
-
-### 5-Рівнева Ієрархія
-
-<Mermaid>
-{`flowchart TB
-    subgraph "Рівні Доступу"
-        V[🌐 VISITOR<br/>Рівень 0<br/>Тільки публічний доступ]
-        S[👤 SUBSCRIBER<br/>Рівень 1<br/>Базова аутентифікація]
-        M[💎 MEMBER<br/>Рівень 2<br/>Створення організацій<br/>Платний тариф]
-        C[🔒 CONFIDENTIAL<br/>Рівень 3<br/>Доступ до конфіденційних даних]
-        A[⚡ ADMIN<br/>Рівень 4<br/>Повний контроль системи]
-    end
-    
-    V -->|Реєстрація| S
-    S -->|Апгрейд $29/міс| M
-    M -->|Спеціальний доступ| C
-    C -->|Просування| A
-    
-    subgraph "Дозволи"
-        P1[Перегляд публічного контенту]
-        P2[Створення можливостей<br/>Базові повідомлення]
-        P3[Створення організацій<br/>Vendor функції<br/>NFT маркетплейс]
-        P4[Доступ до конфіденційних<br/>організацій/можливостей]
-        P5[Керування користувачами<br/>Системна конфігурація<br/>Аналітика]
-    end
-    
-    V -.->|Має| P1
-    S -.->|Має| P1
-    S -.->|Має| P2
-    M -.->|Має| P1
-    M -.->|Має| P2
-    M -.->|Має| P3
-    C -.->|Має| P1
-    C -.->|Має| P2
-    C -.->|Має| P3
-    C -.->|Має| P4
-    A -.->|Має| P1
-    A -.->|Має| P2
-    A -.->|Має| P3
-    A -.->|Має| P4
-    A -.->|Має| P5`}
-</Mermaid>
-
-### Визначення Ролей
-
-| Роль | Рівень | Доступ | Випадки Використання |
-|------|--------|--------|----------------------|
-| **VISITOR** | 0 | Публічний контент, перегляд організацій/можливостей | Неаутентифіковані користувачі |
-| **SUBSCRIBER** | 1 | Створення можливостей, базові повідомлення | Безкоштовні зареєстровані користувачі |
-| **MEMBER** | 2 | Створення організацій, vendor функції, NFT маркетплейс | Платний тариф ($29/міс), бізнеси |
-| **CONFIDENTIAL** | 3 | Доступ до конфіденційних організацій/можливостей | Верифіковані організації |
-| **ADMIN** | 4 | Повний системний доступ, керування користувачами | Адміністратори платформи |
-
----
-
-## 🗄️ Архітектура Багатьох Бекендів
-
-### Вибір Адаптера Бази Даних
-
-<Mermaid>
-{`flowchart LR
-    subgraph "Режими Бекенду"
-        K8S[k8s-postgres-fcm<br/>PostgreSQL + FCM]
-        FB[firebase-full<br/>Повний Firebase]
-        SB[supabase-fcm<br/>Supabase + FCM]
-    end
-    
-    subgraph "Auth.js Адаптери"
-        PG[PostgreSQL Adapter<br/>Кастомна реалізація]
-        FS[Firebase Adapter<br/>@auth/firebase-adapter]
-        SP[Supabase Adapter<br/>PostgreSQL протокол]
-    end
-    
-    K8S -->|Використовує| PG
-    FB -->|Використовує| FS
-    SB -->|Використовує| SP
-    
-    subgraph "Сховище"
-        PG --> DB1[(PostgreSQL<br/>K8s Кластер)]
-        FS --> DB2[(Firebase<br/>Firestore)]
-        SP --> DB3[(Supabase<br/>PostgreSQL)]
-    end`}
-</Mermaid>
-
----
-
-## 🔒 Функції Безпеки
-
-### Зв'язування Email Акаунтів
-
-**Автоматичне зв'язування акаунтів з однаковим email:**
-
-<Mermaid>
-{`flowchart TB
-    U1[👤 Користувач входить<br/>через Google] --> E1[📧 user@example.com]
-    E1 --> Check{Email існує<br/>в базі даних?}
-    Check -->|Ні| Create[➕ Створити нового користувача]
-    Check -->|Так| Link[🔗 Зв'язати Google з<br/>існуючим акаунтом]
-    Link --> Merge[🔄 Об'єднати дані провайдерів]
-    Merge --> Update[📝 Оновити запис користувача]
-    Update --> Session[✨ Єдина сесія]
-    Create --> Session
-    
-    U2[👤 Пізніше: той самий користувач<br/>входить через Apple] --> E2[📧 user@example.com]
-    E2 --> Check2{Email існує?}
-    Check2 -->|Так| Link2[🔗 Зв'язати Apple з<br/>тим самим акаунтом]
-    Link2 --> Providers[👤 Один користувач<br/>Багато провайдерів<br/>Google + Apple]`}
-</Mermaid>
-
----
-
-### KYC (Know Your Customer) Інтеграція
-
-**Завантаження документів через Vercel Blob storage:**
-
-// features/auth/components/kyc-upload.tsx
-
-<Code language="typescript" title="TypeScript">
-{`async function handleKYCUpload(file: File) {
-  // Завантажити на Vercel Blob
-  const blob = await upload(file.name, file, {
-    access: 'private',
-    handleUploadUrl: '/api/kyc/upload',
-  })
-  
-  // Оновити запис користувача
-  await updateUser(session.user.id, {
-    kycStatus: 'pending',
-    kycDocumentUrl: blob.url,
-    kycSubmittedAt: new Date()
-  })
+# Архітектура Аутентифікації
+
+<Callout type="info">
+  Ring Platform використовує **Auth.js v5** (NextAuth) з JWT стратегією сесій. Адаптер (PostgreSQL або Firebase) обирається за `DB_BACKEND_MODE`.
+  Використовуйте вкладки **Засновник** / **Розробник** у бічній панелі документації для фільтрації за аудиторією.
+</Callout>
+
+## Провайдери
+
+| Провайдер | Потік | Auth.js провайдер |
+|-----------|------|-------------------|
+| **Google OAuth** | Повний OAuth 2.0 redirect + Google Identity Services (GIS) One Tap | `GoogleProvider` + `CredentialsProvider("google-one-tap")` |
+| **Apple Sign-In** | OAuth redirect, нативний iOS/macOS | `AppleProvider` |
+| **Magic Links** | Email через Resend, 24-годинний термін дії токену | `Resend` |
+| **Крипто-гаманець** | Nonce-підпис верифікація (MetaMask, WalletConnect) | `CredentialsProvider("crypto-wallet")` |
+
+Конфігурація знаходиться в `auth.ts` та `auth.config.ts` у корені проєкту. Auth.js v5 розділяє edge-безпечну конфігурацію (`auth.config.ts` — без провайдерів, мінімальні callbacks) від повної серверної конфігурації (`auth.ts` — всі провайдери, адаптери бази даних).
+
+<Audience for="founder">
+
+## Як працює аутентифікація
+
+Auth.js v5 керує всім потоком аутентифікації — платформа не використовує Firebase Auth безпосередньо. Firebase Admin SDK використовується лише для **серверної верифікації токенів** та **пошуку документів користувачів** у режимі `firebase-full`.
+
+**Потік сесії:**
+1. Користувач входить через Google, Apple, email посилання або крипто-гаманець
+2. Auth.js v5 обробляє OAuth обмін токенами та верифікацію
+3. JWT сесія створюється на сервері, зберігається в HTTP-only cookie
+4. PostgreSQL адаптер зберігає записи користувача/акаунту/сесії коли `DB_BACKEND_MODE` базується на PostgreSQL
+5. Firebase адаптер зберігає у Firestore коли `DB_BACKEND_MODE=firebase-full`
+
+**Ключові дизайн-рішення:**
+- JWT стратегія (без зберігання сесій в БД) для edge-сумісного розгортання
+- 30-денний максимальний вік сесії з 24-годинним вікном оновлення
+- Ідентичність завжди є платформним UUID (`users.id`), ніколи Google `sub` або Apple `sub`
+- Зв'язування акаунтів через email (однаковий email = той самий користувач)
+
+</Audience>
+
+<Audience for="developer">
+
+## Структура файлів Auth.js v5
+
+```
+auth.config.ts          — Edge-сумісна конфігурація (порожні провайдери, authorized callback, redirects)
+auth.ts                 — Повна серверна конфігурація (всі провайдери, адаптер БД, JWT/сесійні callbacks)
+lib/auth-adapter-singleton.ts  — Кешований адаптер: PostgreSQLAdapter або FirestoreAdapter
+lib/auth/postgres-adapter.ts   — Спеціалізований PostgreSQL адаптер для Auth.js v5
+lib/firebase-admin.server.ts   — Firebase Admin SDK екземпляр (getAdminAuth, getAdminDb)
+app/api/auth/[...nextauth]/route.ts  — Auth.js API route handler
+```
+
+## Конфігурація провайдерів
+
+### Google OAuth (два режими)
+
+**Традиційний OAuth** (redirect потік):
+
+<Code language="typescript" title="auth.ts">
+{`GoogleProvider({
+  allowDangerousEmailAccountLinking: true,
+  checks: ["pkce", "state"],
+  wellKnown: "https://accounts.google.com/.well-known/openid-configuration",
+})`}
+</Code>
+
+**Google Identity Services (GIS) One Tap** (клієнтське спливаюче вікно):
+
+<Code language="typescript" title="auth.ts">
+{`CredentialsProvider({
+  id: 'google-one-tap',
+  name: 'Google One Tap',
+  credentials: { credential: { type: 'text' } },
+  async authorize(credentials) {
+    // JWT верифікується на сервері в signIn callback
+    return { id: 'gis-jwt-pending', email: credentials.credential }
+  },
+})`}
+</Code>
+
+GIS JWT верифікується на сервері в `signIn` callback за допомогою `google-auth-library`:
+
+<Code language="typescript">
+{`const ticket = await googleAuthClient.verifyIdToken({
+  idToken: credential,
+  audience: getGoogleIdTokenAudiences(),
+})`}
+</Code>
+
+### Apple Sign-In
+
+<Code language="typescript" title="auth.ts">
+{`AppleProvider({
+  allowDangerousEmailAccountLinking: true,
+})`}
+</Code>
+
+### Magic Links (Resend)
+
+Потребує `AUTH_RESEND_KEY` змінну середовища та активний адаптер бази даних (для зберігання токенів):
+
+<Code language="typescript" title="auth.ts">
+{`Resend({
+  from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org",
+})`}
+</Code>
+
+24-годинний термін дії токену (maxAge в Resend провайдері), одноразове використання, автоматична інвалідація.
+
+### Крипто-гаманець
+
+Nonce-підпис верифікація через Viem. Підтримує Ethereum, Polygon, Arbitrum, Optimism та Base:
+
+<Code language="typescript" title="auth.ts">
+{`CredentialsProvider({
+  id: "crypto-wallet",
+  credentials: {
+    walletAddress: { label: "Wallet Address", type: "text" },
+    signedNonce: { label: "Signed Nonce", type: "text" },
+  },
+  async authorize(credentials) {
+    // 1. Пошук користувача за адресою гаманця
+    // 2. Верифікація підпису nonce через verifyWalletNonceSignature()
+    // 3. Очищення nonce, повернення об'єкту користувача
+    // 4. JWT callback створює сесію
+  },
+})`}
+</Code>
+
+## Вибір адаптера
+
+Адаптер визначається `DB_BACKEND_MODE`:
+
+| Режим | Адаптер | Джерело |
+|-------|---------|---------|
+| `k8s-postgres-fcm` | `PostgreSQLAdapter` | `lib/auth/postgres-adapter.ts` |
+| `firebase-full` | `FirestoreAdapter` з `@auth/firebase-adapter` | через `getAdminDb()` |
+| `supabase-fcm` | `PostgreSQLAdapter` | Той самий PostgreSQL шлях |
+
+<Code language="typescript" title="lib/auth-adapter-singleton.ts">
+{`export function getAuthAdapter() {
+  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config')
+  const useFirebase = shouldUseFirebaseForDatabase()
+
+  if (!useFirebase) {
+    return PostgreSQLAdapter()
+  }
+  const { getAdminDb } = require("@/lib/firebase-admin.server")
+  const adminDb = getAdminDb()
+  return FirestoreAdapter(adminDb)
 }`}
 </Code>
 
----
+## Інтеграція Firebase Admin SDK
 
-### GDPR/CCPA Сумісність
+Firebase Admin SDK використовується у двох контекстах:
+1. **Auth адаптер** (тільки `firebase-full` режим): `FirestoreAdapter` читає/записує документи користувачів
+2. **Крипто-гаманець аутентифікація** (`firebase-full` режим): `getAdminDb().collection("users")` для пошуку nonce
 
-**30-денний період відновлення при видаленні акаунту:**
+У режимах `k8s-postgres-fcm` та `supabase-fcm`, `getAdminDb()` повертає **mock Firestore** — жодної реальної ініціалізації Firebase не відбувається. FCM push сповіщення все ще використовують Firebase Admin через `firebase-admin.server.ts` (окремо від auth шляху).
 
-<Mermaid>
-{`flowchart LR
-    Request[🗑️ Користувач запитує<br/>видалення акаунту] --> Verify[🔐 Верифікація пароля]
-    Verify --> Grace[⏰ 30-денний період]
-    Grace --> Notify[📧 Email підтвердження]
-    Notify --> Wait{Дія користувача?}
-    Wait -->|Скасувати видалення| Restore[♻️ Відновити акаунт]
-    Wait -->|30 днів пройшло| Delete[🗑️ Постійне видалення]
-    Delete --> Audit[📝 Запис аудиту]
-    Delete --> Export[📦 Експорт даних відправлено]`}
-</Mermaid>
+## Використання на сервері
 
----
+<Code language="typescript" title="Server Component">
+{`import { auth } from '@/auth'
 
-## 📊 Метрики Продуктивності
+export default async function ProfilePage() {
+  const session = await auth()
+  if (!session) return <div>Будь ласка, увійдіть</div>
+  return <div>Вітаємо, {session.user.name}!</div>
+}`}
+</Code>
 
-| Метрика | Значення | Індустрійний Стандарт |
-|---------|----------|----------------------|
-| **Google OAuth Вхід** | `<500ms` | 2-3s |
-| **GIS One Tap Вхід** | `<300ms` | N/A |
-| **Відправка Magic Link** | `<200ms` | 500ms-1s |
-| **Успішність Підключення Гаманця** | 95% | 40% |
-| **Створення Сесії** | `<100ms` | 200-500ms |
-| **Завершення Налаштування PIN** | 87% | N/A |
-| **Успішність Зв'язування Email** | 100% | Ручний процес |
+## Використання на клієнті
 
----
+<Code language="typescript" title="Client Component">
+{`'use client'
+import { useSession } from 'next-auth/react'
 
-## 🚀 Наступні Кроки
+export default function UserProfile() {
+  const { data: session, status } = useSession()
+  if (status === 'loading') return <div>Завантаження...</div>
+  if (!session) return <div>Не аутентифіковано</div>
+  return <div>Користувач: {session.user.email}</div>
+}`}
+</Code>
 
-1. **[API Довідка](/uk/docs/api/authentication)** - Повна документація API
-2. **[Безпека & Сумісність](/uk/docs/features/security)** - Деталі GDPR/CCPA сумісності
-3. **[Web3 Система Гаманців](/uk/docs/features/wallet)** - Повний гід інтеграції гаманців
-4. **[Керування Ролями](/uk/docs/features/roles)** - Розширена конфігурація ролей
+## Змінні середовища
 
----
+```bash
+# Auth.js core
+AUTH_SECRET=your_auth_secret
+AUTH_TRUST_HOST=true
 
-**Для Ringdom. Для Світла. Для Безпечної Аутентифікації.**
+# Google OAuth
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
 
-🔐 **Ідеальна аутентифікація. Ідеальна безпека. Ідеальний досвід користувача.** 🔥
+# Apple Sign-In
+AUTH_APPLE_ID=your_apple_client_id
+AUTH_APPLE_SECRET=your_apple_private_key
+
+# Magic Links
+AUTH_RESEND_KEY=your_resend_api_key
+AUTH_RESEND_FROM=noreply@ring-platform.org
+
+# Firebase (тільки для firebase-full режиму)
+AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
+AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+AUTH_FIREBASE_PRIVATE_KEY=your_firebase_private_key
+
+# WalletConnect
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+```
+
+</Audience>
+
+## Пов'язана документація
+
+<Cards>
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Режими бекенду" description="Як DB_BACKEND_MODE впливає на вибір адаптера та використання Firebase." />
+  <Card href="/docs/deployment/environment" title="Змінні середовища" description="Повний довідник змінних середовища включаючи Auth.js та Firebase." />
+  <Card href="/docs/customization/database-selection" title="Вибір бази даних" description="Вибір PostgreSQL або Firebase для вашого клону." />
+</Cards>

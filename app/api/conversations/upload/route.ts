@@ -1,35 +1,42 @@
 import { file as fileService } from '@/lib/file'
-import { NextRequest, NextResponse, connection} from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { cookies, headers } from 'next/headers'
 
 /**
- * Handles POST requests for uploading files for messaging conversations.
+ * Handles POST requests for uploading files to conversations.
+ * Adds strict validation, authentication, and detailed logging.
  * 
- * This route allows authenticated users to upload files for messaging attachments,
- * which are then stored using Vercel Blob storage.
- * 
- * @param {NextRequest} request - Incoming request object from Next.js.
- * @returns {Promise<NextResponse>} Response object containing either the blob details or an error message.
+ * @param {NextRequest} request - The incoming request object from Next.js.
+ * @returns {Promise<NextResponse>} - Response object containing the file details or error message.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  await connection() // Next.js 16: opt out of prerendering
+  // Establish connection for DB or other middleware (ensures route never pre-renders in Next.js 16).
+  await connection()
 
+  // Log start of API request for debugging/observability.
   console.log('API: /api/conversations/upload - Starting POST request')
 
   try {
-    // Get cookies and headers (Next.js 15 async version)
-    const cookieStore = await cookies()
-    const headersList = await headers()
-    
-    console.log('API: /api/conversations/upload - Request headers:', 
+    // --- Fetch cookies & headers for user/session context ---
+    // TODO: In Next.js 16, prefer using request.cookies and request.headers directly for reduced overhead and native types.
+    // Example codemod for future switch (uncomment when adopting):
+    // const cookieStore = request.cookies;
+    // const headersList = request.headers;
+    const cookieStore = await cookies() // TODO: Switch to request.cookies (native accessor) for improved perf in Next16
+    const headersList = await headers() // TODO: Switch to request.headers (native accessor)
+
+    // Log headers for diagnostics; may help with authentication or debugging upload issues.
+    console.log(
+      'API: /api/conversations/upload - Request headers:',
       Object.fromEntries(headersList.entries())
     )
 
-    // Authenticate and obtain user's session
-    const session = await auth()
+    // --- Authenticate user via session/context ---
+    // TODO: If possible, codemod to middleware-based authentication for leaner API logic in React19/Next16.
+    const session = await auth() // May use server actions in React/Next future
 
-    // Check if the session and user exist
+    // Reject and log if no authenticated session or user.
     if (!session || !session.user) {
       console.log('API: /api/conversations/upload - Unauthorized access attempt')
       return NextResponse.json(
@@ -38,19 +45,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    console.log('API: /api/conversations/upload - Authorized access', {
-      userId: session.user.id,
-    })
+    // Extract user's unique identifier from session
+    const userId = session.user.id
+    console.log('API: /api/conversations/upload - Authorized access', { userId })
 
-    // Parse the incoming form data
-    const formData = await request.formData()
+    // --- Handle form data parsing ---
+    // Use .formData() to parse multipart form payload; required for file uploads in Next.js API routes.
+    // TODO: For very large files or future-proofing, consider adopting streaming (ReadableStream) and new React19 form action patterns.
+    const formData = await request.formData() // Native fetch API method.
     console.log('API: /api/conversations/upload - FormData parsed successfully')
 
-    // Extract the file from the form data
+    // --- File Extraction & Validation ---
     const file = formData.get('file') as File | null
 
-    // Check if a file was provided
     if (!file) {
+      // No file submitted in multipart data, reject with 400.
       console.log('API: /api/conversations/upload - No file provided in the request')
       return NextResponse.json(
         { error: 'No file provided' },
@@ -58,8 +67,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Validate file size (25MB limit for messaging)
-    const maxSize = 25 * 1024 * 1024 // 25MB
+    // Hardcoded max upload size: 25MB.
+    const maxSize = 25 * 1024 * 1024 // 25MB in bytes
     if (file.size > maxSize) {
       console.log('API: /api/conversations/upload - File too large:', file.size)
       return NextResponse.json(
@@ -68,24 +77,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Validate file type - allow images, documents, and media files
+    // MIME type allowlist.
     const allowedTypes = [
       // Images
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
       // Documents
-      'application/pdf', 'text/plain', 'application/msword', 
+      'application/pdf', 'text/plain', 'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel', 
+      'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-powerpoint',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      // Archive
+      // Archives
       'application/zip', 'application/x-rar-compressed',
       // Media
       'video/mp4', 'video/webm', 'video/ogg', 'audio/mpeg', 'audio/wav', 'audio/ogg'
     ]
 
     if (!allowedTypes.includes(file.type)) {
+      // File type isn't supported by backend/business rules for upload.
       console.log('API: /api/conversations/upload - Invalid file type:', file.type)
       return NextResponse.json(
         { error: 'File type not supported' },
@@ -93,37 +103,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
+    // Log file payload for visibility.
     console.log('API: /api/conversations/upload - File received:', {
       name: file.name,
       size: file.size,
       type: file.type
     })
 
-    // Extract conversation ID if provided (for organizing files by conversation)
+    // --- Metadata/filename structuring ---
+    // Group uploads by conversationId if provided (optional granular organization)
     const conversationId = formData.get('conversationId') as string | null
-    
-    // Generate a unique file name to prevent collisions
-    // Format: messaging/{conversationId if available}/{userId}_{timestamp}_{original filename}
+
+    // Create unique and sanitized storage path.
+    // Format: messaging/{conversationId}/{userId}_{timestamp}_{file}
     const timestamp = Date.now()
-    const userId = session.user.id
-    const fileNamePrefix = conversationId 
-      ? `messaging/${conversationId}` 
+    // If conversationId available, group files under that folder.
+    const fileNamePrefix = conversationId
+      ? `messaging/${conversationId}`
       : 'messaging'
+      
+    // Sanitize original filename to mitigate special character risks (e.g., slashes).
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
     const uniqueFileName = `${fileNamePrefix}/${userId}_${timestamp}_${sanitizedFileName}`
 
-    // Upload the file using our file abstraction layer
+    // --- Actual upload using abstraction ---
+    // TODO: If adopting Next 16 streaming uploads in the future,
+    // update `fileService().upload` to accept and process ReadableStream for out-of-memory chunked uploads.
+    // TODO: If File API supports new browser/React 19 types, codemod File validation for better perf and type safety.
+    // STUB: If fileService().upload relies on a stub/mock, replace with actual storage backend integration.
     const result = await fileService().upload(uniqueFileName, file, {
       access: 'public',
     })
+    // STUB: Above returns shape: { success: boolean, url: string, ... }
+    // TODO: Implement S3, GCS, or public storage upload and return accurate output shape in fileService.
 
+    // Log upload result for traceability.
     console.log('API: /api/conversations/upload - File uploaded successfully:', {
       url: result.url,
       conversationId: conversationId || 'not specified'
     })
 
-    // Check if upload was successful
+    // Defensive - check for failed storage write.
     if (!result.success) {
+      // Log error for ops/SRE insight.
       console.error('API: /api/conversations/upload - File upload failed:', result.error)
       return NextResponse.json(
         { error: result.error || 'File upload failed' },
@@ -134,21 +156,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Determine file category for messaging
+    // --- File type/category classification for UI rendering ---
     let fileCategory = 'file'
-    if (result.contentType.startsWith('image/')) {
-      fileCategory = 'image'
-    } else if (result.contentType.startsWith('video/')) {
-      fileCategory = 'video'
-    } else if (result.contentType.startsWith('audio/')) {
-      fileCategory = 'audio'
+    if (result.contentType && typeof result.contentType === 'string') {
+      if (result.contentType.startsWith('image/')) {
+        fileCategory = 'image'
+      } else if (result.contentType.startsWith('video/')) {
+        fileCategory = 'video'
+      } else if (result.contentType.startsWith('audio/')) {
+        fileCategory = 'audio'
+      }
     }
 
-    // Transform response to match messaging API interface
+    // Compose the output response matching our API contract.
     const response = {
       success: result.success,
       url: result.url,
-      downloadUrl: result.downloadUrl || result.url,
+      downloadUrl: result.downloadUrl || result.url, // Fallback to view url
       filename: file.name,
       size: result.size,
       contentType: result.contentType,
@@ -158,24 +182,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       uploadedBy: userId
     }
 
-    // Return the formatted response
-    return NextResponse.json(response, { 
-      status: 200, 
-      headers: { 'Cache-Control': 'no-store, max-age=0' } 
+    // Respond success with JSON, disabling caching of output.
+    return NextResponse.json(response, {
+      status: 200,
+      headers: { 'Cache-Control': 'no-store, max-age=0' }
     })
 
   } catch (error) {
-    // Handle any errors that occur during the upload process
+    // --- Comprehensive error handling block ---
+    // Log for monitoring/tracing.
     console.error('API: /api/conversations/upload - Error uploading file:', error)
 
-    // Provide more detailed error information if available
     let errorMessage = 'Error uploading file'
     let statusCode = 500
 
+    // Offer more granular HTTP error codes on specific backend signals (rate limit, quota).
     if (error instanceof Error) {
       errorMessage = `Error uploading file: ${error.message}`
-      
-      // Handle specific Vercel Blob errors
       if (error.message.includes('rate limit')) {
         statusCode = 429
         errorMessage = 'Upload rate limit exceeded. Please try again later.'
@@ -185,12 +208,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Return error response with no store/no cache to avoid surfacing sensitive info via cache.
     return NextResponse.json(
       { error: errorMessage },
-      { 
-        status: statusCode, 
-        headers: { 'Cache-Control': 'no-store, max-age=0' } 
+      {
+        status: statusCode,
+        headers: { 'Cache-Control': 'no-store, max-age=0' }
       }
     )
   }
-} 
+}

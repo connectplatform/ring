@@ -8,7 +8,7 @@ Published server-side via `publishToUserTunnel(userId, channel, data)`.
 |---------|-----------|------------------|
 | `notifications:unread` | `notification-service` | `useSync` / `useUnreadCount` |
 | `notifications:inbox` | `notification-service` | `useTunnelChannel({ channel: 'notifications:inbox', userScoped: false })` |
-| `credit:balance` | `UserCreditService` | `useTunnelChannel({ channel: 'credit:balance', userScoped: false })` |
+| `credit:balance` | `creditBalanceService` | `useTunnelChannel({ channel: 'credit:balance', userScoped: false })` |
 | `account:status` | `app/_actions/admin-account-status.ts` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` → `useTunnelChannel({ channel: 'account:status', userScoped: false })` |
 | `telemetry:{domain}` | `/api/tunnel/telemetry` | `useRealtimeData` |
 

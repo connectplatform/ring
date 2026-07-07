@@ -5,13 +5,13 @@ import { ShoppingCart } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/constants/routes'
 import { useOptionalStore } from '@/features/store/context'
-import { useOptionalCurrency } from '@/features/store/currency-context'
+import { DEFAULT_CURRENCY, StoreCurrency, useOptionalStoreCurrency } from '@/features/store/currency-context'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 
 export function MiniCart({ locale }: { locale: Locale }) {
   const store = useOptionalStore()
-  const currencyContext = useOptionalCurrency()
+  const storeCurrency = useOptionalStoreCurrency()
   const tCommon = useTranslations('common')
   const tStore = useTranslations('modules.store')
   const [open, setOpen] = useState(false)
@@ -19,34 +19,11 @@ export function MiniCart({ locale }: { locale: Locale }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
 
   // Currency formatting
-  const formatPrice = currencyContext?.formatPrice || ((price: number) => `${price.toFixed(2)} ₴`)
-  const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
-  const selectedCurrency = currencyContext?.currency || 'UAH'
-  
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const formatPrice = storeCurrency?.formatPrice || ((price: number, currency: StoreCurrency) => `${price.toFixed(2)} ${currency}`)
+  const convertPrice = storeCurrency?.convertPrice || ((price: number, from: StoreCurrency, to: StoreCurrency) => price)
+  const selectedCurrency = storeCurrency?.currency || DEFAULT_CURRENCY
 
-  React.useEffect(() => {
-    const node = containerRef.current
-    if (!node) return
-    let hoverWithin = false
-    const onEnter = () => { hoverWithin = true; setOpen(true) }
-    const onLeave = (e: MouseEvent) => {
-      // Delay close to allow moving into overlay
-      hoverWithin = false
-      setTimeout(() => { if (!hoverWithin) setOpen(false) }, 200)
-    }
-    node.addEventListener('mouseenter', onEnter)
-    node.addEventListener('mouseleave', onLeave)
-    return () => {
-      node.removeEventListener('mouseenter', onEnter)
-      node.removeEventListener('mouseleave', onLeave)
-    }
-  }, [])
-
-  if (!store) {
+  if (!store) { 
     return (
       <div className="relative" ref={containerRef}>
         <Link href={ROUTES.CART(locale)} className="relative inline-flex items-center" title={tStore('cart.title')}>
@@ -97,11 +74,11 @@ export function MiniCart({ locale }: { locale: Locale }) {
                 ))}
                 <div className="border-t pt-3 mt-4">
                   <div className="text-sm font-medium mb-3">
-                    {tStore('cart.total')}: {formatPrice(store.cartItems.reduce((sum, item) => {
-                      const priceUAH = item.finalPrice || parseFloat(item.product.price)
-                      const convertedPrice = convertPrice(priceUAH)
+                    {tStore('cart.total')}: {formatPrice(totalPriceByCurrency[selectedCurrency], selectedCurrency)} {store.cartItems.reduce((sum, item) => {
+                      const price = item.finalPrice || parseFloat(item.product.price)
+                      const convertedPrice = convertPrice(price, DEFAULT_CURRENCY, selectedCurrency)
                       return sum + (convertedPrice * item.quantity)
-                    }, 0))}
+                    }, 0)} ${selectedCurrency}
                   </div>
                   <div className="flex gap-3">
                     <Link

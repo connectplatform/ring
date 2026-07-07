@@ -2,7 +2,7 @@ export type ProcessRunStatus = 'running' | 'success' | 'error'
 
 export type ProcessTrigger = 'manual' | 'cron' | 'autostart'
 
-export type PipelineCategory = 'email' | 'cleanup' | 'rewards' | 'ai' | 'commerce'
+export type PipelineCategory = 'email' | 'cleanup' | 'rewards' | 'ai' | 'commerce' | 'membership'
 
 export interface ProcessRunData {
   pipelineId: string

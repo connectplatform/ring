@@ -55,10 +55,10 @@ contract RingToken {
 ```
 
 #### 1.2 Membership Subscription Contract
-**File**: `ring/contracts/RingMembership.sol`
+**File**: `ring/contracts/Membership.sol`
 ```solidity
 // Handles automatic monthly deductions
-contract RingMembership {
+contract Membership {
   // Subscribe user for automatic payments
   // Process monthly deductions (1 RING -> RING_TREASURY)
   // Handle subscription status (active/expired/cancelled)
@@ -80,9 +80,9 @@ export class RingContractService {
 ### Phase 2: Credit Balance System (P0)
 
 #### 2.1 User Credit Service
-**File**: `ring/services/wallet/user-credit-service.ts`
+**File**: `ring/services/wallet/credit-balance-service.ts`
 ```typescript
-export class UserCreditService {
+export class creditBalanceService {
   // Get user credit balance
   // Add credits (airdrop, reimbursement, top-up)
   // Deduct credits (purchase, membership fee)
@@ -144,7 +144,7 @@ export class SubscriptionService {
 - `ring/app/api/membership/subscription/create/route.ts` - POST create subscription
 - `ring/app/api/membership/subscription/status/route.ts` - GET subscription status
 - `ring/app/api/membership/subscription/cancel/route.ts` - POST cancel subscription
-- `ring/app/api/membership/payment/ring/route.ts` - POST pay with RING tokens
+- `ring/app/api/membership/payment/token/route.ts` - POST pay with RING tokens
 
 #### 4.3 Membership Upgrade Flow Integration
 **File**: `ring/components/membership/MembershipUpgradeModal.tsx`
@@ -249,7 +249,7 @@ graph TD
 | `/api/prices/conversion` | POST | Convert RING to USD | `ring/app/api/prices/conversion/route.ts` |
 | `/api/membership/subscription/create` | POST | Create subscription | `ring/app/api/membership/subscription/create/route.ts` |
 | `/api/membership/subscription/status` | GET | Check subscription status | `ring/app/api/membership/subscription/status/route.ts` |
-| `/api/membership/payment/ring` | POST | Pay membership with RING | `ring/app/api/membership/payment/ring/route.ts` |
+| `/api/membership/payment/token` | POST | Pay membership with RING | `ring/app/api/membership/payment/token/route.ts` |
 
 ### Database Schema Updates
 

@@ -11,7 +11,7 @@ Ring Platform exposes **132 route handlers** across entities, opportunities, sto
 <Callout type="info" title="Authentication model">
 **Browser / same-app clients** — Auth.js v5 **session cookie** on same-origin `fetch` (`credentials: 'include'`). No manual `Bearer` header in React client code.
 
-**Automation** — `Authorization: Bearer` for cron (`CRON_SECRET`), webhooks, email ingest, and **`/api/mcp/v1/*`** (`RING_MCP_SERVICE_TOKENS`). See [Ring MCP](/en/docs/development/ring-mcp).
+**Automation** — `Authorization: Bearer` for cron (`CRON_SECRET`), webhooks, email ingest, and **`/api/mcp/v1/*`** (`RING_MCP_ACCESS_KEY`). See [Ring MCP](/en/docs/development/ring-mcp).
 </Callout>
 
 ## Quick start

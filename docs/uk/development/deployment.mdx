@@ -1,383 +1,257 @@
 ---
 title: Розгортання
-description: Документація з розгортання для платформи Ring
+description: Огляд розгортання для Ring Platform — продакшн, попередній перегляд та саморозміщення.
+last_modified: "2026-06-28"
+audience: both
 ---
 
 # Посібник з розгортання
 
-Повний посібник з розгортання платформи Ring у продакшн середовищах.
+Ring Platform підтримує три цільові середовища розгортання: **k3s кластер** (продакшн), **Vercel** (попередній перегляд) та **Docker** (саморозміщення). Платформа використовує уніфіковану конфігурацію середовища; лише `DB_BACKEND_MODE` та `RING_DEPLOY_TARGET` змінюються залежно від цільового середовища.
 
-## 🚀 Варіанти розгортання
+<Callout type="info">
+  Ця сторінка є оглядом стратегії розгортання. Покрокові інструкції дивіться на відповідних сторінках: [Vercel](/docs/deployment/vercel), [Docker](/docs/deployment/docker), [Self-hosted](/docs/deployment/self-hosted) та [Конфігурація середовища](/docs/deployment/environment).
+</Callout>
 
-### 1. Vercel (Рекомендовано)
-**Найкраще для**: Швидке розгортання, автоматичне масштабування, оптимізація edge
+<Audience for="founder">
 
-### 2. Docker
-**Найкраще для**: Самостійно розміщені середовища, корпоративні розгортання
+## Вибір цільового середовища розгортання
 
-### 3. Традиційний хостинг
-**Найкраще для**: Власна інфраструктура, специфічні вимоги відповідності
+### k3s кластер (продакшн — рекомендовано)
 
-## 🔧 Розгортання Vercel
+Основним продакшн цільовим середовищем є Kubernetes кластер (`5.161.246.54`). Усі клони імперії Ringdom працюють на цьому кластері.
 
-### Передумови
-- Обліковий запис Vercel
-- Репозиторій GitHub
-- Налаштовані змінні середовища
+- Повноцінний PostgreSQL з нативним WSS Tunnel (`TUNNEL_HUB_MODE=k8s-postgres`)
+- Усі функції реального часу (обмін повідомленнями, спільна робота, живі сповіщення)
+- WayForPay платіжні вебхуки
+- Cron завдання для очищення імен користувачів, майнінгу рефкодів
 
-### Покрокове розгортання
+### Vercel (попередній перегляд)
 
-#### 1. Підключення репозиторію
-Install Vercel CLI Login to Vercel Deploy from project directory
+Vercel підходить для попереднього перегляду розгортань та швидкого прототипування. Безсерверні обробники маршрутів працюють на Vercel Edge — власний сервер (`server.ts`) не використовується, тому нативний WebSocket Tunnel недоступний. Tunnel переходить на SSE + довге опитування.
 
-<Code language="bash" title="terminal">
-{`npm i -g vercel
+- Встановіть `RING_DEPLOY_TARGET=vercel` та `NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel`
+- Використовуйте `DB_BACKEND_MODE=firebase-full` (Firestore) або `k8s-postgres-fcm` (потребує доступного PostgreSQL хоста)
+- WayForPay вебхуки потребують публічної кінцевої точки — функції Vercel обробляють це нативно
 
-vercel login
+### Docker (саморозміщення)
 
-vercel`}
-</Code>
-#### 2. Налаштування змінних середовища
-У панелі керування Vercel додайте ці змінні середовища:
+Розгортання Docker задокументовано для самостійного розміщення спільнотою (OSS репозиторій). `Dockerfile` створює продакшн образ із власним сервером (`server.ts`) та підтримкою нативного WSS Tunnel. PostgreSQL працює як супутній контейнер або зовнішній сервіс.
 
-Authentication Firebase OAuth Providers
+- Повна паритетність функцій із k3s розгортанням
+- PostgreSQL є обов'язковим (`DB_BACKEND_MODE=k8s-postgres-fcm`)
+- Дивіться [Розгортання Docker](/docs/deployment/docker) та [Саморозміщення](/docs/deployment/self-hosted)
 
-<Code language="bash" title="terminal">
-{`NEXTAUTH_URL=https://your-domain.vercel.app
-NEXTAUTH_SECRET=your-production-secret
+## Стратегія змінних середовища
 
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+Єдиним джерелом істини для всіх змінних середовища є `env.local.template` у корені репозиторію. Ключові рішення:
 
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret`}
-</Code>
+| Змінна | Призначення |
+|--------|-------------|
+| `DB_BACKEND_MODE` | Адаптер бази даних: `k8s-postgres-fcm` (рекомендовано), `firebase-full` або `supabase-fcm` |
+| `RING_DEPLOY_TARGET` | Режим Tunnel та середовища виконання: `k8s`, `vercel` або `self-hosted` |
+| `AUTH_SECRET` | Шифрування сесій Auth.js (згенерувати за допомогою `openssl rand -base64 32`) |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Облікові дані Google OAuth |
 
-#### 3. Build Configuration
-Create `vercel.json`:
+Повний довідник змінних дивіться в [Конфігурація середовища](/docs/deployment/environment).
 
-<Code language="json" title="{">
-{`"framework": "nextjs",
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 30
+<Callout type="warning">
+  Ніколи не комітьте реальні секрети в Git. Скопіюйте `env.local.template` у `.env.local` (входить до gitignore) і заповніть продакшн значеннями. На k3s інжектуйте секрети через Kubernetes secrets; на Vercel використовуйте змінні середовища панелі керування Vercel.
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## Передумови для всіх цільових середовищ
+
+- Node.js 20+ (22 рекомендовано)
+- npm або pnpm
+- Екземпляр PostgreSQL (для режимів `k8s-postgres-fcm` та `supabase-fcm`)
+- Firebase проєкт (необов'язково — лише якщо потрібні FCM push-сповіщення)
+
+## Цільові середовища розгортання
+
+### 1. k3s кластер (продакшн)
+
+Продакшн k3s кластер використовує Kubernetes маніфести (не включені в публічний OSS репозиторій). Розгортання керується через Ring CLI та CI/CD конвеєр.
+
+Необхідні змінні середовища для продакшну:
+
+```bash
+# База даних
+DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=postgres.ring-platform-org.svc.cluster.local
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=<from-k8s-secret>
+DB_SSL=true
+DB_POOL_SIZE=20
+DB_TIMEOUT=30000
+
+# Auth.js
+AUTH_SECRET=<from-k8s-secret>
+AUTH_GOOGLE_ID=<from-k8s-secret>
+AUTH_GOOGLE_SECRET=<from-k8s-secret>
+
+# Tunnel
+RING_DEPLOY_TARGET=k8s
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+TUNNEL_HUB_MODE=k8s-postgres
+
+# Firebase Admin (FCM лише — необов'язково)
+AUTH_FIREBASE_PROJECT_ID=<your-project-id>
+AUTH_FIREBASE_CLIENT_EMAIL=<your-service-account-email>
+AUTH_FIREBASE_PRIVATE_KEY="<your-private-key>"
+
+# Платежі
+WAYFORPAY_MERCHANT_ACCOUNT=<from-k8s-secret>
+WAYFORPAY_SECRET_KEY=<from-k8s-secret>
+```
+
+У продакшні чутливі значення інжектуються через Kubernetes secrets під час виконання, а не вбудовуються в Docker образ.
+
+### 2. Vercel
+
+Розгортання Vercel використовує безсерверні обробники маршрутів. Власний сервер (`server.ts`) не використовується — Tunnel працює в режимі SSE + довге опитування.
+
+**vercel.json** (платформа постачається з цим файлом):
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-usernames",
+      "schedule": "*/5 * * * *"
     }
-  },
-  "regions": ["iad1"]
-}`}
-</Code>
-### Автоматичні розгортання
-- **Основна гілка** → Продакшн розгортання
-- **Функціональні гілки** → Попередній перегляд розгортань
-- **Pull requests** → Попередній перегляд розгортань з унікальними URL
+  ]
+}
+```
 
-## 🐳 Docker розгортання
+<Callout type="tip">
+  Встановіть `RING_DEPLOY_TARGET=vercel` та `NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel` у панелі керування Vercel. Без цього Tunnel може намагатися ініціалізувати нативний WebSocket, який недоступний у безсерверному середовищі.
+</Callout>
 
-### Dockerfile
-Встановлення залежностей лише за потреби Перебудова вихідного коду лише за потреби Продакшн образ, копіювання всіх файлів та запуск next Встановлення правильних дозволів для кешу попереднього рендерингу
+Кроки:
 
-<Code language="dockerfile" title="FROM node:18-alpine AS base">
-{`FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
+1. Запуште репозиторій на GitHub
+2. Імпортуйте проєкт у Vercel
+3. Встановіть змінні середовища в панелі керування Vercel (усі `DB_*`, `AUTH_*`, `NEXT_PUBLIC_*`, `WAYFORPAY_*` тощо)
+4. Розгорніть основну гілку
 
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+Деталі дивіться в [Розгортання Vercel](/docs/deployment/vercel).
 
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+### 3. Docker (саморозміщення)
 
-ENV NEXT_TELEMETRY_DISABLED 1
-RUN npm run build
+`Dockerfile` створює багатостадійний продакшн образ із власним сервером та нативним WSS Tunnel. Він використовує `dumb-init` як точку входу та виконує перевірку стану на `/api/health`.
 
-FROM base AS runner
-WORKDIR /app
+Збірка:
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+```bash
+docker build \
+  --platform linux/amd64 \
+  --build-arg AUTH_SECRET="your-auth-secret" \
+  --build-arg DB_BACKEND_MODE=k8s-postgres-fcm \
+  --build-arg DB_HOST=postgres.example.com \
+  --build-arg DB_PORT=5432 \
+  --build-arg DB_NAME=ring_platform \
+  --build-arg DB_USER=ring_user \
+  --build-arg NEXT_PUBLIC_APP_URL=https://your-domain.com \
+  --build-arg NEXT_PUBLIC_API_URL=https://your-domain.com \
+  -t ring-platform .
+```
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+<Callout type="warning">
+  Лише безпечні для часу збірки змінні (`NEXT_PUBLIC_*`, `DB_BACKEND_MODE`) слід передавати як build args. Чутливі секрети (`AUTH_GOOGLE_SECRET`, `DB_PASSWORD`, `WAYFORPAY_SECRET_KEY`) інжектуються під час виконання через змінні середовища або менеджери секретів.
+</Callout>
 
-COPY --from=builder /app/public ./public
+Запуск:
 
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -e AUTH_SECRET=<from-secret-store> \
+  -e AUTH_GOOGLE_ID=<from-secret-store> \
+  -e AUTH_GOOGLE_SECRET=<from-secret-store> \
+  -e DB_BACKEND_MODE=k8s-postgres-fcm \
+  -e DB_HOST=postgres.example.com \
+  -e DB_PORT=5432 \
+  -e DB_NAME=ring_platform \
+  -e DB_USER=ring_user \
+  -e DB_PASSWORD=<from-secret-store> \
+  -e DB_SSL=true \
+  -e RING_DEPLOY_TARGET=self-hosted \
+  -e NEXT_PUBLIC_RING_DEPLOY_TARGET=self-hosted \
+  ring-platform
+```
 
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+Дивіться [Розгортання Docker](/docs/deployment/docker) для конфігурації docker-compose та налаштування PostGIS, а також [Саморозміщення](/docs/deployment/self-hosted) для OSS налаштування спільноти за допомогою `install.sh`.
 
-USER nextjs
+## Налаштування бази даних для різних цільових середовищ
 
-EXPOSE 3000
+Платформа використовує єдиний рівень абстракції бази даних через `getDatabaseService()` (див. `lib/database/DatabaseService.ts`). Активний адаптер обирається за допомогою `DB_BACKEND_MODE`:
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+- **`k8s-postgres-fcm`** — PostgreSQL для всіх CRUD, Firebase Admin SDK лише для FCM push. Рекомендовано для продакшну та локальної розробки.
+- **`firebase-full`** — Firestore (Firebase) для всіх CRUD. Найшвидше налаштування для прототипування та Vercel.
+- **`supabase-fcm`** — Supabase PostgreSQL для бази даних, Firebase Admin SDK лише для FCM push.
 
-CMD ["node", "server.js"]`}
-</Code>
+Глибоке порівняння дивіться в [Режими бекенду та бази даних](/docs/architecture/backend-modes-and-databases).
 
-### Docker Compose
-<Code language="yaml" title="version: '3.8'">
-{`services:
-  ring-app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=your-secret
-      - NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-    depends_on:
-      - mongodb
-    restart: unless-stopped
+```bash
+# Перевірка з'єднання з базою даних (будь-який режим)
+# Використовує getDatabaseService() — НЕ Firebase client SDK
+# lib/firebase.ts не існує в цій кодовій базі
+```
 
-  mongodb:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password
-    volumes:
-      - mongodb_data:/data/db
-    restart: unless-stopped
+<Callout type="info">
+  Firestore client SDK (`db.collection(...).doc(...).get()`) не використовується в цій платформі. Увесь доступ до бази даних відбувається через `getDatabaseService()` з методами `findById(collection, id)`, `create(collection, data)`, `update(collection, id, data)`, `delete(collection, id)` та `query({ collection, filters?, orderBy?, pagination? })`.
+</Callout>
 
-volumes:
-  mongodb_data:`}
-</Code>
+## Усунення неполадок
 
-### Build and Run
-Build the image Run with docker-compose View logs
+### Збій збірки з помилками TypeScript
 
-<Code language="bash" title="terminal">
-{`docker build -t ring-platform .
+Очистіть кеш та повторіть спробу:
 
-docker-compose up -d
-
-docker-compose logs -f ring-app`}
-</Code>
-## ☁️ Хмарні розгортання
-
-### Розгортання на AWS
-AWS Amplify
-
-<Code language="bash" title="terminal">
-{`npm install -g @aws-amplify/cli
-amplify init
-amplify add hosting
-amplify publish`}
-</Code>
-
-### Google Cloud Platform
-Cloud Run
-
-<Code language="bash" title="terminal">
-{`gcloud run deploy ring-platform \
-  --source . \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated`}
-</Code>
-
-### Azure Deployment
-Azure Static Web Apps
-
-<Code language="bash" title="terminal">
-{`az staticwebapp create \
-  --name ring-platform \
-  --resource-group myResourceGroup \
-  --source https://github.com/username/ring \
-  --location "Central US" \
-  --branch main`}
-</Code>
-
-## 🔒 Production Security
-
-### Environment Variables
-Генерація безпечних секретів Використання значень для конкретного середовища
-
-<Code language="bash" title="terminal">
-{`openssl rand -base64 32  # Для AUTH_SECRET
-
-NEXTAUTH_URL=https://ваш-продакшн-домен.com
-NODE_ENV=production`}
-</Code>
-
-### Заголовки безпеки
-Додайте до `next.config.js`:
-
-<Code language="javascript" title="const securityHeaders = [">
-{`{
-    key: 'X-DNS-Prefetch-Control',
-    value: 'on'
-  },
-  {
-    key: 'Strict-Transport-Security',
-    value: 'max-age=63072000; includeSubDomains; preload'
-  },
-  {
-    key: 'X-Frame-Options',
-    value: 'DENY'
-  },
-  {
-    key: 'X-Content-Type-Options',
-    value: 'nosniff'
-  },
-  {
-    key: 'Referrer-Policy',
-    value: 'origin-when-cross-origin'
-  }
-]
-
-module.exports = {
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: securityHeaders,
-      },
-    ]
-  },
-}`}
-</Code>
-## 📊 Моніторинг та аналітика
-
-### Error Tracking
-Install Sentry Configure in sentry.client.config.js
-
-<Code language="bash" title="terminal">
-{`npm install @sentry/nextjs
-
-import * as Sentry from '@sentry/nextjs'
-
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-})`}
-</Code>
-### Моніторинг продуктивності
-// pages/_app.js
-
-<Code language="javascript" title="JavaScript">
-{`import { Analytics } from '@vercel/analytics/react'
-
-export default function App({ Component, pageProps }) {
-  return (
-    <>
-      <Component {...pageProps} />
-      <Analytics />
-    </>
-  )
-}`}
-</Code>
-## 🔄 Конвеєр CI/CD
-
-### GitHub Actions
-.github/workflows/deploy.yml
-
-<Code language="yaml" title="configuration">
-{`name: Deploy to Production
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run tests
-        run: npm test
-      
-      - name: Build application
-        run: npm run build
-        env:
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-      
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
-          vercel-args: '--prod'`}
-</Code>
-
-## 🚨 Усунення неполадок
-
-### Поширені проблеми
-
-#### Помилки збірки
-Очистити кеш Next.js Очистити node_modules Перевірити помилки TypeScript
-
-<Code language="bash" title="terminal">
-{`rm -rf .next
-
-rm -rf node_modules
+```bash
+rm -rf .next node_modules
 npm install
+npm run type-check
+npm run build
+```
 
-npm run type-check`}
-</Code>
+### Сесія Auth.js не працює
 
-#### Проблеми зі змінними середовища
-Verify environment variables are loaded
+Переконайтеся, що `AUTH_SECRET` встановлено та є однаковим у всіх розгортаннях. Auth.js v5 використовує `AUTH_SECRET` (не `NEXTAUTH_SECRET`). Змінні Google OAuth: `AUTH_GOOGLE_ID` та `AUTH_GOOGLE_SECRET` (не `GOOGLE_CLIENT_ID`).
 
-<Code language="bash" title="terminal">
-{`console.log('Environment check:', {
-  NODE_ENV: process.env.NODE_ENV,
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  // Don't log secrets!
-})`}
-</Code>
+### Відмовлено у з'єднанні з базою даних
 
-#### Проблеми з підключенням до бази даних
-Test Firebase connection
+Перевірте, чи PostgreSQL доступний з цільового середовища розгортання:
 
-<Code language="bash" title="terminal">
-{`import { db } from '@/lib/firebase'
+```bash
+# З k3s pod
+kubectl exec deploy/ring-platform -- wget -qO- http://postgres:5432
 
-try {
-  await db.collection('test').doc('test').get()
-  console.log('Firebase connected successfully')
-} catch (error) {
-  console.error('Firebase connection failed:', error)
-}`}
-</Code>
-## 📋 Чек-лист розгортання
+# З Docker
+docker exec ring-platform nc -zv postgres.example.com 5432
+```
 
-### Перед розгортанням
-- [ ] Усі тести пройдені
-- [ ] Змінні середовища налаштовані
-- [ ] Міграції бази даних завершені
-- [ ] Заголовки безпеки налаштовані
-- [ ] Відстеження помилок налаштовано
+Переконайтеся, що `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` та `DB_PASSWORD` відповідають вашій конфігурації PostgreSQL.
 
-### Після розгортання
-- [ ] Перевірки стану працюють
-- [ ] Автентифікація працює
-- [ ] Підключення до бази даних перевірено
-- [ ] Базові метрики продуктивності встановлені
-- [ ] Відстеження помилок активне
+### Tunnel / WebSocket не підключається
 
----
+Переконайтеся, що `RING_DEPLOY_TARGET` та `NEXT_PUBLIC_RING_DEPLOY_TARGET` встановлено. На Vercel нативний WebSocket недоступний — Tunnel автоматично переходить на SSE + довге опитування. На k3s або Docker переконайтеся, що `TUNNEL_HUB_MODE=k8s-postgres` встановлено.
 
-*Далі: [Оптимізація продуктивності](/uk/docs/development/performance) - Дізнайтеся, як оптимізувати платформу Ring для продакшену.*
+</Audience>
+
+## Пов'язана документація
+
+<Cards>
+  <Card href="/docs/deployment/environment" title="Environment configuration" description="Complete reference for all environment variables." />
+  <Card href="/docs/deployment/vercel" title="Vercel deployment" description="Vercel-specific setup and considerations." />
+  <Card href="/docs/deployment/docker" title="Docker deployment" description="Container build, docker-compose, and PostGIS setup." />
+  <Card href="/docs/deployment/self-hosted" title="Self-hosted deployment" description="Community OSS setup with install.sh." />
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes and databases" description="DB_BACKEND_MODE comparison and architecture." />
+  <Card href="/docs/development/local-setup" title="Local setup" description="Development environment setup guide." />
+</Cards>

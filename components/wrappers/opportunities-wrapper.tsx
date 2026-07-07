@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { usePathname } from '@/i18n/routing'
@@ -52,6 +52,14 @@ export default function OpportunitiesWrapper({
   const [isClient, setIsClient] = React.useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
+  const closeRail = useCallback(() => setRightSidebarOpen(false), [])
+  const retryReload = useCallback(() => window.location.reload(), [])
+
+  const rightRail = useMemo(
+    () => <OpportunitiesBrowseRail locale={locale} onNavigate={closeRail} />,
+    [locale, closeRail],
+  )
+
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
@@ -89,7 +97,7 @@ export default function OpportunitiesWrapper({
         showProgress={true}
         description={t('loadingOpportunityDetails', { defaultValue: "Loading opportunity details and related information" })}
         retryEnabled={true}
-        onRetry={() => window.location.reload()}
+        onRetry={retryReload}
       >
         <OpportunityDetails
           initialOpportunity={initialOpportunity}
@@ -107,7 +115,7 @@ export default function OpportunitiesWrapper({
         showProgress={true}
         description={t('loadingOpportunities', { defaultValue: "Loading opportunities directory with filtering and search capabilities" })}
         retryEnabled={true}
-        onRetry={() => window.location.reload()}
+        onRetry={retryReload}
       >
         <Opportunities
           initialOpportunities={initialOpportunities}
@@ -126,12 +134,7 @@ export default function OpportunitiesWrapper({
         flushCenterPane
         isOpen={rightSidebarOpen}
         onToggle={setRightSidebarOpen}
-        rightRail={
-          <OpportunitiesBrowseRail
-            locale={locale}
-            onNavigate={() => setRightSidebarOpen(false)}
-          />
-        }
+        rightRail={rightRail}
       >
         {listContent}
       </RingRightRailLayout>

@@ -1,0 +1,128 @@
+---
+title: Public Profile Pages
+description: Personalized public profile pages at /[locale]/[username] with NFT galleries, personal blogs, staking portfolios, Telegram verification, and visibility toggles
+---
+
+# Public Profile Pages
+
+Ring Platform provides every user with a **personalized public profile page** at `/[locale]/[username]`. This is a fully server-rendered Next.js 16 App Router page with dynamic SEO metadata, NFT galleries, blog integration, and staking portfolio display.
+
+## URL Structure
+
+```
+/[locale]/[username]         → Public profile page
+/[locale]/[username]/[slug]  → Blog article page
+```
+
+**Examples:** `/en/ray`, `/uk/ivan`, `/ru/alex`
+
+The route is a Next.js 16 App Router dynamic segment at `app/[locale]/[username]/page.tsx`. The server-side `getUserByUsername()` function performs a case-insensitive lookup in the `users` collection.
+
+## What's on the Page
+
+### Profile Header
+- **Avatar** — loaded from `photoURL` with optimized Next.js `Image` component
+- **Display name** — `<h1>` rendered with `user.name`
+- **@Username handle** — shown as `@{user.username}`
+- **Bio paragraph** — from `user.bio`, rendered with `max-w-2xl`
+- **Message button** — shown only to authenticated users viewing someone else's profile (hidden when viewing own profile or logged out)
+- **"Verified by Telegram" badge** — shown when `isVerified` is true from Telegram Bot verification
+
+### NFT Gallery
+- **ProfileListings** component fetches user's NFT listings from `/api/nft-market/listings?username=...` (public GET, no auth required)
+- Responsive grid layout with NFT thumbnails
+- Supports ERC-721 and ERC-1155 standards across Polygon and Ethereum
+
+### Blog Section
+- **Blog link** shown when the user has an active membership payment
+- Blog articles accessible at `/blog/{username}/{slug}`
+- Articles can be promoted to the main `/news` feed via the News Kingdom pipeline
+
+### Staking Portfolio
+- Active staking positions and rewards from the Token Staking System
+- Supports DAAR and DAARION pools
+- Performance metrics and historical returns
+
+### Right Rail
+- **Activity** — recent actions and updates
+- **Share Profile** — copy profile link
+- **Achievements** — badges and milestones
+- **Platform Guide** — link to documentation
+
+## Visibility Controls
+
+Users control their profile's public visibility through the **SetUsernameModal**:
+
+1. Go to **Settings → Profile**
+2. Click **"Change"** next to your `@username`
+3. Toggle the **"Personal page"** switch
+
+<Callout type="info" title="Granular Toggles Coming Soon">
+Individual toggles per contact field (email, phone, location, social links, Telegram) will allow founders to selectively display contact information on their public profile.
+</Callout>
+
+| Visibility | Behavior |
+|---|---|
+| **Public** | Profile page at `/[locale]/[username]` is fully visible with avatar, name, bio, NFT listings, and blog |
+| **Private** | Profile route returns a **404 Not Found** |
+
+## Telegram Account Verification
+
+Users can enhance their profile credibility with Telegram account verification:
+
+1. **Link Telegram** via the Telegram Login Widget (`features/auth/components/telegram-linking-modal.tsx`)
+2. **Bot verification** — Telegram bot sends a verification code
+3. **HMAC validation** — callback at `app/api/auth/telegram/callback/route.ts` validates the auth hash
+4. **"Verified by Telegram" badge** appears on the public profile, building trust for:
+   - NFT marketplace transactions
+   - Blog article credibility
+   - Contact verification for other members
+
+## Route Architecture
+
+```typescript
+// app/[locale]/[username]/page.tsx
+export default async function PublicProfilePage(props: LocalePageProps<PublicProfileParams>) {
+  const params = await props.params
+  const user = await getUserByUsername(params.username)
+  if (!user) return notFound() // 404 if username doesn't exist
+  // Render profile: avatar, name, bio, NFT listings, blog, staking
+}
+
+// features/auth/services/get-user-by-username.ts
+export const getUserByUsername = cache(async (username: string) => {
+  const result = await db().queryDocs({
+    collection: 'users',
+    filters: [{ field: 'username', operator: '=', value: username.trim().toLowerCase() }],
+    pagination: { limit: 1 }
+  })
+  if (!result.success || result.data.length === 0) return null
+  return mapRowToAuthUser(result.data[0])
+})
+```
+
+### Key route details:
+- **Case-insensitive** username matching (`.toLowerCase()`)
+- **Server-side rendered** with `next-intl` locale support
+- **Dynamic SEO metadata** via `generateMetadata()` — title and description derived from user name and bio
+- **404** returned via `notFound()` when username doesn't exist
+- **No middleware auth guard** — the page itself is fully public
+- Blog sub-route at `app/[locale]/[username]/[slug]/page.tsx` resolves blog articles from the `news` collection
+
+## API Endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/auth/check-username?username={name}` | GET | Check username availability |
+| `/api/nft-market/listings?username={name}` | GET | Get user's NFT listings (public) |
+| `/api/nft-market/listings` | POST | Create NFT listing (requires auth) |
+| `/api/auth/telegram/callback` | POST | Telegram bot verification callback |
+| `/api/user/favorites` | POST | Bookmark a user's blog article |
+
+## Related
+
+- [Username Reservation System](/docs/features/username-reservation)
+- [Member Blogs](/docs/features/member-blog)
+- [NFT Marketplace](/docs/features/nft-market)
+- [Token Staking System](/docs/features/staking)
+- [Telegram Bot Integration](/docs/features/telegram-bot)

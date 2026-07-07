@@ -3,17 +3,19 @@ import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import type { Locale } from '@/i18n/shared';
+import type { Locale } from '@/i18n/shared'
 import { CategoriesManager } from '@/features/news/components/categories-manager'
 import { db } from '@/lib/database'
 import { mapNewsCategoryDocument } from '@/lib/news/map-news-document'
-import { NewsCategoryInfo } from '@/features/news/types'
-import NewsWrapper from '@/components/wrappers/news-wrapper'
+import type { NewsCategoryInfo } from '@/features/news/types'
 import { connection } from 'next/server'
-import { routing } from '@/i18n/routing';
-import { ROUTES } from '@/constants/routes';
-import { getTranslations } from 'next-intl/server';
-import { isPlatformAdmin } from '@/features/auth/user-role';
+import { routing } from '@/i18n/routing'
+import { ROUTES } from '@/constants/routes'
+import { getTranslations } from 'next-intl/server'
+import { isPlatformAdmin } from '@/features/auth/user-role'
+import AdminWrapper from '@/components/wrappers/admin-wrapper'
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
+import { getNewsStats } from '@/features/news/services/get-news-stats'
 
 /**
  * Get news categories - Server Component async/await (React 19)
@@ -54,12 +56,14 @@ export async function generateMetadata({
 export default async function AdminNewsCategoriesPage({ 
   params 
 }: { 
-  params: Promise<{ locale: Locale }> 
+  params: Promise<{ locale: string }> 
 }) {
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params
-  const validLocale = routing.locales.includes(locale) ? locale : routing.defaultLocale
+  const validLocale: Locale = routing.locales.includes(locale as Locale)
+    ? (locale as Locale)
+    : (routing.defaultLocale as Locale)
   const t = await getTranslations('modules.admin.newsCategories')
   
   // Check authentication and admin role
@@ -75,32 +79,27 @@ export default async function AdminNewsCategoriesPage({
   
   const categories = await getNewsCategories()
 
-  // Prepare stats for the news wrapper sidebar
-  const stats = {
-    totalArticles: categories.length, // Total categories
-    publishedArticles: categories.length, // All categories are "active"
-    draftArticles: 0, // Categories don't have draft status
-    recentViews: 0 // Could be implemented later if needed
-  }
+  const tAdmin = await getTranslations('modules.admin')
+  const adminLabels = buildModulesAdminLabels(tAdmin)
+  const newsStats = await getNewsStats()
 
   return (
-    <NewsWrapper
-      pageContext="categories"
-      stats={stats}
-    >
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          {t('title') || 'Categories Management'}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {t('subtitle') || 'Manage news article categories, colors, and organization'}
-        </p>
-      </div>
+    <AdminWrapper locale={validLocale} pageContext="news" labels={adminLabels} newsStats={newsStats}>
+      <div className="container mx-auto px-0 py-0">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            {t('title') || 'Categories Management'}
+          </h1>
+          <p className="text-muted-foreground">
+            {t('subtitle') || 'Manage news article categories, colors, and organization'}
+          </p>
+        </div>
 
-      <CategoriesManager
-        initialCategories={categories}
-        locale={validLocale}
-      />
-    </NewsWrapper>
+        <CategoriesManager
+          initialCategories={categories}
+          locale={validLocale}
+        />
+      </div>
+    </AdminWrapper>
   )
 } 

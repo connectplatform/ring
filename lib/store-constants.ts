@@ -3,6 +3,8 @@
  * Single source of truth for filter defaults
  */
 
+import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+
 export const PRICE_MIN = 0
 
 /** Default store price slider bounds (env overrides; used at build and before DB fetch). */
@@ -35,7 +37,7 @@ export const DEFAULT_STORE_FILTERS: StoreFilterState = {
   categories: [],
   priceMin: PRICE_MIN,
   priceMax: null, // Set from catalog bounds after first product load
-  currency: 'UAH',
+  currency: getDefaultStoreCurrencySymbol(),
   vendor: '',
   inStock: null,
   sortBy: 'name-asc'

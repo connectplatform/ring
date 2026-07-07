@@ -9,8 +9,10 @@ import { handleMembershipWayForPayWebhook } from '@/lib/payments/conductor/handl
 import { handleNewsWayForPayWebhook } from '@/lib/payments/conductor/handlers/news-promotion'
 import { verifyStripeWebhook } from '@/lib/payments/processors/stripe.processor'
 import { handleNewsStripeWebhook } from '@/lib/payments/conductor/handlers/news-promotion'
+import { handleMembershipStripeWebhook } from '@/lib/payments/conductor/handlers/membership-upgrade-stripe'
+import { handleStoreStripeWebhook } from '@/lib/payments/conductor/handlers/store-order-stripe'
 import { logger } from '@/lib/logger'
-import type { WebhookHandleResult } from '@/lib/payments/conductor/types'
+import type { WebhookHandleResult, PaymentPurpose } from '@/lib/payments/conductor/types'
 import type { StoreWebhookPayload } from '@/lib/payments/wayforpay-store-service'
 
 export async function dispatchWayForPayWebhook(
@@ -65,13 +67,46 @@ export async function dispatchStripeWebhook(
     return { success: false, error: 'Invalid Stripe signature' }
   }
 
-  const metadata = (event.data.object.metadata ?? {}) as Record<string, string>
-  const purpose = metadata.purpose || 'news_promotion'
+  const session = event.data.object as Record<string, unknown>
+  const metadata = (session.metadata ?? {}) as Record<string, string>
+  const purpose = metadata.purpose as PaymentPurpose | undefined
 
-  if (purpose === 'news_promotion' || event.type === 'checkout.session.completed') {
-    const processed = await handleNewsStripeWebhook(event)
-    return { success: processed, purpose: 'news_promotion' }
+  logger.info('Stripe webhook received', {
+    type: event.type,
+    purpose,
+    metadata,
+  })
+
+  // Route by metadata.purpose — mirrors WayForPay orderReference dispatch
+  switch (purpose) {
+    case 'store_order': {
+      const result = await handleStoreStripeWebhook(event)
+      return { success: result.success, purpose: 'store_order' }
+    }
+
+    case 'membership_upgrade': {
+      const processed = await handleMembershipStripeWebhook(event)
+      return {
+        success: processed,
+        purpose: 'membership_upgrade',
+      }
+    }
+
+    case 'news_promotion':
+    default: {
+      // Legacy: also handle checkout.session.completed without explicit purpose
+      if (event.type === 'checkout.session.completed' || purpose === 'news_promotion') {
+        const processed = await handleNewsStripeWebhook(event)
+        return { success: processed, purpose: purpose || 'news_promotion' }
+      }
+      break
+    }
   }
 
+  logger.warn('Stripe webhook: unhandled event', {
+    type: event.type,
+    purpose,
+    metadata,
+  })
   return { success: true }
 }

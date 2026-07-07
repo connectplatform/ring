@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useTransition, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -44,6 +44,11 @@ export default function MyEntitiesWrapper({
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredEntities, setFilteredEntities] = useState<SerializedEntity[]>(initialEntities)
 
+  const routerRef = useRef(router)
+  routerRef.current = router
+  const startTransitionRef = useRef(startTransition)
+  startTransitionRef.current = startTransition
+
   useEffect(() => {
     setView(initialView)
   }, [initialView])
@@ -62,15 +67,20 @@ export default function MyEntitiesWrapper({
     setFilteredEntities(filtered)
   }, [initialEntities, searchQuery])
 
-  const pushView = useCallback(
-    (nextView: MyEntitiesView) => {
-      startTransition(() => setView(nextView))
-      const url = new URL(window.location.href)
-      url.searchParams.set('view', nextView)
-      router.push(url.pathname + url.search)
-    },
-    [router, startTransition],
-  )
+  const pushView = useCallback((nextView: MyEntitiesView) => {
+    startTransitionRef.current(() => setView(nextView))
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', nextView)
+    routerRef.current.push(url.pathname + url.search)
+  }, [])
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+  }, [])
+
+  const handleTabValueChange = useCallback((v: string) => {
+    pushView(v as MyEntitiesView)
+  }, [])
 
   const tabCount = (tab: MyEntitiesView) => {
     if (tab === 'store') return counts.store
@@ -113,13 +123,13 @@ export default function MyEntitiesWrapper({
           <Input
             placeholder={t('searchEntities')}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-10"
           />
         </div>
       </div>
 
-      <Tabs value={view} onValueChange={(v) => pushView(v as MyEntitiesView)}>
+      <Tabs value={view} onValueChange={handleTabValueChange}>
         <TabsList>
           {VIEW_TABS.map((tab) => (
             <TabsTrigger key={tab} value={tab}>

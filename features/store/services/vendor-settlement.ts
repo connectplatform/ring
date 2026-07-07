@@ -59,7 +59,7 @@ export const VendorSettlementService = {
         ...vs,
         status: 'completed',
         processedAt: new Date().toISOString(),
-        payoutMethod: paymentData.paymentMethod,
+        paymentMethod: paymentData.paymentMethod,
         payoutReference: `settlement_${orderId}_${vs.vendorEntityId || vs.vendorId}`,
       }))
 

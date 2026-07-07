@@ -1,5 +1,8 @@
 'use client'
 
+// TODO: Generalize product fields vars to accomodate for presets.
+// TODO: Analyze usage of this component for ring-erp and wire as needed.
+
 /**
  * Optional extended product metadata (legacy ERP / certification fields).
  * 
@@ -15,6 +18,7 @@
  */
 
 import React, { useState } from 'react'
+// TODO: Consider replacing useState with React's useOptimistic/useRef for large forms to reduce re-renders (React 19+ feature).
 import { useTranslations } from 'next-intl'
 import { ChevronDown, ChevronRight, Leaf, Award, Recycle, Calendar } from 'lucide-react'
 import { Label } from '@/components/ui/label'
@@ -32,38 +36,64 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getProductFieldsPreset } from '@/lib/ring-config-core'
 
-import ringConfig from '@/ring-config.json'
+// TODO: AnimatePresence and framer-motion work well here, but for simple show/hide with better SSR/streaming compatibility,
+// consider React 19's <Show /> native tags when available.
 
 interface NicheProductFieldsSectionProps {
   isPending?: boolean
-  existingData?: any
+  existingData?: any // TODO: Replace 'any' with a proper typescript interface for stricter typing and autocompletion.
+  /** Currently selected product category — used to show category-specific fields. */
+  category?: string
 }
 
+/**
+ * Renders the entry point for extended agricultural/niche product fields.
+ * - Checks the current product fields preset from config
+ * - Only renders AgriculturalProductFields if preset is 'platform'
+ */
 export default function NicheProductFieldsSection(props: NicheProductFieldsSectionProps) {
-  const preset = ringConfig.productFields?.preset ?? 'platform'
-  if (preset !== 'agricultural') {
-    return null
+  // Use product field preset from config to determine whether to show this section.
+  // TODO: Consider moving this logic higher (parent page) or inside getServerSideProps for SSR optimization.
+  const preset = getProductFieldsPreset()
+
+  if (preset !== 'platform') {
+    return null // Not on 'platform' preset, render nothing.
+  } else {
+    return <AgriculturalProductFields {...props} /> // Show extended fields.
   }
-  return <AgriculturalProductFields {...props} />
 }
 
-function AgriculturalProductFields({
-  isPending,
-  existingData,
-}: NicheProductFieldsSectionProps) {
+/**
+ * Displays collapsible, animated sections for various extended product metadata.
+ * - Origin & Traceability
+ * - Certifications
+ * - Sustainability
+ * - Freshness & Storage
+ * 
+ * Props:
+ *  - isPending: disables inputs when true
+ *  - existingData: initial field values (STUB: should follow a strict shape)
+ */
+function AgriculturalProductFields({ isPending, existingData }: NicheProductFieldsSectionProps) {
+  // Section expansion/collapse state
   const [expanded, setExpanded] = useState(false)
+  // Individual section toggles
   const [showOrigin, setShowOrigin] = useState(false)
   const [showCertifications, setShowCertifications] = useState(false)
   const [showSustainability, setShowSustainability] = useState(false)
   const [showFreshness, setShowFreshness] = useState(false)
+  // TODO: For accessibility, persist expanded/collapsed state in localStorage or URL query if useful.
 
   return (
     <div className="space-y-4">
-      {/* Main Toggle */}
+      {/* Main Toggle Button for the expandable section */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+        // TODO: Refactor to use React 19's <button inert> or native "open" attribute if possible once widespread.
         className={cn(
           "w-full flex items-center justify-between p-4 rounded-lg",
           "border-2 border-dashed transition-all duration-300",
@@ -85,10 +115,11 @@ function AgriculturalProductFields({
             </p>
           </div>
         </div>
+        {/* Chevron icon changes based on expanded state */}
         {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
       </button>
 
-      {/* Expandable Content */}
+      {/* Expandable content with framer-motion for smooth open/close */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -97,18 +128,22 @@ function AgriculturalProductFields({
             exit={{ opacity: 0, height: 0 }}
             className="space-y-4"
           >
-            {/* Origin & Traceability Section */}
+            {/* ---------------------- Origin & Traceability ---------------------- */}
             <Card className="border-emerald-500/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
+                  {/* Section title with icon */}
                   <div className="flex items-center gap-2">
                     <Leaf className="w-4 h-4 text-emerald-600" />
                     <CardTitle className="text-sm">Origin & Traceability</CardTitle>
                   </div>
+                  {/* Collapse/expand button */}
                   <button
                     type="button"
                     onClick={() => setShowOrigin(!showOrigin)}
                     className="text-xs text-emerald-600 hover:underline"
+                    aria-controls="origin-section"
+                    aria-expanded={showOrigin}
                   >
                     {showOrigin ? 'Hide' : 'Show'}
                   </button>
@@ -121,12 +156,14 @@ function AgriculturalProductFields({
               <AnimatePresence>
                 {showOrigin && (
                   <motion.div
+                    id="origin-section"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <CardContent className="space-y-4">
                       <div className="grid md:grid-cols-2 gap-4">
+                        {/* Harvest Date */}
                         <div className="space-y-2">
                           <Label htmlFor="harvestDate" className="text-xs">Harvest Date</Label>
                           <Input
@@ -138,7 +175,7 @@ function AgriculturalProductFields({
                             className="h-9 text-sm"
                           />
                         </div>
-                        
+                        {/* Batch Number */}
                         <div className="space-y-2">
                           <Label htmlFor="batchNumber" className="text-xs">Batch Number</Label>
                           <Input
@@ -151,7 +188,7 @@ function AgriculturalProductFields({
                           />
                         </div>
                       </div>
-
+                      {/* Farm Location */}
                       <div className="space-y-2">
                         <Label htmlFor="farmLocation" className="text-xs">Farm Address</Label>
                         <Input
@@ -169,7 +206,7 @@ function AgriculturalProductFields({
               </AnimatePresence>
             </Card>
 
-            {/* Certifications Section */}
+            {/* ---------------------- Certifications Section ---------------------- */}
             <Card className="border-emerald-500/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -177,10 +214,13 @@ function AgriculturalProductFields({
                     <Award className="w-4 h-4 text-amber-600" />
                     <CardTitle className="text-sm">Certifications</CardTitle>
                   </div>
+                  {/* Collapse/expand button */}
                   <button
                     type="button"
                     onClick={() => setShowCertifications(!showCertifications)}
                     className="text-xs text-emerald-600 hover:underline"
+                    aria-controls="certifications-section"
+                    aria-expanded={showCertifications}
                   >
                     {showCertifications ? 'Hide' : 'Show'}
                   </button>
@@ -193,12 +233,14 @@ function AgriculturalProductFields({
               <AnimatePresence>
                 {showCertifications && (
                   <motion.div
+                    id="certifications-section"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <CardContent className="space-y-4">
                       <div className="grid md:grid-cols-2 gap-4">
+                        {/* Organic Certification (dropdown/select) */}
                         <div className="space-y-2">
                           <Label htmlFor="organicCert" className="text-xs">Organic Certification</Label>
                           <Select name="organicCert" defaultValue={existingData?.certifications?.organic || 'None'}>
@@ -214,7 +256,7 @@ function AgriculturalProductFields({
                             </SelectContent>
                           </Select>
                         </div>
-                        
+                        {/* Organic Certification Number */}
                         <div className="space-y-2">
                           <Label htmlFor="organicCertNumber" className="text-xs">Cert Number</Label>
                           <Input
@@ -228,7 +270,9 @@ function AgriculturalProductFields({
                         </div>
                       </div>
 
+                      {/* Fair Trade, Locally Grown, Regenerative Agriculture */}
                       <div className="flex flex-wrap gap-4">
+                        {/* Fair Trade Switch */}
                         <div className="flex items-center space-x-2">
                           <Switch 
                             id="fairTrade" 
@@ -238,7 +282,7 @@ function AgriculturalProductFields({
                           />
                           <Label htmlFor="fairTrade" className="text-xs">Fair Trade</Label>
                         </div>
-
+                        {/* Locally Grown Switch */}
                         <div className="flex items-center space-x-2">
                           <Switch 
                             id="locallyGrown" 
@@ -248,7 +292,7 @@ function AgriculturalProductFields({
                           />
                           <Label htmlFor="locallyGrown" className="text-xs">Locally Grown (&lt;100km)</Label>
                         </div>
-
+                        {/* Regenerative Agriculture Switch */}
                         <div className="flex items-center space-x-2">
                           <Switch 
                             id="regenerative" 
@@ -265,7 +309,7 @@ function AgriculturalProductFields({
               </AnimatePresence>
             </Card>
 
-            {/* Sustainability Section */}
+            {/* ---------------------- Sustainability Section ---------------------- */}
             <Card className="border-emerald-500/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -273,10 +317,13 @@ function AgriculturalProductFields({
                     <Recycle className="w-4 h-4 text-green-600" />
                     <CardTitle className="text-sm">Sustainability</CardTitle>
                   </div>
+                  {/* Collapse/expand button */}
                   <button
                     type="button"
                     onClick={() => setShowSustainability(!showSustainability)}
                     className="text-xs text-emerald-600 hover:underline"
+                    aria-controls="sustainability-section"
+                    aria-expanded={showSustainability}
                   >
                     {showSustainability ? 'Hide' : 'Show'}
                   </button>
@@ -289,11 +336,13 @@ function AgriculturalProductFields({
               <AnimatePresence>
                 {showSustainability && (
                   <motion.div
+                    id="sustainability-section"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <CardContent className="space-y-4">
+                      {/* Packaging type */}
                       <div className="space-y-2">
                         <Label htmlFor="packaging" className="text-xs">Packaging Type</Label>
                         <Select name="packaging" defaultValue={existingData?.sustainabilityMetrics?.packaging || 'Mixed'}>
@@ -310,6 +359,7 @@ function AgriculturalProductFields({
                         </Select>
                       </div>
 
+                      {/* Carbon Negative and Renewable Energy switches */}
                       <div className="flex flex-wrap gap-4">
                         <div className="flex items-center space-x-2">
                           <Switch 
@@ -322,7 +372,6 @@ function AgriculturalProductFields({
                             Carbon Negative (+15% DAAR bonus) 🔥
                           </Label>
                         </div>
-
                         <div className="flex items-center space-x-2">
                           <Switch 
                             id="renewableEnergy" 
@@ -336,6 +385,7 @@ function AgriculturalProductFields({
                         </div>
                       </div>
 
+                      {/* Carbon & Water usage inputs */}
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="carbonFootprint" className="text-xs">Carbon Footprint (kg CO2/kg)</Label>
@@ -350,7 +400,6 @@ function AgriculturalProductFields({
                             className="h-9 text-sm"
                           />
                         </div>
-                        
                         <div className="space-y-2">
                           <Label htmlFor="waterUsage" className="text-xs">Water Usage (L/kg)</Label>
                           <Input
@@ -371,7 +420,7 @@ function AgriculturalProductFields({
               </AnimatePresence>
             </Card>
 
-            {/* Freshness Section */}
+            {/* ---------------------- Freshness Section ---------------------- */}
             <Card className="border-emerald-500/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -379,10 +428,13 @@ function AgriculturalProductFields({
                     <Calendar className="w-4 h-4 text-blue-600" />
                     <CardTitle className="text-sm">Freshness & Storage</CardTitle>
                   </div>
+                  {/* Collapse/expand button */}
                   <button
                     type="button"
                     onClick={() => setShowFreshness(!showFreshness)}
                     className="text-xs text-emerald-600 hover:underline"
+                    aria-controls="freshness-section"
+                    aria-expanded={showFreshness}
                   >
                     {showFreshness ? 'Hide' : 'Show'}
                   </button>
@@ -395,12 +447,15 @@ function AgriculturalProductFields({
               <AnimatePresence>
                 {showFreshness && (
                   <motion.div
+                    id="freshness-section"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <CardContent className="space-y-4">
+                      {/* Shelf Life & Storage Temp */}
                       <div className="grid md:grid-cols-2 gap-4">
+                        {/* Shelf Life in days */}
                         <div className="space-y-2">
                           <Label htmlFor="shelfLifeDays" className="text-xs">Shelf Life (days)</Label>
                           <Input
@@ -413,7 +468,7 @@ function AgriculturalProductFields({
                             className="h-9 text-sm"
                           />
                         </div>
-                        
+                        {/* Storage Temperature */}
                         <div className="space-y-2">
                           <Label htmlFor="storageTemp" className="text-xs">Storage Temp (°C)</Label>
                           <Input
@@ -428,7 +483,7 @@ function AgriculturalProductFields({
                           />
                         </div>
                       </div>
-
+                      {/* Storage Instructions (textarea) */}
                       <div className="space-y-2">
                         <Label htmlFor="storageInstructions" className="text-xs">Storage Instructions</Label>
                         <Textarea
@@ -441,7 +496,7 @@ function AgriculturalProductFields({
                           maxLength={200}
                         />
                       </div>
-
+                      {/* Perishable Switch */}
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="perishable" 
@@ -457,7 +512,7 @@ function AgriculturalProductFields({
               </AnimatePresence>
             </Card>
 
-            {/* Help text */}
+            {/* ---------------------- Help Text / AI Enrichment Notice ---------------------- */}
             <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/30 rounded-lg p-4">
               <p className="text-xs text-muted-foreground">
                 <span className="font-semibold text-emerald-600">💡 AI Enhancement Coming Soon:</span> In Phase 3, 
@@ -471,4 +526,3 @@ function AgriculturalProductFields({
     </div>
   )
 }
-

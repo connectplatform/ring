@@ -23,7 +23,7 @@ Ring ships a **service-token HTTP gateway** at `/api/mcp/v1/*` on each clone. Th
     Draft 480p vs production 720p, remaster workflow, CLI manifest.
   </Card>
   <Card title="Environment configuration" href="/docs/deployment/environment">
-    `RING_MCP_SERVICE_TOKENS`, image generation keys, ring-filebase storage.
+    `RING_MCP_ACCESS_KEY`, image generation keys, ring-filebase storage.
   </Card>
 </Cards>
 
@@ -53,7 +53,7 @@ Ring ships a **service-token HTTP gateway** at `/api/mcp/v1/*` on each clone. Th
 | **Per-clone operator** | `ring-mcp` → `/api/mcp/v1/*` | One white-label instance (this section) |
 | **Kingdom-wide** | `legiox-mcp`, `ringdom-mcp`, `reggie-mcp` | AI-CONTEXT, deployment, propagation across Ringdom |
 
-Ring's user-facing REST routes use **Auth.js session cookies**. The MCP gateway validates `Authorization: Bearer` against `RING_MCP_SERVICE_TOKENS` and injects a service actor — see [Ring MCP Server — Architecture](/docs/development/ring-mcp#architecture-notes).
+Ring's user-facing REST routes use **Auth.js session cookies**. The MCP gateway validates `Authorization: Bearer` against `RING_MCP_ACCESS_KEY` and injects a service actor — see [Ring MCP Server — Architecture](/docs/development/ring-mcp#architecture-notes).
 
 ## Prerequisites
 
@@ -61,8 +61,8 @@ Ring's user-facing REST routes use **Auth.js session cookies**. The MCP gateway 
 |-------------|--------|
 | Node.js 20+ | Ring Platform baseline |
 | Running Ring clone | `npm run dev` or production deploy |
-| `RING_MCP_SERVICE_TOKENS` | On the **Ring app** `.env.local` |
-| `RING_SERVICE_TOKEN` | In Cursor `.cursor/mcp.json` — must match one server token |
+| `RING_MCP_ACCESS_KEY` | On the **Ring app** `.env.local` |
+| `RING_MCP_ACCESS_KEY` | In Cursor `.cursor/mcp.json` — must match one server token |
 | `ring-mcp` registered | `AI-RING/ring-mcp/ring-mcp-server.js` in MCP client config |
 
 <Code language="bash" title="Smoke test">
@@ -71,7 +71,7 @@ npm install
 node ring-mcp-server.js --test
 
 RING_API_BASE_URL=http://localhost:3000 \\
-RING_SERVICE_TOKEN=your-token \\
+RING_MCP_ACCESS_KEY=your-token \\
 npm run smoke`}
 </Code>
 

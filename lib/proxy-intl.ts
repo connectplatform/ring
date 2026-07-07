@@ -35,7 +35,18 @@ export function isIntlSelfReferentialRedirect(
   }
 }
 
-/** Apply next-intl internal rewrite without following a self-referential redirect. */
+/**
+ * Apply next-intl internal rewrite without following a self-referential redirect.
+ *
+ * Matches next-intl v4's own `next()` pattern: forward ONLY request headers,
+ * NOT the full `NextRequest` object (whose `.nextUrl` carries the unprefixed
+ * pathname).  Passing the full request has caused regressions in Next.js 16
+ * where `params` extraction reads `intlReq.nextUrl.pathname` (no `/en/`
+ * prefix for the default locale) instead of the rewrite URL, making the
+ * `[locale]` segment empty → route unmatched → 404.
+ *
+ * @see https://github.com/amannn/next-intl/blob/v4.8.3/packages/next-intl/src/middleware/middleware.tsx
+ */
 export function applyIntlMiddlewareOutcome(
   req: NextRequest,
   intlResponse: NextResponse,
@@ -43,7 +54,11 @@ export function applyIntlMiddlewareOutcome(
   const rewritePath = intlResponse.headers.get('x-middleware-rewrite')
   if (rewritePath) {
     const rewriteUrl = new URL(rewritePath, req.nextUrl)
-    const response = NextResponse.rewrite(rewriteUrl, { request: req })
+    // next-intl passes `{ headers }` — not a full Request.  Doing so avoids
+    // Next.js 16 route‑param extraction reading the source URL.
+    const response = NextResponse.rewrite(rewriteUrl, {
+      request: { headers: req.headers },
+    })
     intlResponse.headers.forEach((value, key) => {
       if (key === 'location' || key === 'x-middleware-rewrite') return
       response.headers.set(key, value)
@@ -122,6 +137,8 @@ export function stampPathHeadersOnResponse(
 /** Forward the request with path headers (request + response) for layouts reading `headers()`. */
 export function nextWithPathHeaders(req: NextRequest, intlReq?: NextRequest): NextResponse {
   const request = intlReq ?? withUpstreamPathHeaders(req)
+  // `next()` is a passthrough (URL unchanged) so no locale-prefix mismatch.
+  // Pass the full NextRequest — headers carry x-pathname/x-url.
   return stampPathHeadersOnResponse(NextResponse.next({ request }), req)
 }
 

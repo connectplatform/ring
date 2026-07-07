@@ -41,7 +41,7 @@ interface AutoSaveState {
   lastSaved?: string
 }
 
-// Auto-save action (mock for now - to be implemented with actual API)
+// Auto-save action - saves draft content via PUT /api/news/[id]
 async function autoSaveAction(
   prevState: AutoSaveState | null,
   formData: FormData
@@ -54,22 +54,24 @@ async function autoSaveAction(
   }
 
   try {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // TODO: Replace with actual API call to save draft
-    // const response = await fetch(`/api/news/${articleId}/auto-save`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ content })
-    // })
+    const response = await fetch(`/api/news/${articleId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      return { error: result.error || 'Auto-save failed' }
+    }
 
     return {
       success: true,
-      lastSaved: new Date().toLocaleTimeString()
+      lastSaved: new Date().toLocaleTimeString(),
     }
   } catch (error) {
-    return { error: 'Auto-save failed' }
+    return { error: 'Auto-save failed - connection error' }
   }
 }
 
@@ -190,14 +192,29 @@ export function RichTextEditor({
     paste_webkit_styles: 'font-weight font-style color text-decoration',
     paste_retain_style_properties: 'font-weight font-style color text-decoration',
     image_upload_handler: async (blobInfo: any) => {
-      // TODO: Implement actual image upload to Vercel Blob or your storage
-      return new Promise<string>((resolve, reject) => {
-        // Mock upload - replace with actual implementation
-        setTimeout(() => {
-          const mockUrl = URL.createObjectURL(blobInfo.blob())
-          resolve(mockUrl)
-        }, 1000)
+      const blob = blobInfo.blob()
+      const file = new File([blob], blobInfo.filename() || 'image.png', {
+        type: blob.type || 'image/png',
       })
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/entities/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Upload failed' }))
+        throw new Error(err.error || `Upload failed with status ${response.status}`)
+      }
+
+      const result = await response.json()
+      if (!result.success || !result.url) {
+        throw new Error(result.error || 'Upload returned no URL')
+      }
+
+      return result.url
     },
     automatic_uploads: true,
     file_picker_types: 'image',

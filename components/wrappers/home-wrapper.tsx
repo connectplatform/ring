@@ -1,6 +1,6 @@
 'use client'
 
-import React, { Suspense } from 'react'
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -9,7 +9,7 @@ import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { CONNECT_SOFTWARE_LINKS } from '@/lib/constants/connect-software-urls'
 import { BookOpen, Briefcase, Building2 } from 'lucide-react'
-import HomeContent from '@/components/common/pages/home'
+import HomeContent from '@/components/pages/home'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { DavinciRailLink, DavinciGlassStatBlock } from '@/lib/ui/davinci'
@@ -183,6 +183,62 @@ export default function HomeWrapper() {
   const currentLocale = useLocale()
   const locale = currentLocale as Locale
 
+  /* ── Dynamic right-rail collapse ── */
+  const desktopRef = useRef<HTMLDivElement>(null)
+  const [hideRail, setHideRail] = useState(false)
+  const maxWidthRef = useRef(0)
+  const isCollapsedRef = useRef(false)
+
+  /**
+   * Stable resize handler — refs replace state deps so useCallback has zero deps.
+   * Hysteresis: hide at 50%, show at 65% of max center-pane width.
+   */
+  const handleRailResize = useCallback((entries: ResizeObserverEntry[]) => {
+    for (const entry of entries) {
+      const w = entry.contentRect.width
+      if (w <= 0) continue
+
+      /* Track the maximum container width ever observed */
+      if (w > maxWidthRef.current) {
+        maxWidthRef.current = w
+      }
+
+      const maxW = maxWidthRef.current
+      if (maxW <= 320) continue
+
+      /*
+       * Center-pane width = container width − 320px right-rail.
+       * Hide rail when center < 50% of max center:
+       *   w − 320 < 0.50 × (maxW − 320)  →  w < 0.50 × maxW + 160
+       * Show rail when center > 65% of max center (hysteresis):
+       *   w − 320 > 0.65 × (maxW − 320)  →  w > 0.65 × maxW + 112
+       */
+      if (isCollapsedRef.current) {
+        if (w > 0.65 * maxW + 112) {
+          isCollapsedRef.current = false
+          setHideRail(false)
+        }
+      } else {
+        if (w < 0.50 * maxW + 160) {
+          isCollapsedRef.current = true
+          setHideRail(true)
+        }
+      }
+    }
+    // setHideRail is stable (React guarantees useState setter identity)
+    // Refs (maxWidthRef, isCollapsedRef) bypass closure staleness
+    // → zero deps, created once
+  }, [])
+
+  useEffect(() => {
+    const el = desktopRef.current
+    if (!el) return
+
+    const observer = new ResizeObserver(handleRailResize)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [handleRailResize])
+
   return (
     <div className="min-h-full text-foreground relative transition-colors duration-300">
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
@@ -190,17 +246,27 @@ export default function HomeWrapper() {
         <Link href="/terms">Terms of Service</Link>
       </div>
 
-      <div className="hidden min-h-full gap-0 lg:grid lg:grid-cols-[minmax(0,1fr)_320px]" key={`desktop-${currentLocale}`}>
+      {/* ── DESKTOP (right rail collapses dynamically) ── */}
+      <div
+        ref={desktopRef}
+        key={`desktop-${currentLocale}`}
+        className={cn(
+          'hidden min-h-full gap-0 lg:grid',
+          hideRail ? 'lg:grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_320px]',
+        )}
+      >
         <div className="ring-content-panel ring-content-panel-flush min-w-0">
           <Suspense fallback={<LoadingFallback />}>
             <HomeContent key={`home-content-${currentLocale}`} session={session} />
           </Suspense>
         </div>
-        <div className="ring-right-rail self-stretch min-h-0 pt-4 pr-3">
-          <RightSidebar key={`right-sidebar-${currentLocale}`} sticky={false} className="h-full max-h-none">
-            <HomeRightRail locale={locale} />
-          </RightSidebar>
-        </div>
+        {!hideRail && (
+          <div className="ring-right-rail self-stretch min-h-0 pt-4 pr-3">
+            <RightSidebar key={`right-sidebar-${currentLocale}`} sticky={false} className="h-full max-h-none">
+              <HomeRightRail locale={locale} />
+            </RightSidebar>
+          </div>
+        )}
       </div>
 
       <div className="hidden min-h-full md:block lg:hidden" key={`ipad-${currentLocale}`}>

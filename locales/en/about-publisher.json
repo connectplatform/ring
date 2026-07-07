@@ -57,22 +57,22 @@
       },
       "stories": {
         "title": "Success Stories",
-        "agricultural": {
-          "name": "Ukrainian Agricultural Cooperative",
-          "description": "50 farms, 87% efficiency improvement, €2.3M annual value"
+        "story1": {
+          "name": "GreenFood Organic Food Marketplace",
+          "description": "Multi-vendor marketplace for organic food products, with DAAR native crypto currency, vendor ERP system with zero warehouse"
         },
-        "marketplace": {
-          "name": "Kenyan Artisan Marketplace",
-          "description": "200 artisans, $50K monthly revenue, international reach"
+        "story2": {
+          "name": "SubiWorx Auto Parts Marketplace",
+          "description": "Independent network of Subaru enthusiasts, with opportunity feed for custom builds, used cars and parts listings and chat"
         },
-        "medical": {
-          "name": "European Medical Network",
-          "description": "300 hospitals, €15M equipment value unlocked"
+        "story3": {
+          "name": "Pet Friend App",
+          "description": "Pet-friendly app for finding and sharing places, events, and promotions, with chat by pet-friendly maps"
         }
       },
       "democratization": {
-        "title": "Technology Democratization",
-        "description": "Ring doesn't just give communities technology - it gives them technological sovereignty. The ability to evolve their platforms based on their own needs, not corporate roadmaps."
+        "title": "Sovereignty by Technology",
+        "description": "Ring gives communities technological independence: ability to evolve their platforms based on their own needs, not global corporate roadmaps. Ring is a global platform for all the locals, built by the locals."
       }
     },
     "future": {

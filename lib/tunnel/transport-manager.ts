@@ -242,20 +242,33 @@ export class TunnelTransportManager implements TunnelTransport {
     // Set up event forwarding before connecting
     this.setupEventForwarding(transport);
 
-    // Attempt connection
-    await transport.connect(providerOptions);
-
-    // Verify connection
-    if (!transport.isConnected()) {
-      throw new Error(`Transport connected but not in connected state: ${provider}`);
-    }
-
-    // Success - save transport
+    // Save previous provider for switch detection
     const previousProvider = this.currentProvider;
+
+    // Assign currentTransport BEFORE transport.connect() so the 'connect'
+    // event handler (fired synchronously during WebSocket auth_ok) never
+    // finds currentTransport null — preventing the 'Not connected' race on
+    // manager.subscribe(). WebSocketTransport's subscribe() already queues
+    // channels gracefully when called before connection is complete.
     this.currentTransport = transport;
     this.currentProvider = provider;
 
-    // Restore subscriptions
+    try {
+      // Attempt connection
+      await transport.connect(providerOptions);
+
+      // Verify connection
+      if (!transport.isConnected()) {
+        throw new Error(`Transport connected but not in connected state: ${provider}`);
+      }
+    } catch (error) {
+      // Rollback — transport failed to connect
+      this.currentTransport = null;
+      this.currentProvider = previousProvider || null;
+      throw error;
+    }
+
+    // Restore subscriptions (transport is connected now)
     await this.restoreSubscriptions();
 
     // Emit transport switch event if provider changed

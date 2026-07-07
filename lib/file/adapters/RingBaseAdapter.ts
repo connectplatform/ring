@@ -15,14 +15,19 @@ export class RingBaseAdapter implements IFileService {
     try {
       const formData = new FormData();
 
-      // Convert Buffer to File if needed
-      const fileToUpload: File = file instanceof Buffer
-        ? new File([new Uint8Array(file)], filename, {
-          type: options.contentType || 'application/octet-stream'
+      // Convert Buffer to a Blob-backed FormData entry.
+      // Using `new File([Uint8Array])` triggers `stream.isDisturbed is not a function`
+      // in Node 25 / undici 7+ when fetch serializes the FormData body. A plain
+      // Blob part with an explicit filename (3rd arg of append) avoids the
+      // stream-Readability check entirely while still emitting a valid
+      // `filename="..."` header for the multipart upload.
+      const fileToUpload: File | Blob = file instanceof Buffer
+        ? new Blob([new Uint8Array(file)], {
+            type: options.contentType || 'application/octet-stream',
           })
-        : file as File;
+        : (file as File);
 
-      formData.append('file', fileToUpload);
+      formData.append('file', fileToUpload, filename);
       formData.append('type', options.access === 'private' ? 'document' : 'media');
 
       if (options.metadata) {

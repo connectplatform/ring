@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
@@ -61,6 +61,14 @@ export default function EntitiesWrapper({
     setMounted(true)
   }, [])
 
+  const closeRail = useCallback(() => setRightSidebarOpen(false), [])
+  const retryReload = useCallback(() => window.location.reload(), [])
+
+  const rightRail = useMemo(
+    () => <EntitiesBrowseRail locale={locale} onNavigate={closeRail} />,
+    [locale, closeRail],
+  )
+
   useEffect(() => {
     if (!mounted) return
 
@@ -93,7 +101,7 @@ export default function EntitiesWrapper({
         showProgress={true}
         description={t('loadingDirectory')}
         retryEnabled={true}
-        onRetry={() => window.location.reload()}
+        onRetry={retryReload}
       >
         <EntitiesContent
           initialEntities={entities}
@@ -117,9 +125,7 @@ export default function EntitiesWrapper({
         flushCenterPane
         isOpen={rightSidebarOpen}
         onToggle={setRightSidebarOpen}
-        rightRail={
-          <EntitiesBrowseRail locale={locale} onNavigate={() => setRightSidebarOpen(false)} />
-        }
+        rightRail={rightRail}
       >
         {listContent}
       </RingRightRailLayout>

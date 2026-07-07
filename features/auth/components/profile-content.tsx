@@ -27,37 +27,35 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter, usePathname, routing } from '@/i18n/routing'
+import dynamic from 'next/dynamic'
+import { useRouter } from '@/i18n/routing'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
-import { useTheme } from 'next-themes'
-import { setThemeWithTransition } from '@/lib/theme/ring-theme-transition'
+import { cn } from '@/lib/utils'
 import { ProfileContentProps } from '@/types/profile'
-import { LanguageSwitcher } from '@/components/common/language-switcher'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import CountrySelect from '@/components/ui/country-select'
-import TimezoneSelect from '@/components/ui/timezone-select'
-import { useFormStatus } from 'react-dom'
-import { useActionState } from 'react'
-import { UserRole, KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
+import {
+  BorderBeam,
+  davinciGlassSurface,
+  davinciBeamInnerSurface,
+  davinciAuthButtonLift,
+  davinciTerminalSurface,
+  HeroAmbient,
+} from '@/lib/ui/davinci'
+import { KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
+import { UserRolesArray } from '@/features/auth/user-role'
 import WalletSection from '@/features/wallet/components/wallet-section'
 import ProfileAccountTokenWidgets from '@/features/wallet/components/profile-account-token-widgets'
 import { useAuth } from '@/hooks/use-auth'
 import { useSession } from 'next-auth/react'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { ROUTES } from '@/constants/routes'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
@@ -65,74 +63,54 @@ import ProfileNavRail from '@/components/profile/profile-nav-rail'
 import {
   User,
   Mail,
-  Wallet,
   Shield,
   Calendar,
   Edit2,
-  Save,
   AlertCircle,
-  Camera,
-  Upload,
-  FileText,
   CheckCircle,
-  XCircle,
   X,
-  Clock,
   Settings,
-  CreditCard,
   Building,
-  Eye,
-  Download,
-  Phone,
-  Globe,
   MapPin,
-  Briefcase,
-  Star,
   Award,
-  Target,
   LogOut,
-  Bell,
+  Sparkles,
+  Wallet,
   Lock,
-  Zap,
-  MessageSquare,
-  Linkedin,
-  Twitter,
-  Facebook,
-  Send,
-  Languages,
-  Users,
-  TrendingUp,
-  Activity,
   Monitor,
   Smartphone,
-  Search,
-  Heart,
-  BookOpen,
-  Sparkles,
-  Moon,
-  Sun
+  Download,
+  Briefcase,
+  MessageSquare,
+  Send,
+  Phone,
+  Globe,
+  Layout,
+  Info,
+  Coins,
+  Medal,
 } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import BioEditModal from './bio-edit-modal'
+import SetUsernameModal from './set-username-modal'
+import TimezoneSelectorModal from './timezone-selector-modal'
+const LocationMapModal = dynamic(
+  () => import('./location-map-modal'),
+  { ssr: false }
+)
+import TelegramLinkingModal from './telegram-linking-modal'
+import { SessionForensicsWidget } from './session-forensics-widget'
+import { UserProgressWidget } from './user-progress-widget'
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  const t = useTranslations('modules.profile')
-  
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? (
-        <>
-          <Save className="mr-2 h-4 w-4 animate-spin" />
-          {t('saving')}
-        </>
-      ) : (
-        <>
-          <Save className="mr-2 h-4 w-4" />
-          {t('save')}
-        </>
-      )}
-    </Button>
-  )
-}
+// TODO: Refactor for React 19 and Next.js 15/16 codemods:
+// - Consider switching to useOptimistic for profile update flows
+// - Use useEffectEvent for effect event callback ref stability
+// - Move some sections to Server Components for partial render optimization (where server side data fetch is best, e.g. wallet/widgets)
+// - Use Server Actions for saving profile/bio changes, etc.
+// - Reduce unnecessary effects with useDeferredValue/useTransition for transitions
+// - If context: consider useContextSelector for opt-in fine-grained context update (where needed)
 
 export default function ProfileContent({ 
   initialUser, 
@@ -142,20 +120,22 @@ export default function ProfileContent({
   session,
   updateProfile 
 }: ProfileContentProps) {
+  // Locales, translations, context hooks
   const locale = useLocale() as Locale
   const t = useTranslations('modules.profile')
-  const tCommon = useTranslations('common')
   const router = useRouter()
-  const pathname = usePathname()
+  const creditBalance = useCreditBalanceContext()
   const { getKycStatus, refreshSession, signOut } = useAuth()
-  const { update: updateSession } = useSession()
-  const { setTheme, theme } = useTheme()
+  const { update: updateSession } = useSession() // TODO: Consider React 19 cache API and server-initiated data
   const [isEditing, setIsEditing] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
+  // Priority: initialUser (preferred, freshly fetched) > session user
   const user = initialUser || session?.user
+  // Current user's KYC status - always from auth context for up-to-date info
   const kycStatus = getKycStatus()
+  // State for holding user's KYC (Know Your Customer) verification procedure
   const [verificationProcedure, setVerificationProcedure] = useState<{
     procedureNumber: string
     status: string
@@ -168,6 +148,10 @@ export default function ProfileContent({
     }>
   } | null>(null)
 
+  /**
+   * Map backend KYC verification procedure status to user-facing KYCStatus enum
+   * Ensures UI-consistent representation regardless of underlying string value
+   */
   const mapProcedureStatusToKyc = (status?: string): KYCStatus => {
     switch (status) {
       case 'submitted':
@@ -181,10 +165,14 @@ export default function ProfileContent({
       case 'expired':
         return KYCStatus.EXPIRED
       default:
-        return kycStatus as KYCStatus
+        return kycStatus as KYCStatus // fallback to current context value
     }
   }
 
+  /**
+   * Fetch (GET) current user's verification procedure for KYC from API,
+   * and update local state on success. Memoized with useCallback.
+   */
   const loadVerificationProcedure = useCallback(async () => {
     try {
       const response = await fetch('/api/verification/procedures/me?subjectType=user_kyc')
@@ -193,279 +181,72 @@ export default function ProfileContent({
         setVerificationProcedure(result.procedure)
       }
     } catch (error) {
+      // TODO: Expose fetch errors with UI for support/debug (for now, console only)
       console.error('Failed to load verification procedure:', error)
     }
   }, [])
 
+  /**
+   * Effect: Whenever switching to 'verification' tab, load latest procedure info.
+   */
   useEffect(() => {
     if (activeTab === 'verification') {
       void loadVerificationProcedure()
     }
   }, [activeTab, loadVerificationProcedure])
 
+  // Track UI mounting (for hydration safety and to SSR-safe render only after client)
   const [mounted, setMounted] = useState(false)
+  // Track state of profile menu sidebar for mobile/desktop
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
-  const [isEditingSection, setIsEditingSection] = useState(false)
-  const [usernameMode, setUsernameMode] = useState<'view' | 'edit' | 'checking'>('view')
-  const [usernameValue, setUsernameValue] = useState(user?.username || '')
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
-  const [usernameError, setUsernameError] = useState<string | null>(null)
-  
-  const [state, formAction] = useActionState(updateProfile, {
-    success: false,
-    message: ''
-  })
-
-  // Form state management for tracking unsaved changes
-  const [communicationsForm, setCommunicationsForm] = useState({
-    telegramUsername: (user as any)?.communication?.telegramUsername || '',
-    whatsappNumber: (user as any)?.communication?.whatsappNumber || '',
-    preferredContactMethod: (user as any)?.communication?.preferredContactMethod || 'email',
-    country: (user as any)?.cultural?.country || '',
-    timezone: (user as any)?.cultural?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-  })
-
-  const [professionalForm, setProfessionalForm] = useState({
-    organization: (user as any)?.organization || '',
-    position: (user as any)?.position || '',
-    bio: (user as any)?.bio || '',
-    linkedin: (user as any)?.integrations?.socialProfiles?.linkedin || '',
-    twitter: (user as any)?.integrations?.socialProfiles?.twitter || '',
-    facebook: (user as any)?.integrations?.socialProfiles?.facebook || '',
-    skills: (user as any)?.skills || []
-  })
-
-  const [privacyForm, setPrivacyForm] = useState({
-    analyticsConsent: (user as any)?.privacy?.dataSharingConsent?.analytics || false,
-    personalizationConsent: (user as any)?.privacy?.dataSharingConsent?.personalization || false,
-    anonymizedResearchConsent: (user as any)?.privacy?.anonymizedResearchConsent || false,
-    marketingCommunications: (user as any)?.privacy?.contactPreferences?.marketing || false,
-    opportunitiesNotifications: (user as any)?.privacy?.contactPreferences?.opportunities || false
-  })
-
-  const [preferencesForm, setPreferencesForm] = useState({
-    emailNotifications: user?.notificationPreferences?.email || false,
-    inAppNotifications: user?.notificationPreferences?.inApp || false,
-    smsNotifications: user?.notificationPreferences?.sms || false,
-    notificationFrequency: (user as any)?.experience?.notificationSettings?.frequency || 'immediate',
-    aiMatchingEnabled: (user?.settings as any)?.aiMatching?.enabled || false,
-    minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
-    maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
-    autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
-    preferredLanguage: (user as any)?.experience?.uiCustomizations?.language || 'en',
-    compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
-  })
-
-  // Language switching functionality
-  const switchLocale = useCallback((newLocale: string) => {
-    localStorage.setItem('ring-locale', newLocale)
-    document.cookie = `ring-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-
-    // pathname from @/i18n/routing already strips the locale prefix correctly.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    router.push(pathname as any, { locale: newLocale as any, scroll: false })
-  }, [router, pathname])
-
-  // Check if there are unsaved changes
-  const hasCommunicationsChanges = JSON.stringify(communicationsForm) !== JSON.stringify({
-    telegramUsername: (user as any)?.communication?.telegramUsername || '',
-    whatsappNumber: (user as any)?.communication?.whatsappNumber || '',
-    preferredContactMethod: (user as any)?.communication?.preferredContactMethod || 'email',
-    country: (user as any)?.cultural?.country || '',
-    timezone: (user as any)?.cultural?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-  })
-
-  // Save functions for each section
-  const saveCommunications = async () => {
-    setCommunicationsSaving(true)
-    try {
-      const formData = new FormData()
-      formData.append('userId', user?.id || '')
-      formData.append('communication', JSON.stringify({
-        telegramUsername: communicationsForm.telegramUsername,
-        whatsappNumber: communicationsForm.whatsappNumber,
-        preferredContactMethod: communicationsForm.preferredContactMethod
-      }))
-      formData.append('cultural', JSON.stringify({
-        country: communicationsForm.country,
-        timezone: communicationsForm.timezone
-      }))
-
-      const result = await updateProfile({ success: false, message: '' }, formData)
-      if (result.success) {
-        // Reset form state to match saved data
-        setCommunicationsForm(prev => prev)
-        setSaveMessage({ type: 'success', message: 'Communication settings saved successfully!' })
-        router.refresh()
-      } else {
-        setSaveMessage({ type: 'error', message: result.message || 'Failed to save communication settings' })
-      }
-      return result
-    } catch (error) {
-      setSaveMessage({ type: 'error', message: 'Network error occurred while saving' })
-      throw error
-    } finally {
-      setCommunicationsSaving(false)
-    }
-  }
-
-  const saveProfessional = async () => {
-    setProfessionalSaving(true)
-    try {
-      const formData = new FormData()
-      formData.append('userId', user?.id || '')
-      formData.append('organization', professionalForm.organization)
-      formData.append('position', professionalForm.position)
-      formData.append('bio', professionalForm.bio)
-      formData.append('integrations', JSON.stringify({
-        socialProfiles: {
-          linkedin: professionalForm.linkedin,
-          twitter: professionalForm.twitter,
-          facebook: professionalForm.facebook
-        }
-      }))
-      formData.append('skills', JSON.stringify(professionalForm.skills))
-
-      const result = await updateProfile({ success: false, message: '' }, formData)
-      if (result.success) {
-        setProfessionalForm(prev => prev)
-        setSaveMessage({ type: 'success', message: 'Professional profile saved successfully!' })
-        router.refresh()
-      } else {
-        setSaveMessage({ type: 'error', message: result.message || 'Failed to save professional profile' })
-      }
-      return result
-    } catch (error) {
-      setSaveMessage({ type: 'error', message: 'Network error occurred while saving' })
-      throw error
-    } finally {
-      setProfessionalSaving(false)
-    }
-  }
-
-  const savePrivacy = async () => {
-    setPrivacySaving(true)
-    try {
-      const formData = new FormData()
-      formData.append('userId', user?.id || '')
-      formData.append('privacy', JSON.stringify({
-        dataSharingConsent: {
-          analytics: privacyForm.analyticsConsent,
-          personalization: privacyForm.personalizationConsent
-        },
-        anonymizedResearchConsent: privacyForm.anonymizedResearchConsent,
-        contactPreferences: {
-          marketing: privacyForm.marketingCommunications,
-          opportunities: privacyForm.opportunitiesNotifications
-        }
-      }))
-
-      const result = await updateProfile({ success: false, message: '' }, formData)
-      if (result.success) {
-        setPrivacyForm(prev => prev)
-        setSaveMessage({ type: 'success', message: 'Privacy settings saved successfully!' })
-        router.refresh()
-      } else {
-        setSaveMessage({ type: 'error', message: result.message || 'Failed to save privacy settings' })
-      }
-      return result
-    } catch (error) {
-      setSaveMessage({ type: 'error', message: 'Network error occurred while saving' })
-      throw error
-    } finally {
-      setPrivacySaving(false)
-    }
-  }
-
-  const savePreferences = async () => {
-    setPreferencesSaving(true)
-    try {
-      const formData = new FormData()
-      formData.append('userId', user?.id || '')
-      formData.append('notificationPreferences', JSON.stringify({
-        email: preferencesForm.emailNotifications,
-        inApp: preferencesForm.inAppNotifications,
-        sms: preferencesForm.smsNotifications
-      }))
-      formData.append('experience', JSON.stringify({
-        notificationSettings: {
-          frequency: preferencesForm.notificationFrequency
-        },
-        uiCustomizations: {
-          compactView: preferencesForm.compactView
-        }
-      }))
-      formData.append('settings', JSON.stringify({
-        aiMatching: {
-          enabled: preferencesForm.aiMatchingEnabled,
-          minMatchScore: parseInt(preferencesForm.minMatchScore),
-          maxMatchesPerDay: parseInt(preferencesForm.maxMatchesPerDay),
-          autoFillSuggestions: preferencesForm.autoFillSuggestions
-        }
-      }))
-
-      const result = await updateProfile({ success: false, message: '' }, formData)
-      if (result.success) {
-        setPreferencesForm(prev => prev)
-        setSaveMessage({ type: 'success', message: 'Preferences saved successfully!' })
-        router.refresh()
-      } else {
-        setSaveMessage({ type: 'error', message: result.message || 'Failed to save preferences' })
-      }
-      return result
-    } catch (error) {
-      setSaveMessage({ type: 'error', message: 'Network error occurred while saving' })
-      throw error
-    } finally {
-      setPreferencesSaving(false)
-    }
-  }
-
-  const hasProfessionalChanges = JSON.stringify(professionalForm) !== JSON.stringify({
-    organization: (user as any)?.organization || '',
-    position: (user as any)?.position || '',
-    bio: (user as any)?.bio || '',
-    linkedin: (user as any)?.integrations?.socialProfiles?.linkedin || '',
-    twitter: (user as any)?.integrations?.socialProfiles?.twitter || '',
-    facebook: (user as any)?.integrations?.socialProfiles?.facebook || '',
-    skills: (user as any)?.skills || []
-  })
-
-  const hasPrivacyChanges = JSON.stringify(privacyForm) !== JSON.stringify({
-    analyticsConsent: (user as any)?.privacy?.dataSharingConsent?.analytics || false,
-    personalizationConsent: (user as any)?.privacy?.dataSharingConsent?.personalization || false,
-    anonymizedResearchConsent: (user as any)?.privacy?.anonymizedResearchConsent || false,
-    marketingCommunications: (user as any)?.privacy?.contactPreferences?.marketing || false,
-    opportunitiesNotifications: (user as any)?.privacy?.contactPreferences?.opportunities || false
-  })
-
-  const hasPreferencesChanges = JSON.stringify(preferencesForm) !== JSON.stringify({
-    emailNotifications: user?.notificationPreferences?.email || false,
-    inAppNotifications: user?.notificationPreferences?.inApp || false,
-    smsNotifications: user?.notificationPreferences?.sms || false,
-    notificationFrequency: (user as any)?.experience?.notificationSettings?.frequency || 'immediate',
-    aiMatchingEnabled: (user?.settings as any)?.aiMatching?.enabled || false,
-    minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
-    maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
-    autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
-    compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
-  })
-
-  const hasUnsavedChanges = hasCommunicationsChanges || hasProfessionalChanges || hasPrivacyChanges || hasPreferencesChanges
-
-  // Loading and feedback states
-  const [communicationsSaving, setCommunicationsSaving] = useState(false)
-  const [professionalSaving, setProfessionalSaving] = useState(false)
-  const [privacySaving, setPrivacySaving] = useState(false)
-  const [preferencesSaving, setPreferencesSaving] = useState(false)
-
+  // User-facing notification banner state (success/error)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
+  // Modal open states (each managed individually)
+  const [bioEditModalOpen, setBioEditModalOpen] = useState(false)
+  const [setUsernameModalOpen, setSetUsernameModalOpen] = useState(false)
+  const [timezoneModalOpen, setTimezoneModalOpen] = useState(false)
+  const [locationModalOpen, setLocationModalOpen] = useState(false)
+  const [telegramLinking, setTelegramLinking] = useState(false)
+
+  // Security/session forensics: list of recent authentication sessions
+  const [forensicsEntries, setForensicsEntries] = useState<any[]>([])
+  const [forensicsLoading, setForensicsLoading] = useState(false)
+
+  /**
+   * Effect: When security tab is opened and entries not loaded yet, fetch session forensics
+   * Loads via dynamic import for code splitting (_actions/session-forensics)
+   */
+  useEffect(() => {
+    if (activeTab === 'security' && forensicsEntries.length === 0) {
+      setForensicsLoading(true)
+      import('@/app/_actions/session-forensics')
+        .then((m) => m.getSessionForensics())
+        .then((data) => setForensicsEntries(data))
+        .catch(() => {}) // TODO: Show error banner for auth/session forensics errors
+        .finally(() => setForensicsLoading(false))
+    }
+  }, [activeTab, forensicsEntries.length])
+
+  /**
+   * Phone formatting utility (e.g. "+1 310 555 0123"). Falls back to original on parse fail.
+   */
+  const formatPhone = (phone: string): string => {
+    try {
+      const parsed = parsePhoneNumberFromString(phone)
+      if (parsed && parsed.isValid()) return parsed.formatInternational()
+      return phone
+    } catch {
+      return phone
+    }
+  }
+
+  // On mount, set hydrated flag
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Clear save message after 3 seconds
+  // Show save message for 3s then auto-clear
   useEffect(() => {
     if (saveMessage) {
       const timer = setTimeout(() => setSaveMessage(null), 3000)
@@ -473,112 +254,9 @@ export default function ProfileContent({
     }
   }, [saveMessage])
 
-  // Auto-enable editing for non-overview tabs on mobile
-  useEffect(() => {
-    if (activeTab !== 'overview' && activeTab !== 'wallet' && activeTab !== 'security') {
-      setIsEditingSection(true)
-    } else {
-      setIsEditingSection(false)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (state?.success) {
-      setIsEditing(false)
-      router.refresh()
-    }
-  }, [state?.success, router])
-
-  useEffect(() => {
-    setUsernameValue(user?.username || '')
-  }, [user?.username])
-
-  // Sync all form states when user data changes (e.g., after router.refresh())
-  // This is critical because useState initializers only run once on mount
-  useEffect(() => {
-    // Sync communications form
-    setCommunicationsForm({
-      telegramUsername: (user as any)?.communication?.telegramUsername || '',
-      whatsappNumber: (user as any)?.communication?.whatsappNumber || '',
-      preferredContactMethod: (user as any)?.communication?.preferredContactMethod || 'email',
-      country: (user as any)?.cultural?.country || '',
-      timezone: (user as any)?.cultural?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-    })
-    
-    // Sync professional form
-    setProfessionalForm({
-      organization: (user as any)?.organization || '',
-      position: (user as any)?.position || '',
-      bio: (user as any)?.bio || '',
-      linkedin: (user as any)?.integrations?.socialProfiles?.linkedin || '',
-      twitter: (user as any)?.integrations?.socialProfiles?.twitter || '',
-      facebook: (user as any)?.integrations?.socialProfiles?.facebook || '',
-      skills: (user as any)?.skills || []
-    })
-    
-    // Sync privacy form
-    setPrivacyForm({
-      analyticsConsent: (user as any)?.privacy?.dataSharingConsent?.analytics || false,
-      personalizationConsent: (user as any)?.privacy?.dataSharingConsent?.personalization || false,
-      anonymizedResearchConsent: (user as any)?.privacy?.anonymizedResearchConsent || false,
-      marketingCommunications: (user as any)?.privacy?.contactPreferences?.marketing || false,
-      opportunitiesNotifications: (user as any)?.privacy?.contactPreferences?.opportunities || false
-    })
-    
-    // Sync preferences form
-    setPreferencesForm({
-      emailNotifications: user?.notificationPreferences?.email || false,
-      inAppNotifications: user?.notificationPreferences?.inApp || false,
-      smsNotifications: user?.notificationPreferences?.sms || false,
-      notificationFrequency: (user as any)?.experience?.notificationSettings?.frequency || 'immediate',
-      aiMatchingEnabled: (user?.settings as any)?.aiMatching?.enabled || false,
-      minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
-      maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
-      autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
-      preferredLanguage: (user as any)?.experience?.uiCustomizations?.language || locale,
-      compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
-    })
-  }, [user, locale])
-
-  // Check username availability
-  const checkUsernameAvailability = async (username: string) => {
-    if (!username || username.length < 3) {
-      setUsernameError(t('usernameMinLength'))
-      setUsernameAvailable(false)
-      return
-    }
-
-    // Check for invalid characters
-    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-      setUsernameError(t('usernameInvalidChars'))
-      setUsernameAvailable(false)
-      return
-    }
-
-    setUsernameMode('checking')
-    setUsernameError(null)
-    setUsernameAvailable(null)
-
-    try {
-      const response = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`)
-      const result = await response.json()
-
-      if (result.available) {
-        setUsernameAvailable(true)
-        setUsernameError(null)
-      } else {
-        setUsernameAvailable(false)
-        setUsernameError(result.error || t('usernameTaken'))
-      }
-    } catch (error) {
-      setUsernameError(t('usernameCheckFailed'))
-      setUsernameAvailable(false)
-    } finally {
-      setUsernameMode('edit')
-    }
-  }
-
-  // Handle avatar upload
+  /**
+   * Upload a new avatar image for the user. Handles file upload and UI feedback.
+   */
   const handleAvatarUpload = async (file: File) => {
     setAvatarUploading(true)
     setUploadError(null)
@@ -609,9 +287,16 @@ export default function ProfileContent({
     }
   }
 
-  // Handle KYC document upload
+  /**
+   * Upload and attach a KYC document for identity verification
+   * 1. Start the verification procedure (POST)
+   * 2. Upload document binary
+   * 3. Attach document to procedure (POST) 
+   * 4. Refresh procedure and session state
+   */
   const handleKYCDocumentUpload = async (document: { type: KYCDocumentType; file: File }) => {
     try {
+      // Step 1: Bootstrap procedure
       const bootstrap = await fetch('/api/verification/procedures/me?subjectType=user_kyc', {
         method: 'POST',
       })
@@ -622,6 +307,7 @@ export default function ProfileContent({
 
       const procedureNumber = bootstrapResult.procedure.procedureNumber as string
 
+      // Step 2: Upload document file
       const formData = new FormData()
       formData.append('file', document.file)
       formData.append('type', 'kyc')
@@ -640,6 +326,7 @@ export default function ProfileContent({
         throw new Error(uploadResult.error || 'Upload failed')
       }
 
+      // Step 3: Attach to procedure
       const attachResponse = await fetch(
         `/api/verification/procedures/${encodeURIComponent(procedureNumber)}/documents`,
         {
@@ -660,9 +347,11 @@ export default function ProfileContent({
         throw new Error(attachResult.error || 'Failed to attach document to verification procedure')
       }
 
+      // Step 4: Update procedure state and session
       if (attachResult.procedure) {
         setVerificationProcedure(attachResult.procedure)
       } else {
+        // If backend didn't return updated, reload
         await loadVerificationProcedure()
       }
 
@@ -674,6 +363,7 @@ export default function ProfileContent({
     }
   }
 
+  // Render error screen if API/user load failed hard
   if (initialError) {
     return (
       <div className="container mx-auto px-0 py-0">
@@ -685,6 +375,7 @@ export default function ProfileContent({
     )
   }
 
+  // Render empty screen if user not found (should only occur for hard logout/unauth)
   if (!user) {
     return (
       <div className="container mx-auto px-0 py-0">
@@ -703,17 +394,23 @@ export default function ProfileContent({
     )
   }
 
-  const getRoleBadgeColor = (role: UserRole) => {
+  /**
+   * Return badge color class for user role (for styling, not logic)
+   */
+  const getRoleBadgeColor = (role: UserRolesArray) => {
     switch (role) {
-      case UserRole.superadmin: return 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
-      case UserRole.admin: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case UserRole.confidential: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-      case UserRole.member: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-      case UserRole.subscriber: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+      case UserRolesArray.superadmin: return 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
+      case UserRolesArray.admin: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      case UserRolesArray.confidential: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+      case UserRolesArray.member: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+      case UserRolesArray.subscriber: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
   }
 
+  /**
+   * Format ISO/string/Date object as US long date – can be extended via locale
+   */
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'N/A'
     const d = typeof date === 'string' ? new Date(date) : date
@@ -724,11 +421,14 @@ export default function ProfileContent({
     })
   }
 
-  // Profile completion calculation
+  /**
+   * Calculate a % profile completion metric for display & styles.
+   * Can be improved by weighting or data completeness checks.
+   */
   const calculateProfileCompletion = () => {
     let completed = 0
     let total = 10
-    
+    // Each fulfilled prop increments completed score
     if (user.name) completed++
     if (user.username) completed++
     if ((user as any)?.bio) completed++
@@ -739,34 +439,69 @@ export default function ProfileContent({
     if ((user as any)?.integrations?.socialProfiles) completed++
     if ((user as any)?.skills?.length > 0) completed++
     if (user.isVerified) completed++
-    
     return Math.round((completed / total) * 100)
   }
 
-  // Profile submenu items (localized)
+  /**
+   * Localized navigation items for the Profile section (sidebar/rail + mobile)
+   */
   const profileMenuItems = [
     { id: 'overview', label: t('overview'), icon: User },
     { id: 'communications', label: t('communications'), icon: MessageSquare },
     { id: 'professional', label: t('professional'), icon: Briefcase },
-    { id: 'privacy', label: t('privacy'), icon: Lock },
-    { id: 'preferences', label: t('preferences'), icon: Bell },
+    { id: 'regional', label: t('regional'), icon: MapPin },
     { id: 'verification', label: t('verification'), icon: CheckCircle },
     { id: 'wallet', label: t('wallet'), icon: Wallet },
     { id: 'security', label: t('security'), icon: Shield },
   ]
 
+  /**
+   * Handler: Go to edit profile route based on current locale
+   */
+  const handleEditProfile = () => {
+    router.push(`/${locale.toLowerCase()}/profile/edit` as any)
+  }
+
+  /**
+   * Handler: Go to profile settings route
+   */
+  const handleNavigateSettings = () => {
+    router.push(ROUTES.SETTINGS(locale.toLowerCase() as Locale) as any)
+  }
+
+  /**
+   * Handler: Initiate sign out (using auth context)
+   */
+  const handleSignOut = () => {
+    signOut({
+      redirect: true,
+      redirectTo: `/${locale.toLowerCase()}/login`,
+    })
+  }
+
+  /**
+   * Profile navigation rail component, pre-configured with menu, state, and handlers.
+   */
   const profileRail = (
     <ProfileNavRail
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       profileMenuItems={profileMenuItems}
       profileCompletion={calculateProfileCompletion()}
-      communicationsForm={communicationsForm}
+      communicationsForm={{
+        telegramUsername: (user as any)?.communication?.telegramUsername || '',
+        whatsappNumber: (user as any)?.communication?.whatsappNumber || ''
+      }}
       kycStatus={kycStatus}
       user={user as Record<string, unknown>}
       onNavigate={() => setRightSidebarOpen(false)}
+      onEditProfile={handleEditProfile}
+      onNavigateSettings={handleNavigateSettings}
+      onSignOut={handleSignOut}
     />
   )
+
+  // --------- MAIN RENDER FUNCTION ------------
 
   return (
     <RingRightRailLayout
@@ -776,7 +511,7 @@ export default function ProfileContent({
       rightRail={profileRail}
     >
       <DavinciCenterPane>
-          {/* Success/Error Message Display */}
+          {/* Conditionally render a message banner if save encountered error/success */}
           {saveMessage && (
             <div className="mb-4">
               <Alert variant={saveMessage.type === 'success' ? 'default' : 'destructive'}>
@@ -800,29 +535,18 @@ export default function ProfileContent({
             </div>
           )}
 
-                  {/* Mobile Client App Preferences Banner - Shows at top on mobile */}
-          <div className="lg:hidden mb-4">
-            <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-              <CardContent className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{t('clientAppPreferences')}</span>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {t('configured')}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Profile Header/Glass: avatar, name, badges, credit balance */}
+          <BorderBeam
+            duration="6s"
+            className={cn(davinciGlassSurface, davinciAuthButtonLift, 'mb-8 overflow-hidden')}
+            innerClassName={cn(davinciBeamInnerSurface, 'p-5 sm:p-7')}
+          >
+            <HeroAmbient className="rounded-[inherit] opacity-50" />
 
-          {/* Profile Header */}
-          <Card className="mb-6">
-            <CardHeader className="pb-4">
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-                {/* Avatar Section */}
-                <div className="flex flex-col items-center space-y-3 w-full md:w-auto">
+            <div className="relative z-[1]">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-5">
+                {/* Avatar Section: profile pic, fallback, editable state */}
+                <div className="flex flex-col items-center space-y-2 shrink-0">
                   <Avatar
                     src={user.photoURL || session?.user?.image}
                     alt={user.name || 'User'}
@@ -833,25 +557,21 @@ export default function ProfileContent({
                     uploading={avatarUploading}
                     className="border-4 border-border"
                   />
+                  {/* If error on avatar upload, show concise error message */}
                   {uploadError && (
                     <Alert variant="destructive" className="text-xs">
                       <AlertDescription className="text-xs">{uploadError}</AlertDescription>
                     </Alert>
                   )}
-                  {/* Desktop only - profile completion badge */}
-                  <Badge variant="secondary" className="text-xs hidden md:flex">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    {calculateProfileCompletion()}{t('percentComplete')}
-                  </Badge>
                 </div>
 
-                {/* Profile Info */}
-                <div className="flex-1 space-y-4 w-full md:w-auto text-center md:text-left">
-                  <div>
-                    <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-3 mb-2">
-                      <h1 className="text-2xl md:text-3xl font-bold">{user.name || 'Anonymous User'}</h1>
-                      <div className="flex items-center gap-2">
-                      <Badge className={getRoleBadgeColor(user.role as UserRole)}>
+                {/* Profile main info: name, role badge, verification, membership, username, bio, org, credits */}
+                <div className="flex-1 min-w-0 space-y-3 w-full text-center md:text-left">
+                  {/* Name/Role/Member badges */}
+                  <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-3">
+                    <h1 className="text-2xl md:text-3xl font-bold">{user.name || 'Anonymous User'}</h1>
+                    <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+                      <Badge className={getRoleBadgeColor(user.role as UserRolesArray)}>
                         {user.role}
                       </Badge>
                       {user.isVerified && (
@@ -860,93 +580,162 @@ export default function ProfileContent({
                           Verified
                         </Badge>
                       )}
+                      {/* Show Member badge (if paid member or subscriber) */}
+                      {((user as any)?.membership?.active || (user as any)?.subscription?.active) && (
+                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-amber-400/30">
+                          <Medal className="w-3 h-3 mr-1" />
+                          Member
+                        </Badge>
+                      )}
                     </div>
-                    </div>
-                    <p className="text-muted-foreground flex items-center justify-center md:justify-start gap-2">
-                      <Mail className="w-4 h-4" />
-                      {user.email}
-                    </p>
-                    {(user as any)?.bio && (
-                      <p className="text-sm mt-2 max-w-md text-muted-foreground">{(user as any).bio}</p>
+                  </div>
+
+                  {/* Username (change/set) */}
+                  <div className="flex items-center justify-center md:justify-start gap-1.5">
+                    {user.username ? (
+                      <>
+                        <span className="text-sm text-muted-foreground font-mono">@{user.username}</span>
+                        <button
+                          type="button"
+                          className="text-xs text-[var(--davinci-beam)] hover:underline"
+                          onClick={() => setSetUsernameModalOpen(true)}
+                        >
+                          {t('changeUsername')}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-sm text-[var(--davinci-beam)] hover:underline"
+                        onClick={() => setSetUsernameModalOpen(true)}
+                      >
+                        {t('setUsername')}
+                      </button>
                     )}
                   </div>
 
-                  {/* Quick Stats */}
-                  <div className="flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm justify-center md:justify-start">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span>Joined {formatDate('createdAt' in user ? (user as any).createdAt : null)}</span>
-                    </div>
+                  {/* Bio editable */}
+                  <div>
+                    {(user as any)?.bio ? (
+                      <div className="flex items-start gap-2 justify-center md:justify-start">
+                        <p className="text-sm max-w-lg text-muted-foreground">{(user as any).bio}</p>
+                        <button
+                          type="button"
+                          className="text-xs text-[var(--davinci-beam)] hover:underline shrink-0 mt-0.5"
+                          onClick={() => setBioEditModalOpen(true)}
+                        >
+                          {t('edit') || 'Edit'}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-sm text-[var(--davinci-beam)] hover:underline"
+                        onClick={() => setBioEditModalOpen(true)}
+                      >
+                        {t('addBio') || 'Add bio'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Email/phone display */}
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5" />
+                      {user.email}
+                    </span>
+                    {(user as any)?.phoneNumber && (
+                      <>
+                        <span className="hidden md:inline text-muted-foreground/40">|</span>
+                        <span className="flex items-center gap-1">
+                          {(user as any)?.phoneNumber && formatPhone((user as any).phoneNumber)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Organization/country quick stats */}
+                  <div className="flex flex-wrap gap-3 md:gap-4 text-xs justify-center md:justify-start">
                     {(user as any)?.organization && (
-                      <div className="flex items-center gap-2">
-                        <Building className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex items-center gap-1.5">
+                        <Building className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>{(user as any).organization}</span>
                       </div>
                     )}
                     {(user as any)?.cultural?.country && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>{(user as any).cultural.country}</span>
                       </div>
                     )}
                   </div>
-
-                  {/* Action Buttons - Mobile: Only Sign Out, Desktop: Full Controls */}
-                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                    {/* Desktop: Show Edit/Settings buttons */}
-                    {!isEditing ? (
-                      <Button 
-                        onClick={() => setIsEditing(true)}
-                        size="sm"
-                        className="hidden md:flex md:w-auto"
-                      >
-                        <Edit2 className="mr-2 h-4 w-4" />
-                        {t('editProfile')}
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant="outline"
-                        onClick={() => setIsEditing(false)}
-                        size="sm"
-                        className="hidden md:flex md:w-auto"
-                      >
-                        Cancel
-                      </Button>
-                    )}
+                  {/* Credit balance (+ recharge) */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <div className={cn(
+                      davinciTerminalSurface,
+                      'flex items-center gap-3 px-3 py-2 text-left',
+                    )}>
+                      <Coins className="h-4 w-4 shrink-0 text-[var(--davinci-beam)]" />
+                      <div>
+                        <p className="text-[10px] leading-tight text-muted-foreground">Credits</p>
+                        <p className="text-sm font-semibold text-[var(--davinci-beam)]">
+                          {creditBalance?.balance?.amount ? Number(creditBalance.balance.amount).toLocaleString() : '0'} pts
+                        </p>
+                      </div>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(ROUTES.SETTINGS(locale.toLowerCase() as Locale) as any)}
-                      className="hidden md:flex md:w-auto"
+                      className={cn(
+                        'text-xs h-8 rounded-xl',
+                        'border-[color-mix(in_oklch,var(--davinci-beam)_25%,transparent)]',
+                        'hover:border-[var(--davinci-beam)] hover:text-[var(--davinci-beam)]',
+                        'transition-colors duration-200',
+                      )}
+                      onClick={() => router.push(`/${locale.toLowerCase()}/checkout` as any)}
                     >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() =>
-                        signOut({
-                          redirect: true,
-                          redirectTo: `/${locale.toLowerCase()}/login`,
-                        })
-                      }
-                      className="w-full md:w-auto"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      {t('signOut') || 'Sign Out'}
+                      Recharge
                     </Button>
                   </div>
                 </div>
               </div>
-            </CardHeader>
-          </Card>
+            </div>
+          </BorderBeam>
 
-          {/* Content Area - Conditional based on activeTab */}
+          {/* Progress widget (badges, ring, CTAs) – only once mounted in browser */}
+          {mounted && (
+            <div className="mb-6">
+              <UserProgressWidget
+                profileCompletion={calculateProfileCompletion()}
+                usernameSet={!!user.username}
+                bioSet={!!((user as any)?.bio)}
+                telegramSet={!!((user as any)?.communication?.telegramUsername)}
+                whatsappSet={!!((user as any)?.communication?.whatsappNumber)}
+                phoneSet={!!((user as any)?.phoneNumber)}
+                timezoneSet={!!((user as any)?.cultural?.timezone)}
+                kycApproved={kycStatus === KYCStatus.APPROVED}
+                membershipActive={!!((user as any)?.membership?.active)}
+                potentialRing={
+                  700 -
+                  ((user as any)?.communication?.telegramUsername ? 50 : 0) -
+                  ((user as any)?.communication?.whatsappNumber ? 50 : 0) -
+                  ((user as any)?.phoneNumber ? 100 : 0) -
+                  (kycStatus === KYCStatus.APPROVED ? 500 : 0)
+                }
+                locale={locale.toLowerCase()}
+                onNavigateTab={setActiveTab}
+                onCheckout={() => router.push(`/${locale.toLowerCase()}/checkout` as any)}
+                onOpenUsernameModal={() => setSetUsernameModalOpen(true)}
+                onOpenBioModal={() => setBioEditModalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* Main Content Section: varies by activeTab. All logic below is conditional UI. */}
           {mounted && (
             <div className="space-y-6">
 
-              {/* Mobile Section Title */}
+              {/* Section Title row [mobile only] */}
               <div className="lg:hidden mb-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -958,19 +747,19 @@ export default function ProfileContent({
                     {profileMenuItems.find(item => item.id === activeTab)?.label}
                   </h2>
                   <div className="flex items-center gap-2">
-                    {/* Edit button - Only on Overview tab, opens edit page */}
+                    {/* Edit action (for overview) */}
                     {activeTab === 'overview' && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/${locale.toLowerCase()}/profile/edit` as any)}
+                        onClick={() => setBioEditModalOpen(true)}
                         className="flex items-center gap-1"
                       >
                         <Edit2 className="w-4 h-4" />
-                        <span className="text-xs">Edit</span>
+                        <span className="text-xs">{t('edit') || 'Edit'}</span>
                       </Button>
                     )}
-                    {/* Menu button for profile submenu drawer */}
+                    {/* Show menu sidebar drawer toggle on mobile */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -986,753 +775,359 @@ export default function ProfileContent({
                   {activeTab === 'overview' && t('overviewDescription')}
                   {activeTab === 'communications' && t('communicationsTabDescription')}
                   {activeTab === 'professional' && t('professionalTabDescription')}
-                  {activeTab === 'privacy' && t('privacyTabDescription')}
-                  {activeTab === 'preferences' && t('preferencesTabDescription')}
                   {activeTab === 'wallet' && t('walletTabDescription')}
                   {activeTab === 'security' && t('securityTabDescription')}
                 </p>
               </div>
 
-              {/* Overview Section */}
+              {/* ========== Conditional tab rendering ========== */}
+
+              {/* Overview tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
-                <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
-                  {/* Personal Information Card */}
+                  {/* "Page Builder" Widget for setting public profile visibility (future granular switches: see TODO) */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        {t('personalInfo')}
+                        <Layout className="h-5 w-5" />
+                        {t('pageBuilder') || 'Page Builder'}
                       </CardTitle>
+                      <CardDescription>
+                        {t('pageBuilderDescription') || 'Choose what appears on your public profile'}
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('fullName')}</p>
-                        <p className="font-medium">{user.name || 'Not set'}</p>
+                    <CardContent className="space-y-1">
+                      {/* Each section row switches current publicProfile flag (TODO: granular toggles per section later) */}
+                      {/* Bio */}
+                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('bio') || 'Bio'}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(user as any)?.bio ? ((user as any).bio as string).slice(0, 60) + ((user as any).bio.length > 60 ? '...' : '') : t('noBio') || 'Not set'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={((user as any)?.publicProfile === 'true')}
+                          onCheckedChange={() => setSetUsernameModalOpen(true)}
+                        />
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('username')}</p>
-                        {usernameMode === 'view' && !user.username ? (
-                          <button
-                            type="button"
-                            className="text-primary hover:underline"
-                            onClick={() => setUsernameMode('edit')}
-                          >
-                            {t('setUsername')}
-                          </button>
-                        ) : usernameMode === 'view' ? (
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{user.username}</p>
-                            <button
-                              type="button"
-                              className="text-xs text-muted-foreground hover:text-primary"
-                              onClick={() => setUsernameMode('edit')}
-                            >
-                              {t('changeUsername')}
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <Input
-                                value={usernameValue}
-                                onChange={(e) => {
-                                  setUsernameValue(e.target.value)
-                                  setUsernameAvailable(null)
-                                  setUsernameError(null)
-                                }}
-                                placeholder="Enter username"
-                                className="flex-1"
-                                disabled={usernameMode === 'checking'}
-                              />
-                              {usernameMode === 'checking' ? (
-                                <Button size="sm" disabled>
-                                  <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                                </Button>
-                              ) : usernameAvailable === true ? (
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={async () => {
-                                      try {
-                                        const formData = new FormData()
-                                        formData.append('userId', user?.id || '')
-                                        formData.append('username', usernameValue)
-
-                                        const result = await updateProfile({ success: false, message: '' }, formData)
-                                        if (result.success) {
-                                          // Update the user object with the new username
-                                          if (user) {
-                                            (user as any).username = usernameValue
-                                          }
-
-                                          setUsernameMode('view')
-                                          setUsernameAvailable(null)
-                                          setUsernameError(null)
-
-                                          // Trigger session update to fetch fresh user data
-                                          await updateSession()
-                                          await refreshSession()
-                                          router.refresh()
-                                        } else {
-                                          setUsernameError(result.message || 'Failed to save username')
-                                        }
-                                      } catch (error) {
-                                        setUsernameError('Network error occurred')
-                                      }
-                                    }}
-                                  >
-                                    {t('save')}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setUsernameValue(user?.username || '')
-                                      setUsernameMode('view')
-                                      setUsernameAvailable(null)
-                                      setUsernameError(null)
-                                    }}
-                                  >
-                                    {t('cancel')}
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => checkUsernameAvailability(usernameValue)}
-                                  disabled={!usernameValue || usernameValue.length < 3}
-                                >
-                                  Check
-                                </Button>
-                              )}
-                            </div>
-                            {usernameAvailable === true && (
-                              <p className="text-sm text-green-600">✓ {t('usernameAvailable')}</p>
-                            )}
-                            {usernameError && (
-                              <p className="text-sm text-red-600">{usernameError}</p>
-                            )}
-                          </div>
-                        )}
+                      {/* Messengers */}
+                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('messengers') || 'Messengers'}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(user as any)?.communication?.telegramUsername
+                              ? `Telegram: @${(user as any).communication.telegramUsername}`
+                              : t('noMessengers') || 'Not connected'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={!!((user as any)?.publicProfile === 'true')}
+                          onCheckedChange={() => setActiveTab('communications')}
+                        />
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('email')}</p>
-                        <p className="font-medium">{user.email}</p>
+                      {/* Professional */}
+                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('professional') || 'Professional'}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(user as any)?.organization
+                              ? `${(user as any).organization}`
+                              : t('noProfessionalInfo') || 'Not set'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={!!((user as any)?.publicProfile === 'true')}
+                          onCheckedChange={() => setActiveTab('professional')}
+                        />
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('phone')}</p>
-                        <p className="font-medium">{(user as any)?.phoneNumber || 'Not set'}</p>
+                      {/* Location */}
+                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('location') || 'Location'}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(user as any)?.cultural?.country
+                              ? `${(user as any).cultural.country}`
+                              : (user as any)?.cultural?.address
+                                ? ((user as any).cultural.address as string).slice(0, 50)
+                                : t('noLocation') || 'Not set'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={!!((user as any)?.publicProfile === 'true')}
+                          onCheckedChange={() => setActiveTab('regional')}
+                        />
+                      </div>
+                      {/* Contact data */}
+                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('contactData') || 'Contact Data'}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(user as any)?.phoneNumber
+                              ? formatPhone((user as any).phoneNumber)
+                              : user.email
+                                ? user.email
+                                : t('noContact') || 'Not set'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={!!((user as any)?.publicProfile === 'true')}
+                          onCheckedChange={() => setSetUsernameModalOpen(true)}
+                        />
                       </div>
                     </CardContent>
+                    <CardFooter className="text-xs text-muted-foreground px-6 pb-4">
+                      <Info className="w-3.5 h-3.5 mr-1.5" />
+                      {t('pageBuilderFooter') || 'Granular per-field public visibility toggles coming soon'}
+                    </CardFooter>
                   </Card>
+                  {/* TODO: Implement granular per-section public toggles with server action + optimisitc update (React 19) */}
+                </div>
+              )}
 
-                  {/* Account Status Card */}
+              {/* Communications (Messengers) tab */}
+              {activeTab === 'communications' && (
+                <div className="space-y-6">
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        <Shield className="h-5 w-5" />
-                        {t('accountInfo')}
+                        <MessageSquare className="h-5 w-5" />
+                        {t('communications')}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('memberSince')}</p>
-                        <p className="font-medium">{formatDate('createdAt' in user ? (user as any).createdAt : null)}</p>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">{t('communicationsDescription')}</p>
+                      {/* Telegram */}
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-full shrink-0">
+                          <Send className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('telegramAccount')}</p>
+                          {(user as any)?.communication?.telegramUsername ? (
+                            <p className="text-xs text-muted-foreground truncate">@{((user as any)?.communication?.telegramUsername)}</p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">{t('telegramNotConnected')}</p>
+                          )}
+                        </div>
+                        {(user as any)?.communication?.telegramUsername ? (
+                          <Button variant="outline" size="sm" className="shrink-0">
+                            {t('edit') || 'Edit'}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => setTelegramLinking(true)}
+                          >
+                            {t('addTelegramAccount')}
+                          </Button>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('lastLogin')}</p>
-                        <p className="font-medium">{formatDate('lastLogin' in user ? (user as any).lastLogin : null)}</p>
+                      {/* WhatsApp */}
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-center w-10 h-10 bg-green-50 dark:bg-green-950 rounded-full shrink-0">
+                          <Phone className="w-5 h-5 text-green-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('whatsappAccount')}</p>
+                          {/* STUB: Provide value, onChange, and server update on blur. */}
+                          <Input
+                            placeholder={t('inputPlaceholder', { platform: 'WhatsApp' }) || 'Enter your WhatsApp number'}
+                            className="h-8 mt-1 text-sm"
+                            defaultValue={(user as any)?.communication?.whatsappNumber || ''}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('role')}</p>
-                        <Badge className={getRoleBadgeColor(user.role as UserRole)}>
-                          {user.role}
-                        </Badge>
+                      {/* Viber */}
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-center w-10 h-10 bg-purple-50 dark:bg-purple-950 rounded-full shrink-0">
+                          <Phone className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('viberAccount')}</p>
+                          {/* STUB: Implement value change and save logic */}
+                          <Input
+                            placeholder={t('inputPlaceholder', { platform: 'Viber' }) || 'Enter your Viber phone number'}
+                            className="h-8 mt-1 text-sm"
+                            defaultValue={(user as any)?.communication?.viberNumber || ''}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t('verificationStatus')}</p>
-                        <Badge variant={user.isVerified ? "default" : "secondary"}>
-                          {user.isVerified ? t('verified') : t('unverified')}
-                        </Badge>
+                      {/* Instagram */}
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-center w-10 h-10 bg-pink-50 dark:bg-pink-950 rounded-full shrink-0">
+                          <MessageSquare className="w-5 h-5 text-pink-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('instagramAccount')}</p>
+                          {/* STUB: Implement value change and save logic */}
+                          <Input
+                            placeholder={t('inputPlaceholder', { platform: 'Instagram' }) || 'Enter your Instagram username'}
+                            className="h-8 mt-1 text-sm"
+                            defaultValue={(user as any)?.communication?.instagramUsername || ''}
+                          />
+                        </div>
+                      </div>
+                      {/* Signal */}
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-full shrink-0">
+                          <MessageSquare className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{t('signalAccount')}</p>
+                          {/* STUB: Implement value change and save logic */}
+                          <Input
+                            placeholder={t('inputPlaceholder', { platform: 'Signal' }) || 'Enter your Signal phone number'}
+                            className="h-8 mt-1 text-sm"
+                            defaultValue={(user as any)?.communication?.signalNumber || ''}
+                          />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
-
-                {/* Client App Preferences */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      {t('profileSettings')}
-                    </CardTitle>
-                    <CardDescription>
-                      Customize your Ring Platform experience and app settings
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Monitor className="h-4 w-4" />
-                          <span className="text-sm">{t('theme')}</span>
-                        </div>
-                        <Select value={theme ?? 'system'} onValueChange={(v) => setThemeWithTransition(setTheme, v)}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="light">
-                              <div className="flex items-center gap-2">
-                                <Sun className="h-3 w-3" />
-                                {t('light')}
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="dark">
-                              <div className="flex items-center gap-2">
-                                <Moon className="h-3 w-3" />
-                                {t('dark')}
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="system">
-                              <div className="flex items-center gap-2">
-                                <Monitor className="h-3 w-3" />
-                                {t('system')}
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Languages className="h-4 w-4" />
-                          <span className="text-sm">{t('language')}</span>
-                        </div>
-                        <Select value={locale} onValueChange={(value) => switchLocale(value)}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="en">🇺🇸 English</SelectItem>
-                            <SelectItem value="uk">🇺🇦 Українська</SelectItem>
-                            <SelectItem value="ru">🇷🇺 Русский</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="pt-2 border-t border-border">
-                        <p className="text-xs text-muted-foreground">
-                          {t('profileCompletionDescription')}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
               )}
 
-              {/* Communications Section */}
-              {activeTab === 'communications' && (
-                <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5" />
-                      {t('communications')}
-                    </CardTitle>
-                    <CardDescription>
-                      {t('communicationsDescription')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="telegram" className="text-base md:text-sm">
-                          <Send className="w-4 h-4 inline mr-2" />
-                          Telegram Username
-                        </Label>
-                        <Input
-                          id="telegram"
-                          placeholder="@username"
-                          value={communicationsForm.telegramUsername}
-                          onChange={(e) => setCommunicationsForm(prev => ({ ...prev, telegramUsername: e.target.value }))}
-                          className="h-11 md:h-10"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="whatsapp" className="text-base md:text-sm">
-                          <Phone className="w-4 h-4 inline mr-2" />
-                          WhatsApp Number
-                        </Label>
-                        <Input
-                          id="whatsapp"
-                          placeholder="+1234567890"
-                          value={communicationsForm.whatsappNumber}
-                          onChange={(e) => setCommunicationsForm(prev => ({ ...prev, whatsappNumber: e.target.value }))}
-                          className="h-11 md:h-10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="preferred-contact">{t('preferredContactMethod')}</Label>
-                      <Select value={communicationsForm.preferredContactMethod} onValueChange={(value) => setCommunicationsForm(prev => ({ ...prev, preferredContactMethod: value }))}>
-                        <SelectTrigger id="preferred-contact">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="email">Email</SelectItem>
-                          <SelectItem value="phone">{t('phone')}</SelectItem>
-                          <SelectItem value="telegram">Telegram</SelectItem>
-                          <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">{t('culturalLocationSettings')}</h3>
-                      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="country" className="text-base md:text-sm">
-                            <MapPin className="w-4 h-4 inline mr-2" />
-                            {t('country')}
-                          </Label>
-                          <Input
-                            id="country"
-                            placeholder="United States"
-                            value={communicationsForm.country}
-                            onChange={(e) => setCommunicationsForm(prev => ({ ...prev, country: e.target.value }))}
-                            className="h-11 md:h-10"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="timezone" className="text-base md:text-sm">
-                            <Globe className="w-4 h-4 inline mr-2" />
-                            {t('timezone')}
-                          </Label>
-                          <TimezoneSelect
-                            value={communicationsForm.timezone}
-                            onChange={(timezone) => setCommunicationsForm(prev => ({ ...prev, timezone }))}
-                            countryCode={communicationsForm.country}
-                            placeholder={t('selectTimezone') || 'Select timezone'}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Save button hidden on mobile - use floating controls */}
-                    <Button
-                      className="hidden md:flex md:w-auto h-11 md:h-10"
-                      onClick={async () => {
-                        if (hasCommunicationsChanges) {
-                          await saveCommunications()
-                        }
-                      }}
-                      disabled={!hasCommunicationsChanges || communicationsSaving}
-                    >
-                      {communicationsSaving ? (
-                        <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full mr-2" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      {communicationsSaving ? t('saving') : t('saveCommunicationSettings')}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-              )}
-
-              {/* Professional Section */}
+              {/* Professional tab */}
               {activeTab === 'professional' && (
                 <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Briefcase className="h-5 w-5" />
-                      {t('professional')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5" />
+                        {t('professional')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <p className="text-sm text-muted-foreground">{t('professionalDescription')}</p>
+                      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>{t('organization')}</Label>
+                          <p className="font-medium">{(user as any)?.organization || 'Not set'}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t('position')}</Label>
+                          <p className="font-medium">{(user as any)?.position || 'Not set'}</p>
+                        </div>
+                      </div>
                       <div className="space-y-2">
-                        <Label htmlFor="organization" className="text-base md:text-sm">{t('organization')}</Label>
-                        <Input
-                          id="organization"
-                          value={professionalForm.organization}
-                          onChange={(e) => setProfessionalForm(prev => ({ ...prev, organization: e.target.value }))}
-                          className="h-11 md:h-10"
-                          placeholder="Your company or institution"
-                        />
+                        <Label>{t('professionalBio')}</Label>
+                        <p className="text-sm text-muted-foreground">{(user as any)?.bio || 'No bio set'}</p>
                       </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="position" className="text-base md:text-sm">{t('position')}</Label>
-                        <Input
-                          id="position"
-                          value={professionalForm.position}
-                          onChange={(e) => setProfessionalForm(prev => ({ ...prev, position: e.target.value }))}
-                          className="h-11 md:h-10"
-                          placeholder="Your role or title"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bio" className="text-base md:text-sm">{t('professionalBio')}</Label>
-                      <Textarea
-                        id="bio"
-                        value={professionalForm.bio}
-                        onChange={(e) => setProfessionalForm(prev => ({ ...prev, bio: e.target.value }))}
-                        rows={4}
-                        placeholder={t('tellUsAboutYourProfessionalBackground')}
-                        className="resize-none"
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h3 className="text-base md:text-lg font-semibold">{t('socialMediaProfiles')}</h3>
-                      <div className="grid gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-blue-50 dark:bg-blue-950 rounded-lg flex-shrink-0">
-                            <Linkedin className="w-5 h-5 md:w-4 md:h-4 text-blue-600" />
+                      <Separator />
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">{t('socialMediaProfiles')}</h3>
+                        <div className="grid gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-lg flex-shrink-0">
+                              <span className="text-blue-600 font-bold text-sm">in</span>
+                            </div>
+                            <Input
+                              readOnly
+                              value={(user as any)?.integrations?.socialProfiles?.linkedin || 'Not set'}
+                              className="bg-muted"
+                            />
                           </div>
-                          <Input
-                            placeholder="LinkedIn profile URL"
-                            value={professionalForm.linkedin}
-                            onChange={(e) => setProfessionalForm(prev => ({ ...prev, linkedin: e.target.value }))}
-                            className="h-11 md:h-10"
-                          />
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-sky-50 dark:bg-sky-950 rounded-lg flex-shrink-0">
-                            <Twitter className="w-5 h-5 md:w-4 md:h-4 text-sky-500" />
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-10 h-10 bg-sky-50 dark:bg-sky-950 rounded-lg flex-shrink-0">
+                              <span className="text-sky-500 font-bold text-sm">𝕏</span>
+                            </div>
+                            <Input
+                              readOnly
+                              value={(user as any)?.integrations?.socialProfiles?.twitter || 'Not set'}
+                              className="bg-muted"
+                            />
                           </div>
-                          <Input
-                            placeholder="Twitter/X profile URL"
-                            value={professionalForm.twitter}
-                            onChange={(e) => setProfessionalForm(prev => ({ ...prev, twitter: e.target.value }))}
-                            className="h-11 md:h-10"
-                          />
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-blue-50 dark:bg-blue-950 rounded-lg flex-shrink-0">
-                            <Facebook className="w-5 h-5 md:w-4 md:h-4 text-blue-700" />
-                          </div>
-                          <Input
-                            placeholder="Facebook profile URL"
-                            value={professionalForm.facebook}
-                            onChange={(e) => setProfessionalForm(prev => ({ ...prev, facebook: e.target.value }))}
-                            className="h-11 md:h-10"
-                          />
                         </div>
                       </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h3 className="text-base md:text-lg font-semibold">{t('skillsExpertise')}</h3>
-                      <div className="space-y-2">
-                        <Label className="text-base md:text-sm">{t('addProfessionalSkills')}</Label>
-                        <Input 
-                          placeholder="e.g. React, TypeScript, Project Management"
-                          className="h-11 md:h-10"
-                        />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {(user as any)?.skills?.map((skill: string, index: number) => (
-                            <Badge key={index} variant="secondary" className="text-sm py-1">
-                              {skill}
-                            </Badge>
-                          ))}
+                      <Separator />
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">{t('skillsExpertise')}</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {((user as any)?.skills || []).length > 0 ? (
+                            (user as any)?.skills.map((skill: string, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-sm py-1">{skill}</Badge>
+                            ))
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No skills added yet</p>
+                          )}
                         </div>
                       </div>
-                    </div>
-
-                    {/* Save button hidden on mobile - use floating controls */}
-                    <Button
-                      className="hidden md:flex md:w-auto h-11 md:h-10"
-                      onClick={async () => {
-                        if (hasProfessionalChanges) {
-                          await saveProfessional()
-                        }
-                      }}
-                      disabled={!hasProfessionalChanges || professionalSaving}
-                    >
-                      {professionalSaving ? (
-                        <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full mr-2" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      {professionalSaving ? t('saving') : t('saveProfessionalProfile')}
+                    </CardContent>
+                  </Card>
+                  <div className="flex justify-end">
+                    {/* Settings navigation to full edit */}
+                    <Button variant="outline" size="sm" onClick={() => handleNavigateSettings()}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Edit in Settings
                     </Button>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </div>
               )}
 
-              {/* Privacy Section */}
-              {activeTab === 'privacy' && (
+              {/* Regional/location tab (country, timezone, map modal) */}
+              {activeTab === 'regional' && (
                 <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Lock className="h-5 w-5" />
-                      {t('privacy')}
-                    </CardTitle>
-                    <CardDescription>
-                      {t('privacyDescription')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{t('dataSharingConsent')}</h3>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('analyticsAndPerformance')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('helpImproveRingPlatform')}
-                          </p>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5" />
+                        {t('regional')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <p className="text-sm text-muted-foreground">{t('regionalDescription') || 'Manage your location and timezone settings'}</p>
+                      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                        {/* Country/Location */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <Label className="flex items-center gap-2 text-base">
+                              <MapPin className="w-4 h-4 text-primary" />
+                              <span>{t('country')}</span>
+                            </Label>
+                          </div>
+                          <p className="font-medium">{(user as any)?.cultural?.country || 'Not set'}</p>
+                          {(user as any)?.cultural?.address && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">{(user as any)?.cultural?.address}</p>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setLocationModalOpen(true)}
+                            className="w-full"
+                          >
+                            <MapPin className="w-3.5 h-3.5 mr-1" />
+                            {t('selectLocation') || 'Select preferred location'}
+                          </Button>
                         </div>
-                        <Switch checked={privacyForm.analyticsConsent} onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, analyticsConsent: checked }))} />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('personalization')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('personalizedContentAndRecommendations')}
-                          </p>
+                        {/* Timezone select */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <Label className="flex items-center gap-2 text-base">
+                              <Globe className="w-4 h-4 text-primary" />
+                              <span>{t('timezone')}</span>
+                            </Label>
+                          </div>
+                          <p className="font-medium">{(user as any)?.cultural?.timezone || 'Not set'}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTimezoneModalOpen(true)}
+                            className="w-full"
+                          >
+                            <Globe className="w-3.5 h-3.5 mr-1" />
+                            {t('selectTimezone') || 'Select my timezone'}
+                          </Button>
                         </div>
-                        <Switch checked={privacyForm.personalizationConsent} onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, personalizationConsent: checked }))} />
                       </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('anonymizedResearch')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('helpImproveAIFeatures')}
-                          </p>
-                        </div>
-                        <Switch checked={privacyForm.anonymizedResearchConsent} onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, anonymizedResearchConsent: checked }))} />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{t('contactPreferences')}</h3>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('marketingCommunications')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('updatesAboutNewFeaturesAndOffers')}
-                          </p>
-                        </div>
-                        <Switch checked={privacyForm.marketingCommunications} onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, marketingCommunications: checked }))} />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('opportunities')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('jobAndCollaborationOpportunities')}
-                          </p>
-                        </div>
-                        <Switch checked={privacyForm.opportunitiesNotifications} onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, opportunitiesNotifications: checked }))} />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('systemNotifications')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('securityAndAccountUpdatesRequired')}
-                          </p>
-                        </div>
-                        <Switch defaultChecked disabled />
-                      </div>
-                    </div>
-
-                    {/* Save button hidden on mobile - use floating controls */}
-                    <Button
-                      className="hidden md:flex md:w-auto h-11 md:h-10"
-                      onClick={async () => {
-                        if (hasPrivacyChanges) {
-                          await savePrivacy()
-                        }
-                      }}
-                      disabled={!hasPrivacyChanges || privacySaving}
-                    >
-                      {privacySaving ? (
-                        <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full mr-2" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      {privacySaving ? t('saving') : t('savePrivacySettings')}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
 
-              {/* Preferences Section */}
-              {activeTab === 'preferences' && (
-                <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5" />
-                      {t('preferences')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{t('notificationChannels')}</h3>
-
-                      <div className="flex items-center justify-between">
-                        <Label>{t('emailNotifications')}</Label>
-                        <Switch checked={preferencesForm.emailNotifications} onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, emailNotifications: checked }))} />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <Label>{t('inAppNotifications')}</Label>
-                        <Switch checked={preferencesForm.inAppNotifications} onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, inAppNotifications: checked }))} />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <Label>{t('smsNotifications')}</Label>
-                        <Switch checked={preferencesForm.smsNotifications} onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, smsNotifications: checked }))} />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>{t('notificationFrequency')}</Label>
-                        <Select value={preferencesForm.notificationFrequency} onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, notificationFrequency: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="immediate">{t('immediate')}</SelectItem>
-                            <SelectItem value="daily">{t('dailyDigest')}</SelectItem>
-                            <SelectItem value="weekly">{t('weeklySummary')}</SelectItem>
-                            <SelectItem value="monthly">{t('monthlyReport')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Zap className="h-5 w-5" />
-                        {t('aiMatching')}
-                      </h3>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t('getAIPoweredOpportunityRecommendations')}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t('getAIPoweredOpportunityRecommendations')}
-                          </p>
-                        </div>
-                        <Switch checked={preferencesForm.aiMatchingEnabled} onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, aiMatchingEnabled: checked }))} />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>{t('minimumMatchScore')}</Label>
-                        <Select value={preferencesForm.minMatchScore} onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, minMatchScore: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="50">{t('showAllRelevant')}</SelectItem>
-                            <SelectItem value="70">{t('goodMatches')}</SelectItem>
-                            <SelectItem value="85">{t('greatMatchesOnly')}</SelectItem>
-                            <SelectItem value="95">{t('perfectMatches')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>{t('maxMatchesPerDay')}</Label>
-                        <Select value={preferencesForm.maxMatchesPerDay} onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, maxMatchesPerDay: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="5">5 matches</SelectItem>
-                            <SelectItem value="10">10 matches</SelectItem>
-                            <SelectItem value="20">20 matches</SelectItem>
-                            <SelectItem value="50">50 matches</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <Label>{t('autoFillSuggestions')}</Label>
-                        <Switch checked={preferencesForm.autoFillSuggestions} onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, autoFillSuggestions: checked }))} />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{t('display')}</h3>
-                      
-                      <div className="flex items-center justify-between">
-                        <Label>{t('compactView')}</Label>
-                        <Switch checked={preferencesForm.compactView} onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, compactView: checked }))} />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>{t('theme')}</Label>
-                        <Select value={theme ?? 'system'} onValueChange={(v) => setThemeWithTransition(setTheme, v)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="light">{t('light')}</SelectItem>
-                            <SelectItem value="dark">{t('dark')}</SelectItem>
-                            <SelectItem value="system">{t('system')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Save button hidden on mobile - use floating controls */}
-                    <Button
-                      className="hidden md:flex md:w-auto h-11 md:h-10"
-                      onClick={async () => {
-                        if (hasPreferencesChanges) {
-                          await savePreferences()
-                        }
-                      }}
-                      disabled={!hasPreferencesChanges || preferencesSaving}
-                    >
-                      {preferencesSaving ? (
-                        <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full mr-2" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      {preferencesSaving ? t('saving') : t('savePreferences')}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-              )}
-
-              {/* Verification Section */}
+              {/* KYC Verification Tab */}
               {activeTab === 'verification' && (
                 <div className="space-y-6">
                   <KYCUpload
@@ -1750,181 +1145,149 @@ export default function ProfileContent({
                 </div>
               )}
 
-              {/* Wallet Section */}
+              {/* Wallet Tab */}
               {activeTab === 'wallet' && (
                 <div className="space-y-6">
-                <ProfileAccountTokenWidgets />
-                <WalletSection
-                  locale={locale.toLowerCase() as Locale}
-                  embedded={true}
-                />
-              </div>
+                  <ProfileAccountTokenWidgets />
+                  <WalletSection
+                    locale={locale.toLowerCase() as Locale}
+                    embedded={true}
+                  />
+                </div>
               )}
 
-              {/* Security Section */}
+              {/* Security Tab: security basics, sessions, download data */}
               {activeTab === 'security' && (
                 <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      {t('security')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{t('kycVerification')}</h3>
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="space-y-1">
-                          <p className="font-medium">{t('verificationStatus')}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {kycStatus === KYCStatus.APPROVED ? t('verified') : t('unverified')}
-                          </p>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        {t('security')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">{t('kycVerification')}</h3>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="space-y-1">
+                            <p className="font-medium">{t('verificationStatus')}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {kycStatus === KYCStatus.APPROVED ? t('verified') : t('unverified')}
+                            </p>
+                          </div>
+                          <Button variant="outline" onClick={() => setActiveTab('verification')}>
+                            {kycStatus === KYCStatus.APPROVED ? 'View' : 'Start Verification'}
+                          </Button>
                         </div>
-                        <Button variant="outline" onClick={() => setActiveTab('verification')}>
-                          {kycStatus === KYCStatus.APPROVED ? 'View' : 'Start Verification'}
+                      </div>
+                      <Separator />
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">{t('activeSessions')}</h3>
+                        <SessionForensicsWidget
+                          entries={forensicsEntries}
+                          loading={forensicsLoading}
+                          lastLogin={(user as any).lastLogin ? formatDate((user as any).lastLogin) : undefined}
+                        />
+                      </div>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-base md:text-lg font-semibold">{t('accountSecurity')}</h3>
+                        {/* Security actions – TODO: Implement actions with server actions (Next 15+) */}
+                        <Button variant="outline" className="w-full justify-start h-12 md:h-10 text-sm md:text-base">
+                          <Lock className="mr-2 h-5 w-5 md:h-4 md:w-4" />
+                          {t('changePassword')}
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start h-12 md:h-10 text-sm md:text-base">
+                          <Shield className="mr-2 h-5 w-5 md:h-4 md:w-4" />
+                          {t('enableTwoFactorAuth')}
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start h-12 md:h-10 text-sm md:text-base">
+                          <Download className="mr-2 h-5 w-5 md:h-4 md:w-4" />
+                          {t('downloadMyData')}
                         </Button>
                       </div>
-                    </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">{t('activeSessions')}</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Monitor className="w-5 h-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{t('currentSession')}</p>
-                              <p className="text-sm text-muted-foreground">{t('desktop')} • {formatDate(new Date())}</p>
-                            </div>
-                          </div>
-                          <Badge variant="default">Active</Badge>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Smartphone className="w-5 h-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{t('mobileDevice')}</p>
-                              <p className="text-sm text-muted-foreground">iOS • 2 days ago</p>
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm">{t('revoke')}</Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-3">
-                      <h3 className="text-base md:text-lg font-semibold">{t('accountSecurity')}</h3>
-                      <Button variant="outline" className="w-full justify-start h-12 md:h-10 text-sm md:text-base">
-                        <Lock className="mr-2 h-5 w-5 md:h-4 md:w-4" />
-                        {t('changePassword')}
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start h-12 md:h-10 text-sm md:text-base">
-                        <Shield className="mr-2 h-5 w-5 md:h-4 md:w-4" />
-                        {t('enableTwoFactorAuth')}
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start h-12 md:h-10 text-sm md:text-base">
-                        <Download className="mr-2 h-5 w-5 md:h-4 md:w-4" />
-                        {t('downloadMyData')}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-          )}
-
-        </div>
+            </div>
           )}
       </DavinciCenterPane>
 
-        {/* Mobile Floating Save/Cancel Controls - Appears when there are unsaved changes */}
-        {hasUnsavedChanges && activeTab !== 'overview' && activeTab !== 'wallet' && (
-          <div className="lg:hidden fixed bottom-[72px] left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur-sm pb-3 pt-6 px-4 z-40 border-t border-border/50">
-            <div className="flex items-center gap-3 max-w-lg mx-auto">
-              <Button
-                className="flex-1 h-12 shadow-lg font-semibold"
-                disabled={communicationsSaving || professionalSaving || privacySaving || preferencesSaving}
-                onClick={async () => {
-                  if (activeTab === 'communications' && hasCommunicationsChanges) {
-                    await saveCommunications()
-                  } else if (activeTab === 'professional' && hasProfessionalChanges) {
-                    await saveProfessional()
-                  } else if (activeTab === 'privacy' && hasPrivacyChanges) {
-                    await savePrivacy()
-                  } else if (activeTab === 'preferences' && hasPreferencesChanges) {
-                    await savePreferences()
-                  }
-                }}
-              >
-                {communicationsSaving || professionalSaving || privacySaving || preferencesSaving ? (
-                  <div className="w-5 h-5 animate-spin border-2 border-current border-t-transparent rounded-full mr-2" />
-                ) : (
-                  <Save className="mr-2 h-5 w-5" />
-                )}
-                {communicationsSaving || professionalSaving || privacySaving || preferencesSaving ? t('saving') : t('saveChanges')}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-12 w-12 rounded-full shadow-lg border-2"
-                onClick={() => {
-                  // Reset form state to original values
-                  if (activeTab === 'communications') {
-                    setCommunicationsForm({
-                      telegramUsername: (user as any)?.communication?.telegramUsername || '',
-                      whatsappNumber: (user as any)?.communication?.whatsappNumber || '',
-                      preferredContactMethod: (user as any)?.communication?.preferredContactMethod || 'email',
-                      country: (user as any)?.cultural?.country || '',
-                      timezone: (user as any)?.cultural?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-                    })
-                  } else if (activeTab === 'professional') {
-                    setProfessionalForm({
-                      organization: (user as any)?.organization || '',
-                      position: (user as any)?.position || '',
-                      bio: (user as any)?.bio || '',
-                      linkedin: (user as any)?.integrations?.socialProfiles?.linkedin || '',
-                      twitter: (user as any)?.integrations?.socialProfiles?.twitter || '',
-                      facebook: (user as any)?.integrations?.socialProfiles?.facebook || '',
-                      skills: (user as any)?.skills || []
-                    })
-                  } else if (activeTab === 'privacy') {
-                    setPrivacyForm({
-                      analyticsConsent: (user as any)?.privacy?.dataSharingConsent?.analytics || false,
-                      personalizationConsent: (user as any)?.privacy?.dataSharingConsent?.personalization || false,
-                      anonymizedResearchConsent: (user as any)?.privacy?.anonymizedResearchConsent || false,
-                      marketingCommunications: (user as any)?.privacy?.contactPreferences?.marketing || false,
-                      opportunitiesNotifications: (user as any)?.privacy?.contactPreferences?.opportunities || false
-                    })
-                  } else if (activeTab === 'preferences') {
-                    setPreferencesForm({
-                      emailNotifications: user?.notificationPreferences?.email || false,
-                      inAppNotifications: user?.notificationPreferences?.inApp || false,
-                      smsNotifications: user?.notificationPreferences?.sms || false,
-                      notificationFrequency: (user as any)?.experience?.notificationSettings?.frequency || 'immediate',
-                      aiMatchingEnabled: (user?.settings as any)?.aiMatching?.enabled || false,
-                      minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
-                      maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
-                      autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
-                      preferredLanguage: (user as any)?.experience?.uiCustomizations?.language || 'en',
-                      compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
-                    })
-                  }
-                  setIsEditingSection(false)
-                }}
-              >
-                <XCircle className="h-6 w-6" />
-              </Button>
-            </div>
-          </div>
-        )}
+      {/* Modal: Bio Editor */}
+      <BioEditModal
+        open={bioEditModalOpen}
+        onOpenChange={setBioEditModalOpen}
+        currentBio={(user as any)?.bio || ''}
+        onBioSaved={(newBio) => {
+          if (user) (user as any).bio = newBio
+          // TODO: Use server action so mutation is persisted and reflected immediately (react-query or useOptimistic)
+        }}
+      />
+
+      {/* Modal: Set Username */}
+      <SetUsernameModal
+        open={setUsernameModalOpen}
+        onOpenChange={setSetUsernameModalOpen}
+        currentUsername={user?.username || ''}
+        currentPublicProfile={(user as any)?.publicProfile === 'true' || false}
+        onUsernameSaved={(newUsername, newPublicProfile) => {
+          if (user) {
+            (user as any).username = newUsername
+            ;(user as any).publicProfile = newPublicProfile ? 'true' : 'false'
+            // TODO: Persist username & setting natively (server action + optimistic update or transition)
+          }
+        }}
+      />
+
+      {/* Modal: Timezone Select */}
+      <TimezoneSelectorModal
+        open={timezoneModalOpen}
+        onOpenChange={setTimezoneModalOpen}
+        currentTimezone={(user as any)?.cultural?.timezone || ''}
+        currentCountryCode={(user as any)?.cultural?.country || undefined}
+        onTimezoneSaved={(newTimezone) => {
+          if (user) {
+            if (!(user as any).cultural) (user as any).cultural = {}
+            ;(user as any).cultural.timezone = newTimezone
+            // TODO: Sync and persist to backend (server action/React 19)
+          }
+        }}
+      />
+
+      {/* Modal: Telegram auth/linking */}
+      <TelegramLinkingModal
+        open={telegramLinking}
+        onOpenChange={setTelegramLinking}
+        // STUB: Pass server-side logic for successful auth linking, update comms on save
+      />
+
+      {/* Modal: Location via map */}
+      <LocationMapModal
+        open={locationModalOpen}
+        onOpenChange={setLocationModalOpen}
+        currentLocation={
+          (user as any)?.cultural?.address
+            ? {
+                address: (user as any).cultural.address,
+                lat: parseFloat((user as any).cultural.latitude || '50.4501'),
+                lng: parseFloat((user as any).cultural.longitude || '30.5234'),
+              }
+            : null
+        }
+        onLocationSaved={(newLocation) => {
+          if (user) {
+            if (!(user as any).cultural) (user as any).cultural = {}
+            ;(user as any).cultural.address = newLocation.address
+            ;(user as any).cultural.latitude = String(newLocation.lat)
+            ;(user as any).cultural.longitude = String(newLocation.lng)
+            // TODO: Save to backend via server action optimistically (React 19)
+          }
+        }}
+      />
+
     </RingRightRailLayout>
   )
 }
-
-
-

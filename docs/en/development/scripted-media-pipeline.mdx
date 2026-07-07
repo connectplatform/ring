@@ -80,7 +80,7 @@ Creative agent → scripted-video-generation-request.json
 ```bash
 cd ring-platform.org/scripts/ring-viral-video
 
-# Full pipeline via MCP gateway (needs RING_MCP_SERVICE_TOKENS + dev server)
+# Full pipeline via MCP gateway (needs RING_MCP_ACCESS_KEY + dev server)
 node run-scripted-video.mjs scripted-video-generation-request-hoa-nightclub.json --download
 
 # Single clip
@@ -116,7 +116,7 @@ scriptedVideoGenerationRequestSchema.parse(request)
 
 ```bash
 XAI_API_KEY=…
-RING_MCP_SERVICE_TOKENS=long-random-token
+RING_MCP_ACCESS_KEY=long-random-token
 RING_API_BASE_URL=http://localhost:3000
 FILE_BACKEND=ringbase
 ```

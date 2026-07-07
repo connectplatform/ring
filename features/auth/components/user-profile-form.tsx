@@ -17,15 +17,21 @@ import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
-import { Globe, Linkedin, Twitter, Github } from 'lucide-react'
+import { Globe } from 'lucide-react'
+import { LinkedinIcon } from '@/components/ui/icons/linkedin-icon'
+import { TwitterIcon } from '@/components/ui/icons/twitter-icon'
+import { GithubIcon } from '@/components/ui/icons/github-icon'
 
 // Client-side constant for default locale
 const DEFAULT_LOCALE = 'en' as const
 
+// SubmitButton renders the form's submit button
 function SubmitButton() {
+  // Destructure pending status from react-dom's useFormStatus
   const { pending } = useFormStatus()
   const t = useTranslations('modules.profile')
-  
+  // TODO: If i18n keys are missing, could fallback to a centralized fallback utility
+
   return (
     <Button 
       type="submit" 
@@ -37,15 +43,19 @@ function SubmitButton() {
   )
 }
 
+// The main content of the user profile form, including error/success state handling
 function UserProfileFormContent() {
   const t = useTranslations('modules.profile')
   const locale = useLocale() as Locale
   const { data: session } = useSession()
+  // useActionState for handling server action statefully on the client
+  // TODO: Switch to inline server action (React 19/Next 16) once possible for more atomicity & colocation
   const [state, formAction] = useActionState<UserFormState | null, FormData>(
     (prevState, formData) => updateUserProfile(prevState, formData, locale),
     null
   )
 
+  // If the user is not authenticated, show an alert (usually not shown due to top-level auth, but defensive)
   if (!session?.user) {
     return (
       <Alert>
@@ -55,9 +65,10 @@ function UserProfileFormContent() {
     )
   }
 
+  // TODO: Consider using React 19 useFormAction for better progressive-enhancement and direct mutation
   return (
     <form action={formAction} className="space-y-6">
-      {/* Show error message if any */}
+      {/* Show error message if present in state */}
       {state?.error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
@@ -65,7 +76,7 @@ function UserProfileFormContent() {
         </Alert>
       )}
 
-      {/* Show success message if any */}
+      {/* Show success message if present in state */}
       {state?.success && (
         <Alert className="border-green-200 bg-green-50 text-green-800">
           <AlertTitle>Success</AlertTitle>
@@ -73,10 +84,11 @@ function UserProfileFormContent() {
         </Alert>
       )}
 
-      {/* Basic Information */}
+      {/* ------ Basic Information Section ------ */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">{t('basicInformation') || 'Basic Information'}</h3>
         
+        {/* Name Field */}
         <div>
           <Label htmlFor="name">{t('fullName') || 'Full Name'} *</Label>
           <Input
@@ -88,11 +100,13 @@ function UserProfileFormContent() {
             placeholder={t('enterFullName') || 'Enter your full name'}
             aria-invalid={!!state?.fieldErrors?.name}
           />
+          {/* Field-level validation error display */}
           {state?.fieldErrors?.name && (
             <p className="mt-1 text-sm text-destructive">{state.fieldErrors.name}</p>
           )}
         </div>
 
+        {/* Username Field */}
         <div>
           <Label htmlFor="username">{t('username') || 'Username'}</Label>
           <Input
@@ -108,6 +122,7 @@ function UserProfileFormContent() {
           <p className="mt-1 text-xs text-muted-foreground">{t('usernameHint') || '3-32 chars, letters, numbers, underscore, hyphen. Public profile: /u/yourname'}</p>
         </div>
 
+        {/* Email Field */}
         <div>
           <Label htmlFor="email">{t('email') || 'Email'} *</Label>
           <Input
@@ -124,6 +139,7 @@ function UserProfileFormContent() {
           )}
         </div>
 
+        {/* Bio Field */}
         <div>
           <Label htmlFor="bio">{t('bio') || 'Bio'}</Label>
           <Textarea
@@ -141,10 +157,11 @@ function UserProfileFormContent() {
 
       <Separator />
 
-      {/* Professional Information */}
+      {/* ------ Professional Information Section ------ */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">{t('professionalInformation') || 'Professional Information'}</h3>
         
+        {/* Company Field */}
         <div>
           <Label htmlFor="company">{t('company') || 'Company'}</Label>
           <Input
@@ -158,6 +175,7 @@ function UserProfileFormContent() {
           )}
         </div>
 
+        {/* Position Field */}
         <div>
           <Label htmlFor="position">{t('position') || 'Position'}</Label>
           <Input
@@ -171,6 +189,7 @@ function UserProfileFormContent() {
           )}
         </div>
 
+        {/* Location Field */}
         <div>
           <Label htmlFor="location">{t('location') || 'Location'}</Label>
           <Input
@@ -187,10 +206,11 @@ function UserProfileFormContent() {
 
       <Separator />
 
-      {/* Social Links */}
+      {/* ------ Social Links Section ------ */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">{t('socialLinks') || 'Social Links'}</h3>
         
+        {/* Website Field */}
         <div>
           <Label htmlFor="website" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
@@ -207,9 +227,10 @@ function UserProfileFormContent() {
           )}
         </div>
 
+        {/* LinkedIn Field */}
         <div>
           <Label htmlFor="linkedin" className="flex items-center gap-2">
-            <Linkedin className="h-4 w-4" />
+            <LinkedinIcon className="h-4 w-4" />
             LinkedIn
           </Label>
           <Input
@@ -223,9 +244,10 @@ function UserProfileFormContent() {
           )}
         </div>
 
+        {/* Twitter/X Field */}
         <div>
           <Label htmlFor="twitter" className="flex items-center gap-2">
-            <Twitter className="h-4 w-4" />
+            <TwitterIcon className="h-4 w-4" />
             Twitter/X
           </Label>
           <Input
@@ -239,9 +261,10 @@ function UserProfileFormContent() {
           )}
         </div>
 
+        {/* GitHub Field */}
         <div>
           <Label htmlFor="github" className="flex items-center gap-2">
-            <Github className="h-4 w-4" />
+            <GithubIcon className="h-4 w-4" />
             GitHub
           </Label>
           <Input
@@ -256,6 +279,7 @@ function UserProfileFormContent() {
         </div>
       </div>
 
+      {/* Submit Button */}
       <SubmitButton />
     </form>
   )
@@ -263,14 +287,14 @@ function UserProfileFormContent() {
 
 /**
  * UserProfileForm component
- * Modern React 19 implementation with Server Actions
+ * Uses modern React 19 + Next 16 concepts for form with server action
  * 
  * Features:
- * - useActionState() for form state management
- * - useFormStatus() for automatic loading states
- * - Server-side validation with field-specific errors
- * - Progressive enhancement (works without JavaScript)
- * - Comprehensive profile management
+ * - useActionState() manages and reacts to form state server-side+client-side
+ * - useFormStatus() enables automatic loading state for submit
+ * - Field- and form-level server-side validation (with error/success messaging in UI)
+ * - Designed for robust progressive enhancement (SSR works without JS)
+ * - Comprehensive profile UI management
  * 
  * @returns JSX.Element
  */
@@ -279,21 +303,25 @@ export default function UserProfileForm() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // Handle unauthenticated users
+  // React.useEffect redirects when unauthenticated at runtime
+  // TODO: With Next 16, could consider middleware or route protection higher up for better DX
   React.useEffect(() => {
     if (status === 'unauthenticated') {
       router.push(ROUTES.LOGIN(DEFAULT_LOCALE))
     }
   }, [status, router])
 
+  // Render loading placeholder while auth session loads
   if (status === 'loading') {
     return <div className="text-center py-8">{t('loading') || 'Loading...'}</div>
   }
 
+  // Render redirecting placeholder if user is unauthenticated
   if (status === 'unauthenticated') {
     return <div className="text-center py-8">{t('redirecting') || 'Redirecting...'}</div>
   }
 
+  // Main profile card/form UI
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -307,4 +335,4 @@ export default function UserProfileForm() {
       </CardContent>
     </Card>
   )
-} 
+}

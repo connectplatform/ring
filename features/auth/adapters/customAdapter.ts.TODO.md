@@ -1,5 +1,5 @@
 import type { Adapter, AdapterUser, AdapterAccount, AdapterSession, VerificationToken } from "@auth/core/adapters"
-import { UserRole } from "@/features/auth/types"
+import { UserRolesArray } from "@/features/auth/user-role"
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin-server'
 
 export function createCustomAdapter(): Adapter {
@@ -8,7 +8,7 @@ export function createCustomAdapter(): Adapter {
       const adminDb = await getAdminDb();
       const { id } = await adminDb.collection('users').add({
         ...user,
-        role: UserRole.subscriber,
+        role: UserRolesArray.subscriber,
         walletAddress: undefined,
         createdAt: new Date(),
         lastLogin: new Date(),

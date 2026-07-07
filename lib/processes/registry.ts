@@ -8,6 +8,12 @@ import { EmailAnalyticsService } from '@/features/email-crm/services/email-analy
 import { getEmailProcessor } from '@/services/email/email-processor'
 import { processDueSettlements } from '@/features/store/services/settlement'
 import { validateEmailConfig } from '@/services/email/imap/config'
+import { cleanupDeletedNews } from '@/features/news/services/cleanup-deleted-news'
+import { runSubscriptionExpiryCheck } from '@/lib/processes/subscription/expiry-check'
+import { runCreditBalanceMonthly } from '@/lib/processes/subscription/credit-balance-monthly'
+import { runSubscriptionPaymentCheck } from '@/lib/processes/subscription/subscription-payment'
+import { runSolanaBatchPayment } from '@/lib/processes/subscription/solana-nft-stubs'
+import { runNftGateExpiry } from '@/lib/processes/subscription/solana-nft-stubs'
 import type { PipelineDefinition } from '@/lib/processes/types'
 
 /** Stable pipeline ids — display copy lives in locales (modules.admin.processes.pipelines.*). */
@@ -17,8 +23,14 @@ export const PIPELINE_IDS = [
   'refcodes-mint',
   'cleanup-reservations',
   'cleanup-usernames',
+  'cleanup-news-deleted',
   'train',
   'settlement-payout',
+  'subscription-expiry-check',
+  'credit-balance-monthly',
+  'subscription-payment',
+  'solana-batch-payment',
+  'nft-gate-expiry',
 ] as const
 
 export type PipelineId = (typeof PIPELINE_IDS)[number]
@@ -82,6 +94,16 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     },
   },
   {
+    id: 'cleanup-news-deleted',
+    category: 'cleanup',
+    cronPath: '/api/cron/cleanup-news-deleted',
+    handler: async () => {
+      const startTime = Date.now()
+      const result = await cleanupDeletedNews()
+      return { ...result, success: true, duration: Date.now() - startTime }
+    },
+  },
+  {
     id: 'train',
     category: 'ai',
     cronPath: '/api/cron/train',
@@ -92,6 +114,37 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     category: 'commerce',
     cronPath: '/api/cron/settlement-payout',
     handler: async () => processDueSettlements(),
+  },
+  // ---- Membership subscription cron pipelines (Phase S4) ----
+  {
+    id: 'subscription-expiry-check',
+    category: 'membership',
+    cronPath: '/api/cron/subscription-expiry',
+    handler: runSubscriptionExpiryCheck,
+  },
+  {
+    id: 'credit-balance-monthly',
+    category: 'membership',
+    cronPath: '/api/cron/credit-balance-monthly',
+    handler: runCreditBalanceMonthly,
+  },
+  {
+    id: 'subscription-payment',
+    category: 'membership',
+    cronPath: '/api/cron/subscription-payment',
+    handler: runSubscriptionPaymentCheck,
+  },
+  {
+    id: 'solana-batch-payment',
+    category: 'membership',
+    cronPath: '/api/cron/solana-batch-payment',
+    handler: runSolanaBatchPayment,
+  },
+  {
+    id: 'nft-gate-expiry',
+    category: 'membership',
+    cronPath: '/api/cron/nft-gate-expiry',
+    handler: runNftGateExpiry,
   },
 ]
 

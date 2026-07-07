@@ -6,14 +6,14 @@
  */
 
 import { db } from '@/lib/database'
-import { 
+import {
   VendorProfile,
   VendorApplication,
   VendorPerformanceMetrics,
   TierProgressionEntry,
   SuspensionHistoryEntry
 } from '@/features/store/types/vendor'
-import { 
+import {
   VendorOnboardingStatus,
   VendorTrustLevel,
   VENDOR_PERFORMANCE_THRESHOLDS,
@@ -21,6 +21,7 @@ import {
   StoreEvent
 } from '@/constants/store'
 import { publishEvent } from '@/lib/events/event-bus.server'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 
 /** Entity table rows use snake_case top-level columns; nested vendor_profile is camelCase. */
 type EntityRow = Record<string, unknown> & {
@@ -135,6 +136,12 @@ export async function createVendorProfile(
     vendor_profile: profile,
     store_activated: true,
     store_status: 'test', // Start in test mode
+    // Inherit store categories from ring-config preset.
+    // All known product custom fields and categories are shipped with SQL
+    // migrations per preset. The vendor store starts with the full platform
+    // category list; admins can restrict categories per vendor when they
+    // graduate the store from 'test' to 'active' status.
+    storeCategories: getSystemConfigSnapshot().store?.storeCategories ?? [],
     trust_score: profile.trustScore / 100, // Convert to decimal format for DB
     verification_status: profile.onboardingStatus === VendorOnboardingStatus.APPROVED ? 'verified' : 'pending',
     updated_at: new Date()

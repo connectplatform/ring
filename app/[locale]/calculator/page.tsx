@@ -5,7 +5,7 @@ import { setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
-import { getRingConfig } from '@/lib/ring-config'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import { CalculatorEngine } from '@/features/calculator/calculator-engine'
 
 export async function generateMetadata({
@@ -38,8 +38,8 @@ export default async function CalculatorPage({
     : routing.defaultLocale
   setRequestLocale(locale)
 
-  const config = getRingConfig()
-  if (!config.calculator?.enabled) {
+  const config = getSystemConfigSnapshot()
+  if (!config.features?.calculator?.enabled) {
     notFound()
   }
 

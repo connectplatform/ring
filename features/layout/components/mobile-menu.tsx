@@ -116,7 +116,7 @@ function MobileMenuGuestAuth({
 }
 
 import { Session } from 'next-auth'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import { hasConfidentialAccess, hasRoleAtLeast, isPlatformAdmin } from '@/features/auth/user-role'
 
 // Client-side constant for default locale
@@ -143,7 +143,7 @@ interface NavigationLink {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
-  requiredRole?: UserRole
+  requiredRole?: UserRolesArray
   badge?: string
   gradient?: string
 }
@@ -151,15 +151,15 @@ interface NavigationLink {
 /**
  * Get user role from session
  */
-const getUserRole = (user: Session['user'] | null): UserRole => {
-  if (!user) return UserRole.visitor
-  return (user as any)?.role || UserRole.visitor
+const getUserRole = (user: Session['user'] | null): UserRolesArray => {
+  if (!user) return UserRolesArray.visitor as UserRolesArray
+  return (user as any)?.role || UserRolesArray.visitor as UserRolesArray
 }
 
 /**
  * Check if user can access a link based on role
  */
-const canAccessLink = (link: NavigationLink, userRole: UserRole): boolean => {
+const canAccessLink = (link: NavigationLink, userRole: UserRolesArray): boolean => {
   if (!link.requiredRole) return true
   return hasRoleAtLeast(userRole, link.requiredRole)
 }
@@ -260,7 +260,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         href: ROUTES.CONFIDENTIAL_ENTITIES(locale),
         label: t('confidentialEntities'),
         icon: Shield,
-        requiredRole: UserRole.confidential,
+        requiredRole: UserRolesArray.confidential as UserRolesArray,
         badge: 'VIP',
         gradient: 'from-purple-500 to-indigo-600'
       },
@@ -268,7 +268,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         href: ROUTES.CONFIDENTIAL_OPPORTUNITIES(locale),
         label: t('confidentialOpportunities'),
         icon: Crown,
-        requiredRole: UserRole.confidential,
+        requiredRole: UserRolesArray.confidential as UserRolesArray,
         badge: 'VIP',
         gradient: 'from-amber-500 to-yellow-600'
       }

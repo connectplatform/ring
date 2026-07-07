@@ -1,5 +1,8 @@
 'use server'
 
+// File: _actions/news.ts
+// Main server actions for news article CRUD, stats, and category management.
+
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { NewsArticle, NewsCategory, NewsStatus, NewsVisibility, NewsSEO } from '@/features/news/types'
@@ -13,13 +16,13 @@ export interface ArticleFormState {
   article?: NewsArticle
 }
 
+// Handles both "create" and "edit" flows for articles.
 export async function saveArticle(
   prevState: ArticleFormState | null,
   formData: FormData
 ): Promise<ArticleFormState> {
-
   try {
-    // Get current user session - Admin only action
+    // Get current user session (required admin only)
     const session = await auth()
     if (!session?.user?.id) {
       return {
@@ -27,77 +30,101 @@ export async function saveArticle(
       }
     }
 
-    // Check admin role
-    const userRole = assertKnownUserRole(session.user.role)
-    if (!isPlatformAdmin(userRole)) {
-      return {
-        error: 'Admin access required to manage news articles'
-      }
-    }
-
+    // Extract input mode, article ID and locale
     const mode = formData.get('mode') as 'create' | 'edit'
     const articleId = formData.get('articleId') as string
     const locale = formData.get('locale') as string
-  
-  // Extract form data
-  const title = formData.get('title') as string
-  const slug = formData.get('slug') as string
-  const content = formData.get('content') as string
-  const excerpt = formData.get('excerpt') as string
-  const category = formData.get('category') as NewsCategory
-  const status = formData.get('status') as NewsStatus
-  const visibility = formData.get('visibility') as NewsVisibility
-  const featured = formData.get('featured') === 'true'
-  const featuredImage = formData.get('featuredImage') as string
-  
-  // Parse tags and gallery
-  const tagsString = formData.get('tags') as string
-  const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
-  
-  const galleryString = formData.get('gallery') as string
-  const gallery = galleryString ? galleryString.split(',').filter(Boolean) : []
-  
-  // Parse SEO data
-  const seo: NewsSEO = {
-    metaTitle: formData.get('seoMetaTitle') as string || title,
-    metaDescription: formData.get('seoMetaDescription') as string || excerpt,
-    keywords: (formData.get('seoKeywords') as string || '').split(',').map(k => k.trim()).filter(Boolean),
-    canonicalUrl: formData.get('seoCanonicalUrl') as string || '',
-    ogImage: formData.get('seoOgImage') as string || featuredImage,
-    ogTitle: formData.get('seoOgTitle') as string || title,
-    ogDescription: formData.get('seoOgDescription') as string || excerpt,
-    twitterTitle: formData.get('seoTwitterTitle') as string || title,
-    twitterDescription: formData.get('seoTwitterDescription') as string || excerpt,
-    twitterImage: formData.get('seoTwitterImage') as string || featuredImage
-  }
 
-  // Validation
-  const fieldErrors: Record<string, string> = {}
-  
-  if (!title?.trim()) {
-    fieldErrors.title = 'Title is required'
-  }
-  
-  if (!slug?.trim()) {
-    fieldErrors.slug = 'Slug is required'
-  }
-  
-  if (!content?.trim()) {
-    fieldErrors.content = 'Content is required'
-  }
-  
-  if (!excerpt?.trim()) {
-    fieldErrors.excerpt = 'Excerpt is required'
-  } else if (excerpt.length > 300) {
-    fieldErrors.excerpt = 'Excerpt must be less than 300 characters'
-  }
+    // Role check (must be platform admin for create, admin OR owner for edit)
+    const userRole = assertKnownUserRole(session.user.role)
+    const userId = session.user.id
+    const isAdmin = isPlatformAdmin(userRole)
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      fieldErrors
+    if (mode === 'create') {
+      // Only admins can create articles
+      if (!isAdmin) {
+        return {
+          error: 'Admin access required to create news articles'
+        }
+      }
+    } else if (mode === 'edit' && articleId) {
+      // For edits: must be admin OR the article owner
+      const { db } = await import('@/lib/database')
+      const { mapNewsDocument } = await import('@/lib/news/map-news-document')
+      const articleResult = await db().readDoc('news', articleId)
+      
+      if (!articleResult.success || !articleResult.data) {
+        return {
+          error: 'Article not found'
+        }
+      }
+
+      const existingArticle = mapNewsDocument(articleResult.data)
+      const isOwner = existingArticle.authorId === userId
+      
+      if (!isAdmin && !isOwner) {
+        return {
+          error: 'You do not have permission to edit this article'
+        }
+      }
     }
-  }
 
+    // Extract main form fields for article
+    const title = formData.get('title') as string
+    const slug = formData.get('slug') as string
+    const content = formData.get('content') as string
+    const excerpt = formData.get('excerpt') as string
+    const category = formData.get('category') as NewsCategory
+    const status = formData.get('status') as NewsStatus
+    const visibility = formData.get('visibility') as NewsVisibility
+    const featured = formData.get('featured') === 'true'
+    const featuredImage = formData.get('featuredImage') as string
+
+    // Parse tags as comma-separated string -> array
+    const tagsString = formData.get('tags') as string
+    const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
+    
+    // Parse gallery images as comma-separated array
+    const galleryString = formData.get('gallery') as string
+    const gallery = galleryString ? galleryString.split(',').filter(Boolean) : []
+
+    // Parse SEO meta, fallback to main field values for defaults
+    const seo: NewsSEO = {
+      metaTitle: formData.get('seoMetaTitle') as string || title,
+      metaDescription: formData.get('seoMetaDescription') as string || excerpt,
+      keywords: (formData.get('seoKeywords') as string || '').split(',').map(k => k.trim()).filter(Boolean),
+      canonicalUrl: formData.get('seoCanonicalUrl') as string || '',
+      ogImage: formData.get('seoOgImage') as string || featuredImage,
+      ogTitle: formData.get('seoOgTitle') as string || title,
+      ogDescription: formData.get('seoOgDescription') as string || excerpt,
+      twitterTitle: formData.get('seoTwitterTitle') as string || title,
+      twitterDescription: formData.get('seoTwitterDescription') as string || excerpt,
+      twitterImage: formData.get('seoTwitterImage') as string || featuredImage
+    }
+
+    // --- Field validation ---
+    const fieldErrors: Record<string, string> = {}
+    if (!title?.trim()) {
+      fieldErrors.title = 'Title is required'
+    }
+    if (!slug?.trim()) {
+      fieldErrors.slug = 'Slug is required'
+    }
+    if (!content?.trim()) {
+      fieldErrors.content = 'Content is required'
+    }
+    if (!excerpt?.trim()) {
+      fieldErrors.excerpt = 'Excerpt is required'
+    } else if (excerpt.length > 300) {
+      fieldErrors.excerpt = 'Excerpt must be less than 300 characters'
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      return {
+        fieldErrors
+      }
+    }
+
+    // Construct payload for article creation or update
     const articleData = {
       title: title.trim(),
       slug: slug.trim(),
@@ -111,18 +138,22 @@ export async function saveArticle(
       visibility,
       featured,
       seo,
+      // If creating, initialize counters and createdAt
       ...(mode === 'create' && {
         views: 0,
         likes: 0,
         comments: 0,
         createdAt: new Date(),
       }),
+      // Always update updatedAt
       updatedAt: new Date(),
     }
 
-    // ✅ Use direct service call instead of HTTP request
+    // Use service layer for DB access (dynamic import)
+    // TODO: Consider native React19/Next16 Loading UI while awaiting import
     const { createNewsArticle, updateNewsArticle } = await import('@/features/news/services/news-service')
-    
+
+    // Save or update the article
     const result = mode === 'create' 
       ? await createNewsArticle(articleData)
       : await updateNewsArticle(articleId, articleData)
@@ -133,17 +164,26 @@ export async function saveArticle(
       }
     }
 
+    // Invalidate article cache + revalidate all relevant admin/news paths
+    // Uses Next.js 16 `revalidateTag(tag, 'max')` pattern via syncNewsDiscovery
+    const { syncNewsDiscovery } = await import('@/features/news/lib/news-mutation-sync')
+    await syncNewsDiscovery({
+      articleId: result.data?.id || articleId,
+      event: mode === 'create' ? 'created' : 'updated',
+      locale,
+    })
+
     const savedArticle = result.data
-    
-    // Redirect to admin panel after successful save
+
+    // Redirect to admin news list (handled by Next.js server redirect)
     redirect(`/${locale}/admin/news`)
-    
+
   } catch (error: any) {
+    // Properly rethrow Next.js redirect "errors" so Next handles them correctly
     if (error.message?.includes('NEXT_REDIRECT')) {
-      // Re-throw redirect errors
       throw error
     }
-    
+    // Log error and return generic message
     console.error('Error saving article:', error)
     return {
       error: 'Failed to save article. Please try again.'
@@ -151,23 +191,24 @@ export async function saveArticle(
   }
 }
 
+// Publish = set status to 'published', then save as usual
 export async function publishArticle(
   prevState: ArticleFormState | null,
   formData: FormData
 ): Promise<ArticleFormState> {
-
-  // Set status to published and save
+  // Set status for publishing; reuse saveArticle logic for validation and storage
   formData.set('status', 'published')
   return saveArticle(prevState, formData)
 }
 
+// Delete article by ID + locale, invalidate caches/paths
 export async function deleteArticle(
   articleId: string,
   locale: string
 ): Promise<{
  success: boolean; error?: string }> {
   try {
-    // Get current user session
+    // Require authentication
     const session = await auth()
     if (!session?.user?.id) {
       return {
@@ -176,9 +217,36 @@ export async function deleteArticle(
       }
     }
 
-    // Import service function
-    const { deleteNewsArticle } = await import('@/features/news/services/news-service')
+    const userRole = assertKnownUserRole(session.user.role)
+    const userId = session.user.id
 
+    // Fetch the article to check ownership
+    const { db } = await import('@/lib/database')
+    const { mapNewsDocument } = await import('@/lib/news/map-news-document')
+    const articleResult = await db().readDoc('news', articleId)
+    
+    if (!articleResult.success || !articleResult.data) {
+      return {
+        success: false,
+        error: 'Article not found'
+      }
+    }
+
+    const article = mapNewsDocument(articleResult.data)
+    
+    // Check permissions: admin OR article owner
+    const isAdmin = isPlatformAdmin(userRole)
+    const isOwner = article.authorId === userId
+    
+    if (!isAdmin && !isOwner) {
+      return {
+        success: false,
+        error: 'You do not have permission to delete this article'
+      }
+    }
+
+    // Use dynamic import for service
+    const { deleteNewsArticle } = await import('@/features/news/services/news-service')
     const result = await deleteNewsArticle(articleId)
 
     if (!result.success) {
@@ -188,7 +256,15 @@ export async function deleteArticle(
       }
     }
 
-    // Revalidate paths after successful deletion
+    // Sync news + revalidate admin/news path caches
+    const { syncNewsDiscovery } = await import('@/features/news/lib/news-mutation-sync')
+    await syncNewsDiscovery({
+      articleId,
+      event: 'deleted',
+      locale,
+    })
+
+    // Revalidate paths (client-facing news, user's news dashboard)
     const { revalidatePath } = await import('next/cache')
     revalidatePath(`/${locale}/my-news`)
     revalidatePath(`/${locale}/news`)
@@ -203,12 +279,14 @@ export async function deleteArticle(
   }
 }
 
+// Fetch currently logged-in user's articles given locale and optional filters
 export async function getMyArticlesAction(
   locale: string,
   filters?: { status?: NewsStatus }
 ): Promise<{
  success: boolean; data?: NewsArticle[]; error?: string }> {
   try {
+    // Require authentication
     const session = await auth()
     if (!session?.user?.id) {
       return {
@@ -217,6 +295,7 @@ export async function getMyArticlesAction(
       }
     }
 
+    // Fetch user's articles via service
     const { getMyArticles } = await import('@/features/news/services/news-service')
     const result = await getMyArticles(session.user.id, filters)
 
@@ -227,6 +306,7 @@ export async function getMyArticlesAction(
       }
     }
 
+    // Return articles to client
     return { success: true, data: result.data }
   } catch (error) {
     console.error('Error fetching my articles:', error)
@@ -237,6 +317,7 @@ export async function getMyArticlesAction(
   }
 }
 
+// Fetch user stats for their articles
 export async function getUserArticleStatsAction(
   locale: string
 ): Promise<{
@@ -250,6 +331,7 @@ export async function getUserArticleStatsAction(
       }
     }
 
+    // Retrieve article stats via service
     const { getUserArticleStats } = await import('@/features/news/services/news-service')
     const result = await getUserArticleStats(session.user.id)
 
@@ -268,4 +350,144 @@ export async function getUserArticleStatsAction(
       error: 'Failed to fetch stats. Please try again.'
     }
   }
-} 
+}
+
+// Category management actions (create, update, delete).
+// NOTE: These could be refactored to share validation logic if more category fields are added later.
+export interface CategoryFormState {
+  success?: boolean
+  error?: string
+  message?: string
+}
+
+// Fetch all categories (admin-only, shared resource)
+export async function getCategoriesAction(): Promise<{
+  success: boolean
+  data?: import('@/features/news/types').NewsCategoryInfo[]
+  error?: string
+}> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const userRole = assertKnownUserRole(session.user.role)
+    if (!isPlatformAdmin(userRole)) {
+      return { success: false, error: 'Admin access required' }
+    }
+
+    const { getCategories } = await import('@/features/news/services/news-category-service')
+    const categories = await getCategories()
+    return { success: true, data: categories }
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+    return { success: false, error: 'Failed to fetch categories' }
+  }
+}
+
+// Create a category for news articles (admin-only)
+export async function createCategoryAction(
+  prevState: CategoryFormState | null,
+  formData: FormData
+): Promise<CategoryFormState> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { error: 'Authentication required' }
+    }
+
+    const userRole = assertKnownUserRole(session.user.role)
+    if (!isPlatformAdmin(userRole)) {
+      return { error: 'Admin access required to manage categories' }
+    }
+
+    const name = formData.get('name') as string
+    const description = formData.get('description') as string
+    const color = formData.get('color') as string
+    const icon = formData.get('icon') as string
+
+    if (!name?.trim()) {
+      return { error: 'Category name is required' }
+    }
+
+    const { createCategory } = await import('@/features/news/services/news-category-service')
+    const result = await createCategory({ name, description, color, icon })
+
+    return {
+      success: result.success,
+      message: result.message,
+      error: result.error,
+    }
+  } catch (error) {
+    console.error('Error creating category:', error)
+    return { error: 'Failed to create category' }
+  }
+}
+
+// Update an existing category by ID (admin-only)
+export async function updateCategoryAction(
+  prevState: CategoryFormState | null,
+  formData: FormData
+): Promise<CategoryFormState> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { error: 'Authentication required' }
+    }
+
+    const userRole = assertKnownUserRole(session.user.role)
+    if (!isPlatformAdmin(userRole)) {
+      return { error: 'Admin access required to manage categories' }
+    }
+
+    const id = formData.get('id') as string
+    const name = formData.get('name') as string
+    const description = formData.get('description') as string
+    const color = formData.get('color') as string
+    const icon = formData.get('icon') as string
+
+    if (!id || !name?.trim()) {
+      return { error: 'Category ID and name are required' }
+    }
+
+    const { updateCategory } = await import('@/features/news/services/news-category-service')
+    const result = await updateCategory(id, { name, description, color, icon })
+
+    return {
+      success: result.success,
+      message: result.message,
+      error: result.error,
+    }
+  } catch (error) {
+    console.error('Error updating category:', error)
+    return { error: 'Failed to update category' }
+  }
+}
+
+// Delete a news article category by ID (admin-only)
+export async function deleteCategoryAction(categoryId: string): Promise<CategoryFormState> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { error: 'Authentication required' }
+    }
+
+    const userRole = assertKnownUserRole(session.user.role)
+    if (!isPlatformAdmin(userRole)) {
+      return { error: 'Admin access required to manage categories' }
+    }
+
+    const { deleteCategory } = await import('@/features/news/services/news-category-service')
+    const result = await deleteCategory(categoryId)
+
+    return {
+      success: result.success,
+      message: result.message,
+      error: result.error,
+    }
+  } catch (error) {
+    console.error('Error deleting category:', error)
+    return { error: 'Failed to delete category' }
+  }
+}

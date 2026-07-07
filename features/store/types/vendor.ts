@@ -74,8 +74,8 @@ export interface VendorProfile {
   performanceMetrics: VendorPerformanceMetrics
   
   // Store Configuration
-  storeTier?: StoreTier // Add missing storeTier field
-  storeMerchantConfigID?: string // Add missing merchant config reference
+  storeTier?: StoreTier // storeTier field
+  storeMerchantConfigID?: string // merchant config reference
   
   // Compliance
   complianceStatus: VendorComplianceStatus

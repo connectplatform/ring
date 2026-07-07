@@ -11,7 +11,7 @@ import { consumeReferralCheckoutFlash } from '@/features/refcodes/lib/checkout-r
 interface PaymentProcessingClientProps {
   orderId: string
   locale: Locale
-  initialStatus?: string
+  initialStatus?: string // TODO: Consider using initialStatus as the initial state if provided
 }
 
 type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'refunded'
@@ -25,32 +25,40 @@ export default function PaymentProcessingClient({
   const tCheckout = useTranslations('modules.store.checkout')
   const { success: toastSuccess } = useToast()
   const router = useRouter()
+  // TODO: Use initialStatus as default if provided, or 'processing' if not
   const [status, setStatus] = useState<PaymentStatus>('processing')
   const [error, setError] = useState<string | null>(null)
   const [attempts, setAttempts] = useState(0)
   const [isChecking, setIsChecking] = useState(false)
 
-  // Refs to avoid stale values inside interval
+  // Use refs to prevent stale state values inside interval and async callbacks
   const statusRef = useRef<PaymentStatus>('processing')
   const isCheckingRef = useRef(false)
 
+  // Keep ref in sync with current status
   useEffect(() => {
     statusRef.current = status
   }, [status])
 
+  // Keep ref in sync with isChecking
   useEffect(() => {
     isCheckingRef.current = isChecking
   }, [isChecking])
 
+  /**
+   * Polls the backend API for payment status for this order.
+   * If finished, triggers a final redirect to the appropriate checkout status page.
+   */
   const checkPaymentStatus = useCallback(async () => {
-    if (isCheckingRef.current) return
-    
+    if (isCheckingRef.current) return  // Prevent concurrent checks
+
     setIsChecking(true)
     setError(null)
     
     try {
       const response = await fetch(`/api/store/payments/${orderId}/status`)
       
+      // Handle HTTP error codes with custom messages
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error(t('errors.orderNotFound'))
@@ -59,16 +67,17 @@ export default function PaymentProcessingClient({
         }
         throw new Error(t('errors.statusCheckFailed'))
       }
-      
+
+      // Parse returned payment status
       const data = await response.json()
       const newStatus = data.status as PaymentStatus
       
       setStatus(newStatus)
-      
-      // If payment is complete (success or failure), redirect
+
+      // If final status reached, redirect to status page after slight delay
       if (['paid', 'failed', 'cancelled', 'refunded'].includes(newStatus)) {
-        // Map our status to checkout status page format
-        let redirectStatus = 'processing'
+        // Remap status to route slug
+        let redirectStatus = 'processing' // fallback/default
         if (newStatus === 'paid') {
           redirectStatus = 'success'
         } else if (newStatus === 'failed') {
@@ -76,14 +85,12 @@ export default function PaymentProcessingClient({
         } else if (newStatus === 'cancelled') {
           redirectStatus = 'cancel'
         }
-        
-        // Redirect to status page
         setTimeout(() => {
           router.push(`/${locale}/store/checkout/${redirectStatus}?orderId=${orderId}`)
         }, 1500)
       }
-      
     } catch (err) {
+      // Log to console for debugging, show user-friendly error on UI
       console.error('Error checking payment status:', err)
       setError(err instanceof Error ? err.message : t('errors.unknown'))
     } finally {
@@ -92,6 +99,9 @@ export default function PaymentProcessingClient({
     }
   }, [orderId, locale, t, router])
 
+  /**
+   * On mount: check flash message for referral and show toast if present
+   */
   useEffect(() => {
     const flash = consumeReferralCheckoutFlash()
     if (flash) {
@@ -105,16 +115,24 @@ export default function PaymentProcessingClient({
     }
   }, [toastSuccess, tCheckout])
 
+  /**
+   * Primary polling interval effect.
+   * - Checks payment status immediately on mount.
+   * - Then starts repeating check every 3s up to 40 times (2min).
+   * - Stops polling if status is not in-progress, or max attempts exceeded.
+   */
   useEffect(() => {
-    // Check status immediately
-    checkPaymentStatus()
-    
-    // Then check every 3 seconds for up to 2 minutes
-    const maxAttempts = 40 // 40 * 3 seconds = 2 minutes
+    checkPaymentStatus() // Check status immediately first
+
+    const maxAttempts = 40 // 3s * 40 = 2min
     let localAttempts = 0
-    
+    // TODO: Consider using native React 19 useEffectEvent/useInterval for polling
     const interval = setInterval(() => {
-      if (localAttempts < maxAttempts && !['paid', 'failed', 'cancelled', 'refunded'].includes(statusRef.current)) {
+      // Keep polling, unless we've hit a final status or the attempt max
+      if (
+        localAttempts < maxAttempts &&
+        !['paid', 'failed', 'cancelled', 'refunded'].includes(statusRef.current)
+      ) {
         localAttempts += 1
         setAttempts(localAttempts)
         checkPaymentStatus()
@@ -122,19 +140,28 @@ export default function PaymentProcessingClient({
         clearInterval(interval)
       }
     }, 3000)
-    
+
     return () => clearInterval(interval)
   }, [checkPaymentStatus])
 
+  /**
+   * Allows user to manually trigger status re-check if still "processing"
+   */
   const handleManualCheck = () => {
     setAttempts(0)
     checkPaymentStatus()
   }
 
+  /**
+   * Cancel or back-to-store handler (contextual label based on status)
+   */
   const handleCancel = () => {
     router.push(`/${locale}/store/checkout/cancel?orderId=${orderId}`)
   }
 
+  /**
+   * Returns a react icon node for current payment state
+   */
   const getStatusIcon = () => {
     switch (status) {
       case 'paid':
@@ -150,6 +177,9 @@ export default function PaymentProcessingClient({
     }
   }
 
+  /**
+   * Returns translated status title
+   */
   const getStatusMessage = () => {
     switch (status) {
       case 'paid':
@@ -168,6 +198,9 @@ export default function PaymentProcessingClient({
     }
   }
 
+  /**
+   * Returns translated status description
+   */
   const getStatusDescription = () => {
     switch (status) {
       case 'paid':
@@ -186,6 +219,7 @@ export default function PaymentProcessingClient({
     }
   }
 
+  // -- Render --
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-md w-full">
@@ -201,24 +235,24 @@ export default function PaymentProcessingClient({
           </h1>
           
           {/* Status Description */}
-              <p className="text-muted-foreground text-center mb-6">
+          <p className="text-muted-foreground text-center mb-6">
             {getStatusDescription()}
           </p>
           
           {/* Order ID */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-sm text-muted-foreground mb-1">{t('orderId')}</p>
+            <p className="text-sm text-muted-foreground mb-1">{t('orderId')}</p>
             <p className="font-mono text-lg font-medium">{orderId}</p>
           </div>
           
-          {/* Error Message */}
+          {/* Error Message if present */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
               {error}
             </div>
           )}
           
-          {/* Progress Indicator */}
+          {/* Progress Bar and Status Spinner while processing */}
           {status === 'processing' && !error && (
             <div className="mb-6">
               <div className="flex items-center justify-center space-x-2 text-blue-600">
@@ -238,7 +272,7 @@ export default function PaymentProcessingClient({
           
           {/* Action Buttons */}
           <div className="space-y-3">
-            {/* Manual Check Button (for processing status) */}
+            {/* Manual Check Button only when in-processing */}
             {status === 'processing' && (
               <button
                 onClick={handleManualCheck}
@@ -256,7 +290,7 @@ export default function PaymentProcessingClient({
               </button>
             )}
             
-            {/* View Order Button (for completed status) */}
+            {/* Orders Link for completed/canceled/failed/refunded statuses */}
             {['paid', 'failed', 'cancelled', 'refunded'].includes(status) && (
               <button
                 onClick={() => router.push(`/${locale}/store/orders`)}
@@ -266,7 +300,7 @@ export default function PaymentProcessingClient({
               </button>
             )}
             
-            {/* Cancel/Back Button */}
+            {/* Cancel/Back Button (label varies with state) */}
             <button
               onClick={handleCancel}
               className="w-full px-6 py-3 border border-gray-300 text-muted-foreground rounded-lg hover:bg-gray-50 transition-colors"
@@ -275,7 +309,7 @@ export default function PaymentProcessingClient({
             </button>
           </div>
           
-          {/* Help Text */}
+          {/* Help Text for user */}
           <p className="text-xs text-gray-500 text-center mt-6">
             {t('helpText')}
           </p>

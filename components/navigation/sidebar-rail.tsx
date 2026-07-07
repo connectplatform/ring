@@ -27,7 +27,7 @@ import {
   nextLocaleInRoutingOrder,
   persistRingLocalePreference,
 } from '@/lib/locale-pref'
-import { useCurrency } from '@/features/store/currency-context'
+import { useStoreCurrency } from '@/features/store/currency-context'
 const railLinkClass =
   'sidebar-rail-link group relative flex justify-center items-center rounded-lg size-10 text-white hover:not-data-current:bg-white/10 data-current:bg-[#333333] data-current:inset-ring-1 data-current:inset-ring-white/3 data-current:bg-radial-[at_0%_0%] data-current:from-white/10 data-current:to-transparent'
 
@@ -74,7 +74,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
   const locale = useLocale() as Locale
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
-  const { currency, toggleCurrency } = useCurrency()
+  const { currency, toggleCurrency } = useStoreCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const tEntities = useTranslations('modules.entities')
   const tOpp = useTranslations('modules.opportunities')

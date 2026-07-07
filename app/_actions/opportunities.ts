@@ -1,13 +1,15 @@
 'use server'
 
+// Imports (authentication, user roles, and permissions utilities)
+// TODO: Switch to `useSession`, `useUser` React hooks in client-side components where possible for cleaner logic separation.
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import {
-  UserRole,
   assertKnownUserRole,
   hasRoleAtLeast,
   isPlatformAdmin,
 } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   canCreateOpportunityType,
   canCreateOpportunityConfidential,
@@ -18,6 +20,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
+// State definition for Opportunity-related form actions
 export interface OpportunityFormState {
   success?: boolean
   message?: string
@@ -26,34 +29,46 @@ export interface OpportunityFormState {
   redirectUrl?: string
 }
 
+/**
+ * Server action to create a new opportunity.
+ * Handles validation, permission checks, business rules for type, confidentiality, and entity linkage.
+ * Returns proper outcome for client-side action reducers/handlers.
+ * @param prevState Previous form state (unused here, but maintained for Server Actions signature)
+ * @param formData Next.js FormData from client POST
+ * @param locale   Active locale string
+ * @returns Outcome object with error, fieldErrors, or redirectUrl
+ */
 export async function createOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData,
   locale: Locale
 ): Promise<OpportunityFormState> {
 
+  // Get the current session and confirm authentication
   const session = await auth()
-  
   if (!session?.user?.id) {
+    // User must be authenticated to continue
     return {
       error: 'You must be logged in to create an opportunity'
     }
   }
 
+  // Ensure user's role is valid and known
   const userRole = assertKnownUserRole(session.user.role)
   
-  // Extract form data
+  // Extract main fields from form submission (minimal transformation here)
   const title = formData.get('title') as string
-  const type = formData.get('type') as 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event' | 'ring_customization'
+  const type = formData.get('type') as
+    | 'offer' | 'request' | 'partnership' | 'volunteer'
+    | 'mentorship' | 'resource' | 'event' | 'ring_customization'
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
-  
-  // Extract budget fields (separate fields in form)
+
+  // Extract optional/numeric and auxiliary fields
   const budgetMin = formData.get('budgetMin') as string
   const budgetMax = formData.get('budgetMax') as string
   const budgetCurrency = formData.get('budgetCurrency') as string
-  
   const deadline = formData.get('deadline') as string
   const applicationDeadline = formData.get('applicationDeadline') as string
   const maxApplicants = formData.get('maxApplicants') as string
@@ -64,26 +79,28 @@ export async function createOpportunity(
   const tagsString = formData.get('tags') as string
   const requiredSkillsString = formData.get('requiredSkills') as string
 
+  // Permission checks: opportunity type and confidentiality
   if (!canCreateOpportunityType(userRole, type)) {
     return { error: 'You do not have permission to create this opportunity type' }
   }
-
   if (isConfidential && !canCreateOpportunityConfidential(userRole)) {
     return { error: 'Only admin, superadmin, or confidential users can create confidential opportunities' }
   }
 
+  // Business logic: handle entity vs. individual opps
   const requestTypes = ['request']
-  const organizationalTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event', 'ring_customization']
-  
+  const organizationalTypes = [
+    'offer', 'partnership', 'volunteer', 'mentorship',
+    'resource', 'event', 'ring_customization'
+  ]
   if (requestTypes.includes(type)) {
-    entityId = null
+    entityId = null // Requests are always from individuals
   } else if (organizationalTypes.includes(type)) {
-    if (!hasRoleAtLeast(userRole, UserRole.member)) {
+    if (!hasRoleAtLeast(userRole, UserRolesArray.member)) {
       return { 
         error: `Only member users and above can create ${type} opportunities. Upgrade your membership to create organizational opportunities.` 
       }
     }
-    
     if (!entityId?.trim()) {
       return { error: `Entity is required for ${type} opportunities` }
     }
@@ -91,72 +108,64 @@ export async function createOpportunity(
     return { error: 'Valid opportunity type is required' }
   }
 
-  // Validation
+  // Field validation (server-side redundancy to prevent bad data submission)
   const fieldErrors: Record<string, string> = {}
-  
-  if (!title?.trim()) {
-    fieldErrors.title = 'Title is required'
-  }
-  
-  if (!category?.trim()) {
-    fieldErrors.category = 'Category is required'
-  }
-  
-  if (!description?.trim()) {
-    fieldErrors.description = 'Description is required'
-  }
-  
-  // Entity validation only for offers
+  if (!title?.trim()) fieldErrors.title = 'Title is required'
+  if (!category?.trim()) fieldErrors.category = 'Category is required'
+  if (!description?.trim()) fieldErrors.description = 'Description is required'
+  // Mandatory organization for "offer" type
   if (type === 'offer' && !entityId?.trim()) {
     fieldErrors.entityId = 'Entity is required for offers'
   }
-  
+  // Basic email validation regex
   if (contactEmail && !/\S+@\S+\.\S+/.test(contactEmail)) {
     fieldErrors.contactEmail = 'Please enter a valid email address'
   }
-  
+  // Deadline must be in future (if supplied)
   if (deadline && new Date(deadline) <= new Date()) {
     fieldErrors.deadline = 'Deadline must be in the future'
   }
 
+  // If any validation failed, early return with details
   if (Object.keys(fieldErrors).length > 0) {
-    return {
-      fieldErrors
-    }
+    return { fieldErrors }
   }
 
   try {
-    // Parse tags and required skills
+    // Tags and skills are expected as comma-separated; parse to clean arrays.
+    // TODO: Accept array directly from client if possible in Next.js 16 forms.
     const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
     const requiredSkills = requiredSkillsString ? requiredSkillsString.split(',').map(skill => skill.trim()).filter(Boolean) : []
 
-    // Parse budget from separate form fields
+    // Budget: only include budget if min or max is present; parse as int or undefined.
     let budgetObj = undefined
     if (budgetMin?.trim() || budgetMax?.trim()) {
       try {
         const min = budgetMin?.trim() ? parseInt(budgetMin) : undefined
         const max = budgetMax?.trim() ? parseInt(budgetMax) : undefined
         const currency = budgetCurrency?.trim() || 'USD'
-        
-        // Only create budget object if we have at least min or max
         if (min !== undefined || max !== undefined) {
+          // Always include both min/max as 0 fallback to simplify later rendering logic.
           budgetObj = {
-            min: min || max || 0, // Use max if min is not provided, or 0 as fallback
-            max: max || min || 0, // Use min if max is not provided, or 0 as fallback
+            min: min ?? max ?? 0,
+            max: max ?? min ?? 0,
             currency
           }
         }
       } catch (e) {
+        // non-terminal, warn and skip budget
         console.warn('Could not parse budget from form fields:', { budgetMin, budgetMax, budgetCurrency })
       }
     }
 
-    // Parse deadlines - convert to Timestamp for Firestore compatibility
+    // Parse dates for Firestore (expects Timestamps, not Dates)
     const { Timestamp } = await import('firebase-admin/firestore')
-    const deadlineDate = deadline ? new Date(deadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default 30 days
+    // Expiration/deadline: default to 30 days from now if not supplied
+    const deadlineDate = deadline ? new Date(deadline) :
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     const expirationDate = Timestamp.fromDate(deadlineDate)
-    
-    // Parse application deadline if provided
+
+    // Optional: Application deadline (can be unset)
     let applicationDeadlineTimestamp = undefined
     if (applicationDeadline?.trim()) {
       try {
@@ -166,7 +175,7 @@ export async function createOpportunity(
       }
     }
 
-    // Parse max applicants
+    // Optional: Max applicants parsing
     let maxApplicantsNumber = undefined
     if (maxApplicants?.trim()) {
       try {
@@ -176,7 +185,8 @@ export async function createOpportunity(
       }
     }
 
-    // Create opportunity data matching the Opportunity interface
+    // Build opportunity data object, enforcing server-side shape invariant.
+    // TODO: Remove unused fields or split interfaces for drafts vs. published opps for stricter typing.
     const opportunityData = {
       type,
       title: title.trim(),
@@ -184,7 +194,7 @@ export async function createOpportunity(
       briefDescription: description.trim(),
       fullDescription: description?.trim() || '',
       createdBy: session.user.id,
-      // For requests: null (individual), for organizational types: entityId (organization)
+      // Link organization ID if not an individual type; null for requests
       organizationId: requestTypes.includes(type) ? null : entityId?.trim() || null,
       expirationDate,
       ...(applicationDeadlineTimestamp ? { applicationDeadline: applicationDeadlineTimestamp } : {}),
@@ -192,11 +202,11 @@ export async function createOpportunity(
       category: category.trim(),
       tags,
       location: formData.get('location')?.toString().trim() || '',
-      ...(budgetObj ? { budget: budgetObj } : {}), // Only include budget if defined
+      ...(budgetObj ? { budget: budgetObj } : {}), // Include budget only if parsed
       requiredSkills,
       requiredDocuments: [],
       attachments: [],
-      applicantCount: 0, // Initialize with 0 applicants
+      applicantCount: 0,
       ...(maxApplicantsNumber ? { maxApplicants: maxApplicantsNumber } : {}),
       ...(priority ? { priority } : {}),
       visibility: isConfidential ? 'confidential' as const : 'public' as const,
@@ -204,15 +214,17 @@ export async function createOpportunity(
         linkedEntity: requestTypes.includes(type) ? '' : entityId?.trim() || '',
         contactAccount: contactEmail?.trim() || session.user.email || ''
       },
-      isPrivate: requestTypes.includes(type) // Requests are private (individual), organizational types are not
+      isPrivate: requestTypes.includes(type) // Requests are private to originator
     }
 
-    // Import and call the opportunity creation service
+    // Import and call the actual opportunity creation service
+    // STUB: This service should persist the new opp and return the DB record (TODO: replace `import()` with static import for better tree shaking)
     const { createOpportunity: createOpportunityService } = await import('@/features/opportunities/services/create-opportunity')
     
-    // Create the opportunity using the service
+    // Attempt the actual write
     const newOpportunity = await createOpportunityService(opportunityData)
     
+    // Log result for server visibility
     console.log('Opportunity created successfully:', { 
       id: newOpportunity.id, 
       title: newOpportunity.title, 
@@ -220,14 +232,15 @@ export async function createOpportunity(
       organizationId: newOpportunity.organizationId 
     })
     
-    // Return success with redirect URL instead of using redirect()
-    // This follows React 19/Next.js 15 patterns for server actions
+    // Instead of calling redirect(), we supply a URL to the client, in line with React 19/Next.js 15+ recommendations.
+    // TODO: Move notification/redirect logic fully to client components when upgrading to React Actions.
     return {
       success: true,
       message: 'Opportunity created successfully!',
       redirectUrl: `/${locale}/opportunities/status/create/success?opportunityId=${newOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
     }
   } catch (error) {
+    // Catch any service, validation, or runtime errors.
     console.error('Error creating opportunity:', error)
     return {
       error: 'An unexpected error occurred. Please try again.'
@@ -235,22 +248,27 @@ export async function createOpportunity(
   }
 }
 
+/**
+ * Server action to update an existing opportunity.
+ * Fetches existing record for permission check, applies incoming values, revalidates, and updates.
+ * @returns Outcome object for client-side reducer
+ */
 export async function updateOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData,
   locale: Locale
 ): Promise<OpportunityFormState> {
 
+  // Get current session & user
   const session = await auth()
-  
   if (!session?.user?.id) {
     return {
       error: 'You must be logged in to update an opportunity'
     }
   }
 
+  // Get the opportunity ID being updated
   const opportunityId = formData.get('opportunityId') as string
-  
   if (!opportunityId) {
     return {
       error: 'Opportunity ID is required'
@@ -261,10 +279,10 @@ export async function updateOpportunity(
   const userId = session.user.id
 
   try {
-    // First, fetch the existing opportunity to check ownership and permissions
+    // Fetch the existing opportunity to verify ownership and permissions.
+    // STUB: `getOpportunityById` must ensure returned fields match update needs.
     const { getOpportunityById } = await import('@/features/opportunities/services/get-opportunity-by-id')
     const existingOpportunity = await getOpportunityById(opportunityId)
-    
     if (!existingOpportunity) {
       return {
         error: 'Opportunity not found'
@@ -277,18 +295,15 @@ export async function updateOpportunity(
       }
     }
 
-    // Extract form data
+    // Extract updated fields from form again
     const title = formData.get('title') as string
     const type = formData.get('type') as string
     const category = formData.get('category') as string
     const description = formData.get('description') as string
     const requirements = formData.get('requirements') as string
-    
-    // Extract budget fields (separate fields in form)
     const budgetMin = formData.get('budgetMin') as string
     const budgetMax = formData.get('budgetMax') as string
     const budgetCurrency = formData.get('budgetCurrency') as string
-    
     const deadline = formData.get('deadline') as string
     const applicationDeadline = formData.get('applicationDeadline') as string
     const maxApplicants = formData.get('maxApplicants') as string
@@ -301,68 +316,55 @@ export async function updateOpportunity(
     const status = formData.get('status') as 'active' | 'closed' | 'expired'
     const visibility = formData.get('visibility') as 'public' | 'subscriber' | 'member' | 'confidential'
 
-    // Validation
+    // Field validation (mirrors creation with additional constraints for update)
     const fieldErrors: Record<string, string> = {}
-    
-    if (!title?.trim()) {
-      fieldErrors.title = 'Title is required'
-    }
-    
-    if (!type || !['offer', 'request', 'partnership', 'volunteer', 'mentorship', 'resource', 'event', 'ring_customization'].includes(type)) {
+    if (!title?.trim()) fieldErrors.title = 'Title is required'
+    if (!type || ![
+      'offer', 'request', 'partnership', 'volunteer', 'mentorship',
+      'resource', 'event', 'ring_customization'
+    ].includes(type)) {
       fieldErrors.type = 'Valid type is required'
     }
-    
-    if (!category?.trim()) {
-      fieldErrors.category = 'Category is required'
-    }
-    
-    if (!description?.trim()) {
-      fieldErrors.description = 'Description is required'
-    }
-    
+    if (!category?.trim()) fieldErrors.category = 'Category is required'
+    if (!description?.trim()) fieldErrors.description = 'Description is required'
     if (contactEmail && !/\S+@\S+\.\S+/.test(contactEmail)) {
       fieldErrors.contactEmail = 'Please enter a valid email address'
     }
-    
     if (deadline && new Date(deadline) <= new Date()) {
       fieldErrors.deadline = 'Deadline must be in the future'
     }
-
     if (isConfidential && !canCreateOpportunityConfidential(userRole)) {
       fieldErrors.isConfidential = 'Only admin or confidential users can create confidential opportunities'
     }
-
+    // Visibility logic: assert role-power against patch
     try {
       assertOpportunityVisibilityPatch(userRole, {
-        visibility: visibility as 'public' | 'subscriber' | 'member' | 'confidential' | undefined,
+        visibility: visibility as
+          | 'public' | 'subscriber' | 'member' | 'confidential' | undefined,
         isConfidential,
       })
     } catch {
       fieldErrors.visibility = 'Your role cannot set this visibility level'
     }
-
     if (Object.keys(fieldErrors).length > 0) {
-      return {
-        fieldErrors
-      }
+      return { fieldErrors }
     }
 
-    // Parse tags and required skills
+    // Parse complex fields
     const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
     const requiredSkills = requiredSkillsString ? requiredSkillsString.split(',').map(skill => skill.trim()).filter(Boolean) : []
 
-    // Parse budget from separate form fields
+    // Budget parsing (same as create)
     let budgetObj = undefined
     if (budgetMin?.trim() || budgetMax?.trim()) {
       try {
         const min = budgetMin?.trim() ? parseInt(budgetMin) : undefined
         const max = budgetMax?.trim() ? parseInt(budgetMax) : undefined
         const currency = budgetCurrency?.trim() || 'USD'
-        
         if (min !== undefined || max !== undefined) {
           budgetObj = {
-            min: min || max || 0,
-            max: max || min || 0,
+            min: min ?? max ?? 0,
+            max: max ?? min ?? 0,
             currency
           }
         }
@@ -371,7 +373,7 @@ export async function updateOpportunity(
       }
     }
 
-    // Parse deadlines - convert to Timestamp for Firestore compatibility
+    // Deadlines parsing
     const { Timestamp } = await import('firebase-admin/firestore')
     let expirationDate = existingOpportunity.expirationDate
     if (deadline?.trim()) {
@@ -381,8 +383,6 @@ export async function updateOpportunity(
         console.warn('Could not parse deadline:', deadline)
       }
     }
-    
-    // Parse application deadline if provided
     let applicationDeadlineTimestamp = existingOpportunity.applicationDeadline
     if (applicationDeadline?.trim()) {
       try {
@@ -392,7 +392,7 @@ export async function updateOpportunity(
       }
     }
 
-    // Parse max applicants
+    // Max applicants
     let maxApplicantsNumber = existingOpportunity.maxApplicants
     if (maxApplicants?.trim()) {
       try {
@@ -402,7 +402,8 @@ export async function updateOpportunity(
       }
     }
 
-    // Create update data
+    // Prepare patch/update object (merge unchanged existing values as fallbacks)
+    // TODO: Switch to "partial" object updates as interface, validated per type, for safer patches
     const updateData: any = {
       title: title.trim(),
       type,
@@ -421,35 +422,16 @@ export async function updateOpportunity(
       dateUpdated: Timestamp.now()
     }
 
-    // Add optional fields if provided
-    if (budgetObj) {
-      updateData.budget = budgetObj
-    }
-    
-    if (expirationDate) {
-      updateData.expirationDate = expirationDate
-    }
-    
-    if (applicationDeadlineTimestamp) {
-      updateData.applicationDeadline = applicationDeadlineTimestamp
-    }
-    
-    if (maxApplicantsNumber !== undefined) {
-      updateData.maxApplicants = maxApplicantsNumber
-    }
-    
-    if (priority) {
-      updateData.priority = priority
-    }
-    
-    if (status) {
-      updateData.status = status
-    }
+    // Conditionally include optional updated fields
+    if (budgetObj) updateData.budget = budgetObj
+    if (expirationDate) updateData.expirationDate = expirationDate
+    if (applicationDeadlineTimestamp) updateData.applicationDeadline = applicationDeadlineTimestamp
+    if (maxApplicantsNumber !== undefined) updateData.maxApplicants = maxApplicantsNumber
+    if (priority) updateData.priority = priority
+    if (status) updateData.status = status
 
-    // Import and call the opportunity update service
+    // STUB: Use actual update service method. Ensure patching rules are enforced on service level.
     const { updateOpportunity: updateOpportunityService } = await import('@/features/opportunities/services/update-opportunity')
-    
-    // Update the opportunity using the service
     const updatedOpportunity = await updateOpportunityService(opportunityId, updateData)
     
     console.log('Opportunity updated successfully:', { 
@@ -458,14 +440,14 @@ export async function updateOpportunity(
       type: updatedOpportunity.type 
     })
     
-    // Return success with redirect URL
+    // Communicate success and redirect for client
     return {
       success: true,
       message: 'Opportunity updated successfully!',
       redirectUrl: `/${locale}/opportunities/status/update/success?opportunityId=${updatedOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
     }
-    
   } catch (error) {
+    // Unexpected error in update flow
     console.error('Error updating opportunity:', error)
     return {
       error: 'An unexpected error occurred. Please try again.'
@@ -473,14 +455,20 @@ export async function updateOpportunity(
   }
 }
 
+/**
+ * Server action to delete an existing opportunity.
+ * Checks permission and archived status (enforced for owner roles).
+ * Performs "soft delete" via service method.
+ * @returns Outcome object for client-side reducer
+ */
 export async function deleteOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData,
   locale: Locale
 ): Promise<OpportunityFormState> {
 
+  // Auth checks
   const session = await auth()
-  
   if (!session?.user?.id) {
     return {
       error: 'You must be logged in to delete an opportunity'
@@ -488,7 +476,6 @@ export async function deleteOpportunity(
   }
 
   const opportunityId = formData.get('opportunityId') as string
-  
   if (!opportunityId) {
     return {
       error: 'Opportunity ID is required'
@@ -497,24 +484,23 @@ export async function deleteOpportunity(
 
   const userRole = assertKnownUserRole(session.user.role)
   const userId = session.user.id
-
   try {
-    // First, fetch the existing opportunity to check ownership and permissions
+    // STUB: This fetch must pull at least createdBy, status, title.
     const { getOpportunityById } = await import('@/features/opportunities/services/get-opportunity-by-id')
     const existingOpportunity = await getOpportunityById(opportunityId)
-    
     if (!existingOpportunity) {
       return {
         error: 'Opportunity not found'
       }
     }
-
+    // Role-based permission for deletion
     if (!canDeleteOpportunity(userRole, existingOpportunity.createdBy, userId)) {
       return {
         error: 'You do not have permission to delete this opportunity'
       }
     }
 
+    // If user is the owner (but not platform admin), only allow deletion of archived listings.
     const isOwner = existingOpportunity.createdBy === userId
     if (isOwner && !isPlatformAdmin(userRole) && existingOpportunity.status !== 'archived') {
       return {
@@ -522,10 +508,8 @@ export async function deleteOpportunity(
       }
     }
 
-    // Import and call the opportunity deletion service
+    // STUB: Service must ensure soft-delete and preserve record in DB for admin restore/audit.
     const { deleteOpportunity: deleteOpportunityService } = await import('@/features/opportunities/services/delete-opportunity')
-    
-    // Perform soft delete with ownership checks
     await deleteOpportunityService(opportunityId)
     
     console.log('Opportunity deleted successfully:', { 
@@ -534,17 +518,16 @@ export async function deleteOpportunity(
       deletedBy: userId 
     })
     
-    // Return success with redirect URL
+    // Provide redirectUrl to allow client navigation/handling
     return {
       success: true,
       message: 'Opportunity deleted successfully!',
       redirectUrl: `/${locale}/opportunities/status/delete/success?opportunityId=${opportunityId}&opportunityTitle=${encodeURIComponent(existingOpportunity.title)}`
     }
-    
   } catch (error) {
     console.error('Error deleting opportunity:', error)
     return {
       error: 'An unexpected error occurred. Please try again.'
     }
   }
-} 
+}

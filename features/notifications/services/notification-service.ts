@@ -26,11 +26,11 @@ import {
   NotificationStatsResponse,
   DetailedNotificationPreferences
 } from '@/features/notifications/types';
-import { UserRole } from '@/features/auth/types';
 
 // Import FCM service
-import { getMessaging } from 'firebase-admin/messaging';
-import { MulticastMessage } from 'firebase-admin/messaging';
+// TODO: Implement db abstraction for messaging service
+//import { getMessaging } from 'firebase-admin/messaging';
+//import { MulticastMessage } from 'firebase-admin/messaging';
 import { FCMService } from './fcm-service';
 
 const fcmService = new FCMService();

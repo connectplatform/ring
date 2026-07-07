@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/user-role'
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import {
   platformAIDataSchema,
   platformAISecretsSchema,
@@ -28,7 +28,7 @@ async function requireSuperAdmin(): Promise<{ userId: string; email: string }> {
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
   }
-  if (session.user.role !== UserRole.superadmin) {
+  if (assertKnownUserRole(session.user.role as UserRolesArray) !== UserRolesArray.superadmin) {
     throw new Error('SuperAdmin access required')
   }
   return {

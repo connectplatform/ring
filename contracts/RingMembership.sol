@@ -14,7 +14,7 @@ import "./RingToken.sol";
  * @notice Manages automatic monthly membership payments using RING tokens
  * @dev Handles subscription creation, payment processing, and status management
  */
-contract RingMembership is Initializable, PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
+contract Membership is Initializable, PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     
     /// @notice RING token contract
     RingToken public ringToken;

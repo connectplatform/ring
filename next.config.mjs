@@ -151,16 +151,17 @@ const nextConfig = {
   ],
   // Note: serverRuntimeConfig removed in Next.js 16 - use process.env instead
   // Custom server (server.ts): omit standalone unless explicitly requested (e.g. legacy CI).
-  ...(process.env.NEXT_OUTPUT_STANDALONE === '1' ? { output: 'standalone' } : {}),
-  ...(process.env.NEXT_OUTPUT_STANDALONE === '1'
-    ? {
-        outputFileTracingRoot: path.join(__dirname, './'),
-        outputFileTracingIncludes: {
-          '**/*': ['./i18n/**/*', './lib/**/*', './server.ts', './server.js'],
-        },
-      }
-    : {}),
-  serverExternalPackages: ['google-auth-library', 'gaxios', 'gtoken'],
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, './'),
+  serverExternalPackages: [
+    'google-auth-library', 
+    'gaxios', 
+    'gtoken',
+    '@solana/spl-token', 
+    '@solana/web3.js'],
+  outputFileTracingIncludes: {
+    '**/*': ['./i18n/**/*', './locales/**/*', './ring-config.json', './ring-config.template.json', './server.ts', './server.js'],
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'ring-platform.org', 'www.ring-platform.org'],

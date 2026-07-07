@@ -1,353 +1,174 @@
 ---
-title: Performance
-description: Performance documentation for Ring Platform
+title: Продуктивність
+description: Патерни продуктивності, специфічні для Ring Platform — React 19 cache(), імітація Firebase під час збірки, оптимізація запитів DatabaseService, серверні компоненти та Firebase Admin SDK.
+last_modified: "2026-06-28"
+audience: both
 ---
 
-# Performance Optimization
+# Оптимізація продуктивності
 
-Profiling and optimization strategies for Ring Platform applications.
+Стратегії профілювання та оптимізації, специфічні для Ring Platform. Цей документ охоплює реальні патерни кодової бази. Щодо очікувань продуктивності для користувачів див. [Продуктивність](/docs/en/features/performance). Щодо посилення продуктивності в продакшені див. [Продуктивність розгортання](/docs/en/deployment/performance). Щодо загальних конвенцій розробки див. [Найкращі практики](/docs/en/development/best-practices).
 
-## ⚡ React 19 Performance Patterns
+<Callout type="warning">
+  Ring Platform **не** використовує Firestore на стороні клієнта. Firebase використовується виключно через Admin SDK у `lib/firebase-admin.server.ts`. Єдиний клієнтський код Firebase — це `public/firebase-messaging-sw.js` для push-сповіщень FCM.
+</Callout>
 
-### Server Components Optimization
-// Fetch data at the server component level
+<Audience for="founder">
 
-<Code language="typescript" title="TypeScript">
-{`export default async function EntitiesPage() {
-  // This runs on the server, reducing client-side work
-  const entities = await getEntities()
+## Що впливає на час завантаження
 
-  return (
-    <div>
-      <EntitiesList entities={entities} />
-      <ClientComponent />
-    </div>
-  )
-}`}
-</Code>
+Ring Platform завантажується швидко, оскільки більшість сторінок — це **серверні компоненти React**, що рендеряться на сервері. Ключові фактори, що впливають на продуктивність:
 
-### useOptimistic Hook
-<Code language="typescript" title="'use client'">
-{`import { useOptimistic } from 'react'
+- **Кешування серверних даних** — повторні читання Firestore під час одного запиту дедуплікуються за допомогою `cache()` з React 19.
+- **Оптимізації під час збірки** — Firebase Admin імітується під час статичної генерації, скорочуючи час збірки приблизно на 31%.
+- **Мінімальний клієнтський JavaScript** — лише сторінки з інтерактивністю (форми, мапи, оформлення замовлення) використовують клієнтські компоненти.
+- **Ресурси через CDN** — статичні сторінки попередньо збираються та обслуговуються з кешу на краю мережі.
 
-export function EntityForm({ entities, addEntity }) {
-  const [optimisticEntities, addOptimisticEntity] = useOptimistic(
-    entities,
-    (state, newEntity) => [...state, { ...newEntity, id: 'temp-' + Date.now() }]
-  )
+## Доступні оптимізації продуктивності
 
-  async function handleSubmit(formData) {
-    addOptimisticEntity(formData)
-    await addEntity(formData)
-  }
+| Оптимізація | Перевага |
+|---|---|
+| React 19 cache() | Дедуплікація читань Firestore на один запит |
+| Імітація Firebase під час збірки | ~31% швидші збірки, запобігає 22+ зайвим ініціалізаціям |
+| Рівень запитів DatabaseService | Уніфікований PostgreSQL + Firestore з кешуванням |
+| Серверні компоненти за замовчуванням | Без клієнтського JS для більшості сторінок |
+| WayForPay лише на сервері | Жодна логіка платежів не потрапляє на клієнт |
+| FCM Service Worker | Push-сповіщення обробляються поза головним потоком |
 
-  return (
-    <form action={handleSubmit}>
-      {/* Form fields */}
-    </form>
-  )
-}`}
-</Code>
+</Audience>
 
-## 🚀 Next.js 16 Optimizations
+<Audience for="developer">
 
-### Static Generation
-// Generate static pages at build time
+## React 19 cache() для дедуплікації даних
 
-<Code language="typescript" title="TypeScript">
-{`export async function generateStaticParams() {
-  const entities = await getPublicEntities()
-  
-  return entities.map((entity) => ({
-    id: entity.id
-  }))
+Модуль `firebase-service-manager.ts` обгортає кожне читання Firestore Admin SDK за допомогою `cache()` з React 19. Це запобігає дублюванню запитів у межах одного проходу рендерингу серверного компонента.
+
+```typescript
+import { getCachedDocument, getCachedCollection } from '@/lib/services/firebase-service-manager'
+
+// Кілька викликів одного документа під час SSG зводяться до одного читання Firestore
+const entity = await getCachedDocument('entities', 'abc123')
+const sameEntity = await getCachedDocument('entities', 'abc123') // cache hit
+
+// Запити колекцій також кешуються на один запит
+const activeEntities = await getCachedCollection('entities', {
+  where: { field: 'status', operator: '==', value: 'active' },
+  orderBy: { field: 'createdAt', direction: 'desc' },
+  limit: 20
+})
+```
+
+Функція `cache()` імпортується з React 19 — це не власна реалізація. Усі функції кешованого читання знаходяться у `lib/services/firebase-service-manager.ts` і працюють з `firebase-admin/firestore`.
+
+<Callout type="tip">
+  Область кешу — лише поточний прохід рендерингу серверного компонента. Після надсилання відповіді кеш видаляється. Для довготривалого кешування використовуйте `revalidate` на fetch або виділений шар кешування.
+</Callout>
+
+## Імітація Firebase під час збірки
+
+Під час `next build` встановлюється `NEXT_PHASE=phase-production-build`. Модуль у `lib/firebase/build-mock.server.ts` виявляє це та повертає імітовані екземпляри Firestore, Auth і RTDB. Це запобігає приблизно 22 ініціалізаціям Firebase Admin, які інакше виконувалися б під час статичної генерації.
+
+```typescript
+import { isBuildTime, getMockFirebaseServices } from '@/lib/firebase/build-mock.server'
+
+if (isBuildTime()) {
+  const { mockDb, mockAuth } = getMockFirebaseServices()
+  // mockDb.collection('test').get() повертає порожні результати
+  // Облікові дані Firebase не потрібні під час збірки
 }
+```
 
-export default async function EntityPage({ params }) {
-  const entity = await getEntity(params.id)
-  return <EntityDetails entity={entity} />
-}`}
-</Code>
+Шар імітації реалізує повний інтерфейс запитів Firestore з ланцюжковими методами `where()`, `orderBy()`, `limit()` та пагінацією — усі повертають порожні набори результатів. Методи Auth повертають безпечні об'єкти користувачів за замовчуванням. Це активне в `lib/firebase/build-mock.server.ts:36`.
 
-### Edge Runtime
-// Use Edge Runtime for faster cold starts
+## Оптимізація запитів DatabaseService
 
-<Code language="typescript" title="TypeScript">
-{`export const runtime = 'edge'
+Рівень абстракції бази даних у `lib/database/DatabaseService.ts` надає уніфікований API запитів для PostgreSQL і Firestore із вбудованим кешуванням сутностей на 30 секунд.
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q')
-  
-  // Fast API response from edge
-  return Response.json({ results: await searchEntities(query) })
-}`}
-</Code>
+```typescript
+import { getDatabaseService } from '@/lib/database/DatabaseService'
 
-## 📦 Bundle Optimization
-
-### Code Splitting
-// Dynamic imports for code splitting
-
-<Code language="typescript" title="TypeScript">
-{`import dynamic from 'next/dynamic'
-
-const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
-  loading: () => <div>Loading...</div>,
-  ssr: false // Skip SSR for client-only components
+const db = getDatabaseService()
+const result = await db.query({
+  collection: 'entities',
+  filters: { status: 'active' },
+  orderBy: { field: 'createdAt', direction: 'desc' },
+  pagination: { limit: 20 }
 })
 
-export default function Page() {
-  return (
-    <div>
-      <h1>Page Content</h1>
-      <HeavyComponent />
-    </div>
-  )
-}`}
-</Code>
-
-### Tree Shaking
-// Import only what you need
-
-<Code language="typescript" title="TypeScript">
-{`import { debounce } from 'lodash/debounce' // ✅ Good
-import _ from 'lodash' // ❌ Imports entire library
-
-// Use ES modules for better tree shaking
-import { Button } from '@/components/ui' // ✅ Tree-shakeable`}
-</Code>
-
-## 🎯 Performance Monitoring
-
-### Комплексне відстеження Web Vitals
-<Code language="typescript" title="TypeScript">
-{`// Використання WebVitalsCollector для комплексного моніторингу
-import { startWebVitalsCollection, setWebVitalsUserId } from '@/lib/web-vitals'
-
-// В app/layout.tsx або компоненті
-useEffect(() => {
-  // Почати збір метрик
-  startWebVitalsCollection()
-
-  // Встановити ID користувача для персоналізації
-  if (session?.user?.id) {
-    setWebVitalsUserId(session.user.id)
-  }
-}, [session?.user?.id])
-
-// Отримати поточний performance score
-const performanceScore = getWebVitalsScore() // 0-100`}
-</Code>
-
-### Web Vitals API з автоматичною звітністю
-// lib/web-vitals.tsx - автоматичний збір Core Web Vitals
-
-<Code language="typescript" title="TypeScript">
-{`export const PERFORMANCE_THRESHOLDS = {
-  LCP: { good: 2500, poor: 4000 },    // Largest Contentful Paint
-  FID: { good: 100, poor: 300 },     // First Input Delay
-  CLS: { good: 0.1, poor: 0.25 },    // Cumulative Layout Shift
-  FCP: { good: 1800, poor: 3000 },   // First Contentful Paint
-  TTFB: { good: 800, poor: 1800 },   // Time to First Byte
-  INP: { good: 200, poor: 500 },     // Interaction to Next Paint
+if (!result.success) {
+  throw result.error || new Error('Query failed')
 }
+```
 
-// Автоматичний звіт на /api/analytics/web-vitals
-const collector = getWebVitalsCollector()
-await collector.startCollection() // Збирає CLS, FCP, LCP, TTFB, INP`}
-</Code>
+Сервіс включає клас `EntityCache` з інвалідацією на основі TTL. Для узгодженості читання після запису операції запису інвалідують відповідні ключі.
 
-### Performance Profiling
-// Use React Profiler for component performance
+<Callout type="warning">
+  Не викликайте `db.users.findById()` або подібні патерни. API DatabaseService використовує `db.query({ collection, filters })` з одним об'єктом параметрів. Див. `lib/database/DatabaseService.ts:74` для повного інтерфейсу.
+</Callout>
 
-<Code language="typescript" title="TypeScript">
-{`import { Profiler } from 'react'
+## Серверні компоненти за замовчуванням
 
-function onRender(id, phase, actualDuration, baseDuration, startTime, commitTime) {
-  // Log or send to analytics
-  console.log('Performance:', {
-    component: id,
-    phase,
-    duration: actualDuration
-  })
-}
+Усі сторінки в `app/` є серверними компонентами, якщо вони не містять директиви `'use client'`. Це усуває клієнтський JavaScript для більшості маршрутів. Клієнтські компоненти використовуються лише для:
 
-export default function App() {
-  return (
-    <Profiler id="App" onRender={onRender}>
-      <MainContent />
-    </Profiler>
-  )
-}`}
-</Code>
+- Інтерактивних форм (оформлення замовлення, онбординг продавців)
+- Відображення мап (Ringdom Maps)
+- Інтерфейсів гаманців та платежів
+- Панелей адміністрування
 
-## 🗄️ Database Optimization
+Шукайте `'use client'` у `app/`, щоб побачити повний перелік клієнтських компонентів.
 
-### PostgreSQL Query Optimization з Database Abstraction Layer
-<Code language="typescript" title="TypeScript">
-{`// Використання db.command() для абстракції запитів
-import { getDatabaseService } from '@/lib/database'
+## Обробка фонових повідомлень FCM
 
-const dbService = getDatabaseService()
+Firebase Cloud Messaging повністю обробляється в Service Worker у `public/firebase-messaging-sw.js`. Push-події обробляються без пробудження головного потоку JavaScript. Клієнт лише реєструє Service Worker і передає FCM-токен на сервер.
 
-// Оптимізований запит з фільтрами та пагінацією
-const opportunitiesResult = await dbService.query({
-  collection: 'opportunities',
-  filters: [
-    { field: 'type', operator: '==', value: 'request' },
-    { field: 'status', operator: '==', value: 'active' }
-  ],
-  orderBy: [{ field: 'created_at', direction: 'desc' }],
-  limit: 20,
-  offset: 0
-})`}
-</Code>
+## WayForPay лише на сервері
 
-### React 19 Cache для дедуплікації запитів
-// Кешування запитів vendor profiles
+Платіжні запити виконуються виключно на стороні сервера. Жодні облікові дані продавця WayForPay, HMAC-ключі або логіка платежів не потрапляють у браузер. Клієнт надсилає посилання на замовлення; сервер формує та верифікує всі платіжні дані. Див. [Інтеграція WayForPay](/docs/en/features/wayforpay-integration).
 
-<Code language="typescript" title="TypeScript">
-{`import { cache } from 'react'
+## Стратегії рендерингу Next.js 16
 
-export const getVendorByUserId = cache(async (userId: string): Promise<VendorLookupResult> => {
-  const dbService = getDatabaseService()
+Використовуйте експорт `force-dynamic`, `force-static` або `revalidate` для кожної сторінки, щоб контролювати рендеринг:
 
-  const vendorResult = await dbService.query({
-    collection: 'vendor_profiles',
-    filters: [
-      { field: 'user_id', operator: '==', value: userId }
-    ]
-  })
+```typescript
+// Статична сторінка, ревалідується кожні 60 секунд
+export const revalidate = 60
 
-  return vendorResult.success && vendorResult.data?.length > 0
-    ? { found: true, vendorProfile: vendorResult.data[0] }
-    : await createPendingVendorProfile(userId)
-})
+// Повністю динамічна — без кешування
+export const dynamic = 'force-dynamic'
+```
 
-// Кілька викликів getVendorByUserId(userId) будуть дедупліковані`}
-</Code>
+Статична генерація є режимом за замовчуванням. Явно позначайте сторінки як `force-dynamic`, якщо вони відображають дані конкретного користувача.
 
-## 🖼️ Image Optimization
+## Показники продуктивності
 
-### Next.js Image Component
-import Image from 'next/image'
+- First Contentful Paint: < 1.5 с
+- Largest Contentful Paint: < 2.5 с
+- First Input Delay: < 100 мс
+- Cumulative Layout Shift: < 0.1
+- Скорочення часу збірки завдяки імітації Firebase: ~31%
 
-<Code language="typescript" title="TypeScript">
-{`export function EntityAvatar({ entity }) {
-  return (
-    <Image
-      src={entity.avatar}
-      alt={entity.name}
-      width={64}
-      height={64}
-      priority={entity.featured} // Load important images first
-      placeholder="blur"
-      blurDataURL="data:image/jpeg;base64,..."
-    />
-  )
-}`}
-</Code>
+## Моніторинг
 
-## 📊 Performance Metrics
+Web Vitals збираються в продакшені. Налаштуйте відстеження аналітики в середовищі розгортання. Для аналізу під час збірки виконайте:
 
-### Цільові метрики Ring Platform
-- **Largest Contentful Paint (LCP)**: < 2.5s
-- **First Input Delay (FID)**: < 100ms (INP < 200ms)
-- **Cumulative Layout Shift (CLS)**: < 0.1
-- **First Contentful Paint (FCP)**: < 1.8s
-- **Time to First Byte (TTFB)**: < 800ms
-- **Performance Score**: > 90 (Lighthouse)
-
-### Production Monitoring
-
-#### Kubernetes Pod Metrics
-Моніторинг ресурсів pod'ів Prometheus метрики Grafana dashboards
-
-<Code language="bash" title="terminal">
-{`kubectl top pods -n ring-platform-org
-
-kubectl port-forward svc/prometheus 9090:9090 -n monitoring
-
-kubectl port-forward svc/grafana 3000:3000 -n monitoring`}
-</Code>
-
-#### Database Performance
-<Code language="sql" title="-- Моніторинг PostgreSQL метрик">
-{`SELECT * FROM pg_stat_activity;
-SELECT * FROM pg_stat_user_tables;
-
--- Connection pooling метрики
-SHOW POOL_NODES;  -- PgBouncer`}
-</Code>
-
-### Інструменти розробки
-
-#### Lighthouse CI Integration
-.github/workflows/ci.yml
-
-<Code language="yaml" title="configuration">
-{`- name: Lighthouse CI
-  uses: treosh/lighthouse-ci-action@v10
-  with:
-    urls: https://ring-platform.org
-    configPath: .lighthouserc.json`}
-</Code>
-
-#### Bundle Analysis
-Аналіз розміру бандлу після збірки Webpack Bundle Analyzer
-
-<Code language="bash" title="terminal">
-{`npm run build
+```bash
+npm run build
 npm run analyze
+```
 
-npx webpack-bundle-analyzer .next/static/chunks/`}
-</Code>
+Модуль `firebase-service-manager.ts` також надає внутрішні метрики кешу:
 
-#### React DevTools Profiler
-// В development режимі
+```typescript
+import { getCacheMetrics } from '@/lib/services/firebase-service-manager'
 
-<Code language="typescript" title="TypeScript">
-{`if (process.env.NODE_ENV === 'development') {
-  // React DevTools Profiler активний
-  // Використовуйте Performance tab для аналізу
-}`}
-</Code>
+const metrics = getCacheMetrics()
+console.log(`Hit rate: ${metrics.hitRate.toFixed(1)}%`)
+```
 
-### Оптимізації для Kubernetes
-
-#### Edge Runtime Optimization
-<Code language="typescript" title="TypeScript">
-{`// app/api/search/route.ts - Edge функції для швидкого пошуку
-export const runtime = 'edge'
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q')
-
-  // Швидкий пошук без cold starts
-  return Response.json(await searchOpportunities(query))
-}`}
-</Code>
-
-#### Connection Pooling
-// lib/database.ts - PgBouncer connection pooling
-
-<Code language="typescript" title="TypeScript">
-{`export const dbConfig = {
-  host: process.env.DB_HOST,
-  port: 6432, // PgBouncer port
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  max: 20,        // Максимум 20 з'єднань
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-}`}
-</Code>
+</Audience>
 
 ---
 
-**🚀 Production-Ready Performance**
-
-Ring Platform використовує сучасні інструменти для забезпечення високої продуктивності: Next.js 16 App Router, React 19 з Server Components, PostgreSQL з connection pooling, Redis для кешування, та Kubernetes для оркестрації.
+<Callout type="info">
+  Щодо очікувань продуктивності для користувачів див. [Продуктивність (користувач)](/docs/en/features/performance). Щодо моніторингу продакшену та налаштування інфраструктури див. [Продуктивність розгортання](/docs/en/deployment/performance). Щодо загальних конвенцій розробки див. [Найкращі практики](/docs/en/development/best-practices).
+</Callout>

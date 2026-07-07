@@ -1,27 +1,49 @@
 ---
 title: Local Setup
-description: Local development with install.sh, locale env, and PostgreSQL migrations (v1.6.0)
-last_modified: "2026-06-10"
+description: Local development setup with PostgreSQL 16, PostGIS, Auth.js v5, and Ring Platform service layer
+last_modified: "2026-06-28"
 ---
 
 # Local Development Setup
 
-Complete guide to setting up Ring Platform for local development.
+Guide to setting up Ring Platform for local development.
 
-## 🛠️ Prerequisites
+<Audience for="founder">
+
+## What You Need
+
+- Node.js 22, pnpm/npm, and Git installed on your machine
+- PostgreSQL 16 + PostGIS (via Homebrew, Docker, or native install)
+- A code editor (VS Code recommended)
+
+## Setup Overview
+
+1. Clone the repository
+2. Install dependencies
+3. Configure environment variables from `env.local.template`
+4. Set up PostgreSQL and run migrations
+5. Start the development server
+
+</Audience>
+
+<Audience for="developer">
+
+## Prerequisites
 
 ### Required Software
-- **Node.js 20+** (22 recommended) - [Download from nodejs.org](https://nodejs.org/)
-- **npm 9+** or **pnpm 8+** - Package manager
-- **Git** - Version control
-- **VS Code** - Recommended IDE
+
+- **Node.js 22** — [Download from nodejs.org](https://nodejs.org/)
+- **npm 10+** or **pnpm 9+** — Package manager
+- **Git** — Version control
+- **PostgreSQL 16** with **PostGIS** extension — See database setup section
+- **VS Code** — Recommended IDE
 
 ### Optional Tools
-- **MongoDB Compass** - Database GUI (if using local MongoDB)
-- **Postman** - API testing
-- **Docker** - For containerized development
 
-## 📦 Installation
+- **Docker** — For containerized PostgreSQL (alternative to Homebrew install)
+- **Postman** or **Bruno** — API testing
+
+## Installation
 
 ### 1. Clone the Repository
 
@@ -32,7 +54,7 @@ cd ring`}
 
 ### 2. Install Dependencies
 
-<Tabs items={['npm', 'pnpm', 'yarn']}>
+<Tabs items={['npm', 'pnpm']}>
   <Tab value="npm">
     <Code language="bash" title="terminal">
 {`npm install`}
@@ -43,11 +65,6 @@ cd ring`}
 {`pnpm install`}
 </Code>
   </Tab>
-  <Tab value="yarn">
-    <Code language="bash" title="terminal">
-{`yarn install`}
-</Code>
-  </Tab>
 </Tabs>
 
 ### 3. Environment Configuration
@@ -55,145 +72,192 @@ cd ring`}
 Copy the environment template:
 
 <Code language="bash" title="terminal">
-{`# cp env.local.template .env.local`}
+{`cp env.local.template .env.local`}
 </Code>
 
-Configure your `.env.local` file:
+<Callout type="warning">
+The `DB_BACKEND_MODE` variable is **required** — the platform will not start without it. For local development with PostgreSQL, set it to `k8s-postgres-fcm`.
+</Callout>
 
-Authentication Firebase Configuration Google OAuth Development Settings
+Configure your `.env.local` file with these essential variables:
 
 <Code language="bash" title="terminal">
-{`NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-key-here
+{`# Database backend mode (REQUIRED)
+DB_BACKEND_MODE=k8s-postgres-fcm
 
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+# PostgreSQL connection
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
+DATABASE_URL=postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform
 
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
+# Auth.js v5
+AUTH_SECRET=generate-a-random-secret-here
+AUTH_TRUST_HOST=true
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
 
-NODE_ENV=development
-NEXT_PUBLIC_APP_URL=http://localhost:3000`}
+# Application
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NODE_ENV=development`}
 </Code>
 
-## 🚀 Development Server
+<Callout type="tip">
+Generate `AUTH_SECRET` with: `npx @better-auth/cli secret`
+</Callout>
 
-Start the development server:
+See [Environment Configuration](/docs/en/deployment/environment.mdx) for the full list of supported variables and their descriptions.
+
+### 4. Database Setup
+
+#### Option A: Docker (Recommended for local dev)
+
+<Code language="bash" title="terminal">
+{`# Start PostgreSQL 16 with PostGIS
+docker run -d \\
+  --name ring-postgres-dev \\
+  -e POSTGRES_USER=ring_user \\
+  -e POSTGRES_PASSWORD=ring_password_2024 \\
+  -e POSTGRES_DB=ring_platform \\
+  -p 5432:5432 \\
+  postgis/postgis:16-3.4`}
+</Code>
+
+#### Option B: Homebrew (macOS)
+
+<Code language="bash" title="terminal">
+{`brew install postgresql@16 postgis
+brew services start postgresql@16
+
+# Create the database user and database
+createuser ring_user -P   # password: ring_password_2024
+createdb ring_platform -O ring_user`}
+</Code>
+
+<Callout type="info">
+For multi-clone local development, use the bootstrap script at `infrastructure/postgres/bootstrap-brew-dev.sh`. See `infrastructure/postgres/MIGRATION-KINGDOM-MATRIX.md`.
+</Callout>
+
+#### Run Migrations
+
+<Code language="bash" title="terminal">
+{`npm run db:migrate`}
+</Code>
+
+<Callout type="tip">
+Migration files live in `data/` directory. The migration runner reads `DB_BACKEND_MODE` to select the correct adapter. For local PostgreSQL (`k8s-postgres-fcm`), it applies SQL migrations from `data/schema.sql` and `data/migrations/`.
+</Callout>
+
+### 5. Start Development Server
 
 <Code language="bash" title="terminal">
 {`npm run dev`}
 </Code>
 
 The application will be available at:
+
 - **Frontend**: http://localhost:3000
 - **API Routes**: http://localhost:3000/api/*
+- **Health Check**: http://localhost:3000/api/health
 
-## 🔧 Development Tools
+## Development Tools
 
 ### Hot Reload
-The development server supports hot reload for:
-- React components
-- API routes
-- CSS/Tailwind changes
-- Environment variables (requires restart)
 
-### TypeScript
-Type checking runs automatically. For manual checking:
+The Next.js development server supports hot reload for:
+
+- React components and Server Components
+- API routes
+- Tailwind CSS changes
+- Locale files (requires server restart for new keys)
+
+### Type Checking
 
 <Code language="bash" title="terminal">
 {`npm run type-check`}
 </Code>
 
 ### Linting
-ESLint runs automatically. For manual linting:
 
 <Code language="bash" title="terminal">
 {`npm run lint`}
 </Code>
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-ring/
-├── app/               # Next.js 16 App Router
-│   ├── (auth)/        # Auth-related pages
-│   ├── api/           # API routes
-│   └── globals.css    # Global styles
-├── components/        # React components
-│   ├── ui/            # Base UI components
-│   └── features/      # Feature-specific components
-├── lib/               # Utility functions
-│   ├── auth.ts        # Auth.js configuration
-│   ├── firebase.ts    # Firebase setup
-│   └── utils.ts       # General utilities
-├── features/          # Feature modules
-│   ├── entities/      # Entity management
-│   ├── opportunities/ # Opportunity system
-│   └── wallet/        # Web3 wallet
-├── @actions/          # Server actions
-└── public/            # Static assets
+ring-platform.org/
+├── app/                  # Next.js 16 App Router
+│   ├── (auth)/           # Auth pages (login, register)
+│   ├── api/              # API routes
+│   └── (public)/         # Public pages
+├── features/             # Feature modules
+│   ├── news/             # News management
+│   ├── entities/         # Entity management
+│   ├── opportunities/    # Opportunity system
+│   └── wallet/           # Web3 wallet
+├── lib/                  # Core libraries
+│   ├── database/         # Database abstraction
+│   │   ├── DatabaseService.ts
+│   │   └── adapters/     # PostgreSQLAdapter, FirebaseAdapter
+│   ├── firebase-admin.server.ts  # Firebase Admin (FCM only)
+│   └── auth-adapter-singleton.ts # Auth.js adapter selection
+├── @actions/             # Server actions
+├── data/                 # SQL migrations
+├── infrastructure/       # Postgres bootstrap scripts
+├── public/               # Static assets, firebase-messaging-sw.js
+├── locales/              # i18n translation files
+├── env.local.template    # Single source of truth for env vars
+└── ring-config.json      # Clone configuration
 ```
 
-## PostgreSQL (Homebrew — Ringdom monorepo)
-
-For multi-clone local dev without Docker Desktop:
-
-```bash
-brew install postgresql@18 postgis
-brew services start postgresql@18
-export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
-
-# Bootstrap all clone DBs from DEV-DATABASE-MANIFEST.json
-./infrastructure/postgres/bootstrap-brew-dev.sh --compare-prod
-
-# Or one project:
-./infrastructure/postgres/bootstrap-brew-dev.sh ring-platform.org
-```
-
-Point each clone `.env.local` `DATABASE_URL` at its database (`ring_platform`, `ring_zemna_ai`, `ring_ringdom_org`, …). See [Database migrations](/docs/getting-started/migrations) and `infrastructure/postgres/MIGRATION-KINGDOM-MATRIX.md`.
-
-## 🧪 Testing Setup
-
-Run tests in development:
-
-Unit tests Integration tests E2E tests
+## Testing
 
 <Code language="bash" title="terminal">
-{`npm run test
-
-npm run test:integration
-
-npm run test:e2e`}
+{`npm run test          # Unit tests
+npm run test:integration  # Integration tests
+npm run test:e2e         # End-to-end tests`}
 </Code>
 
-## 🐛 Common Issues
+## Common Issues
 
-### Port Already in Use
-If port 3000 is busy:
-
-Use different port
+### Port 3000 Already in Use
 
 <Code language="bash" title="terminal">
 {`npm run dev -- -p 3001`}
 </Code>
 
-### Firebase Connection Issues
-1. Verify Firebase configuration in `.env.local`
-2. Check Firebase project settings
-3. Ensure service account has proper permissions
+### Database Connection Refused
 
-### Authentication Problems
-1. Verify OAuth provider configuration
-2. Check callback URLs in provider settings
-3. Ensure NEXTAUTH_SECRET is set
+1. Verify PostgreSQL is running: `pg_isready`
+2. Check `.env.local` values for `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`
+3. Ensure database `ring_platform` exists
+4. Confirm `DB_BACKEND_MODE` is set to `k8s-postgres-fcm`
 
-## 📚 Next Steps
+### Auth.js OAuth Errors
 
-- [Code Structure](/en/docs/development/code-structure) - Understanding the codebase
-- [Development Workflow](/en/docs/development/workflow) - Git workflow and best practices
-- [Testing](/en/docs/development/testing) - Writing and running tests
+1. Verify `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` in `.env.local`
+2. Check that `http://localhost:3000` is in the Google OAuth console authorized redirect URIs
+3. Ensure `AUTH_SECRET` is set and consistent
+4. Callback URL format: `http://localhost:3000/api/auth/callback/google`
+
+### Firebase FCM Not Working (Optional)
+
+Firebase is used only for push notifications (FCM) in `k8s-postgres-fcm` mode. The app will work without Firebase configured, but push notifications will not be delivered. Configure `AUTH_FIREBASE_*` and `NEXT_PUBLIC_FIREBASE_*` vars if needed.
+
+## Next Steps
+
+- [Environment Configuration](/docs/en/deployment/environment.mdx) — Full env var reference
+- [Deployment](/docs/en/development/deployment.mdx) — Deploying to production
+- [Installation Guide](/docs/en/getting-started/installation.mdx) — Production installation
+- [Code Structure](/docs/en/development/code-structure) — Codebase organization
+- [Development Workflow](/docs/en/development/workflow) — Git workflow and best practices
+- [Testing](/docs/en/development/testing) — Writing and running tests
 
 ---
 
-*Need help? Join our [Discord Community](https://discord.gg/ring-platform) or check the [troubleshooting guide](/en/docs/getting-started/troubleshooting).*
+Need help? Check the [troubleshooting guide](/docs/en/getting-started/troubleshooting) or join our [Discord Community](https://discord.gg/ring-platform).
+
+</Audience>

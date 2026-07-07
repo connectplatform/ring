@@ -1,6 +1,7 @@
 'use server'
 
 import { CommentActionState, CommentFormData } from '@/features/comments/types'
+import { publishToChannel } from '@/lib/tunnel/publisher'
 
 export type { CommentActionState } from '@/features/comments/types'
 
@@ -39,6 +40,12 @@ export async function createComment(
     const result = await createComment(commentData)
 
     if (result.success && result.data) {
+      publishToChannel(
+        `comments:${targetType}:${targetId}`,
+        'comment:created',
+        { comment: result.data },
+      ).catch((err) => console.error('Failed to publish comment event:', err))
+
       return {
         success: true,
         message: 'Comment posted successfully',

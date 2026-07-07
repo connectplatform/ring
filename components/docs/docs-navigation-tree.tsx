@@ -51,6 +51,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
     if (fs.existsSync(welcomePath)) {
       pinned.push({
         href: buildHref(null, 'welcome'),
+        pageSlug: 'welcome',
         label: getTitleFromMdx(welcomePath, 'Welcome to Ring'),
       })
     }
@@ -59,6 +60,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
     if (fs.existsSync(indexPath)) {
       pinned.push({
         href: buildHref(null, 'index'),
+        pageSlug: 'index',
         label: pt('linkQuickReference'),
       })
     }
@@ -111,6 +113,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
             items.push({
               href: buildDocsLinkPath([entry, pageSlug, nestedPageSlug]),
+              pageSlug: nestedPageSlug,
               label: getTitleFromMdx(nestedFilePath, slugToLabel(nestedPageSlug)),
             })
           }
@@ -123,11 +126,12 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
         items.push({
           href: buildHref(entry, pageSlug),
+          pageSlug,
           label: getTitleFromMdx(filePath, slugToLabel(pageSlug)),
         })
       }
 
-      sections.push({ title: sectionTitle, href: sectionHref, items })
+      sections.push({ title: sectionTitle, href: sectionHref, sectionSlug: entry, items })
     }
 
     return sections
@@ -137,20 +141,20 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
   const navSections = loadHierarchicalNavigation()
 
   const quickLinks: DocsNavItem[] = [
-    { href: buildDocsLinkPath(['welcome']), label: pt('linkWelcome') },
-    { href: buildDocsLinkPath([]), label: pt('linkQuickReference') },
-    { href: buildDocsLinkPath(['getting-started']), label: pt('linkGettingStarted') },
-    { href: buildDocsLinkPath(['architecture']), label: pt('linkArchitecture') },
-    { href: buildDocsLinkPath(['architecture', 'backend-modes-and-databases']), label: pt('linkBackendModes') },
-    { href: buildDocsLinkPath(['deployment', 'self-hosted']), label: 'Self-hosted' },
-    { href: buildDocsLinkPath(['mcp']), label: 'Ring MCP Tools' },
-    { href: buildDocsLinkPath(['development', 'ring-mcp']), label: 'Ring MCP Server' },
-    { href: buildDocsLinkPath(['customization', 'token-economics']), label: 'Token economics' },
-    { href: buildDocsLinkPath(['web3', 'token-launch-jurisdictions']), label: 'Token launch jurisdictions' },
-    { href: buildDocsLinkPath(['deployment']), label: pt('linkDeployment') },
-    { href: buildDocsLinkPath(['features', 'security']), label: pt('linkSecurity') },
-    { href: 'https://ringdom.org', label: pt('linkRingdom'), external: true },
-    { href: 'https://github.com/connectplatform/ring', label: pt('linkGithub'), external: true },
+    { href: buildDocsLinkPath(['welcome']), pageSlug: 'welcome', label: pt('linkWelcome') },
+    { href: buildDocsLinkPath([]), pageSlug: 'index', label: pt('linkQuickReference') },
+    { href: buildDocsLinkPath(['getting-started']), pageSlug: 'index', label: pt('linkGettingStarted') },
+    { href: buildDocsLinkPath(['architecture']), pageSlug: 'index', label: pt('linkArchitecture') },
+    { href: buildDocsLinkPath(['architecture', 'backend-modes-and-databases']), pageSlug: 'backend-modes-and-databases', label: pt('linkBackendModes') },
+    { href: buildDocsLinkPath(['deployment', 'self-hosted']), pageSlug: 'self-hosted', label: 'Self-hosted' },
+    { href: buildDocsLinkPath(['mcp']), pageSlug: 'index', label: 'Ring MCP Tools' },
+    { href: buildDocsLinkPath(['development', 'ring-mcp']), pageSlug: 'ring-mcp', label: 'Ring MCP Server' },
+    { href: buildDocsLinkPath(['customization', 'token-economics']), pageSlug: 'token-economics', label: 'Token economics' },
+    { href: buildDocsLinkPath(['web3', 'token-launch-jurisdictions']), pageSlug: 'token-launch-jurisdictions', label: 'Token launch jurisdictions' },
+    { href: buildDocsLinkPath(['deployment']), pageSlug: 'index', label: pt('linkDeployment') },
+    { href: buildDocsLinkPath(['features', 'security']), pageSlug: 'security', label: pt('linkSecurity') },
+    { href: 'https://ringdom.org', pageSlug: 'external', label: pt('linkRingdom'), external: true },
+    { href: 'https://github.com/connectplatform/ring', pageSlug: 'external', label: pt('linkGithub'), external: true },
   ]
 
   return (

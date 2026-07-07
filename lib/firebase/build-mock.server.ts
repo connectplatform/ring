@@ -1,6 +1,10 @@
 import { Firestore } from 'firebase-admin/firestore';
 import { Auth } from 'firebase-admin/auth';
 import { Database } from 'firebase-admin/database';
+import { type Messaging } from 'firebase-admin/messaging';
+import { type Storage } from 'firebase-admin/storage';
+import { type AppCheck } from 'firebase-admin/app-check';
+import { type RemoteConfig } from 'firebase-admin/remote-config';
 
 /**
  * Build-time Firebase Mock Layer
@@ -312,17 +316,18 @@ class MockDatabase {
 
 /**
  * Returns mock Firebase services during build time, real services during runtime
- * 
+ *
  * This function should only be called during the build phase to prevent
  * unnecessary Firebase connections. During runtime, use the real Firebase services.
- * 
- * @returns Object containing mock Firestore, Auth, and Realtime Database instances
+ *
+ * @returns Object containing mock Firestore, Auth, Messaging, Storage, AppCheck,
+ *          RemoteConfig, and Realtime Database instances
  * @throws Error if called outside of build time
- * 
+ *
  * @example
  * ```typescript
  * if (isBuildTime()) {
- *   const { mockDb, mockAuth, mockRtdb } = getMockFirebaseServices();
+ *   const { mockDb, mockAuth, mockRtdb, mockMessaging, mockStorage, mockAppCheck, mockRemoteConfig } = getMockFirebaseServices();
  *   // Use mock services for build
  * }
  * ```
@@ -333,7 +338,7 @@ export function getMockFirebaseServices() {
   // 2. PostgreSQL-only mode (k8s-postgres-fcm or supabase-fcm)
   const { shouldUseFirebaseForDatabase } = require('../database/backend-mode-config');
   const isPostgreSQLMode = !shouldUseFirebaseForDatabase();
-  
+
   if (!isBuildTime() && !isPostgreSQLMode) {
     throw new Error('Mock Firebase services should only be used during build time or PostgreSQL-only mode');
   }
@@ -341,8 +346,130 @@ export function getMockFirebaseServices() {
   return {
     mockDb: new MockFirestore() as unknown as Firestore,
     mockAuth: new MockAuth() as unknown as Auth,
-    mockRtdb: new MockDatabase() as unknown as Database
+    mockRtdb: new MockDatabase() as unknown as Database,
+    mockMessaging: new MockMessaging() as unknown as Messaging,
+    mockStorage: new MockStorage() as unknown as Storage,
+    mockAppCheck: new MockAppCheck() as unknown as AppCheck,
+    mockRemoteConfig: new MockRemoteConfig() as unknown as RemoteConfig,
+    // VertexAI is optional and only registered when the package is installed
+    mockVertexAI: undefined,
   };
+}
+
+/**
+ * Mock Messaging implementation for build-time. Mirrors the Admin SDK
+ * `messaging` subpath: send(), sendEach(), sendAll(), sendToTopic(), etc.
+ */
+class MockMessaging {
+  async send(_message: any) {
+    return 'mock-message-id';
+  }
+  async sendEach(messages: any[]) {
+    return {
+      successCount: messages.length,
+      failureCount: 0,
+      responses: messages.map(() => ({ success: true, messageId: 'mock-message-id' })),
+    };
+  }
+  async sendAll(messages: any[]) {
+    return this.sendEach(messages);
+  }
+  async sendToTopic(_topic: string, _payload: any) {
+    return 'mock-message-id';
+  }
+  async sendToCondition(_condition: string, _payload: any) {
+    return 'mock-message-id';
+  }
+  async subscribeToTopic(_tokens: string | string[], _topic: string) {
+    return { successCount: 0, failureCount: 0, errors: [] };
+  }
+  async unsubscribeFromTopic(_tokens: string | string[], _topic: string) {
+    return { successCount: 0, failureCount: 0, errors: [] };
+  }
+  async validateFCMToken(_token: string) {
+    return { valid: true };
+  }
+  async getToken(_options: any) {
+    return 'mock-fcm-token';
+  }
+}
+
+/**
+ * Mock Storage implementation for build-time. Mirrors the Admin SDK
+ * `storage` subpath: bucket(), file(), upload(), etc.
+ */
+class MockStorage {
+  bucket(_name?: string) {
+    const self = this;
+    return {
+      file: (path: string) => ({
+        getSignedUrl: async () => [`https://storage.googleapis.com/mock/${path}?signed=mock`],
+        save: async () => [{}],
+        delete: async () => [{}],
+        exists: async () => [true],
+        getMetadata: async () => [{ name: path, size: 0, contentType: 'application/octet-stream' }],
+      }),
+      upload: async () => [{}],
+      getFiles: async () => [[]],
+      delete: async () => [{}],
+      getMetadata: async () => ({ name: _name, location: 'mock' }),
+    };
+  }
+  // The Admin SDK exposes `defaultBucket` via the `Storage` instance
+  // (no args). Add as a passthrough.
+  defaultBucket() {
+    return (this as any).bucket();
+  }
+}
+
+/**
+ * Mock App Check implementation for build-time. Mirrors the Admin SDK
+ * `app-check` subpath: createToken(), verifyToken(), etc.
+ */
+class MockAppCheck {
+  async createToken(_appId: string, _options?: any) {
+    return {
+      token: 'mock-app-check-token',
+      ttlMillis: 60 * 60 * 1000,
+    };
+  }
+  async verifyToken(_token: string) {
+    return {
+      appId: 'mock-app-id',
+      token: {
+        sub: 'mock-user-id',
+        iss: 'mock-issuer',
+        aud: [{ appId: 'mock-app-id' }],
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      },
+    };
+  }
+}
+
+/**
+ * Mock Remote Config implementation for build-time. Mirrors the Admin SDK
+ * `remote-config` subpath: getTemplate(), publishTemplate(), getRemoteConfig() etc.
+ */
+class MockRemoteConfig {
+  async getTemplate() {
+    return {
+      parameters: {},
+      parameterGroups: {},
+      version: { versionNumber: 1, updateTime: new Date().toISOString() },
+      etag: 'mock-etag',
+      conditions: [],
+    };
+  }
+  async publishTemplate(_template: any) {
+    return { version: { versionNumber: 2, updateTime: new Date().toISOString() } };
+  }
+  async rollback(_versionNumber?: number) {
+    return { version: { versionNumber: 1, updateTime: new Date().toISOString() } };
+  }
+  async listVersions(_options?: any) {
+    return { versions: [], nextPageToken: undefined };
+  }
 }
 
 /**

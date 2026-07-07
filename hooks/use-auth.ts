@@ -3,7 +3,8 @@
 import { useCallback } from 'react'
 import { useSession, signOut as nextAuthSignOut, type SignOutParams } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
-import { AuthUser, UserRole } from '@/features/auth/types'
+import { AuthUser } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import { hasConfidentialAccess, hasRoleAtLeast, resolveSessionUserRole } from '@/features/auth/user-role'
 import { unregisterCurrentDeviceFcmToken } from '@/lib/notifications/fcm-client-cleanup'
 import { clearSessionCache } from '@/hooks/use-session-cache'
@@ -20,9 +21,9 @@ type AuthStatus = string
  */
 interface UseAuthReturn {
   user: AuthUser | null
-  role: UserRole | null
+  role: UserRolesArray | null
   loading: boolean
-  hasRole: (requiredRole: UserRole) => boolean
+  hasRole: (requiredRole: UserRolesArray) => boolean
   isAuthenticated: boolean
   navigateToAuthStatus: (action: AuthAction, status: AuthStatus, options?: {
     email?: string
@@ -74,7 +75,7 @@ export function useAuth(): UseAuthReturn {
     email: session.user.email || '',
     emailVerified: (session.user as any).emailVerified || null,
     name: session.user.name || null,
-    role: role || UserRole.subscriber,
+    role: role || UserRolesArray.subscriber,
     photoURL: session.user.image || null,
     wallets: [], // Will be populated from server/database
     authProvider: (session.user as any).provider || 'credentials',
@@ -111,8 +112,10 @@ export function useAuth(): UseAuthReturn {
 
   /**
    * Check if user has required role or higher
+   * @param {UserRolesArray} requiredRole - The role to check against
+   * @returns {boolean} - True if user has the required role or higher
    */
-  const hasRole = (requiredRole: UserRole): boolean => {
+  const hasRole = (requiredRole: UserRolesArray): boolean => {
     if (!isAuthenticated || !role) return false
     return hasRoleAtLeast(role, requiredRole)
   }

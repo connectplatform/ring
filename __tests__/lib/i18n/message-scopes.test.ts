@@ -20,5 +20,9 @@ describe('resolveMessageScope', () => {
     expect(resolveMessageScope('/store/settings')).toBe('authenticated')
     expect(resolveMessageScope('/membership/success')).toBe('authenticated')
     expect(resolveMessageScope('/membership')).toBe('public')
+    // /[username] profile pages fall through to 'public'
+    expect(resolveMessageScope('/ray')).toBe('public')
+    expect(resolveMessageScope('/en/ray')).toBe('public')
+    expect(resolveMessageScope('/ray/my-article')).toBe('public')
   })
 })

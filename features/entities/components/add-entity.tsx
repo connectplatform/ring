@@ -10,7 +10,7 @@ import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 import { createEntity, EntityFormState } from '@/app/_actions/entities'
 import { Button } from '@/components/ui/button'
-import { UserRole } from '@/features/auth/types'
+import { UserRolesArray } from '@/features/auth/user-role'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -118,7 +118,7 @@ function AddEntityFormContent({ locale }: { locale: Locale } = { locale: DEFAULT
     return <div className="px-4 py-8 text-muted-foreground">{t('redirecting')}</div>
   }
 
-  if (session?.user?.role === UserRole.subscriber) {
+  if (session?.user?.role === UserRolesArray.subscriber as UserRolesArray) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 space-y-4 text-center">
         <Alert>

@@ -90,7 +90,7 @@
     "membership_fee": "One-time membership upgrade fee",
     "proceed": "Proceed to Payment (Coming Soon)",
     "cancel": "Cancel",
-    "ring_tokens": "RING Tokens",
+    "native_tokens": "Native Tokens",
     "fiat": "Fiat Currency",
     "recommended": "Recommended",
     "cost": "Cost",
@@ -105,8 +105,8 @@
       "pay_now": "Pay with credit",
       "top_up": "Top up credit balance"
     },
-    "wallet_ring": {
-      "title": "Pay with wallet RING",
+    "wallet_native_token": {
+      "title": "Pay with {native_token} token",
       "insufficient": "Insufficient on-chain RING. Buy via RingSales desk (coming soon) or use account credit.",
       "pay_now": "Pay with wallet RING"
     },

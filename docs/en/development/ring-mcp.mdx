@@ -51,7 +51,7 @@ Gateway code lives in the Ring app (`app/api/mcp/v1/`, `lib/auth/service-token.t
 | **Image generation** | `ring-image-create` via ImageConductor (xAI / Google Imagen) → ring-filebase CDN URL |
 | **Video generation** | `ring-video-create` via VideoConductor (xAI Grok Imagine Video) — draft 480p or production 720p |
 | **Autonomous newsroom** | `ring-news-generate` via TextConductor + ImageConductor + AudioConductor → cited draft article |
-| **Per-clone tenancy** | One `ring-mcp` entry per clone via `RING_API_BASE_URL` + `RING_SERVICE_TOKEN` |
+| **Per-clone tenancy** | One `ring-mcp` entry per clone via `RING_API_BASE_URL` + `RING_MCP_ACCESS_KEY` |
 | **Safety guards** | Destructive tools require `confirm: true` |
 
 ---
@@ -72,8 +72,8 @@ Gateway code lives in the Ring app (`app/api/mcp/v1/`, `lib/auth/service-token.t
 In the clone's `.env.local` (never commit real tokens):
 
 ```bash
-# Comma-separated; ring-mcp uses ONE of these as RING_SERVICE_TOKEN
-RING_MCP_SERVICE_TOKENS=replace-with-long-random-string
+# Comma-separated; ring-mcp uses it for auth
+RING_MCP_ACCESS_KEY=replace-with-long-random-string
 
 # Optional synthetic service identity (defaults are fine for dev)
 # RING_MCP_SERVICE_USER_ID=ring-mcp-service
@@ -112,13 +112,11 @@ Edit `.cursor/mcp.json` at the kingdom root (or Cursor Settings → MCP):
   "args": ["/Users/insight/code/ringdom/AI-RING/ring-mcp/ring-mcp-server.js"],
   "env": {
     "RING_API_BASE_URL": "http://localhost:3690",
-    "RING_SERVICE_TOKEN": "replace-with-long-random-string",
+    "RING_MCP_ACCESS_KEY": "replace-with-long-random-string",
     "RING_CLONE_NAME": "ring-connect-software"
   }
 }
 ```
-
-Use the **same token string** as one entry in `RING_MCP_SERVICE_TOKENS` on the Ring app.
 
 Reload MCP in Cursor (restart Cursor or toggle the server).
 
@@ -128,7 +126,7 @@ Ask the agent to run **`ring-health`** and **`ring-whoami`**, or run the smoke s
 
 ```bash
 RING_API_BASE_URL=http://localhost:3690 \
-RING_SERVICE_TOKEN=your-token \
+RING_MCP_ACCESS_KEY=your-token \
 npm run smoke --prefix AI-RING/ring-mcp
 ```
 
@@ -345,7 +343,7 @@ ring-video-create prompt "…same prompt…" remaster true remasterFromRequestId
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `RING_MCP_SERVICE_TOKENS` | Yes | Comma-separated bearer tokens |
+| `RING_MCP_ACCESS_KEY` | Yes | Comma-separated bearer tokens |
 | `RING_MCP_SERVICE_USER_ID` | No | Synthetic actor id (default `ring-mcp-service`) |
 | `RING_MCP_SERVICE_USER_EMAIL` | No | Synthetic actor email |
 | `RING_MCP_SERVICE_USER_NAME` | No | Display name |
@@ -355,7 +353,7 @@ ring-video-create prompt "…same prompt…" remaster true remasterFromRequestId
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `RING_SERVICE_TOKEN` | Yes | One token from `RING_MCP_SERVICE_TOKENS` |
+| `RING_MCP_ACCESS_KEY` | Yes | One token from `RING_MCP_ACCESS_KEY` |
 | `RING_API_BASE_URL` | Yes | Clone origin, no trailing slash |
 | `RING_CLONE_NAME` | No | Label for operators |
 
@@ -369,7 +367,7 @@ Add **separate** MCP entries, e.g. `ring-mcp-platform` and `ring-mcp-connect`, e
 
 Ring's 130+ user-facing API routes use **Auth.js session cookies**, not bearer tokens. Retrofitting every route was avoided by introducing **`/api/mcp/v1/*`**:
 
-1. `Authorization: Bearer <token>` checked against `RING_MCP_SERVICE_TOKENS`
+1. `Authorization: Bearer <token>` checked against `RING_MCP_ACCESS_KEY`
 2. `AsyncLocalStorage` injects a SUPERadmin actor into `auth()` for that request
 3. Handlers call existing `features/*/services/*` code
 4. Uniform JSON: `{ success, data?, error? }`
@@ -382,22 +380,22 @@ Source: `AI-RING/ring-mcp/` (stdio server), `ring-platform.org/app/api/mcp/v1/` 
 
 ### `Invalid service token` / 401
 
-- Token in Cursor `RING_SERVICE_TOKEN` must **exactly match** one value in Ring `RING_MCP_SERVICE_TOKENS`
+- Check `RING_MCP_ACCESS_KEY` in env.
 - Restart Ring after env changes
 - No `Bearer` prefix in env — the client adds it
 
-### `RING_MCP_SERVICE_TOKENS is not configured`
+### `RING_MCP_ACCESS_KEY is not configured`
 
-- Set the variable on the **Ring app**, not only in MCP config
+- Set the variable on the **Ring app** env (.env.local and k8s secrets), not only in MCP config
 
 ### Connection refused / `fetch failed`
 
 - Ring dev server must be running
 - `RING_API_BASE_URL` must match the clone port (e.g. `3690` for connect-software, not `3000`)
 
-### `RING_SERVICE_TOKEN is not set`
+### `RING_MCP_ACCESS_KEY is not set`
 
-- Fill `RING_SERVICE_TOKEN` in `.cursor/mcp.json` and reload MCP
+- Fill `RING_MCP_ACCESS_KEY` in `.cursor/mcp.json` and reload MCP
 
 ### Tool works but returns empty data
 
@@ -434,7 +432,7 @@ Source: `AI-RING/ring-mcp/` (stdio server), `ring-platform.org/app/api/mcp/v1/` 
 node AI-RING/ring-mcp/ring-mcp-server.js --test
 
 # HTTP smoke (Ring must be up)
-RING_API_BASE_URL=http://localhost:3000 RING_SERVICE_TOKEN=dev-token \
+RING_API_BASE_URL=http://localhost:3000 RING_MCP_ACCESS_KEY=dev-token \
   npm run smoke --prefix AI-RING/ring-mcp
 
 # curl gateway directly

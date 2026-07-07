@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
-import { userCreditService } from '@/features/wallet/services/user-credit-service';
+import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { parseCreditHistoryQuery } from '@/lib/wallet/parse-credit-history-query';
 import { logger } from '@/lib/logger';
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const history = await userCreditService.getCreditHistory(userId, parsed.data);
+    const history = await creditBalanceService.getCreditHistory(userId, parsed.data);
 
     logger.info('Credit history retrieved', {
       userId,

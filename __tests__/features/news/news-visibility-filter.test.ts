@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, it } from '@jest/globals'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   buildNewsVisibilityFilters,
   canViewNewsArticle,
@@ -9,18 +9,18 @@ import {
 
 describe('news-visibility-filter', () => {
   it('visitor sees public and site-wide only', () => {
-    expect(getAllowedNewsVisibilityValues(UserRole.visitor)).toEqual([
+    expect(getAllowedNewsVisibilityValues(UserRolesArray.visitor)).toEqual([
       'public',
       'site-wide',
     ])
   })
 
   it('admin has unrestricted list filters', () => {
-    expect(getAllowedNewsVisibilityValues(UserRole.admin)).toBeNull()
+    expect(getAllowedNewsVisibilityValues(UserRolesArray.admin)).toBeNull()
   })
 
   it('buildNewsVisibilityFilters excludes confidential for subscribers', () => {
-    const filters = buildNewsVisibilityFilters(UserRole.subscriber)
+    const filters = buildNewsVisibilityFilters(UserRolesArray.subscriber)
     expect(filters).toEqual(
       expect.arrayContaining([
         { field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'site-wide'] },
@@ -33,7 +33,7 @@ describe('news-visibility-filter', () => {
     expect(
       canViewNewsArticle(
         { visibility: 'confidential', authorId: 'a1' },
-        { userRole: UserRole.member, userId: 'u1' },
+        { userRole: UserRolesArray.member, userId: 'u1' },
       ),
     ).toBe(false)
   })
@@ -42,7 +42,7 @@ describe('news-visibility-filter', () => {
     expect(
       canViewNewsArticle(
         { visibility: 'blog-only', authorId: 'u1' },
-        { userRole: UserRole.member, userId: 'u1' },
+        { userRole: UserRolesArray.member, userId: 'u1' },
       ),
     ).toBe(true)
   })
@@ -51,7 +51,7 @@ describe('news-visibility-filter', () => {
     expect(
       canViewNewsArticle(
         { visibility: 'site-wide', authorId: 'a1' },
-        { userRole: UserRole.visitor },
+        { userRole: UserRolesArray.visitor },
       ),
     ).toBe(true)
   })

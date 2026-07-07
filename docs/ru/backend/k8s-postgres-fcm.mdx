@@ -1,0 +1,387 @@
+---
+title: Режим k8s-postgres-fcm
+description: Рекомендованный бэкенд-режим для продакшна — PostgreSQL 16 + PostGIS для всех данных приложения, Firebase Admin SDK только для FCM push-уведомлений и Apple Push.
+last_modified: "2026-06-28"
+audience: both
+---
+
+# Режим k8s-postgres-fcm
+
+<Callout type="success">
+  **k8s-postgres-fcm** — это рекомендованный бэкенд-режим для продакшна и локальной разработки. PostgreSQL на Kubernetes (или локально) обрабатывает все данные приложения, тогда как Firebase Admin SDK инициализируется исключительно для FCM push-сообщений и Apple Push. Никакой привязки к Firebase для данных приложения.
+</Callout>
+
+<Audience for="founder">
+
+## Что даёт вам k8s-postgres-fcm
+
+- **Полное владение данными приложения** — хранятся в PostgreSQL 16 на вашей инфраструктуре. Никаких чтений или записей в Firestore.
+- **Отсутствие привязки к Firebase для данных** — миграция или смена провайдера требует только изменения строки подключения к базе данных, а не кода приложения.
+- **Необязательные push-уведомления** — FCM и Apple Push остаются доступными без предоставления доступа к вашей базе данных Firebase.
+- **Интеграция Auth.js v5** — таблицы аутентификации (пользователи, учётные записи, сессии) хранятся в PostgreSQL вместе с бизнес-данными.
+- **Поддержка PostGIS** — возможность пространственных запросов для радиуса доставки магазина, местоположения сущностей, мест проведения мероприятий и функций недвижимости.
+- **Нативный WebSocket транспорт** — туннель использует нативный WSS через `TUNNEL_HUB_MODE=k8s-postgres` (или in-memory хаб для локальной разработки).
+
+## Когда выбирать этот режим
+
+| Сценарий | Рекомендуемый режим |
+|----------|---------------------|
+| Собственный продакшн на k3s | **k8s-postgres-fcm** |
+| Локальная разработка с PostgreSQL | **k8s-postgres-fcm** |
+| Облачный PostgreSQL (без K8s) | supabase-fcm |
+| Быстрое прототипирование / Vercel Edge | firebase-full |
+| Push-уведомления нужны | любой режим — FCM опционален во всех трёх |
+
+## Стоимостной профиль
+
+- **PostgreSQL** — работает на вашей собственной инфраструктуре (Kubernetes StatefulSet, bare metal или Docker). Без стоимости за запрос.
+- **Firebase FCM** — push-уведомления бесплатны на любом масштабе. Учётные данные проекта Firebase требуются только если вы включаете push.
+- **Отсутствие расходов на Firestore** — Firestore никогда не используется для данных приложения в этом режиме. Вызов `getAdminDb()` возвращает имитацию Firestore, которая никогда не подключается.
+
+</Audience>
+
+<Audience for="developer">
+
+## Архитектура
+
+```
+┌─────────────────────────────────────────────────┐
+│                Next.js 16 App                     │
+│                                                   │
+│  ┌──────────────────────┐  ┌──────────────────┐  │
+│  │  PostgreSQLAdapter   │  │  Firebase Admin   │  │
+│  │  (all CRUD / query)  │  │  (FCM + Apple     │  │
+│  │                      │  │   Push only)      │  │
+│  │  • Auth.js tables    │  │                   │  │
+│  │  • Entities          │  │  • getAdminDb()   │  │
+│  │  • Store products    │  │    → mock (never  │  │
+│  │  • Conversations     │  │      connects)    │  │
+│  │  • FCM tokens        │  │  • getAdminAuth() │  │
+│  │  • All business data │  │    → mock         │  │
+│  └────────┬─────────────┘  └────────┬─────────┘  │
+│           │                         │            │
+└───────────┼─────────────────────────┼────────────┘
+            │                         │
+            ▼                         ▼
+   ┌─────────────────┐     ┌──────────────────┐
+   │  PostgreSQL 16   │     │  Firebase FCM    │
+   │  + PostGIS       │     │  (push only)     │
+   │  StatefulSet     │     └──────────────────┘
+   │  (k8s or local)  │
+   └─────────────────┘
+```
+
+**Ключевые точки принятия решений в коде:**
+
+- `shouldUseFirebaseForDatabase()` возвращает `false` — `getAdminDb()` возвращает имитацию `Firestore` из `build-mock.server.ts`, которая никогда не подключается к Firebase.
+- `shouldInitializeFirebaseFCM()` возвращает `true` — Firebase Admin SDK инициализируется только для push-сообщений.
+- `shouldInitializeApplePush()` возвращает `true` — сервис Apple Push Notification Service доступен.
+- `PostgreSQLAdapter` реализует `IDatabaseService` и обрабатывает все CRUD, запросы, транзакции и операции подсчёта.
+
+## Необходимые переменные окружения
+
+```bash
+# Выбор режима (ОБЯЗАТЕЛЬНО — платформа не запустится без него)
+DB_BACKEND_MODE=k8s-postgres-fcm
+
+# Подключение к PostgreSQL
+DB_HOST=localhost               # K8s: postgres.<namespace>.svc.cluster.local
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
+
+# Настройка пула соединений (необязательно, показано со значениями по умолчанию)
+DB_POOL_SIZE=20                 # Максимум соединений в пуле
+DB_TIMEOUT=30000                # Время ожидания соединения в мс
+DB_RETRIES=3                    # Попытки повтора при сбое
+DB_SSL=false                    # Установите true для продакшна и Supabase
+
+# PostGIS (необязательно)
+DB_ENABLE_POSTGIS=false         # Включить пространственные расширения
+```
+
+| Переменная | Обязательно | По умолчанию | Описание |
+|------------|-------------|--------------|----------|
+| `DB_BACKEND_MODE` | Да | — | Должно быть `k8s-postgres-fcm` |
+| `DB_HOST` | Да | `localhost` | Хост PostgreSQL |
+| `DB_PORT` | Нет | `5432` | Порт PostgreSQL |
+| `DB_NAME` | Да | `ring_platform` | Имя базы данных |
+| `DB_USER` | Да | `ring_user` | Пользователь базы данных |
+| `DB_PASSWORD` | Да | `ring_dev_password` | Пароль базы данных |
+| `DB_POOL_SIZE` | Нет | `20` | Максимальный размер пула соединений |
+| `DB_TIMEOUT` | Нет | `30000` | Время ожидания соединения (мс) |
+| `DB_RETRIES` | Нет | `3` | Количество повторных попыток |
+| `DB_SSL` | Нет | `false` | Включить TLS для PostgreSQL |
+| `DB_ENABLE_POSTGIS` | Нет | `false` | Включить расширения PostGIS |
+
+## Необязательные переменные окружения FCM / Firebase
+
+Требуются только если вам нужны push-уведомления. Без них платформа работает исключительно с PostgreSQL.
+
+```bash
+# Firebase Admin SDK (серверный) — требуется для FCM
+AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
+AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# Firebase client SDK (браузерный) — для регистрации push через service worker
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key
+```
+
+## Конфигурация подключения PostgreSQL
+
+`PostgreSQLAdapter` строит конфигурацию пула из переменных окружения. Источник: `lib/database/adapters/PostgreSQLAdapter.ts`:
+
+```typescript
+const poolConfig = {
+  host: config.connection.host || 'localhost',
+  port: config.connection.port || 5432,
+  database: config.connection.database || 'ring_platform',
+  user: config.connection.username || 'ring_user',
+  password: config.connection.password || 'ring_dev_password',
+  max: config.options.poolSize || 20,
+  idleTimeoutMillis: config.options.timeout || 30000,
+  connectionTimeoutMillis: config.options.timeout || 2000,
+}
+```
+
+Адаптер использует **гибридную JSONB-схему**: большинство таблиц хранят бизнес-данные в столбце `data` типа JSONB вместе с общими столбцами `id`, `created_at`, `updated_at`. Таблицы с полностью нормализованными схемами (например, `vendor_applications`, `vendor_profiles`) перечисляют все столбцы в карте `fieldMappings`, поэтому конструктор запросов использует прямые ссылки на столбцы вместо `data->>'field'`.
+
+Адаптер поддерживает полный контракт `DatabaseService`:
+
+```typescript
+// Операции с отдельными документами
+await db.findById('users', userId)
+await db.create('users', { name: 'Алиса', email: 'alice@example.com' })
+await db.update('users', userId, { name: 'Боб' })
+await db.delete('users', userId)
+
+// Запросы с фильтрами, сортировкой, пагинацией
+await db.query({
+  collection: 'entities',
+  filters: [{ field: 'status', operator: 'eq', value: 'active' }],
+  orderBy: [{ field: 'createdAt', direction: 'desc' }],
+  pagination: { limit: 20, offset: 0 },
+})
+
+// Транзакции
+await db.transaction(async (txn) => {
+  const order = await txn.create('orders', { total: 100 })
+  await txn.update('stock', productId, { quantity: 5 })
+})
+```
+
+## Локальная настройка
+
+1. **Запустите PostgreSQL** (два варианта):
+
+   ```bash
+   # Вариант A: Docker (рекомендуется)
+   docker run -d --name ring-postgres-dev \
+     -e POSTGRES_USER=ring_user \
+     -e POSTGRES_PASSWORD=ring_password_2024 \
+     -e POSTGRES_DB=ring_platform \
+     -p 5432:5432 \
+     postgres:16-alpine
+
+   # Вариант B: Homebrew (macOS)
+   brew install postgresql@16
+   brew services start postgresql@16
+   createdb ring_platform
+   ```
+
+2. **Создайте `.env.local`** из шаблона и установите:
+
+   ```bash
+   DB_BACKEND_MODE=k8s-postgres-fcm
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=ring_platform
+   DB_USER=ring_user
+   DB_PASSWORD=ring_password_2024
+   ```
+
+3. **Примените схему**:
+
+   ```bash
+   psql -h localhost -U ring_user -d ring_platform -f data/schema.sql
+   ```
+
+4. **Запустите сервер разработки**:
+
+   ```bash
+   npm run dev
+   ```
+
+   Платформа проверяет `DB_BACKEND_MODE` при запуске и логирует конфигурацию бэкенда. Вы должны увидеть `Database: PostgreSQL` в логах запуска.
+
+**Туннельный хаб для функций реального времени:**
+
+В локальной разработке туннель по умолчанию использует in-memory хаб. Для поведения, приближенного к продакшну, установите:
+
+```bash
+TUNNEL_HUB_MODE=k8s-postgres
+```
+
+Это сохраняет состояние туннеля в PostgreSQL вместо памяти процесса.
+
+## Настройка продакшна на K8s
+
+### 1. Изоляция пространств имён
+
+Каждый клон ring получает собственное пространство имён: `k8s/namespace.yaml`
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ring-platform-org
+  labels:
+    app.kubernetes.io/name: ring-platform-org
+    app.kubernetes.io/part-of: ringdom
+```
+
+### 2. StatefulSet PostgreSQL
+
+Манифест `k8s/postgres.yaml` развёртывает PostgreSQL 16 (образ: `postgres:15`) как Deployment с одной репликой и сервисом `ClusterIP`:
+
+- **ConfigMap** (`postgres-config`) — POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+- **Init SQL** — создаёт пользователя приложения (`platform_org_user`) и предоставляет привилегии
+- **Расширения** — `uuid-ossp` и `btree_gin` включены по умолчанию
+- **Хранилище** — том hostPath по пути `/data/postgres-<clone-name>`
+- **Сервис** — разрешается как `postgres.<namespace>.svc.cluster.local`
+
+### 3. Секреты и ConfigMap
+
+**Секреты** (`k8s/secrets.yaml` — Opaque, `stringData`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ring-platform-org-secrets
+type: Opaque
+stringData:
+  DB_PASSWORD: <value>
+  AUTH_FIREBASE_PROJECT_ID: <value>
+  AUTH_FIREBASE_CLIENT_EMAIL: <value>
+  AUTH_FIREBASE_PRIVATE_KEY: |
+    -----BEGIN PRIVATE KEY-----
+    ...
+    -----END PRIVATE KEY-----
+```
+
+**ConfigMap** (`k8s/secrets.yaml` — секция ConfigMap):
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ring-platform-org-config
+data:
+  DB_BACKEND_MODE: k8s-postgres-fcm
+  DB_HOST: postgres.ring-platform-org.svc.cluster.local
+  DB_PORT: "5432"
+  DB_NAME: ring_platform
+  DB_USER: ring_user
+  DB_POOL_SIZE: "20"
+  DB_TIMEOUT: "30000"
+  DB_RETRIES: "3"
+  DB_SSL: "false"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: <value>
+```
+
+**Важно**: `DB_PASSWORD` должен быть в Secret, а не в ConfigMap. Развёртывание ссылается на него через `secretKeyRef`.
+
+### 4. Развёртывание приложения
+
+`k8s/deployment.yaml` — приложение Next.js 16 с:
+
+- Образ: `ghcr.io/connectplatform/ring:v<version>-<clone>-amd64`
+- 256Mi запрос / 1Gi лимит памяти
+- 200m / 1000m CPU
+- Liveness + readiness + startup пробы (`/api/health`)
+- Переменные окружения из ConfigMap (нечувствительные) и Secret (чувствительные)
+- Постоянный том для загруженных файлов (`pvc-local-file-storage.yaml` — 20Gi)
+- Pod anti-affinity для высокой доступности
+
+### 5. Ingress
+
+`k8s/ingress.yaml` — контроллер ingress nginx с:
+
+- Let's Encrypt TLS (cert-manager `letsencrypt-prod`)
+- Поддержка WebSocket (тайм-аут прокси 3600с, аннотация `websocket-services`)
+- Большой буфер прокси (32k — Next.js отправляет большие Link-заголовки для hreflang)
+- Ограничение скорости (100 RPS, 50 соединений)
+- Лимит размера тела 50MB
+
+### 6. Применение стека
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/postgres.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+kubectl apply -f k8s/pvc-local-file-storage.yaml
+```
+
+## Настройка Docker
+
+Для локальных или продакшн-развёртываний на основе Docker `docker-compose.yml` поддерживает режим `k8s-postgres-fcm`. Убедитесь, что ваш `.env` содержит `DB_BACKEND_MODE=k8s-postgres-fcm` и переменные для подключения PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Примечание: Стандартный `docker-compose.yml` не включает сервис PostgreSQL. Вы должны либо:
+- Запустить PostgreSQL отдельно (собственная установка или `docker run postgres:16-alpine`)
+- Добавить сервис `postgres` в ваше переопределение (`docker/docker-compose.dev.yml`)
+
+## Заметки о подключении FCM
+
+Этот режим использует Firebase Admin исключительно для push:
+
+1. **Инициализация Admin SDK** — приложение Firebase Admin создаётся, если присутствуют переменные окружения `AUTH_FIREBASE_*`. SDK требуется для генерации FCM-токенов и отправки push-сообщений.
+2. **Имитация Firestore** — `getAdminDb()` возвращает имитацию Firestore (никогда не подключается к Firebase). Это контролируется тем, что `shouldUseFirebaseForDatabase()` возвращает `false`.
+3. **Имитация Auth** — `getAdminAuth()` также возвращает имитацию. Auth.js v5 обрабатывает всю аутентификацию.
+4. **Клиентский FCM** — Service worker (`public/firebase-messaging-sw.js`) работает в браузере и загружает Firebase compat SDK с CDN. На него **не влияет** режим бэкенда — он всегда подключается к Firebase для push-подписки.
+5. **FCM-токены** — хранятся в таблице `fcm_tokens` PostgreSQL через Server Action `upsertFcmToken`.
+6. **Без переменных окружения Firebase = без push** — Если опустить все переменные `AUTH_FIREBASE_*` и `NEXT_PUBLIC_FIREBASE_*`, инициализация Firebase Admin полностью пропускается. PostgreSQL продолжает работать.
+
+## Сравнение: k8s-postgres-fcm vs supabase-fcm
+
+| Аспект | k8s-postgres-fcm | supabase-fcm |
+|--------|-----------------|--------------|
+| **Хост PostgreSQL** | Ваш K8s или локальный | Облако Supabase |
+| **SSL** | Опционально (`DB_SSL=false` по умолчанию) | Обязательно (`DB_SSL=true`) |
+| **Пул соединений** | `DB_POOL_SIZE=20` по умолчанию | `DB_POOL_SIZE=10` по умолчанию |
+| **Учётные данные** | `DB_USER` / `DB_PASSWORD` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` |
+| **Цель развёртывания** | K8s, Docker, bare metal | Платформа Supabase |
+| **Манифесты K8s** | Полный набор в `k8s/` | Не применимо |
+| **Туннельный хаб** | `k8s-postgres` или `memory` | `memory` |
+| **PostGIS** | `DB_ENABLE_POSTGIS=true` | Требует аддона Supabase PostGIS |
+| **Вариант использования** | Полный контроль инфраструктуры | Управляемый облачный PostgreSQL |
+
+Оба режима используют один и тот же класс `PostgreSQLAdapter`. Единственное отличие — кто хостит экземпляр PostgreSQL и как предоставляются параметры подключения.
+
+## Связанная документация
+
+<Cards>
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes and databases" description="Three-mode comparison: firebase-full, k8s-postgres-fcm, supabase-fcm." />
+  <Card href="/docs/customization/database-selection" title="Database selection guide" description="Operator decision guide for choosing your backend mode." />
+  <Card href="/docs/deployment/environment" title="Environment variables" description="Complete env var reference for all backend modes." />
+  <Card href="/docs/backend/firebase" title="Firebase integration" description="Firebase Admin SDK, FCM push, build-time mocking — deep-dive." />
+  <Card href="/docs/development/deployment" title="Deployment guide" description="End-to-end production deployment for Ring Platform." />
+  <Card href="/docs/development/local-setup" title="Local setup" description="Local development environment setup instructions." />
+</Cards>
+
+</Audience>

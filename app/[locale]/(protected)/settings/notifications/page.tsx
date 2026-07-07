@@ -11,11 +11,11 @@ import { NotificationPreferences } from '@/features/notifications/components/not
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Bell } from 'lucide-react';
 import Link from 'next/link';
-import AboutWrapper from '@/components/wrappers/about-wrapper';
 import { ROUTES } from '@/constants/routes';
 import { routing } from '@/i18n/routing';
 import type { Locale } from '@/i18n/shared';
 import { getTranslations } from 'next-intl/server';
+import NotificationsWrapper from '@/components/wrappers/notifications-wrapper';
 
 interface NotificationSettingsPageProps {
   params: Promise<{
@@ -48,7 +48,7 @@ export default async function NotificationSettingsPage({ params }: NotificationS
   const t = await getTranslations('modules.settings');
 
   return (
-    <AboutWrapper locale={validLocale}>
+    <NotificationsWrapper locale={validLocale} showTitleRow={false}>
       <div className="max-w-4xl mx-auto py-8">
         {/* Header */}
         <div className="mb-8">
@@ -72,6 +72,6 @@ export default async function NotificationSettingsPage({ params }: NotificationS
         {/* Notification Preferences */}
         <NotificationPreferences />
       </div>
-    </AboutWrapper>
+    </NotificationsWrapper>
   );
-} 
+}

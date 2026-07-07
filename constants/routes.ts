@@ -71,7 +71,7 @@ const BASE_ROUTES = {
   OPPORTUNITY_STATUS: '/opportunities/status/[action]/[status]',
   PRIVACY: '/privacy',
   PROFILE: '/profile',
-  PUBLIC_PROFILE: (username: string) => `/u/${encodeURIComponent(username)}`,
+  PUBLIC_PROFILE: (username: string) => `/${encodeURIComponent(username)}`,
   PUBLICATIONS: '/publications',
   REF_MAGIC: '/refmagic',
   REFMAGIC: '/refmagic',
@@ -104,6 +104,7 @@ const BASE_ROUTES = {
   ADMIN_EMAIL_TASKS: '/admin/email-tasks',
   ADMIN_EMAIL_THREAD: (id: string) => `/admin/email-inbox/${encodeURIComponent(id)}`,
   ADMIN_PROCESSES: '/admin/processes',
+  ADMIN_SUBSCRIPTIONS: '/admin/subscriptions',
 }
 
 // Localized routes
@@ -111,6 +112,7 @@ export const ROUTES = {
   ABOUT: (locale: Locale = defaultLocale) => withLocale(locale, '/about'),
   ABOUT_PUBLISHER: (locale: Locale = defaultLocale) => withLocale(locale, '/about-publisher'),
   ADD_ENTITY: (locale: Locale = defaultLocale) => withLocale(locale, '/entities/add'),
+
   ADD_OPPORTUNITY: (locale: Locale = defaultLocale) => withLocale(locale, '/opportunities/add'),
   AUTH_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => withLocale(locale, `/auth/status/${action}/${status}`),
   CART: (locale: Locale = defaultLocale) => withLocale(locale, '/store/cart'),
@@ -155,9 +157,10 @@ export const ROUTES = {
     withLocale(locale, `/opportunities/${id}/edit`),
   OPPORTUNITY_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => withLocale(locale, `/opportunities/status/${action}/${status}`),
   PRIVACY: (locale: Locale = defaultLocale) => withLocale(locale, '/privacy'),
+  MY_NEWS: (locale: Locale = defaultLocale) => withLocale(locale, '/my-news'),
   PROFILE: (locale: Locale = defaultLocale) => withLocale(locale, '/profile'),
   PUBLIC_PROFILE: (username: string, locale: Locale = defaultLocale) =>
-    withLocale(locale, `/u/${encodeURIComponent(username)}`),
+    withLocale(locale, `/${encodeURIComponent(username)}`),
   PUBLICATIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/publications'),
   REF_MAGIC: (locale: Locale = defaultLocale) => withLocale(locale, '/refmagic'),
   REFMAGIC: (locale: Locale = defaultLocale) => withLocale(locale, '/refmagic'),
@@ -222,6 +225,7 @@ export const ROUTES = {
   ADMIN_EMAIL_THREAD: (id: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/admin/email-inbox/${encodeURIComponent(id)}`),
   ADMIN_PROCESSES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/processes'),
+  ADMIN_SUBSCRIPTIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/subscriptions'),
   ADMIN_NEWS_COMMENTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/comments'),
   ADMIN_NEWS_TAGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/tags'),
   // Vendor Routes - Multi-Vendor Marketplace

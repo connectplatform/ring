@@ -41,3 +41,24 @@ Apply via [Database migrations](/docs/getting-started/migrations) or `./infrastr
 ## FSMA 204 (roadmap)
 
 Batch and lot tracking fields are specified in AI-CONTEXT `erp-inventory.json`; UI for traceability reports is Phase 3.
+
+<FutureFeatureBacklog title="Backlog — inventory">
+<FutureFeatureWidget
+  name="FSMA 204 traceability reports"
+  description="Batch-level lot tracking UI with harvest date, pack date, and KDE (Key Data Element) drill-down — required for food supply chain compliance."
+  implementationCost={96}
+  labels={['erp', 'compliance', 'fsma']}
+/>
+<FutureFeatureWidget
+  name="Multi-warehouse stock transfers"
+  description="Move inventory between warehouses with audit trail and FIFO cost basis adjustment for inter-warehouse rebalancing."
+  implementationCost={64}
+  labels={['erp', 'warehouse', 'logistics']}
+/>
+<FutureFeatureWidget
+  name="Expiry-aware order fulfillment"
+  description="Reserve stock by nearest expiry date (FEFO) instead of FIFO for perishable goods, with configurable shelf-life guardrails."
+  implementationCost={48}
+  labels={['erp', 'logistics', 'perishable']}
+/>
+</FutureFeatureBacklog>

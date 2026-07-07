@@ -1,23 +1,24 @@
 import type { OpportunityVisibility } from '@/features/opportunities/types'
 import {
-  UserRole,
+  UserRolesArray,
   assertKnownUserRole,
   hasConfidentialAccess,
   isPlatformAdmin,
-  parseUserRole,
+  parseUserRolesArray,
+  resolveSessionUserRole,
 } from '@/features/auth/user-role'
 
 export interface OpportunityVisibilityContext {
-  userRole: UserRole
+  userRole: UserRolesArray
   userId?: string
 }
 
 export type DbFilter = { field: string; operator: string; value: unknown }
 
 const VISIBILITY_LADDER: Record<string, OpportunityVisibility[]> = {
-  [UserRole.visitor]: ['public'],
-  [UserRole.subscriber]: ['public', 'subscriber'],
-  [UserRole.member]: ['public', 'subscriber', 'member'],
+  [UserRolesArray.visitor]: ['public'],
+  [UserRolesArray.subscriber]: ['public', 'subscriber'],
+  [UserRolesArray.member]: ['public', 'subscriber', 'member'],
 }
 
 /**
@@ -26,11 +27,11 @@ const VISIBILITY_LADDER: Record<string, OpportunityVisibility[]> = {
 export function getAllowedVisibilityValues(
   role: string | null | undefined,
 ): OpportunityVisibility[] | null {
-  const parsed = parseUserRole(role) ?? UserRole.visitor
-  if (isPlatformAdmin(parsed) || parsed === UserRole.confidential) {
+  const parsed = parseUserRolesArray(role) ?? resolveSessionUserRole(role)
+  if (isPlatformAdmin(parsed as UserRolesArray) || parsed === UserRolesArray.confidential) {
     return null
   }
-  return VISIBILITY_LADDER[parsed] ?? ['public']
+  return VISIBILITY_LADDER[parsed as UserRolesArray] ?? ['public']
 }
 
 /** Build DB where filters for opportunity list/search by role. */
@@ -39,20 +40,7 @@ export function buildOpportunityVisibilityFilters(
 ): DbFilter[] {
   const filters: DbFilter[] = []
   const allowed = getAllowedVisibilityValues(role)
-  const parsed = parseUserRole(role) ?? UserRole.visitor
-
-  if (allowed) {
-    if (allowed.length === 1) {
-      filters.push({ field: 'visibility', operator: '==', value: allowed[0] })
-    } else {
-      filters.push({ field: 'visibility', operator: 'in', value: allowed })
-    }
-  }
-
-  if (!hasConfidentialAccess(parsed)) {
-    filters.push({ field: 'isConfidential', operator: '==', value: false })
-  }
-
+  const parsed = parseUserRolesArray(role) ?? resolveSessionUserRole(role) ?? UserRolesArray.visitor
   return filters
 }
 

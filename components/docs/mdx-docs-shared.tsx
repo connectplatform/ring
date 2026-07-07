@@ -34,7 +34,8 @@ import {
   RingAISynapseFlow,
   RingMatcherOrchestration,
   RingGatewayBridge,
-  RingCollectiveIntelligenceLoop,
+  RingPaymentConductorFlow,
+  RingWidgetFlowStepsFive,  RingCollectiveIntelligenceLoop,
   RingDeploymentPaths,
   RingFeatureEcosystem,
   RingProblemSolvingEvolution,
@@ -47,7 +48,7 @@ import {
   FutureFeatureBacklog,
 } from '@/components/docs/mdx-heavy-components'
 import { collectDiagramSource } from '@/components/docs/diagram-source'
-import { Audience } from '@/components/docs/audience-block'
+import { Audience } from '@/components/ui/audience-block'
 
 export const docsMdxComponents = {
   Audience,
@@ -69,8 +70,9 @@ export const docsMdxComponents = {
   RingAISynapseFlow,
   RingMatcherOrchestration,
   RingGatewayBridge,
+  RingPaymentConductorFlow,
   RingCollectiveIntelligenceLoop,
-  RingDeploymentPaths,
+  RingWidgetFlowStepsFive,  RingDeploymentPaths,
   RingFeatureEcosystem,
   RingProblemSolvingEvolution,
   RingHumanityVision,

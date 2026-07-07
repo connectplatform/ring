@@ -5,8 +5,7 @@
 
 import { EventEmitter } from 'events';
 import WebSocket from 'ws';
-import axios, { AxiosInstance } from 'axios';
-import bert from '@/lib/shims/bert-js';
+import bert from '@/lib/connect-platform-sdk/shims/bert-js.js';
 
 // Protocol Message Types
 export enum ConnectMessageType {
@@ -163,7 +162,6 @@ export type ConnectEventMap = {
  */
 export class ConnectPlatformSDK extends EventEmitter {
   private config: ConnectSDKConfig;
-  private http: AxiosInstance;
   private ws?: WebSocket;
   private isConnected = false;
   private reconnectTimer?: NodeJS.Timeout;
@@ -183,16 +181,7 @@ export class ConnectPlatformSDK extends EventEmitter {
     };
 
     // Initialize HTTP client
-    this.http = axios.create({
-      baseURL: this.config.httpUrl,
-      headers: {
-        'Content-Type': 'application/x-bert',
-        'X-API-Version': this.config.version,
-        ...(this.config.accessToken && {
-          'Authorization': `Bearer ${this.config.accessToken}`
-        })
-      }
-    });
+    
 
     // Add response interceptor for rate limiting
     this.http.interceptors.response.use(

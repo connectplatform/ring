@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { RingPaymentModal } from './ring-payment-modal'
+import { MembershipPaymentModal } from './ring-payment-modal'
 
 interface SubscriptionManagementProps {
   className?: string
@@ -33,7 +33,10 @@ interface SubscriptionData {
     can_upgrade: boolean
   }
   subscription: {
-    status: 'INACTIVE' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'SUSPENDED'
+    status: 'inactive' | 'active' | 'expired' | 'cancelled' | 'suspended' | 'grace_period'
+    provider?: string
+    gateway?: string
+    method?: string
     start_time?: number
     next_payment_due?: number
     failed_attempts: number
@@ -133,15 +136,16 @@ export function SubscriptionManagement({ className, onSubscriptionChange }: Subs
   }, [])
 
   const getStatusBadge = (status: string) => {
-    const statusMap = {
-      'ACTIVE': { variant: 'default' as const, icon: CheckCircle, color: 'text-green-600' },
-      'EXPIRED': { variant: 'destructive' as const, icon: AlertTriangle, color: 'text-red-600' },
-      'CANCELLED': { variant: 'secondary' as const, icon: XCircle, color: 'text-gray-600' },
-      'SUSPENDED': { variant: 'outline' as const, icon: AlertTriangle, color: 'text-orange-600' },
-      'INACTIVE': { variant: 'outline' as const, icon: Clock, color: 'text-gray-600' },
+    const statusMap: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'outline'; icon: any; color: string }> = {
+      'active': { variant: 'default', icon: CheckCircle, color: 'text-green-600' },
+      'expired': { variant: 'destructive', icon: AlertTriangle, color: 'text-red-600' },
+      'cancelled': { variant: 'secondary', icon: XCircle, color: 'text-gray-600' },
+      'suspended': { variant: 'outline', icon: AlertTriangle, color: 'text-orange-600' },
+      'inactive': { variant: 'outline', icon: Clock, color: 'text-gray-600' },
+      'grace_period': { variant: 'secondary', icon: AlertTriangle, color: 'text-yellow-600' },
     }
-    
-    return statusMap[status as keyof typeof statusMap] || statusMap.INACTIVE
+
+    return statusMap[status.toLowerCase()] || statusMap.inactive
   }
 
   if (isLoading) {
@@ -414,7 +418,7 @@ export function SubscriptionManagement({ className, onSubscriptionChange }: Subs
 
       {/* Payment Modal */}
       {showPaymentModal.show && showPaymentModal.type && (
-        <RingPaymentModal
+        <MembershipPaymentModal
           paymentType={showPaymentModal.type}
           onClose={() => setShowPaymentModal({ show: false })}
           onSuccess={async () => {

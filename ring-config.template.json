@@ -1,7 +1,6 @@
 {
   "$schema": "./ring-config.schema.json",
   "_comment": "Ring Platform Clone Configuration Template - Copy to ring-config.json and customize",
-  
   "clone": {
     "name": "my-ring-clone",
     "displayName": "My Ring Clone",
@@ -11,7 +10,6 @@
     "organization": "Your Organization Name",
     "contactEmail": "contact@your-domain.com"
   },
-
   "branding": {
     "logo": {
       "light": "/images/logo-light.svg",
@@ -58,7 +56,6 @@
       "mono": "JetBrains Mono, monospace"
     }
   },
-
   "domains": {
     "production": "https://your-domain.com",
     "staging": "https://staging.your-domain.com",
@@ -66,16 +63,30 @@
     "cdn": "https://cdn.your-domain.com",
     "api": "https://api.your-domain.com"
   },
-
   "features": {
     "entities": {
       "enabled": true,
-      "types": ["company", "startup", "organization", "ngo", "agency"]
+      "types": [
+        "company",
+        "startup",
+        "organization",
+        "ngo",
+        "agency"
+      ]
     },
     "opportunities": {
       "enabled": true,
-      "types": ["offer", "request", "ring_customization"],
-      "accessTiers": ["public", "subscriber", "member", "confidential"]
+      "types": [
+        "offer",
+        "request",
+        "ring_customization"
+      ],
+      "accessTiers": [
+        "public",
+        "subscriber",
+        "member",
+        "confidential"
+      ]
     },
     "store": {
       "enabled": true,
@@ -88,7 +99,12 @@
     "payments": {
       "enabled": true,
       "provider": "wayforpay",
-      "subscriptionPlans": ["free", "subscriber", "member", "confidential"]
+      "subscriptionPlans": [
+        "free",
+        "subscriber",
+        "member",
+        "confidential"
+      ]
     },
     "web3": {
       "enabled": true,
@@ -96,7 +112,7 @@
       "ringToken": true,
       "nftMarketplace": false,
       "staking": false,
-      "defaultChain": "polygon"
+      "defaultChain": "solana"
     },
     "messaging": {
       "enabled": true,
@@ -121,19 +137,25 @@
     },
     "expertServicesMarketplace": false
   },
-
   "theme": {
     "default": "system"
   },
-
   "navigation": {
     "links": [
-      { "label": "Home", "href": "/" },
-      { "label": "Entities", "href": "/entities" },
-      { "label": "Opportunities", "href": "/opportunities" }
+      {
+        "label": "Home",
+        "href": "/"
+      },
+      {
+        "label": "Entities",
+        "href": "/entities"
+      },
+      {
+        "label": "Opportunities",
+        "href": "/opportunities"
+      }
     ]
   },
-
   "hero": {
     "title": "Your platform name",
     "subtitle": "One-line value proposition for your community or marketplace.",
@@ -141,78 +163,136 @@
     "ctaHref": "/register",
     "showOnHome": true
   },
-
   "platform": {
     "baseUrl": "https://your-domain.com"
   },
-
   "tokens": {
-    "ring": {
+    "creditUnit": "USD",
+    "creditFiatCurrency": "USD",
+    "creditAddEvents": {
+      "adminVerify": {
+        "amount": "1",
+        "enabled": true,
+        "requireUsername": true
+      },
+      "ringUsername": {
+        "amount": "1",
+        "enabled": true,
+        "requireVerified": true
+      }
+    },
+    "desk": {
+      "supplyPolicy": "treasury_transfer",
+      "sellTaxBps": 500,
+      "sellTaxDestination": "treasury_ata",
+      "firstSettlerDiscountBps": 2000,
+      "firstSettlerOneTime": true,
+      "firstSettlerGates": [
+        "wallet",
+        "username",
+        "dob",
+        "verified"
+      ],
+      "quoteTtlSeconds": 60,
+      "maxSlippageBps": 100
+    },
+    "nativeToken": {
       "symbol": "RING",
       "name": "RING Governance Token",
-      "decimals": 18
+      "decimals": 8,
+      "tokenAddress": "AsPZxBXXPPYefrdSqMsC89SBycD4KASLEm9bXX22dUHv",
+      "tokenDecimals": 8,
+      "tokenProgram": "spl-token"
     }
   },
-
   "sidebar": {
     "quickLinks": [
-      { "labelKey": "about.sidebar.aboutUs", "href": "/about", "icon": "Info" },
-      { "labelKey": "about.sidebar.tokenEconomy", "href": "/token-economy", "icon": "Globe" },
-      { "labelKey": "about.sidebar.globalImpact", "href": "/global-impact", "icon": "Users" },
-      { "labelKey": "about.sidebar.contact", "href": "/contact", "icon": "Mail" }
+      {
+        "labelKey": "about.sidebar.aboutUs",
+        "href": "/about",
+        "icon": "Info"
+      },
+      {
+        "labelKey": "about.sidebar.tokenEconomy",
+        "href": "/token-economy",
+        "icon": "Globe"
+      },
+      {
+        "labelKey": "about.sidebar.globalImpact",
+        "href": "/global-impact",
+        "icon": "Users"
+      },
+      {
+        "labelKey": "about.sidebar.contact",
+        "href": "/contact",
+        "icon": "Mail"
+      }
     ],
     "community": [
-      { "labelKey": "about.sidebar.github", "urlKey": "social.github" },
-      { "labelKey": "about.sidebar.discord", "urlKey": "social.discord" }
+      {
+        "labelKey": "about.sidebar.github",
+        "urlKey": "social.github"
+      },
+      {
+        "labelKey": "about.sidebar.discord",
+        "urlKey": "social.discord"
+      }
     ],
     "stats": [
-      { "labelKey": "about.sidebar.version", "valueKey": "clone.version" },
-      { "labelKey": "about.sidebar.license", "valueKey": "legal.licenseSpdx" }
+      {
+        "labelKey": "about.sidebar.version",
+        "valueKey": "clone.version"
+      },
+      {
+        "labelKey": "about.sidebar.license",
+        "valueKey": "legal.licenseSpdx"
+      }
     ]
   },
-
   "calculator": {
     "enabled": true,
     "presetId": "deployment"
   },
-
   "roadmap": {
     "enabled": true
   },
-
   "productFields": {
     "preset": "platform"
   },
-
   "productBadges": {
     "preset": "platform"
   },
-
   "contact": {
     "address": "123 Main Street, City, Country",
     "phone": "+1 000 000 0000",
     "email": "contact@your-domain.com"
   },
-
   "localization": {
     "defaultLocale": "en",
-    "supportedLocales": ["en", "uk", "ru"],
+    "supportedLocales": [
+      "en",
+      "uk",
+      "ru"
+    ],
     "fallbackLocale": "en",
     "dateFormat": "MMMM d, yyyy",
     "timeFormat": "HH:mm",
     "timezone": "UTC"
   },
-
   "seo": {
     "siteName": "My Ring Clone",
     "siteDescription": "Professional networking platform powered by Ring",
-    "siteKeywords": ["professional networking", "opportunities", "business", "web3"],
+    "siteKeywords": [
+      "professional networking",
+      "opportunities",
+      "business",
+      "web3"
+    ],
     "ogImage": "/og-ring-platform-1200x630.jpg",
     "twitterHandle": "@your_handle",
     "googleSiteVerification": "",
     "bingSiteVerification": ""
   },
-
   "social": {
     "twitter": "https://twitter.com/your_handle",
     "linkedin": "https://linkedin.com/company/your-company",
@@ -220,7 +300,6 @@
     "discord": "https://discord.gg/your-invite",
     "telegram": "https://t.me/your_channel"
   },
-
   "legal": {
     "companyName": "Your Company Name",
     "companyAddress": "123 Main Street, City, Country",
@@ -232,7 +311,6 @@
     "gdprEnabled": true,
     "ccpaEnabled": false
   },
-
   "database": {
     "backendMode": "k8s-postgres-fcm",
     "schemaPrefix": "my_ring_clone",
@@ -240,7 +318,6 @@
     "connectionTimeout": 30000,
     "retries": 3
   },
-
   "storage": {
     "provider": "vercel_blob",
     "maxFileSize": "10MB",
@@ -253,7 +330,6 @@
       "video/mp4"
     ]
   },
-
   "security": {
     "rateLimiting": {
       "authWindowMs": 60000,
@@ -262,7 +338,9 @@
       "apiMaxRequests": 100
     },
     "cors": {
-      "allowedOrigins": ["https://your-domain.com"],
+      "allowedOrigins": [
+        "https://your-domain.com"
+      ],
       "allowCredentials": true
     },
     "csp": {
@@ -270,7 +348,6 @@
       "reportUri": "/api/csp-report"
     }
   },
-
   "deployment": {
     "platform": "kubernetes",
     "namespace": "my-ring-clone",
@@ -292,7 +369,6 @@
       "targetCPUUtilization": 80
     }
   },
-
   "matcher": {
     "scoreThreshold": 0.7,
     "maxMatches": 10,
@@ -300,13 +376,11 @@
     "autoApproveMinScore": 0.7,
     "llmConfidenceGate": 0.8
   },
-
   "publicPools": {
     "minGoalHours": 1,
     "ringPerMachineHour": 1,
     "likeQueueThreshold": 100
   },
-
   "membership": {
     "tiers": {
       "subscriber": {
@@ -327,15 +401,21 @@
       "subscriptionRenewalAmount": 1
     }
   },
-
   "chains": {
     "native": "solana",
-    "enabled": ["solana", "evm"],
+    "defaultChain": {
+      "chainId": 101
+    },
+    "enabled": [
+      "solana",
+      "evm"
+    ],
     "solana": {
       "network": "devnet",
       "decimals": 8,
-      "sponsorAllRingTransfers": true,
-      "mintAddress": "",
+      "sponsorAllNativeTokenTransfers": true,
+      "address": "",
+      "treasuryAddress": "",
       "tokenProgram": "spl-token",
       "rpcUrlEnv": "SOLANA_RPC_URL",
       "commitment": "confirmed"
@@ -344,7 +424,7 @@
       "enabled": true,
       "chainId": 137,
       "decimals": 18,
-      "tokenAddress": "",
+      "address": "",
       "legacyReferralRewards": true
     },
     "base": {
@@ -354,31 +434,6 @@
       "note": "US L2 mirror — Phase 1.5 CDP Paymaster + ERC-20 mirror"
     }
   },
-
-  "tokens": {
-    "ring": {
-      "symbol": "RING",
-      "name": "RING Governance Token",
-      "decimals": 8
-    },
-    "creditUnit": "USD",
-    "creditFiatCurrency": "USD",
-    "airdrops": {
-      "adminVerify": { "amount": "1", "enabled": true, "requireUsername": true },
-      "ringUsername": { "amount": "1", "enabled": true, "requireVerified": true }
-    },
-    "desk": {
-      "supplyPolicy": "treasury_transfer",
-      "sellTaxBps": 500,
-      "sellTaxDestination": "treasury_ata",
-      "firstSettlerDiscountBps": 2000,
-      "firstSettlerOneTime": true,
-      "firstSettlerGates": ["wallet", "username", "dob", "verified"],
-      "quoteTtlSeconds": 60,
-      "maxSlippageBps": 100
-    }
-  },
-
   "integrations": {
     "demoUserEmail": "vendor@your-domain.com",
     "wayforpay": {
@@ -406,7 +461,6 @@
       "dsn": ""
     }
   },
-
   "founders": {
     "primary": {
       "firstName": "Your",
@@ -422,6 +476,55 @@
           "desc": "Your organization on GitHub"
         }
       ]
+    }
+  },
+  "payment": {
+    "cardPaymentProcessor": "wayforpay",
+    "supportedMethods": [
+      "wayforpay",
+      "credit_balance",
+      "ring_token"
+    ],
+    "futureMethods": [
+      "stripe",
+      "paypal",
+      "nft_gate"
+    ],
+    "gateways": {
+      "wayforpay": {
+        "enabled": true,
+        "feePercent": 2.5,
+        "currency": "UAH"
+      },
+      "stripe": {
+        "enabled": false,
+        "feePercent": 2.9,
+        "feeFixedCents": 30,
+        "currency": "USD"
+      },
+      "credit_balance": {
+        "enabled": true,
+        "feePercent": 0,
+        "currency": "USD"
+      },
+      "ring_token": {
+        "enabled": true,
+        "feePercent": 0,
+        "currency": "RING",
+        "label": "Tokens"
+      },
+      "paypal": {
+        "enabled": false,
+        "feePercent": 2.9,
+        "feeFixedCents": 30,
+        "currency": "USD"
+      },
+      "nft_gate": {
+        "enabled": false,
+        "feePercent": 0,
+        "currency": "RING",
+        "label": "NFT Certificate"
+      }
     }
   }
 }

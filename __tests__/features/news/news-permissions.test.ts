@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, it } from '@jest/globals'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRolesArray } from '@/features/auth/user-role'
 import {
   assertNewsVisibilityPatch,
   canCreateNewsArticle,
@@ -9,7 +9,7 @@ import {
 
 describe('news-permissions', () => {
   it('member can create news', () => {
-    expect(canCreateNewsArticle(UserRole.member)).toBe(true)
+    expect(canCreateNewsArticle(UserRolesArray.member)).toBe(true)
   })
 
   it('subscriber cannot create news', () => {

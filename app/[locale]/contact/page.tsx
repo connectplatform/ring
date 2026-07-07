@@ -11,7 +11,7 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
-import { getRingConfig } from '@/lib/ring-config'
+import { getRingSeoBranding, getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import { connection } from 'next/server'
 
 type ContactPageParams = Record<string, never>
@@ -51,11 +51,11 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
 
   setRequestLocale(locale)
 
-  const ringConfig = getRingConfig()
-  const contactInfo = ringConfig.contact
+  const ringSeoBranding = getRingSeoBranding()
+  const contactInfo = getSystemConfigSnapshot().contact
   const platformVars = {
-    platform: ringConfig.clone.displayName,
-    description: ringConfig.clone.description ?? ringConfig.seo?.siteDescription ?? '',
+    platform: getRingSeoBranding().siteName,
+    description: getSystemConfigSnapshot().seo?.siteDescription ?? '',
   }
 
   const t = await getTranslations('contact')

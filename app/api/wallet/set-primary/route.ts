@@ -6,6 +6,7 @@ import { db } from '@/lib/database'
 import type { UserRow } from '@/features/auth/lib/user-row'
 import { auth } from "@/auth"
 import { decryptPrivateKey } from '@/lib/crypto'
+import { Wallet } from '@/features/wallet/types'
 
 /**
  * POST handler for transferring native tokens (POL/MATIC) from user's wallet
@@ -88,16 +89,21 @@ export async function POST(request: NextRequest) {
     }
 
     const wallets = userResult.data.wallets ?? []
-
-    if (!wallets.length) {
+    if (!Array.isArray(wallets)) {
       return NextResponse.json(
-        { error: 'No wallets configured for user', code: 'NO_WALLETS' },
-        { status: 404 }
+        { error: 'Invalid wallets data', code: 'INVALID_WALLETS' },
+        { status: 500 }
       )
     }
 
     // Find default wallet or use first available
-    const wallet = wallets.find((w: any) => w.isDefault) || wallets[0]
+    const wallet = wallets.find((w: Wallet) => w.isDefault) || wallets[0]
+    if (!wallet) {
+      return NextResponse.json(
+        { error: 'No default wallet found', code: 'NO_DEFAULT_WALLET' },
+        { status: 404 }
+      )
+    }
 
     if (!wallet?.encryptedPrivateKey || !wallet?.address) {
       return NextResponse.json(

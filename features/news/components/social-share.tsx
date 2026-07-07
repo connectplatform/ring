@@ -1,6 +1,10 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
-import { Twitter, Facebook, Linkedin, Link2, Send } from 'lucide-react'
+import { Send, Copy } from 'lucide-react'
+import { TwitterIcon } from '@/components/ui/icons/twitter-icon'
+import { FacebookIcon } from '@/components/ui/icons/facebook-icon'
+import { LinkedinIcon } from '@/components/ui/icons/linkedin-icon'
+
 import { useToast } from '@/hooks/use-toast'
 
 interface SocialShareProps {
@@ -52,7 +56,7 @@ export function SocialShare({ title, url, description, hashtags = [], className 
         onClick={() => window.open(shareLinks.twitter, '_blank', 'width=600,height=400')}
         className="hover:bg-blue-50 hover:border-blue-200"
       >
-        <Twitter className="h-4 w-4 text-blue-500" />
+        <TwitterIcon className="h-4 w-4 text-blue-500" />
         <span className="sr-only">Share on Twitter</span>
       </Button>
 
@@ -62,7 +66,7 @@ export function SocialShare({ title, url, description, hashtags = [], className 
         onClick={() => window.open(shareLinks.facebook, '_blank', 'width=600,height=400')}
         className="hover:bg-blue-50 hover:border-blue-200"
       >
-        <Facebook className="h-4 w-4 text-blue-600" />
+        <FacebookIcon className="h-4 w-4 text-blue-600" />
         <span className="sr-only">Share on Facebook</span>
       </Button>
 
@@ -72,7 +76,7 @@ export function SocialShare({ title, url, description, hashtags = [], className 
         onClick={() => window.open(shareLinks.linkedin, '_blank', 'width=600,height=400')}
         className="hover:bg-blue-50 hover:border-blue-200"
       >
-        <Linkedin className="h-4 w-4 text-blue-700" />
+        <LinkedinIcon className="h-4 w-4 text-blue-700" />
         <span className="sr-only">Share on LinkedIn</span>
       </Button>
 
@@ -92,7 +96,7 @@ export function SocialShare({ title, url, description, hashtags = [], className 
         onClick={copyToClipboard}
         className="hover:bg-gray-50 hover:border-gray-200"
       >
-        <Link2 className="h-4 w-4 text-gray-600" />
+        <Copy className="h-4 w-4 text-gray-600" />
         <span className="sr-only">Copy link</span>
       </Button>
     </div>

@@ -1,17 +1,20 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useDeferredValue, useMemo, useState } from 'react'
 import type { ComponentProps } from 'react'
 import { Link, usePathname } from '@/i18n/routing'
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import DocsAudienceSelector from '@/components/docs/docs-audience-selector'
+import { useDocsAudienceOptional } from '@/components/docs/docs-audience-context'
 import { isDocsNavItemActive, normalizeDocsNavPath } from '@/lib/docs/docs-nav-active'
+import { getCuratedPageSet } from '@/lib/docs/audience-curated-docs'
 import type {
   DocsNavItem,
   DocsNavSection,
   DocsNavigationData,
 } from '@/lib/docs/docs-nav-types'
+import type { DocsAudience } from '@/lib/docs/docs-audience'
 
 type DocsLinkHref = ComponentProps<typeof Link>['href']
 
@@ -26,9 +29,47 @@ function filterItems(items: DocsNavItem[], query: string): DocsNavItem[] {
   return items.filter((item) => matchesTitle(item.label, query))
 }
 
-function filterSections(sections: DocsNavSection[], query: string): DocsNavSection[] {
-  if (!query.trim()) return sections
-  return sections
+/**
+ * Filter a section's items by the active audience's curated set.
+ * If the section is not present in the audience's curated map, ALL items
+ * are kept (fallback for sections not yet curated).
+ * If the section IS in the curated map, only items whose `pageSlug` is in the
+ * curated list are kept. SSoT: the `pageSlug` is set by the navigation tree
+ * from `meta.json` — no href re-parsing.
+ */
+function filterItemsByAudience(
+  items: DocsNavItem[],
+  sectionSlug: string,
+  audience: DocsAudience | null,
+): DocsNavItem[] {
+  if (!audience) return items
+  const curated = getCuratedPageSet(audience, sectionSlug)
+  if (!curated) {
+    // No curated list for this section — keep all items (graceful fallback)
+    return items
+  }
+  return items.filter((item) => curated.has(item.pageSlug))
+}
+
+function filterSections(
+  sections: DocsNavSection[],
+  query: string,
+  audience: DocsAudience | null,
+): DocsNavSection[] {
+  // 1) Apply audience filter first (only when audience is set)
+  const audienceFiltered = audience
+    ? sections
+        .map((section) => {
+          const items = filterItemsByAudience(section.items, section.sectionSlug, audience)
+          if (items.length === 0) return null
+          return { ...section, items }
+        })
+        .filter((section): section is DocsNavSection => section !== null)
+    : sections
+
+  // 2) Apply search query filter on the audience-filtered set
+  if (!query.trim()) return audienceFiltered
+  return audienceFiltered
     .map((section) => {
       const sectionMatches = matchesTitle(section.title, query)
       const items = sectionMatches
@@ -49,20 +90,47 @@ export default function DocsNavigationPanel({
 }: DocsNavigationData) {
   const [query, setQuery] = useState('')
   const pathname = usePathname()
+  const audienceCtx = useDocsAudienceOptional()
+  const audience: DocsAudience | null = audienceCtx?.audience ?? null
   const activePath = useMemo(
     () => normalizeDocsNavPath(pathname ?? ''),
     [pathname],
   )
 
+  // Defer the search query so typing stays responsive while filtering runs.
+  // React 19 `useDeferredValue` is preferred over `useTransition` for
+  // value-debouncing — works seamlessly with concurrent rendering.
+  const deferredQuery = useDeferredValue(query)
+  const isSearchStale = query !== deferredQuery
+
+  // Pre-filter by audience once (no search) — audience toggle is rare + cheap.
+  const audienceFilteredSections = useMemo(
+    () =>
+      audience
+        ? navSections
+            .map((section) => {
+              const items = filterItemsByAudience(section.items, section.sectionSlug, audience)
+              if (items.length === 0) return null
+              return { ...section, items }
+            })
+            .filter((section): section is DocsNavSection => section !== null)
+        : navSections,
+    [navSections, audience],
+  )
+
+  // Apply the (deferred) search query on top of the audience-filtered set.
   const filteredPinned = useMemo(
-    () => filterItems(topPinnedLinks, query),
-    [topPinnedLinks, query],
+    () => filterItems(topPinnedLinks, deferredQuery),
+    [topPinnedLinks, deferredQuery],
   )
   const filteredSections = useMemo(
-    () => filterSections(navSections, query),
-    [navSections, query],
+    () => filterSections(audienceFilteredSections, deferredQuery, null),
+    [audienceFilteredSections, deferredQuery],
   )
-  const filteredQuick = useMemo(() => filterItems(quickLinks, query), [quickLinks, query])
+  const filteredQuick = useMemo(
+    () => filterItems(quickLinks, deferredQuery),
+    [quickLinks, deferredQuery],
+  )
 
   const isActive = (href: string) => isDocsNavItemActive(activePath, href)
 
@@ -99,7 +167,12 @@ export default function DocsNavigationPanel({
 
       <DocsAudienceSelector />
 
-      <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1">
+      <div
+        className={`space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1 transition-opacity ${
+          isSearchStale ? 'opacity-70' : 'opacity-100'
+        }`}
+        aria-busy={isSearchStale}
+      >
         {!hasResults && query.trim() ? (
           <p className="text-sm text-muted-foreground px-2 py-4">No pages match &ldquo;{query.trim()}&rdquo;</p>
         ) : null}

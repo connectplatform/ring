@@ -1,9 +1,11 @@
 'use server'
 
 import { auth } from '@/auth'
-import { UserRole, getRoleLevel, UPGRADEABLE_ROLES, isPlatformAdmin } from '@/features/auth/user-role'
+import { UserRolesArray, getRoleLevel, UPGRADEABLE_ROLES, isPlatformAdmin } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 import type { Locale } from '@/i18n/shared'
+import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
+import { getCardPaymentProcessor, getSupportedPaymentMethods } from '@/lib/payments/subscription/subscription-config'
 
 export interface MembershipPaymentFormState {
   success?: boolean
@@ -15,63 +17,80 @@ export interface MembershipPaymentFormState {
 }
 
 /**
- * Initiates a membership upgrade payment process
+ * Initiates a membership upgrade payment process.
+ * Main entrypoint: Handles user session, role validation, and payment initiation via credit or card.
+ *
+ * @param prevState - Previous form state (for server actions patterns, not currently used)
+ * @param formData - Incoming form data with membership/payment fields
+ * @param locale - Current UI locale
+ * @returns A promise of the new membership payment form state with either error, redirect, or success keys
  */
+// TODO: If using React 19 Server Actions (Next 16), migrate this to a server action signature, 
+//   e.g. `export const initiateMembershipPayment = async ...`, and use input types direct from React.
+//   - Also use typed form values instead of extracting from generic FormData.
 export async function initiateMembershipPayment(
   prevState: MembershipPaymentFormState | null,
   formData: FormData,
   locale: Locale
 ): Promise<MembershipPaymentFormState> {
+  // TODO: Use Zod for validation and structure error and fieldErrors for better client feedback
 
+  // 1. Ensure the user is authenticated and session exists
   const session = await auth()
-  
+
   if (!session?.user?.id) {
+    // User not logged in; block payment initiation
     return {
       error: 'You must be logged in to upgrade your membership'
     }
   }
 
-  const targetRole = formData.get('targetRole') as UserRole
+  // 2. Gather input values from form
+  const targetRole = formData.get('targetRole') as UserRolesArray[number]
   const returnUrl = formData.get('returnUrl') as string
-  
+
   if (!targetRole) {
+    // Form missing required value: membership tier
     return {
       error: 'Target membership role is required'
     }
   }
 
-  // Validate target role
-  if (!Object.values(UserRole).includes(targetRole)) {
+  // 3. Check role is valid and included in our list
+  if (!Object.values(UserRolesArray).includes(targetRole as UserRolesArray)) {
     return {
       error: 'Invalid membership role selected'
     }
   }
 
-  // Prevent downgrades and invalid upgrades
-  const currentRole = (session.user as any)?.role as UserRole || UserRole.visitor
+  // 4. Determine user's current role; default to visitor if not set
+  const currentRole = (session.user as any)?.role as UserRolesArray[number] || UserRolesArray.visitor
   const currentRoleLevel = getRoleLevel(currentRole)
   const targetRoleLevel = getRoleLevel(targetRole)
 
-  if (!UPGRADEABLE_ROLES.includes(targetRole)) {
+  // Only allow upgrades to roles explicitly allowed for self-service upgrade
+  if (!UPGRADEABLE_ROLES.includes(targetRole as UserRolesArray)) {
     return {
       error: 'This membership tier cannot be purchased online',
     }
   }
 
+  // Disallow downgrades, same-level, or lateral role moves
   if (targetRoleLevel <= currentRoleLevel) {
     return {
       error: 'You can only upgrade to a higher membership level'
     }
   }
 
-  // Platform staff roles cannot be purchased online
-  if (isPlatformAdmin(targetRole)) {
+  // Restrict admin or platform staff roles to backoffice only
+  if (isPlatformAdmin(targetRole as UserRolesArray)) {
     return {
       error: 'Platform admin roles cannot be purchased',
     }
   }
 
   try {
+    // 5. Prepare user/session data for payment logic
     const userId = session.user.id
     const userEmail = session.user.email || ''
 
@@ -82,74 +101,107 @@ export async function initiateMembershipPayment(
       userEmail
     })
 
-    // Generate callback URLs
+    // 6. Determine payment method; fallback to credit_balance by default
+    const paymentMethod = formData.get('paymentMethod') as string || 'credit_balance'
+
+    // 7. Build return/redirect URLs for after payment
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const callbackUrl = `${baseUrl}/api/payments/wayforpay/webhook`
     const successReturnUrl = returnUrl || `${baseUrl}/${locale}/profile/membership/success`
+    // NOTE: failureReturnUrl is reserved for future extensibility
     const failureReturnUrl = `${baseUrl}/${locale}/profile/membership/failure`
 
-    // Import and call the WayForPay service
-    const { initiatePayment, getMembershipTierConfig } = await import('@/lib/payments/wayforpay-service')
-    
-    const paymentRequest = {
-      userId,
-      userEmail,
-      targetRole,
-      returnUrl: successReturnUrl,
-      callbackUrl
-    }
-
-    const tierConfig = getMembershipTierConfig(targetRole)
+    // 8. Fetch pricing config from the Single Source of Truth
+    // TODO: If pricing will change by input (custom plans, coupons, region), pass args to this ssot helper
+    const { getMemberFiatTier } = await import('@/lib/membership/pricing')
+    const tierConfig = getMemberFiatTier()
     if (!tierConfig) {
+      // STUB: Could fetch customized configs here in future—add handling for productId, etc.
       return { error: 'This membership tier cannot be purchased online' }
     }
 
-    const paymentResponse = await initiatePayment(paymentRequest)
+    // 9. Process payment by detected method
+    if (paymentMethod === 'credit_balance') {
+      // ---- Credit Balance (Native Token) Payment Path ----
+      // Implementation: Deduct user's balance, record payment, and return redirect or error
+      const success = await initiateCreditBalancePayment(userId, tierConfig, successReturnUrl)
+      if (success) {
+        // Payment initiation succeeded
+        return {
+          success: true,
+          message: 'Payment initiated successfully. You will be upgraded to Member.',
+          redirectUrl: successReturnUrl
+        }
+      }
+      // If balance insufficient or payment failed
+      return { error: 'Failed to process credit balance payment' }
+    }
 
-    if (paymentResponse.success && paymentResponse.paymentUrl) {
-      logger.info('Membership payment: Payment initiated successfully', {
-        userId,
-        targetRole,
-        orderId: paymentResponse.orderId,
-        amount: tierConfig.amount
-      })
+    // ---- Card-Based Processor Payment Path ----
+    if (paymentMethod === 'card' || paymentMethod === 'stripe' || paymentMethod === 'wayforpay') {
+      // Get the selected processor and supported options
+      const cardProcessor = getCardPaymentProcessor()
+      const supportedMethods = getSupportedPaymentMethods()
 
-      // Store payment attempt in user's profile for tracking
-      try {
-        const { recordPaymentAttempt } = await import('@/features/auth/services/payment-tracking')
-        await recordPaymentAttempt({
-          userId,
-          orderId: paymentResponse.orderId!,
-          targetRole,
-          amount: tierConfig.amount,
-          currency: tierConfig.currency,
-          status: 'initiated',
-          paymentUrl: paymentResponse.paymentUrl
-        })
-      } catch (trackingError) {
-        logger.warn('Membership payment: Failed to record payment attempt', trackingError)
-        // Don't fail the payment process if tracking fails
+      // Defensive: prevent inactive/bad processor methods
+      if (!supportedMethods.includes(cardProcessor)) {
+        return {
+          error: `${cardProcessor} is not currently supported. Please use credit balance.`
+        }
       }
 
+      // Orchestrate card subscription with the conductor class abstraction
+      const result = await SubscriptionConductor.createSubscription({
+        userId,
+        userEmail,
+        provider: cardProcessor as any,
+        gateway: cardProcessor === 'stripe' ? 'Stripe' : 'WayForPay',
+        method: 'card',
+        amount: tierConfig.amount,
+        currency: tierConfig.currency,
+        gatewayFeePercent: cardProcessor === 'stripe' ? 2.9 : 2.5,
+        gatewayFeeFixed: cardProcessor === 'stripe' ? 0.30 : 0,
+        returnUrl: successReturnUrl,
+        locale,
+        metadata: { source: 'membership_action', targetRole }, // Useful for payment tracking/analytics
+      })
+
+      if (!result.success) {
+        // Payment processor error or declined
+        logger.error('Membership payment: Conductor failed', {
+          userId,
+          targetRole,
+          error: result.error,
+        })
+        return {
+          error: result.error || 'Failed to initiate payment. Please try again.'
+        }
+      }
+
+      // Payment requires user to complete a redirect (e.g., to Stripe)
+      if (result.redirectUrl) {
+        return {
+          success: true,
+          message: 'Payment initiated successfully. You will be redirected to the payment page.',
+          paymentUrl: result.redirectUrl,
+          redirectUrl: result.redirectUrl,
+        }
+      }
+
+      // No redirect needed—likely completed synchronously
       return {
         success: true,
-        message: 'Payment initiated successfully. You will be redirected to the payment page.',
-        paymentUrl: paymentResponse.paymentUrl,
-        redirectUrl: paymentResponse.paymentUrl
-      }
-    } else {
-      logger.error('Membership payment: Payment initiation failed', {
-        userId,
-        targetRole,
-        error: paymentResponse.error
-      })
-
-      return {
-        error: paymentResponse.error || 'Failed to initiate payment. Please try again.'
+        message: 'Payment processed successfully! Your membership has been upgraded.',
+        redirectUrl: successReturnUrl,
       }
     }
 
+    // Handle unhandled/unknown payment methods gracefully
+    return {
+      error: `Unknown payment method: ${paymentMethod}`
+    }
+
   } catch (error) {
+    // Catch-all for unexpected errors; redact sensitive detail for prod logs
     logger.error('Membership payment: Unexpected error:', error)
     return {
       error: 'An unexpected error occurred. Please try again later.'
@@ -158,25 +210,94 @@ export async function initiateMembershipPayment(
 }
 
 /**
- * Handles payment success callback
+ * Internal helper: process credit-balance payment for membership upgrade.
+ * Deducts funds, confirms price, triggers subscription creation.
  */
+async function initiateCreditBalancePayment(
+  userId: string,
+  tierConfig: any,
+  returnUrl: string
+): Promise<boolean> {
+  try {
+    // Dynamically import credit-balance and pricing services (to reduce cold start cost)
+    const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
+    const { NativeTokenPriceOracleService } = await import('@/services/blockchain/price-oracle-service')
+    // Fetch the current USD price for accurate deduction (for crypto tokens)
+    const priceOracleService = NativeTokenPriceOracleService.getInstance()
+    const priceData = await priceOracleService.getNativeTokenUsdPrice()
+
+    // Deduct membership fee using user's available balance 
+    const result = await creditBalanceService.processMembershipFee(
+      userId,
+      tierConfig.amount.toString(),
+      priceData.price
+    )
+
+    if (!result.success) {
+      // Insufficient funds or deduction failed
+      logger.warn('Membership payment: Insufficient credit balance', { userId })
+      return false
+    }
+
+    // STUB: If discounts or tierConfig parameterization is implemented, extend this logic to account for them
+    // TODO: If tierConfig can contain discounts, refactor here (step: fetch user-specific price, run calculation, update deduction).
+
+    // Ensure we have up-to-date email (optionally optimize by using upstream value)
+    const session = await auth()
+    const userEmail = session?.user?.email || ''
+
+    // Call conductor to register subscription/upgrade after balance withdrawal
+    await SubscriptionConductor.createSubscription({
+      userId,
+      userEmail,
+      provider: 'credit_balance',
+      gateway: 'Credit Balance',
+      method: 'credit_balance',
+      amount: tierConfig.amount,
+      currency: tierConfig.currency,
+      gatewayFeePercent: 0,
+      gatewayFeeFixed: 0,
+      returnUrl,
+      metadata: { source: 'credit_balance_action' },
+    })
+
+    // Return true if everything went through
+    return true
+  } catch (error) {
+    logger.error('Credit balance payment failed', { userId, error })
+    return false
+  }
+}
+
+/**
+ * Handles payment success callback after redirect (by provider)
+ * Confirms final upgrade status via conductor record.
+ *
+ * @param prevState - Previous form state (for compatibility, not used here)
+ * @param formData - Form data from provider redirect (must contain orderId)
+ * @param locale - Current UI locale
+ * @returns MembershipPaymentFormState indicating outcome to the UI
+ */
+// TODO: Refactor as a server/route action in Next.js 16—extract all inputs with typed objects if possible
 export async function handlePaymentSuccess(
   prevState: MembershipPaymentFormState | null,
   formData: FormData,
   locale: Locale,
 ): Promise<MembershipPaymentFormState> {
-
+  // Verify user is authenticated before changing membership/payment state
   const session = await auth()
-  
+
   if (!session?.user?.id) {
     return {
       error: 'You must be logged in to process payment success'
     }
   }
 
+  // Extract required reference from provider callback payload
   const orderId = formData.get('orderId') as string
-  
+
   if (!orderId) {
+    // Malformed or missing redirect parameters
     return {
       error: 'Order ID is required'
     }
@@ -190,34 +311,21 @@ export async function handlePaymentSuccess(
       orderId
     })
 
-    // Import and call the payment status service
-    const { getPaymentStatus } = await import('@/lib/payments/wayforpay-service')
-    const statusResponse = await getPaymentStatus(orderId)
+    // Fetch the relevant subscription record and check its status post-payment
+    const subscription = await SubscriptionConductor.getSubscription(userId)
 
-    if (statusResponse.success && statusResponse.status === 'Approved') {
-      // Update payment tracking
-      try {
-        const { updatePaymentStatus } = await import('@/features/auth/services/payment-tracking')
-        await updatePaymentStatus(orderId, 'completed')
-      } catch (trackingError) {
-        logger.warn('Membership payment: Failed to update payment status', trackingError)
-      }
-
+    // Check for final subscription/upgrade status
+    if (subscription && subscription.status === 'active') {
       return {
         success: true,
         message: 'Payment completed successfully! Your membership has been upgraded.',
         redirectUrl: `/${locale}/profile/membership/success?orderId=${orderId}`
       }
-    } else {
-      logger.warn('Membership payment: Payment not approved', {
-        userId,
-        orderId,
-        status: statusResponse.status
-      })
+    }
 
-      return {
-        error: 'Payment was not approved. Please contact support if you believe this is an error.'
-      }
+    // Edge case: Payment wasn't finalized with provider
+    return {
+      error: 'Payment was not approved. Please contact support if you believe this is an error.'
     }
 
   } catch (error) {
@@ -229,25 +337,33 @@ export async function handlePaymentSuccess(
 }
 
 /**
- * Handles payment failure callback
+ * Handles payment failure callback after redirect (by provider).
+ * Always shows actionable UI message and routes to fail screen with original details.
+ *
+ * @param prevState - Previous form state (per Next.js server action compatibility)
+ * @param formData - Redirected form data from provider (expects orderId and reason)
+ * @param locale - Current UI locale
+ * @returns MembershipPaymentFormState describing the payment failure outcome
  */
+// TODO: Refactor as a native Next.js 16/React 19 server action, strongly typing input for easier DX
 export async function handlePaymentFailure(
   prevState: MembershipPaymentFormState | null,
   formData: FormData,
   locale: Locale,
 ): Promise<MembershipPaymentFormState> {
-
+  // Ensure valid logged-in session for processing errors against current user
   const session = await auth()
-  
+
   if (!session?.user?.id) {
     return {
       error: 'You must be logged in to process payment failure'
     }
   }
 
+  // Extracts payment order and reason for the fail-state redirect
   const orderId = formData.get('orderId') as string
   const reason = formData.get('reason') as string
-  
+
   try {
     const userId = session.user.id
 
@@ -257,14 +373,7 @@ export async function handlePaymentFailure(
       reason
     })
 
-    // Update payment tracking
-    try {
-      const { updatePaymentStatus } = await import('@/features/auth/services/payment-tracking')
-      await updatePaymentStatus(orderId, 'failed', reason)
-    } catch (trackingError) {
-      logger.warn('Membership payment: Failed to update payment status', trackingError)
-    }
-
+    // Always present fail-state with error text and all details in redirect
     return {
       success: false,
       message: 'Payment was not completed. You can try again or contact support for assistance.',

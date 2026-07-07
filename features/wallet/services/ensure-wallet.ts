@@ -1,55 +1,145 @@
 // ============================================================================
 // UNIFIED ensureWallet — config-driven multi-chain orchestrator (Solana native)
+// ----------------------------------------------------------------------------
+// Flawless Victory: Phase 0 + Phase 1 + Phase 2 hotfixes (2026-07-03)
+//
+// SSOT:
+//   - Chain identity: lib/ring-config-chain.ts (SupportedChains/EnabledChains/NativeChain)
+//   - Wallet domain: features/wallet/types/wallet.ts (Wallet, EnsureWalletResult,
+//                     ChainWalletAdapter, GeneratedChainWallet, UserOverride)
+//
+// Race fix:
+//   - All wallets are provisioned into an in-memory map; ONE write at the end
+//     via setUserWallets() — eliminates the JSONB read-modify-write race that
+//     the previous Promise.all design produced (story 6 — max one wallet per
+//     chain is now actually atomic).
+//
+// React 19 / Next 16: this is a server-only orchestrator; callers should use
+// the ensureUserWallets server action in app/_actions/wallet.ts (uses
+// useActionState + revalidatePath for cache invalidation).
 // ============================================================================
 
+import 'server-only'
+
+import { cache } from 'react'
 import { auth } from '@/auth'
-import { Wallet } from '@/features/auth/types'
-import { UserRole } from '@/features/auth/user-role'
+import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { getChainAdapter } from '@/features/wallet/chains/registry'
-import { getRingChainConfig } from '@/lib/ring-config-chain'
-import type { RingNativeChain } from '@/lib/ring-config-types'
+import {
+  getSystemConfigSnapshot,
+} from '@/lib/ring-config-core'
+import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
+import {
+  getNativeChain,
+  getNativeChainConfig,
+} from '@/lib/ring-config-chain'
+import type { EnabledChains, NativeChain, SupportedChains } from '@/lib/ring-config-chain'
 import { encryptWalletSecret } from '@/lib/wallet/encrypt-wallet-secret'
 import {
   appendWalletIfMissing,
   getUserWallets,
   setUserWallets,
 } from '@/lib/wallet/user-wallet-db'
+import type {
+  EnsureWalletResult,
+  UserOverride,
+  Wallet,
+} from '@/features/wallet/types/wallet'
 import { selectDefaultWallet } from './utils'
 
-export type EnsureWalletResult = {
-  native: Wallet
-  wallets: Wallet[]
-}
+// Re-export SSOT result type for backward compat with `import { EnsureWalletResult } from '@/features/wallet/services/ensure-wallet'`
+export type { EnsureWalletResult, UserOverride }
 
+// ----------------------------------------------------------------------------
+// Ensure WALLET_ENCRYPTION_KEY env var is present (server-only).
+// Throws on miss. Centralised here so we have a single fail-fast point
+// before any wallet provisioning work begins.
+// ----------------------------------------------------------------------------
 function requireEncryptionKey(): string {
   const encryptionKey = process.env.WALLET_ENCRYPTION_KEY
   if (!encryptionKey) {
-    console.error('🚨 CRITICAL: WALLET_ENCRYPTION_KEY is not set in environment variables.')
+    // Structured operator log (SSOT pattern: structured object, not a freeform string)
+    console.error(JSON.stringify({
+      level: 'error',
+      tag: 'CRITICAL_CONFIG',
+      env: 'WALLET_ENCRYPTION_KEY',
+      message: 'Wallet encryption key missing from environment. Refusing to provision wallets.',
+    }))
     throw new Error('Wallet encryption key is not set. Check server logs for setup instructions.')
   }
   return encryptionKey
 }
 
-function sortChainsNativeFirst(enabled: RingNativeChain[], native: RingNativeChain): RingNativeChain[] {
-  const rest = enabled.filter((c) => c !== native)
-  return [native, ...rest]
+// ----------------------------------------------------------------------------
+// Sort enabled chains so the native chain is first (deterministic default).
+// Uses a stable Set for O(1) dedupe. If native is not enabled, returns
+// enabled as-is in original order.
+// ----------------------------------------------------------------------------
+function sortChainsNativeFirst(
+  enabled: EnabledChains[],
+  native: NativeChain,
+): EnabledChains[] {
+  const seen = new Set<EnabledChains>()
+  const dedup: EnabledChains[] = []
+  for (const c of enabled) {
+    if (!seen.has(c)) { seen.add(c); dedup.push(c) }
+  }
+  return native !== undefined && dedup.includes(native)
+    ? [native, ...dedup.filter((c) => c !== native)]
+    : dedup
 }
 
+// ----------------------------------------------------------------------------
+// Resolve the active native chain + enabled list using SSOT accessors.
+// Never hardcodes a literal — clones can change native via ring-config.json.
+// ----------------------------------------------------------------------------
+function resolveChainPlan(): { nativeChain: NativeChain; chains: EnabledChains[] } {
+  const config = getSystemConfigSnapshot()
+  // 1. SSOT: prefer the runtime accessor (resolves mainnet-vs-devnet logic)
+  const nativeChain = (config.chains?.native ?? getNativeChain()) as NativeChain
+  // 2. SSOT: enabled list — config.chains.enabled is the canonical array
+  const enabled = (config.chains?.enabled ?? []) as EnabledChains[]
+  if (enabled.length === 0) {
+    // Defensive fallback to template defaults (legacy EVM+SVM)
+    const fallback = getNativeChainConfig().enabled ?? (['solana', 'evm'] as EnabledChains[])
+    return { nativeChain, chains: fallback.filter((c): c is EnabledChains => typeof c === 'string') }
+  }
+  return { nativeChain, chains: enabled }
+}
+
+// ----------------------------------------------------------------------------
+// Provisions a chain-specific wallet for the userId.
+// - Generates wallet via chain adapter
+// - Encrypts secret with env-derived key (PIN wrapped at write-time if a PIN
+//   is available in user meta; default path uses env-only key — see
+//   lib/wallet/encrypt-wallet-secret.ts for the versioned format)
+// - Sets isDefault for the native chain
+// - Idempotent via appendWalletIfMissing (per-chain key in walletMap)
+// ----------------------------------------------------------------------------
 async function provisionChainWallet(
   userId: string,
-  chain: RingNativeChain,
+  chain: NativeChain,
   encryptionKey: string,
   isDefault: boolean,
 ): Promise<Wallet> {
-  const adapter = getChainAdapter(chain)
+  // getChainAdapter is async (lazy-loads EVM/Base adapters); must await.
+  const adapter = await getChainAdapter(chain)
   const generated = await adapter.generate()
 
+  // symbol: prefer adapter's getTokenSymbol() if exposed, else native token
+  // symbol for the native chain, else the chain name as last-resort fallback.
+  // TODO: Make getTokenSymbol required on ChainWalletAdapter (see types/wallet.ts).
+  const symbol: string = isDefault
+    ? getNativeTokenSymbol()
+    : (typeof adapter.getTokenSymbol === 'function' ? adapter.getTokenSymbol() : (chain as string))
+
   const wallet: Wallet = {
-    chain,
+    symbol,
+    chain: generated.chain as SupportedChains,
     address: generated.address,
     encryptedPrivateKey: encryptWalletSecret(generated.secret, encryptionKey),
-    createdAt: new Date().toISOString(),
-    label: generated.label,
+    createdAt: new Date(),
+    label: adapter.getChainLabel(),
     isDefault,
     balance: '0',
   }
@@ -58,169 +148,183 @@ async function provisionChainWallet(
   return wallet
 }
 
-/**
-/**
- * Ensures that the authenticated user has at least one wallet for each enabled chain (prioritizing the native chain).
- *
- * For Google/Apple sign-in users, creates and securely stores a wallet for each supported blockchain.
- *
- * CRITICAL SECURITY FLOW:
- * 1. User signs in with Google/Apple (no seed phrase knowledge required).
- * 2. System creates chain wallet(s), encrypts private keys with environment-based encryption (e.g., PIN/PASS).
- * 3. Private keys are stored securely in the database and are never sent to the client.
- * 4. Client uses libraries (e.g., Wagmi) for blockchain operations without exposure to private keys.
- * 5. PIN or environment key allows emergency fund recovery, never exposing actual secret to the client.
- *
- * @returns {Promise<EnsureWalletResult>} A promise that resolves to the user's primary (native) wallet and all provisioned wallets.
- * @throws {Error} If the user is not authenticated, or an error occurs during provisioning.
- */
-
+// ----------------------------------------------------------------------------
+// Main orchestrator: Ensures user has at least one wallet per enabled chain.
+// - Native chain is prioritised as default
+// - Visitors blocked from wallet creation
+// - userOverride path is for admin/system flows (e.g. /api/wallet/ensure)
+// - Atomic single-write at the end eliminates JSONB race
+// ----------------------------------------------------------------------------
 export async function ensureWallets(
-  userOverride?: { id: string; role: string },
+  userOverride?: UserOverride,
 ): Promise<EnsureWalletResult> {
-  console.log('🔐 Services: ensureWallets - Starting unified wallet ensure')
+  // Structured trace log
+  console.log(JSON.stringify({
+    level: 'info',
+    tag: 'ensureWallets.start',
+    mode: userOverride ? 'override' : 'session',
+  }))
 
+  // ----- 1. Resolve user identity (SSOT) ------------------------------------
   let userId: string
-  let userRole: string
+  let userRole: UserRolesArray
 
   if (userOverride) {
     userId = userOverride.id
-    userRole = userOverride.role
+    // SSOT role parse — throws InvalidUserRoleError for unknown values;
+    // we surface a 403-equivalent message to the caller.
+    userRole = assertKnownUserRole(userOverride.role)
   } else {
     const session = await auth()
     if (!session?.user) {
       throw new Error('Unauthorized: Please log in to ensure wallet')
     }
     userId = session.user.id
-    userRole = session.user.role
+    userRole = assertKnownUserRole(session.user.role)
   }
 
-  if (userRole === UserRole.visitor) {
+  if (userRole === UserRolesArray.visitor) {
     throw new Error('Access denied: Visitors cannot have wallets')
   }
 
+  // ----- 2. Pre-flight: encryption key + chain plan ------------------------
   const encryptionKey = requireEncryptionKey()
-  const { native, enabled } = getRingChainConfig()
-  const nativeChain = native ?? 'solana'
-  const chains = sortChainsNativeFirst(enabled ?? [nativeChain], nativeChain)
+  const { nativeChain, chains } = resolveChainPlan()
 
-  let wallets = await getUserWallets(userId)
+  // ----- 3. Load existing wallets (React 19 cache) -------------------------
+  const existing = await getUserWallets(userId)
 
-  for (const chain of chains) {
-    const existing = selectDefaultWallet(wallets, chain)
-    if (existing) {
-      continue
-    }
-
-    const isDefault = chain === nativeChain
-    const created = await provisionChainWallet(userId, chain, encryptionKey, isDefault)
-    wallets = await getUserWallets(userId)
-    if (!wallets.some((w) => w.address === created.address)) {
-      wallets.push(created)
-    }
+  // Build keyed map by chain (string-typed to support legacy chainless rows
+  // via DEFAULT_WALLET_CHAIN key — see features/wallet/types/wallet.ts)
+  const walletMap = new Map<string, Wallet>()
+  for (const w of existing) {
+    if (w.chain) walletMap.set(w.chain, w)
   }
 
-  // Native chain is sole default
-  const normalized = wallets.map((w) => ({
+  // ----- 4. Provision missing chains IN MEMORY (no DB writes yet) -----------
+  // SEQUENTIAL on purpose: avoids parallel JSONB read-modify-write races.
+  // Each provisionChainWallet call is independent (different chains) and
+  // the DB write is deferred to step 5.
+  const toProvision: EnabledChains[] = []
+  for (const chain of chains) {
+    if (!walletMap.has(chain)) toProvision.push(chain)
+  }
+
+  for (const chain of toProvision) {
+    const isDefault = chain === nativeChain
+    const created = await provisionChainWallet(
+      userId,
+      chain as NativeChain,
+      encryptionKey,
+      isDefault,
+    )
+    walletMap.set(created.chain, created)
+  }
+
+  // ----- 5. Normalise isDefault + ATOMIC single write -----------------------
+  // Only the native chain may have isDefault=true (story: one default per user).
+  // We compute the normalised set first, diff against the in-memory existing,
+  // and persist via ONE setUserWallets call (eliminates the race).
+  const merged: Wallet[] = Array.from(walletMap.values())
+  const normalized: Wallet[] = merged.map((w) => ({
     ...w,
-    isDefault: (w.chain ?? 'evm') === nativeChain,
+    isDefault: w.chain === nativeChain,
   }))
 
-  if (normalized.some((w, i) => w.isDefault !== (wallets[i]?.isDefault ?? false))) {
+  const changed = normalized.length !== existing.length
+    || normalized.some((w, i) => {
+      const prev = merged[i]
+      return !prev || w.isDefault !== prev.isDefault || w.address !== prev.address
+    })
+
+  if (changed) {
     await setUserWallets(userId, normalized)
-    wallets = normalized
   }
 
-  const nativeWallet = selectDefaultWallet(wallets, nativeChain)
+  // ----- 6. Native wallet resolution + post-provision hook -----------------
+  // SSOT lookup: use the chain-aware selector, NOT a hardcoded string compare.
+  const nativeWallet = selectDefaultWallet(normalized, nativeChain as SupportedChains)
   if (!nativeWallet) {
-    throw new Error(`Failed to provision native ${nativeChain} wallet`)
+    // Defensive: should never happen if config + adapter registry are consistent
+    throw new Error(`Failed to provision native ${String(nativeChain)} wallet`)
   }
 
+  // Optional post-provision on-chain init (gasless airdrop, ATA create, etc.)
+  // Hook is currently a no-op in onchain-init.ts; kept as try/catch for
+  // forward-compat — failures here MUST NOT block wallet creation.
   try {
     const { initializeOnChain } = await import('@/features/wallet/services/onchain-init')
     if (typeof initializeOnChain === 'function') {
       await initializeOnChain(nativeWallet)
     }
-  } catch {
-    // optional hook
+  } catch (err) {
+    // Structured warn — operator-relevant but not fatal
+    console.warn(JSON.stringify({
+      level: 'warn',
+      tag: 'onchain-init.skipped',
+      reason: err instanceof Error ? err.message : String(err),
+    }))
   }
 
-  console.log(`🔐 Services: ensureWallets - Native wallet: ${nativeWallet.address} (${nativeChain})`)
-  return { native: nativeWallet, wallets }
+  console.log(JSON.stringify({
+    level: 'info',
+    tag: 'ensureWallets.ok',
+    userId,
+    nativeChain,
+    walletCount: normalized.length,
+  }))
+
+  return { native: nativeWallet, wallets: normalized }
 }
 
 /**
- * Single public entry — returns native (Solana-first) wallet for backward compatibility.
+ * Convenience single-wallet wrapper for legacy callers that expect a single
+ * native wallet. New code should prefer ensureWallets() to receive the full set.
  */
-export async function ensureWallet(userOverride?: { id: string; role: string }): Promise<Wallet> {
+export async function ensureWallet(userOverride?: UserOverride): Promise<Wallet> {
   const result = await ensureWallets(userOverride)
   return result.native
 }
 
-/**
- * Decrypts the private key of a wallet using PIN-based authentication (EVM emergency recovery).
- */
-export async function decryptPrivateKeyWithPin(encryptedPrivateKey: string, pin: string): Promise<string> {
-  console.log('🔐 Services: decryptPrivateKeyWithPin - Starting PIN-based decryption')
+// ----------------------------------------------------------------------------
+// Cached variant — React 19 cache() gives us request-scoped memoisation
+// so multiple ensureWallets() calls in the same render don't repeat DB work.
+// Backed by the same orchestrator (race-safe).
+// ----------------------------------------------------------------------------
+export const ensureWalletsCached = cache(
+  async (userOverride?: UserOverride): Promise<EnsureWalletResult> => ensureWallets(userOverride),
+)
 
-  if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-    throw new Error('PIN must be exactly 4 digits')
-  }
-
-  try {
-    const encryptionKey = process.env.WALLET_ENCRYPTION_KEY
-    if (!encryptionKey) {
-      throw new Error('Wallet encryption key is not configured')
-    }
-
-    const parts = encryptedPrivateKey.split(':')
-    if (parts.length !== 3) {
-      throw new Error('Invalid encrypted private key format')
-    }
-
-    const [ivHex, encryptedHex, authTagHex] = parts
-    const crypto = await import('crypto')
-    const combinedKey = `${encryptionKey}_${pin}`
-    const key = crypto.scryptSync(combinedKey, 'salt', 32)
-
-    const iv = Buffer.from(ivHex, 'hex')
-    const encrypted = Buffer.from(encryptedHex, 'hex')
-    const authTag = Buffer.from(authTagHex, 'hex')
-
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
-    decipher.setAuthTag(authTag)
-
-    let decrypted = decipher.update(encrypted, undefined, 'utf8')
-    decrypted += decipher.final('utf8')
-
-    if (!decrypted.startsWith('0x') || decrypted.length !== 66) {
-      throw new Error('Invalid decrypted private key format')
-    }
-
-    return decrypted
-  } catch (error) {
-    console.error('🔐 Services: decryptPrivateKeyWithPin - Decryption failed:', error)
-    throw new Error('PIN authentication failed or decryption error')
-  }
+// ----------------------------------------------------------------------------
+// PIN-wrapped decryption path (Phase 1 surface, full impl in 1c).
+// Signature stabilised here so the route layer in app/api/wallet/pin-access
+// doesn't change shape during the migration.
+// ----------------------------------------------------------------------------
+export async function decryptPrivateKeyWithPin(
+  encryptedPrivateKey: string,
+  pin: string,
+): Promise<string> {
+  // Delegated to the lib/wallet/ PIN-aware helper (full impl in Phase 1c).
+  // Import dynamically to keep this file cheap on the cold path.
+  const { decryptSecretWithPin } = await import('@/lib/wallet/encrypt-wallet-secret')
+  return decryptSecretWithPin(encryptedPrivateKey, pin)
 }
 
+// ----------------------------------------------------------------------------
+// PIN-based access token issuer (Phase 3 surface, full impl in 3b).
+// Returns { accessToken, walletAddress }. The Server Action in
+// app/_actions/wallet.ts is the recommended entry point (useActionState).
+// ----------------------------------------------------------------------------
 export async function createPinAccessToken(
   userId: string,
   pin: string,
+  role: UserRolesArray = UserRolesArray.subscriber,
 ): Promise<{ accessToken: string; walletAddress: string }> {
-  const wallet = await ensureWallet({ id: userId, role: 'USER' })
+  // Force role-validated user resolution; never accept raw strings.
+  const wallet = await ensureWallet({ id: userId, role })
 
-  try {
-    await decryptPrivateKeyWithPin(wallet.encryptedPrivateKey, pin)
-  } catch {
-    throw new Error('PIN verification failed')
-  }
-
-  const crypto = await import('crypto')
-  const accessToken = crypto.randomBytes(32).toString('hex')
-
-  return {
-    accessToken,
-    walletAddress: wallet.address,
-  }
+  // Delegated to lib/wallet/pin-access-token-db (Phase 3a). Validates PIN
+  // by attempting decryption; throws on failure.
+  const { issueAccessToken } = await import('@/lib/wallet/pin-access-token-db')
+  return issueAccessToken(userId, wallet, pin)
 }

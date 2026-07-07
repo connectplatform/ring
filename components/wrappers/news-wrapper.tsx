@@ -3,6 +3,9 @@
 /**
  * NEWS MANAGEMENT WRAPPER - Ring Platform v2.0
  * ===========================================
+ * @deprecated Since v1.93.0 — admin news pages now use AdminWrapper directly.
+ * No consumers remain. Scheduled for removal in v2.0.
+ *
  * Universal 3-column responsive layout for news management pages
  *
  * Layout Structure:
@@ -25,7 +28,7 @@
  * - Analytics Expert (content performance metrics)
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
@@ -127,6 +130,9 @@ export default function NewsWrapper({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Stable callbacks
+  const toggleSidebar = useCallback(() => setIsRightSidebarOpen(prev => !prev), [])
+
   // Navigation items for news management
   const newsNavItems = [
     {
@@ -206,7 +212,7 @@ export default function NewsWrapper({
       {/* Floating Sidebar Toggle - Mobile */}
       <FloatingSidebarToggle
         isOpen={isRightSidebarOpen}
-        onToggle={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+        onToggle={toggleSidebar}
         className="lg:hidden"
       >
         <NewsManagementSidebar

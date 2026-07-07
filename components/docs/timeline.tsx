@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Chrono, type TimelineItemModel } from 'react-chrono'
+import { Chrono, type TimelineItem } from 'react-chrono'
 
 export interface TimelineProps {
-  items: TimelineItemModel[]
+  items: TimelineItem[]
   mode?: 'VERTICAL' | 'VERTICAL_ALTERNATING' | 'HORIZONTAL'
   className?: string
 }

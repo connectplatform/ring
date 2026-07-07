@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dispatchWayForPayWebhook } from '@/lib/payments/conductor/webhook-dispatcher'
+import { wayforpayWebhookSchema } from '@/lib/payments/wayforpay-webhook-schema'
+import type { WayforpayWebhookInput } from '@/lib/payments/wayforpay-webhook-schema'
 import { logger } from '@/lib/logger'
 
 /**
@@ -7,8 +9,18 @@ import { logger } from '@/lib/logger'
  */
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as Record<string, unknown>
-    const result = await dispatchWayForPayWebhook(payload)
+    const raw = await request.json()
+    const parsed = wayforpayWebhookSchema.safeParse(raw)
+
+    if (!parsed.success) {
+      logger.warn('WayForPay webhook: invalid payload shape', {
+        error: parsed.error.issues[0]?.message,
+      })
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    }
+
+    const payload: WayforpayWebhookInput = parsed.data
+    const result = await dispatchWayForPayWebhook(payload as Record<string, unknown>)
 
     if (!result.success) {
       if (result.error === 'Invalid signature') {
