@@ -31,30 +31,6 @@ export type WalletTransactionRow = {
 type DocRow = WalletTransactionRow & Record<string, unknown> & { id: string }
 
 /**
- * DatabaseService driver compatible version:
- * 
- * Instead of manually abstracting the internal "query builder", here we directly use DatabaseService's queryDocs, 
- * assuming DatabaseService implements queryDocs in a way that matches our API signature.
- */
-db().queryDocs = async function <T extends { id: string }>(opts: {
-  collection: string
-  filters: Array<{ field: string; operator: '=='; value: string }>
-  orderBy?: Array<{ field: string; direction: 'asc' | 'desc' }>
-  pagination?: { limit?: number }
-}): Promise<{ success: boolean; data?: T[]; error?: any }> {
-  try {
-    // NOTE: The driver implements the interface itself, so just call it and relay.
-    // This also benefits from DatabaseService's internal validation and error handling.
-    const dbInstance = db()
-    // Assumes DatabaseService.queryDocs already implemented on instance:
-    const result = await dbInstance.queryDocs<T>(opts)
-    return result
-  } catch (error) {
-    return { success: false, error }
-  }
-}
-
-/**
  * Fetches wallet transactions for a particular user, with support for filtering by transaction kind and limiting count.
  * Now wrapped with React's cache() to improve deduplication and avoid redundant fetches in concurrent server environments.
  * @param userId The unique identifier of the user.

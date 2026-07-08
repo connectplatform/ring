@@ -24,7 +24,15 @@ export {
   initializeDbCommand,
   shutdownDatabase
 } from './DatabaseService';
-export { getSharedPgPool } from './shared-pg-pool';
+// NOTE: `getSharedPgPool` is intentionally NOT re-exported here.
+// `shared-pg-pool.ts` carries `import 'server-only'`, and this barrel is pulled
+// (transitively) into edge middleware (proxy.ts -> constants/routes.ts ->
+// ring-config-core.ts -> platform-settings-service.ts) and Client Component SSR
+// (app-client-shell.tsx -> ring-config-core.ts -> ...). Re-exporting the
+// server-only module here leaks that side-effect into those bundles and fails
+// the Turbopack build. Import it directly where genuinely needed (server only):
+//   import { getSharedPgPool } from '@/lib/database/shared-pg-pool'
+// See lib/geolocation/geolocation-service.ts for the canonical usage.
 export type { DbRow } from './DatabaseService';
 
 // Synchronization

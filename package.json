@@ -1,6 +1,6 @@
 {
   "name": "ring-platform-org",
-  "version": "1.93.6",
+  "version": "1.93.7",
   "private": true,
   "type": "module",
   "bin": {
