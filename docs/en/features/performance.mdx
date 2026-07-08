@@ -1,250 +1,155 @@
 ---
 title: Performance Optimization Patterns
-description: Database caching, React cache() deduplication, Firebase Admin SDK patterns, and Server Component optimization for Ring Platform.
+description: Verified caching layers — React cache(), Next 16 Cache Components, client bootstrap single-flight, and DatabaseService EntityCache.
+last_modified: "2026-07-07"
+audience: both
 ---
 
 # Performance Optimization Patterns
 
-Ring Platform uses **React 19 `cache()`** for per-request data deduplication in Server Components, a **database abstraction layer** (`DatabaseService` + adapters) that routes to PostgreSQL or Firestore, and **Firebase Admin SDK** (`firebase-service-manager.ts`) for cached Firestore reads in `firebase-full` mode.
+Ring Platform optimizes at four layers: **Server Component request dedup**, **Next 16 `'use cache'` catalog reads**, **client bootstrap single-flight**, and **DatabaseService EntityCache**. All patterns below trace to real files — no fabricated KPIs or invented utilities.
 
 <Callout type="info">
-  All code examples below reference **real files** in the codebase — `lib/services/firebase-service-manager.ts`, `lib/database/DatabaseService.ts`, `lib/database/adapters/FirebaseAdapter.ts`. Fabricated utilities (session-storage caches, custom RingApiClient, virtualizer patterns) are not part of Ring Platform.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
 </Callout>
 
-## React 19 Server Components & Data Fetching
+<Audience for="founder">
 
-### Direct fetching in Server Components (preferred)
+## What keeps your clone fast
 
-<Code language="typescript" title="Server Component data fetching">
-{`// Services call DatabaseService (PostgreSQL or Firebase adapter)
-import { getEntities } from '@/features/entities/services/entity-service'
+Most Ring pages are **React Server Components** — HTML arrives pre-rendered with minimal client JavaScript. Performance wins come from architecture, not bolt-on CDN tricks:
 
-export default async function EntitiesPage() {
-  const entities = await getEntities()
-  return <EntityGrid entities={entities} />
-}`}
-</Code>
+| Layer | Benefit for operators |
+|-------|----------------------|
+| Server-first rendering | Marketing and catalog pages ship without heavy JS bundles |
+| Request-level dedup | One database read per page render, not one per component |
+| Batched analytics | Web Vitals sent as one POST per page load, not five |
+| Provider SSOT | No duplicate credit-balance or notification polls draining API quota |
+| Build-time Firebase mock | Static generation does not require live Firebase credentials |
 
-Avoid calling your own HTTP API routes from Server Components — App Router Server Components can import services directly without a fetch round-trip.
+<Cards>
+  <Card title="Development performance" href="/docs/development/performance">
+    Integrator-focused patterns, pool rules, and SSOT script.
+  </Card>
+  <Card title="Deployment performance" href="/docs/deployment/performance">
+    Production hardening and infrastructure tuning.
+  </Card>
+</Cards>
 
-### React 19 `cache()` for request deduplication
+</Audience>
 
-React 19's `cache()` deduplicates identical concurrent calls within the same request. Ring Platform uses this in two places:
+<Audience for="developer">
 
-**1. `firebase-service-manager.ts`** — cached Firestore reads (Admin SDK, `firebase-full` mode only):
+## Caching strategy (verified)
 
-<Code language="typescript" title="lib/services/firebase-service-manager.ts">
-{`import { cache } from 'react'
-import { getAdminDb } from '../firebase-admin.server'
+| Layer | Scope | Mechanism | SSOT location |
+|-------|-------|-----------|---------------|
+| React `cache()` | Per-request (server) | Request dedup within one RSC render pass | `lib/services/firebase-service-manager.ts` (`firebase-full` mode) |
+| Next 16 `'use cache'` | Cross-request (server) | `cacheTag` + `cacheLife` | `features/store/config.ts` → `getCachedProductCatalog()` |
+| EntityCache | 30s TTL (server) | In-memory Map on `entities` collection | `lib/database/DatabaseService.ts` |
+| Bootstrap single-flight | Per-tab (client) | Module-scope promise + TTL keyed by `userId` | `hooks/use-vendor-status.ts` (30s), `hooks/use-credit-balance.ts` (5s bootstrap) |
+| Session refetch tuning | Per-tab (client) | 15min interval, no focus/offline refetch | `features/auth/components/session-provider.tsx` |
+| Web Vitals batching | Per-tab (client) | Buffer + 1.5s debounce → single POST | `components/providers/web-vitals-provider.tsx` |
 
-export const getCachedDocument = cache(async (
-  collection: string,
-  docId: string
-): Promise<DocumentSnapshot | null> => {
+**Not used:** `sessionStorage` server caches, custom `RingApiClient`, per-metric Web Vitals POST loops, or performance budget enforcement in `next.config.mjs`.
+
+## Server-side patterns
+
+### React 19 `cache()` — request dedup
+
+```typescript
+// lib/services/firebase-service-manager.ts (firebase-full mode)
+import { cache } from 'react'
+
+export const getCachedDocument = cache(async (collection: string, docId: string) => {
   const db = getAdminDb()
-  const docRef = db.collection(collection).doc(docId)
-  const doc = await docRef.get()
+  const doc = await db.collection(collection).doc(docId).get()
   return doc.exists ? doc : null
-})`}
-</Code>
+})
+```
 
-**2. `DatabaseService`** — entity-level cache for read-after-write consistency (30-second TTL):
+Multiple imports of the same document during one Server Component render resolve to **one** Firestore read.
 
-<Code language="typescript" title="lib/database/DatabaseService.ts (EntityCache)">
-{`class EntityCache {
-  private cache = new Map<string, { data: any; timestamp: number }>()
-  private readonly TTL = 30000 // 30 seconds
+### Store catalog — `'use cache'` SSOT
 
-  set(key: string, data: any) {
-    this.cache.set(key, { data, timestamp: monotime() })
-  }
+```typescript
+// features/store/config.ts
+export async function getCachedProductCatalog(): Promise<StoreProduct[]> {
+  'use cache'
+  cacheTag('store:products')
+  cacheLife('minutes')
 
-  get(key: string) {
-    const entry = this.cache.get(key)
-    if (entry && (monotime() - entry.timestamp) < this.TTL) return entry.data
-    this.cache.delete(key)
-    return null
-  }
+  const adapter = await getStoreAdapter()
+  return adapter.listProducts()
+}
+```
 
-  invalidate(key: string) { this.cache.delete(key) }
-}`}
-</Code>
+Shared by `app/api/store/products/route.ts` and `getStoreProducts` server action. Invalidate with `updateTag('store:products')` after product mutations.
 
-### React 19 Hooks
+### DatabaseService EntityCache
 
-<Code language="typescript" title="useActionState for form management">
-{`'use client'
-import { useActionState } from 'react'
+30-second TTL on `entities` collection for read-after-write consistency. Writes invalidate affected keys automatically.
 
-export function CreateEntityForm() {
-  const [state, formAction, isPending] = useActionState(
-    createEntityAction,
-    { success: false, errors: [] }
-  )
+### DatabaseService contract
 
-  return (
-    <form action={formAction}>
-      <input name="name" required />
-      {isPending && <div>Creating...</div>}
-      {state.errors.length > 0 && (
-        <ul>{state.errors.map(e => <li key={e}>{e}</li>)}</ul>
-      )}
-      <button type="submit" disabled={isPending}>
-        {isPending ? 'Creating...' : 'Create Entity'}
-      </button>
-    </form>
-  )
-}`}
-</Code>
-
-## Database Abstraction Layer
-
-### `DatabaseService` contract
-
-The real `DatabaseService` (not the simplified illustration below) routes through `BackendSelector` to either `PostgreSQLAdapter` or `FirebaseAdapter`. Its query API uses a **single object parameter**:
-
-<Code language="typescript" title="lib/database/DatabaseService.ts">
-{`// Real API — single object parameter
-const result = await db.query({
+```typescript
+const result = await db().queryDocs({
   collection: 'entities',
   filters: [{ field: 'status', operator: 'eq', value: 'active' }],
   orderBy: [{ field: 'createdAt', direction: 'desc' }],
-  pagination: { limit: 20, offset: 0 }
+  pagination: { limit: 20, offset: 0 },
 })
-// result: { success: boolean; data: DbRow<T>[]; error?: Error }
+if (!result.success) throw result.error
+```
 
-// Single document
-const doc = await db.findById('users', userId)
-// doc: { success: boolean; data: T | null; error?: Error }
+Use `findDocById` for single-document lookups — not `queryDocs` filtered by `id`.
 
-// Mutations
-await db.create('entities', data)
-await db.update('entities', id, partial)
-await db.delete('entities', id)
+## Client-side SSOT patterns
 
-// Transactions
-await db.transaction(async (txn) => {
-  await txn.create('orders', orderData)
-  await txn.update('inventory', productId, { stock: newStock })
-})`}
-</Code>
+### Web Vitals — batched POST (not per-metric)
 
-### FirebaseAdapter (Admin SDK — server-side only)
+`WebVitalsProvider` buffers `useReportWebVitals` callbacks and flushes **one** `POST /api/analytics/web-vitals` per debounce window (1.5s), shaped to `webVitalsPayloadSchema` in `features/analytics/lib/analytics-db.ts`. Metrics also flush on `visibilitychange` / `pagehide`.
 
-The **real** `FirebaseAdapter` uses `firebase-admin/firestore`, not the client Firebase SDK:
+<Callout type="tip">
+`useReportWebVitals` fires once per Core Web Vital (CLS, FCP, LCP, TTFB, INP). Without batching that would be up to five POSTs per page load. The provider collapses them into one request.
+</Callout>
 
-<Code language="typescript" title="lib/database/adapters/FirebaseAdapter.ts">
-{`import { Firestore, FieldValue, Timestamp } from 'firebase-admin/firestore'
-import { cert, getApps, initializeApp } from 'firebase-admin/app'
+### Bootstrap single-flight hooks
 
-export class FirebaseAdapter implements IDatabaseService {
-  private firestore: Firestore | null = null
+Documented in `hooks/HOOKS-README.md` § P4:
 
-  async findById<T>(collection: string, id: string): Promise<DatabaseResult<T>> {
-    if (!this.firestore) await this.connect()
-    const doc = await this.firestore.collection(collection).doc(id).get()
-    if (!doc.exists) {
-      return { success: true, data: undefined as any }
-    }
-    return { success: true, data: { id: doc.id, ...doc.data() } as T }
-  }
+- **`useVendorStatus`** — dedupes `GET /api/vendor/status` across sidebar layout remounts.
+- **`useCreditBalance`** — bootstrap fetch dedupes across Strict Mode / Suspense remounts; live updates still flow through `CreditBalanceProvider` + tunnel.
 
-  async query<T>(query: DatabaseQuery): Promise<DatabaseResult<T[]>> {
-    // query = { collection, filters?, orderBy?, pagination? }
-    // Uses admin SDK Query builder
-    let q: FirebaseFirestore.Query = this.firestore.collection(query.collection)
-    // ... filter, order, paginate, execute
-    const snapshot = await q.get()
-    return {
-      success: true,
-      data: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as T[]
-    }
-  }
-}`}
-</Code>
-
-**Key difference:** The doc example in earlier versions showed client-side `getFirestore()` from `firebase/firestore` — this is wrong for the platform's server-side adapter. The real adapter uses `firebase-admin/firestore` exclusively.
-
-## Caching Strategy
-
-| Layer | Scope | Mechanism | Location |
-|-------|-------|-----------|----------|
-| React `cache()` | Per-request | React 19 request dedup | `firebase-service-manager.ts` (Firebase) / Server Components |
-| EntityCache | 30-second TTL | In-memory Map | `DatabaseService.ts` |
-| HTTP/CDN | Page-level | Next.js `stale-while-revalidate` | `next.config.mjs` headers |
-
-**No `sessionStorage` caching** is used on the server. Browser-side caching is left to standard Web API patterns (not part of this codebase).
-
-## Firebase Optimization (FirebaseAdmin SDK)
-
-### Batch operations
-
-`firebase-service-manager.ts` provides:
-
-<Code language="typescript" title="Real batch operations">
-{`import { createBatchWriter, executeBatch } from '@/lib/services/firebase-service-manager'
-
-const batch = createBatchWriter()
-const ref1 = db.collection('entities').doc('id1')
-batch.update(ref1, { status: 'archived' })
-const ref2 = db.collection('entities').doc('id2')
-batch.update(ref2, { status: 'archived' })
-await executeBatch(batch)`}
-</Code>
-
-For Firestore's 500-item batch limit and compound index requirements, see [Firestore documentation](https://firebase.google.com/docs/firestore/query-data/indexing).
-
-### Metrics tracking (debug only)
-
-`firebase-service-manager.ts` includes optional development metrics (controlled by `FIREBASE_DEBUG_LOGS=true`):
-
-<Code language="typescript">
-{`// lib/services/firebase-service-manager.ts — debug metrics
-const metrics = {
-  cacheHits: 0,
-  cacheMisses: 0,
-  totalRequests: 0,
-  getHitRate(): number {
-    return this.totalRequests > 0 ? (this.cacheHits / this.totalRequests) * 100 : 0
-  },
-}
-
-export function getCacheMetrics() {
-  return {
-    hitRate: metrics.getHitRate(),
-    totalRequests: metrics.totalRequests,
-    cacheHits: metrics.cacheHits,
-    cacheMisses: metrics.cacheMisses
-  }
-}`}
-</Code>
-
-This is a dev/debug tool — **not a production monitoring system**. It logs to `console.log`, not to any external service. There is no performance budget enforcement in `next.config.mjs`.
+Enforce with `./scripts/validate-provider-ssot.sh` (seven gates — see [Best practices](/docs/development/best-practices)).
 
 ## Build optimization
 
-### Current `next.config.mjs`
-
-<Code language="typescript" title="next.config.mjs (excerpt)">
-{`const nextConfig = {
+```typescript
+// next.config.mjs (excerpt)
+const nextConfig = {
   reactStrictMode: true,
   cacheComponents: true,
-  // See full file for env, redirects, headers, i18n config
-}`}
-</Code>
+}
+```
 
-**There is no `swcMinify`, `experimental.optimizeCss`, or `performance` property** — these are Next.js 12/13 era features. Next.js 16 handles SWC minification and CSS optimization automatically.
+During `next build`, `lib/firebase/build-mock.server.ts` returns mock Firestore/Auth instances so static generation does not require live Firebase credentials. SWC minification and CSS optimization are handled by Next.js 16 automatically — there is no `swcMinify` or `experimental.optimizeCss` flag.
 
-## Summary
+### Firebase debug metrics (dev only)
 
-- **Real caching**: React 19 `cache()` for request dedup, EntityCache for 30-second read-after-write consistency
-- **Real Firebase adapter**: `firebase-admin/firestore` (Admin SDK), never client-side `firebase/firestore`
-- **Real `DatabaseService` contract**: `findById`, `query({collection, filters, orderBy, pagination})`, `transaction`
-- **Fabricated patterns removed**: `SessionStorageCache`, `RingApiClient`, `DB_HYBRID_MODE` routing, `next.config performance budgets`, fake KPIs ("95% reduction", "17.0s", "55KB"), `trackWebVitals`, virtualizer
-- **No performance benchmarks** are tracked in this codebase — profiling results belong in CI dashboards, not docs
+`getCacheMetrics()` in `firebase-service-manager.ts` logs hit rate when `FIREBASE_DEBUG_LOGS=true`. This is a **dev console tool**, not production monitoring.
+
+## PostgreSQL pool
+
+All connection pooling lives in `lib/database/`. Domain code uses `db()`; PostGIS-only raw SQL uses `getSharedPgPool()`. Never instantiate `new Pool(` outside `lib/database/` — gate 7 of the SSOT script.
+
+</Audience>
+
+## Related documentation
 
 <Cards>
-  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="DB_BACKEND_MODE and when Firebase Admin is used." />
-  <Card href="/docs/deployment/environment" title="Environment variables" description="Firebase env vars for Admin SDK and client SDK." />
-  <Card href="/docs/architecture/authentication" title="Authentication" description="Auth.js v5 with Firebase or PostgreSQL adapter." />
+  <Card href="/docs/development/performance" title="Development performance" description="Integrator workflow, links, and enforcement." />
+  <Card href="/docs/development/best-practices" title="Best practices" description="db() rules and SSOT script gates." />
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="DB_BACKEND_MODE and Firebase Admin usage." />
+  <Card href="/docs/development/code-structure" title="Code structure" description="Provider matrix and P4 hook consolidation." />
 </Cards>

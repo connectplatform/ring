@@ -1,14 +1,14 @@
 ---
 title: Wallet API
 description: Server actions and API routes for custodial wallets, native-token transfers, credit ledger, PIN-gated access tokens, and Solana desk quotes on Ring Platform
-last_modified: "2026-07-03"
+last_modified: "2026-07-07"
 audience: both
 ---
 
 # Wallet API
 
 <Callout type="info">
-  Filter with **Founder** / **Developer** in the docs sidebar. This page documents both the **server actions** (preferred integration pattern) and the legacy **REST API routes** (preserved for backward compatibility). Updated for 2026-07-03 SSOT refactor (PIN-wrapped encryption, wallet_access_tokens, atomic provisioning).
+  Filter with **Founder** / **Developer** in the docs sidebar. Server actions (preferred) and legacy REST routes. Oracle rate persisted in `platform_settings` / `web3` via `ring-token-oracle.ts` and `db()` — not a private Pool.
 </Callout>
 
 Ring Platform wallet operations are available through two layers:
@@ -213,11 +213,11 @@ For direct service integration (bypassing actions), refer to:
 
 | Concern | File | Key exports |
 |---------|------|-------------|
-| Credit CRUD | `features/wallet/services/credit-balance-service.ts` | `addCredentials`, `spendCredits`, `getCreditHistory` |
+| Credit CRUD | `features/wallet/services/credit-balance-service.ts` | `addCredits`, `spendCredits`, `getCreditHistory` |
 | Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser` |
 | Treasury ops | `features/wallet/chains/solana/treasury-transfer-service.ts` | `transferNativeTokenFromTreasury`, `transferNativeTokenToTreasury` |
 | Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` |
-| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `signQuote`, `verifyQuoteToken` |
+| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate`, `signQuote`, `verifyQuoteToken` — `db()` on `platform_settings` / `web3` |
 | Wallet DB | `lib/wallet/user-wallet-db.ts` | `getUserWallets`, `getNativeWallet`, `migrateUserWalletsToPin` |
 | Encryption (v2) | `lib/wallet/encrypt-wallet-secret.ts` | `encryptWalletSecret`, `decryptSecretWithPin`, `reencryptLegacyWallet` |
 | Wallet decrypt | `lib/wallet/decrypt-user-wallet.ts` | `decryptUserWalletPrivateKey`, `decryptSolanaWalletSecretKey` |
@@ -270,6 +270,30 @@ const [sendState, sendAction, isSending] = useActionState(
 | `SOLANA_TREASURY_PRIVATE_KEY` | Yes | `treasury-transfer-service.ts` — sponsored gas transfers |
 | `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default: 900) | `pin-access-token-db.ts` — single-use token TTL |
 | `POLYGON_RPC_URL` | For EVM chains | `get-wallet-balance.ts` — EVM balance fallback path |
+| `ORACLE_QUOTE_SECRET` | For desk | Desk quote HMAC — falls back to `WALLET_ENCRYPTION_KEY` |
+| `RING_ORACLE_DEFAULT_RATE` | No | Oracle fallback when DB disabled or row missing |
+| `PLATFORM_SETTINGS_DISABLE_DB` | No | `true` → env-only oracle reads; writes throw |
+
+### Oracle persistence
+
+<Mermaid title="Oracle read/write path">
+{`sequenceDiagram
+  participant A as Server action / API
+  participant O as ring-token-oracle.ts
+  participant D as db() DatabaseService
+  participant P as platform_settings/web3
+
+  A->>O: getRingPerUsdRate()
+  alt PLATFORM_SETTINGS_DISABLE_DB=true
+    O-->>A: RING_ORACLE_DEFAULT_RATE
+  else DB enabled
+    O->>D: readDoc(platform_settings, web3)
+    D->>P: JSONB oracle.ringPerUsd
+    P-->>A: rate string
+  end`}
+</Mermaid>
+
+Admin write path: `setRingPerUsdRate` or `POST /api/admin/web3/settings` → `setRingPerUsdRate()` in oracle service → `db().updateDoc` / `createDoc`.
 
 </Audience>
 
@@ -299,24 +323,8 @@ const [sendState, sendAction, isSending] = useActionState(
 <FutureFeatureBacklog title="Backlog — wallet API (TBD)">
 
 <FutureFeatureWidget
-  name="Wallet chain-sync service"
-  description="Background chain refresh every 20s — sync Solana/EVM native-token events to ring-db. Currently chain reads are on-demand per API call."
-  implementationCost={80}
-  labels={['web3', 'performance']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="WalletConductor"
-  description="Orchestration layer for multi-step wallet operations (similar to PaymentConductor) — handles create → ensure → fund → transfer pipelines."
-  implementationCost={64}
-  labels={['architecture', 'wallet']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
   name="WayForPay wallet top-up (server action)"
-  description="Non-crypto card payment integration for wallet top-ups. UI shell exists; backend integration TBD."
+  description="Non-crypto card payment integration for wallet top-ups. UI shell exists in topup-client.tsx; processing backend TBD."
   implementationCost={48}
   labels={['payments', 'wallet']}
   voteCount={0}
@@ -339,16 +347,8 @@ const [sendState, sendAction, isSending] = useActionState(
 />
 
 <FutureFeatureWidget
-  name="StakingManager API routes"
-  description="Automated yield optimization and rebalance — staking UI exists; no REST staking manager in app/api/wallet."
-  implementationCost={96}
-  labels={['staking', 'web3']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
   name="Wallet import via seed phrase API"
-  description="POST /api/wallet/import — accept encrypted mnemonic, derive keypair, encrypt with PIN-wrapped v2, store via upsertUserWallet. Not implemented."
+  description="POST /api/wallet/import — accept encrypted mnemonic, derive keypair, encrypt with PIN-wrapped v2. Not implemented."
   implementationCost={48}
   labels={['wallet', 'web3']}
   voteCount={0}

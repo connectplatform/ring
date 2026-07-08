@@ -1,7 +1,7 @@
 ---
 title: Multi-Vendor Store
 description: Ring Platform's multi-vendor marketplace — vendor onboarding, product management, commission settlements, and audience-gated product visibility for member-restricted offerings
-last_modified: "2026-07-06"
+last_modified: "2026-07-07"
 audience: both
 ---
 
@@ -60,31 +60,70 @@ Every Entity in your Ring deployment can become a selling vendor — no external
         Inherit[Inherit storeCategories from ring-config]
     end
 
+    subgraph Catalog[Catalog SSOT]
+        Cache[getCachedProductCatalog]
+        API[GET /api/store/products]
+        Action[getStoreProducts server action]
+        MCP[MCP store/products GET]
+    end
+
+    subgraph Client[Client load]
+        Ctx[StoreProvider in context.tsx]
+        Defer[Defer fetch until /store or cart items]
+    end
+
     subgraph Product[Product CRUD]
         Form[ProductForm — vendor/products]
-        Category[Category selector — from storeCategories]
-        Custom[Custom fields per category — product_custom_fields table]
-        Audience[productAudience toggle — public | member]
-        Submit[Submit to Main Store]
+        Mutate[POST creates + updateTag]
     end
 
     subgraph Store[Storefront]
-        List[/store — getStoreProducts]
+        List[/store]
         Filter[audience filter: hasMemberPrivileges]
         Cart[Cart + Checkout]
-        Pay[WayForPay / RING token]
-    end
-
-    subgraph Admin[Admin Operations]
-        Queue[Approve / reject products]
-        Settle[/admin/store/commissions]
-        Payout[processDueSettlements]
     end
 
     Vendor --> Product
-    Product --> Store
-    Store --> Admin`}
+    Product --> Mutate
+    Mutate --> Cache
+    Cache --> API
+    Cache --> Action
+    API --> Ctx
+    Defer --> Ctx
+    Action --> List
+    Ctx --> Store`}
 </Mermaid>
+
+### Product catalog SSOT
+
+The full unfiltered product list is read once per cache window through `getCachedProductCatalog()` in `features/store/config.ts`:
+
+<Code language="typescript" title="features/store/config.ts">{`export async function getCachedProductCatalog(): Promise<StoreProduct[]> {
+  'use cache'
+  cacheTag('store:products')
+  cacheLife('minutes')
+
+  const adapter = await getStoreAdapter()
+  return adapter.listProducts()
+}`}</Code>
+
+| Consumer | Path | Role |
+|----------|------|------|
+| REST storefront API | `app/api/store/products/route.ts` (GET) | Filter/sort/paginate cached catalog |
+| Server action | `app/_actions/store-products.ts` → `getStoreProducts()` | Same catalog + audience gating + price bounds |
+| MCP tools | `app/api/mcp/v1/store/products/route.ts` (GET) | Direct adapter list for external agents |
+
+**Cache invalidation:** after product create, call `updateTag('store:products')` — verified in `app/api/store/products/route.ts` (POST) and `app/api/mcp/v1/store/products/route.ts` (POST). New products appear immediately instead of waiting for `cacheLife('minutes')`.
+
+### Deferred client fetch
+
+`features/store/context.tsx` mounts `StoreProvider` globally (nav cart badge needs `totalItems` on every route) but **defers** the product-list network call:
+
+- Loads only when `pathname` includes `/store` **or** the user already has cart items in `localStorage`.
+- Uses module-scope single-flight (`fetchStoreProductsSingleFlight`) so concurrent mounts share one `GET /api/store/products`.
+- Manual refresh via `refreshEnhancedProducts()` bypasses single-flight and hits the network fresh.
+
+This follows the minimal-global-state pattern — no full catalog in client state until a store route or cart warrants it.
 
 ### Verified routes
 
@@ -122,46 +161,21 @@ Vendors can add arbitrary name-value pairs to products, scoped by category. The 
 **CRUD actions** (all auth-guarded via `getVendorEntity()` + product ownership verification):
 
 <Code language="typescript" title="app/_actions/vendor-actions.ts">
-{`// Create a custom field for a product
-await createProductCustomField({
+{`await createProductCustomField({
   productId: 'product_123',
   category: 'organic-produce',
   fieldName: 'Soil Type',
   fieldValue: 'Loamy',
-  fieldType: 'text',   // 'text' | 'number' | 'date' | 'boolean' | 'select'
-})
-
-// List fields for a product or category
-const fields = await listProductCustomFields({
-  productId: 'product_123',
-  category: 'organic-produce',
+  fieldType: 'text',
 })`}
-</Code>
-
-**DB schema** (`data/migrations/026_product_custom_fields_schema.sql`):
-
-<Code language="sql">
-{`CREATE TABLE IF NOT EXISTS product_custom_fields (
-    id VARCHAR(255) PRIMARY KEY,
-    data JSONB NOT NULL DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- data JSONB columns: id, product_id, category, field_name, field_value, field_type
-CREATE INDEX IF NOT EXISTS idx_pcf_product_id ON product_custom_fields ((data->>'product_id'));
-CREATE INDEX IF NOT EXISTS idx_pcf_category ON product_custom_fields ((data->>'category'));`}
 </Code>
 
 ### Product audience filtering
 
-Products carrying `productAudience: 'member'` are hidden from non-member visitors. Implemented in `app/_actions/store-products.ts`:
+Products carrying `productAudience: 'member'` are hidden from non-member visitors. Implemented in `app/_actions/store-products.ts` after catalog filters:
 
 <Code language="typescript" title="app/_actions/store-products.ts">
-{`import { hasMemberPrivileges } from '@/features/auth/user-role'
-
-// In getStoreProducts, after price filtering:
-const userHasMemberAccess = isAdmin || hasMemberPrivileges(currentRole)
+{`const userHasMemberAccess = isAdmin || hasMemberPrivileges(currentRole)
 if (!userHasMemberAccess) {
   filteredProducts = filteredProducts.filter(product => {
     const doc = product as unknown as Record<string, unknown>
@@ -170,18 +184,21 @@ if (!userHasMemberAccess) {
 }`}
 </Code>
 
-The `hasMemberPrivileges()` guard checks `role >= member` (member, confidential, admin, superadmin). Vendors toggle the audience on the product form via a `productAudience` Switch component — `'public'` (visible to all) or `'member'` (role-gated).
+The `hasMemberPrivileges()` guard checks `role >= member` (member, confidential, admin, superadmin).
 
 ### Module summary
 
 | Module | Purpose |
 |--------|---------|
-| `features/store/services/vendor-lifecycle.ts` | Vendor profile creation, trust scoring, tier progression, suspension |
-| `features/store/services/settlement.ts` | Commission calculation (tier-based + referral), net payout computation |
-| `app/_actions/vendor-actions.ts` | Vendor product CRUD, custom fields CRUD, vendor store creation |
-| `app/_actions/store-products.ts` | Storefront product listing with catalog/price filters + audience gating |
-| `features/auth/user-role.ts` | `hasMemberPrivileges()` — role-based product visibility gate |
-| `data/migrations/026_product_custom_fields_schema.sql` | Per-category custom product fields table |
+| `features/store/config.ts` | Adapter selection + `getCachedProductCatalog()` SSOT |
+| `features/store/context.tsx` | `StoreProvider` — deferred client catalog load, cart state |
+| `features/store/services/vendor-lifecycle.ts` | Vendor profile creation, trust scoring, tier progression |
+| `features/store/services/settlement.ts` | Commission calculation (tier-based + referral) |
+| `app/_actions/vendor-actions.ts` | Vendor product CRUD, custom fields CRUD |
+| `app/_actions/store-products.ts` | Storefront listing — cached catalog + filters + audience gate |
+| `app/api/store/products/route.ts` | REST catalog GET/POST + `updateTag` on create |
+| `app/api/mcp/v1/store/products/route.ts` | MCP list/create + `updateTag` on create |
+| `features/auth/user-role.ts` | `hasMemberPrivileges()` — role-based product visibility |
 
 </Audience>
 

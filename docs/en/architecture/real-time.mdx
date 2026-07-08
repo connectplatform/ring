@@ -1,7 +1,8 @@
 ---
 title: Real Time
 description: TunnelHub broker and native WSS client transport for Ring Platform realtime
-last_modified: "2026-06-23"
+last_modified: "2026-07-07"
+audience: both
 ---
 
 # Realtime Transport
@@ -12,15 +13,25 @@ last_modified: "2026-06-23"
 
 Ring Platform delivers realtime updates through **Tunnel Protocol**:
 
-- **TunnelHub** (`lib/tunnel/hub/`) — server-side broker; SSE, native WSS, poll queues, channel subscriptions
+- **TunnelHub** (`lib/tunnel/hub/`) — server-side broker; SSE, native WSS, poll queues, channel subscriptions, offline per-user queue
 - **Custom server** (`server.ts`) — Next.js handler + `attachTunnelWss` when `RING_DEPLOY_TARGET` is `k8s` or `self-hosted`
 - **TunnelTransport** — client-side WSS → SSE → long-polling fallback chain
 - **TunnelProvider** — shared React connection with progressive connect after auth
-- **Discovery mutations** — `lib/discovery/sync-discovery.ts` publishes `opportunity:*` and `entity:*` on topic channels after CRUD ([Discovery mutation sync](./discovery-mutation-sync))
+- **Connect timing** — `lib/tunnel/tunnel-timing.ts` priority/deferred routes ([Tunnel protocol — timing](/docs/features/tunnel-protocol))
+- **Discovery mutations** — `lib/discovery/sync-discovery.ts` publishes `opportunity:*` and `entity:*` on topic channels after CRUD ([Discovery mutation sync](/docs/architecture/discovery-mutation-sync))
+
+<Callout type="tip" title="Offline user queue (2026-07-07)">
+When `publishToUserTunnel` runs with no live socket, `InMemoryTunnelHub` **queues** the message (publisher logs at `console.debug`, not an error). On connect:
+
+- **SSE** — `app/api/tunnel/sse/route.ts` drains via `hub.drainUserQueueForSse(userId)`
+- **Native WSS** — `lib/tunnel/native-ws/attach.ts` drains via `hub.drainUserQueue(userId)` immediately after `{ op: 'auth_ok' }` (parity with SSE)
+
+Boot-race messages (e.g. device telemetry during auth-grace) are delivered on the **first** transport handshake, not the next page load.
+</Callout>
 
 <Cards>
   <Card title="Tunnel protocol" href="/docs/features/tunnel-protocol">
-    Routes, auth frames, `RING_DEPLOY_TARGET`, and alpha limitations.
+    Routes, auth frames, priority timing, HTTP dedup hooks, and alpha limitations.
   </Card>
   <Card title="Notifications feature" href="/docs/features/notifications">
     In-app alerts, preferences, and FCM push when the tab is closed.
@@ -44,30 +55,39 @@ Ring Platform delivers realtime updates through **Tunnel Protocol**:
     alt k8s / self-hosted
         Client->>WSS: WS connect + auth frame
         WSS->>Hub: registerWsConnection(userId)
+        WSS->>Hub: drainUserQueue on auth_ok
     else vercel / SSE fallback
         Client->>SSE: GET SSE (authenticated)
         SSE->>Hub: registerSseConnection(userId)
+        SSE->>Hub: drainUserQueueForSse(userId)
     end
 
     Service->>DB: persist mutation
     Service->>Hub: publishToUser / publishToChannel
     Hub->>WSS: deliverWsToUser (when connected)
     Hub->>SSE: enqueue to SSE controller
-    Client->>Client: useTunnel / useSync updates UI
+    Client->>Client: useTunnelChannel / useSync updates UI
 
     Note over Client,DB: Fallback: long-polling via /api/tunnel/poll`}
 </Mermaid>
+
+## Connection timing
+
+`TunnelProvider` defers connect briefly after auth so HTTP ingest (analytics device registration, initial REST) can complete first. **Priority routes** — including `/admin` and nested `/admin/*` — get faster auto-connect via `matchesRoutePrefix()` in `lib/tunnel/tunnel-timing.ts` (prefix match, not exact pathname string).
+
+Full route tables, env overrides, and boot-race SSOT: [Tunnel protocol](/docs/features/tunnel-protocol).
 
 ## Where realtime is used
 
 | Feature | Server publish | Client subscribe |
 |---------|----------------|------------------|
 | Notifications | `publishToUserTunnel` → `notifications:unread` | `NotificationProvider` → `useNotificationContext()` |
-| Credit balance | `publishToUserTunnel` → `credit:balance` | `CreditBalanceProvider` → `useCreditBalanceContext()` |
+| Credit balance | `publishToUserTunnel` → `credit:balance` | `CreditBalanceProvider` → `useCreditBalanceContext()` (bootstrap REST dedup + tunnel push) |
 | Account status | `publishToUserTunnel` → `account:status` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` |
-| Chat | `publishToChannel` → `conversation:${id}` | `useTunnel().subscribe` |
+| Vendor sidebar gate | — (HTTP only) | `useVendorStatus()` → `GET /api/vendor/status` (30s TTL, single-flight) |
+| Chat | `publishToChannel` → `conversation:${id}` | `hooks/use-messaging.ts` → `useTunnelChannel` |
 | Discovery | `syncDiscovery` → `opportunities` / `entities` | Topic channel subscriptions |
 | Matcher | `publishToChannel` → `matcher` | Admin/matcher UI |
 | Collaboration (flagged) | `collab:${id}` binary CRDT frames | `useCollaboration` (requires WSS) |
 
-See [Tunnel protocol](../features/tunnel-protocol) for API routes, `RING_DEPLOY_TARGET`, and alpha limitations.
+See [Tunnel protocol](/docs/features/tunnel-protocol) for API routes, `RING_DEPLOY_TARGET`, channel patterns, and alpha limitations.

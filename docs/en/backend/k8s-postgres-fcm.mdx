@@ -1,14 +1,14 @@
 ---
 title: k8s-postgres-fcm Mode
-description: The recommended production backend mode — PostgreSQL 16 + PostGIS for all application data, Firebase Admin SDK only for FCM push notifications and Apple Push.
-last_modified: "2026-06-28"
+description: Recommended production backend — PostgreSQL 16 + PostGIS for all application data, Firebase Admin SDK only for FCM push and Apple Push. Single shared connection pool.
+last_modified: "2026-07-07"
 audience: both
 ---
 
 # k8s-postgres-fcm Mode
 
 <Callout type="success">
-  **k8s-postgres-fcm** is the recommended backend mode for production and local development. PostgreSQL on Kubernetes (or your local host) handles all application data, while Firebase Admin SDK is initialized exclusively for FCM push messaging and Apple Push. No Firebase vendor lock for application data.
+  **k8s-postgres-fcm** is the recommended backend mode for production and local development. PostgreSQL handles all application data through one shared adapter pool; Firebase Admin SDK is initialized exclusively for FCM push and Apple Push. Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page.
 </Callout>
 
 <Audience for="founder">
@@ -16,10 +16,11 @@ audience: both
 ## What k8s-postgres-fcm gives you
 
 - **Full ownership of application data** — stored in PostgreSQL 16 on your infrastructure. No Firestore reads or writes.
+- **Predictable connection usage** — every feature module shares one adapter pool instead of opening private connections. Stable Postgres load as your clone grows.
 - **Zero Firebase vendor lock for data** — migration or provider change touches only the database connection string, not application code.
 - **Optional push notifications** — FCM and Apple Push remain available without exposing your database to Firebase.
-- **Auth.js v5 integration** — authentication tables (users, accounts, sessions) live in PostgreSQL alongside business data.
-- **PostGIS support** — enable spatial queries for store delivery radius, entity locations, event venues, and real estate features.
+- **Auth.js v5 integration** — authentication tables live in PostgreSQL alongside business data.
+- **PostGIS support** — spatial queries for delivery radius, entity locations, event venues, and map-heavy clones.
 - **Native WebSocket transport** — tunnel uses native WSS via `TUNNEL_HUB_MODE=k8s-postgres` (or in-memory hub for local development).
 
 ## When to choose this mode
@@ -36,7 +37,7 @@ audience: both
 
 - **PostgreSQL** — runs on your own infrastructure (Kubernetes StatefulSet, bare metal, or Docker). No per-query cost.
 - **Firebase FCM** — push notifications are free at any scale. Firebase project credentials are required only if you enable push.
-- **No Firestore costs** — Firestore is never used for application data in this mode. The `getAdminDb()` call returns a mock Firestore instance that never connects.
+- **No Firestore costs** — Firestore is never used for application data in this mode. `getAdminDb()` returns a mock that never connects.
 
 </Audience>
 
@@ -45,38 +46,43 @@ audience: both
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                Next.js 16 App                     │
-│                                                   │
-│  ┌──────────────────────┐  ┌──────────────────┐  │
-│  │  PostgreSQLAdapter   │  │  Firebase Admin   │  │
-│  │  (all CRUD / query)  │  │  (FCM + Apple     │  │
-│  │                      │  │   Push only)      │  │
-│  │  • Auth.js tables    │  │                   │  │
-│  │  • Entities          │  │  • getAdminDb()   │  │
-│  │  • Store products    │  │    → mock (never  │  │
-│  │  • Conversations     │  │      connects)    │  │
-│  │  • FCM tokens        │  │  • getAdminAuth() │  │
-│  │  • All business data │  │    → mock         │  │
-│  └────────┬─────────────┘  └────────┬─────────┘  │
-│           │                         │            │
-└───────────┼─────────────────────────┼────────────┘
-            │                         │
-            ▼                         ▼
-   ┌─────────────────┐     ┌──────────────────┐
-   │  PostgreSQL 16   │     │  Firebase FCM    │
-   │  + PostGIS       │     │  (push only)     │
-   │  StatefulSet     │     └──────────────────┘
-   │  (k8s or local)  │
-   └─────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Next.js 16 App                           │
+│                                                              │
+│  ┌──────────────────────┐  ┌─────────────────────────────┐  │
+│  │  db() / DatabaseService│  │  Firebase Admin (FCM only) │  │
+│  │  PostgreSQLAdapter     │  │  getAdminDb() → mock        │  │
+│  │  • single pg.Pool      │  │  getAdminAuth() → mock      │  │
+│  │  • all CRUD / query    │  └─────────────────────────────┘  │
+│  │  • getSharedPgPool()   │                                   │
+│  │    (PostGIS escape)    │                                   │
+│  └──────────┬─────────────┘                                   │
+└─────────────┼─────────────────────────────────────────────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │  PostgreSQL 16   │
+     │  + PostGIS       │
+     │  (k8s or local)  │
+     └─────────────────┘
 ```
 
 **Key decision points in code:**
 
-- `shouldUseFirebaseForDatabase()` returns `false` — `getAdminDb()` returns a mock `Firestore` from `build-mock.server.ts` that never connects to Firebase.
+- `shouldUseFirebaseForDatabase()` returns `false` — `getAdminDb()` returns a mock `Firestore` from `build-mock.server.ts`.
 - `shouldInitializeFirebaseFCM()` returns `true` — Firebase Admin SDK is initialized for push messaging only.
-- `shouldInitializeApplePush()` returns `true` — Apple Push Notification Service is available.
-- The `PostgreSQLAdapter` implements `IDatabaseService` and handles all CRUD, query, transaction, and count operations.
+- `PostgreSQLAdapter` owns the **only** `new Pool()` in the codebase (`lib/database/adapters/PostgreSQLAdapter.ts`). Feature modules must not instantiate private pools.
+- `getSharedPgPool()` (`lib/database/shared-pg-pool.ts`) is the sanctioned escape hatch for raw SQL (PostGIS). It calls `initializeDatabase()` then returns `getDatabaseService().getPostgreSQLPool()`.
+
+## Single connection pool (SSOT)
+
+| Surface | Path | Use |
+|---------|------|-----|
+| **CRUD / queries** | `db().readDoc`, `createDoc`, `updateDoc`, `queryDocs`, `findById`, `query`, … | All application collections |
+| **Raw SQL (PostGIS)** | `getSharedPgPool()` | Spatial queries only — after `initializeDatabase()` |
+| **Pool owner** | `PostgreSQLAdapter.getPgPool()` | Internal; exposed via `getSharedPgPool()` |
+
+A 2026-07-07 audit eliminated three rogue `pg.Pool` instances in feature modules (`platform-settings-service.ts`, `ring-token-oracle.ts`, `geolocation-service.ts`). Those modules now route through `db()` or `getSharedPgPool()`. The `validate-provider-ssot.sh` gate allows `new Pool(` only under `lib/database/`.
 
 ## Required environment variables
 
@@ -91,14 +97,12 @@ DB_NAME=ring_platform
 DB_USER=ring_user
 DB_PASSWORD=ring_password_2024
 
-# Connection pool tuning (optional, shown with defaults)
-DB_POOL_SIZE=20                 # Max connections in pool
-DB_TIMEOUT=30000                # Connection timeout in ms
-DB_RETRIES=3                    # Retry attempts on failure
-DB_SSL=false                    # Set to true for production and Supabase
-
-# PostGIS (optional)
-DB_ENABLE_POSTGIS=false         # Enable spatial extensions
+# Connection pool tuning (optional)
+DB_POOL_SIZE=20
+DB_TIMEOUT=30000
+DB_RETRIES=3
+DB_SSL=false
+DB_ENABLE_POSTGIS=false
 ```
 
 | Variable | Required | Default | Description |
@@ -113,216 +117,113 @@ DB_ENABLE_POSTGIS=false         # Enable spatial extensions
 | `DB_TIMEOUT` | No | `30000` | Connection timeout (ms) |
 | `DB_RETRIES` | No | `3` | Connection retry count |
 | `DB_SSL` | No | `false` | Enable TLS for PostgreSQL |
-| `DB_ENABLE_POSTGIS` | No | `false` | Enable PostGIS extensions |
+| `DB_ENABLE_POSTGIS` | No | `false` | Runtime flag; PostGIS extensions ship in `data/schema.sql` |
 
-## Optional FCM / Firebase environment variables
+## JSONB hybrid schema
 
-Only required if you need push notifications. Without these, the platform runs on PostgreSQL alone.
+Most tables store business fields in a `data` JSONB column with top-level `id`, `created_at`, `updated_at`. Fully normalized tables (e.g. `vendor_applications`, `vendor_profiles`) list all columns in `PostgreSQLAdapter.fieldMappings` so the query builder uses direct column references.
 
-```bash
-# Firebase Admin SDK (server-side) — required for FCM
-AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
-AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
-AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+**Exception — `platform_settings` hybrid table:**
 
-# Firebase client SDK (browser-side) — for service worker push registration
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key
+```sql
+CREATE TABLE IF NOT EXISTS platform_settings (
+    id VARCHAR(64) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    secrets JSONB NOT NULL DEFAULT '{}',
+    updated_by VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-## PostgreSQL connection configuration
+`PostgreSQLAdapter` splits writes: public config into `data`, API keys into `secrets`, actor into `updated_by`. Consumers use `db().readDoc` / `createDoc` / `updateDoc`:
 
-The `PostgreSQLAdapter` builds the pool config from env vars. Source: `lib/database/adapters/PostgreSQLAdapter.ts`:
+- `features/admin/platform-settings/platform-settings-service.ts` — AI, branding, matcher namespaces
+- `features/wallet/services/ring-token-oracle.ts` — `web3` namespace oracle rates
+
+## PostGIS and geolocation
+
+PostGIS extensions are created in `data/schema.sql` (`CREATE EXTENSION IF NOT EXISTS postgis`). Spatial queries use raw SQL because the doc-model cannot express `GEOGRAPHY` functions.
+
+`lib/geolocation/geolocation-service.ts` calls `getSharedPgPool()` — **not** a private `Pool` or direct `DB_HOST` / `DB_PORT` env reads:
 
 ```typescript
-const poolConfig = {
-  host: config.connection.host || 'localhost',
-  port: config.connection.port || 5432,
-  database: config.connection.database || 'ring_platform',
-  user: config.connection.username || 'ring_user',
-  password: config.connection.password || 'ring_dev_password',
-  max: config.options.poolSize || 20,
-  idleTimeoutMillis: config.options.timeout || 30000,
-  connectionTimeoutMillis: config.options.timeout || 2000,
-}
+import { getSharedPgPool } from '@/lib/database/shared-pg-pool'
+
+const pool = await getSharedPgPool()
+const result = await pool.query(sql, params)
 ```
 
-The adapter uses a **JSONB hybrid schema**: most tables store business data in a `data` JSONB column alongside top-level `id`, `created_at`, `updated_at` columns. Tables with fully normalized schemas (e.g., `vendor_applications`, `vendor_profiles`) list all columns in the `fieldMappings` map so the query builder uses direct column references instead of `data->>'field'`.
+Use cases: store delivery radius, entity locations, opportunity venues, map-heavy clones (pet-friendly places, real estate, events).
 
-The adapter supports the full `DatabaseService` contract:
+## DatabaseService contract
 
 ```typescript
-// Single document operations
-await db.findById('users', userId)
-await db.create('users', { name: 'Alice', email: 'alice@example.com' })
-await db.update('users', userId, { name: 'Bob' })
-await db.delete('users', userId)
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
-// Queries with filters, ordering, pagination
-await db.query({
-  collection: 'entities',
-  filters: [{ field: 'status', operator: 'eq', value: 'active' }],
-  orderBy: [{ field: 'createdAt', direction: 'desc' }],
-  pagination: { limit: 20, offset: 0 },
-})
+await initializeDatabase()
+const db = getDatabaseService()
 
-// Transactions
+const user = await db.findById('users', userId)
+await db.create('entities', { name: 'Acme', status: 'active' })
+
 await db.transaction(async (txn) => {
-  const order = await txn.create('orders', { total: 100 })
-  await txn.update('stock', productId, { quantity: 5 })
+  await txn.create('orders', { total: 100 })
 })
 ```
+
+Prefer `db()` shorthand from `@/lib/database` in feature modules. Email CRM routes through `features/email-crm/lib/jsonb-collection.ts`, which delegates to `db().*Doc`.
 
 ## Local setup
 
-1. **Start PostgreSQL** (two options):
+<Steps>
 
-   ```bash
-   # Option A: Docker (recommended)
-   docker run -d --name ring-postgres-dev \
-     -e POSTGRES_USER=ring_user \
-     -e POSTGRES_PASSWORD=ring_password_2024 \
-     -e POSTGRES_DB=ring_platform \
-     -p 5432:5432 \
-     postgres:16-alpine
+<Step>
 
-   # Option B: Homebrew (macOS)
-   brew install postgresql@16
-   brew services start postgresql@16
-   createdb ring_platform
-   ```
+### Start PostgreSQL
 
-2. **Create `.env.local`** from the template and set:
+<Code language="bash">{`docker run -d --name ring-postgres-dev \\
+  -e POSTGRES_USER=ring_user \\
+  -e POSTGRES_PASSWORD=ring_password_2024 \\
+  -e POSTGRES_DB=ring_platform \\
+  -p 5432:5432 \\
+  postgres:16-alpine`}</Code>
 
-   ```bash
-   DB_BACKEND_MODE=k8s-postgres-fcm
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=ring_platform
-   DB_USER=ring_user
-   DB_PASSWORD=ring_password_2024
-   ```
+</Step>
 
-3. **Apply the schema**:
+<Step>
 
-   ```bash
-   psql -h localhost -U ring_user -d ring_platform -f data/schema.sql
-   ```
+### Configure `.env.local`
 
-4. **Start the dev server**:
+<Code language="bash">{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024`}</Code>
 
-   ```bash
-   npm run dev
-   ```
+</Step>
 
-   The platform validates `DB_BACKEND_MODE` at startup and logs the backend configuration. You should see `Database: PostgreSQL` in the startup log.
+<Step>
 
-**Tunnel hub for real-time features:**
+### Apply schema and start
 
-In local development, the tunnel defaults to an in-memory hub. For production-like behaviour, set:
+<Code language="bash">{`psql -h localhost -U ring_user -d ring_platform -f data/schema.sql
+npm run dev`}</Code>
 
-```bash
-TUNNEL_HUB_MODE=k8s-postgres
-```
+Startup logs should show `Database: PostgreSQL`. For production-like realtime, set `TUNNEL_HUB_MODE=k8s-postgres`.
 
-This stores tunnel state in PostgreSQL instead of process memory.
+</Step>
+
+</Steps>
 
 ## K8s production setup
 
-### 1. Namespace isolation
-
-Each ring clone gets its own namespace: `k8s/namespace.yaml`
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ring-platform-org
-  labels:
-    app.kubernetes.io/name: ring-platform-org
-    app.kubernetes.io/part-of: ringdom
-```
-
-### 2. PostgreSQL StatefulSet
-
-The `k8s/postgres.yaml` manifest deploys PostgreSQL 16 (image: `postgres:15`) as a single-replica Deployment with a `ClusterIP` service:
-
-- **ConfigMap** (`postgres-config`) — POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-- **Init SQL** — creates the application user (`platform_org_user`) and grants privileges
-- **Extensions** — `uuid-ossp` and `btree_gin` enabled by default
-- **Storage** — hostPath volume at `/data/postgres-<clone-name>`
-- **Service** — resolves as `postgres.<namespace>.svc.cluster.local`
-
-### 3. Secrets and ConfigMap
-
-**Secrets** (`k8s/secrets.yaml` — Opaque, `stringData`):
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ring-platform-org-secrets
-type: Opaque
-stringData:
-  DB_PASSWORD: <value>
-  AUTH_FIREBASE_PROJECT_ID: <value>
-  AUTH_FIREBASE_CLIENT_EMAIL: <value>
-  AUTH_FIREBASE_PRIVATE_KEY: |
-    -----BEGIN PRIVATE KEY-----
-    ...
-    -----END PRIVATE KEY-----
-```
-
-**ConfigMap** (`k8s/secrets.yaml` — ConfigMap section):
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ring-platform-org-config
-data:
-  DB_BACKEND_MODE: k8s-postgres-fcm
-  DB_HOST: postgres.ring-platform-org.svc.cluster.local
-  DB_PORT: "5432"
-  DB_NAME: ring_platform
-  DB_USER: ring_user
-  DB_POOL_SIZE: "20"
-  DB_TIMEOUT: "30000"
-  DB_RETRIES: "3"
-  DB_SSL: "false"
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: <value>
-```
-
-**Important**: `DB_PASSWORD` goes in the Secret, not the ConfigMap. The deployment references it via `secretKeyRef`.
-
-### 4. App deployment
-
-`k8s/deployment.yaml` — Next.js 16 app with:
-
-- Image: `ghcr.io/connectplatform/ring:v<version>-<clone>-amd64`
-- 256Mi request / 1Gi limit memory
-- 200m / 1000m CPU
-- Liveness + readiness + startup probes (`/api/health`)
-- Env vars from ConfigMap (non-sensitive) and Secret (sensitive)
-- Persistent volume for file uploads (`pvc-local-file-storage.yaml` — 20Gi)
-- Pod anti-affinity for HA
-
-### 5. Ingress
-
-`k8s/ingress.yaml` — nginx ingress controller with:
-
-- Let's Encrypt TLS (cert-manager `letsencrypt-prod`)
-- WebSocket support (proxy timeout 3600s, `websocket-services` annotation)
-- Large proxy buffer (32k — Next.js emits large Link headers for hreflang)
-- Rate limiting (100 RPS, 50 connections)
-- 50MB body size limit
-
-### 6. Apply the stack
+1. **Namespace** — `k8s/namespace.yaml` isolates each ring clone.
+2. **PostgreSQL** — `k8s/postgres.yaml` deploys Postgres with `uuid-ossp` and `btree_gin`; service resolves as `postgres.<namespace>.svc.cluster.local`.
+3. **Secrets / ConfigMap** — `DB_PASSWORD` in Secret; `DB_BACKEND_MODE`, `DB_HOST`, pool tuning in ConfigMap (`k8s/secrets.yaml`).
+4. **App deployment** — `k8s/deployment.yaml` with health probes on `/api/health`, env from ConfigMap + Secret.
+5. **Ingress** — `k8s/ingress.yaml` with TLS, WebSocket support, rate limiting.
 
 ```bash
 kubectl apply -f k8s/namespace.yaml
@@ -334,54 +235,55 @@ kubectl apply -f k8s/ingress.yaml
 kubectl apply -f k8s/pvc-local-file-storage.yaml
 ```
 
-## Docker setup
-
-For Docker-based local or production deployments, the `docker-compose.yml` supports `k8s-postgres-fcm` mode. Ensure your `.env` sets `DB_BACKEND_MODE=k8s-postgres-fcm` and the PostgreSQL connection variables:
-
-```bash
-docker compose up -d
-```
-
-Note: The default `docker-compose.yml` does not include a PostgreSQL service. You must either:
-- Run PostgreSQL separately (native install or `docker run postgres:16-alpine`)
-- Add a `postgres` service to your override (`docker/docker-compose.dev.yml`)
-
 ## FCM wiring notes
 
-This mode uses Firebase Admin exclusively for push:
-
-1. **Admin SDK initialization** — Firebase Admin app is created if `AUTH_FIREBASE_*` env vars are present. The SDK is needed for FCM token generation and push dispatch.
-2. **Mock Firestore** — `getAdminDb()` returns a mock Firestore (never connects to Firebase). This is controlled by `shouldUseFirebaseForDatabase()` returning `false`.
-3. **Mock Auth** — `getAdminAuth()` also returns a mock. Auth.js v5 handles all authentication.
-4. **Client-side FCM** — The service worker (`public/firebase-messaging-sw.js`) runs in the browser and loads Firebase compat SDK from CDN. It is **not affected** by the backend mode — it always connects to Firebase for push subscription.
-5. **FCM tokens** — Stored in the `fcm_tokens` PostgreSQL table via the `upsertFcmToken` Server Action.
-6. **No Firebase env vars = no push** — If you omit all `AUTH_FIREBASE_*` and `NEXT_PUBLIC_FIREBASE_*` vars, Firebase Admin initialization is skipped entirely. PostgreSQL still works.
+1. **Admin SDK** — initialized when `AUTH_FIREBASE_*` env vars are present.
+2. **Mock Firestore / Auth** — `getAdminDb()` and `getAdminAuth()` return mocks; Auth.js v5 handles authentication.
+3. **Client-side FCM** — service worker (`public/firebase-messaging-sw.js`) connects to Firebase for push subscription regardless of backend mode.
+4. **FCM tokens** — stored in PostgreSQL `fcm_tokens` table via Server Action upsert.
+5. **No Firebase env vars = no push** — PostgreSQL still works.
 
 ## Comparison: k8s-postgres-fcm vs supabase-fcm
 
 | Aspect | k8s-postgres-fcm | supabase-fcm |
 |--------|-----------------|--------------|
 | **PostgreSQL host** | Your K8s or local | Supabase cloud |
-| **SSL** | Optional (`DB_SSL=false` by default) | Required (`DB_SSL=true`) |
+| **SSL** | Optional (`DB_SSL=false` default) | Required (`DB_SSL=true`) |
 | **Connection pool** | `DB_POOL_SIZE=20` default | `DB_POOL_SIZE=10` default |
 | **Auth credentials** | `DB_USER` / `DB_PASSWORD` | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` |
 | **Deploy target** | K8s, Docker, bare metal | Supabase platform |
-| **K8s manifests** | Full set in `k8s/` | Not applicable |
 | **Tunnel hub** | `k8s-postgres` or `memory` | `memory` |
-| **PostGIS** | `DB_ENABLE_POSTGIS=true` | Requires Supabase PostGIS addon |
-| **Use case** | Full infra control | Managed cloud PostgreSQL |
+| **Adapter** | Same `PostgreSQLAdapter` + shared pool | Same `PostgreSQLAdapter` + shared pool |
 
-Both modes use the same `PostgreSQLAdapter` class. The only difference is who hosts the PostgreSQL instance and how connection parameters are provided.
+</Audience>
 
 ## Related documentation
 
 <Cards>
   <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes and databases" description="Three-mode comparison: firebase-full, k8s-postgres-fcm, supabase-fcm." />
+  <Card href="/docs/architecture/data-model" title="Data model" description="JSONB-first schema, platform_settings hybrid table, email CRM routing." />
   <Card href="/docs/customization/database-selection" title="Database selection guide" description="Operator decision guide for choosing your backend mode." />
   <Card href="/docs/deployment/environment" title="Environment variables" description="Complete env var reference for all backend modes." />
-  <Card href="/docs/backend/firebase" title="Firebase integration" description="Firebase Admin SDK, FCM push, build-time mocking — deep-dive." />
-  <Card href="/docs/development/deployment" title="Deployment guide" description="End-to-end production deployment for Ring Platform." />
+  <Card href="/docs/backend/firebase" title="Firebase integration" description="Firebase Admin SDK, FCM push, build-time mocking." />
   <Card href="/docs/development/local-setup" title="Local setup" description="Local development environment setup instructions." />
 </Cards>
 
-</Audience>
+<FutureFeatureBacklog title="Backlog — k8s-postgres-fcm (TBD)">
+
+<FutureFeatureWidget
+  name="Dedicated geolocation docs page"
+  description="Standalone PostGIS operator guide with clone-specific GEOGRAPHY column recipes, index tuning, and map widget integration."
+  implementationCost={32}
+  labels={['postgis', 'docs']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Connection pool metrics dashboard"
+  description="Admin surface exposing active/idle pool counts, wait time, and saturation alerts from PostgreSQLAdapter."
+  implementationCost={56}
+  labels={['database', 'ops']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

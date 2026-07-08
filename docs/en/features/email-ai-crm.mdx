@@ -1,10 +1,16 @@
 ---
 title: Email AI-CRM
-description: AI-assisted inbox for public contact mailboxes — IMAP ingest, JSONB persistence, draft review, tasks, and admin dashboards
-last_modified: "2026-06-15"
+description: AI-assisted inbox for public contact mailboxes — IMAP ingest, JSONB persistence via DatabaseService, draft review, tasks, and admin dashboards
+last_modified: "2026-07-07"
+audience: both
 ---
 
 # Email AI-CRM
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Shared sections below apply to both audiences.
+</Callout>
+
 <Callout type="success" title="Executive summary">
 Ring ships an **AI-assisted email CRM** for public contact mailboxes (for example `info@example.com`). Inbound mail is classified, threaded, and answered with Claude drafts; platform admins review, approve, and send from the admin UI. Ingest is **IMAP cron poll** or an **inbound webhook**; persistence is PostgreSQL JSONB when migrations `009` + `010` are applied.
 </Callout>
@@ -30,7 +36,7 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
 |-------|----------------|
 | **Ingestion** | `POST /api/cron/email-processor` (`action: poll`) or `POST /api/webhooks/email/inbound` |
 | **Processor** | `services/email/email-processor.ts` — parse, security, AI, CRM, drafts |
-| **Persistence** | PostgreSQL JSONB (`email_threads`, `email_contacts`, `email_messages`, `email_drafts`, `email_tasks`, `email_api_usage`) |
+| **Persistence** | `features/email-crm/lib/jsonb-collection.ts` → `db()` (`readDoc`, `upsertDoc`, `queryDocs`) on six JSONB collections |
 | **Outbound** | `services/email/smtp/email-sender.ts` (nodemailer) — replies with `In-Reply-To` / `References` |
 | **Admin UI** | `/admin/email-inbox`, drafts, contacts, analytics, tasks, thread detail |
 | **Admin API** | `/api/admin/email/*` — `auth()` + `isPlatformAdmin` on every route |
@@ -40,7 +46,7 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
     participant M as Contact mailbox
     participant C as Cron poll
     participant P as EmailProcessor
-    participant DB as PostgreSQL JSONB
+    participant DB as db() DatabaseService
     participant A as Admin UI
 
     M->>C: UNSEEN messages
@@ -52,13 +58,21 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
     A->>A: Review draft, approve, send`}
 </Mermaid>
 
-<Tabs items={['Operators', 'Developers']}>
+<Audience for="founder">
 
-<Tab value="Operators">
+## Why this matters for your clone
+
+Public contact inboxes (`info@`, `support@`, `hello@`) are where trust is won or lost. Email AI-CRM gives operators a single admin surface to triage inbound mail, review AI drafts before send, and track follow-up tasks — without hiring a full support desk on day one.
+
+<Cards>
+  <Card title="Community support" description="Classify FAQs, route urgent mail, draft replies for admin approval." />
+  <Card title="Enterprise inquiries" description="Intent detection flags demo and pricing requests; auto-tasks remind admins to respond." />
+  <Card title="White-label onboarding" description="Pair with Ringize settler flows — inbound briefs can create CRM tasks automatically." />
+</Cards>
 
 ### Business rules
 
-- **Message-ID dedup** — the same RFC `Message-ID` is never processed twice (avoids duplicate llm spend).
+- **Message-ID dedup** — the same RFC `Message-ID` is never processed twice (avoids duplicate LLM spend).
 - **Auto-send off by default** — set `EMAIL_AUTO_SEND_ENABLED=true` only after an SMTP smoke test passes.
 - **Cron poll in serverless** — production schedules `poll` every 1–5 minutes; `EMAIL_PROCESSOR_AUTOSTART` is for long-lived Node workers only.
 - **Admin-only** — all `/api/admin/email/*` routes require a platform admin session.
@@ -71,7 +85,7 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
 | `/admin/email-inbox/[id]` | Thread detail + messages |
 | `/admin/email-drafts` | Pending AI drafts — approve / reject / send |
 | `/admin/email-contacts` | CRM contacts registry |
-| `/admin/email-analytics` | Volume, intent/sentiment, API cost |
+| `/admin/email-analytics` | Volume, intent/sentiment, API cost (from `email_api_usage`) |
 | `/admin/email-tasks` | Follow-ups and escalations |
 
 Navigation: **Admin → Email Inbox / Drafts / Tasks** (right-rail quick nav in `AdminWrapper`).
@@ -106,11 +120,11 @@ Open **Admin → Email Inbox** and **Email Drafts**. Approve a draft and send. C
 
 </Steps>
 
-</Tab>
+</Audience>
 
-<Tab value="Developers">
+<Audience for="developer">
 
-### Processing pipeline
+## Processing pipeline
 
 1. **Parse** — headers, body, attachments, thread keys (`References`, `In-Reply-To`).
 2. **Security** — four-layer prompt-injection defense (`services/email/security/`).
@@ -129,18 +143,57 @@ Open **Admin → Email Inbox** and **Email Drafts**. Approve a draft and send. C
 | `services/email/crm/` | Contact + task services |
 | `services/email/drafts/` | Draft queue + auto-send rules |
 | `services/email/ai/` | Classifiers, generator, cost tracker |
-| `features/email-crm/services/` | Thread, message, analytics |
-| `features/email-crm/repositories/` | JSONB repositories |
+| `features/email-crm/lib/jsonb-collection.ts` | `readDoc` / `upsertDoc` / `queryDocs` → `db()` |
+| `features/email-crm/repositories/` | JSONB repositories per collection |
+| `features/email-crm/services/` | Thread, message, API usage services |
 | `app/api/cron/email-processor/route.ts` | Cron: `poll`, `status`, `mark-overdue-tasks` |
 | `app/api/webhooks/email/inbound/route.ts` | HMAC-signed webhook ingest |
+
+### Persistence — `jsonb-collection` → `db()`
+
+All active CRM writes go through `features/email-crm/lib/jsonb-collection.ts`, which delegates to the platform `db()` singleton (`lib/database/DatabaseService.ts`):
+
+| Helper | Delegates to |
+|--------|----------------|
+| `readDoc(collection, id)` | `db().readDoc()` |
+| `upsertDoc(collection, id, record)` | `db().readDoc()` + `updateDoc()` or `createDoc()` |
+| `queryDocs({ collection, filters, orderBy, limit })` | `db().queryDocs()` |
+| `deleteDoc(collection, id)` | `db().deleteDoc()` |
+
+Repositories (`jsonb-contact-repository.ts`, `jsonb-draft-repository.ts`, `jsonb-task-repository.ts`) and services (`email-message-service.ts`, `email-api-usage-service.ts`) import these helpers — they do **not** issue raw SQL.
+
+### Active JSONB collections (migrations 009 + 010)
+
+| Collection | Document id | Indexed fields |
+|------------|-------------|----------------|
+| `email_threads` | RFC thread root / Message-ID | `status`, `fromEmail`, `lastMessageAt` |
+| `email_contacts` | `contact_<sha256(email)>` | `email`, `type` |
+| `email_messages` | RFC Message-ID | `threadId` |
+| `email_drafts` | `draft_<uuid>` | `threadId`, `status` |
+| `email_tasks` | `task_<uuid>` | `threadId`, `status`, `dueDate` |
+| `email_api_usage` | `req_<timestamp>_<random>` | `timestamp`, `operation`, `emailId` |
+
+Factory: `getEmailContactService()` / `getEmailTaskService()` / `getEmailDraftService()` use Postgres unless `EMAIL_CRM_PERSISTENCE=memory`.
 
 ### Cron actions
 
 `POST /api/cron/email-processor` accepts `action`: `poll` (default), `status`, `mark-overdue-tasks`, and optionally `start` / `stop` when `EMAIL_PROCESSOR_ALLOW_HTTP_START=true`.
 
-</Tab>
+</Audience>
 
-</Tabs>
+## Schema-only tables (not wired in app)
+
+<Callout type="development" title="Deprecated 001 column-model tables">
+The legacy migration `001_email_crm_schema.sql` defines **`email_analytics`**, **`email_knowledge_base`**, and **`email_security_events`** as column-model tables. **No TypeScript module reads or writes these tables today.** Production uses JSONB migrations `009` + `010` only. Cost tracking persists to `email_api_usage`; RAG uses `InMemoryKnowledgeRepository` in `services/email/knowledge/knowledge-base.ts`.
+</Callout>
+
+<Callout type="development" title="Backlog — not yet production-persisted">
+| Planned capability | Current state |
+|--------------------|---------------|
+| **PGVector knowledge base** (`email_knowledge_base`) | In-memory default docs via `getKnowledgeBaseService()` — no `jsonb-collection` table |
+| **Security event audit trail** (`email_security_events`) | Security pipeline blocks in-flight; events are not persisted to Postgres |
+| **Daily analytics rollup** (`email_analytics`) | Admin analytics aggregates from `email_api_usage` JSONB at query time — no daily rollup table |
+</Callout>
 
 ## Local configuration
 

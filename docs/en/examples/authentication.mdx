@@ -1,7 +1,7 @@
 ---
 title: Authentication Examples
 description: Auth.js v5 multi-provider authentication patterns — Google OAuth, Google One Tap, Apple Sign-In, Resend magic links, and crypto wallet authentication with PostgreSQL or Firebase adapters.
-last_modified: "2026-06-28"
+last_modified: "2026-07-07"
 audience: both
 ---
 
@@ -10,7 +10,7 @@ audience: both
 Complete authentication implementation patterns using Auth.js v5 with Ring Platform.
 
 <Callout type="info">
-  See the [Authentication Architecture](/docs/en/architecture/authentication.mdx) doc for the provider overview and design decisions. For the full env var reference, see [Environment Variables](/docs/en/deployment/environment.mdx).
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. See [Authentication Architecture](/docs/architecture/authentication) for provider design decisions and [Environment Variables](/docs/deployment/environment) for the full env reference.
 </Callout>
 
 <Audience for="founder">
@@ -29,7 +29,7 @@ Ring Platform supports five authentication providers, all managed by Auth.js v5:
 
 Session strategy: **JWT** (no server-side session store). 30-day max age, 24-hour update window.
 
-The database adapter (PostgreSQL or Firebase) is selected automatically by `DB_BACKEND_MODE`. For details, see [Backend Modes and Databases](/docs/en/architecture/backend-modes-and-databases.mdx).
+The database adapter (PostgreSQL or Firebase) is selected automatically by `DB_BACKEND_MODE`. For details, see [Backend Modes and Databases](/docs/architecture/backend-modes-and-databases).
 
 </Audience>
 
@@ -194,14 +194,22 @@ export default function UserProfile() {
 
 ## Session provider setup
 
-```typescript title="app/providers.tsx"
-"use client"
-import { SessionProvider } from "next-auth/react"
+Ring wraps Auth.js with a tuned `SessionProvider` at `features/auth/components/session-provider.tsx`. Import this component — not `SessionProvider` directly from `next-auth/react` — so refetch behavior is consistent app-wide:
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>
+```typescript title="components/providers/app-client-shell.tsx"
+"use client"
+import { SessionProvider } from "@/features/auth/components/session-provider"
+
+export function AppClientShell({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      {children}
+    </SessionProvider>
+  )
 }
 ```
+
+The canonical implementation sets `refetchInterval={15 * 60}` (one 15-minute background poll), `refetchOnWindowFocus={false}`, and `refetchWhenOffline={false}` — reducing redundant `GET /api/auth/session` calls across every `useSession()` consumer.
 
 ## Environment variables
 
@@ -264,7 +272,7 @@ export const config = {
 ## Related documentation
 
 <Cards>
-  <Card href="/docs/en/architecture/authentication" title="Authentication Architecture" description="Provider design, session flow, and file structure." />
-  <Card href="/docs/en/deployment/environment" title="Environment Variables" description="Complete env var reference including Auth.js and all providers." />
-  <Card href="/docs/en/architecture/backend-modes-and-databases" title="Backend Modes" description="How DB_BACKEND_MODE affects adapter selection and Firebase usage." />
+  <Card href="/docs/architecture/authentication" title="Authentication Architecture" description="Provider design, session flow, and file structure." />
+  <Card href="/docs/deployment/environment" title="Environment Variables" description="Complete env var reference including Auth.js and all providers." />
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend Modes" description="How DB_BACKEND_MODE affects adapter selection and Firebase usage." />
 </Cards>

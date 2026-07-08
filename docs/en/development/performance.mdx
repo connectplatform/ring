@@ -1,174 +1,167 @@
 ---
 title: Performance
-description: Ring Platform-specific performance patterns — React 19 cache(), build-time Firebase mocking, DatabaseService query optimization, Server Components, and Firebase Admin SDK.
-last_modified: "2026-06-28"
+description: Integrator guide — React 19 cache(), client bootstrap single-flight, PostgreSQL pool SSOT, and provider enforcement.
+last_modified: "2026-07-07"
 audience: both
 ---
 
 # Performance Optimization
 
-Profiling and optimization strategies specific to Ring Platform. This document covers real codebase patterns. For user-facing performance expectations, see [Performance](/docs/en/features/performance). For production hardening, see [Deployment Performance](/docs/en/deployment/performance). For general development conventions, see [Best Practices](/docs/en/development/best-practices).
+Profiling and optimization strategies for Ring Platform integrators. For operator-facing overview, see [Performance patterns](/docs/features/performance). For production infrastructure, see [Deployment performance](/docs/deployment/performance).
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
+</Callout>
 
 <Callout type="warning">
-  Ring Platform does **not** use client-side Firestore. Firebase is Admin SDK only via `lib/firebase-admin.server.ts`. The only client-side Firebase code is `public/firebase-messaging-sw.js` for FCM push notifications.
+  Ring Platform does **not** use client-side Firestore. Firebase is Admin SDK only via `lib/firebase-admin.server.ts`. Client Firebase code is limited to `public/firebase-messaging-sw.js` for FCM.
 </Callout>
 
 <Audience for="founder">
 
-## What Affects Load Times
+## What affects load times
 
-Ring Platform loads fast because most pages are **React Server Components** rendered on the server. Key factors that influence performance:
-
-- **Server data caching** — repeated Firestore reads during a single request are deduplicated with React 19 `cache()`.
-- **Build-time optimizations** — Firebase Admin is mocked during static generation, cutting build time by ~31%.
-- **Minimal client JavaScript** — only pages with interactivity (forms, maps, checkout) use client components.
-- **CDN-served assets** — static pages are pre-built and served from edge cache.
-
-## Performance Optimizations Available
-
-| Optimization | Benefit |
-|---|---|
-| React 19 cache() | Deduplicates Firestore reads per request |
-| Build-time Firebase mocking | ~31% faster builds, prevents 22+ redundant initializations |
-| DatabaseService query layer | Unified PostgreSQL + Firestore with caching |
-| Server Components by default | No client JS for most pages |
-| WayForPay server-side only | No payment logic exposed to the client |
-| FCM service worker | Push notifications handled off main thread |
+| Factor | Effect |
+|--------|--------|
+| Server Components default | Most routes ship zero client JS for pure rendering |
+| Request dedup (`cache()`) | One Firestore read per document per server render |
+| Cached store catalog | Product list shared across API route and server action |
+| Batched Web Vitals | One analytics POST per page load instead of five |
+| Provider SSOT | Single credit-balance stream, single tunnel connection |
+| Build-time Firebase mock | Static pages build without live credentials |
 
 </Audience>
 
 <Audience for="developer">
 
-## React 19 cache() for Data Deduplication
+## Caching layers (mirror of features doc)
 
-The `firebase-service-manager.ts` module wraps every Firestore Admin SDK read with React 19 `cache()`. This prevents duplicate requests within the same Server Component render pass.
+| Layer | Scope | SSOT |
+|-------|-------|------|
+| React `cache()` | Per-request server | `lib/services/firebase-service-manager.ts` |
+| `'use cache'` + `cacheTag` | Cross-request server | `features/store/config.ts` → `getCachedProductCatalog()` |
+| EntityCache 30s TTL | Server process | `lib/database/DatabaseService.ts` |
+| Vendor status single-flight | Client tab | `hooks/use-vendor-status.ts` (30s TTL) |
+| Credit bootstrap single-flight | Client tab | `hooks/use-credit-balance.ts` (5s TTL, `userId`-keyed) |
+| Web Vitals batch | Client tab | `components/providers/web-vitals-provider.tsx` (1.5s debounce) |
+| Session refetch | Client tab | `features/auth/components/session-provider.tsx` (`15 * 60`, no focus/offline) |
+
+Full operator narrative: [Performance patterns](/docs/features/performance).
+
+## React 19 `cache()` in Server Components
 
 ```typescript
 import { getCachedDocument, getCachedCollection } from '@/lib/services/firebase-service-manager'
 
-// Multiple calls to the same document during SSG resolve to one Firestore read
+// Multiple calls during one render → one Firestore read
 const entity = await getCachedDocument('entities', 'abc123')
-const sameEntity = await getCachedDocument('entities', 'abc123') // cache hit
-
-// Collection queries also cached per-request
-const activeEntities = await getCachedCollection('entities', {
-  where: { field: 'status', operator: '==', value: 'active' },
-  orderBy: { field: 'createdAt', direction: 'desc' },
-  limit: 20
-})
+const same = await getCachedDocument('entities', 'abc123') // cache hit
 ```
 
-The `cache()` function is imported from React 19 — it is not a custom implementation. All cached read functions are in `lib/services/firebase-service-manager.ts` and work with `firebase-admin/firestore`.
+Cache scope is the current Server Component render pass only. For cross-request caching, use Next 16 Cache Components (`'use cache'`) or `revalidate` exports.
 
-<Callout type="tip">
-  Cache scope is the current Server Component render pass only. After the response is sent, the cache is discarded. For longer-lived caching, use `revalidate` on fetch or a dedicated cache layer.
-</Callout>
+## Build-time Firebase mocking
 
-## Build-time Firebase Mocking
+During `next build`, `lib/firebase/build-mock.server.ts` detects `NEXT_PHASE=phase-production-build` and returns mock Firestore/Auth instances. Chainable `where()` / `orderBy()` / `limit()` return empty result sets — no credentials required for SSG.
 
-During `next build`, `NEXT_PHASE=phase-production-build` is set. The module at `lib/firebase/build-mock.server.ts` detects this and returns mock Firestore, Auth, and RTDB instances. This prevents ~22 Firebase Admin initializations that would otherwise run during static generation.
+## DatabaseService query optimization
 
 ```typescript
-import { isBuildTime, getMockFirebaseServices } from '@/lib/firebase/build-mock.server'
+import { db } from '@/lib/database'
 
-if (isBuildTime()) {
-  const { mockDb, mockAuth } = getMockFirebaseServices()
-  // mockDb.collection('test').get() returns empty results
-  // No Firebase credentials needed during build
-}
-```
-
-The mock layer implements the full Firestore query interface with chainable `where()`, `orderBy()`, `limit()`, and pagination methods — all returning empty result sets. Auth methods return safe default user objects. This is active at `lib/firebase/build-mock.server.ts:36`.
-
-## DatabaseService Query Optimization
-
-The database abstraction layer at `lib/database/DatabaseService.ts` provides a unified query API over PostgreSQL and Firestore, with built-in 30-second entity caching.
-
-```typescript
-import { getDatabaseService } from '@/lib/database/DatabaseService'
-
-const db = getDatabaseService()
-const result = await db.query({
+const result = await db().queryDocs({
   collection: 'entities',
-  filters: { status: 'active' },
-  orderBy: { field: 'createdAt', direction: 'desc' },
-  pagination: { limit: 20 }
+  filters: [{ field: 'status', operator: '==', value: 'active' }],
+  orderBy: [{ field: 'createdAt', direction: 'desc' }],
+  pagination: { limit: 20, offset: 0 },
 })
 
-if (!result.success) {
-  throw result.error || new Error('Query failed')
-}
+if (!result.success) throw result.error ?? new Error('Query failed')
 ```
 
-The service includes an `EntityCache` class with TTL-based invalidation. For read-after-write consistency, write operations invalidate the affected keys.
+- Prefer `findDocById` over filtering by `id` in `queryDocs`.
+- Use `filters` + `pagination` at the database layer — do not fetch-all-then-filter in application code.
+- EntityCache provides 30s read-after-write consistency on `entities` — no manual cache for basic cases.
 
 <Callout type="warning">
-  Do not call `db.users.findById()` or similar patterns. The DatabaseService API uses `db.query({ collection, filters })` with a single options object. See `lib/database/DatabaseService.ts:74` for the full interface.
+Do not call `db.users.findById()` or similar. The API is `db().findDocById('users', id)` or `db().queryDocs({ collection, filters, … })`.
 </Callout>
 
-## Server Components by Default
-
-All pages in `app/` are Server Components unless they carry a `'use client'` directive. This eliminates client-side JavaScript for most routes. Client components are used only for:
-
-- Interactive forms (checkout, vendor onboarding)
-- Map views (Ringdom Maps)
-- Wallet and payment UIs
-- Admin dashboards
-
-Search `'use client'` in `app/` to see the full inventory of client components.
-
-## FCM Background Message Handling
-
-Firebase Cloud Messaging is handled entirely in the service worker at `public/firebase-messaging-sw.js`. Push events are processed without waking the main JavaScript thread. The client only registers the service worker and forwards the FCM token to the server.
-
-## WayForPay Server-Side Only
-
-Payment requests are server-side only. No WayForPay merchant credentials, HMAC keys, or payment logic are exposed to the browser. The client submits an order reference; the server constructs and verifies all payment payloads. See [WayForPay Integration](/docs/en/features/wayforpay-integration).
-
-## Next.js 16 Rendering Strategies
-
-Use `force-dynamic`, `force-static`, or `revalidate` exports per page to control rendering:
+## PostgreSQL pool SSOT
 
 ```typescript
-// Static page, revalidated every 60 seconds
-export const revalidate = 60
+import { getSharedPgPool } from '@/lib/database'
 
-// Fully dynamic — no caching
-export const dynamic = 'force-dynamic'
+// PostGIS / raw SQL only — not for routine CRUD
+const pool = await getSharedPgPool()
 ```
 
-Static generation is the default. Explicitly mark pages as `force-dynamic` when they display user-specific data.
+`getSharedPgPool()` in `lib/database/shared-pg-pool.ts` returns the connected adapter pool after `initializeDatabase()`. **`new Pool(` must appear only under `lib/database/`** — enforced by gate 7 of `scripts/validate-provider-ssot.sh`.
 
-## Performance Metrics
+Routine persistence: `db().createDoc` / `findDocById` / `queryDocs` / `transaction`.
 
-- First Contentful Paint: < 1.5s
-- Largest Contentful Paint: < 2.5s
-- First Input Delay: < 100ms
-- Cumulative Layout Shift: < 0.1
-- Build time reduction with Firebase mocking: ~31%
+## Provider SSOT enforcement
 
-## Monitoring
+Before merging hook or provider changes:
 
-Web Vitals are collected in production. Configure analytics tracking in the deployment environment. For build-time analysis, run:
+```bash
+./scripts/validate-provider-ssot.sh
+```
+
+Seven gates — full table in [Best practices](/docs/development/best-practices#provider-ssot-script). Key paths:
+
+- `SessionProvider` → `features/auth/components/session-provider.tsx` (duplicates under `components/providers/` deleted)
+- `useVendorStatus` → sole owner of `fetch('/api/vendor/status')`
+- `useCreditBalance` → sole owner of `'/api/wallet/credit/balance'` string in TS/TSX
+
+<FutureFeatureBacklog title="Performance tooling backlog">
+<FutureFeatureWidget
+  name="GitHub Actions validate-provider-ssot gate"
+  description="Run scripts/validate-provider-ssot.sh on PRs touching hooks/, components/providers/, or lib/database/. Not wired in .github/workflows today."
+  implementationCost={8}
+  labels={['ci', 'performance', 'ssot']}
+/>
+</FutureFeatureBacklog>
+
+## Server Components by default
+
+Pages in `app/` are Server Components unless marked `'use client'`. Client boundaries belong on interactive leaves: checkout forms, maps, wallet UIs, admin dashboards.
+
+## Rendering strategy exports
+
+```typescript
+export const revalidate = 60        // ISR — revalidate every 60s
+export const dynamic = 'force-dynamic'  // user-specific, no cache
+```
+
+## Web Vitals collection
+
+`WebVitalsProvider` batches Core Web Vitals into one debounced `POST /api/analytics/web-vitals`. There is **no** per-metric POST from `useReportWebVitals` directly — do not document or implement five separate analytics calls per page load.
+
+For build analysis:
 
 ```bash
 npm run build
 npm run analyze
 ```
 
-The `firebase-service-manager.ts` module also exposes internal cache metrics:
-
-```typescript
-import { getCacheMetrics } from '@/lib/services/firebase-service-manager'
-
-const metrics = getCacheMetrics()
-console.log(`Hit rate: ${metrics.hitRate.toFixed(1)}%`)
-```
+Firebase cache metrics (`getCacheMetrics()`) are dev-only when `FIREBASE_DEBUG_LOGS=true`.
 
 </Audience>
 
----
+## Related documentation
 
-<Callout type="info">
-  For user-facing performance expectations, refer to [Performance (User)](/docs/en/features/performance). For production monitoring and infrastructure tuning, see [Deployment Performance](/docs/en/deployment/performance). For general development conventions, see [Best Practices](/docs/en/development/best-practices).
-</Callout>
+<Cards>
+  <Card title="Performance patterns (features)" href="/docs/features/performance">
+    Operator + developer caching table and server/client SSOT.
+  </Card>
+  <Card title="Best practices" href="/docs/development/best-practices">
+    db() rules, platform_settings, SSOT script gates.
+  </Card>
+  <Card title="Code structure" href="/docs/development/code-structure">
+    Provider matrix and P4 hook consolidation.
+  </Card>
+  <Card title="Deployment performance" href="/docs/deployment/performance">
+    Production monitoring and infrastructure tuning.
+  </Card>
+</Cards>

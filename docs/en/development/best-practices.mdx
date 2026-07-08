@@ -1,361 +1,239 @@
 ---
 title: Best Practices
-description: Ring Platform-specific development patterns for Server Actions, database access, authentication, payments, and testing.
-last_modified: "2026-06-28"
+description: Ring Platform development patterns — db(), provider SSOT, Server Actions, auth, and performance guards.
+last_modified: "2026-07-07"
 audience: both
 ---
 
 # Best Practices
 
-Development patterns and conventions specific to Ring Platform.
+Development patterns and conventions specific to Ring Platform v1.6.4.
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
+</Callout>
 
 <Audience for="founder">
 
-## Development Principles
+## Development principles
 
 ### Quality over quantity
-Ring Platform is a multi-tenant white-label platform powering 15+ production clones. Every pattern must work identically across PostgreSQL-primary (`k8s-postgres-fcm`) and Firebase-backed deployments. The `DatabaseService` abstraction layer ensures this — write to `db()` once, run anywhere.
+Ring Platform is a multi-tenant white-label platform powering production clones. Every pattern must work across PostgreSQL-primary (`k8s-postgres-fcm`) and Firebase-backed deployments. The `DatabaseService` abstraction ensures this — write to `db()` once, run anywhere.
 
 ### Security by convention
 - `userId` is **always** derived from `await auth()` in server code, never from client-supplied parameters.
 - Payment operations run server-side only. WayForPay HMAC signatures verify callback authenticity.
-- File uploads go through `file()` abstraction (`@/lib/file`) — access controls are enforced at the upload layer, never assumed from the client.
+- File uploads go through `file()` abstraction (`@/lib/file`) — access controls are enforced at the upload layer.
 
 ### i18n is not optional
-All user-facing strings live in `locales/{locale}/` JSON bundles loaded by `next-intl`. Inline strings in components are a code smell. See `docs/en/architecture/proxy-and-intl.mdx` for the i18n architecture.
+All user-facing strings live in `locales/{locale}/` JSON bundles loaded by `next-intl`. See [Proxy and i18n](/docs/architecture/proxy-and-intl).
 
 ### Respect the backend mode
-`DB_BACKEND_MODE` selects the database adapter at runtime. Do not import `firebase-admin` or `postgres` directly in domain code. Use `db()` from `@/lib/database` exclusively. See [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases).
+`DB_BACKEND_MODE` selects the database adapter at runtime. Do not import `firebase-admin` or `postgres` directly in domain code. See [Backend modes and databases](/docs/architecture/backend-modes-and-databases).
 
 </Audience>
 
 <Audience for="developer">
 
-## Database Access
+## Database access
 
 ### The `db()` singleton
 
-The primary database interface is the `db()` singleton from `@/lib/database`. It auto-initializes and provides typed `*Doc` methods that return `{ success, data, error }` result objects.
+The primary database interface is `db()` from `@/lib/database`. It auto-initializes and provides typed `*Doc` methods returning `{ success, data, error }`.
 
 ```typescript
 import { db } from '@/lib/database'
 
-// Create
 const result = await db().createDoc('entities', { name: 'Acme', type: 'technology' })
 if (!result.success) throw result.error
 
-// Read by ID
 const entity = await db().findDocById<Entity>('entities', id)
 if (!entity.success) throw entity.error
 
-// Query with filters
 const results = await db().queryDocs<Entity>({
   collection: 'entities',
   filters: [{ field: 'status', operator: '==', value: 'active' }],
   orderBy: [{ field: 'name', direction: 'asc' }],
   pagination: { limit: 20, offset: 0 },
 })
-
-// Update
-await db().updateDoc('entities', id, { name: 'Acme Corp' })
-
-// Delete
-await db().deleteDoc('entities', id)
 ```
 
 <Callout type="info">
-The `db()` singleton survives Next.js dev HMR via `globalThis.__ringDatabaseService`. The database initializes once and reuses the connection across hot reloads.
+The `db()` singleton survives Next.js dev HMR via `globalThis.__ringDatabaseService`. Collections map to PostgreSQL tables through `PostgreSQLAdapter` field mappings in `lib/database/adapters/PostgreSQLAdapter.ts` — aligned with `data/schema.sql`. Do not assume ad-hoc table names; use the collection keys the adapter routes (e.g. `platform_settings`, `entities`, `users`).
 </Callout>
+
+### `platform_settings` and namespaced config
+
+Platform-wide settings (AI matcher, branding, feature flags) persist in the `platform_settings` collection/table. Access via `db()` — not raw SQL:
+
+```typescript
+const settings = await db().findDocById<PlatformSettingsDoc>('platform_settings', 'ai')
+if (!settings.success) throw settings.error
+```
+
+Secrets columns are masked in admin GET handlers; never embed production keys in MDX or client bundles.
+
+### PostGIS escape hatch only
+
+For spatial queries the doc-model cannot express, use the shared pool:
+
+```typescript
+import { getSharedPgPool } from '@/lib/database'
+
+const pool = await getSharedPgPool()
+const { rows } = await pool.query(
+  `SELECT id FROM entities WHERE ST_DWithin(location, ST_MakePoint($1, $2)::geography, $3)`,
+  [lng, lat, radiusM]
+)
+```
+
+`getSharedPgPool()` in `lib/database/shared-pg-pool.ts` returns the connected `PostgreSQLAdapter` pool after `initializeDatabase()`. **`new Pool(` is allowed only under `lib/database/`** — the SSOT script enforces this.
 
 ### Transactions
 
-Use `db().transaction()` for atomic multi-step writes. The transaction callback receives an `IDatabaseTransaction` with `create`, `read`, `update`, `delete` methods. Errors **throw** — do not check `result.success` inside a transaction.
+Use `db().transaction()` for atomic multi-step writes. Errors **throw** inside the callback.
 
 ```typescript
-import { db } from '@/lib/database'
-
 await db().transaction(async (txn) => {
   const existing = await txn.read('usernames', usernameKey)
   if (existing) throw new Error('Username is taken')
-
   await txn.create('usernames', { userId, reservedAt: new Date() }, { id: usernameKey })
   await txn.update('users', userId, { username })
 })
 ```
 
-### Direct service access (advanced)
+<Callout type="warning">
+Do **not** use raw Firestore or pg queries in feature code except PostGIS via `getSharedPgPool()`. Every other database operation goes through `DatabaseService` so backends can switch without rewriting business logic.
+</Callout>
 
-For custom backend routing or multi-adapter operations, import the `DatabaseService` class directly:
+## Provider SSOT script
 
-```typescript
-import { getDatabaseService } from '@/lib/database/DatabaseService'
-const svc = getDatabaseService()
-await svc.initialize()
+`scripts/validate-provider-ssot.sh` gates duplicate-fetch regressions. Run before merging provider or hook changes:
+
+```bash
+./scripts/validate-provider-ssot.sh
 ```
 
-See [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases) for details on adapter selection and sync.
+| # | Gate | Rule |
+|---|------|------|
+| 1 | `useUnreadCount` | Allowed only in `notification-provider`, `use-unread-count.ts`, tests |
+| 2 | `useCreditBalance(` | Allowed only in `credit-balance-provider`, `use-credit-balance.ts`, tests |
+| 3 | `useCreditHistory(` | Allowed only in `credit-history-provider`, `use-credit-history.ts`, `wallet-wrapper`, tests |
+| 4 | `fetch('/api/vendor/status')` | Allowed only in `hooks/use-vendor-status.ts` |
+| 5 | `'/api/wallet/credit/balance'` | Allowed only in `hooks/use-credit-balance.ts` |
+| 6 | `SessionProvider` | Exactly one `export function SessionProvider` — SSOT: `features/auth/components/session-provider.tsx` |
+| 7 | `new Pool(` | Allowed only under `lib/database/` |
 
-<Callout type="warning">
-Do **not** use raw Firestore or pg queries in feature code. Every database operation must go through `DatabaseService` so the platform can switch backends without rewriting business logic.
-</Callout>
+<FutureFeatureBacklog title="Provider SSOT backlog">
+<FutureFeatureWidget
+  name="CI gate for validate-provider-ssot.sh"
+  description="Wire scripts/validate-provider-ssot.sh into GitHub Actions on every PR touching hooks/, components/providers/, or lib/database/."
+  implementationCost={8}
+  labels={['ci', 'ssot', 'hooks']}
+/>
+</FutureFeatureBacklog>
+
+## Client single-flight pattern
+
+When a hook performs a one-shot bootstrap fetch (not a long-lived subscription), use **module-scope single-flight + short TTL** keyed by `userId`:
+
+| Hook | TTL | Endpoint |
+|------|-----|----------|
+| `use-vendor-status.ts` | 30s | `GET /api/vendor/status` |
+| `use-credit-balance.ts` (bootstrap only) | 5s | `GET /api/wallet/credit/balance` |
+
+Pattern: check cache → return in-flight promise → fetch → store. Manual `refresh()` bypasses bootstrap cache. See `hooks/HOOKS-README.md` § P4.
+
+Provider-owned streams (unread count, credit balance live updates) still use context — single-flight is for **deduping mount-time duplicates**, not replacing providers.
 
 ## Server Actions
 
-All Server Actions live in `app/_actions/` and follow a consistent pattern.
+All Server Actions live in `app/_actions/`.
 
-### Conventions
-
-1. File-level `'use server'` directive at the top.
-2. `import { auth } from '@/auth'` for session — never accept `userId` from the client.
-3. Return form-state objects `{ success?: boolean, error?: string, message?: string }`.
+1. File-level `'use server'` at the top.
+2. `import { auth } from '@/auth'` — never accept `userId` from the client.
+3. Return form-state objects `{ success?, error?, message? }`.
 4. Use `localizedRedirect` for navigation after success.
 5. Zod or manual validation at the boundary.
 
-```typescript
-'use server'
-
-import { auth } from '@/auth'
-import { db } from '@/lib/database'
-import { revalidatePath } from 'next/cache'
-import { localizedRedirect } from '@/lib/i18n-server-redirect'
-import type { Locale } from '@/i18n/shared'
-
-export interface ActionResult {
-  success?: boolean
-  error?: string
-  message?: string
-  fieldErrors?: Record<string, string>
-}
-
-export async function createEntity(
-  prevState: ActionResult | null,
-  formData: FormData,
-  locale: Locale
-): Promise<ActionResult> {
-  const session = await auth()
-  if (!session?.user?.id) return { error: 'Authentication required' }
-
-  // Validate
-  const name = formData.get('name') as string
-  if (!name?.trim()) return { error: 'Name is required' }
-
-  // Write
-  const result = await db().createDoc('entities', {
-    name: name.trim(),
-    createdBy: session.user.id,
-    createdAt: new Date(),
-  })
-
-  if (!result.success) return { error: result.error?.message ?? 'Creation failed' }
-
-  revalidatePath(`/${locale}/entities`)
-  localizedRedirect({ locale, href: '/entities' })
-}
-```
-
-### Error handling
-
-- Return error strings for form display. Do not throw in form-returning actions.
-- Throw only for non-recoverable errors (misconfiguration, missing env vars).
-- Wrap `localizedRedirect` in try/catch — it throws `NEXT_REDIRECT` which must propagate.
-
 <Callout type="tip">
-Check `app/_actions/vendor-actions.ts` for a comprehensive real-world example covering file uploads (Vercel Blob via `file()`), nested create + update, and multi-step onboarding flows.
+See `app/_actions/vendor-actions.ts` for file uploads via `file()`, nested create + update, and multi-step onboarding.
 </Callout>
 
 ## Authentication
 
-### Server-side (`@/auth`)
-
-Import `auth` from the project root `@/auth` (not `next-auth` or `authjs` directly — Ring Platform provides a configured instance at `auth.ts`).
+### Server-side
 
 ```typescript
 import { auth } from '@/auth'
 
 export async function getServerSession() {
-  const session = await auth()
-  return session
+  return auth()
 }
 ```
 
-The `auth()` call is available in:
-- Server Actions (`app/_actions/`)
-- Route handlers (`app/api/`)
-- Server Components (async component)
-- Middleware
-
-### Client-side (`useSession`)
+### Client-side
 
 ```typescript
 'use client'
-
 import { useSession } from '@/auth/client'
-
-export function UserInfo() {
-  const { data: session, status } = useSession()
-
-  if (status === 'loading') return <div>Loading...</div>
-  if (!session?.user) return <div>Not signed in</div>
-
-  return <div>{session.user.name}</div>
-}
+// Or useAuth() from hooks/use-auth.ts for signOut + FCM cleanup
 ```
 
-### Auth.js (NextAuth v5) configuration
-
-The canonical auth config is at `auth.ts` in the project root. It configures:
-- Credentials provider (email/password)
-- Google OAuth provider
-- JWT strategy (with refresh token rotation)
-- PostgreSQL adapter (`lib/auth/postgres-adapter.ts`)
-
-Do not create additional `auth.ts` files in features. Extend the root config.
+Canonical config: root `auth.ts`. Session wrapper: `features/auth/components/session-provider.tsx` with `refetchInterval={15 * 60}`, `refetchOnWindowFocus={false}`, `refetchWhenOffline={false}`.
 
 <Callout type="warning">
-Never pass `userId` from the client to a Server Action or API route. Derive it from `await auth()` server-side. See `app/_actions/fcm.ts` for the canonical pattern — `userId is derived from auth() only — never pass userId from the client`.
+Never pass `userId` from the client to a Server Action or API route. See `app/_actions/fcm.ts` for the canonical pattern.
 </Callout>
 
-## Push Notifications (FCM)
+## Server vs client boundaries
 
-FCM token registration and unregistration flow through Server Actions in `app/_actions/fcm.ts`. The underlying DB operations live in `lib/notifications/fcm-token-db.ts`.
+- **Default to Server Components** — fetch via services or `db()` on the server.
+- **Push client boundaries down** — forms, maps, realtime leaves only.
+- **Avoid useEffect for data fetching** — prefer Server Actions, Route Handlers, or `useActionState`.
 
-```typescript
-'use server'
-
-import { auth } from '@/auth'
-import { upsertFcmTokenForUser, unregisterFcmTokenForUser } from '@/lib/notifications/fcm-token-db'
-import type { UpsertFcmTokenParams, UpsertFcmTokenResult } from '@/lib/notifications/fcm-token-db'
-
-export async function upsertFcmToken(params: UpsertFcmTokenParams): Promise<UpsertFcmTokenResult> {
-  const session = await auth()
-  if (!session?.user?.id) return { error: 'Authentication required' }
-  return upsertFcmTokenForUser(session.user.id, params)
-}
-```
-
-Send notifications server-side using `ring-mcp_ring-fcm-send` tool or direct Firebase Admin messaging. Never expose FCM server keys to the client.
-
-## Payments (WayForPay)
-
-Ring Platform uses WayForPay as the primary payment provider. Key patterns:
-
-- **All payment logic is server-side only** — never expose API keys or HMAC secrets to the client.
-- **Idempotent `orderReference`** — every payment attempt has a unique `orderReference` to prevent duplicate charges.
-- **HMAC verification** — webhook callbacks are verified using HMAC MD5 before processing.
-- **3DS handling** — WayForPay redirects are managed through `components/store/checkout/`.
-
-See `docs/en/architecture/payment-conductor.mdx` for the full payment architecture, webhook flow, and refund patterns.
-
-## Server vs Client Component Boundaries
-
-- **Default to Server Components** — fetch data and render on the server.
-- **Push client boundaries down** — wrap interactive elements (forms, maps, real-time) in `'use client'` leaves.
-- **Avoid useEffect for data fetching** — use Server Actions, Route Handlers, or `useActionState` in React 19.
-
-```typescript
-// page.tsx — Server Component (default)
-export default async function EntitiesPage({ params: { locale } }: Props) {
-  const session = await auth()
-
-  const result = await db().queryDocs<Entity>({
-    collection: 'entities',
-    filters: [],
-    pagination: { limit: 20 },
-  })
-
-  return <EntityList entities={result.data ?? []} session={session} />
-}
-```
-
-## File Uploads
-
-Use the `file()` abstraction from `@/lib/file` rather than directly calling Vercel Blob or S3 APIs.
+## File uploads
 
 ```typescript
 import { file } from '@/lib/file'
 
-const result = await file().upload(`entities/${entityId}/logo.webp', fileObject, {
+const result = await file().upload(`entities/${entityId}/logo.webp`, fileObject, {
   access: 'public',
   addRandomSuffix: false,
 })
-if (!result.success) throw new Error(result.error)
+if (!result.success) throw new Error(result.error?.message ?? 'Upload failed')
 ```
 
-## Testing Patterns
+## Testing
 
-Tests live in `__tests__/` and use Jest (with `@jest-environment jsdom` for component tests) or Vitest.
+Tests live in `__tests__/`. Mock at boundaries (constants, `next/link`, i18n) — do not mock `@/lib/database` with fake Firestore for unit tests. See [Testing guide](/docs/development/testing).
 
-### Mock external services, not DatabaseService
+## Code organization
 
-Ring Platform tests mock at the boundary — constants, `next/link`, translation bundles — but do **not** mock `@/lib/database` with fake Firestore. Database-dependent logic is tested either against a real test database or through integration tests that exercise the full adapter stack.
+| Path | Purpose |
+|------|---------|
+| `app/_actions/` | Server Actions, one file per domain |
+| `features/{domain}/services/` | Business logic callable from actions or routes |
+| `lib/database/` | Database abstraction — no feature-specific queries |
+| `components/` | Shared UI; feature components in `features/{domain}/components/` |
 
-<Callout type="tip">
-See [Testing Guide](/en/docs/development/testing) for the full testing strategy, and examine real test files in `__tests__/features/` (e.g. `news-visibility-filter.test.ts`, `referral-commission.test.ts`) for patterns that test pure business logic without database mocking.
-</Callout>
+See [Code structure](/docs/development/code-structure) for provider matrix and P4 hooks.
 
-### Component testing example
+</Audience>
 
-```typescript
-/**
- * @jest-environment jsdom
- */
+## Related documentation
 
-import { render, screen } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
-import EntityCard from '@/components/EntityCard'
-import type { Locale } from '@/i18n/shared'
-
-// Mock next/link
-jest.mock('next/link', () => {
-  return ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  )
-})
-
-const mockMessages = {
-  'entities.card.viewDetails': 'View Details',
-}
-
-describe('EntityCard', () => {
-  it('renders entity name', () => {
-    const entity = { id: '1', name: 'Test Entity', type: 'technology' }
-
-    render(
-      <NextIntlClientProvider locale="en" messages={mockMessages}>
-        <EntityCard entity={entity} />
-      </NextIntlClientProvider>
-    )
-
-    expect(screen.getByText('Test Entity')).toBeInTheDocument()
-  })
-})
-```
-
-## Performance
-
-### Database query patterns
-
-- Use `db().queryDocs()` with `filters` and `pagination` to limit results at the database level — do not fetch all documents and filter in application code.
-- Use `db().findDocById()` for single-document lookups instead of `queryDocs({ filters: [{ field: 'id', operator: '==', value: id }] })`.
-- The entity cache in `DatabaseService` provides 30-second TTL for read-after-write consistency on `entities` collection — no manual caching needed for basic cases.
-
-### React performance
-
-- Server Components by default — zero client JS for pure rendering.
-- `useActionState` (React 19) for form state management in client components — no external state library needed.
-- Dynamic imports with `next/dynamic` for heavy client components (maps, editors, charts).
-
-## Code Organization
-
-- **`app/_actions/`** — all Server Actions, one file per domain.
-- **`features/{domain}/services/`** — business logic that can be called from Server Actions or Route Handlers.
-- **`features/{domain}/lib/`** — domain-specific pure functions and utilities.
-- **`lib/database/`** — database abstraction. Do not add feature-specific database queries here.
-- **`components/`** — shared UI components only. Feature-specific components live in `features/{domain}/components/`.
-
-See [Code Structure](/en/docs/development/code-structure) for the full directory layout.
-
----
-
-*Next: [Code Structure](/en/docs/development/code-structure) — App Router layout, feature modules, and file organization.*
-*See also: [Data Validation](/en/docs/architecture/data-validation), [Testing Guide](/en/docs/development/testing), [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases)*
+<Cards>
+  <Card title="Code structure" href="/docs/development/code-structure">
+    App Router layout, provider matrix, SessionProvider SSOT path.
+  </Card>
+  <Card title="Performance" href="/docs/development/performance">
+    Caching layers, pool rules, SSOT enforcement.
+  </Card>
+  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
+    `DB_BACKEND_MODE` and adapter selection.
+  </Card>
+  <Card title="Data validation" href="/docs/architecture/data-validation">
+    Zod schemas and API boundaries.
+  </Card>
+</Cards>

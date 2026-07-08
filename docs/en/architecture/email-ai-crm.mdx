@@ -1,10 +1,15 @@
 ---
 title: Email AI-CRM architecture
-description: IMAP poll, EmailProcessor orchestration, JSONB collections, SMTP outbound, cron and webhook ingest
-last_modified: "2026-06-10"
+description: IMAP poll, EmailProcessor orchestration, jsonb-collection persistence via db(), SMTP outbound, cron and webhook ingest
+last_modified: "2026-07-07"
+audience: both
 ---
 
 # Email AI-CRM architecture
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
+</Callout>
 
 ## System diagram
 
@@ -26,7 +31,9 @@ last_modified: "2026-06-10"
         Drafts[EmailDraftService]
     end
 
-    subgraph Persist["features/email-crm JSONB"]
+    subgraph Persist["features/email-crm"]
+        JC[jsonb-collection.ts]
+        DB["db() DatabaseService"]
         T[email_threads]
         C[email_contacts]
         M[email_messages]
@@ -52,17 +59,39 @@ last_modified: "2026-06-10"
     EP --> Parser --> Sec --> AI
     AI --> CRM
     AI --> Drafts
-    EP --> T
-    EP --> C
-    EP --> M
-    EP --> D
-    EP --> TK
+    EP --> JC
+    CRM --> JC
+    Drafts --> JC
+    JC --> DB
+    DB --> T
+    DB --> C
+    DB --> M
+    DB --> D
+    DB --> TK
     AI --> U
     Drafts --> SMTP
     EP --> Notify
-    API --> Persist
+    API --> JC
     UI --> API`}
 </Mermaid>
+
+<Audience for="founder">
+
+## Module boundaries (operator view)
+
+| Stage | What happens |
+|-------|----------------|
+| **Ingest** | Cron polls IMAP for UNSEEN mail, or a signed webhook pushes parsed payloads |
+| **Process** | Security scan → AI classification → CRM contact/thread upsert → draft queue |
+| **Review** | Admins open `/admin/email-inbox` and `/admin/email-drafts` to approve or edit replies |
+| **Send** | Approved drafts go out via SMTP with proper threading headers |
+| **Track** | Tasks and API cost roll up in admin analytics |
+
+Idempotency is built in: duplicate `Message-ID` values are skipped, and overlapping poll batches are mutex-guarded.
+
+</Audience>
+
+<Audience for="developer">
 
 ## Code layout
 
@@ -75,10 +104,24 @@ last_modified: "2026-06-10"
 | `services/email/drafts/` | Draft queue + auto-send rules |
 | `services/email/ai/` | Classifiers, generator, cost tracker |
 | `services/email/notifications/` | Slack / in-app templates |
-| `features/email-crm/services/` | Thread, message, analytics, send orchestrator |
+| `features/email-crm/lib/jsonb-collection.ts` | `readDoc` / `upsertDoc` / `queryDocs` → `db()` |
 | `features/email-crm/repositories/` | JSONB `ContactRepository`, `TaskRepository`, `DraftRepository` |
+| `features/email-crm/services/` | Thread, message, API usage, send orchestrator |
 
-## Persistence model
+## Persistence — `jsonb-collection` → `db()`
+
+CRM repositories and services never call raw SQL. They import helpers from `features/email-crm/lib/jsonb-collection.ts`, which delegates to the platform database singleton:
+
+| Helper | `db()` method |
+|--------|---------------|
+| `readDoc(collection, id)` | `readDoc()` |
+| `upsertDoc(collection, id, record)` | `readDoc()` then `updateDoc()` or `createDoc()` |
+| `queryDocs({ collection, filters, orderBy, limit })` | `queryDocs()` |
+| `deleteDoc(collection, id)` | `deleteDoc()` |
+
+`db()` is exported from `lib/database/DatabaseService.ts` and resolves the active adapter from `DB_BACKEND_MODE`.
+
+## Active JSONB collections
 
 All CRM tables use the **platform JSONB row model** (`id`, `data`, `created_at`, `updated_at`):
 
@@ -117,8 +160,26 @@ Factory: `getEmailContactService()` / `getEmailTaskService()` / `getEmailDraftSe
 - Inbound: 4-layer injection pipeline before any LLM call.
 - Outbound: output validation on generated replies.
 
+</Audience>
+
+## Schema-only tables (001 — not wired)
+
+<Callout type="development" title="Deprecated column-model tables — no app access">
+`001_email_crm_schema.sql` defines **`email_analytics`**, **`email_knowledge_base`**, and **`email_security_events`**. No TypeScript module in the repo reads or writes these tables. Do not apply `001` on new deployments — use `009` + `010` JSONB migrations instead.
+</Callout>
+
+<Callout type="development" title="Backlog — persistence gaps">
+| Table (001 schema) | Current implementation |
+|--------------------|------------------------|
+| `email_knowledge_base` | `getKnowledgeBaseService()` uses `InMemoryKnowledgeRepository` — PGVector table not connected |
+| `email_security_events` | Security pipeline runs in-process; events are not persisted |
+| `email_analytics` | Daily rollup table unused; admin analytics queries `email_api_usage` JSONB at runtime |
+</Callout>
+
 ## Related
 
-- [Email AI-CRM feature guide](/docs/features/email-ai-crm)
-- [Email AI-CRM API](/docs/api/email-ai-crm)
-- [Backend modes and databases](/docs/architecture/backend-modes-and-databases)
+<Cards>
+  <Card title="Email AI-CRM feature guide" href="/docs/features/email-ai-crm" description="Operator setup, env vars, and business rules." />
+  <Card title="Email AI-CRM API" href="/docs/api/email-ai-crm" description="Admin routes, cron actions, webhook contract." />
+  <Card title="Backend modes and databases" href="/docs/architecture/backend-modes-and-databases" description="How DB_BACKEND_MODE selects the db() adapter." />
+</Cards>

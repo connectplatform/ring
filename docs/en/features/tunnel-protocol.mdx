@@ -1,7 +1,7 @@
 ---
 title: Tunnel Protocol
 description: Realtime inbox and topic channels for Ring clones — SSOT subscriptions, transports, and publishing for founders and integrators
-last_modified: "2026-06-23"
+last_modified: "2026-07-07"
 audience: both
 ---
 
@@ -13,23 +13,25 @@ audience: both
 
 Ring Platform's realtime layer pushes **per-user inbox** updates (notifications, credit balance, account status) and **topic channels** (chat, opportunities, discovery) over a single shared connection. Production k8s runs a **custom Node entrypoint** (`server.ts`) so native WSS attaches at `/api/tunnel/ws`. Vercel uses serverless routes with **SSE + long-polling only**.
 
-Pair with [Push notifications (FCM)](/en/docs/features/push-notifications-fcm) when the tab is closed — `lib/tunnel/disconnected-tunnel-context.ts` keeps the UI usable while disconnected.
+Pair with [Push notifications (FCM)](/docs/features/push-notifications-fcm) when the tab is closed — `lib/tunnel/disconnected-tunnel-context.ts` keeps the UI usable while disconnected.
 
 | Layer | Module | Role |
 |-------|--------|------|
 | Transport dedup | `lib/tunnel/channel-subscription-registry.ts` | One transport subscribe per channel; pending-promise guard |
 | App hook | `hooks/use-tunnel-channel.ts` | Stable refs; effect deps `[resolvedChannel, isConnected]` only |
 | Provider | `components/providers/tunnel-provider.tsx` | Shared connection + registry instance |
+| Connect timing | `lib/tunnel/tunnel-timing.ts` | Progressive connect; `priorityRoutes` / `deferredRoutes` via `matchesRoutePrefix()` |
 | Root listeners | `components/providers/global-tunnel-listeners.tsx` | Single mount point for global tunnel side-effects (`AccountStatusTunnelListener`, …) |
+| HTTP dedup (non-tunnel) | `hooks/use-vendor-status.ts`, `hooks/use-credit-balance.ts` | Single-flight REST guards for sidebar Strict Mode / provider remounts |
 | Locale SSOT | `lib/pathname-without-locale.ts` | `localeFromPathname` for root shell (`next/navigation`, not `@/i18n/routing`) |
-| Removal report | `lib/tunnel/SUBSCRIPTION-SSOT.md` | Deprecated hooks removed, provider order, superseding paths |
+| Campaign SSOT | `lib/tunnel/SUBSCRIPTION-SSOT.md` | Deprecated hooks removed, provider order, 2026-07-07 timing + queue parity |
 
 <Callout type="warning">
   Do **not** call `useTunnel().subscribe()` inside `useEffect` with `subscribe` in the dependency array. Use **`useTunnelChannel`** or **`useSync`** with `subscribeRef` pattern instead.
 </Callout>
 
 <Callout type="info">
-  A `TunnelPublisher: Queued for user … (no live socket yet)` debug log right after login is expected, not an error. HTTP ingest (e.g. `POST /api/analytics/device`) persists first; tunnel connect follows a short auth-grace delay in `components/providers/tunnel-provider.tsx`. The message is queued and delivered on the next connect — see `lib/tunnel/SUBSCRIPTION-SSOT.md` "Tunnel timing + duplicate fetch consolidation".
+  A `TunnelPublisher: Queued for user … (no live socket yet)` line right after login is **expected**, not an error — it logs at **`console.debug`** in `lib/tunnel/publisher.ts` (not `console.log`). HTTP ingest (e.g. `POST /api/analytics/device`) persists first; tunnel connect follows a short auth-grace delay in `components/providers/tunnel-provider.tsx`. The hub queues the message and **drains on connect** — SSE via `drainUserQueueForSse`, native WSS via `hub.drainUserQueue()` on `auth_ok` (2026-07-07 parity). See `lib/tunnel/SUBSCRIPTION-SSOT.md` § "Tunnel timing + duplicate fetch consolidation".
 </Callout>
 
 <Audience for="founder">
@@ -131,7 +133,7 @@ import { publishToUserTunnel } from '@/lib/tunnel/publisher'
 await publishToUserTunnel(userId, 'notifications:inbox', { action: 'notification', notification })
 ```
 
-`lib/discovery/sync-discovery.ts` wraps `publishToChannel` for opportunity and entity CRUD — see [Discovery mutation sync](/en/docs/architecture/discovery-mutation-sync).
+`lib/discovery/sync-discovery.ts` wraps `publishToChannel` for opportunity and entity CRUD — see [Discovery mutation sync](/docs/architecture/discovery-mutation-sync).
 
 ### Provider tree (`AppClientShell`)
 
@@ -233,7 +235,7 @@ Production chat uses **`hooks/use-messaging.ts`** (`useMessages`, `useTyping`) �
 | **Long-polling** | Ultimate fallback via `/api/tunnel/poll` |
 | **Supabase Realtime** | When `NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase` and Supabase URL/anon key are set |
 
-`TransportManager` picks the first working provider in the configured fallback chain. Tunnel realtime is **orthogonal** to `DB_BACKEND_MODE` — see [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases).
+`TransportManager` picks the first working provider in the configured fallback chain. Tunnel realtime is **orthogonal** to `DB_BACKEND_MODE` — see [Backend modes and databases](/docs/architecture/backend-modes-and-databases).
 
 ### Configuration
 
@@ -251,13 +253,67 @@ Verify:
 curl "http://localhost:3000/api/tunnel/test"
 ```
 
+### Tunnel timing and priority routes
+
+`lib/tunnel/tunnel-timing.ts` controls **when** `TunnelProvider` auto-connects. Default strategy is **progressive** (immediate on desktop, ~500ms delay on mobile). Routes in `priorityRoutes` connect after `authRoutesDelay` (~50ms); routes in `deferredRoutes` require manual connect.
+
+| `priorityRoutes` (default) | `deferredRoutes` (default) |
+|----------------------------|----------------------------|
+| `/profile`, `/wallet`, `/notifications`, `/dashboard`, **`/admin`** | `/docs`, `/about`, `/contact`, `/blog`, `/login`, `/auth/status` |
+
+**2026-07-07 fixes:**
+
+- **`/admin` in `priorityRoutes`** — admin analytics/forensics sessions get a live tunnel instead of staying on the HTTP-only boot path.
+- **`matchesRoutePrefix()`** — prefix match (`/admin` matches `/admin/analytics`). Replaced exact `.includes()` checks that missed nested admin paths.
+- **`normalizeTunnelRoute()`** — strips locale prefix (`/en/notifications` → `/notifications`) before matching.
+
+Override via env (optional): `NEXT_PUBLIC_TUNNEL_TIMING_STRATEGY`, `NEXT_PUBLIC_TUNNEL_PRIORITY_ROUTES` (comma-separated).
+
+### Boot race, offline queue, and publisher logging
+
+During login, `DeviceTelemetryProvider` may POST `/api/analytics/device` **before** the tunnel socket is live. Server `publishToUserTunnel` then sees `sse=false, ws=false` — the hub **queues** the message instead of dropping it.
+
+<Mermaid title="Offline queue drain on connect">
+{`sequenceDiagram
+    participant HTTP as DeviceTelemetry / services
+    participant Hub as InMemoryTunnelHub
+    participant WSS as /api/tunnel/ws
+    participant SSE as /api/tunnel/sse
+
+    HTTP->>Hub: publishToUser (no live socket)
+    Hub-->>Hub: enqueue offline user queue
+    Note over Hub: publisher logs console.debug (queued)
+
+    alt Native WSS (k8s)
+        WSS->>Hub: auth_ok frame
+        Hub->>WSS: drainUserQueue(userId)
+    else SSE (vercel / fallback)
+        SSE->>Hub: registerSseConnection
+        Hub->>SSE: drainUserQueueForSse(userId)
+    end`}
+</Mermaid>
+
+`lib/tunnel/native-ws/attach.ts` drains `hub.drainUserQueue(verified.userId)` immediately after sending `{ op: 'auth_ok' }` — same offline queue SSE already drained, so WSS no longer waits for a second SSE session to deliver boot-race messages.
+
+### HTTP fetch dedup (not tunnel channels)
+
+Some sidebar/provider mounts are **not** tunnel subscriptions — they coalesce duplicate REST calls across React Strict Mode remounts and layout breakpoint swaps:
+
+| Concern | Module | Endpoint | Pattern |
+|---------|--------|----------|---------|
+| Vendor sidebar gate | `hooks/use-vendor-status.ts` | `GET /api/vendor/status` | Module-scope **single-flight** + **30s TTL** keyed by `userId` |
+| Credit balance bootstrap | `hooks/use-credit-balance.ts` | `GET /api/wallet/credit/balance` | Module-scope **single-flight** + **5s TTL** keyed by `userId` for **initial bootstrap only**; `refresh()` bypasses cache; live updates via `useTunnelChannel('credit:balance')` |
+
+Documented in `lib/tunnel/SUBSCRIPTION-SSOT.md` and `hooks/HOOKS-README.md` Provider matrix.
+
 ### Channel patterns
 
 | Pattern | Example | Publisher | Consumer hook / module |
 |---------|---------|-----------|------------------------|
 | Per-user inbox | `notifications:inbox` | `notification-service` | `use-notifications.ts`, `use-realtime.ts` |
-| Per-user inbox | `credit:balance` | `creditBalanceService` | `CreditBalanceProvider` → `use-credit-balance.ts` (`userScoped: false`) |
+| Per-user inbox | `credit:balance` | `creditBalanceService` | `CreditBalanceProvider` → `use-credit-balance.ts` — bootstrap `fetchCreditBalanceBootstrap()` (5s TTL, `userId`-keyed); tunnel via `useTunnelChannel` (`userScoped: false`) |
 | Per-user inbox | `account:status` | `app/_actions/admin-account-status.ts` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` (`userScoped: false`) |
+| HTTP (not tunnel) | vendor sidebar | — | `useVendorStatus()` → `GET /api/vendor/status` (30s TTL, single-flight) |
 | Conversation | `conversation:${id}` | chat services | `use-messaging.ts` |
 | Discovery | `opportunities`, `entities` | `sync-discovery.ts` | `use-realtime-opportunities.ts`, `useSync` |
 | Matcher | `matcher` | matcher services | matcher moderation UI |
@@ -283,10 +339,20 @@ The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSC
 
 ## Related
 
-- [Realtime transport](/en/docs/architecture/real-time)
-- [Discovery mutation sync](/en/docs/architecture/discovery-mutation-sync)
-- [Notifications API](/en/docs/api/notifications)
-- [Messaging API](/en/docs/api/messaging)
+<Cards>
+  <Card title="Realtime transport" href="/docs/architecture/real-time">
+    TunnelHub broker flow, offline queue drain, and feature publish/subscribe matrix.
+  </Card>
+  <Card title="Discovery mutation sync" href="/docs/architecture/discovery-mutation-sync">
+    Topic channel publishes after opportunity and entity CRUD.
+  </Card>
+  <Card title="Notifications API" href="/docs/api/notifications">
+    Inbox REST + `notifications:inbox` tunnel channel.
+  </Card>
+  <Card title="Messaging API" href="/docs/api/messaging">
+    `conversation:${id}` channel patterns for live chat.
+  </Card>
+</Cards>
 
 <FutureFeatureBacklog title="Backlog — tunnel protocol">
 
@@ -355,9 +421,9 @@ The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSC
 />
 
 <FutureFeatureWidget
-  name="StoreProvider route-gating"
-  description="Gate StoreProvider (and store tunnel consumers) to /store routes only — today it wraps all AppClientShell children for currency/checkout context."
-  implementationCost={16}
+  name="StoreProvider full route unmount"
+  description="StoreProvider now defers GET /api/store/products until /store route or cart has items (2026-07-07). Full unmount-gating of store context outside /store remains backlog."
+  implementationCost={12}
   labels={['tunnel', 'providers', 'store']}
   voteCount={0}
 />

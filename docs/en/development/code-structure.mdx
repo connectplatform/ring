@@ -1,447 +1,205 @@
 ---
 title: Code Structure
-description: Next.js 16 App Router layout, payments, news, and services (v1.6.0)
-last_modified: "2026-06-20"
+description: Next.js 16 App Router layout, feature modules, hooks, and provider SSOT (v1.6.4)
+last_modified: "2026-07-07"
+audience: both
 ---
 
 # Code Structure
 
-Understanding Ring Platform v1.6.0 codebase architecture.
+Ring Platform v1.6.4 organizes code by **App Router route groups**, **feature domains**, and a **provider-owned hook layer** that prevents duplicate network subscriptions.
 
-## 📁 High-Level Architecture
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Shared sections below apply to both audiences; audience-specific blocks follow.
+</Callout>
+
+## Repository layout
 
 ```
-ring/
-├── app/                    # Next.js 16 App Router (route groups + app/api)
-├── components/             # Shared UI, editor, navigation, providers
-├── features/               # Domain modules (news, store, auth, …)
-├── lib/                    # locale-config, payments/conductor, database, tunnel/hub
+ring-platform.org/
+├── app/                    # Next.js 16 App Router + app/api route handlers
+├── components/             # Shared UI, navigation, providers
+├── features/               # Domain modules (auth, store, wallet, news, …)
+├── hooks/                  # Root hooks — see hooks/HOOKS-README.md
+├── lib/                    # database, payments, locale-config, tunnel
 ├── services/               # email AI CRM, blockchain oracle
 ├── locales/                # next-intl JSON bundles (en, uk, ru)
 ├── data/                   # schema.sql + migrations/
-├── docs/                   # MDX documentation (docs/{locale}/**)
-└── scripts/                # Community setup scripts (OSS)
+└── docs/                   # MDX documentation (docs/{locale}/**)
 ```
 
 **Not in public OSS tree:** `k8s/`, `cli/`, `propagation/` (gitignored).
 
-## 🏗️ App Directory Structure
-
-### App Router (Next.js 16)
-
-```
-app/
-├── (public)/[locale]/      # Marketing, news, store, blog
-├── (authenticated)/[locale]/  # Editor, entities, settings
-├── (admin)/[locale]/       # Admin panels
-├── (confidential)/[locale]/ # Tier-gated docs
-├── api/                    # 132+ route handlers (auth, store, payments, …)
-├── _actions/               # Server actions
-├── layout.tsx
-└── proxy.ts                # Slim intl proxy (root may use proxy.ts)
-```
-
-### Key v1.6.0 modules
-
 | Area | Path |
 |------|------|
 | PaymentConductor | `lib/payments/conductor/` |
-| News Kingdom | `features/news/services/`, `lib/news/` |
 | Locale SSOT | `lib/locale-config.ts`, `i18n/routing.ts` |
-| Scientific editor | `components/editor/`, `app/api/publications/` |
-| Email CRM | `services/email/` |
-| Member blogs | `app/(public)/[locale]/blog/[username]/` |
+| Database abstraction | `lib/database/` (`db()`, `getSharedPgPool()`) |
+| Auth.js v5 | `auth.ts`, `features/auth/components/session-provider.tsx` |
+| Client app shell | `components/providers/app-client-shell.tsx` |
 
-### Route Groups
-- `(auth)` - Authentication-related pages
-- `(dashboard)` - Protected user dashboard
-- `(public)` - Public marketing pages
+<Audience for="founder">
 
-## 🧩 Components Architecture
+## Why structure matters for your clone
 
-### Component Hierarchy
+A Ring clone is a **white-label fork** of this tree. Feature code stays inside `features/{domain}/` so Reggie propagation and your customizations do not collide with core platform plumbing.
 
-```
-components/
-├── ui/               # Base UI components (shadcn/ui)
-│   ├── button.tsx
-│   ├── input.tsx
-│   └── dialog.tsx
-├── features/         # Feature-specific components
-│   ├── entities/
-│   ├── opportunities/
-│   └── wallet/
-├── layout/          # Layout components
-│   ├── navbar.tsx
-│   ├── sidebar.tsx
-│   └── footer.tsx
-└── shared/          # Shared business components
-    ├── user-avatar.tsx
-    └── loading-spinner.tsx
-```
+<Cards>
+  <Card title="Best practices" href="/docs/development/best-practices">
+    Database, auth, and SSOT guardrails for clone operators hiring integrators.
+  </Card>
+  <Card title="Performance patterns" href="/docs/features/performance">
+    What keeps pages fast without extra infrastructure.
+  </Card>
+  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
+    PostgreSQL-primary vs Firebase-backed deployments.
+  </Card>
+</Cards>
 
-### Component Patterns
+**Typical clone scenarios:**
 
-#### 1. Base UI Components
-// components/ui/button.tsx
+- **Commerce ring** — extend `features/store/`, keep `StoreProvider` in the app shell.
+- **Community ring** — entities + opportunities under `features/`, tunnel providers unchanged.
+- **News/media ring** — `features/news/` services; do not duplicate global notification providers.
 
-<Code language="typescript" title="TypeScript">
-{`import { cn } from '@/lib/utils'
+</Audience>
 
-interface ButtonProps {
-  variant?: 'default' | 'destructive' | 'outline'
-  size?: 'default' | 'sm' | 'lg'
-  children: React.ReactNode
-}
+<Audience for="developer">
 
-export function Button({ variant = 'default', size = 'default', children, ...props }: ButtonProps) {
-  return (
-    <button
-      className={cn(
-        'inline-flex items-center justify-center rounded-md font-medium',
-        variants[variant],
-        sizes[size]
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  )
-}`}
-</Code>
-
-#### 2. Feature Components
-// components/features/entities/entity-card.tsx
-
-<Code language="typescript" title="TypeScript">
-{`import { Entity } from '@/types/entities'
-import { Button } from '@/components/ui/button'
-
-interface EntityCardProps {
-  entity: Entity
-  onEdit?: (entity: Entity) => void
-}
-
-export function EntityCard({ entity, onEdit }: EntityCardProps) {
-  return (
-    <div className="border rounded-lg p-4">
-      <h3 className="font-semibold">{entity.name}</h3>
-      <p className="text-gray-600">{entity.description}</p>
-      {onEdit && (
-        <Button onClick={() => onEdit(entity)}>
-          Edit
-        </Button>
-      )}
-    </div>
-  )
-}`}
-</Code>
-
-## 🎯 Features Architecture
-
-### Feature-Based Organization
+## App Router
 
 ```
-features/
-├── entities/         # Entity management feature
-│   ├── components/   # Feature-specific components
-│   ├── hooks/       # Custom hooks
-│   ├── types/       # TypeScript types
-│   ├── utils/       # Feature utilities
-│   └── index.ts     # Public API
-├── opportunities/   # Opportunities feature
-├── wallet/         # Web3 wallet feature
-└── messaging/      # Real-time messaging
+app/
+├── (public)/[locale]/         # Marketing, store, blog
+├── (authenticated)/[locale]/    # Editor, entities, settings
+├── (admin)/[locale]/            # Admin panels
+├── (confidential)/[locale]/     # Tier-gated docs
+├── api/                         # Route handlers (auth, store, payments, …)
+├── _actions/                    # Server Actions
+└── layout.tsx
 ```
 
-### Feature Module Pattern
+Route groups isolate layouts and auth boundaries. Server Actions live in `app/_actions/` (not `@actions/`).
 
-// features/entities/index.ts - Public API
+## Features module pattern
 
-<Code language="typescript" title="TypeScript">
-{`export { EntityCard } from './components/entity-card'
-export { useEntities } from './hooks/use-entities'
-export type { Entity, EntityType } from './types'
-export { createEntity, updateEntity } from './utils/entity-operations'`}
-</Code>
+```
+features/{domain}/
+├── components/
+├── hooks/          # optional — domain-scoped only
+├── services/
+├── lib/
+└── index.ts        # public API
+```
 
-### Custom Hooks Pattern
-
-// features/entities/hooks/use-entities.ts
-
-<Code language="typescript" title="TypeScript">
-{`import { useQuery } from '@tanstack/react-query'
-import { getEntities } from '../utils/entity-operations'
-
-export function useEntities(userId?: string) {
-  return useQuery({
-    queryKey: ['entities', userId],
-    queryFn: () => getEntities(userId),
-    enabled: !!userId
-  })
-}`}
-</Code>
+Cross-feature imports should go through each feature's `index.ts` export surface, not deep paths.
 
 ## Hooks and providers
 
-Root hooks live in `hooks/` (see `hooks/HOOKS-README.md`). **Provider-owned subscriptions** prevent duplicate tunnel connections and API polls.
+Root hooks live in `hooks/`. **Provider-owned subscriptions** prevent duplicate tunnel connections and API polls. Full reference: `hooks/HOOKS-README.md` (Provider matrix + **P4 — duplicate-fetch consolidation**, 2026-07-07).
 
 <Callout type="warning" title="SSOT rule">
 If a hook opens a tunnel channel or polls an API globally (unread count, credit balance, FCM token), mount it **once** in a provider. UI components consume context — they do not call the raw hook.
 </Callout>
 
-<Mermaid title="Provider layers in app shell">
+<Mermaid title="Provider layers in app-client-shell.tsx">
 {`flowchart TB
   subgraph shell["app-client-shell.tsx"]
-    Session["SessionProvider"]
+    Session["SessionProvider\nfeatures/auth/components/session-provider.tsx"]
+    WebVitals["WebVitalsProvider\nbatched useReportWebVitals"]
     Credit["CreditBalanceProvider"]
-    FCM["FCMProvider\nuse-fcm.ts"]
-    Tunnel["TunnelProvider\nuse-tunnel.ts"]
-    Web3["Web3Provider"]
+    FCM["FCMProvider"]
+    Tunnel["TunnelProvider"]
+    Web3["Web3ScopeProvider"]
+    Store["StoreProvider"]
   end
 
-  subgraph locale["locale-app-chrome.tsx"]
-    I18n["I18nProvider"]
+  subgraph wallet["WalletWrapper (wallet routes)"]
     Notif["NotificationProvider\nuseUnreadCount"]
+    Hist["CreditHistoryProvider"]
   end
 
-  Session --> Tunnel
-  Tunnel --> Notif
-  Credit --> Web3`}
+  Session --> WebVitals
+  Session --> Credit
+  Credit --> Tunnel
+  Tunnel --> Notif`}
 </Mermaid>
 
+### Provider matrix (verified)
+
+| Hook / concern | Owner | Context / accessor | Notes |
+|----------------|-------|-------------------|-------|
+| `use-auth.ts` | `SessionProvider` | `useAuth()` | SSOT: `features/auth/components/session-provider.tsx` — **not** `components/providers/session-provider.tsx` (deleted) |
+| `use-fcm.ts` | `FCMProvider` | internal / `useFCM()` in provider only | Token upsert via `app/_actions/fcm.ts` |
+| `use-tunnel.ts` | `TunnelProvider` | `useTunnel()` | Shared WSS/SSE connection |
+| `use-unread-count.ts` | `NotificationProvider` | `useNotificationContext()` | Nav badges must use context |
+| `use-credit-balance.ts` | `CreditBalanceProvider` | `useCreditBalanceContext()` | Module-scope bootstrap single-flight (5s TTL, keyed by `userId`) |
+| `use-credit-history.ts` | `CreditHistoryProvider` | `useCreditHistoryContext()` | Wallet routes only |
+| `use-vendor-status.ts` | *(no provider)* | `useVendorStatus()` | Single-flight + 30s TTL; SSOT for `GET /api/vendor/status` |
+| Web Vitals | `WebVitalsProvider` | — | Buffers metrics → one debounced `POST /api/analytics/web-vitals` |
+
+### SessionProvider tuning
+
+```typescript
+// features/auth/components/session-provider.tsx
+<NextAuthSessionProvider
+  session={session}
+  refetchInterval={15 * 60}
+  refetchOnWindowFocus={false}
+  refetchWhenOffline={false}
+>
+```
+
+One 15-minute background poll; no refetch on focus/reconnect — cuts redundant `GET /api/auth/session` across every `useSession()` consumer.
+
+### P4 duplicate-fetch fixes (2026-07-07)
+
+Documented in `hooks/HOOKS-README.md` § P4:
+
+- **Vendor status** — `hooks/use-vendor-status.ts` replaces inline `fetch('/api/vendor/status')` in sidebar layouts.
+- **Credit balance bootstrap** — module-scope cache in `hooks/use-credit-balance.ts` survives Strict Mode remounts.
+- **Web Vitals** — `components/providers/web-vitals-provider.tsx` batches `useReportWebVitals` (1.5s debounce).
+- **Store catalog** — `features/store/config.ts` → `getCachedProductCatalog()` (`'use cache'` + `cacheTag('store:products')`).
+- **SessionProvider** — merged tuned settings; deleted duplicates `components/providers/session-provider.tsx` and `auth-provider.tsx`.
+
+Enforce locally:
+
+```bash
+./scripts/validate-provider-ssot.sh
+```
+
+## Lib directory essentials
+
+| Module | Path | Role |
+|--------|------|------|
+| Database | `lib/database/` | `db()`, `getSharedPgPool()`, adapters |
+| Auth config | `auth.ts` | Auth.js v5 handlers + `auth()` |
+| Payments | `lib/payments/conductor/` | PaymentConductor |
+| Locale | `lib/locale-config.ts` | SSOT for `en` / `uk` / `ru` |
+
+<Callout type="warning">
+Use `db()` from `@/lib/database` for all domain persistence. `getSharedPgPool()` is the sanctioned escape hatch for **PostGIS raw SQL only** — never `new Pool(` outside `lib/database/`.
+</Callout>
+
+## Server Actions
+
+All Server Actions use file-level `'use server'` in `app/_actions/`. Derive `userId` from `await auth()` — never from client parameters. See [Best practices](/docs/development/best-practices) for the canonical pattern.
+
+</Audience>
+
+## Related documentation
+
 <Cards>
-  <Card title="Hooks & providers (this page)" href="/docs/development/code-structure#hooks-and-providers">
-    Provider matrix above; full backlog in repo `hooks/HOOKS-README.md`.
+  <Card title="Best practices" href="/docs/development/best-practices">
+    `db()` rules, SSOT script gates, single-flight client caches.
+  </Card>
+  <Card title="Hooks README" href="/docs/development/code-structure#hooks-and-providers">
+    In-repo SSOT: `hooks/HOOKS-README.md`.
   </Card>
   <Card title="Realtime architecture" href="/docs/architecture/real-time">
-    TunnelHub, WSS routes, and notification channel naming.
+    TunnelHub, WSS routes, notification channel naming.
   </Card>
   <Card title="Push notifications" href="/docs/features/push-notifications-fcm">
-    `useFCM`, Server Action registration, and `useAuth().signOut()` cleanup.
+    `useFCM`, Server Action registration, sign-out cleanup.
   </Card>
 </Cards>
-
-| Hook | Provider | Context accessor |
-|------|----------|------------------|
-| `use-auth.ts` | `SessionProvider` | `useAuth()` |
-| `use-fcm.ts` | `FCMProvider` | internal / `useFCM()` in provider only |
-| `use-tunnel.ts` | `TunnelProvider` | `useTunnel()` inside provider tree |
-| `use-unread-count.ts` | `NotificationProvider` | `useNotificationContext()` |
-| `use-credit-balance.ts` | `CreditBalanceProvider` | `useCreditBalanceContext()` |
-
-## 🔧 Lib Directory
-
-### Shared Utilities
-
-```
-lib/
-├── auth.ts          # Auth.js configuration
-├── firebase.ts      # Firebase setup
-├── db.ts           # Database utilities
-├── utils.ts        # General utilities
-├── validations.ts  # Zod schemas
-├── constants.ts    # App constants
-└── types.ts        # Global types
-```
-
-### Key Utilities
-
-#### Authentication Configuration
-// lib/auth.ts
-
-<Code language="typescript" title="TypeScript">
-{`import NextAuth from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
-  // ... configuration
-})`}
-</Code>
-
-#### Database Utilities
-// lib/db.ts
-
-<Code language="typescript" title="TypeScript">
-{`import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
-
-const app = initializeApp(firebaseConfig)
-export const db = getFirestore(app)`}
-</Code>
-
-## ⚡ Server Actions
-
-### Server Actions Structure
-
-```
-@actions/
-├── entities/
-│   ├── create-entity.ts
-│   ├── update-entity.ts
-│   └── delete-entity.ts
-├── opportunities/
-└── auth/
-```
-
-### Server Action Pattern
-
-<Code language="typescript" title="TypeScript">
-{`// @actions/entities/create-entity.ts
-'use server'
-
-import { auth } from '@/lib/auth'
-import { createEntitySchema } from '@/lib/validations'
-import { redirect } from 'next/navigation'
-
-export async function createEntity(formData: FormData) {
-  const session = await auth()
-  if (!session?.user) {
-    redirect('/login')
-  }
-
-  const validatedFields = createEntitySchema.safeParse({
-    name: formData.get('name'),
-    type: formData.get('type'),
-    description: formData.get('description'),
-  })
-
-  if (!validatedFields.success) {
-    return { error: 'Invalid fields' }
-  }
-
-  // Create entity logic...
-  
-  redirect('/dashboard/entities')
-}`}
-</Code>
-
-## 📝 TypeScript Patterns
-
-### Type Organization
-
-// types/entities.ts
-
-<Code language="typescript" title="TypeScript">
-{`export interface Entity {
-  id: string
-  name: string
-  type: EntityType
-  description: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-export type EntityType = 
-  | 'technology'
-  | 'healthcare'
-  | 'finance'
-  // ... other types
-
-export interface CreateEntityRequest {
-  name: string
-  type: EntityType
-  description: string
-}`}
-</Code>
-
-### API Response Types
-
-// types/api.ts
-
-<Code language="typescript" title="TypeScript">
-{`export interface ApiResponse<T = any> {
-  data?: T
-  error?: string
-  message?: string
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-  }
-}`}
-</Code>
-
-## 🎨 Styling Architecture
-
-### Tailwind CSS Organization
-
-```
-app/globals.css
-├── @tailwind base;
-├── @tailwind components;
-├── @tailwind utilities;
-└── /* Custom component styles */
-```
-
-### Component Styling Patterns
-
-// Using cn utility for conditional classes
-
-<Code language="typescript" title="TypeScript">
-{`import { cn } from '@/lib/utils'
-
-function Component({ variant, className }: Props) {
-  return (
-    <div
-      className={cn(
-        'base-styles',
-        {
-          'variant-styles': variant === 'special',
-        },
-        className
-      )}
-    >
-      Content
-    </div>
-  )
-}`}
-</Code>
-
-## 📚 Best Practices
-
-### 1. Import Organization
-// External imports first
-
-<Code language="typescript" title="TypeScript">
-{`import React from 'react'
-import { NextPage } from 'next'
-
-// Internal imports
-import { Button } from '@/components/ui/button'
-import { useEntities } from '@/features/entities'
-import { cn } from '@/lib/utils'
-
-// Type imports last
-import type { Entity } from '@/types/entities'`}
-</Code>
-
-### 2. Component File Structure
-// 1. Imports
-
-<Code language="typescript" title="TypeScript">
-{`// 2. Types/Interfaces
-// 3. Component implementation
-// 4. Default export
-// 5. Named exports (if any)`}
-</Code>
-
-### 3. Feature Boundaries
-- Keep feature code within feature directories
-- Use public APIs for cross-feature communication
-- Avoid deep imports from other features
-
----
-
-*Next: [Development Workflow](/en/docs/development/workflow) - Learn about our Git workflow and development process.*

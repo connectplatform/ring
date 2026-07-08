@@ -1,14 +1,14 @@
 ---
 title: Wallet & Credit System
 description: Custodial native-token wallets, fiat credit ledger, gasless Solana transfers, Coindesk token conversion, and PIN-wrapped encryption on Ring Platform
-last_modified: "2026-07-03"
+last_modified: "2026-07-07"
 audience: both
 ---
 
 # Wallet & Credit System
 
 <Callout type="info">
-  Filter with **Founder** / **Developer** in the docs sidebar. This page reflects the verified v1.6.4 codebase after the 2026-07-03 SSOT refactor (PIN-wrapped encryption, atomic single-write provisioning, wallet_access_tokens token store, SSOT chain-identity consolidation).
+  Filter with **Founder** / **Developer** in the docs sidebar. This page reflects the verified v1.6.4 codebase: PIN-wrapped encryption, atomic single-write provisioning, `wallet_access_tokens`, and oracle/platform settings persisted via `db()` (no private `pg.Pool`).
 </Callout>
 
 Ring Platform's wallet system provides two complementary layers:
@@ -163,7 +163,7 @@ const [state, formAction, isPending] = useActionState(
 | Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser(userId, toAddress, amount)` — treasury sponsors gas |
 | Treasury ops | `features/wallet/chains/solana/treasury-transfer-service.ts` | `transferNativeTokenFromTreasury`, `transferNativeTokenToTreasury`, `burnRingFromUser` |
 | Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` — credit↔token conversion |
-| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate` — reads from `platform_settings` table |
+| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate` — `platform_settings` doc `web3` via `db().readDoc` / `updateDoc` |
 | Wallet DB | `lib/wallet/user-wallet-db.ts` | `getNativeWallet`, `getUserWallets`, `setUserWallets`, `migrateUserWalletsToPin` |
 | Wallet provisioning | `features/wallet/services/ensure-wallet.ts` | `ensureWallet`, `ensureWallets` (multi-chain with encryption, atomic single-write) |
 | Balance fetch | `features/wallet/services/list-wallets.ts` | `listWallets` — gets on-chain balances via viem/Solana RPC |
@@ -300,7 +300,7 @@ Coindesk widget converts at the oracle rate:
 100 user-credit-points (USD) → X native tokens at Y USD per 1 native token
 ```
 
-Rate stored in `platform_settings.web3.oracle.ringPerUsd`. Managed via superadmin action `setRingPerUsdRate`.
+Rate stored in `platform_settings` collection, document id `web3`, field path `oracle.ringPerUsd`. `ring-token-oracle.ts` uses `db()` from `@/lib/database` — same persistence layer as `platform-settings-service.ts`. When `PLATFORM_SETTINGS_DISABLE_DB=true`, reads use `RING_ORACLE_DEFAULT_RATE` (fallback `100`) and writes throw. Superadmin updates via `setRingPerUsdRate` action or `POST /api/admin/web3/settings`.
 
 ### Environment variables
 
@@ -311,9 +311,11 @@ Rate stored in `platform_settings.web3.oracle.ringPerUsd`. Managed via superadmi
 | `SOLANA_TREASURY_PRIVATE_KEY` | Yes | `treasury-transfer-service.ts` — sponsored gas transfers |
 | `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default: 900) | `pin-access-token-db.ts` — single-use token TTL |
 | `POLYGON_RPC_URL` | For EVM chains | `get-wallet-balance.ts` — EVM balance fallback path |
-| `ORACLE_QUOTE_SECRET` | For desk | `ring-token-oracle.ts` — desk quote HMAC signing |
+| `ORACLE_QUOTE_SECRET` | For desk | `ring-token-oracle.ts` — desk quote HMAC signing (falls back to `WALLET_ENCRYPTION_KEY`) |
+| `RING_ORACLE_DEFAULT_RATE` | No (default `100`) | Oracle read fallback when DB row missing or `PLATFORM_SETTINGS_DISABLE_DB=true` |
+| `PLATFORM_SETTINGS_DISABLE_DB` | No | When `true`, oracle/settings reads use env defaults; writes blocked |
 
-Env vars documented here must be added manually to `.env.local` — they are not pre-configured in `env.local.template`. See also `lib/wallet/encrypt-wallet-secret.ts` for the v2 envelope format cryptographic spec.
+See `lib/wallet/encrypt-wallet-secret.ts` for the v2 envelope format cryptographic spec.
 
 ### Atomic provisioning (race fix)
 
