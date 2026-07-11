@@ -6,6 +6,7 @@ import { db } from '@/lib/database'
 import type { WalletChain } from '@/features/wallet/types'
 import { selectDefaultWallet } from '@/features/wallet/services/utils'
 import { DEFAULT_WALLET_CHAIN } from '@/features/wallet/types/wallet'
+import { toIsoDate } from '@/lib/serialization/to-iso-date'
 import {
   encryptWalletSecret,
   isLegacyV1Format,
@@ -16,12 +17,33 @@ type UserWalletRow = {
   wallets?: Wallet[]
 }
 
+/** JSONB rows store createdAt as ISO strings — normalize at read boundary (SSOT). */
+export function normalizeWalletFromDb(wallet: Wallet): Wallet {
+  return {
+    ...wallet,
+    createdAt:
+      wallet.createdAt instanceof Date
+        ? wallet.createdAt
+        : new Date(toIsoDate(wallet.createdAt)),
+    balanceUpdatedAt:
+      typeof wallet.balanceUpdatedAt === 'number'
+        ? wallet.balanceUpdatedAt
+        : wallet.balanceUpdatedAt != null && wallet.balanceUpdatedAt !== ''
+          ? Number(wallet.balanceUpdatedAt)
+          : undefined,
+  }
+}
+
+export function normalizeWalletsFromDb(wallets: Wallet[]): Wallet[] {
+  return wallets.map(normalizeWalletFromDb)
+}
+
 export async function getUserWallets(userId: string): Promise<Wallet[]> {
   const result = await db().findDocById<UserWalletRow>('users', userId)
   if (!result.success || !result.data?.wallets) {
     return []
   }
-  return result.data.wallets
+  return normalizeWalletsFromDb(result.data.wallets)
 }
 
 export const getUserWalletsCached = cache(getUserWallets)

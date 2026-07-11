@@ -48,16 +48,15 @@ export default async function Web3AdminPage({
   if (!isSuperadmin(session.user.role)) redirect(ROUTES.UNAUTHORIZED(locale))
 
   const t = await getTranslations('modules.admin')
+  const tWeb3 = await getTranslations('modules.admin.web3')
   const adminLabels = buildModulesAdminLabels(t)
 
   return (
     <AdminWrapper locale={locale} pageContext="web3" labels={adminLabels}>
       <div className="p-4 sm:p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Web3 — Native Token Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Token supply, mint, burn, and fee payer gas management.
-          </p>
+          <h1 className="text-2xl font-bold">{tWeb3('title')}</h1>
+          <p className="text-muted-foreground mt-1">{tWeb3('subtitle')}</p>
         </div>
         <Web3TokenDashboard />
       </div>

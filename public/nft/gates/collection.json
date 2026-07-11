@@ -1,0 +1,30 @@
+{
+  "name": "Ringdom Keys Collection",
+  "symbol": "KEYS",
+  "description": "Metaplex Core gate NFTs for Ring membership and vendor access.",
+  "image": "https://ring-platform.org/favicon.ico",
+  "external_url": "https://ring-platform.org/nft/keys",
+  "attributes": [
+    {
+      "trait_type": "Platform",
+      "value": "Ring"
+    },
+    {
+      "trait_type": "Access Model",
+      "value": "NFT Gate"
+    },
+    {
+      "trait_type": "Family",
+      "value": "KEYS"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "files": [
+      {
+        "uri": "https://ring-platform.org/favicon.ico",
+        "type": "image/x-icon"
+      }
+    ]
+  }
+}

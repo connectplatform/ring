@@ -23,12 +23,15 @@ interface FloatingButtonsProps {
   locale: Locale
   currentSort?: string
   onSortChange?: (sortBy: string) => void
+  /** When false, hide sort FAB (product details page). Default true. */
+  showSort?: boolean
 }
 
 export default function FloatingButtons({ 
   locale,
   currentSort = 'name-asc',
-  onSortChange 
+  onSortChange,
+  showSort = true,
 }: FloatingButtonsProps) {
   const store = useOptionalStore()
   const totalItems = store?.totalItems || 0
@@ -73,7 +76,9 @@ export default function FloatingButtons({
           </>
         )}
 
-        <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+        {showSort ? (
+          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+        ) : null}
       </div>
 
       {/* IPAD (768px - 1023px): All three buttons grouped */}
@@ -113,13 +118,17 @@ export default function FloatingButtons({
           </>
         )}
 
-        <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+        {showSort ? (
+          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+        ) : null}
       </div>
 
       {/* DESKTOP (>= 1024px): Sort at bottom-right of feed */}
-      <div className="hidden lg:block fixed bottom-6 right-[352px] z-40">
-        <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
-      </div>
+      {showSort ? (
+        <div className="hidden lg:block fixed bottom-6 right-[352px] z-40">
+          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+        </div>
+      ) : null}
 
       {/* DESKTOP (>= 1024px): Cart + Checkout at bottom-24 right-6 (when cart has items) */}
       {totalItems > 0 && (
@@ -159,4 +168,5 @@ export default function FloatingButtons({
     </>
   )
 }
+
 

@@ -50,8 +50,15 @@ export function ruleForTrigger(
   trigger: RewardCreditAddEventTrigger
 ): RewardCreditAddEventRule | undefined {
   // Obtain latest system config snapshot
-  const config = getSystemConfigSnapshot()
-  const eventRules = config.credits?.rewards?.events ?? {}
+  const config = getSystemConfigSnapshot() as {
+    credits?: { rewards?: { events?: Record<string, unknown> } }
+    credit?: { creditAddEvents?: Record<string, unknown> }
+  }
+  // SSOT paths (both accepted during rename): credits.rewards.events | credit.creditAddEvents
+  const eventRules =
+    config.credits?.rewards?.events ??
+    config.credit?.creditAddEvents ??
+    {}
 
   // Direct key lookup: `eventRules` is a map { [triggerKey]: RuleConfig }
   if (trigger in eventRules) {
@@ -95,6 +102,11 @@ export async function enqueueRewardCreditAddEvent(params: {
   // Load the rule definition for the trigger (validate struct)
   const ruleConfig = ruleForTrigger(params.trigger) as z.infer<typeof RewardCreditAddEventRuleSchema>
   if (!ruleConfig) {
+    return { status: 'skipped' }
+  }
+
+  // Gating: disabled rules never award
+  if (ruleConfig.enabled === false) {
     return { status: 'skipped' }
   }
 
@@ -162,6 +174,23 @@ export async function enqueueRewardCreditAddEvent(params: {
       description: `Reward credit add event completed: ${params.trigger}`,
       completed_at: new Date().toISOString(),
     })
+
+    try {
+      const { appendEvent } = await import('@/lib/events/event-log.server')
+      await appendEvent({
+        type: 'reward_credit_add',
+        userId: params.userId,
+        reversible: false,
+        payload: {
+          trigger: params.trigger,
+          amount,
+          rewardCreditAddEventId: id,
+          transactionId: result.transaction.id,
+        },
+      })
+    } catch {
+      // non-blocking audit
+    }
 
     return { status: 'completed', jobId: id, amount }
   } catch (error) {

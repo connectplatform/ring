@@ -22,7 +22,7 @@ import { cache } from 'react';
 import { db } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
-import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role';
+import { isPlatformAdmin, resolvePersistedUserRole } from '@/features/auth/user-role';
 import { DEFAULT_LOCALE } from '@/lib/locale-config';
 import { getDefaultTheme } from '@/lib/ring-config-core';
 
@@ -51,7 +51,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     emailVerified: userData?.emailVerified ? convertTimestamp(userData.emailVerified) : null,
     name: userData?.name,
     username: userData?.username,
-    role: userData?.role || UserRolesArray.subscriber,
+    role: resolvePersistedUserRole(userData?.role),
     photoURL: userData?.photoURL || userData?.image,
     authProvider: userData?.authProvider || 'credentials',
     authProviderId: userData?.authProviderId || userData?.id,
@@ -221,7 +221,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     console.log(`Services: getUserById - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
     // Step 2: Ensure either admin or fetching own profile (authorization check)
-    if (requestingUserId !== userId && !isPlatformAdmin(assertKnownUserRole(requestingUserRole))) {
+    if (requestingUserId !== userId && !isPlatformAdmin(resolvePersistedUserRole(requestingUserRole))) {
       // Not allowed to access this profile
       console.log(`Services: getUserById - Unauthorized access attempt to user ${userId} by user ${requestingUserId}`);
       return null; // Privacy: never leak not-found vs unauthorized
@@ -287,7 +287,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       // - Others: strip sensitive data
       
       const isOwnProfile = requestingUserId === userId;
-      if (isPlatformAdmin(assertKnownUserRole(requestingUserRole)) || isOwnProfile) {
+      if (isOwnProfile || isPlatformAdmin(resolvePersistedUserRole(requestingUserRole))) {
         // Full profile to owner or admins
         console.log(`Services: getUserById - ${isOwnProfile ? 'User accessing own profile' : 'Admin user'} retrieved full enhanced profile for ID: ${userId}`);
         return enhancedUserProfile;
@@ -321,3 +321,6 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     return null;
   }
 }
+
+/** Request-scoped dedupe — use from RSC pages that may render twice in dev Strict Mode. */
+export const getUserByIdCached = cache(getUserById)

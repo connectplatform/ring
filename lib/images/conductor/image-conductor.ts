@@ -61,7 +61,7 @@ async function persistGeneratedImage(
   })
 
   if (!upload.success || !upload.url) {
-    throw new Error(upload.error || 'Failed to upload generated image to ring-filebase')
+    throw new Error(upload.error || 'Failed to upload generated image via file() storage')
   }
 
   const recordId = randomUUID()

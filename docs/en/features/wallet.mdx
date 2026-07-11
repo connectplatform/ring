@@ -1,7 +1,7 @@
 ---
 title: Wallet & Credit System
-description: Custodial native-token wallets, fiat credit ledger, gasless Solana transfers, Coindesk token conversion, and PIN-wrapped encryption on Ring Platform
-last_modified: "2026-07-07"
+description: Custodial native-token wallets, fiat credit ledger, gasless Solana transfers, Token Desk credit↔token conversion, and PIN-wrapped encryption on Ring Platform
+last_modified: "2026-07-11"
 audience: both
 ---
 
@@ -14,9 +14,25 @@ audience: both
 Ring Platform's wallet system provides two complementary layers:
 
 1. **Custodial native-token wallets** — auto-provisioned for signed-in members on all enabled chains (Solana first, EVM/Base enabled per clone config). Private keys encrypted with `WALLET_ENCRYPTION_KEY` using AES-256-GCM + scrypt. PIN-wrapped v2 encryption for withdrawal operations.
-2. **In-app credit ledger** — fiat USD credits stored in `credit_balance` field on user documents. Used for store purchases, subscriptions, and conversions to native tokens via the Coindesk widget.
+2. **In-app credit ledger** — fiat USD credits stored in `credit_balance` field on user documents. Used for store purchases, subscriptions, and conversions to native tokens via the Token Desk widget.
 
 Browser routes: `/wallet` (dashboard), `/wallet/topup`, `/wallet/send`, `/wallet/staking`.
+
+## Money layers (SSOT)
+
+Four separate money paths — do not conflate them:
+
+| # | Path | Entry | Result |
+|---|------|-------|--------|
+| 1 | Card top-up (`wallet_topup`) | `/wallet/topup` / `CreditAddFsModal` → PaymentConductor | **Credit points** (fiat ledger) — never on-chain RING |
+| 2 | Token Desk (buy) | `/wallet` Desk widget → `desk-service.ts` (subscriber+) | Credit points → **native RING** (`nativeOut = points / ringPerUsd`) |
+| 3 | Store `native_token` rail | `POST /api/store/payments/token` | Spend **native RING** at checkout (separate from top-up) |
+| 4 | Chain-proof credit add | `POST /api/wallet/credit/topup` (tx-hash verify) | Credit add after on-chain transfer proof |
+| 5 | BuyNativeViaCard (`native_token_onramp`) | Confidential tabs when `CONFIDENTIAL_TOKEN_ONRAMP=true` | Card/PayPal → **treasury RING** (not credit) |
+
+<Callout type="tip">
+  Any signed-in user can buy **credit points** with a card (path 1). Converting points → RING is Token Desk (path 2), available to **subscriber+**. Optional `CONFIDENTIAL_TOKEN_ONRAMP=true` enables **BuyNativeViaCard** (`native_token_onramp`) for confidential / admin / superadmin — card or PayPal tabs that settle native RING from treasury (not credit points).
+</Callout>
 
 <Audience for="founder">
 
@@ -27,7 +43,7 @@ Browser routes: `/wallet` (dashboard), `/wallet/topup`, `/wallet/send`, `/wallet
     Balance hero showing credit balance + native-token balances per chain. Desk widget for converting credits ↔ native tokens.
   </Card>
   <Card title="Top-up — /wallet/topup" href="/docs/features/wallet">
-    Add credits via native-token transfer or WayForPay card payment (processing backend TBD).
+    Add credits via native-token transfer (tx-hash verify) or live WayForPay card / Apple Pay / Google Pay (`wallet_topup` via PaymentConductor).
   </Card>
   <Card title="Send tokens — /wallet/send" href="/docs/features/wallet">
     Gasless transfers to contacts — treasury sponsors transaction fees. Pick recipient from contacts or enter address.
@@ -39,7 +55,7 @@ Browser routes: `/wallet` (dashboard), `/wallet/topup`, `/wallet/send`, `/wallet
 
 ### Core concepts for clone operators
 
-**Credit balance is always fiat USD.** Members earn or top up credits. These credits can be converted to your clone's native token through the Coindesk widget on `/wallet`. The conversion rate is set via the oracle (`platform_settings.web3.oracle.ringPerUsd`) and managed by superadmins.
+**Credit balance is fiat points** denominated in store `defaultCurrency` (USD on ring-platform.org). Accounting multiplier is `credit.unitToDefaultCurrency` in `ring-config.json` (usually `1` = 1:1). Members earn or top up credits; convert to native token only through the Token Desk (separate **oracle** rate in `platform_settings.web3.oracle.ringPerUsd`).
 
 **Native token transfers are gasless.** The clone treasury sponsors Solana transaction fees so members never need SOL for gas. An optional transfer tax can be configured per clone for high-frequency send projects.
 
@@ -52,11 +68,12 @@ Browser routes: `/wallet` (dashboard), `/wallet/topup`, `/wallet/send`, `/wallet
 - **First login** — wallet auto-provisioned; credit balance initialized at 0.
 - **Check balance** — wallet page shows credit balance + native-token balance per chain.
 - **Send tokens to a contact** — pick recipient from contacts, enter amount, confirm. Gas sponsored by treasury.
-- **Top up credits** — add credits via native-token transfer (enter tx hash for on-chain verification).
+- **Top up credits** — native-token transfer (tx hash verify) **or** WayForPay card redirect via `initiateCreditTopupPayment` (amount 25–2000; webhook credits balance).
 - **Set a wallet PIN** — profile/security page; 4-digit PIN activates v2 PIN-wrapped encryption for all existing wallets.
 - **Authorize a withdrawal** — enter PIN; server validates against the stored encryption envelope; single-use access token issued.
 - **Convert credits to tokens** — use the Desk widget: choose buy/sell direction, get a quote, execute at oracle rate.
-- **Pay in store** — credit balance debited at checkout.
+- **Pay in store** — checkout rail `internal_credit` debits the fiat ledger (same `unitToDefaultCurrency` rate as ad-hoc spend).
+- **Pay with credits (ad-hoc)** — `spendCredits` / `POST /api/wallet/credit/spend` for non-checkout debits (services, membership fee paths).
 
 <Callout type="warning">
   **Custodial model:** Ring signs transfers server-side for auto-provisioned wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use custodial transfer routes. Credits and native-token balances are separate concepts.
@@ -85,7 +102,7 @@ Browser routes: `/wallet` (dashboard), `/wallet/topup`, `/wallet/send`, `/wallet
 
 ## Architecture
 
-The wallet system uses **server actions** (`app/_actions/wallet.ts` — 23 actions) as the primary integration layer. These actions call SSOT service files in `features/wallet/` and `lib/wallet/`.
+The wallet system uses **server actions** (`app/_actions/wallet.ts`) as the primary integration layer. These actions call SSOT service files in `features/wallet/` and `lib/wallet/`.
 
 ### Server actions inventory
 
@@ -98,7 +115,7 @@ The wallet system uses **server actions** (`app/_actions/wallet.ts` — 23 actio
 | 5 | `getCreditHistory` | Credit | Paginated credit transaction history |
 | 6 | `getCreditBalance` | Credit | Current credit balance (always fiat USD) |
 | 7 | `topUpCredits` | Credit | Add credits after on-chain verification |
-| 8 | `spendCredits` | Credit | Spend credits for purchases/services |
+| 8 | `spendCredits` | Credit | Ad-hoc fiat debit via `WalletConductor.spendCredits` (rate = `credit.unitToDefaultCurrency`, not desk oracle) |
 | 9 | `transferCredits` | Credit | Admin credit adjustment |
 | 10 | `processMembershipFee` | Credit | Monthly membership fee from credits |
 | 11 | `transferNativeTokens` | Token | Gasless native-token transfer (treasury-sponsored) |
@@ -114,6 +131,7 @@ The wallet system uses **server actions** (`app/_actions/wallet.ts` — 23 actio
 | 21 | `getRewardCreditAddEventSummary` | Credit | Credit rewards summary for user |
 | 22 | `createPinAccessTokenAction` | Security | Issue single-use PIN-gated access token (React 19 `useActionState`) |
 | 23 | `revokePinAccessTokensAction` | Security | Revoke all active PIN access tokens for current user |
+| 24 | `initiateCreditTopupPayment` | Credit / Payments | WayForPay card top-up via PaymentConductor `wallet_topup` (amount 25–2000) |
 
 ### Integration pattern
 
@@ -165,7 +183,7 @@ const [state, formAction, isPending] = useActionState(
 | Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` — credit↔token conversion |
 | Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate` — `platform_settings` doc `web3` via `db().readDoc` / `updateDoc` |
 | Wallet DB | `lib/wallet/user-wallet-db.ts` | `getNativeWallet`, `getUserWallets`, `setUserWallets`, `migrateUserWalletsToPin` |
-| Wallet provisioning | `features/wallet/services/ensure-wallet.ts` | `ensureWallet`, `ensureWallets` (multi-chain with encryption, atomic single-write) |
+| Wallet provisioning | `features/wallet/conductor/wallet-conductor.ts` + `ensure-wallet.ts` | App callers use `WalletConductor.ensureNativeWallet`; low-level `ensureWallets` remains the atomic multi-chain writer |
 | Balance fetch | `features/wallet/services/list-wallets.ts` | `listWallets` — gets on-chain balances via viem/Solana RPC |
 | Activity feed | `features/wallet/services/wallet-activity-feed.ts` | `getWalletActivityFeed` — unified credit+chain feed with filters |
 | Top-up verify | `features/wallet/services/topup-verification.ts` | `verifyTopUpTransaction`, `reserveTopUpTxHash` |
@@ -180,7 +198,7 @@ const [state, formAction, isPending] = useActionState(
 | Route | Component | Description |
 |-------|-----------|-------------|
 | `/wallet` | `wallet-client.tsx` | Balance hero (credit + native-token), DeskWidget, transaction feed |
-| `/wallet/topup` | `topup-client.tsx` | Native-token transfer + WayForPay (backend TBD) |
+| `/wallet/topup` | `topup-client.tsx` | Native-token transfer + live WayForPay card (`initiateCreditTopupPayment`) |
 | `/wallet/send` | `send-tokens.tsx` | Gasless transfers to contacts |
 
 ### PIN-gated access flow
@@ -189,7 +207,7 @@ const [state, formAction, isPending] = useActionState(
 {`sequenceDiagram
   participant C as Client (wallet page)
   participant SA as Server Action
-  participant EW as ensureWallet()
+  participant EW as WalletConductor.ensureNativeWallet()
   participant P as pin-access-token-db
   participant DB as wallet_access_tokens
 
@@ -295,9 +313,10 @@ export const UserCreditBalanceSchema = z.object({
 
 ### Conversion formula
 
-Coindesk widget converts at the oracle rate:
+The Token Desk converts at the oracle rate (`desk-service.ts`):
 ```
-100 user-credit-points (USD) → X native tokens at Y USD per 1 native token
+nativeOut = (points × pointFiatValue) / ringPerUsd   // pointFiatValue = 1
+100 credit points (USD) at ringPerUsd=100 → 1 native token
 ```
 
 Rate stored in `platform_settings` collection, document id `web3`, field path `oracle.ringPerUsd`. `ring-token-oracle.ts` uses `db()` from `@/lib/database` — same persistence layer as `platform-settings-service.ts`. When `PLATFORM_SETTINGS_DISABLE_DB=true`, reads use `RING_ORACLE_DEFAULT_RATE` (fallback `100`) and writes throw. Superadmin updates via `setRingPerUsdRate` action or `POST /api/admin/web3/settings`.
@@ -314,12 +333,55 @@ Rate stored in `platform_settings` collection, document id `web3`, field path `o
 | `ORACLE_QUOTE_SECRET` | For desk | `ring-token-oracle.ts` — desk quote HMAC signing (falls back to `WALLET_ENCRYPTION_KEY`) |
 | `RING_ORACLE_DEFAULT_RATE` | No (default `100`) | Oracle read fallback when DB row missing or `PLATFORM_SETTINGS_DISABLE_DB=true` |
 | `PLATFORM_SETTINGS_DISABLE_DB` | No | When `true`, oracle/settings reads use env defaults; writes blocked |
+| `CONFIDENTIAL_TOKEN_ONRAMP` | No (default `false`) | PaymentConductor `native_token_onramp` — confidential+ card/PayPal → treasury RING |
+| `NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP` | No (default `false`) | Client UI mirror for onramp tabs |
 
 See `lib/wallet/encrypt-wallet-secret.ts` for the v2 envelope format cryptographic spec.
 
 ### Atomic provisioning (race fix)
 
 `ensureWallets()` provisions all missing chain wallets into an **in-memory Map** keyed by chain, then persists via **one** `setUserWallets()` write. This eliminates the JSONB read-modify-write race that previous parallel `Promise.all(provisionChainWallet())` designs produced, and guarantees the "max one wallet per enabled chain" invariant (`appendWalletIfMissing` enforces per-chain idempotency).
+
+### Card credit top-up (live) vs native-token rail
+
+`initiateCreditTopupPayment` → `PaymentConductor.createCheckout({ purpose: 'wallet_topup' })` → `wayforpay.processor.ts` (`createWalletTopupWayForPay`) or Stripe → webhook `handlers/wallet-topup.ts` / `wallet-topup-stripe.ts` → `creditBalanceService.addFiatUsd` (1:1 fiat points). Amount gate: 25–2000. Card top-up credits the **fiat ledger only** — it never mints on-chain RING. Entry UI: `/wallet/topup` card tab (live) and `CreditAddFsModal`.
+
+To spend native RING directly, use the store `native_token` rail (`POST /api/store/payments/token`) — a distinct path from top-up. See [PaymentConductor](/docs/features/payment-conductor).
+
+### Chain-proof credit add — `POST /api/wallet/credit/topup`
+
+Distinct from PaymentConductor card top-up. Verifies an on-chain transfer to treasury: when `isChainProofRequired()`, the request must include a `tx_hash` which is reserved (`reserveTopUpTxHash`, anti-double-spend) and verified (`verifyTopUpTransaction`) before `creditBalanceService.addCredits`. Non-`top_up` transaction types (airdrop/bonus) require platform-admin role.
+
+### WalletConductor (facade — adopted)
+
+`features/wallet/conductor/wallet-conductor.ts` is the SSOT orchestration layer for custodial native-token web3 + credit money paths. Thin adapters (`app/_actions/wallet.ts`, `/api/wallet/token/*`, `/api/wallet/desk/*`) call the conductor; it owns PaymentConductor checkouts for `wallet_topup` / `native_token_onramp`, Token Desk, send, and user credit-spend. Legacy `/api/wallet/ring/*` aliases are removed — use `/api/wallet/token/*`.
+
+| Method | Purpose |
+|--------|---------|
+| `ensureNativeWallet(userOverride)` | Provision native + enabled-chain wallets; returns `{ ok, native, wallets }` (OAuth / override-safe; no session required) |
+| `ensureFunded(minCredits)` | Session-gated: provision via `ensureNativeWallet`, assert minimum credit balance |
+| `initiateTopUp` | Card → credit points (`wallet_topup`) |
+| `initiateNativeOnramp` | Confidential+ card/PayPal → treasury native (`native_token_onramp`; gated by `isNativeTokenOnrampEnabled`) |
+| `quoteDesk` / `executeDesk` | Credit points → native RING (subscriber+; Solana desk) |
+| `getNativeBalance` | Custodial native balance |
+| `transferNative` | Gasless custodial native send (`chains.native` / `chains.enabled`) |
+| `spendCredits` | User credit-spend API / FormData path — fiat rate from `credit.unitToDefaultCurrency` (not desk oracle) |
+
+**Not in WalletConductor:** external EVM wallet USDT/POL via `POST /api/wallet/transfer` (SupportedCrypto when `chains.enabled` includes `evm`) — keep separate from Solana custodial SSOT.
+
+### Fiat credit spend — two-rate boundary
+
+<Callout type="tip">
+  **Fiat accounting** (`getFiatCreditAccountingRate` → `credit.unitToDefaultCurrency`) applies to ledger debits. **Desk oracle** (`ringPerUsd`) applies only to credit ↔ native conversion. Mixing them understates or overstates store/ad-hoc spends.
+</Callout>
+
+| Path | Entry | Rate helper |
+|------|-------|-------------|
+| Ad-hoc debit | `spendCredits` action / `POST /api/wallet/credit/spend` → `WalletConductor.spendCredits` | `getFiatCreditAccountingRate()` |
+| Store checkout | PaymentConductor `internal_credit` → `internal-credit.processor.ts` | `getFiatCreditAccountingRate()` |
+| Desk buy/sell | `quoteDesk` / `executeDesk` | `getRingPerUsdRate()` only |
+
+Deep HTTP tables and Mermaid: [Wallet API](/docs/api/wallet).
 
 </Audience>
 
@@ -347,22 +409,6 @@ See `lib/wallet/encrypt-wallet-secret.ts` for the v2 envelope format cryptograph
   description="Background chain refresh every 20 seconds — fetch Solana/EVM chain events related to native-token contracts and sync to ring-db for instant reads. Currently chain reads are on-demand per API call."
   implementationCost={80}
   labels={['web3', 'performance']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="WalletConductor"
-  description="Orchestration layer for multi-step wallet operations — similar to PaymentConductor pattern. Handles create → ensure → fund → transfer pipelines."
-  implementationCost={64}
-  labels={['architecture', 'wallet']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="WayForPay wallet top-up"
-  description="Card payment integration (Apple Pay / Google Pay) for non-crypto wallet top-ups. UI exists in topup-client.tsx; processing backend TBD."
-  implementationCost={48}
-  labels={['payments', 'wallet']}
   voteCount={0}
 />
 

@@ -1,0 +1,23 @@
+[package]
+name = "gate-escrow"
+version = "0.1.0"
+description = "Ring NFT Exhibition Marketplace gate escrow Anchor program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "gate_escrow"
+
+[features]
+default = []
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = { workspace = true, features = ["init-if-needed"] }

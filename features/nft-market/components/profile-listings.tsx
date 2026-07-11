@@ -1,62 +1,73 @@
-"use client"
+'use client'
 
-import React from 'react'
-import { fetchUserActiveListingsByUsernameClient } from '@/features/nft-market/adapters/read.client'
-import type { Listing } from '@/features/nft-market/types'
+import { useCallback, useMemo } from 'react'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import type { Locale } from '@/i18n/shared'
+import { defaultLocale } from '@/i18n/shared'
+import type { NftMarketListing, PaginatedNftMarketListings } from '@/features/nft-market/types'
+import { NftListingCard } from './nft-listing-card'
 
-// TODO: Upgrade data fetching to use React 19's useOptimistic or use hook when available in Next.js 16.
-// TODO: Replace manual loading/error management with new native loading/error handling patterns if supported in the app target.
+export default function ProfileListings({
+  username,
+  locale = defaultLocale,
+  initialPage,
+}: {
+  username: string
+  locale?: Locale
+  initialPage: PaginatedNftMarketListings
+}) {
+  const filterFingerprint = useMemo(
+    () => buildFilterFingerprint('nft-market', { sellerUsername: username, scope: 'profile' }),
+    [username],
+  )
 
-export default function ProfileListings({ username }: { username: string }) {
-  // State for fetched listings; null while loading, array when loaded
-  const [listings, setListings] = React.useState<Listing[] | null>(null)
-  // State for possible error message; null when no error
-  const [error, setError] = React.useState<string | null>(null)
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const { getNftMarketListingsAction } = await import('@/app/_actions/nft-market')
+      const page = await getNftMarketListingsAction({
+        sellerUsername: username,
+        status: 'active',
+        limit: 12,
+        startAfter: cursor ?? undefined,
+      })
+      return {
+        items: page.items,
+        cursor: page.nextCursor,
+        hasMore: page.hasMore,
+      }
+    },
+    [username],
+  )
 
-  React.useEffect(() => {
-    // Track component mounted status to avoid state updates after unmount
-    let isMounted = true
-    // Fetch user's active listings, limit to 12
-    fetchUserActiveListingsByUsernameClient(username, 12)
-      .then((items) => { if (isMounted) setListings(items) }) // Set listings if component is still mounted
-      .catch((e) => { if (isMounted) setError(e?.message || 'Failed to load listings') }) // Set error state safely
-    // Cleanup: set isMounted to false on component unmount
-    return () => { isMounted = false }
-  }, [username]) // Refetch listings whenever the username changes
+  const { items, loading, error, hasMore, sentinelRef } = useCursorFeed<NftMarketListing>({
+    moduleId: 'nft-market',
+    locale,
+    limit: 12,
+    filterFingerprint,
+    initialItems: initialPage.items,
+    initialCursor: initialPage.nextCursor,
+    fetchPage,
+    maxCachedItems: 36,
+    restoreScroll: false,
+  })
 
-  // Show error state if fetching listings failed
-  if (error) {
-    return <div className="text-sm text-destructive">{error}</div>
-  }
-
-  // Show loading message until listings data is loaded
-  if (!listings) {
-    return <div className="text-sm text-muted-foreground">Loading listings...</div>
-  }
-
-  // Show a message if the user has no active listings
-  if (listings.length === 0) {
+  if (!loading && items.length === 0) {
     return <div className="text-sm text-muted-foreground">No active listings</div>
   }
 
-  // Listings exist: render as grid of cards
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {listings.map((l) => (
-        <article key={l.id} className="rounded-lg border p-4 hover:shadow">
-          {/* Display slug if available, otherwise fallback to address */}
-          <div className="text-xs text-muted-foreground mb-1">{l.item.slug || l.item.address}</div>
-          {/* Show the tokenId for the NFT */}
-          <div className="font-medium">Token #{l.item.tokenId}</div>
-          {/* Display price and currency */}
-          <div className="mt-2 text-sm">
-            Price: {l.price.amount}{' '}
-            {l.price.currency.symbol || l.price.currency.name}
-          </div>
-          {/* Show listing status */}
-          <div className="mt-2 text-xs text-muted-foreground">Status: {l.status}</div>
-        </article>
-      ))}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((listing) => (
+          <NftListingCard key={listing.id} listing={listing} locale={locale} />
+        ))}
+      </div>
+      {error ? <div className="text-sm text-destructive">{error}</div> : null}
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Loading listings...</div>
+      ) : null}
+      {hasMore ? <div ref={sentinelRef} className="h-8" /> : null}
     </div>
   )
 }

@@ -93,7 +93,7 @@ export function MembershipPaymentModal({
     if (paymentRail !== 'on_chain_ring') return
     void (async () => {
       try {
-        const res = await fetch('/api/wallet/ring/balance', { cache: 'no-store' })
+        const res = await fetch('/api/wallet/token/balance', { cache: 'no-store' })
         if (res.ok) {
           const data = (await res.json()) as { balance?: string }
           setOnChainBalance(data.balance ?? '0')

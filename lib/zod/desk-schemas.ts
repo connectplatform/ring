@@ -31,7 +31,7 @@ export type DeskOrderStatus = z.infer<typeof DeskOrderStatusSchema>
 
 export const DeskQuoteRequestSchema = z.object({
   side: DeskOrderSideSchema,
-  /** Buy: USD fiat credit amount. Sell: RING UI amount string. */
+  /** Buy: credit points (whole number). Sell: native token UI amount. */
   amount: z.string().min(1),
 })
 

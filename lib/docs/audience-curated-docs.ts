@@ -24,8 +24,8 @@
  * `as const` on the data below narrows each section's page-slug list to a
  * readonly tuple of literal strings, giving `isArticleVisibleToAudience` exact
  * type inference.
- * 
- *  * NOTE: This module extends the ring-docs-enhancer agent's architecture.
+ *
+ * NOTE: This module extends the ring-docs-enhancer agent's architecture.
  * The agent's content-filtering uses <Audience for="…"> blocks within
  * individual MDX files (the SSoT approach — "one file, both audiences").
  *
@@ -35,7 +35,11 @@
  * content-level filter and adds maintenance burden — every article
  * added/removed from a section via meta.json must also be reflected here.
  *
- * The canonical reference for sidebar content is docs/{locale}/ * /meta.json.
+ * The canonical reference for sidebar content is docs/{locale}/.../meta.json.
+ *
+ * Index revision 2026-07-11: Founder = operator journey hubs; Developer =
+ * system layers. NFT market + NFT gates are verified in both audience trees.
+ * See for-founders.mdx / for-developers.mdx.
  *
  * TODO(future): derive the section→page-slug map at build time from the MDX
  * frontmatter `audience:` field. The current manual curation is more
@@ -48,7 +52,7 @@ import type { DocsAudience } from '@/lib/docs/docs-audience'
 
 export const AUDIENCE_CURATED_DOCS = {
   // ---------------------------------------------------------------
-  // Founders — operators & decision-makers (business value focus)
+  // Founders — operators & decision-makers (journey hubs)
   // ---------------------------------------------------------------
   founder: {
     'getting-started': [
@@ -58,34 +62,39 @@ export const AUDIENCE_CURATED_DOCS = {
       'next-steps',
     ],
     features: [
-      // Revenue & commerce
+      // Hub 2 — Make money
+      'store',
       'subscriptions',
       'payment-conductor',
-      'store',
-      'affiliate-enablement',
-      'refcodes',
       'payments',
       'wallet',
+      'affiliate-enablement',
+      'refcodes',
       'nft-market',
+      'nft-gates',
       'staking',
-      // Audience & community
+      // Hub 3 — Grow the network
       'entities',
       'opportunities',
       'messaging',
+      'webrtc-calls',
+      'news',
       'member-blog',
       'public-profile',
       'username-reservation',
       'scientific-editor',
-      'news',
-      // Reach & engagement
+      // Hub 4 — Reach members
       'notifications',
       'push-notifications-fcm',
       'email-ai-crm',
       'tunnel-protocol',
       'video-conductor',
-      // Trust & localization
+      'media-conductor',
+      // Hub 5 — Trust & brand
       'authentication',
       'security',
+      'admin',
+      'manage-via-telegram',
       'locale-system',
       'mobile-experience',
       'performance',
@@ -95,11 +104,13 @@ export const AUDIENCE_CURATED_DOCS = {
       'security',
       'real-time',
       'discovery-mutation-sync',
+      'payment-conductor',
     ],
     deployment: [
       'self-hosted',
       'vercel',
       'docker',
+      'environment',
       'monitoring',
       'performance',
       'backup',
@@ -115,6 +126,8 @@ export const AUDIENCE_CURATED_DOCS = {
     ],
     integrations: [
       'ethereum-wallets',
+      'ring-filebase',
+      'ring-cdn',
     ],
     examples: [
       'quick-start',
@@ -131,7 +144,7 @@ export const AUDIENCE_CURATED_DOCS = {
   },
 
   // ---------------------------------------------------------------
-  // Developers — engineers & integrators (code & schema focus)
+  // Developers — engineers & integrators (system layers)
   // ---------------------------------------------------------------
   developer: {
     'getting-started': [
@@ -150,18 +163,18 @@ export const AUDIENCE_CURATED_DOCS = {
       'security',
       'real-time',
       'discovery-mutation-sync',
-      'email-ai-crm',
+      'proxy-and-intl',
       'payment-conductor',
       'refcodes',
       'news-kingdom',
-      'proxy-and-intl',
+      'email-ai-crm',
     ],
     backend: [
       'k8s-postgres-fcm',
+      'firebase',
     ],
     api: [
       'authentication',
-      'email-ai-crm',
       'entities',
       'opportunities',
       'messaging',
@@ -169,27 +182,33 @@ export const AUDIENCE_CURATED_DOCS = {
       'wallet',
       'store',
       'admin',
+      'email-ai-crm',
     ],
     features: [
-      // Payments & subscriptions
-      'subscriptions',
+      // Payments cluster (ordered)
       'payment-conductor',
       'wayforpay-integration',
+      'subscriptions',
+      'payments',
+      'store',
+      'wallet',
       'refcodes',
       'affiliate-enablement',
-      'payments',
-      'wallet',
       'nft-market',
+      'nft-gates',
       'staking',
       // Realtime & communication
       'tunnel-protocol',
+      'messaging',
+      'webrtc-calls',
       'push-notifications-fcm',
       'notifications',
-      'messaging',
       'email-ai-crm',
-      // Identity & content
+      // Identity, trust, content
       'authentication',
       'security',
+      'admin',
+      'manage-via-telegram',
       'entities',
       'opportunities',
       'news',
@@ -199,26 +218,27 @@ export const AUDIENCE_CURATED_DOCS = {
       'scientific-editor',
       'locale-system',
       'doc-system',
-      // Media & automation
+      // Media & UX
       'video-conductor',
-      'store',
+      'media-conductor',
       'mobile-experience',
       'performance',
-      // ERP (nested sub-section)
+      // ERP (nested under features/erp — pageSlug is leaf)
       'inventory',
       'vendor-management',
       'commissions',
     ],
     deployment: [
-      'self-hosted',
-      'vercel',
-      'docker',
       'environment',
+      'self-hosted',
+      'docker',
+      'vercel',
       'monitoring',
       'performance',
       'backup',
     ],
     development: [
+      // Engineering core
       'local-setup',
       'code-structure',
       'code-style',
@@ -226,14 +246,15 @@ export const AUDIENCE_CURATED_DOCS = {
       'testing',
       'debugging',
       'performance',
-      'deployment',
-      'contributing',
       'workflow',
+      'contributing',
+      'deployment',
       'docs-components',
       'community-tooling',
       'ring-mcp',
       'whitelabel-navigation',
       'oss-vs-enterprise',
+      // Generative media
       'generative-images',
       'generative-newsroom',
       'generative-videos',
@@ -258,6 +279,8 @@ export const AUDIENCE_CURATED_DOCS = {
     ],
     integrations: [
       'ethereum-wallets',
+      'ring-filebase',
+      'ring-cdn',
     ],
     web3: [
       'token-launch-jurisdictions',

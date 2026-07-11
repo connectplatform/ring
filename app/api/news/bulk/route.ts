@@ -1,15 +1,7 @@
-import { NextRequest, NextResponse, connection} from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
-import { 
-  getCachedDocument,
-  updateDocument,
-  deleteDocument,
-  createBatchWriter,
-  executeBatch
-} from '@/lib/services/firebase-service-manager'
-import { getAdminDb } from '@/lib/firebase-admin.server'
-import { FieldValue } from 'firebase-admin/firestore'
+import { db } from '@/lib/database'
 import { NewsCategory, NewsStatus } from '@/features/news/types'
 
 interface BulkOperationRequest {
@@ -23,90 +15,82 @@ interface BulkOperationRequest {
 
 /**
  * POST /api/news/bulk
- * Perform bulk operations on multiple news articles
+ * Perform bulk operations on multiple news articles via db() SSOT.
  */
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
-        { status: 401 }
+        { status: 401 },
       )
     }
 
-    // Check if user is admin
     if (!isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
     const body: BulkOperationRequest = await request.json()
     const { operation, articleIds, data } = body
 
-    // Validate request
     if (!operation || !articleIds || !Array.isArray(articleIds) || articleIds.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Invalid request: operation and articleIds are required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
     if (articleIds.length > 100) {
       return NextResponse.json(
         { success: false, error: 'Too many articles selected (max 100)' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
-    const batch = createBatchWriter()
-    
     let successCount = 0
-    let failedIds: string[] = []
+    const failedIds: string[] = []
+    const now = new Date()
 
-    // Process each article
     for (const articleId of articleIds) {
       try {
-        // Verify article exists using firebase-service-manager
-        const articleDoc = await getCachedDocument('news', articleId)
-        if (!articleDoc || !articleDoc.exists) {
+        const articleDoc = await db().readDoc('news', articleId)
+        if (!articleDoc.success || !articleDoc.data) {
           failedIds.push(articleId)
           continue
         }
 
-        // Get document reference for batch operations
-        const db = getAdminDb()
-        const articleRef = db.collection('news').doc(articleId)
-        
-        // Apply operation
+        let updatePayload: Record<string, unknown> | null = null
+
         switch (operation) {
           case 'publish':
-            batch.update(articleRef, {
+            updatePayload = {
               status: 'published' as NewsStatus,
-              publishedAt: FieldValue.serverTimestamp(),
-              updatedAt: FieldValue.serverTimestamp()
-            })
+              publishedAt: now,
+              updatedAt: now,
+            }
             break
 
           case 'archive':
-            batch.update(articleRef, {
+            updatePayload = {
               status: 'archived' as NewsStatus,
-              updatedAt: FieldValue.serverTimestamp()
-            })
+              updatedAt: now,
+            }
             break
 
           case 'delete':
-            batch.update(articleRef, {
+            updatePayload = {
               status: 'deleted' as NewsStatus,
-              deletedAt: FieldValue.serverTimestamp(),
+              deletedAt: now,
               deletedBy: session.user.id || session.user.email || '',
-              updatedAt: FieldValue.serverTimestamp(),
-            })
+              updatedAt: now,
+            }
             break
 
           case 'updateCategory':
@@ -114,15 +98,21 @@ export async function POST(request: NextRequest) {
               failedIds.push(articleId)
               continue
             }
-            batch.update(articleRef, {
+            updatePayload = {
               category: data.category,
-              updatedAt: FieldValue.serverTimestamp()
-            })
+              updatedAt: now,
+            }
             break
 
           default:
             failedIds.push(articleId)
             continue
+        }
+
+        const updateResult = await db().updateDoc('news', articleId, updatePayload)
+        if (!updateResult.success) {
+          failedIds.push(articleId)
+          continue
         }
 
         successCount++
@@ -132,19 +122,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Commit batch operation using firebase-service-manager
     if (successCount > 0) {
-      try {
-        await executeBatch(batch)
-      } catch (error) {
-        console.error('Batch commit failed:', error)
-        return NextResponse.json(
-          { success: false, error: 'Failed to commit batch operation' },
-          { status: 500 }
-        )
-      }
-
-      // Invalidate news-stats cache + revalidate admin paths after successful bulk
       const { syncNewsDiscovery } = await import('@/features/news/lib/news-mutation-sync')
       const eventMap: Record<string, 'published' | 'deleted' | 'updated' | 'status_changed'> = {
         publish: 'published',
@@ -157,12 +135,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Prepare response
-    const response: any = {
+    const response: Record<string, unknown> = {
       success: successCount > 0,
       processed: successCount,
       failed: failedIds.length,
-      total: articleIds.length
+      total: articleIds.length,
     }
 
     if (operation === 'delete') {
@@ -182,22 +159,21 @@ export async function POST(request: NextRequest) {
 
     const statusCode = successCount > 0 ? 200 : 400
     return NextResponse.json(response, { status: statusCode })
-
   } catch (error) {
     console.error('Bulk operation error:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error during bulk operation' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
 
 /**
- * GET /api/news/bulk/status
- * Check the status of a bulk operation (for future implementation with job queues)
+ * GET /api/news/bulk?jobId=…
+ * Job-queue status is not implemented yet — returns 501 so clients do not treat mocks as success.
  */
 export async function GET(request: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   const { searchParams } = new URL(request.url)
   const jobId = searchParams.get('jobId')
@@ -205,19 +181,17 @@ export async function GET(request: NextRequest) {
   if (!jobId) {
     return NextResponse.json(
       { success: false, error: 'Job ID is required' },
-      { status: 400 }
+      { status: 400 },
     )
   }
 
-  // TODO: Implement job status checking with Redis or database
-  // For now, return a mock response
-  return NextResponse.json({
-    success: true,
-    jobId,
-    status: 'completed',
-    progress: 100,
-    processed: 10,
-    total: 10,
-    message: 'Bulk operation completed successfully'
-  })
-} 
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Bulk job status tracking is not implemented',
+      jobId,
+      status: 'unsupported',
+    },
+    { status: 501 },
+  )
+}

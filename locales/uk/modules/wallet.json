@@ -5,6 +5,8 @@
   "balance": "Баланс",
   "lowBalance": "Низький баланс",
   "refresh": "Оновити",
+  "walletError": "Помилка гаманця",
+  "tryAgain": "Спробувати ще раз",
   "balanceUpdated": "Баланс щойно оновлено",
   "loadingWallets": "Завантаження гаманців…",
   "loadingWallet": "Завантаження гаманця…",
@@ -15,6 +17,13 @@
   "addWallet": "Додати гаманець",
   "addWalletDescription": "Додайте гаманець для перегляду балансу та транзакцій.",
   "creditsBalance": "Баланс кредитів",
+  "creditBalanceItem": {
+    "title": "Кредити",
+    "convertTo": "Обміняти на {token}",
+    "convertHint": "≈ {amount} {token} за поточним курсом",
+    "addCredit": "Додати кредити",
+    "deskModalTitle": "Обмінний пункт — {token}"
+  },
   "activityCredit": "Кредит активності",
   "backupPhrase": "Резервна фраза відновлення",
   "enable2FA": "Увімкнути 2FA",
@@ -78,11 +87,23 @@
   "deskTitle": "Обмінний пункт",
   "deskBuy": "Купити",
   "deskSell": "Продати",
-  "deskBuyAmountLabel": "Сума для купівлі",
-  "deskBuyHint": "Введіть суму для купівлі RING",
+  "deskBuyAmountLabel": "Кредитні бали для витрати",
+  "deskAvailableBalance": "Доступно: {amount} {unit}",
+  "deskUseAllPoints": "Усі {unit}",
+  "deskQuoteLoading": "Оновлення котирування…",
+  "deskBuyHint": "Витратьте кредитні бали, щоб отримати {token} on-chain (100 балів = 1 {token}).",
   "deskSellAmountLabel": "Сума для продажу",
   "deskSellHint": "Введіть суму для продажу RING",
   "deskGetQuote": "Отримати котирування",
+  "deskConfirm": "Підтвердити",
+  "deskQuoteRing": "Ви отримаєте",
+  "deskQuoteCredit": "Кредит",
+  "deskFirstSettlerDiscount": "Знижка для перших поселенців застосована",
+  "deskQuoteFailed": "Не вдалося отримати котирування",
+  "deskExecuteSuccess": "Операцію на desk завершено",
+  "deskExecuteFailed": "Помилка операції на desk",
+  "deskInsufficientCredit": "Баланс кредитів менший за запитану суму",
+  "deskPurchaseCreditCertificate": "Придбати кредитний сертифікат",
   "activityAll": "Уся активність",
   "showingFor": "Показується для {wallet}",
   "primary": "Основний",
@@ -95,6 +116,10 @@
     "description_label": "Опис (необов'язково)",
     "description_placeholder": "напр. Щомісячне поповнення",
     "processing": "Обробка…",
+    "payment_method": "Спосіб оплати",
+    "fiat_amount_label": "Сума ({currency})",
+    "amount_range": "Сума має бути від $25 до $2000",
+    "wayforpay_coming_soon": "Інтеграція WayForPay незабаром. Поки що скористайтеся переказом токенів.",
     "record_transfer": "Зафіксувати переказ",
     "blockchain_help": "Надішліть RING на адресу гаманця в мережі Polygon, потім зафіксуйте переказ тут.",
     "success": "Поповнення успішно зафіксовано.",
@@ -102,11 +127,15 @@
       "blockchain": {
         "name": "Блокчейн-переказ",
         "description": "Перекажіть токени RING безпосередньо з вашого гаманця"
+      },
+      "card": {
+        "name": "Картка"
       }
     },
     "error": {
       "invalid_amount": "Введіть коректну суму більше нуля."
-    }
+    },
+    "proceed_card": "Перейти до оплати карткою"
   },
   "send": {
     "title": "Надіслати RING",
@@ -125,7 +154,14 @@
     "tokenRingOnly": "Лише токен RING",
     "notes": "Нотатка (необов'язково)",
     "notesPlaceholder": "Додайте нотатку до переказу…",
-    "sendButton": "Надіслати {amount} RING",
+    "sendButton": "Надіслати {amount} {token}",
+    "sendToContact": "Надіслати {token} контакту {project}",
+    "recipientSearchHint": "Ім'я отримувача в Контактах",
+    "allContacts": "Усі контакти",
+    "noContacts": "Ще немає збережених контактів",
+    "enterAmount": "Введіть суму для відправлення",
+    "previewIrreversible": "Ви збираєтесь надіслати {amount} користувачу {name}. Це незворотно.",
+    "recipientUnverified": "{name} не верифікований. Попросіть користувача пройти верифікацію, якщо вам потрібні гарантії.",
     "confirmTitle": "Підтвердіть переказ",
     "confirmWarning": "Перевірте отримувача. Ончейн-перекази незворотні.",
     "confirmSend": "Підтвердити",
@@ -143,5 +179,7 @@
   },
   "refreshingBalances": "Оновлення балансів…",
   "balanceStale": "Баланс може бути застарілим — натисніть Оновити",
-  "autoRefreshEvery": "Автоматичне оновлення кожні 60 секунд"
+  "autoRefreshEvery": "Автоматичне оновлення кожні 60 секунд",
+  "copyAddress": "Копіювати адресу",
+  "sendLabel": "Надіслати"
 }

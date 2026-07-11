@@ -142,10 +142,13 @@ All in `ring-welcome-visuals.tsx` unless noted. Shared **`locale`** prop: `en` \
 | Widget | File | SSR | Description |
 |--------|------|-----|-------------|
 | **RingIntegrationPlanesHub** | `ring-widgets/ring-integration-planes-hub.tsx` | No | Mobile-first **integration planes** orb — center Next.js·PostgreSQL hub, five clickable planes (identity, payments, comms, mail, external) linking to canonical docs. Props: `locale?`, `theme?` (`inherit` \| `light` \| `dark`), `title?`, `subtitle?`. Copy: `lib/ring-widgets/integration-planes.ts`. |
+| **RingApiTree** | `ring-widgets/ring-api-tree.tsx` | No | Vertical **9:14** API family tree — scrollable selectable `/api/*` endpoints (upper) + selected endpoint summary/methods panel (lower). Data: `ring-api-tree-data.ts` (~244 routes). Props: `initialEndpointId?`, `title?`, `className?`. Founder-friendly; embed on `/docs/api`. |
 | **RingWelcomeFeatureExplorer** | `ring-widgets/ring-welcome-feature-explorer.tsx` | No | Tabbed **feature explorer** — sections of doc-linked feature cards from `lib/ring-widgets/welcome-features.ts`. Props: `locale?`, `theme?`, `title?`, `subtitle?`. |
 
 ```mdx
 <RingIntegrationPlanesHub locale="en" />
+
+<RingApiTree initialEndpointId="store/checkout" />
 
 <RingWelcomeFeatureExplorer locale="uk" theme="inherit" />
 ```
@@ -250,6 +253,8 @@ Not part of MDX or `docsMdxComponents`. Register the custom element in the host 
 
 Alphabetical list of tags in `docsMdxComponents` as of 2026-06-22 (31 tags):
 
-`Audience` · `Callout` · `Card` · `Cards` · `Code` · `CodeSandbox` · `Math` · `MathBlock` · `Mermaid` · `MindMap` · `RingAISynapseFlow` · `RingCollectiveIntelligenceLoop` · `RingDeploymentPaths` · `RingFeatureEcosystem` · `RingGatewayBridge` · `RingHumanityVision` · `RingIntegrationPlanesHub` · `RingMatcherOrchestration` · `RingProblemSolvingEvolution` · `RingWidgetsContact` · `RingWelcomeFeatureExplorer` · `Step` · `Steps` · `Tab` · `Tabs` · `Timeline` · `UiCard` · `UiCardContent` · `UiCardDescription` · `UiCardHeader` · `UiCardTitle`
+`Audience` · `Callout` · `Card` · `Cards` · `Code` · `CodeSandbox` · `Math` · `MathBlock` · `Mermaid` · `MindMap` · `RingAISynapseFlow` · `RingApiTree` · `RingCollectiveIntelligenceLoop` · `RingDeploymentPaths` · `RingFeatureEcosystem` · `RingGatewayBridge` · `RingHumanityVision` · `RingIntegrationPlanesHub` · `RingMatcherOrchestration` · `RingProblemSolvingEvolution` · `RingWidgetsContact` · `RingWelcomeFeatureExplorer` · `Step` · `Steps` · `Tab` · `Tabs` · `Timeline` · `UiCard` · `UiCardContent` · `UiCardDescription` · `UiCardHeader` · `UiCardTitle`
 
-**Site barrel exports:** `RingWidgetsContact` · `PublisherGetStartedFlow` · `RingIntegrationPlanesHub` · `RingWelcomeFeatureExplorer` · `RingWalletBalance`
+
+**Site barrel exports:** `RingWidgetsContact` · `PublisherGetStartedFlow` · `RingIntegrationPlanesHub` · `RingApiTree` · `RingWelcomeFeatureExplorer` · `RingWalletBalance`
+

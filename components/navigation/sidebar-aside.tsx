@@ -38,6 +38,7 @@ import { useVendorStatus } from '@/hooks/use-vendor-status'
 import type { Locale } from '@/i18n/shared'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { TunnelIndicatorCompact } from './tunnel-indicator'
+import { useAdminNavMenu } from '@/features/admin/use-admin-nav-menu'
 
 interface NavigationItem {
   href: string
@@ -62,6 +63,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const pathname = usePathname()
     const locale = useLocale() as Locale
     const { data: session } = useSession()
+    const { asideGroups: adminNavGroups } = useAdminNavMenu(session?.user?.role, locale)
     const tEntities = useTranslations('modules.entities')
     const tOpp = useTranslations('modules.opportunities')
     const tStore = useTranslations('modules.store')
@@ -192,31 +194,30 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
           <nav className="flex-1 space-y-0 px-0">
             {session?.user &&
               mounted &&
-              isPlatformAdmin(session.user.role) && (
-                <div className="mb-3 px-2">
+              isPlatformAdmin(session.user.role) &&
+              adminNavGroups.length > 0 && (
+                <div className="mb-3 px-2 space-y-3">
                   <p className="text-[11px] text-[var(--color-contrast-low)] mb-1.5 pl-2 uppercase tracking-wide">
                     {tNav('sidebar.admin')}
                   </p>
-                  <div className="space-y-0.5">
-                    {[
-                      { href: ROUTES.ADMIN(locale), label: tNav('sidebar.adminDashboard'), icon: BarChart3 },
-                      { href: ROUTES.ADMIN_USERS(locale), label: tNav('sidebar.userManagement'), icon: Users },
-                      { href: ROUTES.ADMIN_ANALYTICS(locale), label: tNav('sidebar.analytics'), icon: BarChart3 },
-                      { href: ROUTES.ADMIN_SECURITY(locale), label: tNav('sidebar.security'), icon: Shield },
-                      { href: ROUTES.ADMIN_REFCODES(locale), label: tNav('sidebar.referralRewards'), icon: Share2 },
-                      { href: ROUTES.ADMIN_STORE(locale), label: tNav('sidebar.storeManagement'), icon: ShoppingBag },
-                    ].map(({ href, label, icon: Icon }) => (
-                      <Link
-                        key={href}
-                        href={toAppHref(href)}
-                        data-current={isActive(href) ? '' : undefined}
-                        className="sidebar-nav-item flex items-center gap-2 h-8 data-current:bg-foreground/8 hover:bg-foreground/5 rounded-lg px-4 text-xs"
-                      >
-                        <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
-                        <span>{label}</span>
-                      </Link>
-                    ))}
-                  </div>
+                  {adminNavGroups.map((group) => (
+                    <div key={group.id} className="space-y-0.5">
+                      <p className="text-[10px] text-[var(--color-contrast-low)] mb-1 pl-2 uppercase tracking-wide">
+                        {group.title}
+                      </p>
+                      {group.items.map(({ hrefPath, label, icon: Icon, id }) => (
+                        <Link
+                          key={id}
+                          href={toAppHref(hrefPath)}
+                          data-current={isActive(hrefPath) ? '' : undefined}
+                          className="sidebar-nav-item flex items-center gap-2 h-8 data-current:bg-foreground/8 hover:bg-foreground/5 rounded-lg px-4 text-xs"
+                        >
+                          <Icon className="size-3.5 shrink-0" />
+                          <span>{label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               )}
 

@@ -34,6 +34,22 @@ export async function handleMembershipWayForPayWebhook(
     const orderParts = orderReference.split('_')
     const userId = orderParts[1]
     if (userId) {
+      try {
+        const { appendEvent } = await import('@/lib/events/event-log.server')
+        await appendEvent({
+          type: 'membership_upgrade_paid',
+          userId,
+          reversible: false,
+          payload: {
+            orderReference,
+            amount: Number(payload.amount) || 0,
+            currency: String(payload.currency || 'UAH'),
+          },
+        })
+      } catch {
+        // non-blocking
+      }
+
       // Trigger referral rewards (existing flow)
       try {
         await ReferralRewardService.onMembershipPaid({

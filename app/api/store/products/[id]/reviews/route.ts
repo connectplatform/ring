@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { z } from 'zod'
 import { db } from '@/lib/database'
+import { getProductReviews } from '@/features/store/services/product-reviews'
 
 const createReviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
@@ -18,33 +19,12 @@ export async function GET(
 ) {
   await connection()
   const { id: productId } = await params
-
-  const result = await db().queryDocs<ReviewRow>({
-    collection: 'reviews',
-    filters: [{ field: 'productId', operator: '=', value: productId }],
-    orderBy: [{ field: 'createdAt', direction: 'desc' }],
-    pagination: { limit: 100 },
+  const data = await getProductReviews(productId)
+  return NextResponse.json({
+    reviews: data.reviews,
+    totalReviews: data.totalReviews,
+    averageRating: data.averageRating,
   })
-
-  const rows = result.success && result.data ? result.data : []
-  const reviews = rows.map((row) => ({
-    id: row.id,
-    author: (row.authorName as string) || 'Anonymous',
-    rating: Number(row.rating) || 0,
-    title: row.title,
-    content: (row.content as string) || '',
-    verifiedPurchase: Boolean(row.verifiedPurchase),
-    helpful: Number(row.helpful) || 0,
-    date: row.createdAt ? String(row.createdAt).slice(0, 10) : '',
-    images: row.images || [],
-    sellerResponse: row.sellerResponse,
-  }))
-
-  const averageRating = reviews.length
-    ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
-    : 0
-
-  return NextResponse.json({ reviews, totalReviews: reviews.length, averageRating })
 }
 
 export async function POST(

@@ -1,335 +1,76 @@
 'use client'
 
 /**
- * PRODUCT DETAILS PAGE WRAPPER - Ring Platform v2.0
- * ================================================
- * Standardized 3-column responsive layout for product detail pages
- *
- * Layout Structure:
- * - Desktop: DesktopSidebar (280px) + Center Content + Right Sidebar (320px)
- * - iPad: DesktopSidebar (280px) + Center Content + Floating Toggle for Right Sidebar
- * - Mobile: Center Content + Bottom Navigation + Floating Toggle for Right Sidebar
- *
- * Right Sidebar Content:
- * - Related Products
- * - Vendor Info
- * - Reviews Summary
- * - Share Product
- * - Shopping Guide
- *
- * Strike Team:
- * - Ring Components Specialist (layout pattern)
- * - React 19 Specialist (modern patterns)
- * - E-commerce Expert (product detail UX)
- * - UI/UX Optimization Agent (mobile excellence)
+ * Product details wrapper — Davinci glass + consecutive mobile rail (wallet/store SSOT).
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import React, { useCallback, useMemo, useState } from 'react'
 import type { Locale } from '@/i18n/shared'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import { ProductAgentChatProvider } from '@/features/store/context/product-agent-chat-context'
 import { ProductAgentChatShell } from '@/features/store/components/product-agent-chat-shell'
-import { SimilarProducts } from '@/features/store/components/similar-products'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import {
-  Star,
-  Share2,
-  ShoppingBag,
-  Store,
-  BookOpen,
-  Heart,
-  MessageCircle,
-  ThumbsUp,
-  User,
-  ExternalLink,
-  Truck,
-  Shield,
-  Award
-} from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
+import StoreProductRightSidebar from '@/components/store/store-product-right-sidebar'
+import type { StoreProduct } from '@/features/store/types'
+import type { ProductDetailsRailData } from '@/features/store/services/product-details-rail'
 
 interface ProductDetailsWrapperProps {
   children: React.ReactNode
-  locale: string
+  locale: Locale
   productId?: string
-  currentProduct?: any // StoreProduct
+  currentProduct: StoreProduct
+  railData: ProductDetailsRailData
 }
 
 export default function ProductDetailsWrapper({
   children,
   locale,
   productId,
-  currentProduct
+  currentProduct,
+  railData,
 }: ProductDetailsWrapperProps) {
-  const router = useRouter()
-  const t = useTranslations('modules.store')
-  const tCommon = useTranslations('common')
-  const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Mock related products (will be dynamic later)
-  const relatedProducts = [
-    { id: '1', name: 'Organic Green Tea', price: 15.99, rating: 4.8, image: '/placeholder.jpg' },
-    { id: '2', name: 'Fresh Basil', price: 8.50, rating: 4.9, image: '/placeholder.jpg' },
-    { id: '3', name: 'Artisan Honey', price: 22.00, rating: 4.7, image: '/placeholder.jpg' },
-  ]
-
-  // Mock vendor info (will be dynamic later)
-  const vendorInfo = {
-    name: 'GreenFood Collective',
-    rating: 4.9,
-    reviews: 1247,
-    joined: '2023',
-    location: 'Ukraine',
-    verified: true
-  }
-
-  // Mock reviews summary (will be dynamic later)
-  const reviewsSummary = {
-    average: 4.6,
-    total: 89,
-    distribution: { 5: 67, 4: 15, 3: 4, 2: 2, 1: 1 }
-  }
-
-  const shareOptions = [
-    { id: 'copy', label: t('copyLink', { defaultValue: 'Copy Link' }), icon: ExternalLink },
-    { id: 'twitter', label: t('twitter', { defaultValue: 'Twitter' }), icon: MessageCircle },
-    { id: 'facebook', label: t('facebook', { defaultValue: 'Facebook' }), icon: ThumbsUp },
-  ]
-
-  const shoppingGuide = [
-    { id: 'shipping', title: t('freeShipping', { defaultValue: 'Free Shipping' }), icon: Truck, description: t('freeShippingDescription', { defaultValue: 'Orders over $50' }) },
-    { id: 'secure', title: t('securePayment', { defaultValue: 'Secure Payment' }), icon: Shield, description: t('securePaymentDescription', { defaultValue: 'SSL encrypted' }) },
-    { id: 'quality', title: t('qualityGuarantee', { defaultValue: 'Quality Guarantee' }), icon: Award, description: t('qualityGuaranteeDescription', { defaultValue: '100% satisfaction' }) },
-  ]
-
-  const handleShare = useCallback((optionId: string) => {
-    // TODO: Implement sharing functionality
-    console.log('Share via:', optionId)
+  const scrollToReviews = useCallback(() => {
+    if (typeof document === 'undefined') return
+    window.dispatchEvent(new CustomEvent('store:open-product-reviews'))
+    const el = document.getElementById('product-reviews')
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setRightSidebarOpen(false)
   }, [])
 
-  const rightSidebarContent = useMemo(() => (
-    <div className="space-y-6">
-      {/* Similar Products - Vector Matching */}
-      {currentProduct ? (
-        <SimilarProducts
-          currentProduct={currentProduct}
-          locale={locale as any}
-        />
-      ) : (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4" />
-            {t('relatedProducts', { defaultValue: 'Related Products' })}
-          </CardTitle>
-        </CardHeader>
-          <CardContent className="text-sm text-muted-foreground text-center py-6">
-            Loading similar products...
-        </CardContent>
-      </Card>
-      )}
-
-      {/* Vendor Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Store className="h-4 w-4" />
-            {t('vendorInfo', { defaultValue: 'Vendor Info' })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <User className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-medium">{vendorInfo.name}</p>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  <span className="text-xs">{vendorInfo.rating}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  ({vendorInfo.reviews} reviews)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t('memberSince', { defaultValue: 'Member since' })}</span>
-              <span>{vendorInfo.joined}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t('location', { defaultValue: 'Location' })}</span>
-              <span>{vendorInfo.location}</span>
-            </div>
-            {vendorInfo.verified && (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  <Award className="h-3 w-3 mr-1" />
-                  {t('verified', { defaultValue: 'Verified' })}
-                </Badge>
-              </div>
-            )}
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => router.push(`/${locale}/vendor/${vendorInfo.name.toLowerCase().replace(/\s+/g, '-')}`)}
-          >
-            {t('visitVendor', { defaultValue: 'Visit Vendor' })}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Reviews Summary Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Star className="h-4 w-4" />
-            {t('customerReviews', { defaultValue: 'Customer Reviews' })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              <span className="text-lg font-bold">{reviewsSummary.average}</span>
-              <span className="text-muted-foreground">({reviewsSummary.total} reviews)</span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            {[5, 4, 3, 2, 1].map((stars) => (
-              <div key={stars} className="flex items-center gap-2 text-sm">
-                <span className="w-3">{stars}</span>
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <div className="flex-1 bg-muted rounded-full h-2">
-                  <div
-                    className="bg-yellow-400 h-2 rounded-full"
-                    style={{ width: `${(reviewsSummary.distribution[stars as keyof typeof reviewsSummary.distribution] / reviewsSummary.total) * 100}%` }}
-                  />
-                </div>
-                <span className="text-muted-foreground w-6 text-right">
-                  {reviewsSummary.distribution[stars as keyof typeof reviewsSummary.distribution]}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <Button
-            variant="link"
-            className="w-full p-0 h-auto"
-            onClick={() => {
-              // TODO: Scroll to reviews section
-              setRightSidebarOpen(false)
-            }}
-          >
-            {t('readAllReviews', { defaultValue: 'Read All Reviews' })} →
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Share Product Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Share2 className="h-4 w-4" />
-            {t('shareProduct', { defaultValue: 'Share Product' })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {shareOptions.map((option) => (
-            <Button
-              key={option.id}
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => handleShare(option.id)}
-            >
-              <option.icon className="h-4 w-4 mr-2" />
-              {option.label}
-            </Button>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Shopping Guide Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            {t('shoppingGuide', { defaultValue: 'Shopping Guide' })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {shoppingGuide.map((item) => (
-            <div key={item.id} className="flex items-start gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <item.icon className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{item.title}</p>
-                <p className="text-xs text-muted-foreground">{item.description}</p>
-              </div>
-            </div>
-          ))}
-          <Button
-            variant="link"
-            className="w-full p-0 h-auto"
-            onClick={() => router.push(`/${locale}/docs/shopping`)}
-          >
-            {t('learnMore', { defaultValue: 'Learn More' })} →
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  ), [currentProduct, locale, t, handleShare, vendorInfo, reviewsSummary, shareOptions, shoppingGuide, router])
+  const rightRail = useMemo(
+    () => (
+      <StoreProductRightSidebar
+        locale={locale}
+        railData={railData}
+        productName={currentProduct.name}
+        onScrollToReviews={scrollToReviews}
+      />
+    ),
+    [locale, railData, currentProduct.name, scrollToReviews],
+  )
 
   return (
     <ProductAgentChatProvider
-      productId={productId || currentProduct?.id || ''}
-      productName={currentProduct?.name || 'Product'}
+      productId={productId || currentProduct.id}
+      productName={currentProduct.name}
     >
-      <div className="min-h-full text-foreground relative transition-colors duration-300">
-        <div className="flex min-h-full gap-3">
-          <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
-            {children}
-          </div>
+      <RingRightRailLayout
+        showRightRail
+        flushCenterPane
+        mobileRailMode="consecutive"
+        rightRailPurpose="store-product"
+        isOpen={rightSidebarOpen}
+        onToggle={setRightSidebarOpen}
+        rightRail={rightRail}
+      >
+        <DavinciCenterPane contentClassName="space-y-6">{children}</DavinciCenterPane>
+      </RingRightRailLayout>
 
-          <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
-            <div className="sticky top-8">
-              {rightSidebarContent}
-            </div>
-          </div>
-        </div>
-
-        <FloatingSidebarToggle
-          isOpen={rightSidebarOpen}
-          onToggle={setRightSidebarOpen}
-          mobileWidth="90%"
-          tabletWidth="380px"
-        >
-          {rightSidebarContent}
-        </FloatingSidebarToggle>
-
-        {productId && currentProduct?.id && (
-          <ProductAgentChatShell locale={locale as Locale} />
-        )}
-      </div>
+      {productId && currentProduct.id ? (
+        <ProductAgentChatShell locale={locale} />
+      ) : null}
     </ProductAgentChatProvider>
   )
 }

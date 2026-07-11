@@ -15,9 +15,12 @@ const messageService = new MessageService()
  * POST /api/messages/[id]/reactions
  * Add a reaction to a message
  */
+
+type RouteContext = { params: Promise<{ id: string }> }
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
@@ -31,7 +34,7 @@ export async function POST(
       )
     }
 
-    const messageId = params.id
+    const { id: messageId } = await context.params
     const userId = session.user.id
     const userName = session.user.name
 
@@ -109,7 +112,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
@@ -123,7 +126,7 @@ export async function DELETE(
       )
     }
 
-    const messageId = params.id
+    const { id: messageId } = await context.params
     const userId = session.user.id
 
     // Parse request body
@@ -192,7 +195,7 @@ export async function DELETE(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
@@ -206,7 +209,7 @@ export async function GET(
       )
     }
 
-    const messageId = params.id
+    const { id: messageId } = await context.params
 
     // Get the message
     const message = await messageService.getMessage(messageId)

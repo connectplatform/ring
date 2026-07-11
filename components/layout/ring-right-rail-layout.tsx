@@ -3,7 +3,10 @@
 import React, { useState, useEffect } from 'react'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { RingContentPanel } from '@/components/layout/ring-app-shell'
-import { RING_FLUSH_CENTER_PANE_MOBILE } from '@/components/layout/center-pane-classes'
+import {
+  RING_FLUSH_CENTER_PANE,
+  RING_FLUSH_CENTER_PANE_MOBILE,
+} from '@/components/layout/center-pane-classes'
 import { cn } from '@/lib/utils'
 
 interface RingRightRailLayoutProps {
@@ -13,6 +16,12 @@ interface RingRightRailLayoutProps {
   showRightRail?: boolean
   /** DaVinci immersive: strip default panel padding/bg so center pane fills edge-to-edge. */
   flushCenterPane?: boolean
+  /**
+   * Mobile/tablet right-rail presentation.
+   * - overlay (default): FloatingSidebarToggle drawer (filters, wallet, etc.)
+   * - consecutive: stack rail content below center pane (product details)
+   */
+  mobileRailMode?: 'overlay' | 'consecutive'
 
   // === SSOT dimension control (Phase 1 core) ===
   /** Right rail width in px. Defaults to 300. Use 320 for settings/notifications, 380 for cart. */
@@ -91,6 +100,7 @@ export default function RingRightRailLayout({
   rightRail,
   showRightRail = true,
   flushCenterPane = false,
+  mobileRailMode = 'overlay',
   railWidth = 300,
   railClassName,
   className,
@@ -147,13 +157,22 @@ export default function RingRightRailLayout({
         <RingContentPanel
           className={cn(
             'relative min-h-full min-w-0 flex-1 px-1 pb-4 md:px-5 md:pb-6 lg:px-6 lg:pb-0',
-            flushCenterPane && RING_FLUSH_CENTER_PANE_MOBILE,
+            flushCenterPane &&
+              (mobileRailMode === 'consecutive'
+                ? RING_FLUSH_CENTER_PANE
+                : RING_FLUSH_CENTER_PANE_MOBILE),
             contentClassName,
           )}
         >
           {children}
-          {/* On mobile/tablet: show floating toggle for sidebar, only after mount */}
-          {mounted && rail && (
+          {/* Consecutive mobile: rail content after center pane (no floating drawer) */}
+          {mounted && rail && mobileRailMode === 'consecutive' && (
+            <div className="mt-8 space-y-4 border-t border-border/60 pt-6 lg:hidden">
+              {rail}
+            </div>
+          )}
+          {/* Overlay mobile/tablet: floating toggle drawer */}
+          {mounted && rail && mobileRailMode === 'overlay' && (
             <div className="lg:hidden">
               <FloatingSidebarToggle
                 isOpen={isOpen}

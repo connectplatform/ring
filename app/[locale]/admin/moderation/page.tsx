@@ -7,7 +7,7 @@ import { auth } from '@/auth'
 import type { Locale } from '@/i18n/shared';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { connection } from 'next/server';
@@ -17,7 +17,7 @@ import { ROUTES } from '@/constants/routes';
 import { getTranslations } from 'next-intl/server';
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
 import { isPlatformAdmin } from '@/features/auth/user-role';
-
+import { ModerationTabs } from './moderation-tabs';
 
 // Types for moderation system
 interface ModerationItem {
@@ -355,14 +355,7 @@ export default async function ModerationPage({
           </Card>
         </div>
 
-        <Tabs defaultValue="queue" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="queue">Moderation Queue</TabsTrigger>
-            <TabsTrigger value="rules">Auto-Moderation Rules</TabsTrigger>
-            <TabsTrigger value="reports">User Reports</TabsTrigger>
-            <TabsTrigger value="analytics">Moderation Analytics</TabsTrigger>
-          </TabsList>
-
+        <ModerationTabs>
           {/* Moderation Queue Tab */}
           <TabsContent value="queue">
             <Card>
@@ -656,7 +649,7 @@ export default async function ModerationPage({
               </div>
             </div>
           </TabsContent>
-        </Tabs>
+        </ModerationTabs>
       </div>
       </AdminWrapper>
     </>

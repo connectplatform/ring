@@ -10,6 +10,7 @@ import { verifyJWT } from '@/lib/auth/edge-jwt';
 import { buildTunnelMessage } from '../hub';
 import type { TunnelHub } from '../hub/types';
 import { TunnelMessageType } from '../types';
+import { classifyUserQueueChannel } from '../hub/queue-routing';
 import { decodeFrame, deliverMessageToWs, encodeFrame, type TunnelWsClientFrame } from './frames';
 
 export interface AttachTunnelWssOptions {
@@ -70,11 +71,24 @@ export function attachTunnelWss(server: HttpServer, options: AttachTunnelWssOpti
         hub.registerWsConnection(verified.userId, ws);
         sendJson(ws, { op: 'auth_ok', userId: verified.userId });
 
-        // Deliver messages published while this user had no live socket
-        // (e.g. device telemetry fired during the auth-grace/connect delay
-        // before this WSS handshake completed). Same offline queue the SSE
-        // route already drains on connect — see lib/tunnel/hub/in-memory-hub.ts.
-        for (const queued of hub.drainUserQueue(verified.userId)) {
+        // Drop stale account:status offline backlog on fresh auth — prevents replay storms on /profile.
+        hub.clearUserSideEffectQueue(verified.userId);
+
+        // Replay telemetry + general inbox only — side-effect channels (account:status)
+        // drain on subscribe so stale reactivate notifications cannot refresh-storm /profile.
+        const depth = hub.getUserOfflineQueueDepth(verified.userId);
+        if (process.env.NODE_ENV === 'development' && (depth.telemetry + depth.general + depth.sideEffect) > 0) {
+          console.debug(JSON.stringify({
+            tag: 'tunnel.drain',
+            userId: verified.userId,
+            depth,
+            phase: 'auth_ok',
+          }));
+        }
+        for (const queued of hub.drainUserTelemetryQueue(verified.userId)) {
+          deliverMessageToWs(ws, queued);
+        }
+        for (const queued of hub.drainUserGeneralQueue(verified.userId)) {
           deliverMessageToWs(ws, queued);
         }
         return;
@@ -92,6 +106,21 @@ export function attachTunnelWss(server: HttpServer, options: AttachTunnelWssOpti
         case 'subscribe': {
           session.subscriptions.add(frame.channel);
           hub.subscribeChannel(session.userId, frame.channel);
+          if (classifyUserQueueChannel(frame.channel) === 'sideEffect') {
+            const sideEffects = hub.drainUserSideEffectQueue(session.userId);
+            if (process.env.NODE_ENV === 'development' && sideEffects.length > 0) {
+              console.debug(JSON.stringify({
+                tag: 'tunnel.drain',
+                userId: session.userId,
+                channel: frame.channel,
+                batchSize: sideEffects.length,
+                phase: 'subscribe',
+              }));
+            }
+            for (const queued of sideEffects) {
+              deliverMessageToWs(ws, queued);
+            }
+          }
           break;
         }
         case 'unsubscribe': {

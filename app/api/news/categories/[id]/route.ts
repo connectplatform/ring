@@ -12,14 +12,13 @@ type CategoryRow = Record<string, unknown> & { id: string }
  * Fetch a specific news category by ID
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
-  try {
-    const { id } = params
+  const { id } = await context.params
 
+  try {
     const categoryResult = await db().readDoc<CategoryRow>('newsCategories', id)
 
     if (!categoryResult.success || !categoryResult.data) {
@@ -48,10 +47,11 @@ export async function GET(
  * Update a news category (admin only)
  */
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
+
+  const { id } = await context.params
 
   try {
     const session = await auth()
@@ -70,9 +70,7 @@ export async function PUT(
         { status: 403 }
       )
     }
-
-    const { id } = params
-    const { name, description, color, icon } = await request.json()
+const { name, description, color, icon } = await request.json()
 
     // Validate required fields
     if (!name || !color || !icon) {
@@ -122,10 +120,11 @@ export async function PUT(
  * Delete a news category (admin only)
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
+
+  const { id } = await context.params
 
   try {
     const session = await auth()
@@ -144,10 +143,7 @@ export async function DELETE(
         { status: 403 }
       )
     }
-
-    const { id } = params
-
-    // Check if category exists
+// Check if category exists
     const categoryResult = await db().readDoc<CategoryRow>('newsCategories', id)
     if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(

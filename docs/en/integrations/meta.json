@@ -1,8 +1,10 @@
 {
   "title": "Integrations",
-  "description": "Third-party integrations for Ring Platform clones — payments, Web3 wallets, OAuth, push, email, API, and MCP",
+  "description": "Third-party integrations for Ring Platform clones — payments, Web3 wallets, OAuth, push, email, API, MCP, and RingFileBase CDN storage",
   "pages": [
     "index",
-    "ethereum-wallets"
+    "ethereum-wallets",
+    "ring-filebase",
+    "ring-cdn"
   ]
 }

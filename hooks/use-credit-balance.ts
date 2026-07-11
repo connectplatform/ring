@@ -266,7 +266,7 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     limits: data?.limits || null,
     isLoading,
     isRefreshing,
-    error: error || tunnelError,
+    error: error ?? (data ? null : tunnelError),
     refresh,
     lastRefreshed,
     isTunnelConnected

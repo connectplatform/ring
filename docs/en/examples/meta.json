@@ -3,12 +3,17 @@
   "pages": [
     "index",
     "quick-start",
+    "basic-setup",
     "authentication",
     "email-ai-crm",
     "api-integration",
+    "api-examples",
     "web3-integration",
     "white-label",
+    "custom-branding",
+    "apple-signin-integration",
+    "integrations",
     "real-world",
-    "api-examples"
+    "advanced-features"
   ]
 }

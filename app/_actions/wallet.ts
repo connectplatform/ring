@@ -110,12 +110,15 @@ export async function ensureUserWallets(): Promise<WalletActionResult & {
       return { success: false, error: 'Authentication required' }
     }
 
-    // Dynamically import wallet provisioning logic (keeps cold path light)
-    const { ensureWallets } = await import('@/features/wallet/services/ensure-wallet')
-    const result = await ensureWallets({
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const ensured = await WalletConductor.ensureNativeWallet({
       id: session.user.id,
       role: session.user.role,
     })
+
+    if (!ensured.ok || !ensured.native) {
+      return { success: false, error: ensured.error || 'Failed to ensure wallets' }
+    }
 
     // Invalidate wallet-related paths for fresh UI data
     revalidatePath('/[locale]/wallet')
@@ -125,10 +128,10 @@ export async function ensureUserWallets(): Promise<WalletActionResult & {
     return {
       success: true,
       nativeWallet: {
-        address: result.native.address,
-        chain: result.native.chain ?? 'evm',
+        address: ensured.native.address,
+        chain: ensured.native.chain ?? 'evm',
       },
-      walletCount: result.wallets.length,
+      walletCount: ensured.wallets?.length ?? 1,
     }
   } catch (error) {
     logger.error('ensureUserWallets failed', { error })
@@ -188,21 +191,30 @@ export async function listUserWallets(): Promise<WalletListResult> {
 
 /**
  * Fetches the on-chain balance for the user's default wallet.
- * Uses viem to query Polygon RPC.
+ * Pass `existingWallet` when the caller already provisioned wallets (avoids duplicate work).
  */
-export async function getWalletBalance(): Promise<WalletActionResult & { balance?: string }> {
+export async function getWalletBalance(
+  existingWallet?: Pick<import('@/features/auth/types').Wallet, 'address' | 'chain'>,
+): Promise<WalletActionResult & { balance?: string }> {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: 'Authentication required' };
     }
 
-    // Dynamically import wallet service to find user's default wallet
-    const { ensureWallet } = await import('@/features/wallet/services/ensure-wallet');
-    const { ensureWallets } = await import('@/features/wallet/services/ensure-wallet');
+    let primaryWallet = existingWallet
+    if (!primaryWallet?.address) {
+      const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+      const ensured = await WalletConductor.ensureNativeWallet({
+        id: session.user.id,
+        role: session.user.role,
+      })
+      if (!ensured.ok || !ensured.native) {
+        return { success: false, error: ensured.error || 'Primary wallet not found' }
+      }
+      primaryWallet = ensured.native
+    }
 
-    // Find user's primary wallet
-    const primaryWallet = await ensureWallet({ id: session.user.id, role: session.user.role });
     if (!primaryWallet?.address) {
       return { success: false, error: 'Primary wallet not found' };
     }
@@ -224,6 +236,35 @@ export async function getWalletBalance(): Promise<WalletActionResult & { balance
   } catch (error) {
     logger.error('getWalletBalanceByAddress failed', { error });
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get balance' }
+  }
+}
+
+/**
+ * Native-token custodial balance via WalletConductor (preferred for send UI).
+ */
+export async function getNativeTokenBalanceAction(): Promise<
+  WalletActionResult & { balance?: string; address?: string; chain?: string; tokenSymbol?: string }
+> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const result = await WalletConductor.getNativeBalance(session.user.id)
+    return {
+      success: true,
+      balance: result.balance,
+      address: result.address,
+      chain: result.chain,
+      tokenSymbol: result.tokenSymbol,
+    }
+  } catch (error) {
+    logger.error('getNativeTokenBalanceAction failed', { error })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get native balance',
+    }
   }
 }
 
@@ -348,10 +389,9 @@ export async function getCreditBalance(): Promise<CreditBalanceResult> {
 // ============================================================================
 
 /**
- * Adds credits to user balance after verifying on-chain transfer.
- * Requires txHash, amount, and user wallet addresses for verification.
- *
- * // TODO: In future, switch to React 19 mutation handling for instant optimistic UI if expected wait is short.
+ * Adds credit-balance points after verifying an on-chain transfer to treasury (chain-proof).
+ * Does NOT credit native RING wallet balance — that is Token Desk / native_token_onramp.
+ * Card → credit points use initiateCreditTopupPayment → PaymentConductor wallet_topup.
  */
 export async function topUpCredits(formData: FormData): Promise<WalletActionResult & {
   newBalance?: string
@@ -448,37 +488,29 @@ export async function spendCredits(formData: FormData): Promise<WalletActionResu
     }
 
     const amount = formData.get('amount') as string
-    const description = formData.get('description') as string || 'Credit spend'
-    const orderId = formData.get('orderId') as string | undefined
+    const description = (formData.get('description') as string) || 'Credit spend'
+    const orderId = (formData.get('orderId') as string) || undefined
 
-    if (!amount || parseFloat(amount) <= 0) {
-      return { success: false, error: 'Valid amount is required' }
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const result = await WalletConductor.spendCredits({
+      userId: session.user.id,
+      amount,
+      description,
+      orderId,
+    })
+
+    if (!result.success) {
+      return { success: false, error: result.error }
     }
 
-    // Ensure user has enough balance
-    const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const hasBalance = await creditBalanceService.hasSufficientBalance(session.user.id, amount)
-    if (!hasBalance) {
-      return { success: false, error: 'Insufficient credit balance' }
-    }
-
-    // Debit user's credits for this action
-    const result = await creditBalanceService.spendCredits(
-      session.user.id,
-      { amount, description, order_id: orderId },
-      'purchase',
-      '1', // USD rate for plain fiat credits
-    )
-
-    // Invalidate after mutation for UI
     revalidatePath('/[locale]/wallet')
     revalidatePath('/[locale]/profile')
 
     return {
       success: true,
-      message: `Spent ${amount} credits successfully`,
+      message: result.message,
       newBalance: result.newBalance,
-      transactionId: result.transaction.id,
+      transactionId: result.transactionId,
     }
   } catch (error) {
     logger.error('spendCredits failed', { error })
@@ -802,10 +834,11 @@ export async function processMembershipFee(formData: FormData): Promise<WalletAc
 
     // Bill for subscription/etc.
     const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
+    const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
     const result = await creditBalanceService.processMembershipFee(
       session.user.id,
       membershipFee,
-      '1', // USD rate
+      getFiatCreditAccountingRate(),
     )
 
     revalidatePath('/[locale]/wallet')
@@ -856,110 +889,55 @@ export async function transferNativeTokens(formData: FormData): Promise<WalletAc
   try {
     const session = await auth()
     if (!session?.user?.id) {
-      // Require user authentication for all token transfers
       return { success: false, error: 'Authentication required' }
     }
 
-    // Get all required input details from form
     const toAddress = formData.get('toAddress') as string
     const amount = formData.get('amount') as string
     const notes = (formData.get('notes') as string) || undefined
     const contactUserId = (formData.get('contactUserId') as string) || undefined
     const ringContactId = (formData.get('ringContactId') as string) || undefined
 
-    // Validate basic params
-    if (!toAddress || !amount) {
-      return { success: false, error: 'Recipient address and amount are required' }
-    }
-
-    const transferAmount = parseFloat(amount)
-    if (Number.isNaN(transferAmount) || transferAmount <= 0) {
-      return { success: false, error: 'Invalid transfer amount' }
-    }
-
-    // Delegate transfer logic to service (handles gas sponsorship, infra, etc.)
-    const { transferNativeTokenForUser } = await import('@/features/wallet/chains/native-token-transfer-service')
-    const result = await transferNativeTokenForUser({
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const result = await WalletConductor.transferNative({
       userId: session.user.id,
       toAddress,
       amount,
+      notes,
+      contactUserId,
+      ringContactId,
     })
 
-    // Record transaction for user wallet activity, prevent duplicates
-    const { db } = await import('@/lib/database')
-    const txId = `native_token_send_${result.txHash.toLowerCase()}`
-    await db().createDoc(
-      'wallet_transactions',
-      {
-        kind: 'nativetoken_send',
-        txHash: result.txHash,
-        userId: session.user.id,
-        fromAddress: result.fromAddress,
-        toAddress,
-        amount,
-        tokenSymbol: getNativeTokenSymbol(result.chain), // Always reflect platform's native symbol
-        chain: result.chain,
-        notes: notes ?? null,
-        contactUserId: contactUserId ?? null,
-        createdAt: new Date().toISOString(),
-      },
-      { id: txId },
-    )
-
-    // Touch or update contact usage statistics, if relevant (show "last paid" etc in UI)
-    if (ringContactId) {
-      // Touch known contact (by ring contact id)
-      const { getCurrentRingContactsService } = await import('@/features/contacts/services')
-      const contacts = getCurrentRingContactsService()
-      await contacts.touchLastUsed(session.user.id, ringContactId)
-    } else if (contactUserId) {
-      // Try to match userId to ring contact and touch
-      const { getCurrentRingContactsService } = await import('@/features/contacts/services')
-      const contacts = getCurrentRingContactsService()
-      const list = await contacts.listContacts(session.user.id)
-      const match = list.find((c) => c.contactUserId === contactUserId)
-      if (match) {
-        await contacts.touchLastUsed(session.user.id, match.id)
-      }
+    if (!result.success) {
+      return { success: false, error: result.error }
     }
 
-    // Invalidate wallet and activity UI for instant update
     revalidatePath('/[locale]/wallet')
-    revalidatePath('/[locale]/wallet/send')
     revalidatePath('/[locale]/wallet/activity')
 
     return {
       success: true,
-      message: `Sent ${amount} ${getNativeTokenSymbol(result.chain)} to ${toAddress.slice(0, 6)}...${toAddress.slice(-4)}`,
+      message: result.message,
       txHash: result.txHash,
       fromAddress: result.fromAddress,
-      toAddress,
-      amount,
-      tokenSymbol: getNativeTokenSymbol(result.chain),
+      toAddress: result.toAddress,
+      amount: result.amount,
+      tokenSymbol: result.tokenSymbol as ReturnType<typeof getNativeTokenSymbol>,
       chain: result.chain,
     }
   } catch (error) {
     logger.error('transferNativeTokens failed', { error })
-    const message = error instanceof Error ? error.message : 'Transfer failed'
-
-    // Friendly client error mapping for probable causes
-    if (message.includes('insufficient') || message.includes('Insufficient')) {
-      // Not enough native tokens
-      return { success: false, error: message, message: undefined }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to transfer tokens',
     }
-    if (message.includes('GAS_RESERVE') || message.includes('gas reserve')) {
-      // Gas buffer exhausted, disables transfers
-      return { success: false, error: 'Gas reserve exhausted — transfers temporarily paused' }
-    }
-
-    return { success: false, error: message }
   }
 }
 
 // ============================================================================
 // 17. EXECUTE DESK QUOTE (RING/credit conversion)
 // ============================================================================
-// STUB: Not shown here, see below for dispatch logic in executeDeskQuote()
+// Thin adapter → WalletConductor.executeDesk (see executeDeskQuote below)
 
 // ============================================================================
 // 18. LIST WALLET TRANSACTIONS
@@ -1211,28 +1189,23 @@ export async function executeDeskQuote(formData: FormData): Promise<WalletAction
   try {
     const session = await auth()
     if (!session?.user?.id) {
-      // Ensure user is present before permitting risk-sensitive mutations
       return { success: false, error: 'Authentication required' }
     }
 
     const idempotencyKey = formData.get('idempotencyKey') as string
     const quoteToken = formData.get('quoteToken') as string
-
-    // Both idempotencyKey and quoteToken are required for safe quote execution
     if (!idempotencyKey || !quoteToken) {
       return { success: false, error: 'idempotencyKey and quoteToken are required' }
     }
 
-    // STUB: This implementation is project/Solana-specific.
-    // TODO: Generalize to support EVM and other desk types via an abstract interface and switch/case on chain type.
-    const { executeDesk } = await import('@/features/wallet/chains/solana/desk-service')
-    const result = await executeDesk({
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const result = await WalletConductor.executeDesk({
       userId: session.user.id,
+      role: session.user.role,
       idempotencyKey,
       quoteToken,
     })
 
-    // After trade, ensure UI shows new balances and activity
     revalidatePath('/[locale]/wallet')
     revalidatePath('/[locale]/wallet/activity')
 
@@ -1246,15 +1219,12 @@ export async function executeDeskQuote(formData: FormData): Promise<WalletAction
   } catch (error) {
     logger.error('executeDeskQuote failed', { error })
     const message = error instanceof Error ? error.message : 'Desk execution failed'
-
-    // Special error case mapping for actionable UI messages
     if (message.includes('Compliance')) {
       return { success: false, error: 'Compliance check failed' }
     }
     if (message.includes('Quote expired') || message.includes('signature mismatch')) {
       return { success: false, error: 'Quote expired or invalid — request a new quote' }
     }
-
     return { success: false, error: message }
   }
 }
@@ -1319,15 +1289,18 @@ export async function createPinAccessTokenAction(
 
   try {
     // 3. Dynamic Import: These keep private cryptographic and db logic server-only and avoid cold starts.
-    const { ensureWallet } = await import('@/features/wallet/services/ensure-wallet')
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
     const { issueAccessToken } = await import('@/lib/wallet/pin-access-token-db')
-    const { UserRolesArray } = await import('@/features/auth/user-role')
 
     // Only v2 wallets support pin-gated flows. Fails with 'Legacy v1 wallet' for migration prompt.
-    const wallet = await ensureWallet({
+    const ensured = await WalletConductor.ensureNativeWallet({
       id: session.user.id,
-      role: UserRolesArray.subscriber,
+      role: session.user.role,
     })
+    if (!ensured.ok || !ensured.native) {
+      return { success: false, error: ensured.error || 'Wallet provisioning failed' }
+    }
+    const wallet = ensured.native
 
     // Core access token issuance, checks PIN and returns details
     const issued = await issueAccessToken(
@@ -1392,4 +1365,36 @@ export async function revokePinAccessTokensAction(): Promise<WalletActionResult>
     logger.error('revokePinAccessTokensAction failed', { error: message })
     return { success: false, error: message }
   }
+}
+
+export interface CreditTopupFormState {
+  success?: boolean
+  error?: string
+  message?: string
+  paymentUrl?: string
+}
+
+/**
+ * Initiate card redirect for wallet credit top-up (card / Apple Pay / Google Pay).
+ * Settled via wallet_topup webhook → credit_balance add (NOT native RING).
+ * Thin adapter → WalletConductor.initiateTopUp.
+ */
+export async function initiateCreditTopupPayment(
+  prevState: CreditTopupFormState | null,
+  formData: FormData,
+): Promise<CreditTopupFormState> {
+  const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+  return WalletConductor.initiateTopUp(prevState, formData)
+}
+
+/**
+ * Confidential+ BuyNativeViaCard — PaymentConductor purpose native_token_onramp.
+ * Thin adapter → WalletConductor.initiateNativeOnramp.
+ */
+export async function initiateNativeTokenOnrampPayment(
+  prevState: CreditTopupFormState | null,
+  formData: FormData,
+): Promise<CreditTopupFormState> {
+  const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+  return WalletConductor.initiateNativeOnramp(prevState, formData)
 }

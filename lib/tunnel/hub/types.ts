@@ -36,13 +36,26 @@ export interface TunnelHub {
   drainUserQueueForSse(userId: string, maxBatch?: number): TunnelMessage[];
 
   /**
-   * Same underlying offline queue as `drainUserQueueForSse`, generalized for
-   * any transport. Call on native WS connect too, so messages published
-   * during the connect boot race (e.g. device telemetry fired before the
-   * WSS handshake completes) are delivered instead of sitting until the
-   * queue's next SSE drain.
+   * Legacy combined drain (telemetry + general only). Side-effect channels
+   * (`account:status`) are replayed via `drainUserSideEffectQueue` on subscribe.
    */
   drainUserQueue(userId: string, maxBatch?: number): TunnelMessage[];
+
+  /** Telemetry-only offline replay — safe on WS `auth_ok` (capped per channel). */
+  drainUserTelemetryQueue(userId: string, maxBatch?: number): TunnelMessage[];
+
+  /** General inbox offline replay (credit balance, notifications, …). */
+  drainUserGeneralQueue(userId: string, maxBatch?: number): TunnelMessage[];
+
+  /** Side-effect channels — replay on explicit WS subscribe, stale messages dropped. */
+  drainUserSideEffectQueue(userId: string, maxBatch?: number): TunnelMessage[];
+
+  /** Dev/diagnostic: offline backlog depth by queue kind. */
+  getUserOfflineQueueDepth(userId: string): {
+    telemetry: number;
+    sideEffect: number;
+    general: number;
+  };
 
   /** Per-user inbox (unread counts, credit balance). */
   publishToUser(userId: string, message: TunnelMessage): PublishToUserResult;
@@ -73,4 +86,7 @@ export interface TunnelHub {
   isUserSubscribed(userId: string, channel: string): boolean;
 
   clearUserPollQueue(userId: string): void;
+
+  /** Drop accumulated account:status offline backlog for a user. */
+  clearUserSideEffectQueue(userId: string): void;
 }

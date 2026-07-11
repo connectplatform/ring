@@ -23,7 +23,7 @@ import 'server-only'
 
 import { cache } from 'react'
 import { auth } from '@/auth'
-import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
+import { resolvePersistedUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { getChainAdapter } from '@/features/wallet/chains/registry'
 import {
   getSystemConfigSnapshot,
@@ -107,6 +107,15 @@ function resolveChainPlan(): { nativeChain: NativeChain; chains: EnabledChains[]
   return { nativeChain, chains: enabled }
 }
 
+function resolveAutoProvisionChains(
+  nativeChain: NativeChain,
+  enabled: EnabledChains[],
+): EnabledChains[] {
+  // SSOT (ring-config.json chains.native): custodial auto-provision is native-only.
+  // EVM wallets for Web3 users are linked at crypto-wallet sign-in, not generated here.
+  return enabled.includes(nativeChain) ? [nativeChain] : []
+}
+
 // ----------------------------------------------------------------------------
 // Provisions a chain-specific wallet for the userId.
 // - Generates wallet via chain adapter
@@ -149,8 +158,8 @@ async function provisionChainWallet(
 }
 
 // ----------------------------------------------------------------------------
-// Main orchestrator: Ensures user has at least one wallet per enabled chain.
-// - Native chain is prioritised as default
+// Main orchestrator: Ensures user has a custodial native-chain wallet.
+// - Native chain only (Solana); EVM is linked via crypto-wallet sign-in
 // - Visitors blocked from wallet creation
 // - userOverride path is for admin/system flows (e.g. /api/wallet/ensure)
 // - Atomic single-write at the end eliminates JSONB race
@@ -171,16 +180,14 @@ export async function ensureWallets(
 
   if (userOverride) {
     userId = userOverride.id
-    // SSOT role parse — throws InvalidUserRoleError for unknown values;
-    // we surface a 403-equivalent message to the caller.
-    userRole = assertKnownUserRole(userOverride.role)
+    userRole = resolvePersistedUserRole(userOverride.role)
   } else {
     const session = await auth()
     if (!session?.user) {
       throw new Error('Unauthorized: Please log in to ensure wallet')
     }
     userId = session.user.id
-    userRole = assertKnownUserRole(session.user.role)
+    userRole = resolvePersistedUserRole(session.user.role)
   }
 
   if (userRole === UserRolesArray.visitor) {
@@ -190,6 +197,7 @@ export async function ensureWallets(
   // ----- 2. Pre-flight: encryption key + chain plan ------------------------
   const encryptionKey = requireEncryptionKey()
   const { nativeChain, chains } = resolveChainPlan()
+  const chainsToProvision = resolveAutoProvisionChains(nativeChain, chains)
 
   // ----- 3. Load existing wallets (React 19 cache) -------------------------
   const existing = await getUserWallets(userId)
@@ -206,7 +214,7 @@ export async function ensureWallets(
   // Each provisionChainWallet call is independent (different chains) and
   // the DB write is deferred to step 5.
   const toProvision: EnabledChains[] = []
-  for (const chain of chains) {
+  for (const chain of chainsToProvision) {
     if (!walletMap.has(chain)) toProvision.push(chain)
   }
 
@@ -231,13 +239,24 @@ export async function ensureWallets(
     isDefault: w.chain === nativeChain,
   }))
 
-  const changed = normalized.length !== existing.length
-    || normalized.some((w, i) => {
-      const prev = merged[i]
-      return !prev || w.isDefault !== prev.isDefault || w.address !== prev.address
+  const existingByChain = new Map<string, Wallet>()
+  for (const w of existing) {
+    if (w.chain) existingByChain.set(w.chain, w)
+  }
+
+  const changed =
+    normalized.length !== existing.length ||
+    normalized.some((w) => {
+      if (!w.chain) return true
+      const prev = existingByChain.get(w.chain)
+      if (!prev) return true
+      return w.isDefault !== prev.isDefault || w.address !== prev.address
     })
 
   if (changed) {
+    if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
+      console.log(JSON.stringify({ level: 'info', tag: 'ensureWallets.write', userId, walletCount: normalized.length }))
+    }
     await setUserWallets(userId, normalized)
   }
 
@@ -320,8 +339,7 @@ export async function createPinAccessToken(
   pin: string,
   role: UserRolesArray = UserRolesArray.subscriber,
 ): Promise<{ accessToken: string; walletAddress: string }> {
-  // Force role-validated user resolution; never accept raw strings.
-  const wallet = await ensureWallet({ id: userId, role })
+  const wallet = await ensureWallet({ id: userId, role: resolvePersistedUserRole(role) })
 
   // Delegated to lib/wallet/pin-access-token-db (Phase 3a). Validates PIN
   // by attempting decryption; throws on failure.

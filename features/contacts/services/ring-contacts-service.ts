@@ -1,30 +1,21 @@
 /**
  * Ring Contacts Service — per-project Ring user address book
  * Provides CRUD operations and utility functions for managing Ring contacts per project.
- * 
- * Heavily commented for maintainability and migration awareness.
- * 
- * TODO: For React 19+/Next.js 16: Migrate cache() to use the new React.cache API.
- *   - Replace `import { cache } from 'react'` with built-in React.cache if/when available.
- *   - Rework memoization approach to use Next.js static caches/server singletons as needed for SSG/SSR.
- * TODO: Consider explicit DB normalization and mapping to avoid dual camelCase/snake_case prop logic in mapRingContactRow and RingContactRow.
+ *
+ * React 19: request memoization via `cache` from 'react' (React.cache).
  */
 
-// --- Imports ---
-// Using React 19's cache for server function memoization.
-// TODO: After upgrading to React 19 and Next 16+: Use React.cache() directly and possibly Next static cache utilities.
-import React, { cache } from 'react'
+import { cache } from 'react'
 import type { Wallet } from '@/features/auth/types'
 import { UserRolesArray, parseUserRolesArray, resolveSessionUserRole } from '@/features/auth/user-role'
-import { ensureWallets } from '@/features/wallet/services/ensure-wallet'
+import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
 import { selectDefaultWallet } from '@/features/wallet/services/utils'
 import { getNativeChain, NativeChain } from '@/lib/ring-config-chain'
-import { db } from '@/lib/database' // TODO: Ensure db() is fully production-ready and not a stub for prod use.
+import { db } from '@/lib/database'
 import type { AddRingContactInput, PatchRingContactInput, RingContact } from '../types'
 import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 
 // Row types representing the DB structure, supporting both camelCase and snake_case for backward compat.
-// TODO: Strongly consider explicit normalization & a mapping layer to cleanly abstract mixed casing.
 type RingContactRow = {
   id?: string
   owner_user_id?: string
@@ -139,11 +130,6 @@ export class RingContactsServiceImpl {
    * @returns User profile row (with id field)
    */
   private async loadUserProfile(userId: string): Promise<UserProfileRow & { id: string }> {
-    // Calls the db().findDocById implementation; ensure this is not stubbed in production builds!
-    // STUB: If db() is a stub, replace with production-grade DB implementation:
-    // 1. Connect to user collection.
-    // 2. Query for user with userId.
-    // 3. Throw on missing/failed.
     const result = await db().findDocById<UserProfileRow>('users', userId)
     if (!result.success || !result.data) {
       throw new Error('User not found')
@@ -196,9 +182,8 @@ export class RingContactsServiceImpl {
       (profile.username as string | undefined) ||
       contactUserId
 
-    // Get the user's default wallet (may be undefined)
-    // TODO: Pass chain context into selectDefaultWallet for full compatibility.
-    const wallet = selectDefaultWallet(profile.wallets)
+    // Get the user's default wallet on the platform native chain
+    const wallet = selectDefaultWallet(profile.wallets, getNativeChain())
 
     // Check for any pre-existing contact entry (owner, project, contact composite key)
     const existingResult = await db().queryDocs<RingContactRow>({
@@ -362,66 +347,43 @@ export class RingContactsServiceImpl {
 
   /**
    * Find and return the native-chain wallet address for a contact user.
-   * - If not available, auto-creates a wallet for them on the correct chain.
-   * - Throws if this cannot be resolved.
-   * 
-   * TODO:
-   *   - Once React 19 is stable, make selectDefaultWallet/ensureWallets fully async and React-native safe.
-   *   - Consider static caching or streaming patterns from Next.js for SSR/SSG performance.
-   *
-   * @param contactUserId - user to resolve wallet for
-   * @returns wallet address as string (or throws)
+   * Provisions via WalletConductor when missing.
    */
   async resolveRecipientWallet(contactUserId: string): Promise<string> {
-    // Load the full user profile from DB
     const profile = await this.loadUserProfile(contactUserId)
-
-    // Determine the system's "native" chain context
     const nativeChain: NativeChain = getNativeChain()
 
-    // Try to select a default wallet for the user and chain; otherwise ensure/provision a new one.
-    const wallet = selectDefaultWallet(profile.wallets, nativeChain)
-      ?? (await ensureWallets({
-        id: contactUserId,
-        role: parseUserRolesArray(profile.role) ?? resolveSessionUserRole(profile.role) as UserRolesArray | null
-      })).native
-
-    if (!wallet) {
-      throw new Error('Wallet not found')
+    const existing = selectDefaultWallet(profile.wallets, nativeChain)
+    if (existing?.address) {
+      return existing.address
     }
-    return wallet.address
+
+    const role =
+      parseUserRolesArray(profile.role) ??
+      (resolveSessionUserRole(profile.role) as UserRolesArray | null) ??
+      UserRolesArray.subscriber
+
+    const ensured = await WalletConductor.ensureNativeWallet({
+      id: contactUserId,
+      role,
+    })
+    if (!ensured.ok || !ensured.native?.address) {
+      throw new Error(ensured.error || 'Wallet not found')
+    }
+    return ensured.native.address
   }
 }
 
-// Factory function for memoized per-project service instance.
-// TODO: On React 19: Replace with React.cache API and, if on Next16+, consider static caches/server singletons for SSG/SSR.
-// See: https://github.com/vercel/next.js/discussions/63336 for idiomatic cache/instance patterns.
-export const createRingContactsService = (
-  typeof React !== "undefined" && (React as any)?.cache
-    ? // TODO: If React.cache exists, use it over 'cache'
-      (React as any).cache((projectSlug: string): RingContactsServiceImpl => new RingContactsServiceImpl(projectSlug))
-    : // fallback for React 18/early 19: use legacy cache import
-      cache((projectSlug: string): RingContactsServiceImpl => new RingContactsServiceImpl(projectSlug))
+/** Per-project RingContactsService — React 19 `cache` request memoization. */
+export const createRingContactsService = cache(
+  (projectSlug: string): RingContactsServiceImpl => new RingContactsServiceImpl(projectSlug),
 )
 
-// Factory for retrieving a singleton for the current project (based on build-time config/env).
-export const getCurrentRingContactsService = (
-  typeof React !== "undefined" && (React as any)?.cache
-    ? // TODO: Use React.cache if available.
-      (React as any).cache((): RingContactsServiceImpl => {
-        // Determine the current project slug from config or fallback to environment var/default.
-        const projectSlug =
-          getSystemConfigSnapshot().clone.name ??
-          process.env.NEXT_PUBLIC_PROJECT_SLUG ??
-          'ring'
-        return createRingContactsService(projectSlug)
-      })
-    : // fallback: legacy cache
-      cache((): RingContactsServiceImpl => {
-        const projectSlug =
-          getSystemConfigSnapshot().clone.name ??
-          process.env.NEXT_PUBLIC_PROJECT_SLUG ??
-          'ring'
-        return createRingContactsService(projectSlug)
-      })
-)
+/** Current project singleton for this request. */
+export const getCurrentRingContactsService = cache((): RingContactsServiceImpl => {
+  const projectSlug =
+    getSystemConfigSnapshot().clone.name ??
+    process.env.NEXT_PUBLIC_PROJECT_SLUG ??
+    'ring'
+  return createRingContactsService(projectSlug)
+})

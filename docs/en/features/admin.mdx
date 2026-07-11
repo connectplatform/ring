@@ -1,0 +1,240 @@
+---
+title: Admin console
+description: Role-aware three-pane admin navigation — section hubs in main menus, in-module submenus in the right rail, Security hub tabs, and shared SSOT config
+last_modified: "2026-07-10"
+audience: both
+---
+
+# Admin console
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. HTTP handlers for the same desks live in [Admin API](/docs/api/admin).
+</Callout>
+
+Ring’s **Admin console** (`/admin/*`) is a three-pane operator surface: left menus for **section hubs**, center for work, right rail for **in-module submenus** and related hubs. Navigation is role-filtered from one SSOT — platform admins (`admin` | `superadmin`) see community, trust, commerce, and email hubs; **superadmin** also sees Platform ops (settings, processes, performance, subscriptions, Web3).
+
+| Surface | What it shows | Source |
+|---------|---------------|--------|
+| Icon rail | Single **Admin** entry → `/admin` | `sidebar-rail.tsx` + `isPlatformAdmin` |
+| Desktop aside | Grouped hubs (Overview → … → Platform) | `useAdminNavMenu` ← `admin-nav-config.ts` |
+| Mobile bottom sheet | Same filtered hubs | `bottom-navigation.tsx` |
+| Right rail | Submenu → related hubs → optional news stats → help | `AdminWrapper` → `admin-rail.tsx` |
+| Dashboard tiles | Same hubs (minus Dashboard itself) | `admin-dashboard-tiles.ts` |
+
+<Audience for="founder">
+
+## Why this matters for your clone
+
+Operators should not hunt three different menus. One config drives desktop, mobile, dashboard tiles, and the right rail — so promoting someone to **admin** or **superadmin** changes what they can open consistently.
+
+<Cards>
+  <Card title="Trust & safety hub" href="/docs/features/security">
+    Security center folds fraud desk and verification into `/admin/security?tab=…`.
+  </Card>
+  <Card title="Email AI-CRM" href="/docs/features/email-ai-crm">
+    Inbox, drafts, contacts, analytics, and tasks share the admin shell and email rail.
+  </Card>
+  <Card title="Store & ERP" href="/docs/features/store">
+    Store hub opens products; rail links orders, stock, commissions, and add product.
+  </Card>
+  <Card title="Telegram admin bot" href="/docs/features/manage-via-telegram">
+    Whitelist RBAC for remote ops — complements the web console.
+  </Card>
+</Cards>
+
+### Operator journey (typical day)
+
+1. Open **Admin** from the icon rail → dashboard tiles for every hub you can access.
+2. Jump to **Security** for fraud / verification / events without separate top-level Fraud or Verification menu items.
+3. Use the **right rail** on News, Store, Email, Matcher, DAO, Web3, Users, or Moderation for in-module links (and related hubs).
+4. **Superadmin** only: Platform group — Settings, Processes, Performance, Subscriptions, Web3 (settings page is superadmin-gated).
+
+<Callout type="tip">
+  Legacy URLs `/admin/fraud-desk` and `/admin/verification` still work — they **redirect** into the Security hub tabs so bookmarks and old docs keep working.
+</Callout>
+
+### Role checklist
+
+| Role | Main menus | Platform group |
+|------|------------|----------------|
+| `admin` | Overview, Community, Trust & safety, Commerce, Email & CRM | Hidden |
+| `superadmin` | Same + Platform | Settings, Processes, Performance, Subscriptions, Web3 |
+
+SSOT roles: `features/auth/user-role.ts` (`isPlatformAdmin`, `isSuperadmin`). Layout guard: `AdminAuthGuard` on `app/[locale]/admin/layout.tsx`.
+
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+<Mermaid title="Admin nav SSOT → three surfaces">
+{`flowchart LR
+  Config["admin-nav-config.ts"]
+  Filter["filterAdminNavByRole"]
+  Hook["useAdminNavMenu"]
+  Aside["sidebar-aside"]
+  Mobile["bottom-navigation"]
+  Tiles["admin-dashboard-tiles"]
+  Wrapper["AdminWrapper pageContext"]
+  Rail["admin-rail"]
+
+  Config --> Filter
+  Filter --> Hook
+  Filter --> Tiles
+  Filter --> Rail
+  Hook --> Aside
+  Hook --> Mobile
+  Wrapper --> Rail`}
+</Mermaid>
+
+### Module map (verified)
+
+| Concern | Path |
+|---------|------|
+| Nav groups, `pageContext`, rail submenus, related hubs | `features/admin/admin-nav-config.ts` |
+| Labels builder | `features/admin/admin-labels.ts` |
+| Icons | `features/admin/admin-nav-icons.tsx` |
+| Aside + mobile hook | `features/admin/use-admin-nav-menu.ts` |
+| Dashboard tiles | `features/admin/admin-dashboard-tiles.ts` |
+| Right rail UI | `components/layout/rails/admin-rail.tsx` |
+| Layout shell | `components/wrappers/admin-wrapper.tsx` → `RingRightRailLayout` |
+| Email shell | `features/admin/email/email-admin-shell.tsx` |
+| Routes | `constants/routes.ts` (`ADMIN_*`) |
+| Locale copy | `locales/{en,uk,ru}/modules/admin.json` |
+
+### Main menu groups (`ADMIN_NAV_GROUPS`)
+
+| Group `id` | Title key | Items (hubs) | `minRole` |
+|------------|-----------|--------------|-----------|
+| `overview` | `navGroupOverview` | Dashboard | `admin` |
+| `community` | `navGroupCommunity` | Users, News, DAO, Moderation, Analytics | `admin` |
+| `trust` | `navGroupTrust` | Security, Matcher | `admin` |
+| `commerce` | `navGroupCommerce` | Store → products, Refcodes | `admin` |
+| `email` | `navGroupEmail` | Email inbox | `admin` |
+| `platform` | `navGroupPlatformOps` | Settings, Processes, Performance, Subscriptions, Web3 | `superadmin` |
+
+Fraud desk and Verification are **not** main-menu items.
+
+### Right rail contract
+
+Order in `AdminSidebarContent`:
+
+1. **In-module submenu** when `resolveRailSection(pageContext)` is non-null and `getRailSubmenu` returns links  
+2. **Related hubs** via `getRelatedHubs`  
+3. **Full quick nav** only when `pageContext === 'dashboard'`  
+4. **News stats** when `pageContext === 'news'` and `newsStats` is passed  
+5. **Help** docs links  
+
+Active highlighting for query tabs uses `pathWithQuery` (`pathname` + `useSearchParams`) so Security / Matcher / Moderation `?tab=` links highlight correctly.
+
+| `pageContext` | Rail section | Notable submenu |
+|---------------|--------------|-----------------|
+| `security` / legacy fraud-desk / verification | `security` | `?tab=overview\|fraud\|verification\|events` |
+| `matcher` | `matcher` | Analytics vs `?tab=moderation` |
+| `store` | `store` | Products, orders, stock, commissions, add |
+| `email-*` | `email` | Inbox, drafts, contacts, analytics, tasks |
+| `news` | `news` | Articles, categories, analytics, bulk |
+| `web3` | `web3` | Dashboard + Settings (settings link if superadmin) |
+| `users` | `users` | `?tab=` overview / users / verification / analytics |
+| `moderation` | `moderation` | queue / rules / reports / analytics (URL-synced client) |
+
+### Security hub + redirects
+
+```text
+/admin/fraud-desk      → /admin/security?tab=fraud
+/admin/verification    → /admin/security?tab=verification
+```
+
+Tabs SSOT: `features/admin/security/types/security-overview.ts` (`SECURITY_TABS`). Client: `admin-security-center-client.tsx` (controlled Tabs + `router.push`).
+
+### Matcher tab sync
+
+Rail Moderation → `/admin/matcher?tab=moderation`. Client `admin-matcher-client.tsx` reads `tab`; analytics sub-tabs (`performance`, `quality`, …) stay client-local when `tab` is absent.
+
+### Email pages
+
+All email CRM routes wrap with `EmailAdminShell` + correct `pageContext` (`email-inbox`, `email-drafts`, …) so the rail submenu works on mobile and desktop.
+
+### Web3 settings
+
+`/admin/web3/settings` must pass `pageContext="web3"` (superadmin-only page) so the Web3 submenu appears instead of dashboard related hubs.
+
+<Steps>
+
+<Step>
+
+### Extend the main menu
+
+Add an item under the right group in `ADMIN_NAV_GROUPS` with `href`, `pageContext`, `minRole`, and `labelKey`. Add the label to `admin-labels.ts` and `locales/{en,uk,ru}/modules/admin.json`.
+
+</Step>
+
+<Step>
+
+### Wire the page shell
+
+Wrap the page (or client) with `AdminWrapper` and the matching `pageContext`. Email routes use `EmailAdminShell`.
+
+</Step>
+
+<Step>
+
+### Add rail children when the section has multiple leaves
+
+Extend `getRailSubmenu` / `resolveRailSection`. Prefer real routes or `?tab=` synced in the page client (see Security / Moderation). Pass `pathWithQuery` into `isActive` predicates that inspect query strings.
+
+</Step>
+
+</Steps>
+
+<Code language="typescript" title="Role filter (conceptual)">
+{`import { filterAdminNavByRole } from '@/features/admin/admin-nav-config'
+
+// Empty for non-admins; Platform group items require superadmin
+const groups = filterAdminNavByRole(session?.user?.role)`}
+</Code>
+
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="Admin API" href="/docs/api/admin">
+    Verified `/api/admin/*` routes and access tiers.
+  </Card>
+  <Card title="Architecture — security" href="/docs/architecture/security">
+    RBAC layers and confidential tiers.
+  </Card>
+  <Card title="Email AI-CRM" href="/docs/features/email-ai-crm">
+    Inbox CRM admin UI and ingest.
+  </Card>
+  <Card title="Whitelabel navigation" href="/docs/development/whitelabel-navigation">
+    Clone-level nav customization patterns.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — admin console (TBD)">
+
+<FutureFeatureWidget
+  name="Users dashboard URL tab sync"
+  description="Rail links use /admin/users?tab=… but AdminUsersDashboardClient does not yet drive controlled tabs from searchParams the way Security and Moderation do."
+  implementationCost={8}
+  labels={['admin', 'nav']}
+/>
+
+<FutureFeatureWidget
+  name="ERP tabbed /admin/store hub shell"
+  description="Store hub currently redirects to products; a tabbed Orders | Stock | Commissions shell is out of scope for the nav SSOT work."
+  implementationCost={24}
+  labels={['admin', 'store', 'erp']}
+/>
+
+<FutureFeatureWidget
+  name="Live security overview counts in right rail"
+  description="News rail shows live article stats; Security overview metric chips in the rail are not shipped yet."
+  implementationCost={12}
+  labels={['admin', 'security']}
+/>
+
+</FutureFeatureBacklog>

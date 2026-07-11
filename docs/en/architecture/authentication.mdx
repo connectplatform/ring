@@ -162,7 +162,7 @@ The adapter is determined by `DB_BACKEND_MODE`:
 
 Firebase Admin SDK is used in two contexts:
 1. **Auth adapter** (`firebase-full` mode only): `FirestoreAdapter` reads/writes user documents
-2. **Crypto wallet auth** (`firebase-full` mode): `getAdminDb().collection("users")` for nonce lookup
+2. **Crypto wallet auth**: `db().readDoc('users', storageId)` for nonce lookup (BackendSelector routes Firebase or PostgreSQL)
 
 In `k8s-postgres-fcm` and `supabase-fcm` modes, `getAdminDb()` returns a **mock Firestore** — no real Firebase init happens. FCM push messaging still uses Firebase Admin through `firebase-admin.server.ts` (separate from the auth path).
 

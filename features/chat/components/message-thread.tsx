@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Loader2, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 
 interface MessageThreadProps {
   conversationId: string
@@ -32,6 +33,7 @@ export function MessageThread({
   onMessageDeleteAction,
   onMessageReactionAction
 }: MessageThreadProps) {
+  const t = useTranslations('modules.messenger')
   const [replyTo, setReplyTo] = useState<Message | undefined>()
   const [isNearBottom, setIsNearBottom] = useState(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
@@ -85,10 +87,11 @@ export function MessageThread({
     }
   }, [messages.length, isNearBottom, scrollToBottom])
 
+  // Clear roster unread when this thread is focused (pairs with conversations:inbox bumps).
   useEffect(() => {
-    if (conversationId) {
-      void markAsRead()
-    }
+    if (!conversationId) return
+    // Parent inbox refresh is triggered by shell select; local markAsRead handles server.
+    void markAsRead()
   }, [conversationId, markAsRead])
 
   useEffect(() => {
@@ -166,19 +169,33 @@ export function MessageThread({
   }
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
-      {/* Messages area */}
-      <div className="flex-1 relative">
-        <ScrollArea 
+    <div className={cn('flex h-full min-h-0 flex-col', className)}>
+      {/* Messages area — flex-1 so composer stays sticky at bottom of the pane */}
+      <div className="relative min-h-0 flex-1">
+        <ScrollArea
           ref={scrollAreaRef}
           className="h-full"
           onScrollCapture={handleScroll}
         >
-          <div className="p-4 space-y-1">
+          <div className="space-y-1 p-4">
             {/* Loading indicator for older messages */}
             {loading && hasMore && (
               <div className="flex justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Empty-thread CTA — UPGRADE: per-type copy (product agent vs human DM) */}
+            {!loading && messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  {conversation.type === 'product'
+                    ? t('emptyThreadProduct')
+                    : t('emptyThreadHello')}
+                </p>
+                <p className="max-w-xs text-xs text-muted-foreground">
+                  {t('emptyThreadHint')}
+                </p>
               </div>
             )}
 
@@ -215,7 +232,7 @@ export function MessageThread({
               variant="secondary"
               size="sm"
               onClick={() => scrollToBottom()}
-              className="rounded-full h-10 w-10 p-0 shadow-lg"
+              className="h-10 w-10 rounded-full p-0 shadow-lg"
             >
               <ArrowDown className="h-4 w-4" />
             </Button>
@@ -223,13 +240,23 @@ export function MessageThread({
         )}
       </div>
 
-      {/* Message composer */}
-      <MessageComposer
-        conversationId={conversationId}
-        onSendMessageAction={handleSendMessage}
-        replyTo={replyTo}
-        onCancelReplyAction={handleCancelReply}
-      />
+      {/* Sticky composer — shrink-0 keeps it pinned under the scroll region */}
+      <div className="shrink-0 border-t border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <MessageComposer
+          key={conversationId}
+          conversationId={conversationId}
+          onSendMessageAction={handleSendMessage}
+          replyTo={replyTo}
+          onCancelReplyAction={handleCancelReply}
+          placeholder={
+            messages.length === 0
+              ? conversation.type === 'product'
+                ? t('emptyThreadProduct')
+                : t('emptyThreadHello')
+              : undefined
+          }
+        />
+      </div>
     </div>
   )
 } 

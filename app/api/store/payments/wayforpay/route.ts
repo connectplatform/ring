@@ -3,17 +3,13 @@ import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
 import { 
-  initiateStorePayment,
   calculateVendorSettlements,
-  type StorePaymentRequest 
 } from '@/lib/payments/wayforpay-store-service'
+import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { getVendorProfile } from '@/features/store/services/vendor-profile'
-import { UserRolesArray } from '@/features/auth/user-role'
-// TODO: verify if UserRolesArray is beneficial here.
 
-// Validation schema for payment request
 const createPaymentSchema = z.object({
   orderId: z.string().min(1),
   returnUrl: z.string().url().optional(),
@@ -22,15 +18,14 @@ const createPaymentSchema = z.object({
 
 /**
  * POST /api/store/payments/wayforpay
- * Initiates a WayForPay payment session for a store order
+ * Initiates WayForPay via PaymentConductor (store_order → payment_transactions SSOT).
  */
 export async function POST(request: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
     logger.info('Store WayForPay Payment: Starting payment initiation')
 
-    // Step 1: Authenticate user
     const session = await auth()
     if (!session?.user?.id) {
       logger.warn('Store WayForPay Payment: Unauthorized access attempt')
@@ -40,15 +35,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 2: Parse and validate request
     const body = await request.json()
     const validationResult = createPaymentSchema.safeParse(body)
     
     if (!validationResult.success) {
-      const issues = (validationResult as any).error?.issues || (validationResult as any).error
-      logger.warn('Store WayForPay Payment: Invalid request data', {
-        issues
-      })
+      const issues = validationResult.error.issues
+      logger.warn('Store WayForPay Payment: Invalid request data', { issues })
       return NextResponse.json(
         { error: 'Invalid request data', details: issues },
         { status: 400 }
@@ -57,8 +49,7 @@ export async function POST(request: NextRequest) {
 
     const { orderId, returnUrl, locale } = validationResult.data
 
-    // Step 3: Get order details
-    const order = await StoreOrdersService.getOrderById(orderId) as any
+    const order = await StoreOrdersService.getOrderWithPaymentDetails(orderId)
     
     if (!order) {
       logger.warn('Store WayForPay Payment: Order not found', { orderId })
@@ -68,7 +59,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify order belongs to user
     if (order.userId !== session.user.id) {
       logger.warn('Store WayForPay Payment: Order access denied', {
         orderId,
@@ -81,7 +71,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if order is already paid
     if (order.payment?.status === 'paid') {
       logger.warn('Store WayForPay Payment: Order already paid', { orderId })
       return NextResponse.json(
@@ -90,39 +79,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 4: Prepare vendor tiers for settlement calculation
     const vendorTiers: Record<string, string> = {}
-    
-    // Get unique vendor IDs from order items
     const vendorIds = new Set<string>()
-    for (const item of order.items) {
-      if (item.product?.productOwner) {
-        vendorIds.add(item.product.productOwner)
-      }
+    for (const item of order.items || []) {
+      const owner =
+        (item as { product?: { productOwner?: string; vendorId?: string } }).product?.productOwner
+        || (item as { product?: { vendorId?: string } }).product?.vendorId
+      if (owner) vendorIds.add(owner)
     }
 
-    // Get vendor profiles to determine commission tiers
     for (const vendorId of vendorIds) {
       try {
         const vendorEntity = await getVendorEntity(vendorId)
         if (vendorEntity) {
           const vendorProfile = await getVendorProfile(vendorEntity.id)
           if (vendorProfile) {
-            // trustLevel is canonical;
-            vendorTiers[vendorId] = (vendorProfile as any).trustLevel || (vendorProfile as any).trustTier || 'NEW'
+            vendorTiers[vendorId] =
+              (vendorProfile as { trustLevel?: string; trustTier?: string }).trustLevel
+              || (vendorProfile as { trustTier?: string }).trustTier
+              || 'NEW'
           }
         }
       } catch (error) {
-        logger.warn('Store WayForPay Payment: Failed to get vendor tier', {
-          vendorId,
-          error
-        })
-        vendorTiers[vendorId] = 'NEW' // Default to highest commission
+        logger.warn('Store WayForPay Payment: Failed to get vendor tier', { vendorId, error })
+        vendorTiers[vendorId] = 'NEW'
       }
     }
 
-    // Step 5: Calculate vendor settlements
-    const settlements = await calculateVendorSettlements(order.items, vendorTiers)
+    const settlements = await calculateVendorSettlements(order.items as never, vendorTiers)
 
     logger.info('Store WayForPay Payment: Calculated vendor settlements', {
       orderId,
@@ -130,52 +114,55 @@ export async function POST(request: NextRequest) {
       totalAmount: order.total
     })
 
-    // Step 6: Prepare payment request
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
-    const webhookUrl = `${baseUrl}/api/payments/wayforpay/webhook`
     const defaultReturnUrl = `${baseUrl}/store/checkout/processing?orderId=${orderId}`
 
-    const paymentRequest: StorePaymentRequest = {
-      orderId: order.id,
-      userId: session.user.id,
-      userEmail: session.user.email || order.shippingInfo?.email || '',
-      items: order.items,
-      totalAmount: order.total || 0,
-      currency: 'UAH', // Default to UAH for Ukrainian market
-      shippingInfo: order.shippingInfo || {
-        firstName: '',
-        lastName: ''
-      },
-      returnUrl: returnUrl || defaultReturnUrl,
-      webhookUrl,
-      locale: locale || 'UK'
+    const shippingInfo = {
+      firstName: order.shippingInfo?.firstName || '',
+      lastName: order.shippingInfo?.lastName || '',
+      email: order.shippingInfo?.email || session.user.email || '',
+      phone: order.shippingInfo?.phone || '',
+      address: typeof order.shippingInfo?.address === 'string' ? order.shippingInfo.address : '',
+      city: order.shippingInfo?.city || '',
+      postalCode: order.shippingInfo?.postalCode || '',
+      country: order.shippingInfo?.country || '',
     }
 
-    // Step 7: Initiate WayForPay payment
-    const paymentResponse = await initiateStorePayment(paymentRequest)
+    const result = await PaymentConductor.createCheckout({
+      purpose: 'store_order',
+      rail: 'merchant_redirect',
+      userId: session.user.id,
+      userEmail: session.user.email || shippingInfo.email || '',
+      entityId: order.id,
+      orderId: order.id,
+      amount: order.total || 0,
+      currency: 'UAH',
+      items: order.items,
+      shippingInfo,
+      returnUrl: returnUrl || defaultReturnUrl,
+      locale: locale || 'UK',
+    })
 
-    if (!paymentResponse.success) {
-      logger.error('Store WayForPay Payment: Failed to initiate payment', {
+    if (!result.success || !result.paymentUrl) {
+      logger.error('Store WayForPay Payment: PaymentConductor failed', {
         orderId,
-        error: paymentResponse.error
+        error: result.error
       })
       return NextResponse.json(
-        { error: paymentResponse.error || 'Failed to initiate payment' },
+        { error: result.error || 'Failed to initiate payment' },
         { status: 500 }
       )
     }
 
-    // Step 8: Update order with payment session info
     try {
       await StoreOrdersService.updateOrderPaymentStatus(order.id, {
         method: 'wayforpay',
         status: 'pending',
-        wayforpayOrderId: paymentResponse.wayforpayOrderId,
+        wayforpayOrderId: result.orderReference,
         amount: order.total || 0,
         currency: 'UAH'
       })
 
-      // Store vendor settlements for later processing
       if (settlements.length > 0) {
         await StoreOrdersService.updateOrderSettlements(
           order.id, 
@@ -187,20 +174,18 @@ export async function POST(request: NextRequest) {
         orderId,
         error: updateError
       })
-      // Continue anyway as payment session is created
     }
 
-    logger.info('Store WayForPay Payment: Payment initiated successfully', {
+    logger.info('Store WayForPay Payment: Payment initiated via PaymentConductor', {
       orderId,
-      wayforpayOrderId: paymentResponse.wayforpayOrderId,
-      paymentUrl: paymentResponse.paymentUrl?.substring(0, 100) // Log partial URL for security
+      orderReference: result.orderReference,
+      paymentUrl: result.paymentUrl?.substring(0, 100)
     })
 
-    // Step 9: Return payment URL for redirect
     return NextResponse.json({
       success: true,
-      paymentUrl: paymentResponse.paymentUrl,
-      wayforpayOrderId: paymentResponse.wayforpayOrderId,
+      paymentUrl: result.paymentUrl,
+      wayforpayOrderId: result.orderReference,
       orderId: order.id
     })
 
@@ -216,16 +201,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * GET /api/store/payments/wayforpay
- * Health check endpoint
- */
 export async function GET() {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   return NextResponse.json({
     service: 'WayForPay Store Payment',
     status: 'active',
+    conductor: true,
     timestamp: new Date().toISOString()
   })
 }

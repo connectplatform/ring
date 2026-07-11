@@ -18,6 +18,7 @@ import {
 import type { PlatformAnalyticsSummary } from '@/features/analytics/types/platform-analytics'
 import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
 import { AnalyticsForensicsRow } from '@/components/admin/analytics-forensics-row'
+import { AdminUserAnalyticsPanel } from '@/components/admin/admin-user-analytics-panel'
 
 // Format a given web vital based on its type/name
 function formatVitalValue(name: string, value: number): string {
@@ -220,39 +221,7 @@ export default function AdminAnalyticsClient({
 
         {/* Users Tab */}
         <TabsContent value="users">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Users KPI cards */}
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">{labels.totalUsers}</p>
-                <p className="text-2xl font-bold">{data.platform.totalUsers}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">{labels.newUsers ?? 'New users'}</p>
-                <p className="text-2xl font-bold">{data.platform.newUsers}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">{t('overview.pageViews')}</p>
-                <p className="text-2xl font-bold">
-                  {/* Default pageViews to 0 if no event data */}
-                  {data.engagement.hasEventData ? data.engagement.pageViews : 0}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          {/* Device breakdown stub */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Device Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <EmptyState message={t('empty.noDevices')} />
-            </CardContent>
-          </Card>
+          <AdminUserAnalyticsPanel data={data} labels={labels} />
         </TabsContent>
 
         {/* Errors Tab */}

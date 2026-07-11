@@ -15,9 +15,11 @@ const typingService = new TypingService()
  * POST /api/conversations/[id]/typing
  * Updates typing status for the current user in a conversation.
  */
+type RouteContext = { params: Promise<{ id: string }> }
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext,
 ) {
   // Ensures Next.js opt-out of prerendering for dynamic request
   await connection()
@@ -33,7 +35,7 @@ export async function POST(
       )
     }
 
-    const conversationId = params.id
+    const { id: conversationId } = await context.params
     const userId = session.user.id
     const userName = session.user.name
 
@@ -88,7 +90,7 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext,
 ) {
   // Next.js 16: opt out of prerendering (enables dynamic fetching per request)
   await connection()
@@ -104,7 +106,7 @@ export async function GET(
       )
     }
 
-    const conversationId = params.id
+    const { id: conversationId } = await context.params
 
     // Fetch all users currently typing in this conversation
     const typingUsers = await typingService.getTypingUsers(conversationId)

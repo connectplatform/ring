@@ -12,10 +12,9 @@
 #
 # =============================================================================
 #
-# BUILD COMMAND EXAMPLE:
+# BUILD COMMAND EXAMPLE (no AUTH_SECRET build-arg — runtime K8s only):
 # docker build \
 #   --platform linux/amd64 \
-#   --build-arg AUTH_SECRET="your-auth-secret" \
 #   --build-arg NEXT_PUBLIC_AUTH_GOOGLE_ID="your-client-id" \
 #   --build-arg DB_HOST="postgres.your-namespace.svc.cluster.local" \
 #   --build-arg DB_PORT="5432" \
@@ -26,7 +25,7 @@
 #   -t ghcr.io/YOUR_ORG/ring:v1.0.0-YOUR_CLONE_NAME-amd64 .
 #
 # =============================================================================
-# CRITICAL: Sensitive secrets are injected at RUNTIME via Kubernetes secrets!
+# CRITICAL: AUTH_SECRET and sensitive secrets are injected at RUNTIME via K8s!
 # =============================================================================
 
 # Build Stage
@@ -46,7 +45,7 @@ ARG NEXTAUTH_URL=https://YOUR_DOMAIN
 # =============================================================================
 # Authentication Configuration
 # =============================================================================
-ARG AUTH_SECRET
+# AUTH_SECRET: runtime-only (K8s). No ARG/ENV — Docker SecretsUsedInArgOrEnv.
 ARG NEXT_PUBLIC_AUTH_GOOGLE_ID
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
@@ -97,7 +96,6 @@ ENV NEXT_TELEMETRY_DISABLED=${NEXT_TELEMETRY_DISABLED}
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXTAUTH_URL=${NEXTAUTH_URL}
-ENV AUTH_SECRET=${AUTH_SECRET}
 ENV NEXT_PUBLIC_AUTH_GOOGLE_ID=${NEXT_PUBLIC_AUTH_GOOGLE_ID}
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
@@ -155,7 +153,9 @@ COPY . .
 COPY env.local.template env.local.template
 
 # Build the application (type-check runs in CI; skip in image to save RAM)
-RUN NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
+# Ephemeral AUTH_SECRET for Next compile only — production value from K8s at pod start.
+RUN AUTH_SECRET=ring-docker-build-placeholder-not-for-runtime \
+    NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
 
 # =============================================================================
 # Runtime Stage

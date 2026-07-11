@@ -196,7 +196,7 @@ export default function ProfileContent({
   }, [activeTab, loadVerificationProcedure])
 
   // Track UI mounting (for hydration safety and to SSR-safe render only after client)
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(Boolean(initialUser))
   // Track state of profile menu sidebar for mobile/desktop
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
   // User-facing notification banner state (success/error)

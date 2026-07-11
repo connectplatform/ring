@@ -52,6 +52,18 @@ export class ConversationService {
     const now = new Date();
 
     const participantIds = [...new Set(data.participantIds.filter(Boolean))];
+    const creatorUserId = data.creatorUserId || participantIds[0];
+
+    if (data.type === 'group') {
+      const groupName = data.metadata?.groupName?.trim();
+      if (!groupName) {
+        throw new Error('groupName is required for group conversations');
+      }
+      if (participantIds.length < 2) {
+        throw new Error('Group conversations require the creator and at least one other participant');
+      }
+      data.metadata = { ...data.metadata, groupName };
+    }
 
     if (data.type === 'direct' && participantIds.length >= 2) {
       const [first, second] = participantIds;
@@ -71,9 +83,9 @@ export class ConversationService {
       }
     }
 
-    const participants: ConversationParticipant[] = participantIds.map((userId, index) => ({
+    const participants: ConversationParticipant[] = participantIds.map((userId) => ({
       userId,
-      role: index === 0 ? 'admin' : 'member',
+      role: userId === creatorUserId ? 'admin' : 'member',
       joinedAt: now,
       isTyping: false,
       isOnline: false,
@@ -108,6 +120,13 @@ export class ConversationService {
       await this.sendSystemMessage(
         conversation.id,
         `Welcome to the conversation about ${data.metadata.entityName}`,
+      );
+    }
+
+    if (data.type === 'group' && data.metadata?.groupName) {
+      await this.sendSystemMessage(
+        conversation.id,
+        `Group “${data.metadata.groupName}” created`,
       );
     }
 
@@ -178,8 +197,13 @@ export class ConversationService {
     const conversations: Conversation[] = [];
 
     for (const conversation of result.data) {
+      // Soft-archived conversations stay out of the default inbox
+      if (conversation.metadata?.archivedBy?.includes(userId)) {
+        continue;
+      }
       const unreadCount = await this.getUnreadCount(conversation.id, userId);
-      conversations.push({ ...conversation, unreadCount });
+      const enriched = await this.enrichParticipants(conversation, userId);
+      conversations.push({ ...enriched, unreadCount });
     }
 
     return conversations;
@@ -197,6 +221,128 @@ export class ConversationService {
       throw new Error('Access denied: User is not a participant in this conversation');
     }
 
+    return this.enrichParticipants(conversation, userId);
+  }
+
+  /**
+   * Enrich participants with avatarUrl / displayName from users collection
+   * (users.image or users.photoURL — Auth.js / Google profile photo).
+   */
+  private async enrichParticipants(
+    conversation: Conversation,
+    viewerUserId?: string,
+  ): Promise<Conversation> {
+    const participants = await Promise.all(
+      conversation.participants.map(async (participant) => {
+        if (participant.avatarUrl && participant.displayName) {
+          return participant;
+        }
+        try {
+          const userResult = await db().readDoc<{
+            image?: string
+            photoURL?: string
+            name?: string
+            username?: string
+          }>('users', participant.userId);
+          if (!userResult.success || !userResult.data) {
+            return participant;
+          }
+          const user = userResult.data;
+          const avatarUrl = user.image || user.photoURL || participant.avatarUrl;
+          const displayName =
+            user.name || user.username || participant.displayName;
+          return {
+            ...participant,
+            ...(avatarUrl ? { avatarUrl } : {}),
+            ...(displayName ? { displayName } : {}),
+          };
+        } catch {
+          return participant;
+        }
+      }),
+    );
+
+    const metadata = { ...conversation.metadata };
+    if (conversation.type === 'direct' && !metadata.directUserName) {
+      const other =
+        (metadata.directUserId
+          ? participants.find((p) => p.userId === metadata.directUserId)
+          : undefined) ||
+        (viewerUserId
+          ? participants.find((p) => p.userId !== viewerUserId)
+          : undefined);
+      if (other?.displayName) {
+        metadata.directUserName = other.displayName;
+      }
+    }
+
+    return { ...conversation, participants, metadata };
+  }
+
+  async setArchived(
+    conversationId: string,
+    userId: string,
+    archived: boolean,
+  ): Promise<Conversation> {
+    const conversation = await this.requireParticipant(conversationId, userId);
+    const archivedBy = new Set(conversation.metadata?.archivedBy ?? []);
+    if (archived) {
+      archivedBy.add(userId);
+    } else {
+      archivedBy.delete(userId);
+    }
+    await this.updateConversation(conversationId, userId, {
+      metadata: {
+        ...conversation.metadata,
+        archivedBy: Array.from(archivedBy),
+      },
+    });
+    return this.getConversationById(conversationId, userId) as Promise<Conversation>;
+  }
+
+  async setMuted(
+    conversationId: string,
+    userId: string,
+    muted: boolean,
+  ): Promise<Conversation> {
+    const conversation = await this.requireParticipant(conversationId, userId);
+    const mutedBy = new Set(conversation.metadata?.mutedBy ?? []);
+    if (muted) {
+      mutedBy.add(userId);
+    } else {
+      mutedBy.delete(userId);
+    }
+    await this.updateConversation(conversationId, userId, {
+      metadata: {
+        ...conversation.metadata,
+        mutedBy: Array.from(mutedBy),
+      },
+    });
+    return this.getConversationById(conversationId, userId) as Promise<Conversation>;
+  }
+
+  async markUnread(conversationId: string, userId: string): Promise<void> {
+    const conversation = await this.requireParticipant(conversationId, userId);
+    const updatedParticipants = conversation.participants.map((p) =>
+      p.userId === userId ? { ...p, lastReadAt: undefined } : p,
+    );
+    await this.updateConversation(conversationId, userId, {
+      participants: updatedParticipants,
+    });
+  }
+
+  private async requireParticipant(
+    conversationId: string,
+    userId: string,
+  ): Promise<Conversation> {
+    const readResult = await db().readDoc<Conversation>('conversations', conversationId);
+    if (!readResult.success || !readResult.data) {
+      throw new Error('Conversation not found');
+    }
+    const conversation = readResult.data;
+    if (!conversation.participants.some((p) => p.userId === userId)) {
+      throw new Error('Access denied: User is not a participant in this conversation');
+    }
     return conversation;
   }
 
@@ -204,6 +350,7 @@ export class ConversationService {
     conversationId: string,
     userId: string,
     role: 'admin' | 'member' | 'observer' = 'member',
+    actorUserId?: string,
   ): Promise<void> {
     const now = new Date();
 
@@ -214,6 +361,17 @@ export class ConversationService {
     }
 
     const data = readResult.data;
+
+    if (actorUserId) {
+      const actor = data.participants.find((p) => p.userId === actorUserId);
+      if (!actor) {
+        throw new Error('Access denied: User is not a participant in this conversation');
+      }
+      if (actor.role !== 'admin') {
+        throw new Error('Access denied: Only admins can add participants');
+      }
+    }
+
     const existingParticipant = data.participants.find((p) => p.userId === userId);
 
     if (existingParticipant) {
@@ -237,10 +395,20 @@ export class ConversationService {
       throw new Error(updateResult.error?.message || 'Failed to add participant');
     }
 
-    await this.sendSystemMessage(conversationId, 'A new participant has joined the conversation');
+    const enriched = await this.enrichParticipants(
+      { ...data, participants: [...data.participants, newParticipant] },
+      actorUserId,
+    );
+    const joined = enriched.participants.find((p) => p.userId === userId);
+    const label = joined?.displayName || userId;
+    await this.sendSystemMessage(conversationId, `${label} joined the conversation`);
   }
 
-  async removeParticipant(conversationId: string, userId: string): Promise<void> {
+  async removeParticipant(
+    conversationId: string,
+    userId: string,
+    actorUserId?: string,
+  ): Promise<void> {
     const now = new Date();
 
     const readResult = await db().readDoc<Conversation>('conversations', conversationId);
@@ -250,6 +418,19 @@ export class ConversationService {
     }
 
     const data = readResult.data;
+    const isSelfLeave = actorUserId === userId;
+
+    if (actorUserId && !isSelfLeave) {
+      const actor = data.participants.find((p) => p.userId === actorUserId);
+      if (!actor) {
+        throw new Error('Access denied: User is not a participant in this conversation');
+      }
+      if (actor.role !== 'admin') {
+        throw new Error('Access denied: Only admins can remove other participants');
+      }
+    }
+
+    const leaving = data.participants.find((p) => p.userId === userId);
     const updatedParticipants = data.participants.filter((p) => p.userId !== userId);
 
     if (updatedParticipants.length === data.participants.length) {
@@ -265,7 +446,11 @@ export class ConversationService {
       throw new Error(updateResult.error?.message || 'Failed to remove participant');
     }
 
-    await this.sendSystemMessage(conversationId, 'A participant has left the conversation');
+    const label = leaving?.displayName || userId;
+    await this.sendSystemMessage(
+      conversationId,
+      isSelfLeave ? `${label} left the conversation` : `${label} was removed from the conversation`,
+    );
   }
 
   async updateLastRead(conversationId: string, userId: string): Promise<void> {
@@ -376,6 +561,29 @@ export class ConversationService {
     const createResult = await db().createDoc('messages', message);
     if (createResult.success && createResult.data) {
       await this.touchLastActivity(conversationId, createResult.data);
+      // UPGRADE: batch system + media events through a single outbox for Connect hub.
+      try {
+        await publishToChannel(`conversation:${conversationId}`, 'message:new', createResult.data);
+      } catch {
+        /* non-fatal */
+      }
     }
+  }
+
+  /**
+   * Public wrapper for call lifecycle system lines (invite / ended).
+   * UPGRADE: localize content server-side via next-intl once call i18n keys are shared.
+   */
+  async recordCallSystemMessage(
+    conversationId: string,
+    actorUserId: string,
+    actionPhrase: string,
+  ): Promise<void> {
+    const conversation = await this.getConversationById(conversationId, actorUserId);
+    if (!conversation) return;
+    const actor =
+      conversation.participants.find((p) => p.userId === actorUserId)?.displayName ||
+      'Someone';
+    await this.sendSystemMessage(conversationId, `${actor} ${actionPhrase}`);
   }
 }

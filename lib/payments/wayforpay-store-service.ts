@@ -9,27 +9,20 @@ import { logger } from '@/lib/logger';
 import crypto from 'crypto';
 import type { CartItem, CheckoutInfo } from '@/features/store/types';
 
-// WayForPay API Configuration
+// WayForPay API Configuration — env SSOT only (no hardcoded merchant fallbacks)
 const WAYFORPAY_API_URL = 'https://api.wayforpay.com/api';
 const WAYFORPAY_CHECKOUT_URL = 'https://secure.wayforpay.com/pay';
 
-// GreenFood.live WayForPay Merchant Configuration
-// Priority: Store-specific > General > Default GreenFood credentials
-const WAYFORPAY_MERCHANT_ACCOUNT = process.env.WAYFORPAY_STORE_MERCHANT_ACCOUNT 
-  || process.env.WAYFORPAY_MERCHANT_ACCOUNT 
-  || 'greenfood_live1';
+const WAYFORPAY_MERCHANT_ACCOUNT =
+  process.env.WAYFORPAY_STORE_MERCHANT_ACCOUNT || process.env.WAYFORPAY_MERCHANT_ACCOUNT
 
-const WAYFORPAY_SECRET_KEY = process.env.WAYFORPAY_STORE_SECRET_KEY 
-  || process.env.WAYFORPAY_SECRET_KEY 
-  || '49292617352e675713f2bb7e4cf0197bcb903b7d';
+const WAYFORPAY_SECRET_KEY =
+  process.env.WAYFORPAY_STORE_SECRET_KEY || process.env.WAYFORPAY_SECRET_KEY
 
-const WAYFORPAY_DOMAIN = process.env.WAYFORPAY_STORE_DOMAIN 
-  || process.env.WAYFORPAY_DOMAIN 
-  || 'greenfood.live';
+const WAYFORPAY_DOMAIN =
+  process.env.WAYFORPAY_STORE_DOMAIN || process.env.WAYFORPAY_DOMAIN
 
-// GreenFood merchant password (for API operations requiring password)
-const WAYFORPAY_MERCHANT_PASSWORD = process.env.WAYFORPAY_MERCHANT_PASSWORD 
-  || '5d28f775b036834737b538320d519b5c';
+const WAYFORPAY_MERCHANT_PASSWORD = process.env.WAYFORPAY_MERCHANT_PASSWORD
 
 // Store payment configuration
 export const STORE_PAYMENT_CONFIG = {
@@ -59,6 +52,8 @@ export interface StorePaymentRequest {
   returnUrl: string;
   webhookUrl: string;
   locale?: 'UK' | 'EN' | 'RU';
+  /** When set (PaymentConductor), reuse the ledger order_reference. */
+  orderReference?: string;
 }
 
 export interface StorePaymentResponse {
@@ -261,8 +256,9 @@ export async function initiateStorePayment(request: StorePaymentRequest): Promis
   try {
     validateConfig();
 
-    // Generate unique order reference
-    const orderReference = `store_${request.orderId}_${Date.now()}`;
+    // Prefer conductor-supplied orderReference so payment_transactions stays SSOT
+    const orderReference =
+      request.orderReference || `store_${request.orderId}_${Date.now()}`;
     const orderDate = Math.floor(Date.now() / 1000);
     
     // Prepare product data for WayForPay
@@ -299,8 +295,11 @@ export async function initiateStorePayment(request: StorePaymentRequest): Promis
       clientFirstName: request.shippingInfo.firstName || '',
       clientLastName: request.shippingInfo.lastName || '',
       clientEmail: request.userEmail || request.shippingInfo.email || '',
-      clientPhone: '',
-      clientAddress: request.shippingInfo.address || '',
+      clientPhone: request.shippingInfo.phone || '',
+      clientAddress:
+        typeof request.shippingInfo.address === 'string'
+          ? request.shippingInfo.address
+          : '',
       clientCity: request.shippingInfo.city || '',
       language: request.locale || STORE_PAYMENT_CONFIG.defaultLanguage,
       returnUrl: request.returnUrl,
@@ -399,16 +398,16 @@ export async function processStorePaymentWebhook(payload: StoreWebhookPayload): 
       return { success: false, error: 'Invalid signature' };
     }
     
-    // Extract order ID from reference
-    const orderParts = payload.orderReference.split('_');
-    if (orderParts.length < 3 || orderParts[0] !== 'store') {
+    // Extract order ID from reference: store_{fullOrderId}_{timestamp}
+    const storeMatch = payload.orderReference.match(/^store_(.+)_(\d+)$/)
+    if (!storeMatch) {
       logger.error('WayForPay Store: Invalid order reference format', {
         orderReference: payload.orderReference
       });
       return { success: false, error: 'Invalid order reference' };
     }
     
-    const orderId = orderParts[1];
+    const orderId = storeMatch[1];
     
     // Check transaction status
     if (payload.transactionStatus !== 'Approved') {

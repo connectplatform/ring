@@ -1,7 +1,7 @@
 ---
 title: Admin API
 description: Verified `/api/admin/*` routes for user management, moderation, store ops, platform settings, and Email CRM
-last_modified: "2026-07-07"
+last_modified: "2026-07-10"
 audience: both
 ---
 
@@ -31,11 +31,14 @@ SSOT: `features/auth/user-role.ts` — lowercase roles (`visitor` … `superadmi
 These HTTP handlers back buttons in the admin UI — you rarely call them manually unless automating ops.
 
 <Cards>
-  <Card title="User desk" href="/docs/features/admin">
-    View one user, change role, manual verification badge, delete account (not self).
+  <Card title="Admin console" href="/docs/features/admin">
+    Role-aware three-pane nav, Security hub tabs, Email CRM shell — UI SSOT for these APIs.
   </Card>
-  <Card title="Trust & safety" href="/docs/examples/advanced-features">
-    Entity report queue, block entity, KYC verification procedures (approve / reject / request-info).
+  <Card title="User desk" href="/docs/features/admin">
+    View one user, change role, manual verification badge, delete account (not self), Payments tab (membership + wallet top-up ledger).
+  </Card>
+  <Card title="Trust & safety" href="/docs/features/admin">
+    Security hub (fraud / verification / events), entity moderation queue, KYC procedures.
   </Card>
   <Card title="Store ERP" href="/docs/features/store">
     Advance order status: `new` → `paid` → `processing` → `shipped` → `completed` / `canceled`.
@@ -50,8 +53,9 @@ These HTTP handlers back buttons in the admin UI — you rarely call them manual
 
 ### Typical operator scenarios
 
+- **Inspect payments** — Admin → Users → Eye → Payments tab loads `GET /api/admin/users/{id}/payments` (`membership_upgrade` + `wallet_topup` from `payment_transactions`).
 - **Promote a member to confidential** — admin UI → `PUT /api/admin/users/{id}/role` or legacy `POST /api/admin/set-user-role`.
-- **Clear verification backlog** — `/admin/verification` → `POST /api/admin/verification/procedures/{n}/{action}` (`approve`, `reject`, `request-info`, `under-review`).
+- **Clear verification backlog** — `/admin/security?tab=verification` (legacy `/admin/verification` redirects here) → `POST /api/admin/verification/procedures/{n}/{action}` (`approve`, `reject`, `request-info`, `under-review`).
 - **Pause an abusive entity** — moderation queue → `POST /api/admin/entity-moderation/block` with `entityId` + `reason`.
 - **Rebrand clone colors** — superadmin settings form → `POST /api/admin/whitelabel/save` (redirects to admin settings).
 - **Set RING/USD oracle rate** — Web3 desk → `POST /api/admin/web3/settings` with `{ "ringPerUsd": "..." }`; persisted in `platform_settings` `web3` namespace.
@@ -95,12 +99,15 @@ There is **no** verified global admin rate-limit middleware in `app/api/admin/*`
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
 | GET | `/api/admin/users/[id]` | Platform admin | Single user JSONB doc; passwords stripped |
+| GET | `/api/admin/users/[id]/payments` | Platform admin | Ledger rows via `paymentTransactionService.listByUserId` — default purposes `membership_upgrade`, `wallet_topup`; query `?limit=` (max 100), `?purposes=a,b` |
 | DELETE | `/api/admin/users/[id]` | Platform admin | Cannot delete self |
 | PUT | `/api/admin/users/[id]/role` | Platform admin | Body: `{ "role": "member" }` |
 | PUT | `/api/admin/users/[id]/verification` | Admin manual verification | Body: `{ "isVerified": true, ... }` |
 | POST | `/api/admin/set-user-role` | Platform admin | Legacy: `{ "uid", "role" }`; blocks admin self-demotion |
 
 **Not implemented:** `GET /api/admin/users` list/search — use Admin UI server loaders or `DatabaseService` in custom tooling.
+
+**Payments tab UI:** `features/auth/components/admin-user-detail-sheet.tsx` (opened from `admin-user-manager.tsx` Eye button) fetches `/api/admin/users/${user.id}/payments?limit=50`.
 
 ### Moderation & verification
 

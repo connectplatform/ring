@@ -1,7 +1,7 @@
 ---
 title: For Founders
-description: A curated docTree for founders and operators — business value, deployment paths, revenue models, and compliance context. Filtered to articles with business-strategy content.
-last_modified: "2026-06-30"
+description: Curated docTree for founders and operators — journey hubs from first install to revenue, trust, and go-live
+last_modified: "2026-07-11"
 audience: founder
 ---
 
@@ -13,143 +13,136 @@ audience: founder
 //   3. TODO tracking for missing audience-specific content
 // The runtime sidebar filtering consumes audience-curated-docs.ts instead.
 
-# 📘 For Founders
+# For Founders
 
-This index is a curated docTree for **founders, operators, and decision-makers** running a Ring-powered platform. Each section links to the section-index page and lists only the articles that explain business value, revenue model, or operator workflow.
+Curated index for **founders, operators, and decision-makers**. Hubs follow an operator journey — not a flat product dump. The sidebar **Founder** tab applies the same ordering via `lib/docs/audience-curated-docs.ts`.
 
 <Callout type="info">
-  Use the **Founder** / **Developer** toggle in the docs sidebar to flip between this view and the [For Developers](/docs/for-developers) index. Articles with content for both audiences (like SubscriptionConductor) appear in both indexes.
+  Flip **Founder** / **Developer** in the docs sidebar anytime. For a visual map of every HTTP door on your clone, open the [API Reference](/docs/api) (RingApiTree widget). Deep MCP, CLI, and module trees stay on the [For Developers](/docs/for-developers) index.
 </Callout>
 
 ---
 
-## 🚀 Getting Started
+## 1. Start here
 
-[**Getting Started** →](/docs/getting-started) — Onboard a new Ring Platform clone in minutes.
+[**Getting Started** →](/docs/getting-started)
 
-- [Prerequisites](/docs/getting-started/prerequisites) — Accounts, services, and minimum infrastructure for a production launch.
-- [Installation](/docs/getting-started/installation) — Standard install path for a fresh clone.
-- [First Success](/docs/getting-started/first-success) — Verify the install with a real signup and a real payment.
-- [Next Steps](/docs/getting-started/next-steps) — Where to invest time after the first week.
-
----
-
-## 💡 Features (Business Value)
-
-[**Features** →](/docs/features) — Every Ring feature with a business-value summary.
-
-### Revenue & Commerce
-- [SubscriptionConductor](/docs/features/subscriptions) — Recurring revenue through multi-provider membership subscriptions (Stripe, WayForPay, RING credit, on-chain token, NFT gate).
-- [PaymentConductor](/docs/features/payment-conductor) — Unified payment orchestration for store, membership, and news promotion.
-- [Multi-Vendor Store](/docs/features/store) — Marketplace commissions and direct sales.
-- [Affiliates](/docs/features/affiliate-enablement) — Affiliate links and revenue share.
-- [Refcodes](/docs/features/refcodes) — Wallet-linked share URLs and on-chain rewards.
-- [Wallet](/docs/features/wallet) — RING, DAAR, DAARION ecosystem.
-- [NFT Marketplace](/docs/features/nft-market) — White-label NFT trading.
-- [Staking](/docs/features/staking) — Multi-pool passive income.
-
-### Audience & Community
-- [Entities](/docs/features/entities) — Verified professional networks and B2B directories.
-- [Opportunities](/docs/features/opportunities) — Dual-nature marketplace (offers + requests).
-- [Messaging](/docs/features/messaging) — Real-time conversations.
-- [Member Blog](/docs/features/member-blog) — Long-form content from your members.
-- [Public Profile](/docs/features/public-profile) — SEO-friendly public pages per member.
-- [Username Reservation](/docs/features/username-reservation) — Branded handle marketplace.
-- [Scientific Editor](/docs/features/scientific-editor) — Co-author and live agent editing.
-- [News](/docs/features/news) — Newsroom with AI-assisted article writing.
-
-### Reach & Engagement
-- [Notifications](/docs/features/notifications) — In-app alert system.
-- [Push Notifications (FCM)](/docs/features/push-notifications-fcm) — Mobile push channel.
-- [Email AI-CRM](/docs/features/email-ai-crm) — AI-assisted inbox for `info@` mailboxes.
-- [Tunnel Protocol](/docs/features/tunnel-protocol) — Realtime without reloads.
-- [VideoConductor](/docs/features/video-conductor) — Scripted AI video production.
-
-### Trust & Localization
-- [Authentication](/docs/features/authentication) — Auth.js v5 multi-provider auth.
-- [Security](/docs/features/security) — Security & compliance posture.
-- [Locale System](/docs/features/locale-system) — Multi-locale architecture (EN/UK/RU and more).
-- [Mobile Experience](/docs/features/mobile-experience) — PWA and mobile web.
-- [Performance](/docs/features/performance) — Web vitals and runtime cost.
+- [Prerequisites](/docs/getting-started/prerequisites) — Accounts and minimum infrastructure
+- [Installation](/docs/getting-started/installation) — Fresh clone path
+- [First Success](/docs/getting-started/first-success) — Signup + payment smoke
+- [Next Steps](/docs/getting-started/next-steps) — First-week priorities
 
 ---
 
-## 🏛️ Architecture (High-Level)
+## 2. Make money
 
-[**Architecture** →](/docs/architecture) — System layout, only the high-level documents.
+[**Features** →](/docs/features) · [**Payment integration (ops)** →](/docs/customization/payment-integration)
 
-- [Data Model](/docs/architecture/data-model) — SSOT collections and JSONB-first schema.
-- [Security](/docs/architecture/security) — Threat model and defense layers.
-- [Real-Time](/docs/architecture/real-time) — TunnelHub and the realtime strategy.
-- [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync) — How listings stay fresh across the platform.
+- [Multi-Vendor Store](/docs/features/store) — Catalog, checkout, commissions
+- [SubscriptionConductor](/docs/features/subscriptions) — Recurring membership revenue
+- [PaymentConductor](/docs/features/payment-conductor) — Store, membership, news, wallet top-up
+- [Payments overview](/docs/features/payments) — Rails and gateway selection
+- [Wallet](/docs/features/wallet) — Credits + live WayForPay top-up
+- [Affiliates](/docs/features/affiliate-enablement) — Revenue share
+- [Refcodes](/docs/features/refcodes) — Share URLs and rewards
+- [NFT Marketplace](/docs/features/nft-market) — RING resale market for eligible KEYS vendor gates
+- [Solana NFT Gates](/docs/features/nft-gates) — Metaplex Core membership / vendor unlocks, stake-to-activate
+- [Staking](/docs/features/staking) — Passive pools
+- [Payment integration](/docs/customization/payment-integration) — WayForPay / Stripe cabinet checklist
 
----
-
-## 🌐 Deployment
-
-[**Deployment** →](/docs/deployment) — Production deployment paths and operational playbooks.
-
-- [Self-Hosted](/docs/deployment/self-hosted) — Run Ring on your own infrastructure (k3s recommended).
-- [Vercel](/docs/deployment/vercel) — Serverless deployment path.
-- [Docker](/docs/deployment/docker) — Containerized deployment.
-- [Monitoring](/docs/deployment/monitoring) — Health checks, alerts, and dashboards.
-- [Performance](/docs/deployment/performance) — Production performance tuning.
-- [Backup](/docs/deployment/backup) — Postgres and filebase backup strategy.
+Deep WayForPay HMAC / `regularApi` lives on the Developer tree: [WayForPay integration](/docs/features/wayforpay-integration).
 
 ---
 
-## 🎨 Customization (White-Label)
+## 3. Grow the network
 
-[**Customization** →](/docs/customization) — Brand, theme, and economic configuration.
-
-- [Quick Start](/docs/customization/quick-start) — Brand a clone in 15 minutes.
-- [Customization Guide](/docs/customization/customization-guide) — Full white-label playbook.
-- [Branding](/docs/customization/branding) — Logo, colors, typography.
-- [Themes](/docs/customization/themes) — Color schemes and visual identity.
-- [Token Economics](/docs/customization/token-economics) — Configure your RING token supply and rewards.
-- [Payment Integration](/docs/customization/payment-integration) — Connect your merchant account.
-- [Success Stories](/docs/customization/success-stories) — Real clones that launched with Ring.
-
----
-
-## 🔗 Integrations
-
-[**Integrations** →](/docs/integrations) — Third-party systems your platform can talk to.
-
-- [Ethereum Wallets](/docs/integrations/ethereum-wallets) — WalletConnect, MetaMask, and EVM wallet support.
+- [Entities](/docs/features/entities) — Verified directories
+- [Opportunities](/docs/features/opportunities) — Offers + requests marketplace
+- [Messaging](/docs/features/messaging) — Deal chat + Tunnel live events
+- [WebRTC Calls & STUNner](/docs/features/webrtc-calls) — 1:1 audio/video in direct chats
+- [News](/docs/features/news) — Newsroom and promotion
+- [Member Blog](/docs/features/member-blog) — Long-form member content
+- [Public Profile](/docs/features/public-profile) — SEO member pages
+- [Username Reservation](/docs/features/username-reservation) — Branded handles
+- [Scientific Editor](/docs/features/scientific-editor) — Live co-authoring
 
 ---
 
-## 💼 Vendor Guide
+## 4. Reach members
 
-[**Vendor Guide** →](/docs/vendor-guide) — Become a vendor or partner on a Ring-powered marketplace.
-
----
-
-## 🏗️ Examples & Use Cases
-
-[**Examples** →](/docs/examples) — Real-world patterns and reference builds.
-
-- [Quick Start](/docs/examples/quick-start) — End-to-end starter clone.
-- [White-Label](/docs/examples/white-label) — A second clone branded for your community.
-- [Real World](/docs/examples/real-world) — Production case studies.
-- [Custom Branding](/docs/examples/custom-branding) — Visual identity reference.
+- [Notifications](/docs/features/notifications) — In-app alerts
+- [Push Notifications (FCM)](/docs/features/push-notifications-fcm) — Mobile push
+- [Email AI-CRM](/docs/features/email-ai-crm) — `info@` inbox assistance
+- [Tunnel Protocol](/docs/features/tunnel-protocol) — Live UI without reloads
+- [VideoConductor](/docs/features/video-conductor) — Scripted AI video
+- [MediaConductor](/docs/features/media-conductor) — Docs narration + walkthroughs (cached)
 
 ---
 
-## 🪙 Web3 & Wallet
+## 5. Trust & brand
 
-- [Wallet Security Tips](/docs/wallet/security-tips) — Operational wallet hygiene.
-- [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions) — Compliance context for token launches.
+- [Authentication](/docs/features/authentication) — Auth.js multi-provider
+- [Security](/docs/features/security) — Compliance posture
+- [Admin console](/docs/features/admin) — Role-aware three-pane ops nav (Security hub, Email CRM, Store rail)
+- [Manage via Telegram](/docs/features/manage-via-telegram) — Admin bot (whitelist RBAC, news approval)
+- [Locale System](/docs/features/locale-system) — EN / UK / RU and more
+- [Mobile Experience](/docs/features/mobile-experience) — PWA
+- [Performance](/docs/features/performance) — Web vitals for operators
+- [Branding](/docs/customization/branding) · [Themes](/docs/customization/themes) · [Token economics](/docs/customization/token-economics)
+- [Customization quick start](/docs/customization/quick-start) · [Guide](/docs/customization/customization-guide) · [Success stories](/docs/customization/success-stories)
+
+Member Telegram Login (identity badge) is separate — see [Username reservation](/docs/features/username-reservation).
 
 ---
 
-## 📚 Reference
+## 6. Go live & operate
 
-- [Documentation System](/docs/features/doc-system) — How the docs site is built and how to contribute.
-- [Roadmap](/docs/roadmap) — What is shipping next quarter.
-- [Index](/docs) — Full docs hub.
+[**Deployment** →](/docs/deployment)
+
+- [Self-Hosted](/docs/deployment/self-hosted) — k3s recommended
+- [Vercel](/docs/deployment/vercel) · [Docker](/docs/deployment/docker)
+- [Environment](/docs/deployment/environment) — Required secrets checklist
+- [Monitoring](/docs/deployment/monitoring) · [Backup](/docs/deployment/backup) · [Performance](/docs/deployment/performance)
 
 ---
 
-*Founders optimize for revenue, retention, and trust. Developers optimize for architecture, performance, and correctness. Use the sidebar to flip between the two views at any time.*
+## 7. Marketplace ops
+
+- [Vendor Guide](/docs/vendor-guide) — Seller onboarding on ring-platform.org (root guide; linked from store)
+- [Store feature](/docs/features/store) — Operator commissions and vendor desk
+- ERP deep pages (inventory, commissions) stay on the Developer tree under Features → ERP
+
+---
+
+## 8. Web3 compliance
+
+- [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions)
+- [Wallet Security Tips](/docs/wallet/security-tips)
+
+---
+
+## Architecture (high-level only)
+
+[**Architecture** →](/docs/architecture)
+
+- [Data Model](/docs/architecture/data-model)
+- [Security](/docs/architecture/security)
+- [Real-Time](/docs/architecture/real-time)
+- [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync)
+- [PaymentConductor](/docs/architecture/payment-conductor)
+
+---
+
+## Examples & integrations
+
+- [Examples](/docs/examples) — quick-start, white-label, real-world, custom-branding
+- [Ethereum Wallets](/docs/integrations/ethereum-wallets)
+
+---
+
+## Reference
+
+- [API Reference](/docs/api) — visual RingApiTree of ~244 `/api` doors
+- [Roadmap](/docs/roadmap) · [Docs hub](/docs) · [For Developers](/docs/for-developers)
+
+*Founders optimize for revenue, retention, and trust. Use the sidebar to flip to Developer for module depth and MCP.*

@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { EmailAdminShell } from '@/features/admin/email/email-admin-shell';
 import { 
   FileText, Check, X, Edit, Send, Eye, Clock, Sparkles,
   AlertTriangle, ChevronDown, ChevronUp, Zap
@@ -113,6 +114,7 @@ export default function EmailDraftsPage() {
   const processedDrafts = drafts.filter(d => d.status !== 'pending');
 
   return (
+    <EmailAdminShell pageContext="email-drafts">
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -328,5 +330,6 @@ export default function EmailDraftsPage() {
         )}
       </div>
     </div>
+    </EmailAdminShell>
   );
 }

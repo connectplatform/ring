@@ -1,15 +1,15 @@
 ---
 title: Integrations
-description: Third-party and protocol integrations for Ring Platform clones — payments, Web3 wallets, OAuth, push, email, API, and MCP automation
-last_modified: "2026-06-15"
+description: Third-party and protocol integrations for Ring Platform clones — payments, Web3 wallets, OAuth, push, email, API, MCP, and RingFileBase CDN storage
+last_modified: "2026-07-09"
 ---
 
 # Integrations
 
-**Connect a Ring clone to the services your community already uses** — Ukrainian and global payment rails, EVM wallets, OAuth identity, Firebase push, business mailboxes, and automation clients — through config-driven adapters documented here.
+**Connect a Ring clone to the services your community already uses** — Ukrainian and global payment rails, EVM wallets, OAuth identity, Firebase push, business mailboxes, self-hosted media storage, and automation clients — through config-driven adapters documented here.
 
 <Callout type="success" title="Executive summary">
-Ring does not hard-code vendor lock-in. Operators enable integrations via **`ring-config.json`**, **`.env.local`**, and documented service modules: **PaymentConductor** (WayForPay / Stripe / credits), **Wagmi v3** (WalletConnect and injected wallets), **Auth.js v5** (OAuth + magic links), **FCM** (web push), **Email AI-CRM** (IMAP/SMTP), and **REST / Tunnel / MCP** for external apps. Start with [Environment configuration](/docs/deployment/environment), then open the guide for your integration class below.
+Ring does not hard-code vendor lock-in. Operators enable integrations via **`ring-config.json`**, **`.env.local`**, and documented service modules: **PaymentConductor** (WayForPay / Stripe / credits), **Wagmi v3** (WalletConnect and injected wallets), **Auth.js v5** (OAuth + magic links), **FCM** (web push), **Email AI-CRM** (IMAP/SMTP), **RingFileBase + Ring CDN** (`file()` storage), and **REST / Tunnel / MCP** for external apps. Start with [Environment configuration](/docs/deployment/environment), then open the guide for your integration class below.
 </Callout>
 
 <Cards>
@@ -33,6 +33,8 @@ Ring does not hard-code vendor lock-in. Operators enable integrations via **`rin
 
 | Plane | Primary integration | Canonical doc |
 |-------|---------------------|---------------|
+| **Object storage** | `file()` → RingBaseAdapter | [RingFileBase](/docs/integrations/ring-filebase) |
+| **Media CDN** | NGINX edge `/files/...` | [Ring CDN](/docs/integrations/ring-cdn) |
 | **EVM wallets** | Wagmi v3 + viem connectors | [Ethereum wallets](/docs/integrations/ethereum-wallets) |
 | **Card & membership checkout** | PaymentConductor → PSP webhooks | [Payment integration](/docs/customization/payment-integration) |
 | **Ukrainian PSP deep dive** | WayForPay HMAC webhooks | [WayForPay integration](/docs/features/wayforpay-integration) |
@@ -52,11 +54,34 @@ Each card links to a dedicated reference page under `/docs/integrations/`.
   <Card title="Ethereum wallets (Wagmi v3)" href="/docs/integrations/ethereum-wallets">
     Injected, MetaMask, Coinbase Wallet, WalletConnect — env vars and white-label connector lineup.
   </Card>
+  <Card title="RingFileBase (object storage API)" href="/docs/integrations/ring-filebase">
+    `file()` → RingBaseAdapter → MinIO/RGW — provider SSOT, tokens, k8s wiring.
+  </Card>
+  <Card title="Ring CDN (edge delivery)" href="/docs/integrations/ring-cdn">
+    Public `cdn.<domain>/files/...`, host→bucket map, multi-zone edges.
+  </Card>
 </Cards>
 
 <Callout type="development" title="Growing catalog">
 Additional first-party integration pages (Stripe operator checklist, OAuth provider matrix, ConnectPlatform bridge) will appear here as they are authored. Deep dives that already live under **Features**, **Customization**, or **Examples** are linked below until migrated.
 </Callout>
+
+### Storage & CDN
+
+<Cards>
+  <Card title="RingFileBase" href="/docs/integrations/ring-filebase">
+    Authenticated uploads for product images, KYC, chat, and generative media.
+  </Card>
+  <Card title="Ring CDN" href="/docs/integrations/ring-cdn">
+    Cacheable public reads in front of MinIO — pair with RingFileBase writes.
+  </Card>
+  <Card title="Environment — storage block" href="/docs/deployment/environment">
+    `NEXT_PUBLIC_STORAGE_PROVIDER`, `RINGBASE_*`, local vs Blob vs filebase.
+  </Card>
+  <Card title="Backup & recovery" href="/docs/deployment/backup">
+    Object buckets are a separate backup asset from Postgres.
+  </Card>
+</Cards>
 
 ### Payments & commerce
 
@@ -159,6 +184,7 @@ open http://localhost:3000/docs/integrations`}
 |-----------|------------|
 | Accept UAH card payments for membership | [WayForPay integration](/docs/features/wayforpay-integration) → [Payment integration](/docs/customization/payment-integration) |
 | Add MetaMask / WalletConnect | [Ethereum wallets](/docs/integrations/ethereum-wallets) |
+| Self-host product images / leave Vercel Blob | [RingFileBase](/docs/integrations/ring-filebase) → [Ring CDN](/docs/integrations/ring-cdn) |
 | Enable Google or Apple sign-in | [Authentication](/docs/features/authentication) + OAuth block in [Environment](/docs/deployment/environment) |
 | Mobile-style web push | [Push notifications (FCM)](/docs/features/push-notifications-fcm) |
 | Live chat / unread badges without refresh | [Tunnel protocol](/docs/features/tunnel-protocol) |

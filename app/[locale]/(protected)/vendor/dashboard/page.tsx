@@ -5,7 +5,7 @@
  */
 
 import type { Metadata } from 'next'
-import { setRequestLocale } from 'next-intl/server'
+import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
@@ -14,12 +14,22 @@ import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import VendorDashboardWrapper from '@/components/wrappers/vendor-dashboard-wrapper'
 import { DAGIActivationCard } from '@/components/vendor/dagi-activation-card'
-import { DashboardStats } from '@/components/vendor/dashboard-stats'
+import { VendorDashboard } from '@/components/vendor/vendor-dashboard'
 import { RecentOrders } from '@/components/vendor/recent-orders'
 import { connection } from 'next/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { logger } from '@/lib/logger'
+import { getVendorEntity } from '@/features/entities/services/vendor-entity'
+import { getVendorProfile } from '@/features/store/services/vendor-profile'
+import {
+  getVendorDashboardStats,
+  withVendorProfileDefaults,
+} from '@/features/store/services/vendor-stats'
+import { StoreOrdersService } from '@/features/store/services/orders-service'
+import { listOwnedGateAssets } from '@/features/nft-gates/purchase'
+import { listActiveStakes } from '@/features/nft-gates/gate-escrow'
+import { hasFeature } from '@/features/nft-gates/gate-resolver'
 
 export async function generateMetadata({
   params,
@@ -75,29 +85,71 @@ export default async function VendorDashboardPage({
       logger.error('VendorDashboardPage: Failed to check/create user document:', migrationError);
     }
 
+    const vendorEntity = await getVendorEntity(session.user.id)
+    if (!vendorEntity) {
+      redirect(ROUTES.VENDOR_START(validLocale))
+    }
+
+    const [rawProfile, stats, ordersResult, ownedGates, gateStakes, dagiUnlocked] =
+      await Promise.all([
+        getVendorProfile(vendorEntity.id),
+        getVendorDashboardStats(vendorEntity.id),
+        StoreOrdersService.listOrdersForVendor(vendorEntity.id, { limit: 5 }),
+        listOwnedGateAssets(session.user.id),
+        listActiveStakes(session.user.id),
+        hasFeature(session.user.id, 'vendor.dagi'),
+      ])
+
+    const vendor = withVendorProfileDefaults(rawProfile, vendorEntity.id, session.user.id)
+    const t = await getTranslations({ locale: validLocale, namespace: 'vendor.dashboard' })
+
+    const recentOrders = ordersResult.items.map((order: any) => {
+      const vendorSettlement = Array.isArray(order.vendorSettlements)
+        ? order.vendorSettlements.find(
+            (s: any) => s.vendorId === vendorEntity.id || s.vendorEntityId === vendorEntity.id,
+          )
+        : undefined
+      return {
+        id: order.id,
+        status: order.status,
+        total: order.total,
+        createdAt: order.createdAt,
+        customer: order.shippingInfo?.email || order.checkoutInfo?.email || order.userId,
+        netAmount: vendorSettlement?.netAmount,
+      }
+    })
+
     return (
     <VendorDashboardWrapper locale={validLocale}>
       <div className="container mx-auto px-6 max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Vendor Dashboard</h1>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your farm operations and AI agent
+            {t('subtitle')}
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Suspense fallback={<div className="h-32 animate-pulse bg-muted rounded-lg" />}>
-            <DashboardStats />
-          </Suspense>
-        </div>
+        <VendorDashboard
+          vendor={vendor}
+          entity={vendorEntity}
+          stats={stats}
+          locale={validLocale}
+          recentOrders={recentOrders}
+        />
 
-        <div className="grid gap-6 lg:grid-cols-2 mb-8">
-          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded-lg" />}>
-            <DAGIActivationCard userId={session.user.id} />
+        <div className="grid gap-6 lg:grid-cols-2 mt-8 mb-8">
+          <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+            <DAGIActivationCard
+              userId={session.user.id}
+              locale={validLocale}
+              dagiUnlocked={dagiUnlocked}
+              owned={ownedGates}
+              stakes={gateStakes}
+            />
           </Suspense>
 
-          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded-lg" />}>
-            <RecentOrders />
+          <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+            <RecentOrders orders={recentOrders} locale={validLocale} />
           </Suspense>
         </div>
       </div>
@@ -107,7 +159,7 @@ export default async function VendorDashboardPage({
     logger.error('VendorDashboardPage: Error:', e);
     return (
       <>
-        <title>Vendor Dashboard Error | Zemna AI</title>
+        <title>Vendor Dashboard Error | Ring Platform</title>
         <meta name="robots" content="noindex, nofollow" />
         <div className="container mx-auto px-0 py-0">
           <div className="text-center">

@@ -4,16 +4,13 @@
 import React, { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
-import type { StoreCurrency, StoreProduct } from '@/features/store'
+import type { StoreProduct } from '@/features/store'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
 import { useStore } from '@/features/store/context'
-import { useStoreCurrency } from '@/features/store/currency-context'
+import { useStoreCurrency, type StoreCurrency } from '@/features/store/currency-context'
 import type { Locale } from '@/i18n/shared'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
-import { getCurrencySymbol } from '@/lib/zod/store-product'
-import { SupportedCurrencies } from '@/lib/ring-config-types'
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 
 // TODO: Use React 19/Next.js 16 Server Actions (app/actions) for cart add-on for more robust UX and built-in loader state
 
@@ -38,12 +35,25 @@ export function ProductCard({
   // Get cart mutation from store context
   const { addToCart } = useStore()
 
-  // Currency state/formatter and conversion
-  const { currency, convertPrice } = useStoreCurrency()
+  // Currency state/formatter and conversion (SSOT: StoreCurrencyProvider)
+  const {
+    currency,
+    convertPrice,
+    formatPrice,
+    equivalentCurrency,
+    defaultCurrency,
+  } = useStoreCurrency()
 
-  // Get current ring system configuration (used to provide credit unit for currency conversion)
-  const ringConfig = getSystemConfigSnapshot()
-  const creditUnit = ringConfig.credits ? ringConfig.credits.unit : ''
+  const fromCurrency = (product.currency || defaultCurrency) as StoreCurrency
+  const priceAmount = Number(product.price)
+  const primaryPrice = formatPrice(
+    convertPrice(priceAmount, fromCurrency, currency),
+    currency,
+  )
+  const equivalentPrice = formatPrice(
+    convertPrice(priceAmount, fromCurrency, equivalentCurrency),
+    equivalentCurrency,
+  )
 
   // --- Add to cart async UI state ---
   // TODO: Switch to React's useTransition for async UX (React 19+), and to useOptimistic for UI feedback
@@ -314,14 +324,8 @@ export function ProductCard({
         {/* Price, stock, and action row */}
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex flex-col">
-            <span className="text-lg font-bold">
-              {/* Formatted price */}
-              {convertPrice(Number(product.price), currency as StoreCurrency, creditUnit as SupportedCurrencies)}
-              <span className="text-xs text-muted-foreground ml-1">
-                {/* Currency code */}
-                {currency}
-              </span>
-            </span>
+            <span className="text-lg font-bold">{primaryPrice}</span>
+            <span className="text-xs text-muted-foreground">≈ {equivalentPrice}</span>
           </div>
           <div className="flex items-center gap-2">
             {/* Stock status label */}

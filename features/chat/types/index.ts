@@ -18,7 +18,7 @@ export type RingTimestamp = string | Date;
 // Enhanced conversation management types
 export interface Conversation {
   id: string
-  type: 'direct' | 'entity' | 'opportunity' | 'product'
+  type: 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
   participants: ConversationParticipant[]
   lastMessage?: Message
   lastActivity: RingTimestamp
@@ -35,6 +35,12 @@ export interface Conversation {
     productName?: string
     subject?: string
     vendorId?: string
+    /** Group chat display title */
+    groupName?: string
+    /** Soft-archive: user ids who archived this conversation from their inbox */
+    archivedBy?: string[]
+    /** Mute notifications: user ids who muted this conversation */
+    mutedBy?: string[]
   }
   createdAt: RingTimestamp
   updatedAt: RingTimestamp
@@ -47,6 +53,9 @@ export interface ConversationParticipant {
   lastReadAt?: RingTimestamp
   isTyping: boolean
   isOnline: boolean
+  /** Enriched from users.image / users.photoURL at read time */
+  avatarUrl?: string
+  displayName?: string
 }
 
 export interface Message {
@@ -89,8 +98,10 @@ export interface TypingIndicator {
 
 // Request/Response types for API
 export interface CreateConversationRequest {
-  type: 'direct' | 'entity' | 'opportunity' | 'product'
+  type: 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
   participantIds: string[]
+  /** When set, this user is always assigned admin (group creator). */
+  creatorUserId?: string
   metadata?: {
     entityId?: string
     entityName?: string
@@ -102,6 +113,7 @@ export interface CreateConversationRequest {
     productName?: string
     subject?: string
     vendorId?: string
+    groupName?: string
   }
 }
 
@@ -114,7 +126,7 @@ export interface SendMessageRequest {
 }
 
 export interface ConversationFilters {
-  type?: 'direct' | 'entity' | 'opportunity' | 'product'
+  type?: 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
   isActive?: boolean
   entityId?: string
   opportunityId?: string

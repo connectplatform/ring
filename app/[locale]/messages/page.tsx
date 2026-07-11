@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import MessagesWrapper from '@/components/wrappers/messages-wrapper'
-import MessagesContent from '@/features/messages/components/messages-content'
 import type { LocalePageProps } from '@/utils/page-props'
 import type { Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
@@ -28,10 +27,8 @@ export async function generateMetadata({
 
 export default async function MessagesPage(_props: LocalePageProps<{}>) {
   return (
-    <MessagesWrapper>
-      <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading messenger…</div>}>
-        <MessagesContent />
-      </Suspense>
-    </MessagesWrapper>
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading messenger…</div>}>
+      <MessagesWrapper />
+    </Suspense>
   )
 }

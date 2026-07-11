@@ -10,6 +10,7 @@ import UserProfileWrapper from '@/components/wrappers/user-profile-wrapper'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
 import ProfileListings from '@/features/nft-market/components/profile-listings'
 import CreateListingForm from '../../../components/nft/forms/create-listing-form'
+import { getNftMarketListings } from '@/features/nft-market/services/listing-query'
 import Image from 'next/image'
 
 // Define the expected route params for this page
@@ -86,6 +87,12 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
   // Fetch user data
   const user = await getUserByUsername(username)
   if (!user) return notFound() // Show 404 page if user does not exist
+  const profileUsername = user.username || username
+  const initialListings = await getNftMarketListings({
+    sellerUsername: profileUsername,
+    status: 'active',
+    limit: 12,
+  })
 
   // Render user profile UI
   return (
@@ -125,7 +132,11 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
         <section className="mt-10">
           <h2 className="text-xl font-medium">NFTs for sale</h2>
           <div className="mt-4">
-            <ProfileListings username={user.username || username} />
+            <ProfileListings
+              username={profileUsername}
+              locale={validLocale}
+              initialPage={initialListings}
+            />
           </div>
         </section>
 

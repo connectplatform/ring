@@ -19,3 +19,4 @@ export {
 } from '@/lib/media/prompt-compiler'
 export { renderAndUploadThumbnail } from '@/lib/media/thumbnail'
 export type { RenderThumbnailInput, RenderThumbnailResult } from '@/lib/media/thumbnail'
+export { MediaConductor } from '@/lib/media/conductor/media-conductor'

@@ -50,6 +50,9 @@ export class PostgreSQLAdapter implements IDatabaseService {
     entity_reports: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    events: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     matcher_moderation_events: new Set([
       'id', 'created_at', 'updated_at'
     ]),
@@ -123,6 +126,33 @@ export class PostgreSQLAdapter implements IDatabaseService {
       'id', 'created_at', 'updated_at'
     ]),
     orders: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    user_addresses: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_gates: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_stakes: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_entitlement_cache: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_ownership: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_gate_purchases: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_listings: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_market_sales: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    nft_market_collections: new Set([
       'id', 'created_at', 'updated_at'
     ]),
     settlements: new Set([

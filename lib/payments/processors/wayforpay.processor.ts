@@ -6,6 +6,7 @@ import { paymentTransactionService } from '@/lib/payments/payment-transaction-se
 import { getMembershipTierConfig, initiatePayment } from '@/lib/payments/wayforpay-service'
 import { initiateStorePayment } from '@/lib/payments/wayforpay-store-service'
 import { UserRolesArray } from '@/features/auth/user-role'
+import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 
 /**
  * Retrieves the credentials and domain information for WayForPay integration.
@@ -43,6 +44,12 @@ export async function createWayForPayCheckout(ctx: CreateCheckoutContext): Promi
   if (ctx.purpose === 'news_promotion') {
     return createNewsWayForPay(ctx)
   }
+  if (ctx.purpose === 'wallet_topup') {
+    return createWalletTopupWayForPay(ctx)
+  }
+  if (ctx.purpose === 'native_token_onramp') {
+    return createNativeTokenOnrampWayForPay(ctx)
+  }
   // Return error if the purpose is not recognized
   return { success: false, error: `WayForPay does not support purpose: ${ctx.purpose}` }
 }
@@ -53,48 +60,41 @@ export async function createWayForPayCheckout(ctx: CreateCheckoutContext): Promi
  */
 async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
   const { merchant, secret, domain } = getWayForPayCredentials(true)
-  // Guard: configuration must be available
   if (!merchant || !secret || !domain) {
     return { success: false, error: 'WayForPay not configured' }
   }
 
-  // Initiate payment with WayForPay store service
+  const orderId = ctx.orderId ?? ctx.entityId
+  const orderReference = buildOrderReference('store_order', { orderId })
+
+  await paymentTransactionService.createPending({
+    purpose: 'store_order',
+    processor: 'wayforpay',
+    rail: 'merchant_redirect',
+    orderReference,
+    entityType: 'store_order',
+    entityId: orderId,
+    userId: ctx.userId,
+    amountMinor: Math.round(ctx.amount * 100),
+    currency: ctx.currency,
+  })
+
   const result = await initiateStorePayment({
-    orderId: ctx.orderId ?? ctx.entityId,
+    orderId,
     userId: ctx.userId,
     userEmail: ctx.userEmail,
-    items: (ctx.items as any) || [], // TODO: Strong type ctx.items throughout payment pipelines
+    items: (ctx.items as any) || [],
     totalAmount: ctx.amount,
     currency: (ctx.currency as 'UAH' | 'USD' | 'EUR') || 'UAH',
-    shippingInfo: (ctx.shippingInfo as any) || { email: ctx.userEmail }, // TODO: Validate/finalize shippingInfo type upstream
+    shippingInfo: (ctx.shippingInfo as any) || { email: ctx.userEmail },
     returnUrl: ctx.returnUrl,
     webhookUrl: getWebhookUrl('wayforpay'),
     locale: (ctx.locale as 'UK' | 'EN' | 'RU') || 'EN',
+    orderReference,
   })
 
-  // If the payment was initiated successfully
   if (result.success && result.paymentUrl) {
-    // Prefer returned WayForPay orderId, but fallback to locally built
-    const orderReference =
-      result.wayforpayOrderId ?? buildOrderReference('store_order', { orderId: ctx.orderId ?? ctx.entityId })
-
-    // Write a pending transaction to DB
-    await paymentTransactionService.createPending({
-      purpose: 'store_order',
-      processor: 'wayforpay',
-      rail: 'merchant_redirect',
-      orderReference,
-      entityType: 'store_order',
-      entityId: ctx.orderId ?? ctx.entityId,
-      userId: ctx.userId,
-      amountMinor: Math.round(ctx.amount * 100),
-      currency: ctx.currency,
-    })
-
-    // Mark transaction as user-redirected to merchant
     await paymentTransactionService.markRedirected(orderReference)
-
-    // Return payment URL and order reference to client
     return {
       success: true,
       paymentUrl: result.paymentUrl,
@@ -102,7 +102,6 @@ async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateC
     }
   }
 
-  // Return error if initiation failed
   return { success: false, error: result.error ?? 'WayForPay initiation failed' }
 }
 
@@ -111,6 +110,11 @@ async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateC
  * @param ctx
  */
 async function createMembershipWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(false)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
   // Determine target membership role, fallback to member
   const targetRole = (ctx.targetRole as UserRolesArray) || UserRolesArray.member
   // Build reference for this upgrade
@@ -129,23 +133,23 @@ async function createMembershipWayForPay(ctx: CreateCheckoutContext): Promise<Cr
     currency: ctx.currency,
   })
 
-  // Initiate payment with membership upgrade specifics
+  // Initiate payment with membership upgrade specifics (same orderReference as ledger row)
   const result = await initiatePayment({
     userId: ctx.userId,
     userEmail: ctx.userEmail,
     targetRole,
     returnUrl: ctx.returnUrl,
     callbackUrl: getWebhookUrl('wayforpay'),
+    orderReference,
   })
 
   // If the payment initiation succeeded
   if (result.success && result.paymentUrl) {
-    // Mark transaction as redirected. Prefer WayForPay's returned orderId if possible.
-    await paymentTransactionService.markRedirected(result.orderId ?? orderReference)
+    await paymentTransactionService.markRedirected(orderReference)
     return {
       success: true,
       paymentUrl: result.paymentUrl,
-      orderReference: result.orderId ?? orderReference,
+      orderReference,
     }
   }
 
@@ -223,6 +227,133 @@ async function createNewsWayForPay(ctx: CreateCheckoutContext): Promise<CreateCh
   await paymentTransactionService.markRedirected(orderReference)
 
   // Return payment url and order reference to client
+  return { success: true, paymentUrl, orderReference }
+}
+
+/**
+ * One-time WayForPay checkout for wallet credit top-up (points).
+ */
+async function createWalletTopupWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(false)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
+  const amount = ctx.amount
+  if (!Number.isFinite(amount) || amount < 25 || amount > 2000) {
+    return { success: false, error: 'Amount must be between 25 and 2000' }
+  }
+
+  const currency = ctx.currency || 'USD'
+  const orderReference = buildOrderReference('wallet_topup', { userId: ctx.userId })
+  const orderDate = Math.floor(Date.now() / 1000)
+  const productName = `Credit top-up ${amount} ${currency}`
+
+  await paymentTransactionService.createPending({
+    purpose: 'wallet_topup',
+    processor: 'wayforpay',
+    rail: 'merchant_redirect',
+    orderReference,
+    entityType: 'wallet_topup',
+    entityId: ctx.userId,
+    userId: ctx.userId,
+    amountMinor: Math.round(amount * 100),
+    currency,
+  })
+
+  const signString = [
+    merchant,
+    domain,
+    orderReference,
+    orderDate,
+    amount,
+    currency,
+    productName,
+    1,
+    amount,
+  ].join(';')
+  const merchantSignature = crypto.createHmac('md5', secret).update(signString).digest('hex')
+
+  const paymentUrl =
+    `https://secure.wayforpay.com/pay?merchantAccount=${encodeURIComponent(merchant)}` +
+    `&merchantDomainName=${encodeURIComponent(domain)}` +
+    `&orderReference=${encodeURIComponent(orderReference)}` +
+    `&orderDate=${orderDate}` +
+    `&amount=${amount}` +
+    `&currency=${currency}` +
+    `&productName=${encodeURIComponent(productName)}` +
+    `&productCount=1` +
+    `&productPrice=${amount}` +
+    `&merchantSignature=${merchantSignature}` +
+    `&returnUrl=${encodeURIComponent(ctx.returnUrl)}` +
+    `&serviceUrl=${encodeURIComponent(getWebhookUrl('wayforpay'))}`
+
+  await paymentTransactionService.markRedirected(orderReference)
+  return { success: true, paymentUrl, orderReference }
+}
+
+/**
+ * WayForPay checkout for confidential+ native token onramp (card → treasury RING).
+ */
+async function createNativeTokenOnrampWayForPay(
+  ctx: CreateCheckoutContext
+): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(false)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
+  const amount = ctx.amount
+  if (!Number.isFinite(amount) || amount < 25 || amount > 2000) {
+    return { success: false, error: 'Amount must be between 25 and 2000' }
+  }
+
+  const currency = ctx.currency || 'USD'
+  const orderReference = buildOrderReference('native_token_onramp', { userId: ctx.userId })
+  const orderDate = Math.floor(Date.now() / 1000)
+  const symbol = getNativeTokenSymbol()
+  const productName = `Native ${symbol} onramp ${amount} ${currency}`
+
+  await paymentTransactionService.createPending({
+    purpose: 'native_token_onramp',
+    processor: 'wayforpay',
+    rail: 'merchant_redirect',
+    orderReference,
+    entityType: 'native_token_onramp',
+    entityId: ctx.userId,
+    userId: ctx.userId,
+    amountMinor: Math.round(amount * 100),
+    currency,
+  })
+
+  const signString = [
+    merchant,
+    domain,
+    orderReference,
+    orderDate,
+    amount,
+    currency,
+    productName,
+    1,
+    amount,
+  ].join(';')
+  const merchantSignature = crypto.createHmac('md5', secret).update(signString).digest('hex')
+
+  const paymentUrl =
+    `https://secure.wayforpay.com/pay?merchantAccount=${encodeURIComponent(merchant)}` +
+    `&merchantDomainName=${encodeURIComponent(domain)}` +
+    `&orderReference=${encodeURIComponent(orderReference)}` +
+    `&orderDate=${orderDate}` +
+    `&amount=${amount}` +
+    `&currency=${currency}` +
+    `&productName=${encodeURIComponent(productName)}` +
+    `&productCount=1` +
+    `&productPrice=${amount}` +
+    `&merchantSignature=${merchantSignature}` +
+    `&returnUrl=${encodeURIComponent(ctx.returnUrl)}` +
+    `&serviceUrl=${encodeURIComponent(getWebhookUrl('wayforpay'))}`
+
+  await paymentTransactionService.markRedirected(orderReference)
   return { success: true, paymentUrl, orderReference }
 }
 

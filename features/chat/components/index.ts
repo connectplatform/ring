@@ -2,6 +2,7 @@ export { MessageBubble } from './message-bubble'
 export { TypingIndicator } from './typing-indicator'  
 export { MessageComposer } from './message-composer'
 export { ConversationHeader } from './conversation-header'
+export { CallOverlay } from './call-overlay'
 export { MessageThread } from './message-thread'
 export { ConversationList } from './conversation-list'
 

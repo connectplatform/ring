@@ -30,6 +30,22 @@ export const POST = withMcpGuard(async (_request, _actor, context?: Ctx) => {
   // Find matching opportunities by passing the serialized opportunity to the service.
   const result = await matcher.findMatches(serialized)
 
+  try {
+    const { appendEvent } = await import('@/lib/events/event-log.server')
+    await appendEvent({
+      type: 'opportunity_matched_ai',
+      reversible: false,
+      payload: {
+        opportunityId: id,
+        matchingResult: result,
+        source: 'mcp_match',
+        processingTimestamp: Date.now(),
+      },
+    })
+  } catch {
+    // Non-fatal — MCP response still returns matches
+  }
+
   // Return the matches in a standard MCP OK response.
   return mcpOk(result)
 })

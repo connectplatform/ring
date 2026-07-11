@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { auth } from '@/auth'
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
 import { logger } from '@/lib/logger'
-import { UserRolesArray } from '@/features/auth/user-role'
 import { getMembershipRingUpgradeAmount, getMembershipRingRenewalAmount } from '@/lib/membership/pricing'
 
 /**
@@ -88,22 +87,78 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PayPal integration is currently a stub (Phase S7)
-    // TODO: Implement PayPal API integration
-    // - Create PayPal order
-    // - Redirect user to PayPal approval URL
-    // - Handle PayPal webhook callback
-    // - Create subscription via SubscriptionConductor
+    // SSOT: route through SubscriptionConductor paypal provider (Phase S8 stub)
+    // and PaymentConductor paypal processor — no parallel hardcoded 501 path.
+    if (type === 'subscription_renewal') {
+      const renewal = await SubscriptionConductor.renewSubscription(userId, 'paypal')
+      return NextResponse.json(
+        {
+          error: renewal.error || 'PayPal integration not yet implemented',
+          code: 'PAYPAL_NOT_IMPLEMENTED',
+          message:
+            'PayPal payment processing is currently in development (Phase S8). Please use credit balance, native token, or card payment.',
+          available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
+        },
+        { status: 501 }
+      )
+    }
 
-    return NextResponse.json(
-      {
-        error: 'PayPal integration not yet implemented',
-        code: 'PAYPAL_NOT_IMPLEMENTED',
-        message: 'PayPal payment processing is currently in development (Phase S7). Please use credit balance, native token, or card payment.',
-        available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
-      },
-      { status: 501 }
-    )
+    const { PaymentConductor } = await import('@/lib/payments/conductor/payment-conductor')
+    const checkout = await PaymentConductor.createCheckout({
+      purpose: 'membership_upgrade',
+      userId,
+      userEmail,
+      entityId: userId,
+      amount: paymentAmount,
+      currency: 'USD',
+      returnUrl: '',
+      metadata: { processor: 'paypal', type, auto_subscribe },
+    })
+
+    if (!checkout.success) {
+      // Also probe SubscriptionConductor so ledger provider stays SSOT when PayPal goes live
+      if (auto_subscribe) {
+        const sub = await SubscriptionConductor.createSubscription({
+          userId,
+          userEmail,
+          provider: 'paypal',
+          gateway: 'paypal',
+          method: 'paypal',
+          amount: paymentAmount,
+          currency: 'USD',
+          gatewayFeePercent: 0,
+          gatewayFeeFixed: 0,
+          metadata: { source: 'paypal_payment', type },
+        })
+        return NextResponse.json(
+          {
+            error: checkout.error || sub.error || 'PayPal integration not yet implemented',
+            code: checkout.code || 'PAYPAL_NOT_IMPLEMENTED',
+            message:
+              'PayPal payment processing is currently in development (Phase S8). Please use credit balance, native token, or card payment.',
+            available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
+          },
+          { status: 501 }
+        )
+      }
+
+      return NextResponse.json(
+        {
+          error: checkout.error || 'PayPal integration not yet implemented',
+          code: checkout.code || 'PAYPAL_NOT_IMPLEMENTED',
+          message:
+            'PayPal payment processing is currently in development (Phase S8). Please use credit balance, native token, or card payment.',
+          available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
+        },
+        { status: 501 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      paymentUrl: checkout.paymentUrl,
+      orderReference: checkout.orderReference,
+    })
 
   } catch (error) {
     logger.error('Failed to process PayPal payment', { error })
@@ -135,7 +190,11 @@ export async function GET(request: NextRequest) {
 
     const response = {
       status: 'not_implemented',
-      message: 'PayPal integration is currently in development (Phase S7)',
+      message: 'PayPal integration is currently in development (Phase S8)',
+      conductor: {
+        payment: 'PaymentConductor.createCheckout({ metadata.processor: paypal })',
+        subscription: 'SubscriptionConductor provider paypal (Phase S8 stub)',
+      },
       provider: {
         name: 'paypal',
         supported_methods: ['paypal_account'],
@@ -174,13 +233,14 @@ export async function GET(request: NextRequest) {
         },
       ],
       roadmap: {
-        phase: 'S7',
+        phase: 'S8',
         status: 'in_development',
         features: [
           'PayPal order creation',
           'PayPal approval redirect',
           'PayPal webhook handling',
-          'Subscription integration',
+          'SubscriptionConductor paypal provider (live)',
+          'PaymentConductor paypal.processor (live)',
         ],
       },
     }

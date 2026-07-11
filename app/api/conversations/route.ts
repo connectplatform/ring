@@ -14,7 +14,7 @@ const conversationService = new ConversationService()
 //   - type='direct' → metadata optional
 // ---------------------------------------------------------------------------
 const createConversationSchema = z.object({
-  type: z.enum(['direct', 'entity', 'opportunity', 'product']),
+  type: z.enum(['direct', 'entity', 'opportunity', 'product', 'group']),
   participantIds: z.array(z.string()).min(1, 'participantIds must be a non-empty array'),
   metadata: z.object({
     entityId: z.string().optional(),
@@ -27,6 +27,7 @@ const createConversationSchema = z.object({
     productName: z.string().optional(),
     subject: z.string().optional(),
     vendorId: z.string().optional(),
+    groupName: z.string().optional(),
   }).optional(),
 }).passthrough().superRefine((data, ctx) => {
   if (data.type !== 'direct' && !data.metadata) {
@@ -49,6 +50,23 @@ const createConversationSchema = z.object({
       message: 'opportunityId is required for opportunity conversations',
       path: ['metadata', 'opportunityId'],
     })
+  }
+  if (data.type === 'group') {
+    const name = data.metadata?.groupName?.trim()
+    if (!name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'groupName is required for group conversations',
+        path: ['metadata', 'groupName'],
+      })
+    }
+    if (data.participantIds.length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'group conversations require at least one other participant',
+        path: ['participantIds'],
+      })
+    }
   }
 })
 
@@ -92,7 +110,7 @@ export async function GET(request: NextRequest) {
           case 'type':
             // Only include supported conversation types
             if (['direct', 'entity', 'opportunity', 'product'].includes(queryParams[key])) {
-              filters.type = queryParams[key] as 'direct' | 'entity' | 'opportunity' | 'product'
+              filters.type = queryParams[key] as 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
             }
             break;
           case 'isActive':
@@ -217,9 +235,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Ensure current user is included in participants
+    // Ensure current user is included; creatorUserId makes them admin regardless of array order
     if (!requestData.participantIds.includes(session.user.id)) {
-      requestData.participantIds.push(session.user.id)
+      requestData.participantIds = [session.user.id, ...requestData.participantIds]
+    }
+    requestData.creatorUserId = session.user.id
+    if (requestData.type === 'group' && requestData.metadata?.groupName) {
+      requestData.metadata = {
+        ...requestData.metadata,
+        groupName: requestData.metadata.groupName.trim(),
+      }
     }
 
     // Attach info to context for logging/analytics

@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging'
-import { app, isFcmConfigured, validateFirebaseConfig } from '@/lib/firebase-client'
-import { upsertFcmToken } from '@/app/_actions/fcm'
+import { app, isFcmConfigured, isKnownCrossProjectVapidLeak, validateFirebaseConfig } from '@/lib/firebase-client'
 import { getOrCreateDeviceFingerprint } from '@/lib/notifications/device-fingerprint'
 
 interface FCMState {
@@ -45,9 +44,11 @@ export function useFCM(): FCMHookReturn {
           setState(prev => ({
             ...prev,
             isSupported: false,
-            error: validateFirebaseConfig()
-              ? 'FCM VAPID key missing or invalid (NEXT_PUBLIC_FIREBASE_VAPID_KEY)'
-              : 'Firebase configuration incomplete',
+            error: isKnownCrossProjectVapidLeak()
+              ? `FCM VAPID key is from ring-main but NEXT_PUBLIC_FIREBASE_PROJECT_ID is ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}. Generate Web Push keys in Firebase Console for this project.`
+              : validateFirebaseConfig()
+                ? 'FCM VAPID key missing or invalid (NEXT_PUBLIC_FIREBASE_VAPID_KEY)'
+                : 'Firebase configuration incomplete',
           }))
           return
         }
@@ -131,7 +132,7 @@ export function useFCM(): FCMHookReturn {
 
       initializeFCMServiceWorker()
     }
-  }, [status, session, state.isSupported])
+  }, [status, session?.user?.id, state.isSupported])
 
   // Separate effect for checking existing permission (without requesting new permission)
   useEffect(() => {
@@ -203,7 +204,14 @@ export function useFCM(): FCMHookReturn {
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to initialize FCM'
           if (message.includes('token-subscribe-failed') || message.includes('authentication credential')) {
-            console.warn('FCM token subscribe skipped — check NEXT_PUBLIC_FIREBASE_VAPID_KEY and Cloud Messaging API:', message)
+            const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? 'unknown'
+            const leakHint = isKnownCrossProjectVapidLeak()
+              ? ` VAPID appears to be ring-main key but project is ${projectId} — regenerate Web Push certificate in Firebase Console for ${projectId}.`
+              : ''
+            console.warn(
+              `FCM token subscribe skipped — check NEXT_PUBLIC_FIREBASE_VAPID_KEY matches project ${projectId} and enable Cloud Messaging API:${leakHint}`,
+              message,
+            )
           } else {
             console.error('Error initializing FCM:', error)
           }
@@ -222,7 +230,7 @@ export function useFCM(): FCMHookReturn {
 
       initializeFCMToken()
     }
-  }, [status, session, state.isSupported, state.permission])
+  }, [status, session?.user?.id, state.isSupported, state.permission])
 
   const requestPermission = async (): Promise<boolean> => {
     try {
@@ -301,15 +309,24 @@ export function useFCM(): FCMHookReturn {
         lastSeen: new Date().toISOString(),
       }
 
-      const result = await upsertFcmToken({
-        token,
-        deviceFingerprint,
-        deviceInfo,
-        platform: 'web',
+      // Prefer REST over Server Action — upsertFcmToken as a Server Action
+      // revalidates the current RSC page and caused admin/security refresh storms.
+      const response = await fetch('/api/notifications/fcm/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          deviceFingerprint,
+          deviceInfo,
+          platform: 'web',
+        }),
       })
 
-      if ('error' in result) {
-        throw new Error(result.error || 'Failed to register token with server')
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(
+          (data as { error?: string }).error || 'Failed to register token with server',
+        )
       }
 
       console.log('FCM token registered with server')

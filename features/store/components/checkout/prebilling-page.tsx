@@ -104,7 +104,7 @@ export function PrebillingPage({
 
   // Shipping state for selected address, method, and NovaPost location
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null)   // User's selected shipping address
-  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('nova-post')  // Default to 'nova-post'
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('pickup')  // Default pickup (Nova Post optional)
   const [shippingLocation, setShippingLocation] = useState<NovaPostLocation | null>(null) // NovaPost office branch
 
   // Payment state for user's choices (method, addresses)

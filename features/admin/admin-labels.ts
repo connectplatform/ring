@@ -1,4 +1,6 @@
 import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
+import type { AdminNavLabelKey } from '@/features/admin/admin-nav-config'
+import { resolveAdminNavMessage } from '@/features/admin/admin-nav-message-paths'
 
 type AdminTranslationFn = (key: string, ...args: unknown[]) => string
 
@@ -11,35 +13,89 @@ const safeLabel = (t: AdminTranslationFn, key: string): string | undefined => {
   }
 }
 
+const navLabel = (t: AdminTranslationFn, labelKey: string) =>
+  resolveAdminNavMessage(t, labelKey)
+
+/** Resolve a nav/rail label from flat admin labels with English fallback. */
+export function resolveAdminNavLabel(
+  labels: ModulesAdminLabels,
+  key: AdminNavLabelKey,
+  fallback: string,
+): string {
+  const value = (labels as Record<string, string | undefined>)[key]
+  return typeof value === 'string' && value.length > 0 ? value : fallback
+}
+
 export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabels => {
   return {
-    dashboard: safeLabel(t, 'dashboard'),
-    users: safeLabel(t, 'users'),
-    news: safeLabel(t, 'news'),
-    dao: safeLabel(t, 'dao'),
-    analytics: safeLabel(t, 'analytics'),
-    moderation: safeLabel(t, 'moderation'),
-    performance: safeLabel(t, 'performance'),
-    fraudDesk: safeLabel(t, 'fraudDeskNav'),
-    security: safeLabel(t, 'security'),
-    settings: safeLabel(t, 'settingsNav'),
-    matcher: safeLabel(t, 'matcherNav'),
-    verification: safeLabel(t, 'verificationNav'),
-    store: safeLabel(t, 'store'),
-    refcodes: safeLabel(t, 'refcodes'),
-    emailInbox: safeLabel(t, 'emailInbox'),
+    dashboard: navLabel(t, 'dashboard'),
+    users: navLabel(t, 'users'),
+    news: navLabel(t, 'news'),
+    dao: navLabel(t, 'dao'),
+    analytics: navLabel(t, 'analytics'),
+    moderation: navLabel(t, 'moderation'),
+    performance: navLabel(t, 'performance'),
+    fraudDesk: navLabel(t, 'fraudDesk'),
+    security: navLabel(t, 'security'),
+    settings: navLabel(t, 'settings'),
+    matcher: navLabel(t, 'matcher'),
+    verification: navLabel(t, 'verification'),
+    store: navLabel(t, 'store'),
+    refcodes: navLabel(t, 'refcodes'),
+    subscriptions: navLabel(t, 'subscriptions'),
+    web3: navLabel(t, 'web3'),
+    emailInbox: navLabel(t, 'emailInbox'),
     emailDrafts: safeLabel(t, 'emailDrafts'),
     emailContacts: safeLabel(t, 'emailContacts'),
     emailAnalytics: safeLabel(t, 'emailAnalytics'),
     emailTasks: safeLabel(t, 'emailTasks'),
-    processes: safeLabel(t, 'processesNav'),
+    processes: navLabel(t, 'processes'),
+    userManagement: safeLabel(t, 'userManagement'),
     quickNav: safeLabel(t, 'quickNav'),
+    relatedModules: safeLabel(t, 'relatedModules'),
     navGroupOverview: safeLabel(t, 'navGroupOverview'),
     navGroupCommunity: safeLabel(t, 'navGroupCommunity'),
     navGroupPlatform: safeLabel(t, 'navGroupPlatform'),
+    navGroupTrust: safeLabel(t, 'navGroupTrust'),
     navGroupCommerce: safeLabel(t, 'navGroupCommerce'),
     navGroupEmail: safeLabel(t, 'navGroupEmail'),
+    navGroupPlatformOps: safeLabel(t, 'navGroupPlatformOps'),
+    newsManagement: safeLabel(t, 'newsManagement'),
+    newsRailArticles: safeLabel(t, 'newsRailArticles'),
+    newsRailCategories: safeLabel(t, 'newsRailCategories'),
+    newsRailAnalytics: safeLabel(t, 'newsRailAnalytics'),
+    newsRailBulk: safeLabel(t, 'newsRailBulk'),
+    storeProducts: safeLabel(t, 'storeProducts'),
+    storeOrders: safeLabel(t, 'storeOrders'),
+    storeStock: safeLabel(t, 'storeStock'),
+    storeCommissions: safeLabel(t, 'storeCommissions'),
+    storeAddProduct: safeLabel(t, 'storeAddProduct'),
+    daoPools: safeLabel(t, 'daoPools'),
+    daoCreate: safeLabel(t, 'daoCreate'),
+    securityTabOverview: safeLabel(t, 'securityHub.tabOverview'),
+    securityTabFraud: safeLabel(t, 'securityHub.tabFraud'),
+    securityTabVerification: safeLabel(t, 'securityHub.tabVerification'),
+    securityTabEvents: safeLabel(t, 'securityHub.tabEvents'),
+    matcherTabAnalytics: safeLabel(t, 'matcher.tabAnalytics'),
+    matcherTabModeration: safeLabel(t, 'matcher.tabModeration'),
+    moderationTabQueue: safeLabel(t, 'moderationTabQueue'),
+    moderationTabRules: safeLabel(t, 'moderationTabRules'),
+    moderationTabReports: safeLabel(t, 'moderationTabReports'),
+    moderationTabAnalytics: safeLabel(t, 'moderationTabAnalytics'),
+    usersTabOverview: safeLabel(t, 'usersTabOverview'),
+    usersTabUsers: safeLabel(t, 'usersTabUsers'),
+    usersTabVerification: safeLabel(t, 'usersTabVerification'),
+    usersTabAnalytics: safeLabel(t, 'usersTabAnalytics'),
+    web3Settings: safeLabel(t, 'web3Settings') ?? navLabel(t, 'web3Settings'),
+    web3Overview: safeLabel(t, 'web3Overview') ?? navLabel(t, 'web3Overview'),
+    web3Nft: safeLabel(t, 'web3Nft') ?? navLabel(t, 'web3Nft'),
+    web3NftMint: safeLabel(t, 'web3NftMint') ?? navLabel(t, 'web3NftMint'),
     systemStats: safeLabel(t, 'systemStats'),
+    newsStatsTotal: safeLabel(t, 'newsStatsTotal'),
+    newsStatsPublished: safeLabel(t, 'newsStatsPublished'),
+    newsStatsDrafts: safeLabel(t, 'newsStatsDrafts'),
+    newsStatsArchived: safeLabel(t, 'newsStatsArchived'),
+    newsStatsViews: safeLabel(t, 'newsStatsViews'),
     totalUsers: safeLabel(t, 'totalUsers'),
     publishedArticles: safeLabel(t, 'publishedArticles'),
     activeUsers: safeLabel(t, 'activeUsers'),
@@ -47,24 +103,10 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     uptime: safeLabel(t, 'uptime'),
     recentActivity: safeLabel(t, 'recentActivity'),
     viewAllActivity: safeLabel(t, 'viewAllActivity'),
-    adminTools: safeLabel(t, 'adminTools'),
-    contextualTools: safeLabel(t, 'contextualTools'),
     helpDocs: safeLabel(t, 'helpDocs'),
     adminHelpDescription: safeLabel(t, 'adminHelpDescription'),
-    bulkImport: safeLabel(t, 'bulkImport'),
-    exportData: safeLabel(t, 'exportData'),
-    userReports: safeLabel(t, 'userReports'),
-    bulkPublish: safeLabel(t, 'bulkPublish'),
-    seoTools: safeLabel(t, 'seoTools'),
-    contentModeration: safeLabel(t, 'contentModeration'),
-    inventorySync: safeLabel(t, 'inventorySync'),
-    orderManagement: safeLabel(t, 'orderManagement'),
-    productAnalytics: safeLabel(t, 'productAnalytics'),
-    systemBackup: safeLabel(t, 'systemBackup'),
-    cacheClear: safeLabel(t, 'cacheClear'),
-    viewLogs: safeLabel(t, 'viewLogs'),
     gettingStarted: safeLabel(t, 'gettingStarted'),
     apiReference: safeLabel(t, 'apiReference'),
-    troubleshooting: safeLabel(t, 'troubleshooting')
+    troubleshooting: safeLabel(t, 'troubleshooting'),
   }
 }

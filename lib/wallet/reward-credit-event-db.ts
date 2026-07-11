@@ -7,7 +7,7 @@ export async function findRewardCreditAddEventByIdempotencyKey(
   idempotencyKey: string,
 ): Promise<RewardCreditAddEventConfig | null> {
   const result = await db().queryDocs<RewardCreditAddEventConfig>({
-    collection: 'credit_add_event',
+    collection: 'credit_add_events',
     filters: [{ field: 'idempotency_key', operator: '==', value: idempotencyKey }],
     pagination: { limit: 1 },
   })
@@ -37,8 +37,9 @@ export async function createRewardCreditAddEvent(event: RewardCreditAddEventConf
   }
 
   // Exclude 'id' from doc payload to comply with db.createDoc contract
+  // Table SSOT: credit_add_events (migration 022)
   const { id: _omit, ...docPayload } = payload
-  const result = await db().createDoc('credit_add_event', docPayload, { id })
+  const result = await db().createDoc('credit_add_events', docPayload, { id })
   if (!result.success) {
     throw new Error(result.error?.message || 'Failed to create reward credit add event')
   }
@@ -60,7 +61,7 @@ export async function updateRewardCreditAddEventStatus(
     throw new Error('Invalid patch data for reward credit add event')
   }
 
-  const result = await db().updateDoc('credit_add_event', eventId, {
+  const result = await db().updateDoc('credit_add_events', eventId, {
     status,
     ...safePatch,
     updated_at: new Date().toISOString(),

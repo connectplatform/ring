@@ -58,20 +58,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to persist telemetry' }, { status: 500 })
     }
 
-    // Decompose payload properties for tunnel push.
-    const { domain, deviceId, ts, payload } = parsed.data
-
-    // Try to "fan out" the telemetry to active tunnel connections for this user.
-    // Only errors if infrastructure is down; not critical path.
-    // TODO: Next.js 16 supports edge streaming/fan-out via Middleware/"edge" API route configs. Consider implementing in future.
-    await publishToUserTunnel(userId, telemetryChannelForDomain(domain), {
-      domain,
-      deviceId,
-      ts: ts ?? Date.now(), // If no timestamp provided, fallback to server time.
-      payload,
-    }).catch(() => {
-      // Fan-out is best-effort when no live tunnel session; intentionally ignore failure here
-    })
+    // Fan-out only when persistence actually changed — avoids offline-queue flooding during reload bursts.
+    if (!skipped) {
+      const { domain, deviceId, ts, payload } = parsed.data
+      await publishToUserTunnel(userId, telemetryChannelForDomain(domain), {
+        domain,
+        deviceId,
+        ts: ts ?? Date.now(),
+        payload,
+      }).catch(() => {
+        // Fan-out is best-effort when no live tunnel session; intentionally ignore failure here
+      })
+    }
 
     // Respond with success, returning persistent id and whether DB write was skipped.
     return NextResponse.json({ success: true, docId, storageSkipped: skipped })

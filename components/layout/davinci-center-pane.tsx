@@ -32,12 +32,14 @@ export function DavinciCenterPane({
       <HeroAmbient className="pointer-events-none absolute inset-0 opacity-30" />
       <div
         className={cn(
+          // Default padding; callers may override with Tailwind !p-* (cn does not twMerge)
           'relative z-[1] flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 sm:py-7 lg:px-8',
           contentClassName,
         )}
       >
         {header ? <div className="mb-6 shrink-0">{header}</div> : null}
-        <div className="min-h-0 flex-1">{children}</div>
+        {/* Keep children as the flex column root so chat threads can fill height */}
+        {children}
       </div>
     </div>
   )

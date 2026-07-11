@@ -1,200 +1,346 @@
-// NFT Market Listing Service - Database abstraction layer
-// Uses ring-db *Doc methods (createDoc, queryDocs, readDoc, updateDoc)
-
 import { auth } from '@/auth'
+import { randomUUID } from 'crypto'
 import { db } from '@/lib/database'
+import { getNativeTokenAddress, getNativeTokenDecimals } from '@/lib/ring-config-chain'
+import { nativeTokenUiToRaw } from '@/lib/wallet/native-token-amount'
+import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
+import {
+  getMarketplaceFeeBps,
+  getMarketplaceFeeRecipient,
+  getNftCollectionMint,
+  getNftCollectionSymbol,
+  getNftCollectionUri,
+  getNftGateTemplateResolved,
+} from '@/features/nft-gates/config'
+import type { NftGateSlug } from '@/features/nft-gates/types'
+import type {
+  CreateNftListingDraftInput,
+  NftMarketListing,
+  NftMarketListingFilters,
+  NftMarketSale,
+} from '@/features/nft-market/types'
+import { assertGateCanBeListed } from '@/features/nft-market/listing-policy'
+import { getNftMarketListings } from './listing-query'
+import { SolanaMarketClient, splitMarketplaceFee } from './solana-market-client'
 
-interface CreateListingData {
-  sellerUsername: string
-  item: {
-    address: string
-    tokenId: string
-    standard: 'ERC721' | 'ERC1155'
-    chainId: number
-  }
-  price: {
-    amount: string
-    currency: string
-  }
-}
-
-interface CreateListingResult {
+type ServiceResult<T = { id: string }> = {
   success: boolean
+  data?: T
   id?: string
   error?: string
 }
 
-interface GetListingsResult {
-  success: boolean
-  data?: Record<string, unknown>[]
-  error?: string
+function nowIso() {
+  return new Date().toISOString()
 }
 
-export async function createListingDraft(data: CreateListingData): Promise<CreateListingResult> {
+function toLegacyDraftInput(data: any, sellerUserId: string): CreateNftListingDraftInput {
+  return {
+    sellerUserId: data.sellerUserId ?? sellerUserId,
+    sellerUsername: data.sellerUsername,
+    asset: data.asset ?? data.item?.asset ?? data.item?.address ?? '',
+    slug: data.slug ?? data.item?.slug,
+    priceRing: data.priceRing ?? data.price?.amount ?? data.amount ?? '',
+    metadataUri: data.metadataUri,
+    imageUri: data.imageUri,
+    attributes: data.attributes,
+    licenseExpiresAt: data.licenseExpiresAt,
+  }
+}
+
+async function getSessionUserId(explicitUserId?: string) {
+  if (explicitUserId) return explicitUserId
+  const session = await auth()
+  return session?.user?.id ?? null
+}
+
+async function resolveSellerUsername(userId: string, fallback?: string) {
+  if (fallback?.trim()) return fallback.trim().replace(/^@/, '')
+  const user = await db().readDoc<{ username?: string; ringUsername?: string; name?: string }>('users', userId)
+  return user.success
+    ? user.data?.username ?? user.data?.ringUsername ?? user.data?.name ?? undefined
+    : undefined
+}
+
+async function refreshCollectionCache(listing: NftMarketListing) {
+  const id = listing.collection || getNftCollectionSymbol()
+  const active = await db().queryDocs<NftMarketListing>({
+    collection: 'nft_listings',
+    filters: [
+      { field: 'chainFamily', operator: '==', value: 'solana' },
+      { field: 'status', operator: '==', value: 'active' },
+      { field: 'collection', operator: '==', value: listing.collection ?? '' },
+    ],
+    pagination: { limit: 500 },
+  })
+  const items = active.success ? active.data ?? [] : []
+  const rawPrices = items.map((item) => BigInt(item.priceRaw)).sort((a, b) => (a < b ? -1 : 1))
+  const volume = items.reduce((sum, item) => sum + BigInt(item.priceRaw), 0n)
+  const payload = {
+    id,
+    collection: listing.collection ?? id,
+    slug: listing.slug,
+    name: listing.collectionName ?? 'Ringdom Keys Collection',
+    symbol: getNftCollectionSymbol(),
+    uri: getNftCollectionUri(),
+    imageUri: listing.imageUri,
+    activeListings: items.length,
+    floorPriceRaw: rawPrices[0]?.toString(),
+    volumeRaw: volume.toString(),
+    itemCount: items.length,
+    updatedAt: nowIso(),
+  }
+  const existing = await db().readDoc('nft_market_collections', id)
+  if (existing.success && existing.data) {
+    await db().updateDoc('nft_market_collections', id, payload)
+  } else {
+    await db().createDoc('nft_market_collections', payload, { id })
+  }
+}
+
+export async function createListingDraft(data: any): Promise<ServiceResult<NftMarketListing>> {
   try {
-    const session = await auth()
+    const sellerUserId = await getSessionUserId(data.sellerUserId)
+    if (!sellerUserId) return { success: false, error: 'Authentication required' }
 
-    if (!session?.user?.id) {
-      return {
-        success: false,
-        error: 'Authentication required',
-      }
+    const input = toLegacyDraftInput(data, sellerUserId)
+    if (!input.asset || !input.slug || input.priceRing === '') {
+      return { success: false, error: 'asset, slug and priceRing are required' }
     }
 
-    const { item, price } = data
+    const policy = await assertGateCanBeListed({
+      userId: sellerUserId,
+      asset: input.asset,
+      slug: input.slug,
+    })
+    if (!policy.ok) return { success: false, error: policy.error }
 
-    if (!item?.address || !item?.tokenId || !item?.standard) {
-      return {
-        success: false,
-        error: 'Invalid item - address, tokenId, and standard are required',
-      }
+    const template = await getNftGateTemplateResolved(input.slug)
+    if (!template) return { success: false, error: 'Unknown gate template' }
+
+    const sellerWallet = await getNativeWallet(sellerUserId, 'solana')
+    if (!sellerWallet?.address) {
+      return { success: false, error: 'Seller custodial Solana wallet is required' }
     }
 
-    if (!price?.amount || !price?.currency) {
-      return {
-        success: false,
-        error: 'Invalid price - amount and currency are required',
-      }
-    }
-
-    const now = new Date()
-
-    const listingData = {
-      seller_id: session.user.id,
-      token_id: item.tokenId,
-      contract_address: item.address,
-      token_standard: item.standard,
-      name: null,
-      description: null,
-      price: price.amount,
-      currency: price.currency,
+    const decimals = getNativeTokenDecimals('solana')
+    const priceRaw = nativeTokenUiToRaw(String(input.priceRing), decimals).toString()
+    const feeBps = getMarketplaceFeeBps()
+    const { feeRaw, sellerProceedsRaw } = splitMarketplaceFee(priceRaw, feeBps)
+    const createdAt = nowIso()
+    const listing: NftMarketListing = {
+      id: `nft_listing_${randomUUID()}`,
+      chainFamily: 'solana',
+      mode: 'ledger-dev',
+      asset: input.asset,
+      collection: getNftCollectionMint(),
+      collectionName: 'Ringdom Keys Collection',
+      collectionSymbol: getNftCollectionSymbol(),
+      collectionUri: getNftCollectionUri(),
+      slug: input.slug,
+      name: template.name,
+      description: template.description,
+      imageUri: input.imageUri ?? policy.ownership?.imageUri,
+      metadataUri: input.metadataUri,
+      attributes: input.attributes,
+      sellerUserId,
+      sellerUsername: await resolveSellerUsername(sellerUserId, input.sellerUsername),
+      sellerWallet: sellerWallet.address,
+      ownershipId: policy.ownership?.id,
+      priceRaw,
+      priceRing: String(input.priceRing),
+      decimals,
+      currency: 'RING',
+      ringMint: getNativeTokenAddress(),
+      feeBps,
+      feeRecipient: getMarketplaceFeeRecipient(),
+      feeRaw,
+      sellerProceedsRaw,
+      licenseExpiresAt: input.licenseExpiresAt,
+      createdAt,
+      updatedAt: createdAt,
       status: 'draft',
-      created_at: now,
-      updated_at: now,
+      searchText: [
+        template.name,
+        template.description,
+        input.slug,
+        getNftCollectionSymbol(),
+        input.asset,
+      ].filter(Boolean).join(' '),
     }
 
-    const createResult = await db().createDoc('nft_listings', listingData)
-    if (!createResult.success || !createResult.data) {
-      return {
-        success: false,
-        error: 'Failed to create NFT listing',
-      }
+    const created = await db().createDoc<NftMarketListing>('nft_listings', listing, { id: listing.id })
+    if (!created.success || !created.data) {
+      return { success: false, error: created.error?.message || 'Failed to create listing draft' }
     }
-
-    return {
-      success: true,
-      id: createResult.data.id,
-    }
+    return { success: true, id: listing.id, data: created.data }
   } catch (error) {
-    console.error('Error creating listing draft:', error)
-    return {
-      success: false,
-      error: 'Failed to create listing draft',
-    }
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to create listing draft' }
   }
 }
 
-export async function getListings(
-  filters: {
-    username?: string
-    status?: string
-    limit?: number
-  } = {}
-): Promise<GetListingsResult> {
+export async function activateListing(
+  input: string | { listingId: string; sellerUserId?: string },
+  _legacyTxHash?: string,
+): Promise<ServiceResult<NftMarketListing>> {
   try {
-    const { username, status = 'active', limit = 12 } = filters
+    const listingId = typeof input === 'string' ? input : input.listingId
+    const sellerUserId = await getSessionUserId(typeof input === 'string' ? undefined : input.sellerUserId)
+    if (!sellerUserId) return { success: false, error: 'Authentication required' }
 
-    const queryFilters = [{ field: 'status', operator: '==' as const, value: status }]
-
-    if (username) {
-      console.warn('Username filtering for NFT listings not yet implemented in PostgreSQL migration')
+    const listingResult = await db().readDoc<NftMarketListing>('nft_listings', listingId)
+    const listing = listingResult.success ? listingResult.data : null
+    if (!listing) return { success: false, error: 'Listing not found' }
+    if (listing.sellerUserId !== sellerUserId) {
+      return { success: false, error: 'Not authorized to activate this listing' }
+    }
+    if (listing.status !== 'draft') {
+      return { success: false, error: 'Only draft listings can be activated' }
     }
 
-    const clampedLimit = Math.max(1, Math.min(100, limit))
-
-    const queryResult = await db().queryDocs({
-      collection: 'nft_listings',
-      filters: queryFilters,
-      orderBy: [{ field: 'created_at', direction: 'desc' }],
-      pagination: { limit: clampedLimit },
+    const policy = await assertGateCanBeListed({
+      userId: sellerUserId,
+      asset: listing.asset,
+      slug: listing.slug,
     })
+    if (!policy.ok) return { success: false, error: policy.error }
 
-    if (!queryResult.success) {
-      return {
-        success: false,
-        error: 'Failed to query NFT listings',
-      }
-    }
-
-    return {
-      success: true,
-      data: queryResult.data as Record<string, unknown>[],
-    }
-  } catch (error) {
-    console.error('Error fetching listings:', error)
-    return {
-      success: false,
-      error: 'Failed to fetch listings',
-    }
-  }
-}
-
-export async function getUserActiveListings(username: string, limit = 12): Promise<GetListingsResult> {
-  return getListings({ username, status: 'active', limit })
-}
-
-export async function activateListing(listingId: string, txHash: string): Promise<CreateListingResult> {
-  try {
-    const session = await auth()
-
-    if (!session?.user?.id) {
-      return {
-        success: false,
-        error: 'Authentication required',
-      }
-    }
-
-    const listingResult = await db().readDoc('nft_listings', listingId)
-
-    if (!listingResult.success || !listingResult.data) {
-      return {
-        success: false,
-        error: 'Listing not found',
-      }
-    }
-
-    const listingData = listingResult.data
-
-    if (listingData.seller_user_id !== session.user.id && listingData.seller_id !== session.user.id) {
-      return {
-        success: false,
-        error: 'Not authorized to activate this listing',
-      }
-    }
-
-    const updateResult = await db().updateDoc('nft_listings', listingId, {
+    const market = await SolanaMarketClient.listGate({
+      asset: listing.asset,
+      sellerWallet: listing.sellerWallet,
+    })
+    const listedAt = nowIso()
+    const updated = await db().updateDoc<NftMarketListing>('nft_listings', listingId, {
+      mode: market.mode,
+      listingPda: market.listingPda,
+      listSignature: market.signature,
       status: 'active',
-      tx_hash: txHash,
-      activated_at: new Date(),
-      updated_at: new Date(),
+      listedAt,
+      updatedAt: listedAt,
+    })
+    if (!updated.success || !updated.data) {
+      return { success: false, error: updated.error?.message || 'Failed to activate listing' }
+    }
+    await refreshCollectionCache(updated.data)
+    return { success: true, id: listingId, data: updated.data }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to activate listing' }
+  }
+}
+
+export async function cancelListing(input: {
+  listingId: string
+  sellerUserId?: string
+}): Promise<ServiceResult<NftMarketListing>> {
+  try {
+    const sellerUserId = await getSessionUserId(input.sellerUserId)
+    if (!sellerUserId) return { success: false, error: 'Authentication required' }
+
+    const listing = await getListingById(input.listingId)
+    if (!listing.success || !listing.data) return { success: false, error: 'Listing not found' }
+    if (listing.data.status !== 'active' && listing.data.status !== 'draft') {
+      return { success: false, error: 'Only draft or active listings can be cancelled' }
+    }
+    const market = await SolanaMarketClient.cancelGate({ listing: listing.data, sellerUserId })
+    const cancelledAt = nowIso()
+    const updated = await db().updateDoc<NftMarketListing>('nft_listings', input.listingId, {
+      status: 'cancelled',
+      cancelSignature: market.signature,
+      cancelledAt,
+      updatedAt: cancelledAt,
+    })
+    if (!updated.success || !updated.data) {
+      return { success: false, error: updated.error?.message || 'Failed to cancel listing' }
+    }
+    await refreshCollectionCache(updated.data)
+    return { success: true, id: input.listingId, data: updated.data }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel listing' }
+  }
+}
+
+export async function getListingById(listingId: string): Promise<ServiceResult<NftMarketListing>> {
+  const result = await db().readDoc<NftMarketListing>('nft_listings', listingId)
+  if (!result.success) return { success: false, error: result.error?.message || 'Failed to read listing' }
+  if (!result.data || result.data.chainFamily !== 'solana') {
+    return { success: false, error: 'Listing not found' }
+  }
+  return { success: true, id: listingId, data: result.data }
+}
+
+export async function markSold(input: {
+  listingId: string
+  buyerUserId: string
+  buyerWallet?: string
+  sale: NftMarketSale
+  signature: string
+}): Promise<ServiceResult<NftMarketListing>> {
+  const soldAt = nowIso()
+  const result = await db().transaction(async (tx) => {
+    const listingDoc = await tx.read<NftMarketListing>('nft_listings', input.listingId)
+    if (!listingDoc?.data || listingDoc.data.status !== 'active') {
+      throw new Error('Listing is no longer active')
+    }
+
+    await tx.update<NftMarketListing>('nft_listings', input.listingId, {
+      status: 'sold',
+      buyerUserId: input.buyerUserId,
+      buyerWallet: input.buyerWallet,
+      saleSignature: input.signature,
+      soldAt,
+      updatedAt: soldAt,
     })
 
-    if (!updateResult.success) {
-      return {
-        success: false,
-        error: 'Failed to update listing',
-      }
+    if (listingDoc.data.ownershipId) {
+      await tx.update('nft_ownership', listingDoc.data.ownershipId, {
+        userId: input.buyerUserId,
+        previousOwnerUserId: listingDoc.data.sellerUserId,
+        purchaseId: input.sale.id,
+        signature: input.signature,
+        priceRing: Number(listingDoc.data.priceRing),
+        transferredAt: soldAt,
+        updatedAt: soldAt,
+      })
+    } else {
+      const ownershipId = `own_${input.buyerUserId}_${listingDoc.data.asset}`.slice(0, 255)
+      await tx.create(
+        'nft_ownership',
+        {
+          id: ownershipId,
+          userId: input.buyerUserId,
+          asset: listingDoc.data.asset,
+          slug: listingDoc.data.slug,
+          collectionMint: listingDoc.data.collection,
+          soulbound: false,
+          purchaseId: input.sale.id,
+          signature: input.signature,
+          priceRing: Number(listingDoc.data.priceRing),
+          imageUri: listingDoc.data.imageUri,
+          createdAt: soldAt,
+        },
+        { id: ownershipId },
+      )
     }
 
     return {
-      success: true,
-      id: listingId,
+      ...listingDoc.data,
+      status: 'sold' as const,
+      buyerUserId: input.buyerUserId,
+      buyerWallet: input.buyerWallet,
+      saleSignature: input.signature,
+      soldAt,
+      updatedAt: soldAt,
     }
-  } catch (error) {
-    console.error('Error activating listing:', error)
-    return {
-      success: false,
-      error: 'Failed to activate listing',
-    }
-  }
+  })
+  await refreshCollectionCache(result)
+  return { success: true, id: input.listingId, data: result }
+}
+
+export async function getListings(filters: NftMarketListingFilters = {}) {
+  const result = await getNftMarketListings(filters)
+  return { success: true, data: result.items, ...result }
+}
+
+export async function getUserActiveListings(username: string, limit = 12) {
+  return getListings({ sellerUsername: username, status: 'active', limit })
 }

@@ -105,13 +105,18 @@ export function EntityConversationPanel({
   }
 
   return (
-    <div className={cn('flex flex-col h-[600px] border rounded-lg bg-card overflow-hidden', className)}>
+    <div
+      className={cn(
+        'flex h-[600px] flex-col overflow-hidden rounded-xl border-0 bg-transparent',
+        className,
+      )}
+    >
       <ConversationHeader conversation={conversation} currentUserId={session.user.id} />
       <MessageThread
         conversationId={conversationId}
         userId={session.user.id}
         conversation={conversation}
-        className="flex-1 min-h-0"
+        className="min-h-0 flex-1"
       />
     </div>
   )

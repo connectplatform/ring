@@ -11,6 +11,11 @@ export interface GenerateImageContext {
   purpose?: string
   refCode?: string
   actorId?: string
+  /**
+   * Reference images for xAI /images/edits (up to 3).
+   * Prefer data:image/png;base64,... (favicon.png-data-uint) or public HTTPS URLs.
+   */
+  referenceImages?: Array<{ url: string }>
 }
 
 export interface ProviderImageOutput {

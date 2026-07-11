@@ -125,4 +125,33 @@ export const paymentTransactionService = {
     })
     return true
   },
+
+  /**
+   * List payment_transactions for a user (admin Payments tab).
+   * Defaults to membership_upgrade + wallet_topup purposes.
+   */
+  async listByUserId(
+    userId: string,
+    opts?: { purposes?: PaymentPurpose[]; limit?: number },
+  ): Promise<PaymentTransactionRecord[]> {
+    const purposes = opts?.purposes ?? (['membership_upgrade', 'wallet_topup'] as PaymentPurpose[])
+    const limit = opts?.limit ?? 50
+
+    const result = await db().queryDocs<PaymentTransactionRecord>({
+      collection: 'payment_transactions',
+      filters: [{ field: 'user_id', operator: '==', value: userId }],
+      orderBy: [{ field: 'created_at', direction: 'desc' }],
+      pagination: { limit: Math.max(limit * 3, 100) },
+    })
+
+    if (!result.success || !result.data?.length) {
+      return []
+    }
+
+    const purposeSet = new Set(purposes)
+    return result.data
+      .filter((row) => purposeSet.has(row.purpose))
+      .slice(0, limit)
+      .map((row) => ({ ...row, id: row.id }))
+  },
 }

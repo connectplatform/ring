@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RefreshCw, ShieldAlert, Ban, Eye } from 'lucide-react'
+import NextLink from 'next/link'
 import type { AbuseCandidate } from '@/features/fraud/types/abuse-candidate'
 import { Link } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
@@ -39,7 +40,15 @@ function scoreBadgeVariant(level: AbuseCandidate['level']) {
   }
 }
 
-export function FraudDeskClient({ locale }: { locale: Locale }) {
+export function FraudDeskClient({
+  locale,
+  embedded = false,
+  verificationHref = '/admin/verification',
+}: {
+  locale: Locale
+  embedded?: boolean
+  verificationHref?: string
+}) {
   const t = useTranslations('modules.admin.fraudDesk')
   const [candidates, setCandidates] = useState<AbuseCandidate[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -116,13 +125,20 @@ export function FraudDeskClient({ locale }: { locale: Locale }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldAlert className="h-6 w-6" />
-            {t('title')}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ShieldAlert className="h-6 w-6" />
+              {t('title')}
+            </h1>
+            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-xl font-semibold">{t('candidatesTitle')}</h2>
+            <p className="text-sm text-muted-foreground">{t('candidatesDesc')}</p>
+          </div>
+        )}
         <Button variant="outline" size="sm" onClick={() => startTransition(() => void load())} disabled={isPending}>
           <RefreshCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
           {t('refresh')}
@@ -141,11 +157,13 @@ export function FraudDeskClient({ locale }: { locale: Locale }) {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>{t('candidatesTitle')}</CardTitle>
-          <CardDescription>{t('candidatesDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        {!embedded && (
+          <CardHeader>
+            <CardTitle>{t('candidatesTitle')}</CardTitle>
+            <CardDescription>{t('candidatesDesc')}</CardDescription>
+          </CardHeader>
+        )}
+        <CardContent className={embedded ? 'pt-6' : undefined}>
           {candidates.length === 0 && !isPending ? (
             <p className="text-sm text-muted-foreground py-8 text-center">{t('empty')}</p>
           ) : (
@@ -210,9 +228,15 @@ export function FraudDeskClient({ locale }: { locale: Locale }) {
 
       <p className="text-xs text-muted-foreground">
         {t('verificationHint')}{' '}
-        <Link href="/admin/verification" className="text-primary underline">
-          {t('verificationLink')}
-        </Link>
+        {embedded ? (
+          <NextLink href={verificationHref} className="text-primary underline">
+            {t('verificationLink')}
+          </NextLink>
+        ) : (
+          <Link href="/admin/verification" className="text-primary underline">
+            {t('verificationLink')}
+          </Link>
+        )}
       </p>
 
       <Dialog open={!!detailUserId} onOpenChange={(open) => !open && setDetailUserId(null)}>

@@ -75,6 +75,8 @@ export interface WalletInfo {
   tokenSymbol?: string
   creditFiatCurrency?: string
   chain?: 'solana' | 'evm' // TODO: Extend this union from WalletChain for expanded chain support in future.
+  /** Unix ms when native balance was last fetched on-chain (DB read-through cache). */
+  balanceUpdatedAt?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -153,12 +155,9 @@ export interface WalletContact {
 // ---------------------------------------------------------------------------
 
 /**
- * Result returned from ensureWallets() API/service.
+ * Result returned from ensureWallets() / WalletConductor.ensureNativeWallet().
  * - native: The "native" wallet for the user's main chain (single source of truth).
  * - wallets: All wallets for the user, including non-native chains.
- * // Usage: Benefit for page/static usage and Next16 streaming transitions. 
- * // TODO: If ensuring wallets server-side (Next.js route handlers or React Server Components), 
- * //   consider using useOptimistic or server actions in React 19 & Next16 for atomicity.
  */
 export interface EnsureWalletResult {
   native: Wallet
@@ -166,12 +165,8 @@ export interface EnsureWalletResult {
 }
 
 /**
- * Override used by admin/system flows to call ensureWallets() without
- * relying on the request session.
- * - id: User's unique id.
- * - role: Array of role names (guarded via validated enum — never raw strings).
- *   Typing ensures only known roles are passed (safety for RBAC).
- * // TODO: When RBAC surface increases, use union types and utility types from React/TypeScript for improved granularity.
+ * Override used by admin/system flows to call ensureWallets / ensureNativeWallet
+ * without relying on the request session.
  */
 export interface UserOverride {
   id: string

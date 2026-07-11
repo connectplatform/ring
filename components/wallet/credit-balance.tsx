@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { RingTopUpModal } from './ring-topup-modal'
+import CreditAddFsModal from '@/features/wallet/components/credit-add-fs-modal'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { getClientCreditCurrencyCode, formatClientCreditAmount } from '@/lib/payments/credit-currency-client'
 
@@ -285,16 +285,16 @@ export function CreditBalance({
         </CardContent>
       </Card>
 
-      {/* Top Up Modal */}
-      {showTopUpModal && (
-        <RingTopUpModal 
-          onClose={() => setShowTopUpModal(false)}
-          onSuccess={() => {
-            setShowTopUpModal(false)
-            refresh() // Refresh balance after successful top-up
-          }}
-        />
-      )}
+      {/* Top Up Modal — SSOT CreditAddFsModal (card credit + optional confidential onramp) */}
+      <CreditAddFsModal
+        open={showTopUpModal}
+        onOpenChange={setShowTopUpModal}
+        source="credit_balance_widget"
+        onSuccess={() => {
+          setShowTopUpModal(false)
+          void refresh()
+        }}
+      />
     </>
   )
 }

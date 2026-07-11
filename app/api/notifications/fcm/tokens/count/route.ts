@@ -1,30 +1,14 @@
-import { NextRequest, NextResponse, connection} from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { db } from '@/lib/database'
-
-type FcmTokenRow = Record<string, unknown> & { id: string }
-
-function toDate(value: unknown): Date {
-  if (value instanceof Date) return value
-  if (
-    value &&
-    typeof value === 'object' &&
-    'toDate' in value &&
-    typeof (value as { toDate: () => Date }).toDate === 'function'
-  ) {
-    return (value as { toDate: () => Date }).toDate()
-  }
-  if (typeof value === 'string' || typeof value === 'number') {
-    return new Date(value)
-  }
-  return new Date()
-}
+import {
+  listActiveFcmTokensForUser,
+  summarizeFcmTokenDevices,
+} from '@/lib/notifications/fcm-token-db'
 
 export async function GET(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
   try {
-    // Check authentication
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -33,38 +17,26 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Get count of active tokens for the user
-    const result = await db().queryDocs<FcmTokenRow>({
-      collection: 'fcm_tokens',
-      filters: [
-        { field: 'userId', operator: '==', value: session.user.id },
-        { field: 'isActive', operator: '==', value: true }
-      ]
-    })
+    const result = await listActiveFcmTokensForUser(session.user.id)
 
-    if (!result.success) {
-      throw result.error || new Error('Failed to fetch fcm_tokens')
+    const payload: {
+      count: number
+      devices: ReturnType<typeof summarizeFcmTokenDevices>
+      schemaReady: boolean
+      warning?: string
+      lastUpdated: string
+    } = {
+      count: result.tokens.length,
+      devices: summarizeFcmTokenDevices(result.tokens),
+      schemaReady: result.schemaReady,
+      lastUpdated: new Date().toISOString(),
     }
 
-    const count = result.data.length
+    if (result.schemaReady === false) {
+      payload.warning = result.warning
+    }
 
-    // Get device breakdown
-    const devices = result.data.map((doc) => {
-      const deviceInfo = doc.deviceInfo as Record<string, unknown> | undefined
-      return {
-        platform: (deviceInfo?.platform as string) || 'Unknown',
-        browser: (deviceInfo?.browser as string) || 'Unknown',
-        lastSeen: toDate(deviceInfo?.lastSeen),
-        createdAt: toDate(doc.createdAt)
-      }
-    })
-
-    return NextResponse.json({
-      count,
-      devices,
-      lastUpdated: new Date().toISOString()
-    })
-
+    return NextResponse.json(payload)
   } catch (error) {
     console.error('Error getting FCM token count:', error)
     return NextResponse.json(

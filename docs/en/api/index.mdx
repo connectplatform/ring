@@ -1,68 +1,149 @@
 ---
-title: Index
-description: Ring Platform HTTP API reference (alpha)
-last_modified: "2026-06-14"
+title: API Reference
+description: Visual map and truth-dense index of Ring Platform App Router HTTP APIs — ~244 /api routes across auth, messaging, store, wallet, MCP, tunnel, admin, and cron.
+last_modified: "2026-07-10"
+audience: both
 ---
 
 # API Reference
 
-Ring Platform exposes **132 route handlers** across entities, opportunities, store, payments (PaymentConductor), news, wallet, tunnel, MCP, and more (v1.6.0).
+Ring Platform exposes **~244 App Router route handlers** under `/api/*` — the live surface your clone, mobile clients, cron jobs, webhooks, and MCP agents call. This page is the map: founders browse capabilities; developers get auth rules, domain docs, and verified path families.
 
-<Callout type="info" title="Authentication model">
-**Browser / same-app clients** — Auth.js v5 **session cookie** on same-origin `fetch` (`credentials: 'include'`). No manual `Bearer` header in React client code.
-
-**Automation** — `Authorization: Bearer` for cron (`CRON_SECRET`), webhooks, email ingest, and **`/api/mcp/v1/*`** (`RING_MCP_ACCESS_KEY`). See [Ring MCP](/en/docs/development/ring-mcp).
+<Callout type="info">
+  Use the **Founder** / **Developer** tabs in the docs sidebar. Founders get a visual API tree; developers get contracts, secrets, and deep links into domain pages.
 </Callout>
 
-## Quick start
+<Audience for="founder">
 
-### Base URL
+## What the API is (in plain language)
 
-Use your clone origin — local dev:
+An **API endpoint** is a named door on your Ring server. The browser, Telegram bot, payment gateway, or an AI agent knocks on that door with a short request; Ring answers with data or performs an action (send a message, take a payment, list products).
 
-```
-http://localhost:3000/api
-```
+You do not need to write code to understand the map:
 
-White-label examples: [connect.software](https://connect.software) (A2B MCP Marketplace), [ring-platform.org](https://ring-platform.org) (Ring community portal).
+- **Families** group related doors (Store, Wallet, Messaging, Admin…).
+- **Methods** say what kind of knock is allowed — usually **GET** (read) or **POST** (do something).
+- **MCP** doors (`/api/mcp/v1/*`) are the same business domains, shaped for AI agents and automation.
 
-### Example (session cookie)
+### Explore the tree
 
-Sign in via the browser, then:
+Tap a leaf in the upper tree. The lower panel shows a short summary and the HTTP methods for that door.
 
-<Code language="bash" title="terminal">
+<div className="my-6 flex justify-center">
+  <RingApiTree initialEndpointId="store/checkout" title="Ring API tree" />
+</div>
+
+### Capability map (founder view)
+
+| Family | What it unlocks | Start here |
+|--------|-----------------|------------|
+| Auth & identity | Sign-in, sessions, wallet login | [Authentication](/docs/api/authentication) |
+| Messaging & calls | Chats, typing, call invites | [Messaging](/docs/api/messaging) |
+| Notifications | Inbox + mobile push (FCM) | [Notifications](/docs/api/notifications) |
+| Entities & opportunities | Orgs, projects, matching | [Entities](/docs/api/entities) · [Opportunities](/docs/api/opportunities) |
+| Store & shipping | Catalog, checkout, Nova Poshta | [Store](/docs/api/store) |
+| Membership & payments | Subscriptions, WayForPay / Stripe | [Payments](/docs/features/payment-conductor) |
+| Wallet & credits | Credit top-up, transfers, tokens | [Wallet](/docs/api/wallet) |
+| Admin & ops | Users, email CRM, fraud, processes | [Admin](/docs/api/admin) · [Email AI-CRM](/docs/api/email-ai-crm) |
+| MCP agent API | Same domains for agents | [Ring MCP](/docs/development/ring-mcp) |
+| Realtime tunnel | Live subscribe / publish | [Tunnel protocol](/docs/features/tunnel-protocol) |
+
+<Callout type="tip">
+  Cart state lives in the browser (`ring_cart`) — there is no public “cart REST API”. Checkout and payments are the store money path.
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## Surface truth (2026-07-10)
+
+Verified against the Next.js App Router build list for `ring-platform.org`:
+
+| Metric | Value |
+|--------|-------|
+| Route handlers under `/api` | **~244** |
+| Largest families | `mcp/v1/*` (~42), `admin/*` (~41), `wallet/*` (16), `cron/*` (13), `store/*` + shipping/vendor (17), `tunnel/*` (11) |
+| Static cached example | `○ /api/platform-stats` (others are dynamic `ƒ`) |
+
+Deep domain pages (not every leaf is duplicated here):
+
+| Domain | Doc | Primary paths |
+|--------|-----|----------------|
+| Authentication | [Authentication](/docs/api/authentication) | `/api/auth/[...nextauth]`, username check, crypto nonce, Telegram callback |
+| Entities | [Entities](/docs/api/entities) | `/api/entities`, `/create`, `/[id]/*` |
+| Opportunities | [Opportunities](/docs/api/opportunities) | `/api/opportunities`, create/update/search/upload |
+| Messaging | [Messaging](/docs/api/messaging) | `/api/conversations/*`, `/api/messages/*`, `/api/webrtc/ice-servers` |
+| Notifications | [Notifications](/docs/api/notifications) | `/api/notifications/*`, FCM register/test |
+| Wallet | [Wallet](/docs/api/wallet) | `/api/wallet/*` credit, desk, token, transfer |
+| Store | [Store](/docs/api/store) | `/api/store/*` products, checkout, orders, payments |
+| Admin | [Admin](/docs/api/admin) | `/api/admin/*` users, payments, moderation, web3, processes |
+| Email AI-CRM | [Email AI-CRM](/docs/api/email-ai-crm) | `/api/admin/email/*`, `/api/webhooks/email/inbound`, cron email |
+| Tunnel | [Tunnel protocol](/docs/features/tunnel-protocol) | `/api/tunnel/*` |
+| MCP | [Ring MCP](/docs/development/ring-mcp) | `/api/mcp/v1/*` |
+| Payments | [PaymentConductor](/docs/features/payment-conductor) | membership + store + WayForPay/Stripe webhooks |
+
+### Authentication model
+
+| Client | Auth |
+|--------|------|
+| Browser / same-origin React | Auth.js v5 **session cookie** (`credentials: 'include'`). No manual `Bearer` in client UI code. |
+| Cron | `Authorization: Bearer <CRON_SECRET>` |
+| Webhooks (WayForPay, Stripe, email inbound, Telegram bot) | Provider signature / shared secret per route |
+| MCP agents | `Authorization: Bearer <RING_MCP_ACCESS_KEY>` on `/api/mcp/v1/*` |
+
+### Quick start
+
+Base URL = your clone origin + `/api` (local: `http://localhost:3000/api`).
+
+<Code language="bash" title="Session cookie example">
 {`curl -s "http://localhost:3000/api/entities?limit=5" \\
   -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
-Integration patterns: [API integration examples](/en/docs/examples/api-integration).
+Integration patterns: [API integration examples](/docs/examples/api-integration).
 
-## API domains
+### Family inventory (route counts)
 
-| Domain | Doc | Notes |
-|--------|-----|-------|
-| Authentication | [Authentication](/en/docs/api/authentication) | Auth.js providers, `auth()` session |
-| Entities | [Entities](/en/docs/api/entities) | `GET /api/entities`, `POST /api/entities/create` |
-| Opportunities | [Opportunities](/en/docs/api/opportunities) | `GET` list; create via Server Actions |
-| Messaging | [Messaging](/en/docs/api/messaging) | `/api/conversations` + Tunnel realtime |
-| Notifications | [Notifications](/en/docs/api/notifications) | `/api/notifications` + FCM |
-| Wallet | [Wallet](/en/docs/api/wallet) | Web3 wallet routes |
-| Store | [Store](/en/docs/api/store) | Multi-vendor marketplace |
-| Admin | [Admin](/en/docs/api/admin) | Platform administration |
-| Email AI-CRM | [Email AI-CRM](/en/docs/api/email-ai-crm) | Cron/webhook Bearer secrets |
-| Tunnel | [Tunnel protocol](/en/docs/features/tunnel-protocol) | `/api/tunnel/*` |
+| Family | ~Routes | Notes |
+|--------|---------|-------|
+| MCP (`/api/mcp/v1`) | 42 | Agent mirror of core domains + generative media |
+| Admin | 41 | Users, email CRM, fraud, matcher, processes, public pools, web3 |
+| Wallet | 16 | Ensure, credit, desk, token, transfer |
+| Cron | 13 | Settlements, subscriptions, email, cleanup, train |
+| Store + vendor + shipping + ERP | 17 | Checkout, WayForPay, reviews, Nova Poshta, stock init |
+| Tunnel | 11 | Token, subscribe, SSE, poll, publish, heartbeat |
+| News + publications + collab | 16 | Newsroom, RSS, promotion webhook, publications |
+| Conversations + messages + comments + WebRTC | 14 | Chat, reactions, ICE |
+| Entities + opportunities + confidential | 16 | Core Ring graph |
+| Membership + payment webhooks + prices | 11 | Card/credit/PayPal/token + WFP/Stripe |
+| Auth + account + set-user-role | 7 | Auth.js + helpers |
+| Notifications + FCM | 7 | Inbox + push |
+| Analytics + platform + health/info/uploads | 12 | Beacons, stats, probes |
+| Web3 / NFT / refcodes / pools | 10 | Listings, pools, referral mint/track |
+| Verification | 3 | Procedures + documents |
+| Profile / users / settings / ring contacts | 9 | People plane |
+| Misc (images, citations, agents provision, telegram, test-db, balance) | ~8 | Generative + ops helpers |
 
-## Realtime
+Visual browse (same widget as Founder tab):
 
-In-app live updates use **Tunnel Protocol** (native WSS on k8s, SSE/poll on Vercel). See [Tunnel protocol](/en/docs/features/tunnel-protocol) and [Realtime architecture](/en/docs/architecture/real-time).
+<div className="my-6 flex justify-center">
+  <RingApiTree initialEndpointId="mcp/v1/meta/health" title="Ring API tree" />
+</div>
 
-## Security
+### Security checklist
 
 - Auth.js v5 sessions (cookie in browser; JWT strategy server-side)
-- Role-based access control (VISITOR → ADMIN)
-- Rate limiting on sensitive routes (e.g. notifications API)
-- Webhook/cron/MCP routes use explicit Bearer secrets
+- Role-based access (VISITOR → ADMIN) on admin and privileged routes
+- Rate limiting on sensitive routes (e.g. notifications)
+- Webhook / cron / MCP routes require explicit Bearer or provider verification — never expose secrets in MDX
+
+### Realtime
+
+In-app live updates use **Tunnel Protocol** (native WSS on k8s; SSE/poll fallback). See [Tunnel protocol](/docs/features/tunnel-protocol) and [Realtime architecture](/docs/architecture/real-time).
+
+</Audience>
 
 ---
 
-*New to Ring? Start with [Getting Started](/en/docs/getting-started) and [API integration examples](/en/docs/examples/api-integration).*
+*New to Ring? [Getting Started](/docs/getting-started) · [API integration examples](/docs/examples/api-integration) · [for developers index](/docs/for-developers).*

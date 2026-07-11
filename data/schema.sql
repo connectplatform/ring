@@ -588,6 +588,21 @@ CREATE INDEX IF NOT EXISTS idx_orders_data_gin ON orders USING GIN (data);
 
 COMMENT ON TABLE orders IS 'Customer purchase orders from marketplace';
 
+-- Saved shipping addresses (store checkout AddressService)
+CREATE TABLE IF NOT EXISTS user_addresses (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_addresses_user_id ON user_addresses ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_user_addresses_is_default ON user_addresses ((data->>'isDefault'));
+CREATE INDEX IF NOT EXISTS idx_user_addresses_created_at ON user_addresses (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_addresses_data_gin ON user_addresses USING GIN (data);
+
+COMMENT ON TABLE user_addresses IS 'Saved shipping addresses for store checkout (AddressService SSOT)';
+
 -- ERP settlements (canonical commission/payout ledger)
 CREATE TABLE IF NOT EXISTS settlements (
     id VARCHAR(255) PRIMARY KEY,
@@ -957,6 +972,21 @@ CREATE INDEX IF NOT EXISTS idx_analytics_errors_data_gin ON analytics_errors USI
 COMMENT ON TABLE analytics_events IS 'Client app/navigation telemetry — JSONB; one row per event';
 COMMENT ON TABLE web_vitals IS 'Core Web Vitals batches — JSONB';
 COMMENT ON TABLE analytics_errors IS 'Client-side error logs — JSONB';
+
+-- Platform event log (matcher runs, auto-approvals, training pipeline)
+CREATE TABLE IF NOT EXISTS events (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_type ON events ((data->>'type'));
+CREATE INDEX IF NOT EXISTS idx_events_time_ms ON events (((data->>'timeMs')::bigint));
+CREATE INDEX IF NOT EXISTS idx_events_created_at ON events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_data_gin ON events USING GIN (data);
+
+COMMENT ON TABLE events IS 'Append-only platform event log — JSONB; matcher runs, auto-approvals, training examples';
 
 -- ============================================================================
 -- SCHEMA VERSION TRACKING

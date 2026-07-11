@@ -53,7 +53,7 @@ export async function GET() {
       tokenDecimals: getNativeTokenDecimals(),
       tokenAddress: getNativeTokenAddress(),
 
-      currency: getSystemConfigSnapshot().store.defaultCurrency,
+      currency: getSystemConfigSnapshot().store?.defaultCurrency ?? 'USD',
       currencySymbol: getDefaultStoreCurrencySymbol(),
     },
     tokenDesk: getTokenDeskConfig(),

@@ -4,7 +4,7 @@ import { cache } from 'react'
 import type { JWT } from 'next-auth/jwt'
 import { db } from '@/lib/database'
 import type { UserRow } from '@/features/auth/lib/user-row'
-import { UserRolesArray, resolveSessionUserRole } from '@/features/auth/user-role'
+import { UserRolesArray, resolvePersistedUserRole } from '@/features/auth/user-role'
 import {
   normalizeAccountStatus,
   type NormalizedAccountStatus,
@@ -71,11 +71,7 @@ export function applyUserRowToJwt(token: JWT, userData: UserRow): void {
   token.position = userData.position as string | undefined
   token.photoURL = (userData.photoURL || userData.image) as string | undefined
 
-  // Fix: role should ensure it falls back only if userData.role is null or undefined
-  const roleValue = userData.role;
-  token.role = typeof roleValue === 'undefined' || roleValue === null
-    ? resolveSessionUserRole(roleValue)
-    : (roleValue as UserRolesArray);
+  token.role = resolvePersistedUserRole(userData.role)
   
   token.isVerified = Boolean(
     typeof userData.isVerified !== 'undefined'

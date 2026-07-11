@@ -14,7 +14,7 @@ export default function ProfileAccountTokenWidgets() {
   const { subscription, limits, isLoading } = useCreditBalanceContext()
   const creditCurrency = getClientCreditFiatCurrency()
 
-  if (isLoading) {
+  if (isLoading && !subscription && !limits) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="h-24 animate-pulse rounded-xl bg-muted/40" />

@@ -13,15 +13,24 @@
  */
 
 import { getDefaultStoreCurrencySymbol, getSystemConfigSnapshot } from '@/lib/ring-config-core'
-import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
+import { getNativeTokenSymbol, isNativeTokenOnrampEnabled as isNativeTokenOnrampEnabledServer } from '@/lib/ring-config-chain'
 
 /**
  * Returns the current native token symbol from config, or defaults to 'RING'
  */
 export function getClientNativeTokenSymbol(): string {
-  // Retrieve the system config at-call (take snapshot, not subscribed)
-  // Return configured token symbol, else fallback to default
-  return getSystemConfigSnapshot().tokens?.nativeToken?.tokenSymbol ?? 'RING'
+  return getNativeTokenSymbol()
+}
+
+/**
+ * Client/UI gate for BuyNativeViaCard tabs.
+ * Prefers NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP; falls through to ring-config-chain SSOT.
+ */
+export function isNativeTokenOnrampEnabled(): boolean {
+  const pub = process.env.NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP?.trim().toLowerCase()
+  if (pub === 'true') return true
+  if (pub === 'false') return false
+  return isNativeTokenOnrampEnabledServer()
 }
 
 /**
@@ -33,10 +42,28 @@ export function getClientNativeTokenSymbol(): string {
  *         - Check all usage for type safety and server/client boundaries.
  */
 export function getClientCreditFiatCurrency(): string {
-  // Fetch credits config
   const credits = getSystemConfigSnapshot().credits
-  // Return fiatUnit if present, else unit, else fallback
   return credits?.fiatUnit ?? credits?.unit ?? 'USD'
+}
+
+/** Display label for platform credit points (ring-config.json → credit.creditUnitLabel). */
+export function getClientCreditUnitLabel(): string {
+  const snapshot = getSystemConfigSnapshot() as { credit?: { creditUnitLabel?: string } }
+  return snapshot.credit?.creditUnitLabel ?? 'points'
+}
+
+/**
+ * Client-side desk buy preview: points → native token.
+ * Prefer live quote from `/api/wallet/desk/quote`; this is a fallback estimate.
+ * Formula matches desk-service: nativeOut = points / ringPerUsd (rate 100 → 100 points = 1 RING).
+ */
+export function previewNativeTokenFromCreditPoints(
+  points: number,
+  ringPerUsd = Number(process.env.NEXT_PUBLIC_RING_ORACLE_DEFAULT_RATE ?? 100),
+): string {
+  if (points <= 0 || !Number.isFinite(ringPerUsd) || ringPerUsd <= 0) return '0'
+  const ringUi = points / ringPerUsd
+  return ringUi.toFixed(8).replace(/\.?0+$/, '')
 }
 
 /**
@@ -78,6 +105,13 @@ export function getClientNativeTokenDecimals(chain?: 'solana' | 'evm'): number {
  * // TODO: Optionally derive currencies and labels from i18n or config metadata,
  *          or return sorted unique currencies for more robust select experience.
  */
+/** Whitelabel site / project display name (e.g. "Ring Platform"). */
+export function getClientSiteName(): string {
+  return getSystemConfigSnapshot().seo?.siteName
+    ?? getSystemConfigSnapshot().clone?.displayName
+    ?? 'Ring Platform'
+}
+
 export function getClientOpportunityBudgetCurrencies(): Array<{ value: string; label: string }> {
   // Get the default (store) fiat symbol from config
   const fiat = getDefaultStoreCurrencySymbol()

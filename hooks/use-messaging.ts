@@ -45,6 +45,7 @@ export type UseConversationsResult = {
   createConversation: (data: CreateConversationRequest) => Promise<Conversation | null>
   loadMore: () => void
   refresh: () => Promise<void>
+  clearUnread: (conversationId: string) => void
 }
 
 export function useConversations(
@@ -181,6 +182,68 @@ export function useConversations(
 
   const refresh = useCallback(() => fetchConversations(true), [fetchConversations])
 
+  // Live unread / last-message patches from user tunnel (MessageService fan-out).
+  // UPGRADE: virtualize roster + apply patches via useOptimistic when list is huge.
+  const handleInboxTunnel = useCallback(
+    (msg: TunnelMessage) => {
+      const payload = msg.payload as
+        | {
+            action?: string
+            conversationId?: string
+            message?: {
+              id: string
+              content: string
+              senderId: string
+              senderName: string
+              timestamp: number | string | Date
+              type?: Message['type']
+            }
+          }
+        | undefined
+      if (!payload?.conversationId || payload.action !== 'message:new' || !payload.message) {
+        return
+      }
+      const cid = payload.conversationId
+      const selfId = session?.user?.id
+      const incoming = payload.message
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== cid) return c
+          const bump =
+            incoming.senderId !== selfId ? (c.unreadCount ?? 0) + 1 : (c.unreadCount ?? 0)
+          return {
+            ...c,
+            unreadCount: bump,
+            lastMessage: {
+              id: incoming.id,
+              conversationId: cid,
+              content: incoming.content,
+              senderId: incoming.senderId,
+              senderName: incoming.senderName,
+              timestamp: new Date(incoming.timestamp),
+              type: incoming.type || 'text',
+              status: 'sent',
+            } as Message,
+            updatedAt: new Date(),
+          }
+        }),
+      )
+    },
+    [session?.user?.id],
+  )
+
+  useTunnelChannel({
+    channel: 'conversations:inbox',
+    enabled: Boolean(session?.user?.id),
+    onTunnelMessage: handleInboxTunnel,
+  })
+
+  const clearUnread = useCallback((conversationId: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),
+    )
+  }, [])
+
   return {
     conversations,
     loading,
@@ -189,6 +252,7 @@ export function useConversations(
     createConversation,
     loadMore,
     refresh,
+    clearUnread,
   }
 }
 
@@ -199,16 +263,14 @@ export function useConversation(conversationId: string, options?: { enabled?: bo
   const [error, setError] = useState<string | null>(null)
   const enabled = options?.enabled !== false
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
-    if (!session?.user?.id || !conversationId) return
+  const fetchConversation = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!session?.user?.id || !conversationId) return
 
-    const fetchConversation = async () => {
       try {
-        setLoading(true)
+        if (!opts?.silent) {
+          setLoading(true)
+        }
         setError(null)
 
         const response: ApiResponse<Conversation> = await apiClient.get(
@@ -238,12 +300,24 @@ export function useConversation(conversationId: string, options?: { enabled?: bo
           console.error('Unexpected error fetching conversation:', err)
         }
       } finally {
-        setLoading(false)
+        if (!opts?.silent) {
+          setLoading(false)
+        }
       }
-    }
+    },
+    [session?.user?.id, conversationId],
+  )
 
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+    if (!session?.user?.id || !conversationId) return
     void fetchConversation()
-  }, [session?.user?.id, conversationId, enabled])
+  }, [session?.user?.id, conversationId, enabled, fetchConversation])
+
+  const refresh = useCallback(() => fetchConversation({ silent: true }), [fetchConversation])
 
   const markAsRead = useCallback(async () => {
     if (!conversationId) return
@@ -280,6 +354,7 @@ export function useConversation(conversationId: string, options?: { enabled?: bo
     loading,
     error,
     markAsRead,
+    refresh,
   }
 }
 

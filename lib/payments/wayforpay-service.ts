@@ -50,6 +50,8 @@ export interface PaymentRequest {
   targetRole: UserRolesArray;
   returnUrl: string;
   callbackUrl: string;
+  /** When set (PaymentConductor), reuse the ledger order_reference instead of minting a new one. */
+  orderReference?: string;
 }
 
 /**
@@ -165,9 +167,10 @@ export async function initiatePayment(request: PaymentRequest): Promise<PaymentR
       };
     }
 
-    // Create a (mostly) unique orderId for mapping payments to users
+    // Prefer conductor-supplied orderReference so payment_transactions stays SSOT.
     // Format: membership_<userId>_<ts>. 'ring_*' legacy support for backwards compatibility.
-    const orderId = `membership_${request.userId}_${Date.now()}`;
+    const orderId =
+      request.orderReference || `membership_${request.userId}_${Date.now()}`;
     const timestamp = Math.floor(Date.now() / 1000);
 
     // Prepare payment API request data per WayForPay specification

@@ -540,8 +540,12 @@ export const getPlatformIdentity = cache((): {
       config.clone?.contactEmail ??
       config.contact?.email ??
       '',
-    nativeTokenSymbol: config.tokens?.nativeToken?.tokenSymbol ?? 'RING',
-    nativeTokenName: config.tokens?.nativeToken?.tokenName ?? 'RING Governance Token',
+    nativeTokenSymbol: config.tokens?.nativeToken?.tokenSymbol
+      ?? (config.tokens?.nativeToken as { symbol?: string } | undefined)?.symbol
+      ?? 'RING',
+    nativeTokenName: config.tokens?.nativeToken?.tokenName
+      ?? (config.tokens?.nativeToken as { name?: string } | undefined)?.name
+      ?? 'RING Governance Token',
   }
 })
 
@@ -555,9 +559,12 @@ export const getDefaultTheme = cache((): 'light' | 'dark' | 'system' => {
 
 /**
  * Returns the configured store currency unit for the instance.
+ * Empty string is treated as missing (?? alone would not catch '').
  */
 export const getDefaultStoreCurrencySymbol = cache((): SupportedCurrencies => {
-  return getSystemConfigSnapshot().store?.defaultCurrency ?? 'USD'
+  const raw = getSystemConfigSnapshot().store?.defaultCurrency
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  return (trimmed || 'USD') as SupportedCurrencies
 })
 
 /**
@@ -566,7 +573,12 @@ export const getDefaultStoreCurrencySymbol = cache((): SupportedCurrencies => {
  */
 export const getSupportedCurrencies = cache((): SupportedCurrencies[] => {
   const config = getSystemConfigSnapshot()
-  return (config.currencies ?? []).map((c: { symbol: SupportedCurrencies }) => c.symbol)
+  const fromList = (config.currencies ?? [])
+    .map((c: { symbol?: string }) => c?.symbol)
+    .filter((s): s is SupportedCurrencies => Boolean(s && String(s).trim()))
+  if (fromList.length > 0) return fromList
+  // Fallback when currencies[] is absent — still expose defaultCurrency.
+  return [getDefaultStoreCurrencySymbol()]
 })
 
 /**
@@ -579,11 +591,56 @@ export const getSupportedCrypto = cache((): SupportedCrypto[] => {
 })
 
 /**
+ * Native governance / store-display token symbol (e.g. RING).
+ * Accepts both tokenSymbol (typed) and legacy symbol on nativeToken.
+ */
+export const getNativeTokenSymbol = cache((): string => {
+  const native = getSystemConfigSnapshot().tokens?.nativeToken as
+    | { tokenSymbol?: string; symbol?: string }
+    | undefined
+  return native?.tokenSymbol ?? native?.symbol ?? 'RING'
+})
+
+/**
  * Returns exchange rates Record<currency, number> relative to DEFAULT_CURRENCY.
  * All rates are relative to DEFAULT_CURRENCY (rate == 1 for the base currency).
  * SSOT accessor — replaces raw ringConfig.exchangeRates.
+ * Guarantees defaultCurrency and native token have numeric rates.
  */
 export const getExchangeRates = cache((): Record<string, number> => {
   const config = getSystemConfigSnapshot()
-  return (config as unknown as { exchangeRates?: Record<string, number> }).exchangeRates ?? {}
+  const rates = {
+    ...((config as unknown as { exchangeRates?: Record<string, number> }).exchangeRates ?? {}),
+  }
+  const base = getDefaultStoreCurrencySymbol()
+  const native = getNativeTokenSymbol()
+  if (typeof rates[base] !== 'number') rates[base] = 1
+  if (typeof rates[native] !== 'number') rates[native] = 1
+  return rates
 })
+
+/**
+ * Credit point → store.defaultCurrency multiplier for fiat ledger accounting.
+ * SSOT: ring-config.json → credit.unitToDefaultCurrency (typically 1 = 1:1 points:fiat).
+ * Fallback: exchangeRates[defaultCurrency], then 1.
+ * Do NOT use native-token oracle here — that rate is for desk credit↔native conversion only.
+ */
+export const getCreditUnitToDefaultCurrencyRate = cache((): number => {
+  const config = getSystemConfigSnapshot()
+  const explicit = config.credit?.unitToDefaultCurrency
+  if (typeof explicit === 'number' && Number.isFinite(explicit) && explicit > 0) {
+    return explicit
+  }
+  const rates = getExchangeRates()
+  const base = getDefaultStoreCurrencySymbol()
+  const fromExchange = rates[base]
+  if (typeof fromExchange === 'number' && Number.isFinite(fromExchange) && fromExchange > 0) {
+    return fromExchange
+  }
+  return 1
+})
+
+/** String form for CreditBalanceService / WalletConductor usdRate params. */
+export function getCreditUnitToDefaultCurrencyRateString(): string {
+  return String(getCreditUnitToDefaultCurrencyRate())
+}

@@ -3,24 +3,21 @@ import { auth } from '@/auth';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { CreditSpendRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
-import { formatCreditAmount, getCreditCurrencyCode } from '@/lib/payments/credit-currency';
-import { UserCreditBalanceSchema } from '@/lib/zod/credit-schemas';
-// TODO: implement zod here
-import { nativeTokenPriceOracleService } from '@/services/blockchain/price-oracle-service';
-import { getNativeChain, getNativeChainConfig } from '@/lib/ring-config-chain';
+import {
+  formatCreditAmount,
+  getCreditCurrencyCode,
+  getFiatCreditAccountingRate,
+} from '@/lib/payments/credit-currency';
 
 /**
  * POST /api/wallet/credit/spend
- * Spend credits from user's balance
- * 
- * Request body:
- * {
- *   "amount": "10.0",
- *   "description": "Store purchase",
- *   "order_id": "order_123", // Optional order reference
- *   "reference_id": "ref_456", // Optional external reference
- *   "metadata": {} // Optional additional data
- * }
+ * Spend platform credit-balance points via WalletConductor.spendCredits.
+ * (Not PaymentConductor — that owns checkout/PSP rails; this is a direct ledger debit API.)
+ *
+ * Accounting rate = ring-config credit.unitToDefaultCurrency (fiat points → defaultCurrency).
+ * Native-token oracle is desk-only — never used for fiat credit spend.
+ *
+ * Founders /docs/api tree documents POST only.
  */
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -99,17 +96,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Get current RING/USD rate from price oracle service
-    const usdRate = await nativeTokenPriceOracleService.getNativeTokenUsdPrice(getNativeChainConfig().evm?.chainId as number);
-    if (!usdRate) {
-      return NextResponse.json(
-        { error: 'Failed to get native token price' },
-        { status: 500 }
-      );
-    }
+    // Fiat points → defaultCurrency (SSOT). Not native-token oracle.
+    const usdRate = getFiatCreditAccountingRate()
 
     // Determine transaction type based on metadata or order context
-    // TODO TBD: reconsider supported credit balance payment types, possibly leaving only 'obtain_token' type of credit spend.
     let transactionType: 'purchase' | 'membership_fee' | 'payment' = 'purchase';
     
     if (validatedRequest.metadata?.type === 'membership') {
@@ -118,29 +108,40 @@ export async function POST(request: NextRequest) {
       transactionType = 'payment';
     }
 
-    // Spend credits from user balance
-    const result = await creditBalanceService.spendCredits(
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const result = await WalletConductor.spendCredits({
       userId,
-      validatedRequest,
-      transactionType,
-      usdRate.price.toString()
-    );
+      amount: validatedRequest.amount,
+      description: validatedRequest.description,
+      orderId: validatedRequest.order_id,
+      referenceId: validatedRequest.reference_id,
+      metadata: validatedRequest.metadata as Record<string, unknown> | undefined,
+      type: transactionType,
+      usdRate,
+    })
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to process spend request' },
+        { status: 400 },
+      )
+    }
 
     logger.info('Credits spent successfully', { 
       userId, 
       amount: validatedRequest.amount,
       type: transactionType,
-      transactionId: result.transaction.id,
+      transactionId: result.transactionId,
       orderId: validatedRequest.order_id,
       referenceId: validatedRequest.reference_id 
     });
 
     return NextResponse.json({
       success: true,
-      transaction_id: result.transaction.id,
+      transaction_id: result.transactionId,
       new_balance: result.newBalance,
       amount_spent: validatedRequest.amount,
-      usd_equivalent: Math.abs(parseFloat(result.transaction.usd_equivalent)).toString(),
+      usd_equivalent: Math.abs(parseFloat(result.usdEquivalent || '0')).toString(),
       message: `Successfully spent ${formatCreditAmount(validatedRequest.amount, creditCurrency)}`,
     });
 
@@ -172,129 +173,35 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/wallet/credit/spend
- * Get spending summary and limits
+ * GET /api/wallet/credit/spend — DEPRECATED.
+ *
+ * Spending summary lives on Server Action `getSpendSummary` and ledger reads on
+ * `GET /api/wallet/credit/history`. This path was never documented in founders
+ * API tree (POST-only) and had zero in-app callers. Kept as 410 so accidental
+ * clients get a clear migration pointer instead of a 500 from the old broken
+ * `this._categorizeSpending` call.
  */
-export async function GET(request: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+export async function GET() {
+  await connection()
 
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const userId = session.user.id;
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'month'; // day, week, month, year
-
-    // Calculate date range based on period
-    const now = new Date();
-    let startDate: Date;
-    
-    switch (period) {
-      case 'day':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        break;
-      case 'month':
-      default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-    }
-
-    // Get spending history for the period
-    const spendingHistory = await creditBalanceService.getCreditHistory(userId, {
-      limit: 100,
-      type: 'purchase', // Only get purchase transactions
-      start_date: startDate.getTime(),
-      end_date: now.getTime(),
-    });
-
-    // Calculate spending summary
-    const totalSpent = spendingHistory.transactions.reduce((sum, tx) => {
-      return sum + Math.abs(parseFloat(tx.amount));
-    }, 0);
-
-    // Define spending limits (these could come from user settings or system config)
-    const spendingLimits = {
-      daily_limit: '100',
-      weekly_limit: '500',
-      monthly_limit: '2000',
-      yearly_limit: '20000',
-    };
-
-    // Calculate remaining limits (simplified logic)
-    const remainingLimits = {
-      daily_remaining: Math.max(0, parseFloat(spendingLimits.daily_limit) - (period === 'day' ? totalSpent : 0)).toString(),
-      weekly_remaining: Math.max(0, parseFloat(spendingLimits.weekly_limit) - (period === 'week' ? totalSpent : 0)).toString(),
-      monthly_remaining: Math.max(0, parseFloat(spendingLimits.monthly_limit) - (period === 'month' ? totalSpent : 0)).toString(),
-      yearly_remaining: Math.max(0, parseFloat(spendingLimits.yearly_limit) - (period === 'year' ? totalSpent : 0)).toString(),
-    };
-
-    const response = {
-      period,
-      period_start: startDate.getTime(),
-      period_end: now.getTime(),
-      spending_summary: {
-        total_spent: totalSpent.toString(),
-        transaction_count: spendingHistory.transactions.length,
-        average_transaction: spendingHistory.transactions.length > 0 
-          ? (totalSpent / spendingHistory.transactions.length).toString()
-          : '0',
-        largest_transaction: spendingHistory.transactions.length > 0
-          ? Math.max(...spendingHistory.transactions.map(tx => Math.abs(parseFloat(tx.amount)))).toString()
-          : '0',
+  return NextResponse.json(
+    {
+      success: false,
+      deprecated: true,
+      error:
+        'GET /api/wallet/credit/spend is deprecated. Use Server Action getSpendSummary or GET /api/wallet/credit/history for ledger reads. POST remains the credit-spend mutation (WalletConductor.spendCredits).',
+      alternatives: {
+        spend_mutation: 'POST /api/wallet/credit/spend',
+        spend_summary_action: 'getSpendSummary (app/_actions/wallet.ts)',
+        credit_history: 'GET /api/wallet/credit/history',
       },
-      limits: spendingLimits,
-      remaining: remainingLimits,
-      categories: this._categorizeSpending(spendingHistory.transactions),
-    };
-
-    logger.info('Spending summary retrieved', { 
-      userId, 
-      period, 
-      totalSpent,
-      transactionCount: spendingHistory.transactions.length 
-    });
-
-    return NextResponse.json(response);
-
-  } catch (error) {
-    logger.error('Failed to get spending summary', { error });
-    
-    return NextResponse.json(
-      { error: 'Failed to retrieve spending summary' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * Helper function to categorize spending
- */
-function _categorizeSpending(transactions: any[]) {
-  const categories: Record<string, { amount: string; count: number }> = {};
-  
-  transactions.forEach(tx => {
-    const category = tx.metadata?.category || 'other';
-    const amount = Math.abs(parseFloat(tx.amount));
-    
-    if (!categories[category]) {
-      categories[category] = { amount: '0', count: 0 };
-    }
-    
-    categories[category].amount = (parseFloat(categories[category].amount) + amount).toString();
-    categories[category].count++;
-  });
-  
-  return categories;
+    },
+    {
+      status: 410,
+      headers: {
+        Deprecation: 'true',
+        Link: '</api/wallet/credit/history>; rel="alternate"',
+      },
+    },
+  )
 }

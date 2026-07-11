@@ -3,10 +3,17 @@ export type PaymentPurpose =
   | 'membership_upgrade'
   | 'news_promotion'
   | 'wallet_topup'
+  /** Confidential+ card/PayPal → treasury RING (CONFIDENTIAL_TOKEN_ONRAMP). */
+  | 'native_token_onramp'
 
 export type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
 
-export type PaymentProcessorId = 'wayforpay' | 'stripe' | 'internal-credit'
+export type PaymentProcessorId =
+  | 'wayforpay'
+  | 'stripe'
+  | 'internal-credit'
+  | 'native-token'
+  | 'paypal'
 
 export type PaymentTransactionStatus =
   | 'created'
@@ -43,7 +50,11 @@ export interface CreateCheckoutResult {
   paymentUrl?: string
   orderReference?: string
   paid?: boolean
+  /** On-chain transfer hash when rail is native_token */
+  txHash?: string
   error?: string
+  /** Structured code for UI (e.g. PAYPAL_NOT_IMPLEMENTED) */
+  code?: string
 }
 
 export interface WebhookHandleResult {

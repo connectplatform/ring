@@ -7,6 +7,10 @@ import {
 import { handleStoreWayForPayWebhook } from '@/lib/payments/conductor/handlers/store-order'
 import { handleMembershipWayForPayWebhook } from '@/lib/payments/conductor/handlers/membership-upgrade'
 import { handleNewsWayForPayWebhook } from '@/lib/payments/conductor/handlers/news-promotion'
+import { handleWalletTopupWayForPayWebhook } from '@/lib/payments/conductor/handlers/wallet-topup'
+import { handleWalletTopupStripeWebhook } from '@/lib/payments/conductor/handlers/wallet-topup-stripe'
+import { handleNativeTokenOnrampWayForPayWebhook } from '@/lib/payments/conductor/handlers/native-token-onramp'
+import { handleNativeTokenOnrampStripeWebhook } from '@/lib/payments/conductor/handlers/native-token-onramp-stripe'
 import { verifyStripeWebhook } from '@/lib/payments/processors/stripe.processor'
 import { handleNewsStripeWebhook } from '@/lib/payments/conductor/handlers/news-promotion'
 import { handleMembershipStripeWebhook } from '@/lib/payments/conductor/handlers/membership-upgrade-stripe'
@@ -55,6 +59,16 @@ export async function dispatchWayForPayWebhook(
     return { success: processed, purpose: 'news_promotion' }
   }
 
+  if (parsed.purpose === 'wallet_topup') {
+    const processed = await handleWalletTopupWayForPayWebhook(payload)
+    return { success: processed, purpose: 'wallet_topup' }
+  }
+
+  if (parsed.purpose === 'native_token_onramp') {
+    const processed = await handleNativeTokenOnrampWayForPayWebhook(payload)
+    return { success: processed, purpose: 'native_token_onramp' }
+  }
+
   return { success: false, error: 'Unhandled purpose' }
 }
 
@@ -90,6 +104,16 @@ export async function dispatchStripeWebhook(
         success: processed,
         purpose: 'membership_upgrade',
       }
+    }
+
+    case 'wallet_topup': {
+      const processed = await handleWalletTopupStripeWebhook(event)
+      return { success: processed, purpose: 'wallet_topup' }
+    }
+
+    case 'native_token_onramp': {
+      const processed = await handleNativeTokenOnrampStripeWebhook(event)
+      return { success: processed, purpose: 'native_token_onramp' }
     }
 
     case 'news_promotion':

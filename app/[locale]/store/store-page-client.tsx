@@ -10,6 +10,8 @@ import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-consta
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
+import { ROUTES } from '@/constants/routes'
 
 interface StorePageClientProps {
   locale: Locale
@@ -186,8 +188,11 @@ export default function StorePageClient({
   return (
     <div>
       {/* Header/title row */}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <div className="mb-6 space-y-3">
+        <RingBreadcrumbs items={[{ label: t('title'), href: ROUTES.STORE(locale) }]} />
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        </div>
       </div>
 
       {/* Product grid; show skeletons when loading and nothing loaded; otherwise, show products */}

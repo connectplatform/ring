@@ -6,11 +6,12 @@ import { z } from 'zod'
 
 // Handler for POST requests to update order status
 export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+  req: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   // Establish database connection
   await connection() // Next.js 16: opt out of prerendering
+
+  const { id } = await context.params
 
   // Authenticate and check for platform admin privileges
   const session = await auth()
@@ -39,7 +40,7 @@ export async function POST(
       return NextResponse.json({ error: 'Bad request' }, { status: 400 })
 
     // Update order status in the database/service
-    await StoreOrdersService.adminUpdateOrderStatus(params.id, parsed.data.status)
+    await StoreOrdersService.adminUpdateOrderStatus(id, parsed.data.status)
 
     // Return success response
     return NextResponse.json({ ok: true })
@@ -53,5 +54,5 @@ export async function POST(
 }
 
 // TODO: Consider using middleware/edge runtime for authentication for native Next.js 16 patterns.
-// TODO: Validate that 'params.id' exists and is in expected format before proceeding to update order.
+// TODO: Validate that 'id' exists and is in expected format before proceeding to update order.
 // TODO: For scalability/reactivity, consider using server actions (React 19/Next 16 native) where possible instead of API routes as legacy route handlers may be eventually phased out.

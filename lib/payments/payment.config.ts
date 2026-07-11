@@ -9,7 +9,7 @@ function envProcessor(key: string): PaymentProcessorId | null {
   // Fetch and normalize processor value from ENV
   const v = process.env[key]?.toLowerCase().trim()
   // Only allow processors that are explicitly supported
-  if (v === 'wayforpay' || v === 'stripe') return v
+  if (v === 'wayforpay' || v === 'stripe' || v === 'paypal') return v
   return null
 }
 
@@ -23,6 +23,7 @@ const PURPOSE_ENV: Record<PaymentPurpose, string> = {
   news_promotion: 'PAYMENT_NEWS_PROCESSOR',
   membership_upgrade: 'PAYMENT_MEMBERSHIP_PROCESSOR',
   wallet_topup: 'PAYMENT_WALLET_TOPUP_PROCESSOR',
+  native_token_onramp: 'PAYMENT_NATIVE_TOKEN_ONRAMP_PROCESSOR',
 }
 
 /** 

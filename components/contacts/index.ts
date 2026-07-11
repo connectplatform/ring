@@ -5,4 +5,5 @@ export type {
   ContactPickerProps,
   ContactPickerMode,
   ContactPickerSelection,
+  ContactPickerSelectionMode,
 } from './contact-picker'

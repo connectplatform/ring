@@ -1,20 +1,20 @@
 ---
 title: Wallet API
-description: Server actions and API routes for custodial wallets, native-token transfers, credit ledger, PIN-gated access tokens, and Solana desk quotes on Ring Platform
-last_modified: "2026-07-07"
+description: Server actions and HTTP routes for custodial wallets, native-token transfers, fiat credit ledger, and Solana desk quotes — with credit.unitToDefaultCurrency as fiat spend SSOT
+last_modified: "2026-07-11"
 audience: both
 ---
 
 # Wallet API
 
 <Callout type="info">
-  Filter with **Founder** / **Developer** in the docs sidebar. Server actions (preferred) and legacy REST routes. Oracle rate persisted in `platform_settings` / `web3` via `ring-token-oracle.ts` and `db()` — not a private Pool.
+  Filter with **Founder** / **Developer** in the docs sidebar. Prefer **Server Actions** for UI. HTTP routes remain for MCP, webhooks, and non-React clients. Desk oracle rate lives in `platform_settings` / `web3` via `ring-token-oracle.ts` — separate from fiat credit accounting.
 </Callout>
 
-Ring Platform wallet operations are available through two layers:
+Ring Platform wallet operations use two layers:
 
-1. **Server Actions** (preferred) — `app/_actions/wallet.ts` — 23 type-safe actions for direct call from React 19 components via `useActionState`.
-2. **API Routes** (legacy) — `app/api/wallet/**/route.ts` — HTTP handlers preserved for external integration and MCP tools.
+1. **Server Actions** (preferred for React) — `app/_actions/wallet.ts` — type-safe, `revalidatePath`, works with `useActionState`.
+2. **API Routes** — `app/api/wallet/**/route.ts` — session-cookie HTTP for external integrations and MCP.
 
 Browser calls use **Auth.js session cookies** on the same origin — see [API reference](/docs/api). UI entry: `/wallet` (protected).
 
@@ -24,34 +24,42 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
 
 <Cards>
   <Card title="Wallet feature" href="/docs/features/wallet">
-    Wallet dashboard, credit balance concept, desk widget for token conversion, gasless transfers.
+    Dashboard, fiat credit points, Token Desk conversion, gasless native sends.
   </Card>
   <Card title="Store & credits" href="/docs/features/store">
-    Credit spend at checkout — ledger debits before on-chain settlement in some flows.
+    Store checkout debits credit points via PaymentConductor `internal_credit` (same fiat rate SSOT).
   </Card>
   <Card title="Authentication" href="/docs/api/authentication">
-    Google/Apple/social sign-in triggers automatic wallet provisioning.
+    Social sign-in provisions custodial wallets automatically.
   </Card>
   <Card title="Web3 desk (admin)" href="/docs/api/admin">
-    Superadmin oracle rate + gas reserve — not member-facing.
+    Superadmin sets native-token oracle rate and gas reserve — not member-facing.
   </Card>
 </Cards>
 
-### Server actions vs API routes
+### Two rates — do not mix them
 
-**Server actions** are the preferred integration pattern for React 19 components. They offer type safety, automatic cache invalidation (`revalidatePath`), and progressive enhancement (forms work without JavaScript). The **API routes** are preserved for webhook consumers, MCP tools, and non-React integrations.
+| Rate | Config | Used for |
+|------|--------|----------|
+| **Fiat credit accounting** | `ring-config.json` → `credit.unitToDefaultCurrency` (usually `1`) | Debiting/crediting **points** vs store `defaultCurrency` |
+| **Token Desk oracle** | `platform_settings.web3.oracle.ringPerUsd` | Converting **points ↔ native token** on the desk |
+
+<Callout type="tip">
+  Keep `credit.unitToDefaultCurrency` at `1` unless you intentionally scale points vs fiat. Changing the desk oracle (`ringPerUsd`) never changes store or ad-hoc credit spend math.
+</Callout>
 
 ### Typical member flows
 
-- **First login** — `ensureUserWallets` action provisions custodial address (Solana or EVM per clone config) — atomic single-write, max one wallet per chain.
-- **Check balance** — wallet page calls `listUserWallets` + `getWalletBalance`.
-- **Set a wallet PIN** — calls `createPinAccessTokenAction` to validate PIN; activates PIN-wrapped encryption.
-- **Send tokens** — `transferNativeTokens` with toAddress + amount; gas sponsored by treasury.
-- **Top up credits** — `topUpCredits` with optional chain verification.
-- **Pay in store** — `spendCredits` with order metadata.
+- **First login** — `ensureUserWallets` / `WalletConductor.ensureNativeWallet` provisions custodial address (Solana or EVM per clone).
+- **Check balance** — `listUserWallets` + `getCreditBalance`.
+- **Send native tokens** — `transferNativeTokens` (treasury-sponsored gas on Solana).
+- **Top up credits (card)** — `initiateCreditTopupPayment` → PaymentConductor `wallet_topup` → WayForPay → webhook credits ledger.
+- **Top up credits (chain proof)** — `topUpCredits` / `verifyTopUpTransaction`.
+- **Pay with credits (ad-hoc)** — `spendCredits` Server Action or `POST /api/wallet/credit/spend`.
+- **Pay in store** — checkout rail `internal_credit` (PaymentConductor), not a raw UI call to `/credit/spend`.
 
 <Callout type="warning">
-  **Custodial model:** Ring signs transfers server-side for social-auth wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use these custodial server actions.
+  **Custodial model:** Ring signs transfers server-side for social-auth wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use custodial server actions.
 </Callout>
 
 </Audience>
@@ -60,92 +68,66 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
 
 ## Server actions (preferred)
 
-All 23 server actions are in `app/_actions/wallet.ts`. They follow the SSOT pattern: dynamic import of service → auth check → operation → cache invalidation.
+All server actions live in `app/_actions/wallet.ts`. Pattern: auth → service / `WalletConductor` → `revalidatePath`.
 
-### Complete inventory
+### Inventory (high-signal)
 
-| # | Action | Signature | Returns |
-|---|--------|-----------|---------|
-| 1 | `ensureUserWallets` | `() => Promise<{ success, nativeWallet?, walletCount? }>` | Provisioned wallet count |
-| 2 | `listUserWallets` | `() => Promise<WalletListResult>` | Wallet list with balances |
-| 3 | `getWalletBalance` | `() => Promise<{ success, balance? }>` | Native-token balance |
-| 4 | `getWalletActivity` | `(opts?) => Promise<ActivityResult>` | Unified credit+chain feed |
-| 5 | `getCreditHistory` | `(opts?) => Promise<CreditHistoryResult>` | Paginated transactions |
-| 6 | `getCreditBalance` | `() => Promise<CreditBalanceResult>` | Current credit balance |
-| 7 | `topUpCredits` | `(formData) => Promise<{ success, newBalance?, txHash? }>` | Add credits to balance |
-| 8 | `spendCredits` | `(formData) => Promise<{ success, newBalance? }>` | Spend credits |
-| 9 | `transferCredits` | `(formData) => Promise<WalletActionResult>` | Admin credit adjustment |
-| 10 | `processMembershipFee` | `(formData) => Promise<{ success, transactionId? }>` | Monthly fee from credits |
-| 11 | `transferNativeTokens` | `(formData) => Promise<{ success, txHash?, chain? }>` | Gasless native-token transfer |
-| 12 | `getRingPerUsdRate` | `() => Promise<OracleRateResult>` | Oracle rate (read) |
-| 13 | `setRingPerUsdRate` | `(formData) => Promise<OracleRateResult>` | Oracle rate (admin write) |
-| 14 | `signDeskQuote` | `(formData) => Promise<{ success, quoteToken? }>` | Sign desk quote |
-| 15 | `executeDeskQuote` | `(formData) => Promise<{ success, orderId?, txHash? }>` | Execute desk trade |
-| 16 | `verifyDeskQuote` | `(formData) => Promise<{ success, payload? }>` | Verify signed quote |
-| 17 | `verifyTopUpTransaction` | `(formData) => Promise<{ success, verified? }>` | Verify on-chain transfer |
-| 18 | `listWalletTransactions` | `(opts?) => Promise<{ success, transactions? }>` | Read wallet_transactions collection |
-| 19 | `setPrimaryWallet` | `(formData) => Promise<WalletActionResult>` | Set default wallet address |
-| 20 | `getSpendSummary` | `() => Promise<{ success, summary? }>` | Period-based spending summary |
-| 21 | `getRewardCreditAddEventSummary` | `() => Promise<{ success, totalReceived? }>` | Credit rewards summary |
-| 22 | `createPinAccessTokenAction` | `(prev, formData) => Promise<PinAccessTokenState>` | Issue single-use PIN-gated access token |
-| 23 | `revokePinAccessTokensAction` | `() => Promise<WalletActionResult>` | Revoke all active tokens |
+| Action | Role |
+|--------|------|
+| `ensureUserWallets` / `listUserWallets` / `getWalletBalance` | Provision + list custodial wallets |
+| `getCreditBalance` / `getCreditHistory` / `getSpendSummary` | Fiat ledger reads |
+| `topUpCredits` / `spendCredits` / `transferCredits` | Fiat ledger mutations (`spendCredits` → `WalletConductor.spendCredits`) |
+| `initiateCreditTopupPayment` | Card top-up via PaymentConductor `wallet_topup` |
+| `transferNativeTokens` | Gasless native-token send |
+| `executeDeskQuote` | Credit ↔ native desk trade |
+| `createPinAccessTokenAction` | PIN-gated single-use access token |
 
-### PIN access token action
+### Credit spend rate SSOT
 
-<Code language="typescript" title="createPinAccessTokenAction">{`// app/_actions/wallet.ts
-export interface PinAccessTokenState {
-  success: boolean
-  accessToken?: string      // Raw token — one-time, never persisted
-  walletAddress?: string
-  expiresAt?: string        // ISO timestamp, default 15-min TTL
-  scope?: 'withdrawal' | 'transfer' | 'admin'
-  error?: string
-  requiresMigration?: boolean  // True when wallet needs v2 PIN re-encrypt
-}
+Fiat ledger debits must use the config multiplier — never the desk oracle.
 
-// Client usage:
-const [tokenState, pinAction, isPending] = useActionState(
-  createPinAccessTokenAction, null
-)`}</Code>
+<Mermaid title="Fiat credit accounting rate">
+{`flowchart LR
+  CFG["ring-config credit.unitToDefaultCurrency"]
+  GET["getCreditUnitToDefaultCurrencyRate()"]
+  FIAT["getFiatCreditAccountingRate()"]
+  API["POST /api/wallet/credit/spend"]
+  SA["spendCredits Server Action"]
+  IC["internal-credit.processor"]
+  WC["WalletConductor.spendCredits"]
+  CBS["CreditBalanceService.spendCredits"]
+  CFG --> GET
+  GET --> FIAT
+  FIAT --> API
+  FIAT --> IC
+  SA --> WC
+  API --> WC
+  WC -->|"usdRate default = fiat"| CBS
+  IC --> CBS`}
+</Mermaid>
 
-### Integration with React 19
+| Fact | Truth |
+|------|--------|
+| SSOT | `ring-config.json` → `credit.unitToDefaultCurrency` (usually `1`) |
+| Helpers | `getCreditUnitToDefaultCurrencyRate` / `getFiatCreditAccountingRate` in `lib/ring-config-core.ts` + `lib/payments/credit-currency.ts` |
+| Fallback | `exchangeRates[defaultCurrency]`, then `1` |
+| Ad-hoc debit | `WalletConductor.spendCredits` (Server Action omits `usdRate` → conductor defaults to fiat helper) |
+| Store checkout | PaymentConductor `internal_credit` → `internal-credit.processor.ts` (also calls `getFiatCreditAccountingRate`) |
+| Never | `platform_settings.web3.oracle.ringPerUsd` / `getRingPerUsdRate` for fiat `usdRate` |
+| Desk only | `ring-token-oracle` / `pointsPerNativeToken` for points ↔ RING |
 
-Server actions are called directly from client components using `useActionState`:
+<Callout type="warning">
+  Document **POST** `/api/wallet/credit/spend` only. A GET stub may return **410** in code — it is not a capability. Use `getSpendSummary` or `GET /api/wallet/credit/history` for reads.
+</Callout>
 
-<Code language="typescript" title="useActionState pattern">{`import { useActionState } from 'react'
-import { topUpCredits } from '@/app/_actions/wallet'
+### Action call pattern
 
-const [state, formAction, isPending] = useActionState(
-  async (prevState, formData) => {
-    const result = await topUpCredits(formData)
-    if (result.success) await refreshCreditBalance()
-    return result
-  },
-  null
-)`}</Code>
-
-Or with form progressive enhancement:
-
-<Code language="tsx">{`<form action={formAction}>
-  <Input name="amount" type="number" min="0.01" step="0.01" required />
-  <Input name="txHash" placeholder="Transaction hash (optional)" />
-  <Textarea name="description" />
-  <Button type="submit" disabled={isPending}>
-    {isPending ? 'Processing...' : 'Top Up'}
-  </Button>
-</form>`}</Code>
-
-## Auth pattern
-
-<Mermaid title="Server action handler">
+<Mermaid title="Server action auth gate">
 {`sequenceDiagram
-  participant C as Client (useActionState)
-  participant A as Server Action
-  participant S as auth()
-  participant V as Service (dynamic import)
-
-  C->>A: formAction(formData)
-  A->>S: session
+  participant C as Client form
+  participant A as wallet.ts action
+  participant V as WalletConductor / service
+  C->>A: FormData
   alt not signed in
     A-->>C: { success: false, error: "Authentication required" }
   else authorized
@@ -156,144 +138,134 @@ Or with form progressive enhancement:
   end`}
 </Mermaid>
 
-## API routes (legacy — for external consumers)
-
-The REST API routes are preserved for backward compatibility. New integrations should use server actions.
+## HTTP routes (external / MCP)
 
 ### Wallet lifecycle
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/api/wallet/list` | `{ wallets: Wallet[] }` from `listWallets()` |
-| POST | `/api/wallet/ensure` | Idempotent create-if-missing; returns `address`, `chain` |
-| GET | `/api/wallet/balance` | Default wallet native-token balance by chain |
+| GET | `/api/wallet/list` | `{ wallets }` via `listWallets()` |
+| POST | `/api/wallet/ensure` | Idempotent create-if-missing |
+| GET | `/api/wallet/balance` | Default wallet native-token balance |
 
-**Deprecated routes:**
-- `POST /api/wallet/create` — returns 410 Gone; wallets created via `ensureUserWallets` server action, not direct POST.
-- `POST /api/wallet/pin-access` — returns 410 Gone; replaced by `createPinAccessTokenAction` server action (uses `wallet_access_tokens` table, sha256-hashed, 15-min TTL, single-use).
-
-### Native-token on-chain operations
+### Native-token operations
 
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/api/wallet/token/balance` | `{ balance, address, chain, symbol }` |
-| POST | `/api/wallet/token/transfer` | Zod-validated; writes `wallet_transactions` row |
-| POST | `/api/wallet/transfer` | **Deprecated** — legacy EVM POL/MATIC transfer (viem + Polygon); use `/api/wallet/token/transfer` for native-token path |
+| POST | `/api/wallet/token/transfer` | Custodial native-token send; `wallet_transactions` row |
+| POST | `/api/wallet/transfer` | External EVM custodial POL path when `chains.enabled` includes `evm` — not Solana native SSOT |
 
-### Activity feed
+### Activity
 
-| Method | Path | Query | Notes |
-|--------|------|-------|-------|
-| GET | `/api/wallet/activity` | `filter=all\|credit\|chain`, `limit`, `walletAddress?` | Unified feed via `getWalletActivityFeed()` |
-
-**Deprecated:** `GET /api/wallet/history` — returns 410 Gone; use `/api/wallet/activity`.
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/wallet/activity` | `filter=all\|credit\|chain`, unified feed |
 
 ### Credit ledger
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/api/wallet/credit/balance` | Balance, subscription stub, spend limits |
-| PUT | `/api/wallet/credit/balance` | `{ user_id, amount, reason }` — admin airdrop |
-| POST | `/api/wallet/credit/topup` | `CreditTopUpRequestSchema`; optional `tx_hash` verification |
-| POST | `/api/wallet/credit/spend` | Debit for purchases; enforces min/max per tx |
-| GET | `/api/wallet/credit/history` | `limit`, `after_id`, `type`, date filters |
+| GET | `/api/wallet/credit/balance` | Balance + spend limits |
+| PUT | `/api/wallet/credit/balance` | Admin airdrop `{ user_id, amount, reason }` |
+| POST | `/api/wallet/credit/topup` | Optional `tx_hash` verification |
+| POST | `/api/wallet/credit/spend` | Direct fiat debit via `WalletConductor.spendCredits` + `unitToDefaultCurrency` |
+| GET | `/api/wallet/credit/history` | Paginated ledger |
 
-SSOT schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/credit-balance-service.ts`.
+Schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/credit-balance-service.ts`.
 
-### Solana desk (quote / execute)
+### Solana desk
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/api/wallet/desk/quote` | Query `side`, `amount` → desk quote token |
-| POST | `/api/wallet/desk/execute` | `{ idempotencyKey, quoteToken }` → on-chain desk swap |
+| GET | `/api/wallet/desk/quote` | Query `side`, `amount` |
+| POST | `/api/wallet/desk/execute` | `{ idempotencyKey, quoteToken }` |
 
 ## SSOT file reference
-
-For direct service integration (bypassing actions), refer to:
 
 | Concern | File | Key exports |
 |---------|------|-------------|
 | Credit CRUD | `features/wallet/services/credit-balance-service.ts` | `addCredits`, `spendCredits`, `getCreditHistory` |
+| Conductor | `features/wallet/conductor/wallet-conductor.ts` | `spendCredits`, `ensureNativeWallet` |
+| Fiat rate | `lib/ring-config-core.ts` / `lib/payments/credit-currency.ts` | `getCreditUnitToDefaultCurrencyRate`, `getFiatCreditAccountingRate` |
+| Store credit checkout | `lib/payments/processors/internal-credit.processor.ts` | `createInternalCreditCheckout` |
 | Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser` |
-| Treasury ops | `features/wallet/chains/solana/treasury-transfer-service.ts` | `transferNativeTokenFromTreasury`, `transferNativeTokenToTreasury` |
 | Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` |
-| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate`, `signQuote`, `verifyQuoteToken` — `db()` on `platform_settings` / `web3` |
-| Wallet DB | `lib/wallet/user-wallet-db.ts` | `getUserWallets`, `getNativeWallet`, `migrateUserWalletsToPin` |
-| Encryption (v2) | `lib/wallet/encrypt-wallet-secret.ts` | `encryptWalletSecret`, `decryptSecretWithPin`, `reencryptLegacyWallet` |
-| Wallet decrypt | `lib/wallet/decrypt-user-wallet.ts` | `decryptUserWalletPrivateKey`, `decryptSolanaWalletSecretKey` |
-| PIN access tokens | `lib/wallet/pin-access-token-db.ts` | `issueAccessToken`, `consumeAccessToken`, `revokeActiveTokens` |
-| Credit schemas | `lib/zod/credit-schemas.ts` | `CreditTopUpRequestSchema`, `CreditSpendRequestSchema` |
-| Desk schemas | `lib/zod/desk-schemas.ts` | `DeskExecuteRequestSchema`, `DeskQuoteRequestSchema` |
+| Native oracle | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate` |
+| Wallet DB | `lib/wallet/user-wallet-db.ts` | `getUserWallets`, `getNativeWallet` |
+| PIN tokens | `lib/wallet/pin-access-token-db.ts` | `issueAccessToken`, `consumeAccessToken` |
 
-### Example — send native tokens via server action
+### Example — spend credits
 
 <Steps>
+
 <Step>
 
-**Import and call**
+**Prefer Server Action (React UI)**
 
-<Code language="typescript">{`import { transferNativeTokens } from '@/app/_actions/wallet'
+Form fields: `amount` (required), `description` (optional — defaults to `Credit spend`), `orderId` (optional). Conductor applies `getFiatCreditAccountingRate()` when `usdRate` is omitted.
 
-// In a client component:
-const [sendState, sendAction, isSending] = useActionState(
-  async (prev, formData) => {
-    const result = await transferNativeTokens(formData)
-    if (result.success) toast({ title: \`Sent \${result.amount} tokens\` })
-    return result
-  },
-  null
-)`}</Code>
+<Code language="typescript">{`import { spendCredits } from '@/app/_actions/wallet'
+
+const result = await spendCredits(formData)
+// form fields: amount, description?, orderId?`}</Code>
 
 </Step>
+
 <Step>
 
-**Wire to form**
+**Or HTTP POST (external / MCP)**
 
-<Code language="tsx">{`<form action={sendAction}>
-  <Input name="toAddress" placeholder="Recipient address" required />
-  <Input name="amount" type="number" placeholder="0.00" required />
-  <Textarea name="notes" placeholder="Optional note" />
-  <Button type="submit" disabled={isSending}>
-    {isSending ? 'Sending...' : 'Send Tokens'}
-  </Button>
-</form>`}</Code>
+`CreditSpendRequestSchema` requires `amount` and `description`. Body may include optional `order_id`, `reference_id`, `metadata`.
+
+<Code language="bash">{`curl -X POST "$ORIGIN/api/wallet/credit/spend" \\
+  -H "Content-Type: application/json" \\
+  -H "Cookie: ..." \\
+  -d '{"amount":"10.00","description":"API debit"}'`}</Code>
 
 </Step>
+
+<Step>
+
+**Store checkout (do not call spend HTTP from store UI)**
+
+PaymentConductor rail `internal_credit` → `internal-credit.processor.ts` → `creditBalanceService.spendCredits` with the same fiat rate helper.
+
+</Step>
+
 </Steps>
 
 ### Environment variables
 
 | Variable | Required | Used by |
 |----------|----------|---------|
-| `WALLET_ENCRYPTION_KEY` | Yes | `encrypt-wallet-secret.ts` — AES-256-GCM encryption of private keys |
-| `SOLANA_RPC_URL` | Yes | `solana-client.ts` — on-chain Solana operations |
-| `SOLANA_TREASURY_PRIVATE_KEY` | Yes | `treasury-transfer-service.ts` — sponsored gas transfers |
-| `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default: 900) | `pin-access-token-db.ts` — single-use token TTL |
-| `POLYGON_RPC_URL` | For EVM chains | `get-wallet-balance.ts` — EVM balance fallback path |
-| `ORACLE_QUOTE_SECRET` | For desk | Desk quote HMAC — falls back to `WALLET_ENCRYPTION_KEY` |
-| `RING_ORACLE_DEFAULT_RATE` | No | Oracle fallback when DB disabled or row missing |
-| `PLATFORM_SETTINGS_DISABLE_DB` | No | `true` → env-only oracle reads; writes throw |
+| `WALLET_ENCRYPTION_KEY` | Yes | AES-256-GCM wallet secrets |
+| `SOLANA_RPC_URL` | Yes | Solana RPC |
+| `SOLANA_TREASURY_PRIVATE_KEY` | Yes | Sponsored gas / treasury ops |
+| `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default 900) | PIN access tokens |
+| `ORACLE_QUOTE_SECRET` | Desk | Quote HMAC (falls back to `WALLET_ENCRYPTION_KEY`) |
+| `RING_ORACLE_DEFAULT_RATE` | No | Desk oracle fallback when DB disabled |
+| `PLATFORM_SETTINGS_DISABLE_DB` | No | Env-only oracle reads |
 
-### Oracle persistence
+### Desk oracle persistence (native token only)
 
-<Mermaid title="Oracle read/write path">
+<Mermaid title="Desk oracle read path">
 {`sequenceDiagram
-  participant A as Server action / API
+  participant A as Desk / admin
   participant O as ring-token-oracle.ts
-  participant D as db() DatabaseService
+  participant D as db()
   participant P as platform_settings/web3
-
   A->>O: getRingPerUsdRate()
   alt PLATFORM_SETTINGS_DISABLE_DB=true
     O-->>A: RING_ORACLE_DEFAULT_RATE
   else DB enabled
     O->>D: readDoc(platform_settings, web3)
-    D->>P: JSONB oracle.ringPerUsd
-    P-->>A: rate string
+    D->>P: oracle.ringPerUsd
+    P-->>A: rate
   end`}
 </Mermaid>
 
-Admin write path: `setRingPerUsdRate` or `POST /api/admin/web3/settings` → `setRingPerUsdRate()` in oracle service → `db().updateDoc` / `createDoc`.
+Admin write: `setRingPerUsdRate` or `POST /api/admin/web3/settings`.
 
 </Audience>
 
@@ -301,7 +273,7 @@ Admin write path: `setRingPerUsdRate` or `POST /api/admin/web3/settings` → `se
 
 <Cards>
   <Card title="Wallet feature" href="/docs/features/wallet">
-    Wallet architecture, credit balance concept, desk widget, gasless transfers.
+    Architecture, credit vs native, desk widget.
   </Card>
   <Card title="API index" href="/docs/api">
     Session auth model and domain map.
@@ -309,30 +281,22 @@ Admin write path: `setRingPerUsdRate` or `POST /api/admin/web3/settings` → `se
   <Card title="Authentication API" href="/docs/api/authentication">
     Crypto wallet provider + social login.
   </Card>
-  <Card title="Admin API — Web3 desk" href="/docs/api/admin">
-    Oracle rate, gas reserve, desk audit log.
+  <Card title="Admin API — Web3" href="/docs/api/admin">
+    Oracle rate, gas reserve, desk audit.
   </Card>
   <Card title="Store feature" href="/docs/features/store">
-    Credit spend at checkout.
+    Credit checkout rail.
   </Card>
   <Card title="Token economics" href="/docs/customization/token-economics">
-    Oracle rate, transfer tax, first-settler discounts.
+    Desk oracle, transfer tax, first-settler discounts.
   </Card>
 </Cards>
 
-<FutureFeatureBacklog title="Backlog — wallet API (TBD)">
-
-<FutureFeatureWidget
-  name="WayForPay wallet top-up (server action)"
-  description="Non-crypto card payment integration for wallet top-ups. UI shell exists in topup-client.tsx; processing backend TBD."
-  implementationCost={48}
-  labels={['payments', 'wallet']}
-  voteCount={0}
-/>
+<FutureFeatureBacklog title="Backlog — wallet API">
 
 <FutureFeatureWidget
   name="Peer-to-peer credit transfers"
-  description="Allow members to transfer USD credits between each other — currently admin-only via transferCredits."
+  description="Allow members to transfer fiat credit points between each other — currently admin-only via transferCredits."
   implementationCost={32}
   labels={['wallet', 'credits']}
   voteCount={0}
@@ -340,17 +304,9 @@ Admin write path: `setRingPerUsdRate` or `POST /api/admin/web3/settings` → `se
 
 <FutureFeatureWidget
   name="GET /api/wallet/nfts"
-  description="Cross-chain NFT gallery — not implemented; NFT hooks exist for marketplace UI only."
+  description="Cross-chain NFT gallery API — not implemented; NFT hooks exist for marketplace UI only."
   implementationCost={64}
   labels={['web3', 'nft']}
-  voteCount={0}
-/>
-
-<FutureFeatureWidget
-  name="Wallet import via seed phrase API"
-  description="POST /api/wallet/import — accept encrypted mnemonic, derive keypair, encrypt with PIN-wrapped v2. Not implemented."
-  implementationCost={48}
-  labels={['wallet', 'web3']}
   voteCount={0}
 />
 

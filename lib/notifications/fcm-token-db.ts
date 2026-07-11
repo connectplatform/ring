@@ -28,6 +28,92 @@ export type UpsertFcmTokenResult =
 
 type FcmTokenRow = Record<string, unknown> & { id: string }
 
+export function isFcmSchemaMismatch(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err)
+  return (
+    message.includes('column "data" does not exist') ||
+    message.includes('relation "fcm_tokens" does not exist')
+  )
+}
+
+export type FcmTokenDeviceSummary = {
+  platform: string
+  browser: string
+  lastSeen: Date
+  createdAt: Date
+}
+
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof (value as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate()
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return new Date(value)
+  }
+  return new Date()
+}
+
+export function summarizeFcmTokenDevices(tokens: FcmTokenRow[]): FcmTokenDeviceSummary[] {
+  return tokens.map((doc) => {
+    const deviceInfo = doc.deviceInfo as Record<string, unknown> | undefined
+    return {
+      platform: (deviceInfo?.platform as string) || (doc.platform as string) || 'Unknown',
+      browser: (deviceInfo?.browser as string) || (doc.browser as string) || 'Unknown',
+      lastSeen: toDate(deviceInfo?.lastSeen ?? doc.lastSeen),
+      createdAt: toDate(doc.createdAt),
+    }
+  })
+}
+
+export type ListActiveFcmTokensResult =
+  | { success: true; tokens: FcmTokenRow[]; schemaReady: true }
+  | { success: true; tokens: []; schemaReady: false; warning: string }
+
+/**
+ * List active FCM tokens for a user (count route, admin dashboards).
+ * Returns schemaReady:false when legacy relational fcm_tokens table is still in use.
+ */
+export async function listActiveFcmTokensForUser(
+  userId: string,
+): Promise<ListActiveFcmTokensResult> {
+  try {
+    const result = await db().queryDocs<FcmTokenRow>({
+      collection: 'fcm_tokens',
+      filters: [
+        { field: 'userId', operator: '==', value: userId },
+        { field: 'isActive', operator: '==', value: true },
+      ],
+    })
+
+    if (!result.success) {
+      const msg = result.error?.message ?? 'Failed to fetch fcm_tokens'
+      if (isFcmSchemaMismatch(msg)) {
+        const warning =
+          'FCM token query skipped — apply data/migrations/016_fcm_jsonb_schema.sql'
+        console.warn(warning)
+        return { success: true, tokens: [], schemaReady: false, warning }
+      }
+      throw result.error || new Error(msg)
+    }
+
+    return { success: true, tokens: result.data, schemaReady: true }
+  } catch (err) {
+    if (isFcmSchemaMismatch(err)) {
+      const warning =
+        'FCM token query skipped — apply data/migrations/016_fcm_jsonb_schema.sql'
+      console.warn(warning)
+      return { success: true, tokens: [], schemaReady: false, warning }
+    }
+    throw err
+  }
+}
+
 /**
  * Upsert FCM token for a user by (userId, deviceFingerprint).
  * Caller must supply userId from server-side auth only; never from client.
@@ -60,7 +146,12 @@ export async function upsertFcmTokenForUser(
     })
 
     if (!existingResult.success) {
-      return { error: existingResult.error?.message ?? 'Failed to check existing tokens' }
+      const msg = existingResult.error?.message ?? 'Failed to check existing tokens'
+      if (isFcmSchemaMismatch(msg)) {
+        console.warn('FCM token upsert skipped — apply data/migrations/016_fcm_jsonb_schema.sql')
+        return { success: true }
+      }
+      return { error: msg }
     }
 
     const payload = {
@@ -100,6 +191,10 @@ export async function upsertFcmTokenForUser(
 
     return { success: true }
   } catch (err) {
+    if (isFcmSchemaMismatch(err)) {
+      console.warn('FCM token upsert skipped — apply data/migrations/016_fcm_jsonb_schema.sql')
+      return { success: true }
+    }
     const message = err instanceof Error ? err.message : 'Failed to register FCM token'
     return { error: message }
   }
@@ -152,7 +247,12 @@ export async function unregisterFcmTokenForUser(
     })
 
     if (!existingResult.success) {
-      return { error: existingResult.error?.message ?? 'Failed to find FCM token' }
+      const msg = existingResult.error?.message ?? 'Failed to find FCM token'
+      if (isFcmSchemaMismatch(msg)) {
+        console.warn('FCM token unregister skipped — apply data/migrations/016_fcm_jsonb_schema.sql')
+        return { success: true }
+      }
+      return { error: msg }
     }
 
     if (existingResult.data.length === 0) {
@@ -173,6 +273,10 @@ export async function unregisterFcmTokenForUser(
 
     return { success: true }
   } catch (err) {
+    if (isFcmSchemaMismatch(err)) {
+      console.warn('FCM token unregister skipped — apply data/migrations/016_fcm_jsonb_schema.sql')
+      return { success: true }
+    }
     const message = err instanceof Error ? err.message : 'Failed to unregister FCM token'
     return { error: message }
   }

@@ -1,13 +1,18 @@
 ---
 title: Payment Gateway Integration
-description: Operator guide — PaymentConductor, WayForPay, Stripe, and internal credit for store, membership, and news promotion
-last_modified: "2026-06-12"
+description: Operator guide — PaymentConductor, WayForPay, Stripe, and internal credit for store, membership, news promotion, and wallet top-up
+last_modified: "2026-07-09"
+audience: both
 ---
 
 # Payment Gateway Integration
 
 <Callout type="success" title="Executive summary">
-  Ring **v1.6.0** routes card and credit flows through **PaymentConductor** — one ledger (`payment_transactions`), one webhook dispatcher, config-driven processors. Operators configure env vars and PSP dashboards; developers read [PaymentConductor architecture](/docs/architecture/payment-conductor).
+  Ring routes card and credit flows through **PaymentConductor** — one ledger (`payment_transactions`), one webhook dispatcher, config-driven processors. Operators configure env vars and PSP dashboards; developers read [PaymentConductor architecture](/docs/architecture/payment-conductor).
+</Callout>
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
 </Callout>
 
 <Cards>
@@ -17,8 +22,8 @@ last_modified: "2026-06-12"
   <Card title="Architecture deep dive" href="/docs/architecture/payment-conductor">
     Handlers, ledger, idempotency, API routes
   </Card>
-  <Card title="Environment block" href="/docs/deployment/environment#payment-conductor">
-    Full `PAYMENT_*` and PSP secrets
+  <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
+    Env SSOT, HMAC, regularApi password
   </Card>
 </Cards>
 
@@ -30,7 +35,7 @@ last_modified: "2026-06-12"
   participant PSP as WayForPay / Stripe
   participant DB as payment_transactions
 
-  U->>R: Checkout / upgrade / promotion
+  U->>R: Checkout / upgrade / promotion / top-up
   R->>PC: createCheckout(purpose)
   PC->>DB: createPending(orderReference)
   PC->>PSP: redirect URL
@@ -38,34 +43,41 @@ last_modified: "2026-06-12"
   PSP->>R: POST webhook
   R->>PC: dispatch webhook
   PC->>DB: mark paid
-  PC->>R: purpose handler fulfills order`}
+  PC->>R: purpose handler fulfills`}
 </Mermaid>
 
 ## Payment purposes
 
 | Purpose | Typical use | Handler |
 |---------|-------------|---------|
-| `store_order` | Multi-vendor store checkout | `handlers/store-order.ts` |
-| `membership_upgrade` | SUBSCRIBER → MEMBER | `handlers/membership-upgrade.ts` |
-| `news_promotion` | News Kingdom paid promotion | `handlers/news-promotion.ts` |
-| `wallet_topup` | Wallet credit top-up | conductor + wallet services |
+| `store_order` | Multi-vendor store checkout | `conductor/handlers/store-order.ts` |
+| `membership_upgrade` | SUBSCRIBER → MEMBER | `conductor/handlers/membership-upgrade.ts` |
+| `news_promotion` | News Kingdom paid promotion | `conductor/handlers/news-promotion.ts` |
+| `wallet_topup` | Wallet credit top-up (card) | `conductor/handlers/wallet-topup.ts` |
 
-**Processors:** WayForPay (default), Stripe, internal credit. PayPal is **not** in the OSS tree.
+**Processors:** WayForPay (default), Stripe, internal credit. PayPal membership is **not** implemented (FutureFeature pool `membership-paypal`).
 
-**Rails:** `merchant_redirect` · `internal_credit` (`PAYMENT_STORE_ALLOW_CREDIT`) · `native_token` (`PAYMENT_STORE_ALLOW_TOKEN=true`).
+**Rails:** `merchant_redirect` · `internal_credit` (`PAYMENT_STORE_ALLOW_CREDIT`) · `native_token` (`PAYMENT_STORE_ALLOW_TOKEN`).
 
 Apply `data/migrations/004_payment_transactions.sql` before production payments.
 
-## Environment variables
+<Audience for="founder">
 
-<Code language="bash" title=".env.local — PaymentConductor">
+## Operator setup
+
+### Environment variables
+
+<Code language="bash" title=".env.local — PaymentConductor + WayForPay">
 {`PAYMENT_DEFAULT_PROCESSOR=wayforpay
 PAYMENT_STORE_PROCESSOR=wayforpay
 PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay
 PAYMENT_NEWS_PROCESSOR=wayforpay
+PAYMENT_WALLET_TOPUP_PROCESSOR=wayforpay
 WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
 WAYFORPAY_SECRET_KEY=your_secret
-WAYFORPAY_DOMAIN=yourdomain.com
+WAYFORPAY_MERCHANT_PASSWORD=your_password
+WAYFORPAY_DOMAIN=ring-platform.org
+WAYFORPAY_API_URL=https://api.wayforpay.com/api
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 PAYMENT_FIAT_CURRENCY=USD
@@ -73,23 +85,21 @@ PAYMENT_STORE_ALLOW_CREDIT=true
 PAYMENT_STORE_ALLOW_TOKEN=false`}
 </Code>
 
-Full commented block: [Environment — PaymentConductor](/docs/deployment/environment#payment-conductor).
+<Callout type="warning">
+  **No `WAYFORPAY_MERCHANT_ID`.** Use `WAYFORPAY_MERCHANT_ACCOUNT`. Set `WAYFORPAY_DOMAIN` to your clone's approved domain (for this product: `ring-platform.org`). `WAYFORPAY_MERCHANT_PASSWORD` is required for recurring / `regularApi`.
+</Callout>
 
-## Webhook endpoints
+### Webhook URLs (register in PSP cabinet)
 
-<Tabs items={['Operators', 'Developers']}>
+Replace the host with your clone domain:
 
-<Tab value="Operators">
-
-Register **canonical** URLs in your PSP merchant cabinet (replace `yourdomain.com`):
-
-| Provider | Service URL / endpoint |
-|----------|------------------------|
-| WayForPay | `https://yourdomain.com/api/payments/wayforpay/webhook` |
-| Stripe | `https://yourdomain.com/api/payments/stripe/webhook` |
+| Provider | Service URL |
+|----------|-------------|
+| WayForPay | `https://ring-platform.org/api/payments/wayforpay/webhook` |
+| Stripe | `https://ring-platform.org/api/payments/stripe/webhook` |
 
 <Callout type="error" title="Do not register">
-  Legacy paths `/api/payments/wayforpay/callback`, `/success`, `/failure` — **not implemented** in v1.6.
+  Legacy paths `/api/payments/wayforpay/callback`, `/success`, `/failure` — **not implemented**.
 </Callout>
 
 Deprecated aliases (still work — migrate when convenient):
@@ -97,75 +107,90 @@ Deprecated aliases (still work — migrate when convenient):
 - `/api/store/payments/wayforpay/webhook`
 - `/api/news/promotion/wayforpay-webhook`
 
-</Tab>
-
-<Tab value="Developers">
-
-| Route file | Method | Role |
-|------------|--------|------|
-| `app/api/payments/wayforpay/webhook/route.ts` | POST | `dispatchWayForPayWebhook` |
-| `app/api/payments/stripe/webhook/route.ts` | POST | `dispatchStripeWebhook` |
-| `app/api/store/payments/wayforpay/route.ts` | POST | Initiate store redirect |
-| `app/api/store/payments/credit/route.ts` | POST | Internal credit checkout |
-| `app/api/store/payments/[orderId]/status/route.ts` | GET | Poll order status |
-
-WayForPay routes by `orderReference` prefix: `store_`, `membership_`, `news-promo-…` — see `lib/payments/conductor/webhook-dispatcher.ts`.
-
-</Tab>
-
-</Tabs>
-
-## PSP setup
-
-<Tabs items={['WayForPay', 'Stripe']}>
-
-<Tab value="WayForPay">
-
-<Callout type="success">
-  **Recommended for:** Ukraine / Europe — hosted cards, Apple Pay, Google Pay.
-</Callout>
+### Pre-launch checklist
 
 <Steps>
 
 <Step>
 
-Create a merchant account at [wayforpay.com](https://wayforpay.com) — complete KYC and note **merchant account**, **secret key**, approved **domain**.
+Migration `004_payment_transactions.sql` applied on production Postgres.
 
 </Step>
 
 <Step>
 
-Set Ring env vars:
-
-<Code language="bash" title="WayForPay">
-{`WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
-WAYFORPAY_SECRET_KEY=your_secret
-WAYFORPAY_DOMAIN=yourdomain.com`}
-</Code>
+`PAYMENT_*` and WayForPay / Stripe credentials in secrets manager (never commit `.env.local`).
 
 </Step>
 
 <Step>
 
-In the WayForPay cabinet, set **service URL** (callback):
-
-<Code language="text" title="Service URL">
-{`https://yourdomain.com/api/payments/wayforpay/webhook`}
-</Code>
+Canonical webhook URLs registered; `WAYFORPAY_DOMAIN` matches the approved merchant domain.
 
 </Step>
 
 <Step>
 
-Verify in staging: migration `004` applied → test checkout → confirm `payment_transactions` row + fulfillment (order paid / role upgraded / promotion active).
+Staging smoke: store checkout, membership card upgrade, news promotion (if used), wallet credit top-up.
+
+</Step>
+
+<Step>
+
+Post go-live: monitor `payment_transactions` for stuck `pending` / `redirected` rows; use Admin → user → Payments tab for membership / wallet top-up history.
 
 </Step>
 
 </Steps>
 
-</Tab>
+</Audience>
 
-<Tab value="Stripe">
+<Audience for="developer">
+
+## Routes and modules
+
+| Route file | Method | Role |
+|------------|--------|------|
+| `app/api/payments/wayforpay/webhook/route.ts` | POST | `dispatchWayForPayWebhook` |
+| `app/api/payments/stripe/webhook/route.ts` | POST | `dispatchStripeWebhook` |
+| `app/api/store/payments/wayforpay/route.ts` | POST | Store redirect via `PaymentConductor` (`store_order`) |
+| `app/api/store/payments/credit/route.ts` | POST | Internal credit checkout |
+| `app/api/store/payments/[orderId]/status/route.ts` | GET | Poll order status |
+| `app/api/admin/users/[id]/payments/route.ts` | GET | Admin Payments tab (`listByUserId`) |
+
+WayForPay routes by `orderReference` prefix (`store_`, `membership_`, `news-promo-…`, `wallettopup_`) — see `lib/payments/conductor/webhook-dispatcher.ts` and `lib/payments/order-reference.ts`.
+
+### PSP setup — WayForPay
+
+<Steps>
+
+<Step>
+
+Create a merchant account at [wayforpay.com](https://wayforpay.com) — KYC, note **merchant account**, **secret key**, **merchant password**, approved **domain**.
+
+</Step>
+
+<Step>
+
+Set Ring env vars from `env.local.template` (also mirrored in `docker.env.template` / `docker-compose.template.yml`).
+
+</Step>
+
+<Step>
+
+Cabinet **service URL**: `https://<your-domain>/api/payments/wayforpay/webhook`.
+
+</Step>
+
+<Step>
+
+Staging: migration `004` → test checkout / membership / wallet top-up → confirm `payment_transactions` + fulfillment.
+
+</Step>
+
+</Steps>
+
+### PSP setup — Stripe
 
 <Steps>
 
@@ -187,70 +212,46 @@ STRIPE_WEBHOOK_SECRET=whsec_...`}
 
 <Step>
 
-Stripe Dashboard → Webhooks → add endpoint:
-
-<Code language="text" title="Endpoint URL">
-{`https://yourdomain.com/api/payments/stripe/webhook`}
-</Code>
-
-Subscribe to `checkout.session.completed` (and events your processor handles). Copy signing secret to `STRIPE_WEBHOOK_SECRET`.
+Dashboard → Webhooks → endpoint `https://<your-domain>/api/payments/stripe/webhook`. Subscribe to `checkout.session.completed` (and events your processor handles).
 
 </Step>
 
 </Steps>
 
-</Tab>
+</Audience>
 
-</Tabs>
-
-## Pre-launch checklist
-
-<Steps>
-
-<Step>
-
-Migration `004_payment_transactions.sql` applied on production Postgres.
-
-</Step>
-
-<Step>
-
-`PAYMENT_*` and PSP credentials in secrets manager (never commit `.env.local`).
-
-</Step>
-
-<Step>
-
-Canonical webhook URLs registered; `WAYFORPAY_DOMAIN` matches approved merchant domain.
-
-</Step>
-
-<Step>
-
-Staging smoke: store checkout, membership upgrade, news promotion (if used).
-
-</Step>
-
-<Step>
-
-Post go-live: monitor `payment_transactions` for stuck `pending` / `redirected` rows.
-
-</Step>
-
-</Steps>
+## Related
 
 <Cards>
   <Card title="Payments feature" href="/docs/features/payments">
     Membership flow and overview
   </Card>
   <Card title="Store API" href="/docs/api/store">
-    Checkout and order endpoints
+    Checkout via PaymentConductor `store_order`
+  </Card>
+  <Card title="Wallet" href="/docs/features/wallet">
+    Live WayForPay credit top-up
   </Card>
   <Card title="Migrations" href="/docs/getting-started/migrations">
     Apply order including migration 004
   </Card>
 </Cards>
 
-<Callout type="info">
-  **Need hands-on help?** [Ring customization opportunities](/opportunities?type=ring_customization)
-</Callout>
+<FutureFeatureBacklog title="Backlog — payment ops (TBD)">
+
+<FutureFeatureWidget
+  name="PayPal membership payments"
+  description="Operator-facing PayPal merchant setup for membership. UI tab exists; processor and cabinet checklist not shipped (poolSlug membership-paypal)."
+  implementationCost={96}
+  labels={['payments', 'paypal', 'ops']}
+  poolSlug="membership-paypal"
+/>
+
+<FutureFeatureWidget
+  name="Stripe Connect marketplace payouts"
+  description="Automated vendor payouts via Stripe Connect — settlements today are admin/ledger-driven."
+  implementationCost={160}
+  labels={['payments', 'stripe', 'ops']}
+/>
+
+</FutureFeatureBacklog>

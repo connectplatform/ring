@@ -671,17 +671,17 @@ export class CreditBalanceService {
     type: CreditTransactionType = 'desk_buy',
     metadata?: Record<string, unknown>
   ) {
-    // Call spendCredits with a fixed USD rate (1-to-1)
+    const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
     return this.spendCredits(
       userId,
       { amount: usdAmount, description, metadata },
       type,
-      '1'
+      getFiatCreditAccountingRate()
     );
   }
 
   /**
-   * Utility: Immediately top up fiat USD credits for a user (enforces usd_rate = 1).
+   * Utility: Immediately top up fiat credits for a user (SSOT unitToDefaultCurrency rate).
    */
   async addFiatUsd(
     userId: string,
@@ -690,12 +690,12 @@ export class CreditBalanceService {
     type: CreditTransactionType = 'desk_sell',
     metadata?: Record<string, unknown>
   ) {
-    // Call addCredits with a fixed USD rate
+    const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
     return this.addCredits(
       userId,
       { amount: usdAmount, description, metadata },
       type,
-      '1'
+      getFiatCreditAccountingRate()
     );
   }
 }

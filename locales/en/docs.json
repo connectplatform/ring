@@ -16,7 +16,13 @@
     "playNarration": "Play narration",
     "watchVideo": "Watch video",
     "narrationComingSoon": "Doc audio narration is on the roadmap (AudioConductor integration).",
-    "videoComingSoon": "Doc video walkthroughs are on the roadmap."
+    "videoComingSoon": "Doc video walkthroughs are on the roadmap.",
+    "narrationReady": "Narration is ready — use the player below.",
+    "narrationCached": "Playing cached narration for this article version.",
+    "narrationFailed": "Could not generate narration. Check TTS configuration.",
+    "videoReady": "Walkthrough video is ready — use the player below.",
+    "videoFailed": "Could not generate walkthrough video.",
+    "videoMemberRequired": "Sign in as a Member to generate doc walkthrough videos."
   },
   "notFound": {
     "badge": "Documentation",

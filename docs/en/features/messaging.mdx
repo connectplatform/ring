@@ -1,0 +1,103 @@
+---
+title: Real-Time Messaging
+description: Conversations API plus Tunnel Protocol live events — deal chat without page reloads
+last_modified: "2026-07-10"
+audience: both
+---
+
+# Real-Time Messaging
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Legacy `messaging.md` claimed fabricated KPIs — this page matches verified routes under `app/api/conversations` and Tunnel Protocol.
+</Callout>
+
+Ring messaging combines **REST conversations** with **Tunnel Protocol** fan-out so members chat in context of opportunities, entities, and store deals without refreshing the page.
+
+| Layer | Where |
+|-------|--------|
+| REST | `app/api/conversations/**` |
+| Realtime | Tunnel channels `conversation:{id}` — see [Tunnel Protocol](/docs/features/tunnel-protocol) |
+| UI | `features/chat`, `features/messages` |
+| API reference | [Messaging API](/docs/api/messaging) |
+
+<Audience for="founder">
+
+## Why messaging matters for your clone
+
+Instant conversation shortens the path from match → trust → deal. Members stay inside your Ring instead of dropping to email or third-party chat.
+
+<Cards>
+  <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
+    How live updates reach the browser (WSS / SSE / poll).
+  </Card>
+  <Card title="WebRTC Calls & STUNner" href="/docs/features/webrtc-calls">
+    1:1 audio/video in direct chats — ICE + TURN.
+  </Card>
+  <Card title="Opportunities" href="/docs/features/opportunities">
+    Matcher-driven deals that often continue in chat.
+  </Card>
+  <Card title="Messaging API" href="/docs/api/messaging">
+    Integrator contracts for conversations and typing.
+  </Card>
+</Cards>
+
+### Typical scenarios
+
+- Two matched professionals open a direct conversation from an opportunity.
+- A vendor answers a buyer question without leaving the storefront session.
+- Typing indicators and read state keep negotiations moving on mobile PWA.
+
+</Audience>
+
+<Audience for="developer">
+
+## Implementation
+
+### Verified routes
+
+| Method | Path | Role |
+|--------|------|------|
+| GET, POST | `/api/conversations` | List / create conversations |
+| GET | `/api/conversations/[id]` | Conversation detail |
+| POST | `/api/conversations/[id]/typing` | Typing signal |
+| POST | `/api/conversations/[id]/read` | Mark read |
+| POST | `/api/conversations/upload` | Attachment upload |
+| MCP | `/api/mcp/v1/messaging/conversations` | Agent tooling |
+
+After writes, publish on Tunnel channel `conversation:{id}` via `publishToChannel` — clients subscribe with **`useTunnelChannel`** (not raw `useTunnel().subscribe()` in effects).
+
+### Modules
+
+| Path | Responsibility |
+|------|----------------|
+| `features/chat/` | Chat UI and services |
+| `features/messages/` | Message list components |
+| `lib/tunnel/` | Hub, publisher, transports |
+| `hooks/use-tunnel-channel.ts` | Stable channel subscribe |
+
+### Transports
+
+- **k8s / self-hosted:** native WSS `/api/tunnel/ws` primary
+- **Vercel:** SSE + long-poll (`/api/tunnel/poll`)
+- Optional Supabase Realtime when configured
+
+Full endpoint samples: [Messaging API](/docs/api/messaging). Architecture: [Real-time](/docs/architecture/real-time).
+
+</Audience>
+
+## Related
+
+<Cards>
+  <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
+    Subscribe SSOT and transports.
+  </Card>
+  <Card title="WebRTC Calls & STUNner" href="/docs/features/webrtc-calls">
+    Call UI, ICE route, STUNner TURN.
+  </Card>
+  <Card title="Messaging API" href="/docs/api/messaging">
+    REST + tunnel contracts.
+  </Card>
+  <Card title="Push notifications" href="/docs/features/push-notifications-fcm">
+    Reach members when the tab is closed.
+  </Card>
+</Cards>

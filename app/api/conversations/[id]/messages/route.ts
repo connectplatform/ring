@@ -10,9 +10,11 @@ const messageService = new MessageService()
  * GET handler for fetching messages in a conversation, with cursor-based pagination.
  * Enforces user authentication, validates query params and conversation existence.
  */
+type RouteContext = { params: Promise<{ id: string }> }
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext,
 ) {
   // Ensures this route does not get statically prerendered by Next.js (Next16 feature)
   await connection()
@@ -25,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const conversationId = params.id // conversationId comes from dynamic route param
+    const { id: conversationId } = await context.params
     if (!conversationId) {
       // Defensive: should always be set, but check in case of malformed request
       return NextResponse.json(
@@ -97,7 +99,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext,
 ) {
   // Ensures this route does not get statically prerendered by Next.js (Next16 feature)
   await connection()
@@ -110,7 +112,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const conversationId = params.id
+    const { id: conversationId } = await context.params
     if (!conversationId) {
       // Defensive: API should always provide conversationId param
       return NextResponse.json(

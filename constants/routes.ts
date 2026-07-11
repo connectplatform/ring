@@ -88,7 +88,14 @@ const BASE_ROUTES = {
   WALLET_TOPUP: '/wallet/topup',
   WALLET_SEND: '/wallet/send',
   WALLET_STAKING: '/wallet/staking',
+  NFT_MARKET: '/nft/market',
+  NFT_MARKET_LISTING: (listingId: string) => `/nft/market/${encodeURIComponent(listingId)}`,
+  NFT_MARKET_SELL: '/nft/market/sell',
+  NFT_COLLECTION: (collection: string) => `/nft/collections/${encodeURIComponent(collection)}`,
   NFT_COLLECTIONS: '/nft/collections',
+  NFT_GATES: '/nft/gates',
+  ADMIN_NFT_TEMPLATES: '/admin/nft/templates',
+  ADMIN_NFT_MINT: '/admin/nft/mint',
   WALLET_CONNECT: '/auth/wallet-connect',
   REFCODES: '/refcodes',
   ADMIN_REFCODES: '/admin/refcodes',
@@ -105,6 +112,8 @@ const BASE_ROUTES = {
   ADMIN_EMAIL_THREAD: (id: string) => `/admin/email-inbox/${encodeURIComponent(id)}`,
   ADMIN_PROCESSES: '/admin/processes',
   ADMIN_SUBSCRIPTIONS: '/admin/subscriptions',
+  ADMIN_WEB3: '/admin/web3',
+  ADMIN_WEB3_SETTINGS: '/admin/web3/settings',
 }
 
 // Localized routes
@@ -178,7 +187,16 @@ export const ROUTES = {
   WALLET_TOPUP: (locale: Locale = defaultLocale) => withLocale(locale, '/wallet/topup'),
   WALLET_SEND: (locale: Locale = defaultLocale) => withLocale(locale, '/wallet/send'),
   WALLET_STAKING: (locale: Locale = defaultLocale) => withLocale(locale, '/wallet/staking'),
+  NFT_MARKET: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/market'),
+  NFT_MARKET_LISTING: (listingId: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/nft/market/${encodeURIComponent(listingId)}`),
+  NFT_MARKET_SELL: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/market/sell'),
+  NFT_COLLECTION: (collection: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/nft/collections/${encodeURIComponent(collection)}`),
   NFT_COLLECTIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/collections'),
+  NFT_GATES: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/gates'),
+  ADMIN_NFT_TEMPLATES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/nft/templates'),
+  ADMIN_NFT_MINT: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/nft/mint'),
   DOCS_PAYMENTS: (locale: Locale = defaultLocale) => withLocale(locale, '/docs/features/payments'),
   DOCS_GETTING_STARTED: (locale: Locale = defaultLocale) =>
     withLocale(locale, '/docs/getting-started'),
@@ -226,6 +244,8 @@ export const ROUTES = {
     withLocale(locale, `/admin/email-inbox/${encodeURIComponent(id)}`),
   ADMIN_PROCESSES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/processes'),
   ADMIN_SUBSCRIPTIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/subscriptions'),
+  ADMIN_WEB3: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/web3'),
+  ADMIN_WEB3_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/web3/settings'),
   ADMIN_NEWS_COMMENTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/comments'),
   ADMIN_NEWS_TAGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/tags'),
   // Vendor Routes - Multi-Vendor Marketplace

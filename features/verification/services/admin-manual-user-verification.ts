@@ -177,6 +177,22 @@ export async function setAdminManualUserVerification(
       username: (userData.username as string) ?? null,
       isVerified: true,
     }).catch(() => undefined) // Silently ignore errors, do not block verification on credit events
+
+    try {
+      const { appendEvent } = await import('@/lib/events/event-log.server')
+      await appendEvent({
+        type: 'user_verified',
+        userId: input.targetUserId,
+        reversible: true,
+        payload: {
+          email: userData.email,
+          procedureNumber: approved.procedureNumber,
+          trigger: 'adminVerify',
+        },
+      })
+    } catch {
+      // non-blocking
+    }
   }
 
   // Return operation result with procedure reference and verified status for frontend updating

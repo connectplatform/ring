@@ -5,7 +5,7 @@ import { AuthUser } from '@/features/auth/types'
 import { ProfileWrapperProps } from '@/types/profile'
 import { updateProfile } from '@/app/_actions/profile'
 import ProfileContent from '@/features/auth/components/profile-content'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 /**
  * LoadingFallback component
@@ -19,56 +19,48 @@ function LoadingFallback() {
   )
 }
 
+function readTunnelBypass(): boolean {
+  if (typeof document === 'undefined') return false
+  return (
+    document.querySelector('meta[name="x-tunnel-bypass"]')?.getAttribute('content') === 'true' ||
+    (window as Window & { __TUNNEL_BYPASS__?: boolean }).__TUNNEL_BYPASS__ === true
+  )
+}
+
 /**
  * ProfileWrapper component - React 19 modernized with Progressive Tunnel Loading
  * PHASE 1: Implements tunnel timing rearchitecture for GIS auth freeze fix
  */
 export default function ProfileWrapper({ initialUser, initialError, params, searchParams }: ProfileWrapperProps) {
-  const { data: session, status } = useSession();
-  const [tunnelReady, setTunnelReady] = useState(false);
+  const { data: session, status } = useSession()
+  // Default ready unless middleware explicitly deferred tunnel init (avoids false→true flicker).
+  const [tunnelReady, setTunnelReady] = useState(() => !readTunnelBypass())
 
-  // PHASE 1: PROGRESSIVE TUNNEL LOADING
-  // Check if middleware bypassed tunnel initialization for auth-critical route
   useEffect(() => {
-    const checkTunnelBypass = async () => {
+    if (!readTunnelBypass()) {
+      return
+    }
+
+    const timer = window.setTimeout(async () => {
       try {
-        // Check for tunnel bypass header from middleware
-        const bypassHeader = document.querySelector('meta[name="x-tunnel-bypass"]')?.getAttribute('content') ||
-                           (window as any).__TUNNEL_BYPASS__;
-
-        if (bypassHeader === 'true') {
-          console.log('ProfileWrapper: Tunnel bypass detected - establishing tunnel after auth confirmation');
-
-          // Small delay to ensure page is fully loaded before tunnel init
-          setTimeout(async () => {
-            try {
-              // Dynamically import tunnel initialization to avoid blocking initial render
-              const { initializeTunnelAfterAuth } = await import('@/lib/tunnel/tunnel-init');
-              await initializeTunnelAfterAuth();
-              setTunnelReady(true);
-              console.log('ProfileWrapper: Tunnel established successfully after auth');
-            } catch (error) {
-              console.error('ProfileWrapper: Tunnel initialization failed:', error);
-              // Continue without tunnel - graceful degradation
-              setTunnelReady(true);
-            }
-          }, 100);
-        } else {
-          // Normal tunnel initialization for non-auth routes
-          setTunnelReady(true);
-        }
+        const { initializeTunnelAfterAuth } = await import('@/lib/tunnel/tunnel-init')
+        await initializeTunnelAfterAuth()
       } catch (error) {
-        console.error('ProfileWrapper: Error checking tunnel bypass:', error);
-        // Continue with normal flow
-        setTunnelReady(true);
+        console.error('ProfileWrapper: Tunnel initialization failed:', error)
+      } finally {
+        setTunnelReady(true)
       }
-    };
+    }, 100)
 
-    checkTunnelBypass();
-  }, []);
+    return () => window.clearTimeout(timer)
+  }, [])
 
-  // If we have initialUser from server-side auth, show profile immediately
-  // Don't wait for client-side session loading when server has already authenticated
+  // SSR already hydrated the profile — avoid passing volatile session object (prevents widget redraw storms).
+  const sessionForContent = useMemo(
+    () => (initialUser ? null : session ?? null),
+    [initialUser, session],
+  )
+
   if (initialUser) {
     return (
       <ProfileContent
@@ -76,19 +68,17 @@ export default function ProfileWrapper({ initialUser, initialError, params, sear
         initialError={initialError}
         params={params}
         searchParams={searchParams}
-        session={session}
+        session={sessionForContent}
         updateProfile={updateProfile}
         tunnelReady={tunnelReady}
       />
     )
   }
 
-  // Show loading only while session is actually loading and we don't have server-side data
   if (status === 'loading') {
     return <LoadingFallback />
   }
 
-  // If client-side session exists but no server-side initialUser
   if (session) {
     return (
       <ProfileContent
@@ -96,14 +86,12 @@ export default function ProfileWrapper({ initialUser, initialError, params, sear
         initialError={initialError}
         params={params}
         searchParams={searchParams}
-        session={session}
+        session={sessionForContent}
         updateProfile={updateProfile}
         tunnelReady={tunnelReady}
       />
     )
   }
 
-  // Only show access denied if neither server nor client session exists
   return <div className="text-center py-8">Access Denied. Please sign in to view your profile.</div>
 }
-

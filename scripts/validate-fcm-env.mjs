@@ -1,0 +1,150 @@
+#!/usr/bin/env node
+/**
+ * Validate Firebase client + admin env for FCM web push.
+ *
+ * Usage:
+ *   node scripts/validate-fcm-env.mjs
+ *   node scripts/validate-fcm-env.mjs --file .env.local
+ *   node scripts/validate-fcm-env.mjs --file k8s/secrets.yaml --format yaml
+ */
+
+import fs from 'node:fs'
+import path from 'node:path'
+
+const ROOT = path.resolve(import.meta.dirname, '..')
+
+const CLIENT_VARS = [
+  'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'NEXT_PUBLIC_FIREBASE_APP_ID',
+  'NEXT_PUBLIC_FIREBASE_VAPID_KEY',
+]
+
+const SERVER_VARS = [
+  'AUTH_FIREBASE_PROJECT_ID',
+  'AUTH_FIREBASE_CLIENT_EMAIL',
+  'AUTH_FIREBASE_PRIVATE_KEY',
+]
+
+const PLACEHOLDER = /^(your_|demo-|changeme|replace_me|xxx|todo|your-)/i
+const RING_MAIN_VAPID_PREFIX = 'BKQ4OAwA-'
+
+function parseArgs() {
+  const fileIdx = process.argv.indexOf('--file')
+  const formatIdx = process.argv.indexOf('--format')
+  return {
+    file: fileIdx >= 0 ? process.argv[fileIdx + 1] : '.env.local',
+    format: formatIdx >= 0 ? process.argv[formatIdx + 1] : 'dotenv',
+  }
+}
+
+function parseDotenv(content) {
+  const env = {}
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq < 0) continue
+    const key = trimmed.slice(0, eq).trim()
+    let value = trimmed.slice(eq + 1).trim()
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    env[key] = value
+  }
+  return env
+}
+
+function parseYamlFirebase(content) {
+  const env = {}
+  for (const key of [...CLIENT_VARS, ...SERVER_VARS]) {
+    const re = new RegExp(`^\\s*${key}:\\s*["']?([^"'\\n#]+)`, 'm')
+    const m = content.match(re)
+    if (m) env[key] = m[1].trim()
+  }
+  return env
+}
+
+function loadEnv(file, format) {
+  const abs = path.isAbsolute(file) ? file : path.join(ROOT, file)
+  if (!fs.existsSync(abs)) {
+    console.error(`File not found: ${abs}`)
+    process.exit(1)
+  }
+  const content = fs.readFileSync(abs, 'utf8')
+  return format === 'yaml' ? parseYamlFirebase(content) : parseDotenv(content)
+}
+
+function statusFor(key, value) {
+  if (!value?.trim()) return { level: 'error', message: 'MISSING' }
+  if (PLACEHOLDER.test(value.trim())) return { level: 'error', message: 'PLACEHOLDER' }
+  return { level: 'ok', message: `set (${value.trim().length} chars)` }
+}
+
+function main() {
+  const { file, format } = parseArgs()
+  const env = loadEnv(file, format)
+  let fail = 0
+  let warn = 0
+
+  console.log(`FCM env audit — ${file}\n`)
+
+  console.log('Client (NEXT_PUBLIC_FIREBASE_*):')
+  for (const key of CLIENT_VARS) {
+    const st = statusFor(key, env[key])
+    console.log(`  ${st.level === 'ok' ? 'OK' : 'FAIL'}  ${key}: ${st.message}`)
+    if (st.level !== 'ok') fail++
+  }
+
+  console.log('\nServer (Firebase Admin — push send):')
+  for (const key of SERVER_VARS) {
+    const st = statusFor(key, env[key])
+    console.log(`  ${st.level === 'ok' ? 'OK' : 'FAIL'}  ${key}: ${st.message}`)
+    if (st.level !== 'ok') fail++
+  }
+
+  const projectId = env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()
+  const adminProject = env.AUTH_FIREBASE_PROJECT_ID?.trim()
+  if (projectId && adminProject && projectId !== adminProject) {
+    console.log(`\nWARN  Project mismatch: client=${projectId} admin=${adminProject}`)
+    warn++
+  }
+
+  const vapid = env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
+  if (vapid && projectId && vapid.startsWith(RING_MAIN_VAPID_PREFIX) && projectId !== 'ring-main') {
+    console.log(
+      `\nFAIL  Cross-project VAPID leak: key prefix matches ring-main but NEXT_PUBLIC_FIREBASE_PROJECT_ID=${projectId}`,
+    )
+    console.log(
+      '      Fix: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates',
+    )
+    console.log(`      Generate/copy the key pair for project "${projectId}" into NEXT_PUBLIC_FIREBASE_VAPID_KEY`)
+    fail++
+  }
+
+  const sender = env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim()
+  const appId = env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim()
+  if (sender && appId && !appId.includes(`:${sender}:`)) {
+    console.log(
+      `\nWARN  APP_ID sender segment may not match MESSAGING_SENDER_ID (${sender}) — verify Firebase web app config`,
+    )
+    warn++
+  }
+
+  console.log(`\nSummary: ${fail} error(s), ${warn} warning(s)`)
+  if (fail > 0) {
+    console.log('\nGCP checklist (if VAPID is correct but subscribe still fails):')
+    console.log('  - Enable "Firebase Cloud Messaging API" for the Firebase/GCP project')
+    console.log('  - Enable "Firebase Installations API"')
+    console.log('  - Ensure API key is not HTTP-referrer restricted blocking fcmregistrations.googleapis.com')
+    process.exit(1)
+  }
+}
+
+main()

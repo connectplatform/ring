@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { DeskQuoteRequestSchema } from '@/lib/zod/desk-schemas'
-import { quoteDesk } from '@/features/wallet/chains/solana/desk-service'
+import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
 import { queryString } from '@/lib/server/request'
 
 export async function GET(request: NextRequest) {
@@ -25,14 +25,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const quote = await quoteDesk({
+    const quote = await WalletConductor.quoteDesk({
       userId: session.user.id,
+      role: session.user.role,
       side: parsed.data.side,
       amount: parsed.data.amount,
     })
     return NextResponse.json(quote)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Quote failed'
-    return NextResponse.json({ error: message }, { status: 400 })
+    const status = message.includes('subscriber') ? 403 : 400
+    return NextResponse.json(
+      {
+        error: message,
+        code: status === 403 ? 'DESK_SUBSCRIBER_REQUIRED' : undefined,
+      },
+      { status },
+    )
   }
 }

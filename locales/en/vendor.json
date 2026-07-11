@@ -72,7 +72,10 @@
       "viewOrders": "View Orders",
       "stockLevels": "Stock Levels",
       "earnings": "Earnings",
-      "storeSettings": "Store Settings"
+      "storeSettings": "Store Settings",
+      "updateInventory": "Update inventory",
+      "viewAnalytics": "View analytics",
+      "settings": "Settings"
     },
     "boostSalesTitle": "Boost Your Sales",
     "boostSalesTips": {
@@ -82,7 +85,77 @@
     },
     "resourcesTitle": "Vendor Resources",
     "resourcesDescription": "Learn how to maximize your store's potential",
-    "viewVendorGuide": "View Vendor Guide →"
+    "viewVendorGuide": "View Vendor Guide →",
+    "subtitle": "Manage your store, orders, and payouts",
+    "trustScore": "Trust score",
+    "taxVerified": "Tax verified",
+    "taxPending": "Tax pending",
+    "fromLastMonth": "from last month",
+    "averageValue": "Avg. order",
+    "available": "Available",
+    "trustLevel": {
+      "new": "New",
+      "basic": "Basic",
+      "verified": "Verified",
+      "trusted": "Trusted",
+      "premium": "Premium"
+    },
+    "status": {
+      "open": "Open",
+      "closed": "Closed",
+      "suspended": "Suspended",
+      "pending": "Pending"
+    },
+    "metrics": {
+      "totalSales": "Total sales",
+      "totalOrders": "Total orders",
+      "satisfaction": "Satisfaction",
+      "pendingPayout": "Pending payout"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "products": "Products",
+      "orders": "Orders",
+      "payouts": "Payouts"
+    },
+    "performance": {
+      "title": "Performance",
+      "description": "Fulfillment and conversion health",
+      "fulfillmentRate": "Fulfillment rate",
+      "conversionRate": "Conversion rate",
+      "responseTime": "Return processing time"
+    },
+    "products": {
+      "title": "Products",
+      "active": "{count} active",
+      "total": "{count} total",
+      "outOfStock": "Out of stock",
+      "manage": "Manage products"
+    },
+    "orders": {
+      "recent": "Recent orders",
+      "noRecent": "No recent orders yet.",
+      "viewAll": "View all orders"
+    },
+    "payouts": {
+      "summary": "Payout summary",
+      "totalPaid": "Commission paid",
+      "pending": "Pending payouts",
+      "history": "Payout history"
+    },
+    "recentOrders": {
+      "title": "Recent Orders",
+      "description": "Latest customer orders from your store",
+      "viewAll": "View All",
+      "empty": "No orders yet. Start promoting your products!",
+      "unknownCustomer": "Customer"
+    },
+    "dagi": {
+      "title": "DAGI Vendor Agent",
+      "comingSoon": "Coming soon",
+      "description": "AI agent activation and DAARION staking will land here. Store operations (products, orders, stock, earnings) are available now from the vendor menu.",
+      "todoNote": "Provisioning API and wallet staking remain planned — no mock activation."
+    }
   },
   "products": {
     "title": "My Products",

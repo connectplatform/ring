@@ -29,6 +29,7 @@ type UserRow = Record<string, unknown> & {
   emailVerified?: Date | null
   name?: string | null
   image?: string | null
+  photoURL?: string | null
 }
 
 // Throws an error if a DB command has failed. This avoids silent failures
@@ -52,7 +53,10 @@ function toAdapterUser(row: UserRow): AdapterUser {
     email: row.email ?? '',
     emailVerified: row.emailVerified ?? null,
     name: row.name ?? null,
-    image: row.image ?? null,
+    image:
+      (row.image as string | null | undefined) ??
+      (row.photoURL as string | null | undefined) ??
+      null,
   }
 }
 
@@ -123,6 +127,24 @@ export function PostgreSQLAdapter(): Adapter {
         }
 
         console.log('PostgreSQLAdapter: User created successfully:', result.data.id)
+
+        // Platform event log — feeds admin Recent Activity (New User filter)
+        try {
+          const { appendEvent } = await import('@/lib/events/event-log.server')
+          await appendEvent({
+            type: 'user_registered',
+            userId: result.data.id,
+            reversible: false,
+            payload: {
+              email: userData.email,
+              role: userData.role,
+              authProvider: 'oauth_or_credentials',
+            },
+          })
+        } catch (eventError) {
+          console.warn('PostgreSQLAdapter: appendEvent user_registered failed', eventError)
+        }
+
         // Transform and return required AdapterUser
         return toAdapterUser(result.data as UserRow)
       } catch (error) {

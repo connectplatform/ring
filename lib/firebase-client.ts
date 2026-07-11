@@ -91,9 +91,23 @@ export function validateFcmVapidKey(): boolean {
   return !isPlaceholderValue(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY)
 }
 
+/**
+ * Propagation leak detector: ring-main VAPID (BKQ4OAwA…) copied into other Firebase projects
+ * causes FCM `token-subscribe-failed` / missing authentication credential in the browser.
+ */
+export function isKnownCrossProjectVapidLeak(): boolean {
+  const vapid = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()
+  if (!vapid || !projectId) return false
+  const isRingMainVapid =
+    vapid.startsWith('BKQ4OAwA-') || vapid.startsWith('BKQ4OAwA')
+  const isRingMainProject = projectId === 'ring-main'
+  return isRingMainVapid && !isRingMainProject
+}
+
 /** Client FCM is usable only when Firebase app config and VAPID key are both valid. */
 export function isFcmConfigured(): boolean {
-  return validateFirebaseConfig() && validateFcmVapidKey()
+  return validateFirebaseConfig() && validateFcmVapidKey() && !isKnownCrossProjectVapidLeak()
 }
 
 /**

@@ -382,53 +382,6 @@ Return only the explanation text, no additional formatting or quotes.`;
       matchScore: match.overallScore,
     });
   }
-
-  /**
-   * Get matching analytics for reporting
-   */
-  async getMatchingAnalytics(timeframe: { start: Date; end: Date }): Promise<{
-    totalMatches: number;
-    averageMatchScore: number;
-    topMatchingFactors: string[];
-    matchSuccessRate: number;
-  }> {
-    // Derived from opportunity_matched_ai notifications (the durable match record).
-    try {
-      const { db } = await import('@/lib/database');
-
-      const result = await db().queryDocs<Record<string, unknown>>({
-        collection: 'notifications',
-        filters: [{ field: 'type', operator: '=', value: 'opportunity_matched_ai' }],
-        pagination: { limit: 1000 },
-      });
-
-      const rows = result.success ? result.data : [];
-      const inWindow = rows.filter((row) => {
-        const created = row.created_at ? new Date(String(row.created_at)) : null;
-        return created && created >= timeframe.start && created <= timeframe.end;
-      });
-
-      const scores = inWindow
-        .map((row) => {
-          const payload = row.data as { matchScore?: number } | undefined;
-          return Number(payload?.matchScore ?? row.matchScore);
-        })
-        .filter((s) => Number.isFinite(s));
-      const read = inWindow.filter((row) => Boolean(row.read_at));
-
-      return {
-        totalMatches: inWindow.length,
-        averageMatchScore: scores.length
-          ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
-          : 0,
-        topMatchingFactors: ['skillMatch', 'experienceMatch', 'industryMatch'],
-        matchSuccessRate: inWindow.length ? Math.round((read.length / inWindow.length) * 100) / 100 : 0,
-      };
-    } catch (error) {
-      logger.warn('MatchingService: analytics query failed', { error });
-      return { totalMatches: 0, averageMatchScore: 0, topMatchingFactors: [], matchSuccessRate: 0 };
-    }
-  }
 }
 
 /**

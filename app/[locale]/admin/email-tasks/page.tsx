@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { EmailAdminShell } from '@/features/admin/email/email-admin-shell';
 import { CheckCircle, Clock, ListTodo } from 'lucide-react';
 
 // Represents an individual email task and its relevant details.
@@ -53,6 +54,7 @@ export default function EmailTasksPage() {
   // TODO: Consider optimistic UI updates by updating state immediately, then reconciling with server result after request.
 
   return (
+    <EmailAdminShell pageContext="email-tasks">
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-5xl mx-auto">
         {/* Header and page title */}
@@ -103,5 +105,6 @@ export default function EmailTasksPage() {
         </div>
       </div>
     </div>
+    </EmailAdminShell>
   );
 }

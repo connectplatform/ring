@@ -83,7 +83,7 @@ export class MessageService {
         attachments: processedAttachments,
         timestamp: now,
         status: 'sent' as const,
-        type: 'text' as const
+        type: (data.type || 'text') as Message['type'],
       }
 
       // Save message to database (MUTATION - NO CACHE!)
@@ -114,6 +114,35 @@ export class MessageService {
       // Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
       try {
         await publishToChannel(`conversation:${data.conversationId}`, 'message:new', message);
+        // Live inbox unread for participants not currently in the thread.
+        // UPGRADE: coalesce high-rate DMs into a single unread delta per second.
+        const recipients = (
+          await this.conversationService.getConversationById(data.conversationId, senderId)
+        )?.participants
+          .map((p) => p.userId)
+          .filter((id) => id !== senderId)
+        if (recipients?.length) {
+          const { publishToUserTunnel } = await import('@/lib/tunnel/publisher')
+          await Promise.allSettled(
+            recipients.map((userId) =>
+              publishToUserTunnel(userId, 'conversations:inbox', {
+                action: 'message:new',
+                conversationId: data.conversationId,
+                message: {
+                  id: message.id,
+                  content: message.content,
+                  senderId: message.senderId,
+                  senderName: message.senderName,
+                  timestamp:
+                    message.timestamp instanceof Date
+                      ? message.timestamp.getTime()
+                      : message.timestamp,
+                  type: message.type,
+                },
+              }),
+            ),
+          )
+        }
       } catch (error) {
         // Log but don't fail - real-time is nice-to-have
         logRingError(error, `Failed to trigger real-time update for conversation ${data.conversationId}`)
@@ -459,14 +488,56 @@ export class MessageService {
    */
   private async sendNotificationsToParticipants(conversationId: string, senderId: string, message: Message): Promise<void> {
     try {
-      // This is a placeholder for actual notification logic
-      console.log(`Would send notification for message: ${message.content}`)
-      
-      // In a real implementation, this would:
-      // 1. Get conversation participants
-      // 2. Filter out the sender
-      // 3. Send push notifications, emails, etc.
-      
+      const conversation = await this.conversationService.getConversationById(conversationId, senderId)
+      if (!conversation) return
+
+      const mutedBy = new Set(conversation.metadata?.mutedBy ?? [])
+      const recipients = conversation.participants
+        .map((p) => p.userId)
+        .filter((id) => id !== senderId && !mutedBy.has(id))
+
+      if (recipients.length === 0) return
+
+      const { createNotification } = await import('@/features/notifications/services/notification-service')
+      const {
+        NotificationType,
+        NotificationChannel,
+        NotificationPriority,
+      } = await import('@/features/notifications/types')
+
+      const preview =
+        message.type === 'text'
+          ? message.content.slice(0, 140)
+          : message.type === 'image'
+            ? 'Sent an image'
+            : message.type === 'file'
+              ? 'Sent a file'
+              : message.content.slice(0, 140)
+
+      const title =
+        conversation.type === 'group'
+          ? conversation.metadata.groupName || 'Group chat'
+          : message.senderName || 'New message'
+
+      await Promise.allSettled(
+        recipients.map((userId) =>
+          createNotification({
+            userId,
+            type: NotificationType.MESSAGE_RECEIVED,
+            priority: NotificationPriority.NORMAL,
+            title,
+            body: preview,
+            actionText: 'Open chat',
+            actionUrl: `/messages?c=${encodeURIComponent(conversationId)}`,
+            channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
+            data: {
+              conversationId,
+              messageId: message.id,
+              senderId,
+            },
+          } as never),
+        ),
+      )
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to send notifications to participants',

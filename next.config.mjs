@@ -74,6 +74,15 @@ const nextConfig = {
   async redirects() {
     return buildDocsUrlRedirects()
   },
+  async rewrites() {
+    // Serve KEYS collection metadata as application/json (avoid [locale]/[username] HTML catch-all).
+    return [
+      {
+        source: '/nft/gates/collection.json',
+        destination: '/api/nft/gates/collection',
+      },
+    ]
+  },
   async headers() {
     // SECURITY FIX: Restrict CORS to specific origins only
     const allowedOrigins = process.env.NODE_ENV === 'production' 

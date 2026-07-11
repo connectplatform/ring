@@ -72,17 +72,91 @@
       "viewOrders": "Просмотр заказов",
       "stockLevels": "Остатки на складе",
       "earnings": "Доходы",
-      "storeSettings": "Настройки магазина"
+      "storeSettings": "Настройки магазина",
+      "updateInventory": "Обновить склад",
+      "viewAnalytics": "Аналитика",
+      "settings": "Настройки"
     },
     "boostSalesTitle": "Увеличьте продажи",
     "boostSalesTips": {
       "photos": "Добавляйте качественные фото товаров — до 3× больше просмотров",
       "inventory": "Обновляйте остатки ежедневно для лучшего ранжирования",
-      "regenerative": "Подчёркивайте регенеративные практики для бонусов DAAR"
+      "regenerative": "Подчёркивайте регенеративные практики для бонусов DAAR",
+      "quality": "Подчёркивайте регенеративные практики для бонусов DAAR"
     },
     "resourcesTitle": "Ресурсы для продавцов",
     "resourcesDescription": "Узнайте, как раскрыть потенциал вашего магазина",
-    "viewVendorGuide": "Руководство продавца →"
+    "viewVendorGuide": "Руководство продавца →",
+    "subtitle": "Управляйте магазином, заказами и выплатами",
+    "trustScore": "Уровень доверия",
+    "taxVerified": "Налоги подтверждены",
+    "taxPending": "Налоги ожидают",
+    "fromLastMonth": "от прошлого месяца",
+    "averageValue": "Средний чек",
+    "available": "Доступно",
+    "trustLevel": {
+      "new": "Новый",
+      "basic": "Базовый",
+      "verified": "Проверенный",
+      "trusted": "Доверенный",
+      "premium": "Премиум"
+    },
+    "status": {
+      "open": "Открыт",
+      "closed": "Закрыт",
+      "suspended": "Приостановлен",
+      "pending": "Ожидает"
+    },
+    "metrics": {
+      "totalSales": "Продажи",
+      "totalOrders": "Заказы",
+      "satisfaction": "Удовлетворённость",
+      "pendingPayout": "Ожидаемая выплата"
+    },
+    "tabs": {
+      "overview": "Обзор",
+      "products": "Товары",
+      "orders": "Заказы",
+      "payouts": "Выплаты"
+    },
+    "performance": {
+      "title": "Эффективность",
+      "description": "Исполнение и конверсия",
+      "fulfillmentRate": "Уровень исполнения",
+      "conversionRate": "Конверсия",
+      "responseTime": "Время обработки возвратов"
+    },
+    "products": {
+      "title": "Товары",
+      "active": "{count} активных",
+      "total": "{count} всего",
+      "outOfStock": "Нет в наличии",
+      "manage": "Управлять товарами"
+    },
+    "orders": {
+      "recent": "Недавние заказы",
+      "noRecent": "Пока нет заказов.",
+      "viewAll": "Все заказы"
+    },
+    "payouts": {
+      "summary": "Сводка выплат",
+      "totalPaid": "Уплаченная комиссия",
+      "pending": "Ожидаемые выплаты",
+      "history": "История выплат"
+    },
+    "recentOrders": {
+      "title": "Недавние заказы",
+      "description": "Последние заказы из вашего магазина",
+      "viewAll": "Все",
+      "empty": "Заказов пока нет. Начните продвигать товары!",
+      "unknownCustomer": "Покупатель"
+    },
+    "dagi": {
+      "title": "DAGI агент продавца",
+      "comingSoon": "Скоро",
+      "description": "Активация AI-агента и стейкинг DAARION появятся здесь. Операции магазина уже доступны в меню продавца.",
+      "todoNote": "API провизионирования и стейкинг кошелька запланированы — без mock-активации."
+    }
   },
   "products": {
     "title": "Мои продукты",

@@ -1,7 +1,6 @@
 import NextAuth from "next-auth"
 import type { Session } from "next-auth"
 import { getAuthAdapter } from "@/lib/auth-adapter-singleton"
-import { getAdminDb } from "@/lib/firebase-admin.server"
 import { db } from "@/lib/database"
 import authConfig from "./auth.config"
 import GoogleProvider from "next-auth/providers/google"
@@ -14,14 +13,9 @@ import {
 } from "@/features/wallet/services/verify-wallet-signature"
 import { OAuth2Client } from 'google-auth-library'
 import { generateInternalJWT } from "@/lib/auth/generate-jwt"
-import {
-  type AuthUser,
-  type Wallet,
-  type UserSettings,
-  type NotificationPreferences,
-} from "@/features/auth/types"
-import { UserRolesArray, resolveSessionUserRole } from "@/features/auth/user-role"
-import { ensureWallet } from "@/features/wallet/services/ensure-wallet"
+import { randomUUID } from "node:crypto"
+import { UserRolesArray, resolvePersistedUserRole, resolveSessionUserRole } from "@/features/auth/user-role"
+import { WalletConductor } from "@/features/wallet/conductor/wallet-conductor"
 import { userMigrationService } from "@/features/auth/services/user-migration"
 import { shouldSkipDatabaseConnect } from "@/lib/build-cache/phase-detector"
 import {
@@ -47,8 +41,8 @@ import {
   suspensionReasonFromJwt,
 } from "@/lib/auth/session-user-status"
 
-// TODO: On Next.js 14+ ensure use of native server actions for all authentication action handlers (see Next 14 docs).
-// TODO: Consider codemod to `export const { auth, handlers, signIn, signOut }` using new NextAuth direct exports if using next-auth v5+ and Next.js 14+.
+// Auth.js v5 + Next.js 16: handlers live at app/api/auth/[...nextauth]/route.ts;
+// mutations that need UI state go through Server Actions + useActionState.
 
 const googleOAuthClientId = getGoogleOAuthClientId() // Fetch Google OAuth client ID from env/config
 
@@ -88,7 +82,7 @@ function isGoogleOneTapSignIn(
 // Get singleton auth adapter (may be null during build)
 const authAdapter = getAuthAdapter()
 
-// Backend mode selection for adapter targeting
+// Backend mode selection for adapter targeting / diagnostics
 import { shouldUseFirebaseForDatabase } from './lib/database/backend-mode-config'
 const useFirebase = shouldUseFirebaseForDatabase()
 const usePostgreSQL = !useFirebase
@@ -110,8 +104,6 @@ if (hasAdapter && !hasResendKey && !shouldSkipDatabaseConnect()) {
     "AUTH_RESEND_KEY not set. Magic link authentication will be disabled. Set AUTH_RESEND_KEY to enable email authentication.",
   )
 }
-
-// TODO: When Next.js 14+ stable, consider moving auth options to app/api/auth/[[...nextauth]]/route.ts for native route segment support
 
 const nextAuthApp = NextAuth({
   ...authConfig, // Bring in custom user config
@@ -169,8 +161,7 @@ const nextAuthApp = NextAuth({
         }
         authLog('🟡 GIS JWT provider - passing credential for server verification')
         authLog('🟡 JWT length:', (credentials.credential as string).length)
-        // Place the JWT in email field for later extraction
-        // TODO: switch to dedicated field or session storage for improved clarity if supported by next-auth
+        // GIS JWT rides in `email` until signIn verifies it (CredentialsProvider field limit).
         return {
           id: 'gis-jwt-pending',
           email: credentials.credential as string, // Store JWT credential here for signIn callback
@@ -202,24 +193,14 @@ const nextAuthApp = NextAuth({
         try {
           // Normalize wallet storage id for DB operations
           const storageId = normalizeWalletStorageId(walletAddress)
-          let userData: Record<string, unknown> | null = null
 
-          // Read user by wallet from DB (PostgreSQL or Firebase)
-          if (usePostgreSQL) {
-            const userResult = await db().readDoc<Record<string, unknown>>('users', storageId)
-            if (!userResult.success) {
-              if (userResult.metadata?.operation === 'initialize') authLog("Crypto wallet auth: database init failed", userResult.error)
-              return null
-            }
-            if (userResult.data) {
-              userData = userResult.data
-            }
-          } else if (useFirebase) {
-            const db = getAdminDb()
-            if (!db) throw new Error("Firestore instance is not available")
-            const userDoc = await db.collection("users").doc(storageId).get()
-            userData = userDoc.exists ? (userDoc.data() as Record<string, unknown>) : null
+          // Read user by wallet from DB (db() routes Firebase or PostgreSQL)
+          const userResult = await db().readDoc<Record<string, unknown>>('users', storageId)
+          if (!userResult.success) {
+            if (userResult.metadata?.operation === 'initialize') authLog("Crypto wallet auth: database init failed", userResult.error)
+            return null
           }
+          const userData = userResult.data ?? null
 
           // Validate nonce existence and expiry
           const nonce = userData?.nonce
@@ -236,26 +217,11 @@ const nextAuthApp = NextAuth({
           if (!valid) return null
 
           // On success, clear nonce/nonceExpires and stamp lastLogin
-          const clearedNonce = {
-            ...userData,
+          await db().updateDoc('users', storageId, {
             nonce: null,
             nonceExpires: null,
             lastLogin: new Date(),
-          }
-
-          // Persist updated user fields
-          if (usePostgreSQL) {
-            await db().updateDoc('users', storageId, clearedNonce)
-          } else if (useFirebase) {
-            const db = getAdminDb()
-            if (db) {
-              await db.collection("users").doc(storageId).update({
-                nonce: null,
-                nonceExpires: null,
-                lastLogin: new Date(),
-              })
-            }
-          }
+          })
 
           // Create auth session object for downstream use
           const now = new Date()
@@ -279,7 +245,7 @@ const nextAuthApp = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
     // JWT callback: enrich JWT with user data and custom claims
-    async jwt({ token, user, account, trigger }) {
+    async jwt({ token, user, account, trigger, session }) {
       // Log important JWT events only if allowed
       if (process.env.NODE_ENV === 'development' || process.env.AUTH_DEBUG === 'true') {
         if (trigger === 'update' || (user && account)) {
@@ -287,78 +253,50 @@ const nextAuthApp = NextAuth({
         }
       }
 
+      const sessionPatch = session as { accountStatusRefresh?: boolean } | undefined
+
       // Decide if we need to fetch/update fresh user data from DB. This keeps JWT stateless but up-to-date.
       const needsUserData =
-        trigger === 'update' ||
+        (trigger === 'update' && sessionPatch?.accountStatusRefresh === true) ||
         (user && account) ||
         (user && !token.name) ||
-        (token.userId && !token.role) ||
-        (token.userId && token.accountStatus === undefined)
+        (token.userId && !token.role)
 
       if (needsUserData) {
         if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
           authLog('Fetching fresh user data for userId:', token.userId || user?.id)
         }
         try {
-          if (usePostgreSQL) {
-            const userId = (token.userId as string) || user?.id
-            if (userId) {
-              if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
-                authLog('Looking up user in PostgreSQL via BackendSelector:', userId)
-              }
-              // Fetch user record from DB. Strongly type to UserRow if available.
-              const result = await db().readDoc<import('@/features/auth/lib/user-row').UserRow>('users', userId)
-              if (!result.success) {
-                if (result.metadata?.operation === 'initialize') {
-                  authLog('Database initialization failed in JWT callback:', result.error)
-                }
-                return token // STUB: consider error resilience when DB unavailable
-              }
-              if (result.data) {
-                // Found fresh user, merge into JWT payload
-                const userData = result.data
-                if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
-                  authLog('Found user data in PostgreSQL:', { name: userData?.name, email: userData?.email, role: userData?.role })
-                }
-                applyUserRowToJwt(token, userData)
-              } else {
-                // If user not found by ID, attempt repair based on email
-                authLog('User document not found in PostgreSQL for ID:', userId)
-                const repairEmail = normalizeAuthEmail(
-                  (token.email as string | undefined) || user?.email || undefined
-                )
-                if (repairEmail) {
-                  const canonical = await findUserByEmail(repairEmail)
-                  if (canonical) {
-                    authLog('JWT repair: remapping userId to canonical email match:', canonical.id)
-                    token.userId = canonical.id
-                    applyUserRowToJwt(token, canonical)
-                  }
-                }
-              }
+          const userId = (token.userId as string) || user?.id
+          if (userId) {
+            if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
+              authLog('Looking up user via BackendSelector db():', userId)
             }
-          } else if (useFirebase) {
-            // Read user doc from Firestore DB if in Firebase mode
-            const db = getAdminDb()
-            if (db && (token.userId || user?.id)) {
-              const userId = (token.userId as string) || user?.id
-              console.log('Looking up user document in Firebase for ID:', userId)
-              const userDoc = await db.collection("users").doc(userId).get()
-
-              if (userDoc.exists) {
-                const userData = userDoc.data()
-                console.log('Found user data in Firebase:', { name: userData?.name, email: userData?.email, role: userData?.role })
-                // Update all user fields on token
-                token.username = userData?.username
-                token.phoneNumber = userData?.phoneNumber
-                token.bio = userData?.bio
-                token.organization = userData?.organization
-                token.position = userData?.position
-                token.photoURL = userData?.photoURL
-                token.role = userData?.role ?? UserRolesArray.subscriber as UserRolesArray
-                token.isVerified = userData?.isVerified ?? false
-              } else {
-                console.log('User document not found in Firebase for ID:', userId)
+            const result = await db().readDoc<import('@/features/auth/lib/user-row').UserRow>('users', userId)
+            if (!result.success) {
+              if (result.metadata?.operation === 'initialize') {
+                authLog('Database initialization failed in JWT callback:', result.error)
+              }
+              return token
+            }
+            if (result.data) {
+              const userData = result.data
+              if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
+                authLog('Found user data for JWT:', { name: userData?.name, email: userData?.email, role: userData?.role })
+              }
+              applyUserRowToJwt(token, userData)
+            } else {
+              authLog('User document not found for ID:', userId)
+              const repairEmail = normalizeAuthEmail(
+                (token.email as string | undefined) || user?.email || undefined
+              )
+              if (repairEmail) {
+                const canonical = await findUserByEmail(repairEmail)
+                if (canonical) {
+                  authLog('JWT repair: remapping userId to canonical email match:', canonical.id)
+                  token.userId = canonical.id
+                  applyUserRowToJwt(token, canonical)
+                }
               }
             }
           }
@@ -370,7 +308,9 @@ const nextAuthApp = NextAuth({
       // If new/user present, always hydrate JWT with live info
       if (user) {
         token.userId = user.id
-        token.role = token.role || (user as any).role || UserRolesArray.subscriber as UserRolesArray
+        token.role = resolvePersistedUserRole(
+          token.role || (user as any).role || UserRolesArray.subscriber,
+        )
         token.isVerified = (user as any).isVerified ?? false
         token.username = (user as any).username
         token.phoneNumber = (user as any).phoneNumber
@@ -384,7 +324,7 @@ const nextAuthApp = NextAuth({
             const internalJWT = await generateInternalJWT(
               user.id,
               user.email || undefined,
-              resolveSessionUserRole((user as any).role || (token.role as string))
+              resolvePersistedUserRole((user as any).role || (token.role as string))
             )
             token.accessToken = internalJWT
           } catch (error) {
@@ -401,8 +341,15 @@ const nextAuthApp = NextAuth({
         }
       }
 
-      // Always resolve role into canonical string
-      token.role = resolveSessionUserRole(token.role)
+      // Authenticated JWTs must never carry visitor (guest-only label).
+      token.role = token.userId
+        ? resolvePersistedUserRole(token.role)
+        : resolveSessionUserRole(token.role)
+
+      // Legacy cookies: bootstrap accountStatus so undefined does not re-trigger DB reads forever.
+      if (token.userId && token.accountStatus === undefined) {
+        token.accountStatus = 'ACTIVE'
+      }
 
       // If accessToken is missing (e.g., from a previous session), attempt regeneration
       if (!token.accessToken && token.userId) {
@@ -425,7 +372,7 @@ const nextAuthApp = NextAuth({
     async session({ session, token }) {
       if (token) {
         session.user.id = token.userId as string
-        session.user.role = resolveSessionUserRole(token.role)
+        session.user.role = resolvePersistedUserRole(token.role)
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
@@ -503,8 +450,7 @@ const nextAuthApp = NextAuth({
               console.log('🔵 One Tap reusing canonical user:', user.id)
             } else {
               // No user found → create new
-              // TODO: Replace use of `crypto.randomUUID()` with native React/Next generated UUID if available in context (e.g. via import { randomUUID } from "node:crypto")
-              user.id = crypto.randomUUID()
+              user.id = randomUUID()
               await createOAuthUserFromGooglePayload({
                 userId: user.id,
                 email,
@@ -539,29 +485,24 @@ const nextAuthApp = NextAuth({
           }
         }
 
-        // Block sign-ins to suspended/disabled accounts if on PostgreSQL
-        if (usePostgreSQL) {
-          const loginUserId = user.id
-          if (loginUserId) {
-            const { status } = await getUserAccountStatus(loginUserId)
-            if (!isAccountLoginAllowed(status)) {
-              console.warn('Sign-in blocked for account status:', status, loginUserId)
-              return false
-            }
-            ;(user as { accountStatus?: string }).accountStatus = status
+        // Block sign-ins to suspended/disabled accounts (db()-backed status)
+        const loginUserId = user.id
+        if (loginUserId) {
+          const { status } = await getUserAccountStatus(loginUserId)
+          if (!isAccountLoginAllowed(status)) {
+            console.warn('Sign-in blocked for account status:', status, loginUserId)
+            return false
           }
-          console.log('✅ Using PostgreSQL adapter - user creation handled by adapter')
-          return true
-        } else if (useFirebase) {
-          // Firestore handles user sign up; no extra step needed here
-          console.log('✅ Using Firebase adapter - user creation handled by adapter')
-          return true
-        } else {
-          // JWT-only "stateless" mode -- no backend persistence
-          // STUB: Consider blocking magiclink/Google/Apple sign-ins here in full stateless mode if data consistency is required.
-          console.log('⚠️  JWT-only mode - no database persistence')
-          return true
+          ;(user as { accountStatus?: string }).accountStatus = status
         }
+        if (usePostgreSQL) {
+          console.log('✅ Using PostgreSQL adapter - user creation handled by adapter')
+        } else if (useFirebase) {
+          console.log('✅ Using Firebase adapter - user creation handled by adapter')
+        } else {
+          console.log('⚠️  JWT-only mode - no database persistence')
+        }
+        return true
       } catch (error) {
         // If backend fails, default to allowing sign in for resilience (soft fail open)
         console.error("Sign in error:", error)
@@ -588,7 +529,6 @@ const nextAuthApp = NextAuth({
             await persistSignupReferralAttribution(user.id, refCode)
           }
         } catch (referralPersistError) {
-          // STUB: Fallback strategy for attribution failure (optionally implement SSR fallback)
           console.warn('Signup referral attribution skipped:', referralPersistError)
         }
       }
@@ -606,13 +546,16 @@ const nextAuthApp = NextAuth({
         console.error('Failed to ensure user document exists:', error)
       }
 
-      // Ensure initial wallet exists for auth'd user
+      // Ensure initial wallet exists for auth'd user (WalletConductor; override-safe — no session yet)
       try {
         console.log('Ensuring wallet for OAuth user:', user.email)
-        await ensureWallet({
+        const ensured = await WalletConductor.ensureNativeWallet({
           id: user.id,
           role: (user as any).role || UserRolesArray.subscriber as UserRolesArray,
         })
+        if (!ensured.ok) {
+          throw new Error(ensured.error || 'ensureNativeWallet failed')
+        }
         console.log('Wallet ensured successfully for OAuth user')
       } catch (error) {
         // If wallet fails, do not block authentication
@@ -635,8 +578,7 @@ const { auth: nextAuthBase, handlers, signIn, signOut } = nextAuthApp
 /**
  * Universal `auth()` for server session lookup, including MCP service injection.
  * Returns the signed-in user's session, or a synthetic session for superadmin MCP context.
- * 
- * TODO: For Next.js 14/React 19, codemod auth() to app/api/auth/route/segment and always await it, for maximum cross-server support.
+ * Next.js 16: awaits `connection()` in route contexts so cookie/header reads stay dynamic.
  */
 export async function auth(): Promise<Session | null> {
   // Next.js 16: opt out of static prerendering — auth() reads cookies/headers
@@ -669,6 +611,5 @@ export async function auth(): Promise<Session | null> {
 }
 
 export { handlers, signIn, signOut }
-// TODO: Once Next.js 14 app router fully migrates, directly export these as top-level method exports per NextAuth v5+ docs.
 
 export default { auth }

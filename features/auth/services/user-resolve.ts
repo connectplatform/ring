@@ -1,6 +1,5 @@
 import { db } from '@/lib/database'
-import { parseUserRolesArray, UserRolesArray } from '@/features/auth/user-role'
-import { ALL_USER_ROLES_SET } from '@/features/auth/user-role'
+import { parseUserRolesArray, UserRolesArray, resolvePersistedUserRole } from '@/features/auth/user-role'
 import { DEFAULT_LOCALE } from '@/lib/locale-config'
 import { getDefaultTheme } from '@/lib/ring-config-core' // TODO: Consider using React 19 server context for dynamic theming if Next.js 16 and React 19 are adopted; see comments in createOAuthUserFromGooglePayload for further detail.
 
@@ -308,8 +307,7 @@ export async function createOAuthUserFromGooglePayload(params: {
     emailVerified: params.emailVerified ?? null,
     name: params.name ?? null,
     image: params.image ?? null,
-    // If role not provided, fall back to visitor (lowest privilege) after validating.
-    role: params.role ?? (ALL_USER_ROLES_SET.has(parseUserRolesArray(params.role) as UserRolesArray) ? params.role : UserRolesArray.visitor),
+    role: resolvePersistedUserRole(params.role),
     isVerified: !!params.emailVerified, // This is redundant, but provided for convenience.
     createdAt: now,
     lastLogin: now,

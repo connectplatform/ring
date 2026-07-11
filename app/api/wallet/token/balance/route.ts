@@ -1,43 +1,27 @@
 import { NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { getNativeTokenBalanceForUser } from '@/features/wallet/chains/native-token-transfer-service'
+import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
 
-// Handles GET requests for user's native token balance
+/**
+ * GET /api/wallet/token/balance — native token balance via WalletConductor.
+ */
 export async function GET() {
-  // Ensure database connection is established before further operations
-  await connection() // TODO: If possible, switch to next-server's built-in middleware for DB connection handling in Next16
+  await connection()
 
   try {
-    // Authenticate the user and retrieve session
-    const session = await auth() // TODO: Replace with cookies().get('session') and Next.js 16 authentication methods if available for improved performance
-    
-    // If the user is not authenticated, respond with 401 Unauthorized
+    const session = await auth()
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Query the native token balance for the authenticated user
-    const result = await getNativeTokenBalanceForUser(session.user.id) // TODO: Consider caching balance with Next16 cache API for infrequent balance changes
+    const result = await WalletConductor.getNativeBalance(session.user.id)
     return NextResponse.json(result)
   } catch (error) {
-    // Parse the error message for more specific handling
-    const message = error instanceof Error ? error.message : 'Failed to fetch RING balance'
+    const message = error instanceof Error ? error.message : 'Failed to fetch native token balance'
     if (message.includes('not found')) {
-      // Return 404 if resource not found (could mean user wallet doesn't exist, etc.)
-      return NextResponse.json(
-        { error: message },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: message }, { status: 404 })
     }
-    // Log other errors for server-side debugging
-    console.error('GET /api/wallet/ring/balance failed:', error)
-    // Return generic 500 error for all other exceptions
-    return NextResponse.json(
-      { error: 'Failed to fetch RING balance' },
-      { status: 500 }
-    )
+    console.error('GET /api/wallet/token/balance failed:', error)
+    return NextResponse.json({ error: 'Failed to fetch native token balance' }, { status: 500 })
   }
 }

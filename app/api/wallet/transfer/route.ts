@@ -2,9 +2,9 @@ import { NextRequest, NextResponse, connection} from 'next/server'
 import { createWalletClient, createPublicClient, http, formatEther, parseEther, isAddress } from 'viem'
 import { polygon } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
-import { getAdminDb } from '@/lib/firebase-admin.server'
 import { auth } from "@/auth"
 import { decryptPrivateKey } from '@/lib/crypto'
+import { getUserWallets } from '@/lib/wallet/user-wallet-db'
 
 /**
  * POST handler for transferring native tokens (POL/MATIC) from user's wallet
@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
   console.warn(
-    '[DEPRECATED] POST /api/wallet/transfer — use POST /api/wallet/ring/transfer for RING sends',
+    '[EVM external wallet] POST /api/wallet/transfer — custodial Polygon POL path. ' +
+      'For platform native-token custodial sends use POST /api/wallet/token/transfer. ' +
+      'This route remains for connected external EVM wallets paying with SupportedCrypto (e.g. USDT) when chains.enabled includes evm — not folded into WalletConductor Solana SSOT.',
   )
 
   const startTime = Date.now()
@@ -79,30 +81,23 @@ export async function POST(request: NextRequest) {
 
     console.log(`📋 API: /api/wallet/transfer - Processing transfer: ${amount} ${tokenSymbol} to ${toAddress}`)
 
-    // 3. Retrieve and validate user wallet
-    const adminDb = await getAdminDb()
-    const userDoc = await adminDb.collection('users').doc(session.user.id).get()
-
-    if (!userDoc.exists) {
-      console.log('❌ API: /api/wallet/transfer - User document not found')
-      return NextResponse.json(
-        { error: 'User wallet not configured', code: 'WALLET_NOT_FOUND' },
-        { status: 404 }
-      )
-    }
-
-    const userData = userDoc.data()
-    const wallets = userData?.wallets || []
+    // 3. Retrieve and validate user wallet (db() via user-wallet-db SSOT)
+    const wallets = await getUserWallets(session.user.id)
 
     if (!wallets.length) {
+      console.log('❌ API: /api/wallet/transfer - No wallets configured')
       return NextResponse.json(
         { error: 'No wallets configured for user', code: 'NO_WALLETS' },
         { status: 404 }
       )
     }
 
-    // Find default wallet or use first available
-    const wallet = wallets.find((w: any) => w.isDefault) || wallets[0]
+    // Prefer EVM/default wallet for this POL path
+    const wallet =
+      wallets.find((w) => w.chain === 'evm' && w.isDefault) ||
+      wallets.find((w) => w.chain === 'evm') ||
+      wallets.find((w) => w.isDefault) ||
+      wallets[0]
 
     if (!wallet?.encryptedPrivateKey || !wallet?.address) {
       return NextResponse.json(

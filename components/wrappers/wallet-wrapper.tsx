@@ -28,9 +28,10 @@ export default function WalletWrapper({ children, locale }: WalletWrapperProps) 
       <WalletActivityProvider>
         <CreditHistoryProvider>
           <RingRightRailLayout
+            showRightRail
+            flushCenterPane
             isOpen={rightSidebarOpen}
             onToggle={setRightSidebarOpen}
-            contentClassName="pb-24 md:pt-2 lg:pb-8"
             rightRail={rightRail}
           >
             {children}

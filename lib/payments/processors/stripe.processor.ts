@@ -84,6 +84,10 @@ function productNameForPurpose(ctx: CreateCheckoutContext): string {
       return 'Store order'
     case 'membership_upgrade':
       return 'Membership upgrade'
+    case 'wallet_topup':
+      return 'Wallet credit top-up'
+    case 'native_token_onramp':
+      return 'Native token card onramp'
     default:
       return 'Ring payment'
   }

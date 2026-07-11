@@ -1,0 +1,229 @@
+---
+title: RingFileBase (object storage API)
+description: Self-hosted upload API for Ring clones — file() → RingBaseAdapter → MinIO/RGW, with env SSOT and k8s wiring
+last_modified: "2026-07-09"
+audience: both
+---
+
+# RingFileBase (object storage API)
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Pair with [Ring CDN](/docs/integrations/ring-cdn) for public delivery of uploaded objects.
+</Callout>
+
+**RingFileBase** is Ring’s self-hosted object-storage plane: an Express API (`ring-filebase-api`) that accepts authenticated multipart uploads and writes to **S3-compatible** storage (MinIO or Ceph RGW). Ring apps never talk to MinIO from the browser — they call `file().upload(...)`, which selects `RingBaseAdapter` when the storage provider is `ring_filebase`.
+
+| Concern | RingFileBase (this page) | Ring CDN |
+|---------|--------------------------|----------|
+| Role | Authenticated **write** API | Public **read** edge |
+| Typical URL | In-cluster `http://ring-filebase-api.ring-filebase.svc.cluster.local` | `https://cdn.<your-domain>` |
+| Client | Server-side `file()` / Server Actions | Browsers, `<img>`, OG tags |
+| Auth | Bearer token (`RINGBASE_API_TOKEN`) | None (GET `/files/...`) |
+
+## Provider SSOT (shared)
+
+Resolution order in `lib/storage/storage-config.ts` (mirrors `db()`):
+
+1. `NEXT_PUBLIC_STORAGE_PROVIDER` or `STORAGE_PROVIDER`
+2. `ring-config.json` → `storage.provider`
+3. Default: `local_storage` (development) / `vercel_blob` (production)
+
+| Provider value | Adapter | When to use |
+|----------------|---------|-------------|
+| `local_storage` | `LocalStorageAdapter` | Local `npm run dev`, PVC-backed uploads |
+| `vercel_blob` | `VercelAdapter` | Vercel-hosted clones with `BLOB_READ_WRITE_TOKEN` |
+| `ring_filebase` | `RingBaseAdapter` | Self-hosted / Ringdom k8s with RingFileBase API |
+| `firebase_storage` | Falls back to local in selector | Not a first-class upload path today |
+
+<Audience for="founder">
+
+## Why this matters for your clone
+
+Product images, KYC scans, chat attachments, and ImageConductor outputs all need a durable home. **Vercel Blob** is fine for small OSS demos; a marketplace clone that owns its data usually wants **RingFileBase** so media stays on your cluster, behind your CDN hostname, without per-GB Blob invoices.
+
+### Typical scenarios
+
+<Cards>
+  <Card title="Local development" href="/docs/deployment/environment">
+    Keep `storage.provider` / env on `local_storage` — files land under `public/uploads` (or your PVC mount).
+  </Card>
+  <Card title="Production marketplace" href="/docs/features/store">
+    Set `ring_filebase`, point `RINGBASE_API_URL` at the in-cluster API, publish URLs via [Ring CDN](/docs/integrations/ring-cdn).
+  </Card>
+  <Card title="Managed Ringdom hosting" href="/docs/development/oss-vs-enterprise">
+    Operators deploy `ring-filebase` + `ring-filebase-minio` namespaces; your clone only needs ConfigMap/Secret wiring.
+  </Card>
+  <Card title="Backup pairing" href="/docs/deployment/backup">
+    Postgres dumps do not include MinIO objects — schedule object-store backups separately from `pg_dump`.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Do not point RINGBASE_API_URL at your Next.js host">
+  `api.<domain>` often routes to the Ring app ingress. Uploads must hit **`ring-filebase-api`**, not the Next.js deployment. Wrong URL surfaces as HTML or HTTP 500 instead of JSON `{ success, fileId, url }`.
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+<Mermaid>
+{`flowchart LR
+  App["Ring app\nfile().upload"] --> Adapter["RingBaseAdapter"]
+  Adapter -->|"POST /api/v1/upload\nBearer token"| API["ring-filebase-api"]
+  API --> MinIO["MinIO / RGW\nbucket"]
+  API -->|"public URL"| CDN["cdn.host/files/..."]
+  CDN --> MinIO`}
+</Mermaid>
+
+### Verified modules
+
+| Path | Role |
+|------|------|
+| `lib/storage/storage-config.ts` | Provider SSOT + `getStorageConfig()` |
+| `lib/file/FileService.ts` | `file()` / `fileService.upload` |
+| `lib/file/FileSelector.ts` | Backend map; constructs `RingBaseAdapter` from env |
+| `lib/file/adapters/RingBaseAdapter.ts` | Multipart upload, delete, metadata |
+| `lib/uploads/server/upload-core.ts` | Unified upload used by `POST /api/uploads` |
+| `app/api/uploads/route.ts` | Browser/form upload entry |
+| `infrastructure/ring-file-base/services/ring-filebase-api/` | API source |
+| `infrastructure/ring-file-base/k8s/ring-filebase/10-api-deployment.yaml` | Deploy template |
+
+### Environment variables
+
+| Variable | Required for `ring_filebase` | Notes |
+|----------|------------------------------|-------|
+| `NEXT_PUBLIC_STORAGE_PROVIDER` | Yes | Set to `ring_filebase` (aliases: `ringbase`, `filebase`) |
+| `RINGBASE_API_URL` | Yes | Host or host + `/api/v1`; adapter normalizes to `…/api/v1` |
+| `RINGBASE_API_TOKEN` | Yes | Bearer for API auth middleware |
+| `RINGBASE_PUBLIC_URL` | Recommended | Public base used in returned URLs (usually CDN origin) |
+| `NEXT_PUBLIC_RINGBASE_API_URL` | Optional | Fallback if `RINGBASE_API_URL` unset |
+| `BLOB_READ_WRITE_TOKEN` | No | Only for `vercel_blob` |
+| `NEXT_PUBLIC_LOCAL_STORAGE_URL` | No | Only for `local_storage` |
+
+`ring-config.json` example:
+
+<Code language="json" title="ring-config.json storage block">{`{
+  "storage": {
+    "provider": "ring_filebase",
+    "maxFileSize": "10MB"
+  }
+}`}</Code>
+
+k8s ConfigMap / Secret pattern (see `k8s/secrets.example.yaml`):
+
+<Code language="bash" title="In-cluster URLs">{`RINGBASE_API_URL=http://ring-filebase-api.ring-filebase.svc.cluster.local
+RINGBASE_PUBLIC_URL=https://cdn.ring-platform.org
+NEXT_PUBLIC_STORAGE_PROVIDER=ring_filebase
+# RINGBASE_API_TOKEN from Secret — never commit production tokens`}</Code>
+
+### Upload type mapping (`RingBaseAdapter`)
+
+The API validates MIME types per `type` field. The adapter maps:
+
+| Content / access | `type` sent to API |
+|------------------|--------------------|
+| `access: 'private'` | `document` |
+| `image/*` | `product` |
+| `video/*` or `audio/*` | `media` |
+| Everything else | `other` |
+
+Sending images as `media` fails validation (A/V + HEIC only in current API rules).
+
+### Wire-up steps
+
+<Steps>
+
+<Step>
+
+### Choose provider
+
+Set env and/or `ring-config.json` `storage.provider` to `ring_filebase`. Restart Next.js after env changes.
+
+</Step>
+
+<Step>
+
+### Deploy API + MinIO (cluster)
+
+Apply RingFileBase manifests under `infrastructure/ring-file-base/k8s/ring-filebase/` (API Deployment/Service, MinIO namespace, CDN stack). Ensure the API can reach `minio-service.ring-filebase-minio.svc.cluster.local:9000` and the target bucket exists.
+
+</Step>
+
+<Step>
+
+### Issue a Bearer token
+
+API auth (`services/ring-filebase-api/src/middleware/auth.ts`) expects a JWT whose **decoded** claims include:
+
+- `iss` = `kubernetes/serviceaccount`
+- `kubernetes.io/serviceaccount/namespace`
+- `kubernetes.io/serviceaccount/service-account.name`
+
+Today the middleware **decodes** claims and does **not** call TokenReview or enforce `exp`. Prefer a long-lived claim-shaped token in Secrets — do **not** paste a one-hour projected ServiceAccount JWT into `RINGBASE_API_TOKEN` and forget it.
+
+</Step>
+
+<Step>
+
+### Smoke test from the app pod
+
+<Code language="bash" title="Health + image upload">{`curl -sS http://ring-filebase-api.ring-filebase.svc.cluster.local/api/v1/health
+
+curl -sS -X POST http://ring-filebase-api.ring-filebase.svc.cluster.local/api/v1/upload \
+  -H "Authorization: Bearer $RINGBASE_API_TOKEN" \
+  -F "file=@./sample.png;type=image/png" \
+  -F "type=product"`}</Code>
+
+Expect JSON with `success: true`, `fileId`, and `url` under your CDN host.
+
+</Step>
+
+<Step>
+
+### App-level upload
+
+<Code language="typescript" title="Server-side file()">{`import { file } from '@/lib/file/FileService'
+
+const result = await file().upload('avatar.png', buffer, {
+  contentType: 'image/png',
+  access: 'public',
+})
+if (!result.success) throw new Error(result.error)
+// result.url → https://cdn.<domain>/files/...`}</Code>
+
+Browser forms should use `POST /api/uploads` (unified upload core), not call RingFileBase directly.
+
+</Step>
+
+</Steps>
+
+### Common failures
+
+| Symptom | Likely cause |
+|---------|----------------|
+| HTML / 500 from upload URL | `RINGBASE_API_URL` points at Next.js (`api.` ingress) |
+| `401 Invalid ServiceAccount token` | Token missing legacy SA claim shape |
+| `Invalid file type … got: image/png` | `type=media` instead of `product` / `other` |
+| Upload OK, CDN 403 | MinIO bucket lacks anonymous `GetObject` (or CDN Host header misconfigured) |
+| Node `stream.isDisturbed` on Blob | Prefer `local_storage` or `ring_filebase`; Vercel adapter uploads `Uint8Array` |
+
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="Ring CDN" href="/docs/integrations/ring-cdn">
+    Public `/files/...` edge, host→bucket map, geo edges.
+  </Card>
+  <Card title="Environment configuration" href="/docs/deployment/environment">
+    Storage env block and generative conductor prerequisites.
+  </Card>
+  <Card title="Backup & recovery" href="/docs/deployment/backup">
+    Object store is a separate backup asset from Postgres.
+  </Card>
+  <Card title="Integrations hub" href="/docs/integrations">
+    Full integration catalog.
+  </Card>
+</Cards>

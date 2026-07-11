@@ -412,6 +412,73 @@ export interface MembershipTokenPricing {
 }
 
 // Top-level membership config container
+/** NFT gate feature keys unlocked when a gate asset is staked in GateEscrow. */
+export type NftGateFeature =
+  | 'membership.member'
+  | 'vendor.dagi'
+  | 'vendor.deed'
+  | 'vendor.license.annual'
+  | 'vendor.license.quarterly'
+
+export type NftGateSlug =
+  | 'one-month-membership'
+  | 'annual-membership'
+  | 'lifetime-membership'
+  | 'vendor-store-deed'
+  | 'vendor-dagi-key'
+  | 'vendor-annual-store-license'
+  | 'vendor-quarterly-store-license'
+
+export interface NftGateTemplate {
+  slug: NftGateSlug
+  name: string
+  description: string
+  /** Human RING amount; convert with tokens.nativeToken.decimals (8). */
+  priceRing: number
+  gateFeatures: NftGateFeature[]
+  durationDays: number | null
+  stakeRequired: true
+  /** Membership SKUs are soulbound; vendor keys/licenses are tradeable later. */
+  soulbound: boolean
+  imagePrompt: string
+  /** Current sellable Metaplex Core asset address for this template. */
+  activeTemplateAsset?: string
+}
+
+/**
+ * Solana Metaplex Core NFT gates (MVP-A).
+ * Mint: createCollection + mintAsset. Stake: GateEscrow PDA — not NATIVE_NFT_APR.
+ */
+export interface NftGateConfig {
+  enabled?: boolean
+  /** Metaplex Core verified collection address. */
+  collectionMint?: string
+  /**
+   * Canonical HTTPS URI for off-chain collection metadata JSON (name, symbol, image).
+   * Explorer Symbol comes from this JSON — Core has no on-chain symbol field.
+   */
+  collectionUri?: string
+  /**
+   * NFT collection ticker intent (e.g. KEYS). Display/config only — not the RING payment token.
+   */
+  collectionSymbol?: string
+  /** GateEscrow Anchor program id (optional until deployed). */
+  gateEscrowProgramId?: string
+  /** Documented PDA seeds, e.g. ['gate-escrow', user, asset]. */
+  gateEscrowSeeds?: string[]
+  /** Enables the Solana NFT Exhibition marketplace surfaces and actions. */
+  marketplaceEnabled?: boolean
+  /** GateMarket Anchor program id; empty means ledger-dev marketplace mode. */
+  gateMarketProgramId?: string
+  /** Squads/protocol fee recipient for secondary-market RING settlement. */
+  marketplaceFeeRecipient?: string
+  /** Disclosed secondary-market fee in basis points. */
+  marketplaceFeeBps?: number
+  /** Sponsor pays mint/stake/unstake SOL (buyer need not hold SOL). */
+  sponsorFeePayer?: boolean
+  templates?: NftGateTemplate[]
+}
+
 export interface MembershipConfig {
   tiers: {
     subscriber: SubscriberTierConfig   // Subscriber tier properties
@@ -589,6 +656,18 @@ export interface RingConfig {
     unit?: string
     fiatUnit?: string
   }
+  /**
+   * Fiat credit ledger SSOT (singular key used by ring-config.json).
+   * Points are denominated in store.defaultCurrency; unitToDefaultCurrency is the
+   * multiplier for ledger `usd_equivalent` / accounting (typically 1 = 1:1).
+   */
+  credit?: {
+    creditUnitLabel?: string
+    /** How many units of store.defaultCurrency one credit point equals (usually 1). */
+    unitToDefaultCurrency?: number
+    creditAddEvents?: Record<string, unknown>
+    desk?: TokenDeskConfig & { pointsPerNativeToken?: number }
+  }
   tokens?: {
     supported?: SupportedTokens[]
     tokenDesk?: Record<SupportedChains, TokenDeskConfig>    // Desk/trade/swap config for native token UX
@@ -653,6 +732,12 @@ export interface RingConfig {
   }
   /** Multi-provider payment gateway & subscription billing configuration. */
   payment?: PaymentConfig
+  /**
+   * Solana Metaplex Core NFT gate templates (MVP-A).
+   * Mint SSOT: Metaplex Core createCollection + mintAsset.
+   * Stake SSOT: GateEscrow PDA (not NATIVE_NFT_APR product vault).
+   */
+  nft?: NftGateConfig
   /** Store settings — configurable options for store checkout behavior. */
   store?: {
     storeCategories?: ProductFieldsPreset[]

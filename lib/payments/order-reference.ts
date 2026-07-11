@@ -36,13 +36,20 @@ export function buildOrderReference(
     case 'news_promotion':
       if (!payload.articleId) throw new Error('articleId required for news_promotion')
       return `news-promo-${encodeArticleIdForOrder(payload.articleId)}-${ts}`
+    case 'wallet_topup':
+      if (!payload.userId) throw new Error('userId required for wallet_topup')
+      return `wallettopup_${payload.userId}_${ts}`
+    case 'native_token_onramp':
+      if (!payload.userId) throw new Error('userId required for native_token_onramp')
+      return `tokenonramp_${payload.userId}_${ts}`
     default:
       throw new Error(`Unsupported purpose for order reference: ${purpose}`)
   }
 }
 
 export function parseOrderReference(orderReference: string): ParsedOrderReference | null {
-  const storeMatch = orderReference.match(/^store_([^_]+)_(\d+)$/)
+  // store_{fullOrderId}_{timestamp} — order ids contain underscores (order_ts_rand)
+  const storeMatch = orderReference.match(/^store_(.+)_(\d+)$/)
   if (storeMatch) {
     return {
       purpose: 'store_order',
@@ -78,6 +85,26 @@ export function parseOrderReference(orderReference: string): ParsedOrderReferenc
       purpose: 'news_promotion',
       entityId: articleId,
       timestamp: tsMatch ? Number(tsMatch[1]) : undefined,
+    }
+  }
+
+  const walletTopupMatch = orderReference.match(/^wallettopup_([^_]+)_(\d+)$/)
+  if (walletTopupMatch) {
+    return {
+      purpose: 'wallet_topup',
+      entityId: walletTopupMatch[1],
+      userId: walletTopupMatch[1],
+      timestamp: Number(walletTopupMatch[2]),
+    }
+  }
+
+  const tokenOnrampMatch = orderReference.match(/^tokenonramp_([^_]+)_(\d+)$/)
+  if (tokenOnrampMatch) {
+    return {
+      purpose: 'native_token_onramp',
+      entityId: tokenOnrampMatch[1],
+      userId: tokenOnrampMatch[1],
+      timestamp: Number(tokenOnrampMatch[2]),
     }
   }
 

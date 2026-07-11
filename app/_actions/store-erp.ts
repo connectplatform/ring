@@ -106,21 +106,30 @@ export const getProductsByVendor = cache(async (
       pagination: { limit: 100 },
     })
 
-    if (!productsResult.success) {
+    // Fallback: some listings only set vendorId (entity id)
+    let products = productsResult.success ? productsResult.data : []
+    if (!products.length) {
+      const byVendorId = await db().queryDocs<StoreProduct>({
+        collection: 'store_products',
+        filters: [{ field: 'vendorId', operator: '==', value: vendorId }],
+        pagination: { limit: 100 },
+      })
+      products = byVendorId.success ? byVendorId.data : []
+    }
+
+    if (!productsResult.success && !products.length) {
       console.error('Error fetching vendor products:', productsResult.error)
       return []
     }
 
-    const products = productsResult.data
-
-    // Apply quality filters
+    // Apply quality filters — profile may be incomplete (seed); enhanceProduct is null-safe
     let enhancedProducts = products.map(product =>
       enhanceProduct(product, vendorProfile)
     )
 
     if (filters) {
       enhancedProducts = enhancedProducts.filter(product => {
-        if (filters.minQualityScore && vendorProfile.qualityProfile.qualityScore < filters.minQualityScore) {
+        if (filters.minQualityScore && (vendorProfile.qualityProfile?.qualityScore ?? 0) < filters.minQualityScore) {
           return false
         }
         if (filters.certifiedOnly && !product.complianceStatus.organic && !product.complianceStatus.fairTrade) {
@@ -325,12 +334,12 @@ function enhanceProduct(product: StoreProduct, vendorProfile?: ExtendedVendorPro
     if (vendorProfile.compliance?.fairTradeCertified) {
       qualityBadges.push('fair-trade')
     }
-    if (vendorProfile.qualityProfile.qualityScore >= 90) {
+    if ((vendorProfile.qualityProfile?.qualityScore ?? 0) >= 90) {
       qualityBadges.push('premium-quality')
     }
 
     // Trust score
-    trustScore = vendorProfile.trustScore
+    trustScore = vendorProfile.trustScore ?? 50
 
     // Sustainability rating
     if (vendorProfile.sustainability) {

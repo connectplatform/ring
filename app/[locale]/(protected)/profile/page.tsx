@@ -4,9 +4,9 @@ import { headers } from 'next/headers'
 import ProfileWrapper from '@/components/wrappers/profile-wrapper'
 import { auth } from '@/auth'
 import { AuthUser } from '@/features/auth/types'
-import { ensureWallet } from '@/features/wallet/services'
+import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
 import { getWalletBalance } from '@/app/_actions/wallet'
-import { getUserById } from '@/features/auth/services/get-user-by-id'
+import { getUserByIdCached } from '@/features/auth/services/get-user-by-id'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
@@ -55,24 +55,39 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
   const session = await auth()
   if (!session) return null
 
-  try {
-    const { userMigrationService } = await import('@/features/auth/services/user-migration')
-    const userExists = await userMigrationService.userDocumentExists(session.user.id)
-    if (!userExists) {
-      await userMigrationService.ensureUserDocument(session.user as Parameters<
-        typeof userMigrationService.ensureUserDocument
-      >[0])
-    }
-  } catch (migrationError) {
-    logger.error('ProfilePage: Failed to check/create user document:', migrationError)
-  }
+  let fullUserData: AuthUser | null = null
 
   try {
-    let fullUserData = null
     try {
-      fullUserData = await getUserById(session.user.id)
-    } catch (fetchError) {
-      logger.error('ProfilePage: Error fetching user data:', fetchError)
+      const { userMigrationService } = await import('@/features/auth/services/user-migration')
+      const userExists = await userMigrationService.userDocumentExists(session.user.id)
+      if (!userExists) {
+        await userMigrationService.ensureUserDocument(session.user as Parameters<
+          typeof userMigrationService.ensureUserDocument
+        >[0])
+      }
+
+      try {
+        fullUserData = (await getUserByIdCached(session.user.id)) as AuthUser
+      } catch (fetchError) {
+        logger.error('ProfilePage: Error fetching user data:', fetchError)
+      }
+
+      if (!userExists && fullUserData) {
+        logger.warn('ProfilePage: auth.drift — session user id has profile row but userDocumentExists was false', {
+          userId: session.user.id,
+        })
+      }
+    } catch (migrationError) {
+      logger.error('ProfilePage: Failed to check/create user document:', migrationError)
+    }
+
+    if (!fullUserData) {
+      try {
+        fullUserData = (await getUserByIdCached(session.user.id)) as AuthUser
+      } catch (fetchError) {
+        logger.error('ProfilePage: Error fetching user data:', fetchError)
+      }
     }
 
     if (!fullUserData) {
@@ -102,11 +117,15 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
     let walletAddress = '';
     let userWalletBalance: string | null = null;
     try {
-      const wallet = await ensureWallet();
-      if (wallet && wallet.address) {
+      const ensured = await WalletConductor.ensureNativeWallet({
+        id: session.user.id,
+        role: session.user.role,
+      })
+      const wallet = ensured.native
+      if (ensured.ok && wallet?.address) {
         walletAddress = wallet.address;
         try {
-          const balanceResult = await getWalletBalance();
+          const balanceResult = await getWalletBalance(wallet);
           userWalletBalance = balanceResult.balance ?? null;
         } catch (balanceError) {
           logger.warn('ProfilePage: on-chain balance unavailable:', {
@@ -116,10 +135,12 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
           logger.error('ProfilePage: Error fetching wallet balance:', balanceError);
         }
       } else {
-        logger.warn('ProfilePage: Wallet or wallet address is missing, skipping balance fetch.');
+        logger.warn('ProfilePage: Wallet or wallet address is missing, skipping balance fetch.', {
+          error: ensured.error,
+        });
       }
     } catch (walletError) {
-      logger.error('ProfilePage: ensureWallet failed:', walletError);
+      logger.error('ProfilePage: ensureNativeWallet failed:', walletError);
     }
 
 

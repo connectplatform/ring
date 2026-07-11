@@ -57,6 +57,7 @@
   },
   "credit": {
     "creditUnitLabel": "points",
+    "unitToDefaultCurrency": 1,
     "creditAddEvents": {
       "adminVerify": {
         "amount": "10",
@@ -82,7 +83,8 @@
         "verified"
       ],
       "quoteTtlSeconds": 60,
-      "maxSlippageBps": 100
+      "maxSlippageBps": 100,
+      "pointsPerNativeToken": 100
     }
   },
   "tokens": {
@@ -177,7 +179,11 @@
     }
   },
   "features": {
-    "expertServicesMarketplace": true
+    "expertServicesMarketplace": true,
+    "web3": {
+      "nftGates": true,
+      "nftMarketplace": false
+    }
   },
   "theme": {
     "default": "system"
@@ -383,6 +389,19 @@
       ]
     }
   },
+  "storage": {
+    "provider": "ring_filebase",
+    "maxFileSize": "10MB",
+    "allowedMimeTypes": [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "video/mp4"
+    ],
+    "note": "SSOT for file(). ring_filebase via RINGBASE_API_URL. Env NEXT_PUBLIC_STORAGE_PROVIDER overrides."
+  },
   "payment": {
     "cardPaymentProcessor": "wayforpay",
     "supportedMethods": [
@@ -425,11 +444,122 @@
         "currency": "USD"
       },
       "nft_gate": {
-        "enabled": false,
+        "enabled": true,
         "feePercent": 0,
         "currency": "RING",
-        "label": "NFT Certificate"
+        "label": "NFT Gate (Metaplex Core)"
       }
     }
+  },
+  "nft": {
+    "enabled": true,
+    "collectionMint": "ABKoCh2U6jf9952wh1QygMiazrod3vQNvuwMVYSVwTgw",
+    "gateEscrowProgramId": "",
+    "gateEscrowSeeds": [
+      "gate-escrow"
+    ],
+    "marketplaceFeeBps": 250,
+    "sponsorFeePayer": true,
+    "templates": [
+      {
+        "slug": "one-month-membership",
+        "name": "One-Month Membership Gate",
+        "description": "Stake to unlock member role for 30 days.",
+        "priceRing": 1,
+        "gateFeatures": [
+          "membership.member"
+        ],
+        "durationDays": 30,
+        "stakeRequired": true,
+        "soulbound": true,
+        "imagePrompt": "$projectName membership key NFT, minimal geometric ring emblem, deep navy and gold, digital certificate aesthetic, no text clutter. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      },
+      {
+        "slug": "annual-membership",
+        "name": "Annual Membership Gate",
+        "description": "Stake to unlock member role for 365 days.",
+        "priceRing": 10,
+        "gateFeatures": [
+          "membership.member"
+        ],
+        "durationDays": 365,
+        "stakeRequired": true,
+        "soulbound": true,
+        "imagePrompt": "$projectName annual membership NFT, elegant ring crest, navy gold silver, premium certificate. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      },
+      {
+        "slug": "lifetime-membership",
+        "name": "Lifetime Membership Gate",
+        "description": "Stake to unlock permanent member role.",
+        "priceRing": 100,
+        "gateFeatures": [
+          "membership.member"
+        ],
+        "durationDays": null,
+        "stakeRequired": true,
+        "soulbound": true,
+        "imagePrompt": "$projectName lifetime membership NFT, luminous ring halo, platinum and gold, eternal seal. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      },
+      {
+        "slug": "vendor-store-deed",
+        "name": "Vendor Store Deed",
+        "description": "Stake to record vendor store deed (soft gate).",
+        "priceRing": 5,
+        "gateFeatures": [
+          "vendor.deed"
+        ],
+        "durationDays": null,
+        "stakeRequired": true,
+        "soulbound": false,
+        "imagePrompt": "$projectName vendor store deed NFT, marketplace storefront glyph, community open-source theme. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      },
+      {
+        "slug": "vendor-dagi-key",
+        "name": "Vendor DAGI Key",
+        "description": "Stake to unlock vendor DAGI agent activation.",
+        "priceRing": 25,
+        "gateFeatures": [
+          "vendor.dagi"
+        ],
+        "durationDays": null,
+        "stakeRequired": true,
+        "soulbound": false,
+        "imagePrompt": "$projectName DAGI agent key NFT, AI neural ring motif, cyan and indigo, vendor unlock key. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      },
+      {
+        "slug": "vendor-annual-store-license",
+        "name": "Vendor Annual Store License",
+        "description": "Stake for annual vendor store license (soft).",
+        "priceRing": 50,
+        "gateFeatures": [
+          "vendor.license.annual"
+        ],
+        "durationDays": 365,
+        "stakeRequired": true,
+        "soulbound": false,
+        "imagePrompt": "$projectName annual vendor license NFT, calendar seal with ring mark. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      },
+      {
+        "slug": "vendor-quarterly-store-license",
+        "name": "Vendor Quarterly Store License",
+        "description": "Stake for quarterly vendor store license (soft).",
+        "priceRing": 15,
+        "gateFeatures": [
+          "vendor.license.quarterly"
+        ],
+        "durationDays": 90,
+        "stakeRequired": true,
+        "soulbound": false,
+        "imagePrompt": "$projectName quarterly vendor license NFT, seasonal seal with ring mark. active color: $activeColor, secondary color: $secondaryColor, use colors in object: $projectColor1,$projectColor2. Brand mark from <IMAGE_0> (project favicon); organization $organization."
+      }
+    ],
+    "collectionUri": "https://gist.githubusercontent.com/connectplatform/f0159d5ffe6c80089f3aa240dd8e0193/raw/collection.json",
+    "collectionSymbol": "KEYS",
+    "marketplaceEnabled": true,
+    "gateMarketProgramId": "",
+    "marketplaceFeeRecipient": ""
+  },
+  "store": {
+    "defaultCurrency": "USD"
   }
 }

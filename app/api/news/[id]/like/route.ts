@@ -6,10 +6,11 @@ type NewsRow = Record<string, unknown> & { id: string }
 type LikeRow = Record<string, unknown> & { id: string }
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
+
+  const { id } = await context.params
 
   try {
     const session = await auth()
@@ -21,7 +22,7 @@ export async function POST(
       )
     }
 
-    const { id: newsId } = params
+    const newsId = id
     const userId = session.user.id
 
     if (!newsId) {
@@ -107,14 +108,15 @@ export async function POST(
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
+  const { id } = await context.params
+
   try {
     const session = await auth()
-    const { id: newsId } = params
+    const newsId = id
 
     if (!newsId) {
       return NextResponse.json(

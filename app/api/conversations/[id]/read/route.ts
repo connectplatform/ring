@@ -16,9 +16,11 @@ const conversationService = new ConversationService()
  * POST /api/conversations/[id]/read
  * Marks all messages (or up to a specific message/timestamp) as read for a conversation by the authenticated user
  */
+type RouteContext = { params: Promise<{ id: string }> }
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext,
 ) {
   await connection() // Ensures function is executed dynamically; disables Next.js prerendering for this route
 
@@ -33,7 +35,7 @@ export async function POST(
       )
     }
 
-    const conversationId = params.id
+    const { id: conversationId } = await context.params
     const userId = session.user.id
 
     // Optionally parse the request body, which may include messageId/timestamp bounds
@@ -97,7 +99,7 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext,
 ) {
   await connection() // Ensures function is executed at request time; disables prerendering for this route
 
@@ -111,7 +113,7 @@ export async function GET(
       )
     }
 
-    const conversationId = params.id
+    const { id: conversationId } = await context.params
     const userId = session.user.id
 
     // Retrieve conversation and all participant info

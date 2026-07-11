@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Mail } from 'lucide-react';
+import { EmailAdminShell } from '@/features/admin/email/email-admin-shell';
 
 export default function EmailThreadDetailPage() {
   const params = useParams<{ id: string; locale: string }>();
@@ -28,12 +29,17 @@ export default function EmailThreadDetailPage() {
   }, [load]);
 
   if (!data) {
-    return <div className="p-6 text-gray-500">Loading thread…</div>;
+    return (
+      <EmailAdminShell pageContext="email-inbox">
+        <div className="p-6 text-gray-500">Loading thread…</div>
+      </EmailAdminShell>
+    );
   }
 
   const thread = data.thread;
 
   return (
+    <EmailAdminShell pageContext="email-inbox">
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-4xl mx-auto">
         <Link
@@ -93,5 +99,6 @@ export default function EmailThreadDetailPage() {
         )}
       </div>
     </div>
+    </EmailAdminShell>
   );
 }

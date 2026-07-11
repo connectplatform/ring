@@ -558,6 +558,26 @@ async function executePolicy(
     objectKey,
     ...responseMeta,
   }
+
+  // Persist avatar URL onto users.data (photoURL + Auth.js image) so admin/profile stay in sync
+  if (meta.purpose === 'profile:avatar' && actor.userId && uploadResult.url) {
+    try {
+      const { db } = await import('@/lib/database')
+      await db().updateDoc(
+        'users',
+        actor.userId,
+        {
+          photoURL: uploadResult.url,
+          image: uploadResult.url,
+          avatar: uploadResult.url,
+        },
+        { merge: true },
+      )
+    } catch (persistError) {
+      console.error('upload-core: failed to persist avatar on users doc', persistError)
+    }
+  }
+
   return normalized
 }
 

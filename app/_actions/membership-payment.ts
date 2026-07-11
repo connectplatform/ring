@@ -136,38 +136,33 @@ export async function initiateMembershipPayment(
       return { error: 'Failed to process credit balance payment' }
     }
 
-    // ---- Card-Based Processor Payment Path ----
+    // ---- Card-Based Processor Payment Path (PaymentConductor SSOT) ----
     if (paymentMethod === 'card' || paymentMethod === 'stripe' || paymentMethod === 'wayforpay') {
-      // Get the selected processor and supported options
       const cardProcessor = getCardPaymentProcessor()
       const supportedMethods = getSupportedPaymentMethods()
 
-      // Defensive: prevent inactive/bad processor methods
       if (!supportedMethods.includes(cardProcessor)) {
         return {
           error: `${cardProcessor} is not currently supported. Please use credit balance.`
         }
       }
 
-      // Orchestrate card subscription with the conductor class abstraction
-      const result = await SubscriptionConductor.createSubscription({
+      const { PaymentConductor } = await import('@/lib/payments/conductor/payment-conductor')
+      const result = await PaymentConductor.createCheckout({
+        purpose: 'membership_upgrade',
         userId,
         userEmail,
-        provider: cardProcessor as any,
-        gateway: cardProcessor === 'stripe' ? 'Stripe' : 'WayForPay',
-        method: 'card',
+        entityId: userId,
         amount: tierConfig.amount,
         currency: tierConfig.currency,
-        gatewayFeePercent: cardProcessor === 'stripe' ? 2.9 : 2.5,
-        gatewayFeeFixed: cardProcessor === 'stripe' ? 0.30 : 0,
         returnUrl: successReturnUrl,
         locale,
-        metadata: { source: 'membership_action', targetRole }, // Useful for payment tracking/analytics
+        targetRole,
+        metadata: { source: 'membership_action', targetRole },
       })
 
       if (!result.success) {
-        // Payment processor error or declined
-        logger.error('Membership payment: Conductor failed', {
+        logger.error('Membership payment: PaymentConductor failed', {
           userId,
           targetRole,
           error: result.error,
@@ -177,17 +172,15 @@ export async function initiateMembershipPayment(
         }
       }
 
-      // Payment requires user to complete a redirect (e.g., to Stripe)
-      if (result.redirectUrl) {
+      if (result.paymentUrl) {
         return {
           success: true,
           message: 'Payment initiated successfully. You will be redirected to the payment page.',
-          paymentUrl: result.redirectUrl,
-          redirectUrl: result.redirectUrl,
+          paymentUrl: result.paymentUrl,
+          redirectUrl: result.paymentUrl,
         }
       }
 
-      // No redirect needed—likely completed synchronously
       return {
         success: true,
         message: 'Payment processed successfully! Your membership has been upgraded.',

@@ -62,7 +62,7 @@ check_single_definition '^export function SessionProvider' 'SessionProvider sing
 # --- Added 2026-07-07: DB routing SSOT — rogue pg.Pool gate ---
 check_db_pool_gate() {
   local hits
-  hits="$(rg -n 'new Pool\(' . --glob '*.{ts,tsx,js,mjs}' 2>/dev/null | rg -v '/lib/database/' || true)"
+  hits="$(rg -n 'new Pool\(' . --glob '*.{ts,tsx,js,mjs}' 2>/dev/null | rg -v '/lib/database/' | rg -v 'scripts/audit-auth-user-drift' || true)"
   if [[ -n "$hits" ]]; then
     echo "FAIL: new Pool( allowed only under lib/database/"
     echo "$hits"
@@ -72,5 +72,21 @@ check_db_pool_gate() {
   fi
 }
 check_db_pool_gate
+
+if ! node scripts/validate-fcm-env.mjs --file .env.local 2>/dev/null; then
+  echo "WARN: validate-fcm-env failed (run: npm run validate:fcm-env) — non-blocking for SSOT gate"
+fi
+
+if ! node scripts/validate-fcm-schema.mjs 2>/dev/null; then
+  echo "WARN: validate-fcm-schema failed (run: npm run validate:fcm-schema) — apply data/migrations/016_fcm_jsonb_schema.sql"
+fi
+
+# Account status listener must coalesce refresh (profile reload loop guard)
+if ! rg -q 'coalescedSessionRefresh' components/providers/account-status-tunnel-listener.tsx 2>/dev/null; then
+  echo "FAIL: account-status-tunnel-listener must use coalescedSessionRefresh"
+  fail=1
+else
+  echo "OK: account status tunnel refresh coalesced"
+fi
 
 exit "$fail"

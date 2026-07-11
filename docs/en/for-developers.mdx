@@ -1,237 +1,192 @@
 ---
 title: For Developers
-description: A curated docTree for developers and integrators — architecture, code, APIs, MCP tools, deployment pipelines, and the deep implementation guides. Filtered to articles with code, schema, or module-level content.
-last_modified: "2026-06-30"
+description: Curated docTree for developers and integrators — bootstrap, architecture, APIs, payments cluster, deploy, and contribution layers
+last_modified: "2026-07-11"
 audience: developer
 ---
+
 // NOTE: Info-source reference only — NOT a sidebar navigation item.
 // See docs/en/for-founders.mdx for the full policy note.
 
-# 🛠️ For Developers
+# For Developers
 
-This index is a curated docTree for **developers, integrators, and engineers** building on Ring Platform. Each section links to the section-index page and lists only the articles that explain code, schema, API contract, or implementation pattern.
+Curated index for **developers, integrators, and engineers**. Hubs follow system layers. The sidebar **Developer** tab mirrors this via `lib/docs/audience-curated-docs.ts`.
 
 <Callout type="info">
-  Use the **Founder** / **Developer** toggle in the docs sidebar to flip between this view and the [For Founders](/docs/for-founders) index. Articles with content for both audiences (like SubscriptionConductor) appear in both indexes.
+  Flip **Founder** / **Developer** in the docs sidebar anytime. Operator journey hubs live on [For Founders](/docs/for-founders).
 </Callout>
 
 ---
 
-## 🚀 Getting Started
+## 1. Bootstrap
 
-[**Getting Started** →](/docs/getting-started) — Onboard a new Ring Platform clone and ship your first success.
+[**Getting Started** →](/docs/getting-started)
 
-- [Prerequisites](/docs/getting-started/prerequisites) — Toolchain, environment, and required accounts.
-- [Installation](/docs/getting-started/installation) — Standard install path.
-- [Migrations](/docs/getting-started/migrations) — Postgres schema and migration workflow.
-- [First Success](/docs/getting-started/first-success) — Verify the install end-to-end.
-- [Troubleshooting](/docs/getting-started/troubleshooting) — Common dev-time issues.
-- [Next Steps](/docs/getting-started/next-steps) — After the first success, what to learn next.
-
----
-
-## 🏛️ Architecture (Deep Dive)
-
-[**Architecture** →](/docs/architecture) — System layout, contracts, and module boundaries.
-
-- [Backend Modes and Databases](/docs/architecture/backend-modes-and-databases) — `DB_BACKEND_MODE` and the per-deployment database selector.
-- [Data Model](/docs/architecture/data-model) — SSOT collections, JSONB conventions, and the `data/schema.sql v4.0.0` contract.
-- [Data Validation](/docs/architecture/data-validation) — Zod schemas and the boundary-validation pattern.
-- [Authentication](/docs/architecture/authentication) — Auth.js v5 + JWT strategy + refresh-token rotation.
-- [Security](/docs/architecture/security) — Threat model, secrets handling, OWASP coverage.
-- [Real-Time](/docs/architecture/real-time) — TunnelHub, channel-subscription-registry, transports.
-- [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync) — How listings stay fresh across the platform.
-- [Email AI-CRM](/docs/architecture/email-ai-crm) — IMAP poll + webhook ingest + draft queue.
-- [PaymentConductor](/docs/architecture/payment-conductor) — Payment orchestration architecture.
-- [Refcodes](/docs/architecture/refcodes) — On-chain referral rewards contract.
-- [News Kingdom](/docs/architecture/news-kingdom) — Newsroom AI scoring and approval flow.
-- [Proxy and i18n](/docs/architecture/proxy-and-intl) — next-intl routing and proxy rules.
+- [Prerequisites](/docs/getting-started/prerequisites)
+- [Installation](/docs/getting-started/installation)
+- [Migrations](/docs/getting-started/migrations)
+- [First Success](/docs/getting-started/first-success)
+- [Troubleshooting](/docs/getting-started/troubleshooting)
+- [Next Steps](/docs/getting-started/next-steps)
 
 ---
 
-## 🗄️ Backend
+## 2. System architecture
 
-[**Backend** →](/docs/backend) — Server-side infrastructure and runtime concerns.
+[**Architecture** →](/docs/architecture) · [**Backend** →](/docs/backend)
 
-- [k3s + Postgres + FCM](/docs/backend/k8s-postgres-fcm) — Production backend stack on k3s-1.
-
----
-
-## 🔌 API Reference
-
-[**API** →](/docs/api) — REST endpoints, contracts, and auth requirements.
-
-- [Authentication](/docs/api/authentication) — Session, JWT, OAuth callback contracts.
-- [Email AI-CRM](/docs/api/email-ai-crm) — IMAP and webhook endpoints.
-- [Entities](/docs/api/entities) — Entity CRUD and search.
-- [Opportunities](/docs/api/opportunities) — Opportunity CRUD, search, and AI matching.
-- [Messaging](/docs/api/messaging) — Conversation and message contracts.
-- [Notifications](/docs/api/notifications) — In-app notification endpoints.
-- [Wallet](/docs/api/wallet) — Balance, credit, and token endpoints.
-- [Store](/docs/api/store) — Cart, checkout, and order endpoints.
-- [Admin](/docs/api/admin) — Superadmin endpoints (RBAC enforced).
+- [Backend Modes and Databases](/docs/architecture/backend-modes-and-databases)
+- [Data Model](/docs/architecture/data-model)
+- [Data Validation](/docs/architecture/data-validation)
+- [Authentication](/docs/architecture/authentication)
+- [Security](/docs/architecture/security)
+- [Real-Time](/docs/architecture/real-time)
+- [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync)
+- [Proxy and i18n](/docs/architecture/proxy-and-intl)
+- [PaymentConductor](/docs/architecture/payment-conductor)
+- [Refcodes](/docs/architecture/refcodes)
+- [News Kingdom](/docs/architecture/news-kingdom)
+- [Email AI-CRM](/docs/architecture/email-ai-crm)
+- [k3s + Postgres + FCM](/docs/backend/k8s-postgres-fcm)
+- [Firebase](/docs/backend/firebase)
 
 ---
 
-## 💡 Features (Implementation)
+## 3. API contracts
 
-[**Features** →](/docs/features) — How each Ring feature is built and how to extend it.
+[**API Reference** →](/docs/api) — visual **RingApiTree** widget + ~244 App Router `/api/*` handlers (truth as of 2026-07-10).
 
-### Payments & Subscriptions
-- [SubscriptionConductor](/docs/features/subscriptions) — Multi-provider membership billing with `subscription_ledger` SSOT, 6 provider modules, 5 cron pipelines, and admin dashboard.
-- [PaymentConductor](/docs/features/payment-conductor) — Unified payment orchestration with `payment_transactions` ledger.
-- [WayForPay Integration](/docs/features/wayforpay-integration) — HMAC verification, idempotent `orderReference`, 3DS handling.
-- [Refcodes](/docs/features/refcodes) — Per-wallet codes, UUPS `ReferralRewards` contract.
-- [Affiliates](/docs/features/affiliate-enablement) — Affiliate link routing and revenue split.
-- [Wallet](/docs/features/wallet) — RING token contracts, DAARION city, multi-token support.
-- [NFT Marketplace](/docs/features/nft-market) — White-label NFT trading, EVM integration.
-- [Staking](/docs/features/staking) — Multi-pool staking contracts.
-
-### Realtime & Communication
-- [Tunnel Protocol](/docs/features/tunnel-protocol) — Transport dedup, channel-subscription-registry, `useTunnelChannel` hook.
-- [Push Notifications (FCM)](/docs/features/push-notifications-fcm) — FCM client integration and admin triggers.
-- [Notifications](/docs/features/notifications) — In-app notification service and badge counts.
-- [Messaging](/docs/features/messaging) — Conversation rooms, typing indicators, presence.
-- [Email AI-CRM](/docs/features/email-ai-crm) — IMAP poll, prompt-injection defense, draft queue.
-
-### Identity & Content
-- [Authentication](/docs/features/authentication) — Auth.js v5 strategy and provider registry.
-- [Security](/docs/features/security) — Security layers, rate limiting, audit logs.
-- [Entities](/docs/features/entities) — Entity CRUD, verification tiers, AI matching.
-- [Opportunities](/docs/features/opportunities) — Opportunity types, AI matcher, confidential access.
-- [News](/docs/features/news) — Newsroom, AI scoring, audio narration.
-- [Member Blog](/docs/features/member-blog) — Blog with live agent chat.
-- [Public Profile](/docs/features/public-profile) — SEO-friendly public pages.
-- [Username Reservation](/docs/features/username-reservation) — Reservation lifecycle and free names.
-- [Scientific Editor](/docs/features/scientific-editor) — Live agent co-editor.
-- [Locale System](/docs/features/locale-system) — next-intl routing and message catalogs.
-- [Doc System](/docs/features/doc-system) — MDX docs site, audience filter, and ring-widgets.
-
-### Media & Automation
-- [VideoConductor](/docs/features/video-conductor) — Scripted AI video, I2V, thumbnail overlays.
-- [Store](/docs/features/store) — Multi-vendor catalog, cart, checkout, settlement.
-- [Mobile Experience](/docs/features/mobile-experience) — PWA, mobile web, and Capacitor.
-- [Performance](/docs/features/performance) — Web vitals, server actions, cache.
+- [Authentication](/docs/api/authentication)
+- [Entities](/docs/api/entities)
+- [Opportunities](/docs/api/opportunities)
+- [Messaging](/docs/api/messaging)
+- [Notifications](/docs/api/notifications)
+- [Wallet](/docs/api/wallet)
+- [Store](/docs/api/store) — PaymentConductor `store_order` (no fabricated cart REST)
+- [Admin](/docs/api/admin) — includes user Payments tab
+- [Email AI-CRM](/docs/api/email-ai-crm)
+- [Ring MCP](/docs/development/ring-mcp) — `/api/mcp/v1/*`
+- [Tunnel protocol](/docs/features/tunnel-protocol) — `/api/tunnel/*`
 
 ---
 
-## 🌐 Deployment
+## 4. Payments cluster (ordered)
 
-[**Deployment** →](/docs/deployment) — Production deployment paths and operational playbooks.
+[**Features** →](/docs/features)
 
-- [Self-Hosted](/docs/deployment/self-hosted) — k3s cluster, ingress, TLS, secrets.
-- [Vercel](/docs/deployment/vercel) — Serverless deployment path.
-- [Docker](/docs/deployment/docker) — Containerized deployment.
-- [Environment](/docs/deployment/environment) — Env-var contracts and required keys.
-- [Monitoring](/docs/deployment/monitoring) — Health checks, alerts, and dashboards.
-- [Performance](/docs/deployment/performance) — Production performance tuning.
-- [Backup](/docs/deployment/backup) — Postgres and filebase backup strategy.
-
----
-
-## ⚙️ Development
-
-[**Development** →](/docs/development) — Codebase conventions, tooling, and contribution guides.
-
-- [Local Setup](/docs/development/local-setup) — Dev environment and `pnpm dev`.
-- [Code Structure](/docs/development/code-structure) — Module layout and SSOT patterns.
-- [Code Style](/docs/development/code-style) — Linting, formatting, naming.
-- [Best Practices](/docs/development/best-practices) — Patterns, anti-patterns, and review checklist.
-- [Testing](/docs/development/testing) — Test runner and fixtures.
-- [Debugging](/docs/development/debugging) — Log streams, dev tools, and repro recipes.
-- [Performance](/docs/development/performance) — Web vitals, server actions, caching.
-- [Deployment](/docs/development/deployment) — CI/CD pipelines and release process.
-- [Contributing](/docs/development/contributing) — Pull-request flow and code review.
-- [Workflow](/docs/development/workflow) — Day-to-day engineering workflow.
-- [Docs Components](/docs/development/docs-components) — ring-widgets and MDX components.
-- [Community Tooling](/docs/development/community-tooling) — Third-party tools and integrations.
-- [Ring MCP](/docs/development/ring-mcp) — Ring MCP server for AI control of the platform.
-- [Whitelabel Navigation](/docs/development/whitelabel-navigation) — White-label navigation patterns.
-- [OSS vs Enterprise](/docs/development/oss-vs-enterprise) — Feature gating and licensing.
-- [Generative Images](/docs/development/generative-images) — ImageConductor and prompt patterns.
-- [Generative Newsroom](/docs/development/generative-newsroom) — Newsroom AI integration.
-- [Generative Videos](/docs/development/generative-videos) — VideoConductor script patterns.
-- [Scripted Media Pipeline](/docs/development/scripted-media-pipeline) — End-to-end scripted media.
+- [PaymentConductor](/docs/features/payment-conductor)
+- [WayForPay Integration](/docs/features/wayforpay-integration)
+- [SubscriptionConductor](/docs/features/subscriptions)
+- [Payments overview](/docs/features/payments)
+- [Store](/docs/features/store)
+- [Wallet](/docs/features/wallet)
+- [Refcodes](/docs/features/refcodes)
+- [Affiliates](/docs/features/affiliate-enablement)
+- [NFT Marketplace](/docs/features/nft-market) — ledger-dev RING settlement, KEYS listing policy, sale ledger
+- [Solana NFT Gates](/docs/features/nft-gates) — Metaplex Core + GateEscrow + stake-to-activate
+- [Staking](/docs/features/staking)
+- Ops checklist: [Payment integration](/docs/customization/payment-integration)
 
 ---
 
-## 🤖 MCP Tools
+## 5. Product features
 
-[**MCP** →](/docs/mcp) — Model Context Protocol tools for AI control of the platform.
+### Realtime & communication
 
-- [Ring Image Create](/docs/mcp/ring-image-create) — Generate images via xAI or Google Imagen.
-- [Ring Video Create](/docs/mcp/ring-video-create) — Scripted video via xAI video edit API.
+- [Tunnel Protocol](/docs/features/tunnel-protocol)
+- [Messaging](/docs/features/messaging)
+- [WebRTC Calls & STUNner](/docs/features/webrtc-calls)
+- [Push Notifications (FCM)](/docs/features/push-notifications-fcm)
+- [Notifications](/docs/features/notifications)
+- [Email AI-CRM](/docs/features/email-ai-crm)
 
----
+### Identity, trust, content
 
-## 🎨 Customization (Implementation)
+- [Authentication](/docs/features/authentication)
+- [Security](/docs/features/security)
+- [Admin console](/docs/features/admin) — `admin-nav-config` SSOT, AdminWrapper rail, Security/Matcher tabs
+- [Manage via Telegram](/docs/features/manage-via-telegram) — admin bot RBAC + webhook
+- [Entities](/docs/features/entities)
+- [Opportunities](/docs/features/opportunities)
+- [News](/docs/features/news)
+- [Member Blog](/docs/features/member-blog)
+- [Public Profile](/docs/features/public-profile)
+- [Username Reservation](/docs/features/username-reservation)
+- [Scientific Editor](/docs/features/scientific-editor)
+- [Locale System](/docs/features/locale-system)
+- [Doc System](/docs/features/doc-system)
 
-[**Customization** →](/docs/customization) — How to customize a Ring clone at the code level.
+### Media, UX, ERP
 
-- [Quick Start](/docs/customization/quick-start) — First customization in 15 minutes.
-- [Customization Guide](/docs/customization/customization-guide) — Full white-label playbook.
-- [Database Selection](/docs/customization/database-selection) — Per-deployment database selection.
-- [Token Economics](/docs/customization/token-economics) — Configure your RING token supply and rewards.
-- [Payment Integration](/docs/customization/payment-integration) — Connect your merchant account.
-- [AI Customization](/docs/customization/ai-customization) — Train the matcher and scorer.
-- [Branding](/docs/customization/branding) — Logo, colors, typography tokens.
-- [Features](/docs/customization/features) — Toggle features on a per-clone basis.
-- [Localization](/docs/customization/localization) — Add a new locale to the message catalog.
-- [Themes](/docs/customization/themes) — Color schemes and visual identity.
-- [Components](/docs/customization/components) — Shared UI primitives.
-
----
-
-## 🔗 Integrations
-
-[**Integrations** →](/docs/integrations) — Third-party systems your platform can talk to.
-
-- [Ethereum Wallets](/docs/integrations/ethereum-wallets) — WalletConnect, MetaMask, and EVM wallet support.
-
----
-
-## 🪙 Web3
-
-[**Web3** →](/docs/web3) — On-chain contracts, compliance, and operator guides.
-
-- [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions) — Compliance context for token launches.
+- [VideoConductor](/docs/features/video-conductor)
+- [MediaConductor](/docs/features/media-conductor) — docs narration/walkthrough + `generated_docs_media` cache
+- [Mobile Experience](/docs/features/mobile-experience)
+- [Performance](/docs/features/performance)
+- [ERP](/docs/features/erp) — [Inventory](/docs/features/erp/inventory) · [Vendor management](/docs/features/erp/vendor-management) · [Commissions](/docs/features/erp/commissions)
 
 ---
 
-## 💼 Wallet
+## 6. Deploy & env
 
-[**Wallet** →](/docs/wallet) — Wallet service and security.
+[**Deployment** →](/docs/deployment)
 
-- [Security Tips](/docs/wallet/security-tips) — Operational wallet hygiene.
-
----
-
-## 🧪 Examples
-
-[**Examples** →](/docs/examples) — Reference builds and code-level patterns.
-
-- [Quick Start](/docs/examples/quick-start) — End-to-end starter clone.
-- [Basic Setup](/docs/examples/basic-setup) — Minimum clone configuration.
-- [Authentication](/docs/examples/authentication) — Auth.js provider wiring.
-- [Email AI-CRM](/docs/examples/email-ai-crm) — IMAP poll recipe.
-- [API Integration](/docs/examples/api-integration) — Calling the Ring API from a client.
-- [API Examples](/docs/examples/api-examples) — cURL and fetch snippets.
-- [Web3 Integration](/docs/examples/web3-integration) — Wallet and token flows.
-- [White-Label](/docs/examples/white-label) — A second clone branded for your community.
-- [Custom Branding](/docs/examples/custom-branding) — Visual identity reference.
-- [Apple Sign-In Integration](/docs/examples/apple-signin-integration) — Apple OAuth flow.
-- [Integrations](/docs/examples/integrations) — Bundled integration patterns.
-- [Real World](/docs/examples/real-world) — Production case studies.
-- [Advanced Features](/docs/examples/advanced-features) — Multi-feature composition.
+- [Environment](/docs/deployment/environment) — first
+- [Self-Hosted](/docs/deployment/self-hosted)
+- [Docker](/docs/deployment/docker)
+- [Vercel](/docs/deployment/vercel)
+- [Monitoring](/docs/deployment/monitoring)
+- [Performance](/docs/deployment/performance)
+- [Backup](/docs/deployment/backup)
 
 ---
 
-## 📚 Reference
+## 7a. Engineering core
 
-- [Roadmap](/docs/roadmap) — What is shipping next quarter.
-- [Documentation System](/docs/features/doc-system) — How the docs site is built and how to contribute.
-- [Index](/docs) — Full docs hub.
+[**Development** →](/docs/development)
+
+- [Local Setup](/docs/development/local-setup)
+- [Code Structure](/docs/development/code-structure)
+- [Code Style](/docs/development/code-style)
+- [Best Practices](/docs/development/best-practices)
+- [Testing](/docs/development/testing)
+- [Debugging](/docs/development/debugging)
+- [Performance](/docs/development/performance)
+- [Workflow](/docs/development/workflow)
+- [Contributing](/docs/development/contributing)
+- [Deployment](/docs/development/deployment)
+- [Docs Components](/docs/development/docs-components)
+- [Community Tooling](/docs/development/community-tooling)
+- [Ring MCP](/docs/development/ring-mcp)
+- [Whitelabel Navigation](/docs/development/whitelabel-navigation)
+- [OSS vs Enterprise](/docs/development/oss-vs-enterprise)
 
 ---
 
-*Developers optimize for architecture, performance, and correctness. Founders optimize for revenue, retention, and trust. Use the sidebar to flip between the two views at any time.*
+## 7b. Generative media + MCP
+
+- [Generative Images](/docs/development/generative-images)
+- [Generative Newsroom](/docs/development/generative-newsroom)
+- [Generative Videos](/docs/development/generative-videos)
+- [Scripted Media Pipeline](/docs/development/scripted-media-pipeline)
+- [MCP Image Create](/docs/mcp/ring-image-create)
+- [MCP Video Create](/docs/mcp/ring-video-create)
+
+---
+
+## 8. Customize & examples
+
+[**Customization** →](/docs/customization) · [**Examples** →](/docs/examples)
+
+- Customization: quick-start, guide, database-selection, token-economics, payment-integration, AI, branding, features, localization, themes, components
+- Examples: quick-start, basic-setup, authentication, email-ai-crm, api-integration, api-examples, web3-integration, white-label, custom-branding, apple-signin, integrations, real-world, advanced-features
+- [Ethereum Wallets](/docs/integrations/ethereum-wallets)
+- [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions)
+- [Wallet Security Tips](/docs/wallet/security-tips)
+
+---
+
+## Reference
+
+- [Roadmap](/docs/roadmap) · [Docs hub](/docs) · [For Founders](/docs/for-founders) · [Vendor Guide](/docs/vendor-guide)
+
+*Developers optimize for architecture, performance, and correctness. Use the sidebar to flip to Founder for operator journey hubs.*

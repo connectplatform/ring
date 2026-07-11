@@ -32,6 +32,16 @@
   "maticBalance": "Баланс MATIC",
   "loading": "Загрузка…",
   "error": "Ошибка",
+  "lowBalance": "Низкий баланс",
+  "walletError": "Ошибка кошелька",
+  "tryAgain": "Повторить",
+  "creditBalanceItem": {
+    "title": "Кредиты",
+    "convertTo": "Обменять на {token}",
+    "convertHint": "≈ {amount} {token} по текущему курсу",
+    "addCredit": "Добавить кредиты",
+    "deskModalTitle": "Обменный пункт — {token}"
+  },
   "topup": {
     "title": "Пополнение кошелька",
     "subtitle": "Добавьте средства с помощью токенов RING или платёжной карты",
@@ -72,6 +82,13 @@
     "notes": "Заметка (необязательно)",
     "notesPlaceholder": "Добавьте заметку к переводу…",
     "sendButton": "Отправить {amount} {token}",
+    "sendToContact": "Отправить {token} контакту {project}",
+    "recipientSearchHint": "Имя получателя в Контактах",
+    "allContacts": "Все контакты",
+    "noContacts": "Пока нет сохранённых контактов",
+    "enterAmount": "Введите сумму для отправки",
+    "previewIrreversible": "Вы собираетесь отправить {amount} пользователю {name}. Это нельзя отменить.",
+    "recipientUnverified": "{name} не верифицирован. Попросите пользователя пройти верификацию, если вам нужны гарантии.",
     "confirmTitle": "Подтвердите перевод",
     "confirmWarning": "Проверьте получателя. Ончейн-переводы необратимы.",
     "confirmSend": "Подтвердить",
@@ -90,5 +107,7 @@
   "refreshingBalances": "Обновление балансов…",
   "balanceUpdated": "Баланс только что обновлён",
   "balanceStale": "Баланс может быть устаревшим — нажмите Обновить",
-  "autoRefreshEvery": "Автообновление каждые 60 секунд"
+  "autoRefreshEvery": "Автообновление каждые 60 секунд",
+  "copyAddress": "Копировать адрес",
+  "sendLabel": "Отправить"
 }

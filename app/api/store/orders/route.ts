@@ -7,9 +7,11 @@ import {
   getBuyerWalletAddresses,
   resolveOrderReferral,
 } from '@/features/refcodes/services/attribution-service'
+import { reserveInventoryForOrder } from '@/features/store/services/inventory-sync'
+import { logger } from '@/lib/logger'
 
 export async function GET(req: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
     const session = await auth()
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
     const session = await auth()
@@ -39,10 +41,59 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 })
     }
+
+    const data = parsed.data
+    // Normalize dual shapes (checkout-client shippingInfo/total vs legacy checkoutInfo/totals)
+    const shippingInfo = data.shippingInfo || data.checkoutInfo
+    const total =
+      typeof data.total === 'number'
+        ? data.total
+        : Object.values(data.totals || {}).reduce((s, n) => s + (typeof n === 'number' ? n : 0), 0)
+
+    const normalized = {
+      ...data,
+      shippingInfo,
+      checkoutInfo: data.checkoutInfo || shippingInfo,
+      total,
+      subtotal: data.subtotal ?? total,
+      payment: {
+        ...data.payment,
+        method: data.payment.method === 'ring' ? 'credit' : data.payment.method,
+      },
+    }
+
     const refCode = req.cookies.get(REF_COOKIE_NAME)?.value
     const buyerWallets = await getBuyerWalletAddresses(session.user.id)
     const referral = await resolveOrderReferral(session.user.id, refCode, buyerWallets)
-    const { orderId } = await StoreOrdersService.createOrder(session.user.id, parsed.data, referral || undefined)
+    const { orderId } = await StoreOrdersService.createOrder(
+      session.user.id,
+      normalized as never,
+      referral || undefined,
+    )
+
+    try {
+      const reservationItems = (data.items || []).map((item) => ({
+        productId: item.productId || (item as { product?: { id?: string } }).product?.id || '',
+        quantity: item.quantity || 1,
+      })).filter((i) => i.productId)
+
+      if (reservationItems.length > 0) {
+        const { reserved, skipped } = await reserveInventoryForOrder(orderId, reservationItems)
+        if (reserved.length > 0) {
+          logger.info('Orders: inventory reserved', {
+            orderId,
+            reserved: reserved.length,
+            skipped: skipped.length,
+          })
+        }
+      }
+    } catch (reservationError) {
+      await StoreOrdersService.adminUpdateOrderStatus(orderId, 'canceled')
+      const message =
+        reservationError instanceof Error ? reservationError.message : 'Insufficient stock'
+      return NextResponse.json({ error: message }, { status: 409 })
+    }
+
     return NextResponse.json({
       orderId,
       referralApplied: Boolean(referral),
@@ -52,5 +103,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 })
   }
 }
-
-

@@ -1,0 +1,171 @@
+---
+title: MediaConductor
+description: Domain facade that orchestrates scripted media and docs-article walkthroughs over the Image/Video/Audio/Text conductors — with content-hash caching for docs narration and walkthroughs.
+last_modified: "2026-07-10"
+audience: both
+---
+
+# MediaConductor
+
+MediaConductor is Ring Platform's **domain facade** for multi-step media generation. It does not reimplement any provider logic — it compiles prompts and delegates to the existing `VideoConductor`, `ImageConductor`, `AudioConductor`, and `TextConductor`. Its most visible use is the **docs article media** feature: any docs page can be turned into spoken narration or a short walkthrough, cached by content hash so the cost is paid once.
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see what the feature does and its cost controls; developers see modules, the cache contract, and the docs-media server actions.
+</Callout>
+
+## What it powers
+
+| Surface | Entry | Output |
+|---------|-------|--------|
+| Docs narration | `generateDocNarration` (`app/_actions/docs-media.ts`) | TTS audio of the article (public, cached) |
+| Docs walkthrough | `generateDocWalkthrough` | Summary TTS + optional draft video (video = member+) |
+| Scripted media | `MediaConductor.generateScript` / `generateClip` | Per-clip video from a `ScriptedVideoGenerationRequest` |
+
+<Audience for="founder">
+
+## Why this matters for your clone
+
+- **Docs that talk** — visitors can press Play on any docs page to hear a spoken summary instead of reading. Great for accessibility and for members who prefer audio.
+- **Pay once, reuse forever** — the first Play generates and stores the media keyed by a hash of the page content. Every later Play reuses the stored file. Editing the MDX changes the hash, so narration regenerates only when the content actually changes.
+- **Cost-controlled video** — audio narration is open to any visitor; the heavier **video walkthrough** requires a signed-in member or higher, so video spend stays bounded.
+- **One media brain** — the same conductor drives scripted marketing clips and docs walkthroughs, reusing your configured image / video / audio providers. No separate integration to maintain.
+
+<Cards>
+  <Card title="Wallet" href="/docs/features/wallet">
+    Member roles that unlock video walkthroughs.
+  </Card>
+  <Card title="VideoConductor" href="/docs/features/video-conductor">
+    The scripted-video engine MediaConductor delegates to.
+  </Card>
+  <Card title="News" href="/docs/features/news">
+    NewsConductor — sibling facade for article media enrichment.
+  </Card>
+</Cards>
+
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+`lib/media/conductor/media-conductor.ts` exports the `MediaConductor` object. It compiles a clip into a video body (`clipToGenerateVideoBody`) then calls `VideoConductor.generate` / `.remaster`; for docs it also calls `TextConductor.generate` (summary) and `AudioConductor.synthesize` (TTS).
+
+### Modules
+
+| Module | Path | Role |
+|--------|------|------|
+| MediaConductor | `lib/media/conductor/media-conductor.ts` | `generateClip`, `generateScript`, `generateDocWalkthrough` |
+| Docs media actions | `app/_actions/docs-media.ts` | `generateDocNarration`, `generateDocWalkthrough` (server actions) |
+| Content-hash cache | `lib/docs/docs-media-cache.ts` | `hashDocsContent`, `findDocsMediaCache`, `saveDocsMediaCache` |
+| Delegates | `lib/video`, `lib/images`, `lib/audio`, `lib/text` | Video / Image / Audio / Text conductors |
+
+### Docs media flow
+
+<Mermaid title="Docs narration / walkthrough">
+{`sequenceDiagram
+  participant C as Docs page (Play)
+  participant SA as docs-media server action
+  participant H as hashDocsContent
+  participant DB as generated_docs_media
+  participant MC as MediaConductor
+  participant AV as Audio/Video conductors
+
+  C->>SA: generateDocNarration | generateDocWalkthrough
+  SA->>SA: resolveDocFilePath + readDocMatter
+  SA->>H: hash(locale:slug:content)
+  SA->>DB: findDocsMediaCache(contentHash)
+  alt cache hit
+    DB-->>SA: audioUrl / videoUrl
+    SA-->>C: { success, cached: true }
+  else cache miss
+    SA->>MC: generate (narration/walkthrough)
+    MC->>AV: TTS (+ optional draft video)
+    AV-->>SA: url(s)
+    SA->>DB: saveDocsMediaCache(...)
+    SA-->>C: { success, cached: false }
+  end`}
+</Mermaid>
+
+### Content-hash cache contract
+
+- Collection: **`generated_docs_media`** (via `db()` — `findDocById` / `createDoc` / `updateDoc`).
+- Hash: `sha256(input).slice(0, 24)` of `locale:slug:plainContent` (walkthrough hash also folds in `walkthrough:<enableVideo>`).
+- Record id: `docs-media-<kind>-<locale>-<hash>` where `kind` is `narration | walkthrough`.
+- First request synthesizes and stores; later identical requests return `cached: true`. Editing the MDX changes the hash → fresh generation.
+
+### Access rules (verified)
+
+<Steps>
+
+<Step>
+
+**Narration is public**
+
+`generateDocNarration` has no auth gate — any visitor may trigger it; cost is amortized via the cache.
+
+</Step>
+
+<Step>
+
+**Video requires member+**
+
+In `generateDocWalkthrough`, `enableVideo: true` requires a session (`AUTH_REQUIRED`) and `hasMemberPrivileges(session.user.role)` (`MEMBER_REQUIRED`). Audio-only walkthroughs have no role gate.
+
+</Step>
+
+<Step>
+
+**Draft quality for docs video**
+
+`MediaConductor.generateDocWalkthrough` requests `qualityMode: 'draft'`, `aspectRatio: '16:9'`, `purpose: 'docs-walkthrough'`, and persists to Filebase.
+
+</Step>
+
+</Steps>
+
+### Conductor family
+
+MediaConductor is one of several thin domain facades that reuse the shared media conductors without duplicating provider logic:
+
+| Conductor | Path | Role |
+|-----------|------|------|
+| MediaConductor | `lib/media/conductor/media-conductor.ts` | Scripted clips + docs walkthroughs |
+| NewsConductor | `features/news/conductor/news-conductor.ts` | Article generation, translation, publish-time media enrichment (TL;DR + TTS + featured image) |
+| WalletConductor | `features/wallet/conductor/wallet-conductor.ts` | Multi-step wallet ops facade over wallet server actions |
+
+</Audience>
+
+## Related
+
+<Cards>
+  <Card title="VideoConductor" href="/docs/features/video-conductor">
+    Scripted AI video generation.
+  </Card>
+  <Card title="News" href="/docs/features/news">
+    NewsConductor article + media enrichment.
+  </Card>
+  <Card title="Doc System" href="/docs/features/doc-system">
+    MDX docs rendering and the audience-curated sidebar.
+  </Card>
+  <Card title="Wallet" href="/docs/features/wallet">
+    WalletConductor and member roles.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — MediaConductor (TBD)">
+
+<FutureFeatureWidget
+  name="Docs media Play UI on every article"
+  description="Server actions generateDocNarration/generateDocWalkthrough and the generated_docs_media cache are live. A universal in-page Play/listen control on all docs pages (with progress + language toggle) is the remaining UX surface."
+  implementationCost={40}
+  labels={['docs', 'media', 'ux']}
+/>
+
+<FutureFeatureWidget
+  name="Cache invalidation dashboard"
+  description="Admin view to inspect and purge generated_docs_media rows per locale/slug. Today cache entries are regenerated implicitly when MDX content hash changes."
+  implementationCost={24}
+  labels={['docs', 'media', 'admin']}
+/>
+
+</FutureFeatureBacklog>

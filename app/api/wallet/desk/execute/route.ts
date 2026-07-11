@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { DeskExecuteRequestSchema } from '@/lib/zod/desk-schemas'
-import { executeDesk } from '@/features/wallet/chains/solana/desk-service'
+import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
 import { readJsonBody } from '@/lib/server/request'
 
 export async function POST(request: NextRequest) {
@@ -22,15 +22,26 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await executeDesk({
+    const result = await WalletConductor.executeDesk({
       userId: session.user.id,
+      role: session.user.role,
       idempotencyKey: parsed.data.idempotencyKey,
       quoteToken: parsed.data.quoteToken,
     })
     return NextResponse.json({ success: true, ...result })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Desk execution failed'
-    const status = message.includes('Compliance') ? 403 : 400
+    if (
+      message === 'INSUFFICIENT_CREDIT' ||
+      (error as { code?: string })?.code === 'INSUFFICIENT_CREDIT'
+    ) {
+      return NextResponse.json(
+        { error: 'INSUFFICIENT_CREDIT', code: 'INSUFFICIENT_CREDIT' },
+        { status: 400 },
+      )
+    }
+    const status =
+      message.includes('Compliance') || message.includes('subscriber') ? 403 : 400
     return NextResponse.json({ error: message }, { status })
   }
 }

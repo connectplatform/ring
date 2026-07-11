@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useActionState } from 'react'
+import { useState, useTransition, useActionState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { 
   Coins, 
   Wallet, 
@@ -24,8 +23,16 @@ import {
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 import type { Locale } from '@/i18n/shared'
-import { topUpCredits } from '@/app/_actions/wallet'
+import {
+  topUpCredits,
+  initiateCreditTopupPayment,
+  initiateNativeTokenOnrampPayment,
+  type CreditTopupFormState,
+} from '@/app/_actions/wallet'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
+import { getClientCreditFiatCurrency, getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import { canUseNativeTokenOnrampClient } from '@/lib/payments/confidential-token-onramp-client'
+import { useAuth } from '@/hooks/use-auth'
 
 interface WalletTopUpClientProps {
   locale: Locale
@@ -34,6 +41,9 @@ interface WalletTopUpClientProps {
 
 export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpClientProps) {
   const t = useTranslations('modules.wallet')
+  const { role } = useAuth()
+  const showOnramp = canUseNativeTokenOnrampClient(role)
+  const nativeSymbol = getClientNativeTokenSymbol()
   const { refresh: refreshCreditBalance } = useCreditBalanceContext()
 
   // React 19 useTransition for non-blocking tab and payment method changes
@@ -72,11 +82,25 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
   const [ringDescription, setRingDescription] = useState('')
   const [txHash, setTxHash] = useState('')
 
-  // WayForPay state
+  // Card → credit points via PaymentConductor (wallet_topup). Not native RING.
+  const fiatCurrency = getClientCreditFiatCurrency()
   const [fiatAmount, setFiatAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'applepay' | 'googlepay'>('card')
-  const [isSubmittingFiat, setIsSubmittingFiat] = useState(false)
-  const [fiatResult, setFiatResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [fiatState, fiatFormAction, fiatIsPending] = useActionState<
+    CreditTopupFormState | null,
+    FormData
+  >(initiateCreditTopupPayment, null)
+  const [onrampState, onrampFormAction, onrampIsPending] = useActionState<
+    CreditTopupFormState | null,
+    FormData
+  >(initiateNativeTokenOnrampPayment, null)
+
+  useEffect(() => {
+    const url = fiatState?.paymentUrl || onrampState?.paymentUrl
+    if (url) {
+      window.location.href = url
+    }
+  }, [fiatState?.paymentUrl, onrampState?.paymentUrl])
 
   const handleRingTopUp = async (formData: FormData) => {
     // Validate before submitting
@@ -96,49 +120,6 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
     }, 3000)
   }
 
-  const handleWayForPayTopUp = async () => {
-    if (!fiatAmount) return
-
-    const amountNum = parseFloat(fiatAmount)
-    if (amountNum < 25 || amountNum > 2000) {
-      setFiatResult({
-        success: false,
-        message: 'Amount must be between $25 and $2000',
-      })
-      return
-    }
-
-    setIsSubmittingFiat(true)
-    setFiatResult(null)
-
-    try {
-      // TODO: Implement WayForPay integration
-      // For now, show a placeholder message
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      setFiatResult({
-        success: false,
-        message: 'WayForPay integration coming soon. Please use RING token transfer for now.',
-      })
-
-      logger.info('WayForPay top-up attempted', { 
-        amount: fiatAmount, 
-        method: paymentMethod 
-      })
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setFiatResult({
-        success: false,
-        message: errorMessage
-      })
-      
-      logger.error('WayForPay top-up failed', { amount: fiatAmount, error })
-    } finally {
-      setIsSubmittingFiat(false)
-    }
-  }
-
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
       <div className="mb-8">
@@ -151,15 +132,25 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => startTransition(() => setActiveTab(value))} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8">
+        <TabsList className={`mb-8 grid w-full ${showOnramp ? 'grid-cols-4' : 'grid-cols-2'}`}>
           <TabsTrigger value="ring" className="flex items-center gap-2">
             <Coins className="h-4 w-4" />
-            RING Tokens
+            Chain proof
           </TabsTrigger>
           <TabsTrigger value="wayforpay" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            Card Payment
+            Credit card
           </TabsTrigger>
+          {showOnramp && (
+            <>
+              <TabsTrigger value="native_card" className="flex items-center gap-2">
+                {nativeSymbol} card
+              </TabsTrigger>
+              <TabsTrigger value="native_paypal" className="flex items-center gap-2">
+                {nativeSymbol} PayPal
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* RING Token Transfer Tab */}
@@ -315,175 +306,267 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
           </form>
         </TabsContent>
 
-        {/* WayForPay Tab */}
+        {/* Card → credit points (PaymentConductor wallet_topup) */}
         <TabsContent value="wayforpay" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                Card Payment via WayForPay
-              </CardTitle>
-              <CardDescription>
-                Purchase RING tokens with credit card, Apple Pay, or Google Pay
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Success/Error Display */}
-              {fiatResult && (
-                <Alert className={fiatResult.success ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}>
-                  {fiatResult.success ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
+          <form action={fiatFormAction}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="source" value="wallet_topup_page" />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  {t('topup.methods.fiat.name', { defaultValue: 'Card payment' })}
+                </CardTitle>
+                <CardDescription>
+                  {t('topup.methods.fiat.description', {
+                    defaultValue:
+                      'Purchase account credit points (1:1 with paid fiat). Convert to native RING later via Token Desk on /wallet.',
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {fiatState?.error && (
+                  <Alert className="border-destructive bg-destructive/10">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
+                    <AlertDescription className="text-destructive">
+                      {fiatState.error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {fiatState?.success && fiatState.message && !fiatState.paymentUrl && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      {fiatState.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Payment Method</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div
+                      onClick={() => startTransition(() => setPaymentMethod('card'))}
+                      className={cn(
+                        'p-4 border rounded-lg cursor-pointer transition-colors',
+                        paymentMethod === 'card'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-border/80'
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <CreditCard className="h-6 w-6 text-primary" />
+                        <span className="text-sm font-medium">Credit Card</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => startTransition(() => setPaymentMethod('applepay'))}
+                      className={cn(
+                        'p-4 border rounded-lg cursor-pointer transition-colors',
+                        paymentMethod === 'applepay'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-border/80'
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Apple className="h-6 w-6 text-primary" />
+                        <span className="text-sm font-medium">Apple Pay</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => startTransition(() => setPaymentMethod('googlepay'))}
+                      className={cn(
+                        'p-4 border rounded-lg cursor-pointer transition-colors',
+                        paymentMethod === 'googlepay'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-border/80'
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Smartphone className="h-6 w-6 text-primary" />
+                        <span className="text-sm font-medium">Google Pay</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Method preference is honored by the hosted checkout (WayForPay / Stripe per{' '}
+                    <code>PAYMENT_WALLET_TOPUP_PROCESSOR</code>).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fiat-amount" className="text-sm font-medium">
+                    Amount ({fiatCurrency})
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="fiat-amount"
+                      name="amount"
+                      type="number"
+                      placeholder="100"
+                      value={fiatAmount}
+                      onChange={(e) => setFiatAmount(e.target.value)}
+                      className="pr-16"
+                      min="25"
+                      max="2000"
+                      step="1"
+                      required
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      {fiatCurrency}
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Min: 25</span>
+                    <span>Max: 2,000</span>
+                  </div>
+                </div>
+
+                {fiatAmount && parseFloat(fiatAmount) >= 25 && (
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="font-medium text-sm mb-3">Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>You pay</span>
+                        <span className="font-medium">
+                          {fiatAmount} {fiatCurrency}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Credit points credited</span>
+                        <span className="text-primary">
+                          ≈ {Math.floor(parseFloat(fiatAmount))} points (1:1)
+                        </span>
+                      </div>
+                      <div className="border-t pt-2 text-xs text-muted-foreground">
+                        Gateway fees may apply at checkout. Native RING is purchased separately via
+                        Token Desk (credit → native).
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={!fiatAmount || parseFloat(fiatAmount) < 25 || fiatIsPending}
+                  className="w-full"
+                  size="lg"
+                >
+                  {fiatIsPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="h-4 w-4 mr-2" />
+                      Proceed to Card Payment
+                    </>
                   )}
-                  <AlertDescription className={fiatResult.success ? 'text-green-800' : 'text-destructive'}>
-                    {fiatResult.message}
+                </Button>
+
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    Card top-up adds <strong>credit points</strong>, not on-chain RING. Use Token Desk
+                    on the wallet page to convert credit → native token when needed.
                   </AlertDescription>
                 </Alert>
-              )}
-
-              {/* Payment Method Selection */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Payment Method</Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div
-                    onClick={() => startTransition(() => setPaymentMethod('card'))}
-                    className={cn(
-                      'p-4 border rounded-lg cursor-pointer transition-colors',
-                      paymentMethod === 'card'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-border/80'
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <CreditCard className="h-6 w-6 text-primary" />
-                      <span className="text-sm font-medium">Credit Card</span>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => startTransition(() => setPaymentMethod('applepay'))}
-                    className={cn(
-                      'p-4 border rounded-lg cursor-pointer transition-colors',
-                      paymentMethod === 'applepay'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-border/80'
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Apple className="h-6 w-6 text-primary" />
-                      <span className="text-sm font-medium">Apple Pay</span>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => startTransition(() => setPaymentMethod('googlepay'))}
-                    className={cn(
-                      'p-4 border rounded-lg cursor-pointer transition-colors',
-                      paymentMethod === 'googlepay'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-border/80'
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Smartphone className="h-6 w-6 text-primary" />
-                      <span className="text-sm font-medium">Google Pay</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Amount Input */}
-              <div className="space-y-2">
-                <Label htmlFor="fiat-amount" className="text-sm font-medium">
-                  Amount (USD)
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="fiat-amount"
-                    type="number"
-                    placeholder="0.00"
-                    value={fiatAmount}
-                    onChange={(e) => setFiatAmount(e.target.value)}
-                    className="pr-12"
-                    min="25"
-                    max="2000"
-                    step="1"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    USD
-                  </div>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Min: $25</span>
-                  <span>Max: $2,000</span>
-                </div>
-              </div>
-
-              {/* Conversion Display */}
-              {fiatAmount && parseFloat(fiatAmount) >= 25 && (
-                <div className="bg-muted p-4 rounded-lg">
-                  <h4 className="font-medium text-sm mb-3">Summary</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Amount</span>
-                      <span className="font-medium">${fiatAmount} USD</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Exchange Rate</span>
-                      <span>1 RING = $1.00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Processing Fee</span>
-                      <span className="text-orange-600">3.5%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Fee Amount</span>
-                      <span>${(parseFloat(fiatAmount) * 0.035).toFixed(2)}</span>
-                    </div>
-                    <div className="border-t pt-2 flex justify-between font-medium">
-                      <span>You will receive</span>
-                      <span className="text-primary">≈ {(parseFloat(fiatAmount) * 0.965).toFixed(2)} RING</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Button */}
-              <Button 
-                onClick={handleWayForPayTopUp}
-                disabled={!fiatAmount || parseFloat(fiatAmount) < 25 || isSubmittingFiat}
-                className="w-full"
-                size="lg"
-              >
-                {isSubmittingFiat ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <ArrowRight className="h-4 w-4 mr-2" />
-                    Proceed to Payment
-                  </>
-                )}
-              </Button>
-
-              {/* Coming Soon Badge */}
-              <Alert>
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-sm">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">Coming Soon</Badge>
-                    <span>
-                      WayForPay integration is currently in development. Please use RING token transfer for now.
-                    </span>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </form>
         </TabsContent>
+
+        {showOnramp && (
+          <>
+            <TabsContent value="native_card" className="space-y-6">
+              <form action={onrampFormAction}>
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="source" value="wallet_topup_page:native_card" />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Buy {nativeSymbol} with card</CardTitle>
+                    <CardDescription>
+                      Confidential onramp — card charge settles native {nativeSymbol} from treasury
+                      (CONFIDENTIAL_TOKEN_ONRAMP).
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {onrampState?.error && (
+                      <Alert className="border-destructive bg-destructive/10">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <AlertDescription className="text-destructive">
+                          {onrampState.error}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="onramp-amount">Amount ({fiatCurrency})</Label>
+                      <Input
+                        id="onramp-amount"
+                        name="amount"
+                        type="number"
+                        min="25"
+                        max="2000"
+                        step="1"
+                        placeholder="100"
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" size="lg" disabled={onrampIsPending}>
+                      {onrampIsPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="mr-2 h-4 w-4" />
+                      )}
+                      Buy {nativeSymbol}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="native_paypal" className="space-y-6">
+              <form action={onrampFormAction}>
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="source" value="wallet_topup_page:native_paypal" />
+                <input type="hidden" name="processor" value="paypal" />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Buy {nativeSymbol} with PayPal</CardTitle>
+                    <CardDescription>
+                      Phase S8 stub — routed through PaymentConductor (PAYPAL_NOT_IMPLEMENTED until live).
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="onramp-paypal-amount">Amount ({fiatCurrency})</Label>
+                      <Input
+                        id="onramp-paypal-amount"
+                        name="amount"
+                        type="number"
+                        min="25"
+                        max="2000"
+                        step="1"
+                        placeholder="100"
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" size="lg" disabled={onrampIsPending}>
+                      {onrampIsPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="mr-2 h-4 w-4" />
+                      )}
+                      Buy {nativeSymbol} via PayPal
+                    </Button>
+                  </CardContent>
+                </Card>
+              </form>
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   )

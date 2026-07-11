@@ -1,5 +1,5 @@
-// Importing necessary TypeScript types for user-related fields from the local module.
-// These types help define the structure of user metadata, privacy, and preferences.
+// JWT field mapping for Auth.js lives in `lib/auth/session-user-status.ts` (`applyUserRowToJwt`).
+// This file defines the PostgreSQL JSONB document shape only.
 import type {
   NotificationPreferences,
   PrivacyConsent,

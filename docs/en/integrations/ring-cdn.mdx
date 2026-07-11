@@ -1,0 +1,180 @@
+---
+title: Ring CDN (RingFileBase edge)
+description: NGINX CDN edge for Ring clones — public /files paths, host-to-bucket mapping, and multi-zone delivery in front of MinIO
+last_modified: "2026-07-09"
+audience: both
+---
+
+# Ring CDN (RingFileBase edge)
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Uploads are documented under [RingFileBase](/docs/integrations/ring-filebase); this page covers **public delivery**.
+</Callout>
+
+**Ring CDN** is the read path for objects stored by RingFileBase: an NGINX edge (`ring-filebase-cdn`) that proxies `GET /files/<key>` to MinIO (or RGW) with caching headers. Browsers and crawlers never need MinIO credentials.
+
+| Layer | Component | Namespace (typical) |
+|-------|-----------|---------------------|
+| Edge | `ring-filebase-cdn` Deployment + Ingress | `ring-filebase` |
+| Origin | `minio-service` | `ring-filebase-minio` |
+| Writer | `ring-filebase-api` | `ring-filebase` |
+
+Public hosts follow `cdn.<clone-domain>` (examples in empire: `cdn.ring-platform.org`, `cdn.greenfood.live`, `cdn.vikka.ua`).
+
+<Audience for="founder">
+
+## Why this matters for your clone
+
+Users and search engines load product photos, avatars, and generated media from a **stable CDN hostname**, not from your app pods. That keeps Next.js free of large static payloads, lets you cache aggressively, and lets you place edges closer to members (US / EU / UA) without changing application code.
+
+### Typical scenarios
+
+<Cards>
+  <Card title="White-label brand CDN" href="/docs/examples/white-label">
+    Map `cdn.yourdomain` → your MinIO bucket via Ingress + NGINX `map $host $target_bucket`.
+  </Card>
+  <Card title="Marketplace media" href="/docs/features/store">
+    Store product images once via RingFileBase; serve forever from CDN URLs stored in Postgres.
+  </Card>
+  <Card title="Generative media" href="/docs/development/generative-images">
+    ImageConductor / VideoConductor outputs should land on RingFileBase so OG and newsroom assets use CDN URLs.
+  </Card>
+  <Card title="Ops backup" href="/docs/deployment/backup">
+    CDN is a cache — back up the **MinIO/RGW bucket**, not only the NGINX PVC.
+  </Card>
+</Cards>
+
+<Callout type="tip" title="Founder checklist">
+  1. DNS `cdn.<domain>` → cluster ingress IP(s).  
+  2. TLS certificate on the CDN Ingress.  
+  3. App `RINGBASE_PUBLIC_URL=https://cdn.<domain>`.  
+  4. Confirm a known `/files/...` URL returns **200** in the browser.
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## Request path
+
+<Mermaid>
+{`sequenceDiagram
+  participant Browser
+  participant Ingress as nginx Ingress
+  participant CDN as ring-filebase-cdn
+  participant MinIO as minio-service:9000
+  Browser->>Ingress: GET https://cdn.host/files/key
+  Ingress->>CDN: HTTP :80
+  CDN->>CDN: map host → bucket
+  CDN->>MinIO: GET /bucket/key
+  MinIO-->>CDN: object bytes
+  CDN-->>Browser: 200 + Cache-Control`}
+</Mermaid>
+
+### Verified config surfaces
+
+| Path | Role |
+|------|------|
+| `infrastructure/k3s-3/ring-filebase/10-cdn-config.yaml` | NGINX `map $host $target_bucket` + `/files/` location |
+| `infrastructure/ring-file-base/k8s/ring-filebase/cdn-*-ingress.yaml` | Per-domain Ingress + TLS |
+| `infrastructure/ring-file-base/k8s/ring-filebase/20-cdn-deployment.yaml` | CDN Deployment |
+| App ConfigMap | `RINGBASE_PUBLIC_URL`, optional `REFMAGIC_CDN_INTERNAL_URL` (in-cluster CDN) |
+
+### Host → bucket map (pattern)
+
+CDN config maps Host header to MinIO bucket name, then proxies:
+
+`/files/<key>` → `http://minio_backend/<bucket>/<key>`
+
+Example mapping used in empire configs:
+
+| Host | Bucket |
+|------|--------|
+| `cdn.ring-platform.org` | `ring-filebase` |
+| `cdn.greenfood.live` | `ring-filebase` |
+| `cdn.vikka.ua` | `ring-vikka-ua` |
+
+Object **keys** are whatever `ring-filebase-api` wrote (some deployed API images still prefix keys with a project segment such as `ring-greenfood-live/<uuid>`). The CDN path is always `/files/` + that key.
+
+### App wiring
+
+| Variable | Purpose |
+|----------|---------|
+| `RINGBASE_PUBLIC_URL` | Absolute origin embedded in upload responses (`https://cdn.<domain>`) |
+| `REFMAGIC_CDN_INTERNAL_URL` | Optional in-cluster fetch (`http://ring-filebase-cdn.ring-filebase.svc.cluster.local`) |
+| `CDN_URL` | Optional legacy/commented flag in `env.local.template` — prefer `RINGBASE_PUBLIC_URL` for RingFileBase |
+
+### Edge zones (empire reference)
+
+Ringdom operates CDN edges as a **geo set** (documented in AI-CONTEXT `cdn-edge-architecture`): US (k3s-1 / Ashburn), EU (Finland), UA (k8s). Each zone runs local MinIO + CDN proxy; DNS may publish multiple A/AAAA records for `cdn.*`. Your clone may use one zone only — still use the same `/files/` contract.
+
+### Operator steps
+
+<Steps>
+
+<Step>
+
+### Create bucket + public read for CDN
+
+MinIO objects are often uploaded with private ACL. The CDN proxy needs **anonymous GetObject** (or equivalent signed fetch) on the bucket, or browsers see **403** XML from MinIO through NGINX.
+
+</Step>
+
+<Step>
+
+### Deploy CDN + Ingress
+
+Apply CDN ConfigMaps, Deployment, Service, and `cdn.<domain>` Ingress with cert-manager TLS. Confirm `server_name` includes your host.
+
+</Step>
+
+<Step>
+
+### Point the app at the public origin
+
+Set `RINGBASE_PUBLIC_URL=https://cdn.<domain>` so `RingBaseAdapter` / API responses emit CDN URLs. Restart the Ring Deployment after ConfigMap changes.
+
+</Step>
+
+<Step>
+
+### Verify
+
+<Code language="bash" title="In-cluster and public checks">{`# From an app pod (no TLS issues)
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  http://ring-filebase-cdn.ring-filebase.svc.cluster.local/files/<object-key>
+
+# Public
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  https://cdn.<domain>/files/<object-key>`}</Code>
+
+Expect **200**. **403** → bucket policy / ACL. **404** → wrong bucket map or key prefix.
+
+</Step>
+
+</Steps>
+
+### Security notes
+
+- CDN is **read-only** for `/files/` — uploads go through RingFileBase API with Bearer auth.
+- Do not expose MinIO console or S3 API publicly unless you intend to; keep `minio-service` ClusterIP.
+- Flat `/files/<id>` keys reduce directory enumeration versus dated folder trees (see RingFileBase security hardening notes in AI-CONTEXT).
+
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="RingFileBase API" href="/docs/integrations/ring-filebase">
+    Authenticated uploads, tokens, `file()` adapter.
+  </Card>
+  <Card title="Environment configuration" href="/docs/deployment/environment">
+    Storage and CDN-related env vars.
+  </Card>
+  <Card title="Performance" href="/docs/deployment/performance">
+    Caching and edge considerations for clones.
+  </Card>
+  <Card title="Integrations hub" href="/docs/integrations">
+    Full integration catalog.
+  </Card>
+</Cards>

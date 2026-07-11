@@ -122,6 +122,9 @@
     "fiat_details": {
       "placeholder": "Pay by card via WayForPay, or use account credit / on-chain RING.",
       "proceed": "Proceed to Card Payment"
+    },
+    "paypal": {
+      "dao_hint": "Help unlock PayPal by collecting 100 likes or contributing 10 native tokens."
     }
   },
   "page": {

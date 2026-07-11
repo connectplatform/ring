@@ -129,7 +129,7 @@ export function SidebarSyncedLayout({
   const locale = useLocale() as Locale
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
-  const { currency, toggleCurrency } = useStoreCurrency()
+  const { currency, toggleCurrency, nativeTokenCurrency, defaultCurrency } = useStoreCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const [mounted, setMounted] = useState(false)
   const { hasVendor: hasVendorStore } = useVendorStatus()
@@ -522,8 +522,24 @@ export function SidebarSyncedLayout({
               type="button"
               onClick={toggleCurrency}
               className={cn(FOOTER_BTN, 'text-[10px] font-semibold')}
+              title={
+                currency === nativeTokenCurrency
+                  ? `Switch to ${defaultCurrency}`
+                  : `Switch to ${nativeTokenCurrency}`
+              }
+              aria-label={
+                currency === nativeTokenCurrency
+                  ? `Switch to ${defaultCurrency}`
+                  : `Switch to ${nativeTokenCurrency}`
+              }
             >
-              {currency === 'UAH' ? '₴' : 'Ⓡ'}
+              {currency === nativeTokenCurrency
+                ? 'Ⓡ'
+                : currency === 'UAH'
+                  ? '₴'
+                  : currency === 'USD'
+                    ? '$'
+                    : currency}
             </button>
           )}
           <button

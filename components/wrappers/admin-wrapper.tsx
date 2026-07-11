@@ -30,6 +30,7 @@ import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { AdminSidebarContent } from '@/components/layout/rails/admin-rail'
 import type { Locale } from '@/i18n/shared'
 import type { NewsStatsSummary } from '@/features/news/types'
+import type { AdminPageContext } from '@/features/admin/admin-nav-config'
 
 /** Keys aligned with `modules.admin` / admin right-rail copy (partial overrides allowed). */
 export type ModulesAdminLabels = Partial<{
@@ -53,6 +54,42 @@ export type ModulesAdminLabels = Partial<{
   emailAnalytics: string
   emailTasks: string
   processes: string
+  subscriptions: string
+  web3: string
+  relatedModules: string
+  navGroupTrust: string
+  navGroupPlatformOps: string
+  newsManagement: string
+  newsRailArticles: string
+  newsRailCategories: string
+  newsRailAnalytics: string
+  newsRailBulk: string
+  storeProducts: string
+  storeOrders: string
+  storeStock: string
+  storeCommissions: string
+  storeAddProduct: string
+  daoPools: string
+  daoCreate: string
+  securityTabOverview: string
+  securityTabFraud: string
+  securityTabVerification: string
+  securityTabEvents: string
+  matcherTabAnalytics: string
+  matcherTabModeration: string
+  moderationTabQueue: string
+  moderationTabRules: string
+  moderationTabReports: string
+  moderationTabAnalytics: string
+  usersTabOverview: string
+  usersTabUsers: string
+  usersTabVerification: string
+  usersTabAnalytics: string
+  userManagement: string
+  web3Settings: string
+  web3Overview: string
+  web3Nft: string
+  web3NftMint: string
   quickNav: string
   navGroupOverview: string
   navGroupCommunity: string
@@ -60,6 +97,11 @@ export type ModulesAdminLabels = Partial<{
   navGroupCommerce: string
   navGroupEmail: string
   systemStats: string
+  newsStatsTotal: string
+  newsStatsPublished: string
+  newsStatsDrafts: string
+  newsStatsArchived: string
+  newsStatsViews: string
   totalUsers: string
   publishedArticles: string
   activeUsers: string
@@ -91,7 +133,7 @@ export type ModulesAdminLabels = Partial<{
 interface AdminWrapperProps {
   children: React.ReactNode
   locale: Locale
-  pageContext?: 'dashboard' | 'users' | 'news' | 'dao' | 'analytics' | 'moderation' | 'performance' | 'security' | 'fraud-desk' | 'settings' | 'matcher' | 'verification' | 'store' | 'refcodes' | 'email-inbox' | 'email-drafts' | 'email-contacts' | 'email-analytics' | 'email-tasks' | 'processes' | 'subscriptions' | 'web3'
+  pageContext?: AdminPageContext
   translations?: { modules?: { admin?: ModulesAdminLabels } }
   /** Flat admin labels (e.g. from `buildModulesAdminLabels`) — merged over `translations.modules.admin`. */
   labels?: ModulesAdminLabels

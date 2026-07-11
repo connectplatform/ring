@@ -248,23 +248,6 @@ export interface UserMatchingPreferences {
   industryBoost: string[]; // Industries to prioritize
 }
 
-// Analytics and metrics
-export interface MatcherAnalytics {
-  totalMatches: number;
-  averageMatchScore: number;
-  matchDistribution: { [score: number]: number };
-  autoFillSuccessRate: number;
-  llmUsage: {
-    totalTokens: number;
-    totalRequests: number;
-    averageResponseTime: number;
-  };
-  userEngagement: {
-    notificationClickRate: number;
-    matchAcceptanceRate: number;
-  };
-}
-
 // Batch processing interfaces
 export interface BatchMatchingRequest {
   opportunity: OpportunityInput;

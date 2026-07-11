@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -24,9 +24,11 @@ import { ContactPicker, type ContactPickerSelection } from '@/components/contact
 import type { Locale } from '@/i18n/shared'
 import type { WalletTransactionExcerpt } from '@/features/wallet/types'
 import { getNativeTokenSymbol, SupportedChains } from '@/lib/ring-config-chain'
-
-// TODO: Consider migrating state like formData and booleans to use React 19's useOptimistic or useFormState for enhancements in future codemods.
-// TODO: Replace useEffect + fetch for data-loading (`loadWallets`, `loadBalance`) with React 19's use hook and Next 16 server actions for data and mutative ops where possible, requiring refactor from client to server actions. Currently, all data-fetch is client-side for interactive UX.
+import {
+  listUserWallets,
+  getNativeTokenBalanceAction,
+  transferNativeTokens,
+} from '@/app/_actions/wallet'
 
 interface WalletListItem {
   address: string
@@ -41,60 +43,49 @@ interface SendTokensProps {
   onTransactionComplete?: (transaction: WalletTransactionExcerpt) => void
 }
 
-// Main token sending component
+// Main token sending component — React 19 client island; data via Server Actions (Next 16)
 export default function SendTokens({ locale, embedded = false, onTransactionComplete }: SendTokensProps) {
-  // Translation hooks for wallet and common UI text
   const t = useTranslations('modules.wallet.send')
   const tCommon = useTranslations('common')
-  // Session from NextAuth to get the current user
   const { data: session } = useSession()
-  // Reading search params for pre-filling e.g. contact via query string
   const searchParams = useSearchParams()
   const contactParam = searchParams.get('contact')
+  const [isPending, startTransition] = useTransition()
 
-  // UI state hooks for loaders and modals/UX flows
-  const [isLoading, setIsLoading] = useState(false) // sending progress
-  const [isResolving, setIsResolving] = useState(false) // recipient resolving progress
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false) // for "are you sure?" sending dialog
-  const [showContactSelector, setShowContactSelector] = useState(false) // open/close contact picker modal
+  const [isLoading, setIsLoading] = useState(false)
+  const [isResolving, setIsResolving] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [showContactSelector, setShowContactSelector] = useState(false)
 
-  // State for "resolved" recipient info
-  const [recipientLabel, setRecipientLabel] = useState<string | null>(null) // UI display name
-  const [recipientLocked, setRecipientLocked] = useState(false) // disables further edits if selected from contacts
-  const [contactUserId, setContactUserId] = useState<string | null>(null) // used for backend contact tracking
-  const [ringContactId, setRingContactId] = useState<string | null>(null) // used for backend contact tracking
+  const [recipientLabel, setRecipientLabel] = useState<string | null>(null)
+  const [recipientLocked, setRecipientLocked] = useState(false)
+  const [contactUserId, setContactUserId] = useState<string | null>(null)
+  const [ringContactId, setRingContactId] = useState<string | null>(null)
 
-  // Controlled form data for the send operation
   const [formData, setFormData] = useState({
-    recipient: '', // address
-    amount: '', // amount as string
-    notes: '', // optional note
+    recipient: '',
+    amount: '',
+    notes: '',
   })
 
-  // All wallets for the user and currently selected wallet for sending
   const [userWallets, setUserWallets] = useState<WalletListItem[]>([])
   const [selectedWallet, setSelectedWallet] = useState<WalletListItem | null>(null)
 
-  // Current Ring token balance and (separate) loading state
   const [ringBalance, setRingBalance] = useState('0')
   const [balanceLoading, setBalanceLoading] = useState(true)
 
-  /**
-   * Loads user's wallets from API on mount/session.
-   */
-  const loadWallets = useCallback(async () => {
+  const loadWallets = async () => {
     if (!session?.user?.id) return
     try {
-      const res = await fetch('/api/wallet/list', { cache: 'no-store' })
-      if (!res.ok) throw new Error('Failed to load wallets')
-      const data = (await res.json()) as { wallets?: WalletListItem[] }
-      const wallets = data.wallets ?? []
+      const result = await listUserWallets()
+      if (!result.success || !result.wallets) {
+        throw new Error(result.error || 'Failed to load wallets')
+      }
+      const wallets = result.wallets as WalletListItem[]
       setUserWallets(wallets)
-      // Automatically select primary or the first as current sender wallet
       const primary = wallets.find((w) => w.isPrimary) ?? wallets[0] ?? null
       setSelectedWallet(primary)
     } catch (error) {
-      // Handles API/network errors and notifies via toast
       console.error('Failed to load wallets:', error)
       toast({
         title: tCommon('error'),
@@ -102,85 +93,73 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
         variant: 'destructive',
       })
     }
-  }, [session?.user?.id, t, tCommon])
+  }
 
-  /**
-   * Loads wallet's Ring token balance from API (for selected user wallet).
-   */
-  const loadBalance = useCallback(async () => {
+  const loadBalance = async () => {
     if (!session?.user?.id) return
     try {
       setBalanceLoading(true)
-      const res = await fetch('/api/wallet/ring/balance', { cache: 'no-store' })
-      if (!res.ok) throw new Error('balance failed')
-      const data = (await res.json()) as { balance?: string }
-      setRingBalance(data.balance ?? '0')
+      const result = await getNativeTokenBalanceAction()
+      setRingBalance(result.success ? (result.balance ?? '0') : '0')
     } catch {
       setRingBalance('0')
     } finally {
       setBalanceLoading(false)
     }
+  }
+
+  const resolveRecipient = async (
+    targetUserId: string,
+    displayName?: string,
+    savedContactId?: string,
+  ) => {
+    setIsResolving(true)
+    try {
+      const res = await fetch('/api/ring/contacts/resolve-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactUserId: targetUserId }),
+      })
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(err.error || 'resolve failed')
+      }
+      const data = (await res.json()) as { address?: string }
+      if (!data.address) throw new Error('No wallet address')
+      setContactUserId(targetUserId)
+      setRingContactId(savedContactId ?? null)
+      setRecipientLabel(displayName ?? null)
+      setRecipientLocked(true)
+      setFormData((prev) => ({ ...prev, recipient: data.address! }))
+    } catch (error) {
+      toast({
+        title: tCommon('error'),
+        description: error instanceof Error ? error.message : t('resolveWalletError'),
+        variant: 'destructive',
+      })
+    } finally {
+      setIsResolving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    startTransition(() => {
+      void loadWallets()
+      void loadBalance()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on session id only
   }, [session?.user?.id])
 
-  /**
-   * Resolves a user/contact to an on-chain wallet address for pay-to-user flows and disables editing.
-   * Called when a recipient is selected from the contact picker.
-   */
-  const resolveRecipient = useCallback(
-    async (targetUserId: string, displayName?: string, savedContactId?: string) => {
-      setIsResolving(true)
-      try {
-        const res = await fetch('/api/ring/contacts/resolve-wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contactUserId: targetUserId }),
-        })
-        if (!res.ok) {
-          // Try to extract API error message (handles both JSON and plain error)
-          const err = (await res.json().catch(() => ({}))) as { error?: string }
-          throw new Error(err.error || 'resolve failed')
-        }
-        // Receives resolved blockchain address for recipient
-        const data = (await res.json()) as { address?: string }
-        if (!data.address) throw new Error('No wallet address')
-        // Locks the recipient input (user picked from contacts) and stores ids/names for UX & backend
-        setContactUserId(targetUserId)
-        setRingContactId(savedContactId ?? null)
-        setRecipientLabel(displayName ?? null)
-        setRecipientLocked(true)
-        setFormData((prev) => ({ ...prev, recipient: data.address! }))
-      } catch (error) {
-        toast({
-          title: tCommon('error'),
-          description: error instanceof Error ? error.message : t('resolveWalletError'),
-          variant: 'destructive',
-        })
-      } finally {
-        setIsResolving(false)
-      }
-    },
-    [t, tCommon],
-  )
-
-  // Load wallets and balance on mount/session change
-  useEffect(() => {
-    void loadWallets()
-    void loadBalance()
-  }, [loadWallets, loadBalance])
-
-  // If ?contact= param present (contact picker from elsewhere), auto-resolve that contact
   useEffect(() => {
     if (contactParam && session?.user?.id) {
       void resolveRecipient(contactParam)
     }
-  }, [contactParam, session?.user?.id, resolveRecipient])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactParam, session?.user?.id])
 
-  /**
-   * Handles recipient selection from the contact picker modal.
-   */
   const handleContactPickerSelect = (selection: ContactPickerSelection) => {
     setShowContactSelector(false)
-    // If picked a user, resolve wallet from user info, otherwise use the contact object
     if (selection.kind === 'user') {
       const user = selection.user
       void resolveRecipient(user.id, user.name || user.username || user.id)
@@ -190,10 +169,6 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
     void resolveRecipient(contact.contactUserId, contact.displayName, contact.id)
   }
 
-  /**
-   * Validates send form prior to initiating transfer.
-   * Returns translation string describing the error or null if valid.
-   */
   const validateForm = (): string | null => {
     if (!formData.recipient.trim()) {
       return t('recipientRequired')
@@ -210,13 +185,9 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
     return null
   }
 
-  /**
-   * Main send logic, called after confirmation dialog
-   */
   const handleSendTokens = async () => {
     if (!session?.user?.id || !selectedWallet) return
 
-    // Prevent send if form is invalid
     const validationError = validateForm()
     if (validationError) {
       toast({
@@ -227,41 +198,32 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
       return
     }
 
+    const recipientSnapshot = formData.recipient
+    const amountSnapshot = formData.amount
+
     try {
       setIsLoading(true)
-      // Sends the transfer request to backend; addresses/ids come from the resolved/contact picker
-      const res = await fetch('/api/wallet/ring/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toAddress: formData.recipient,
-          amount: formData.amount,
-          contactUserId: contactUserId ?? undefined,
-          ringContactId: ringContactId ?? undefined,
-          notes: formData.notes.trim() || undefined,
-        }),
-      })
+      const fd = new FormData()
+      fd.set('toAddress', recipientSnapshot)
+      fd.set('amount', amountSnapshot)
+      if (contactUserId) fd.set('contactUserId', contactUserId)
+      if (ringContactId) fd.set('ringContactId', ringContactId)
+      if (formData.notes.trim()) fd.set('notes', formData.notes.trim())
 
-      const data = (await res.json()) as {
-        error?: string
-        txHash?: string
-        fromAddress?: string
-      }
+      const data = await transferNativeTokens(fd)
 
-      if (!res.ok) {
+      if (!data.success) {
         throw new Error(data.error || 'Transfer failed')
       }
 
-      // Show success toast
       toast({
         title: tCommon('success'),
         description: t('sendSuccess', {
-          amount: formData.amount,
+          amount: amountSnapshot,
           name: recipientLabel || t('recipientFallback'),
         }),
       })
 
-      // Clear form and UX states after send
       setFormData({ recipient: '', amount: '', notes: '' })
       setRecipientLabel(null)
       setRecipientLocked(false)
@@ -269,24 +231,21 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
       setRingContactId(null)
       setShowConfirmDialog(false)
 
-      // Refresh sender balance
       await loadBalance()
 
-      // Optionally notify parent of transaction, if has callback
       if (onTransactionComplete && data.txHash) {
         onTransactionComplete({
           id: crypto.randomUUID(),
           timestamp: new Date().toISOString(),
           walletAddress: selectedWallet.address,
-          recipient: formData.recipient,
-          amount: formData.amount,
+          recipient: recipientSnapshot,
+          amount: amountSnapshot,
           tokenSymbol: getNativeTokenSymbol(),
           status: 'success',
           kind: 'send',
         })
       }
     } catch (error) {
-      // Handles any failures from API/backend
       console.error('Failed to send tokens:', error)
       toast({
         title: tCommon('error'),
@@ -298,10 +257,10 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
     }
   }
 
-  // Compute numeric balance and amount for validation and warnings
   const availableBalance = parseFloat(ringBalance) || 0
   const sendAmount = parseFloat(formData.amount) || 0
   const hasInsufficientBalance = sendAmount > availableBalance
+  const busy = isLoading || isPending
 
   return (
     <div className={embedded ? 'space-y-6' : 'container mx-auto px-4 py-8'}>
@@ -462,8 +421,8 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
                   <Button variant="outline" onClick={() => setShowConfirmDialog(false)} className="flex-1">
                     {tCommon('actions.cancel')}
                   </Button>
-                  <Button onClick={handleSendTokens} disabled={isLoading} className="flex-1">
-                    {isLoading ? (
+                  <Button onClick={handleSendTokens} disabled={busy} className="flex-1">
+                    {busy ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         {t('sending')}

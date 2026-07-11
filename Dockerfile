@@ -26,10 +26,9 @@
 # 🗄️ OPTIONAL (advanced DB tuning):
 #   - DB_POOL_SIZE, DB_TIMEOUT, DB_SSL, DB_METRICS_ENABLED, etc.
 #
-# 🚀 BUILD COMMAND EXAMPLE (No sensitive secrets at build time):
+# 🚀 BUILD COMMAND EXAMPLE (No AUTH_SECRET at build time — runtime K8s only):
 # docker build \
 #   --platform linux/amd64 \
-#   --build-arg AUTH_SECRET="your-auth-secret" \
 #   --build-arg NEXT_PUBLIC_AUTH_GOOGLE_ID="your-client-id" \
 #   --build-arg POLYGON_RPC_URL="https://polygon-rpc.com" \
 #   --build-arg DB_HOST="postgres.ring-platform-org.svc.cluster.local" \
@@ -40,7 +39,8 @@
 #   --build-arg NEXT_PUBLIC_API_URL="https://ring-platform.org" \
 #   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 .
 #
-# 🔐 CRITICAL: Sensitive secrets (AUTH_GOOGLE_SECRET, AUTH_FIREBASE_PRIVATE_KEY, etc.)
+# 🔐 CRITICAL: AUTH_SECRET and other sensitive secrets
+# (AUTH_GOOGLE_SECRET, AUTH_FIREBASE_PRIVATE_KEY, etc.)
 # are injected at RUNTIME via Kubernetes secrets, not build time!
 #
 # Example Kubernetes secret injection:
@@ -105,8 +105,11 @@ ARG NEXTAUTH_URL=https://ring-platform.org
 # =============================================================================
 
 # Auth.js Core Configuration
-ARG AUTH_SECRET
-# ARG AUTH_DEBUG=false  # Optional: can be set at build time or runtime
+# AUTH_SECRET: runtime-only via K8s secretKeyRef. Do not use ARG/ENV here —
+# Docker BuildKit flags SecretsUsedInArgOrEnv and baking secrets into layers.
+# Build uses an ephemeral inline value on the RUN step only (see builder stage).
+# ARG AUTH_SECRET
+# ENV AUTH_SECRET=${AUTH_SECRET}
 
 # Google OAuth (Server-side) - Will be injected at runtime
 # ARG AUTH_GOOGLE_ID
@@ -215,8 +218,8 @@ ENV NODE_OPTIONS="--no-deprecation"
 # 🔐 AUTHENTICATION ENVIRONMENT VARIABLES (CRITICAL)
 # =============================================================================
 
-# Auth.js Core Configuration
-ENV AUTH_SECRET=${AUTH_SECRET}
+# AUTH_SECRET injected at runtime via K8s secretKeyRef (not baked into image).
+# Do not set ENV AUTH_SECRET here — SecretsUsedInArgOrEnv + layer leakage.
 # ENV AUTH_DEBUG=${AUTH_DEBUG}  # Optional: can be set at runtime
 
 # 🔐 CRITICAL SECRETS - INJECTED AT RUNTIME VIA KUBERNETES SECRETS
@@ -345,7 +348,9 @@ ENV SKIP_TYPE_CHECK=1
 # Build the application (reuse .next/cache across builds when BuildKit cache mount is enabled).
 # 8GiB Node heap; Colima VM should be >=12GiB (see ~/.colima/default/colima.yaml).
 # Do not set NODE_OPTIONS inside npm scripts — it would override this RUN env.
+# Ephemeral AUTH_SECRET for Next compile only — production value comes from K8s at pod start.
 RUN --mount=type=cache,target=/app/.next/cache \
+    AUTH_SECRET=ring-docker-build-placeholder-not-for-runtime \
     NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
 
 # Trim devDependencies for runtime copy (avoids second npm ci in runtime stage)

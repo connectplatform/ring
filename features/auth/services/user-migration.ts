@@ -2,7 +2,7 @@ import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
 import type { AuthUser } from '@/features/auth/types';
 import type { DefaultSession } from 'next-auth';
-import { UserRolesArray, resolveSessionUserRole } from '@/features/auth/user-role';
+import { UserRolesArray, resolvePersistedUserRole } from '@/features/auth/user-role';
 import {
   findUserByEmail,
   isUniqueViolation,
@@ -67,7 +67,9 @@ export class UserMigrationService {
         photoURL: (authUser as { photoURL?: string; image?: string }).photoURL
           || (authUser as { image?: string }).image
           || null,
-        role: resolveSessionUserRole((authUser as { role?: string }).role) ?? UserRolesArray.subscriber as UserRolesArray,
+        role: resolvePersistedUserRole((authUser as { role?: string }).role),
+        account_status: 'ACTIVE',
+        accountStatus: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
 

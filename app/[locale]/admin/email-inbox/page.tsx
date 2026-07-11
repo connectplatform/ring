@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { EmailAdminShell } from '@/features/admin/email/email-admin-shell';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { 
@@ -122,6 +123,7 @@ export default function EmailInboxPage() {
   };
 
   return (
+    <EmailAdminShell pageContext="email-inbox">
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -297,5 +299,6 @@ export default function EmailInboxPage() {
         </div>
       </div>
     </div>
+    </EmailAdminShell>
   );
 }

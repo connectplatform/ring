@@ -3,4 +3,4 @@
 // Deprecated: wallet-service.ts (project_wallets legacy, global_id removed) — REMOVED
 // Deprecated: wallet-history.ts (wagmi hooks handle history) — REMOVED
 
-export { ensureWallet, ensureWallets } from './ensure-wallet'
+export { ensureWallet, ensureWallets, ensureWalletsCached } from './ensure-wallet'

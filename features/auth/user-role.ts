@@ -130,6 +130,18 @@ export function resolveSessionUserRole(role: unknown): UserRolesArray {
 }
 
 /**
+ * Role for authenticated users persisted in DB or carried on JWT after sign-in.
+ * `visitor` is session-only for guests — never valid as a stored user role.
+ */
+export function resolvePersistedUserRole(role: unknown): UserRolesArray {
+  if (role === UserRolesArray.visitor || role === 'visitor') {
+    return UserRolesArray.subscriber;
+  }
+  const parsed = parseUserRolesArray(role);
+  return parsed ?? UserRolesArray.subscriber;
+}
+
+/**
  * Type guard for whether a role is a strictly valid member of ALL_USER_ROLES_SET.
  */
 export function isKnownUserRole(role: unknown): role is UserRolesArray {

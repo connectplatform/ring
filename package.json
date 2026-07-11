@@ -1,6 +1,6 @@
 {
   "name": "ring-platform-org",
-  "version": "1.93.7",
+  "version": "1.96.2",
   "private": true,
   "type": "module",
   "bin": {
@@ -27,6 +27,8 @@
     "setup:new": "node scripts/setup-env.js --force",
     "setup:portal": "cp env.local.template .env.local",
     "config:firebase": "node scripts/inject-firebase-config.js",
+    "validate:fcm-env": "node scripts/validate-fcm-env.mjs",
+    "validate:fcm-schema": "node scripts/validate-fcm-schema.mjs",
     "analyze": "ANALYZE=true npm run build:skip-types",
     "analyze:server": "BUNDLE_ANALYZE=server npm run build:skip-types",
     "analyze:browser": "BUNDLE_ANALYZE=browser npm run build:skip-types",
@@ -56,6 +58,10 @@
     "@mdx-js/mdx": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@metamask/connect-evm": "^2.1.0",
+    "@metaplex-foundation/mpl-core": "^1.10.0",
+    "@metaplex-foundation/umi": "^1.5.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
+    "@metaplex-foundation/umi-web3js-adapters": "^1.5.1",
     "@radix-ui/react-accordion": "^1.2.14",
     "@radix-ui/react-alert-dialog": "^1.1.17",
     "@radix-ui/react-aspect-ratio": "^1.1.10",

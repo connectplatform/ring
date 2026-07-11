@@ -309,24 +309,28 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
         })
       }
 
-      // Step 3: Emit enhanced opportunity_matched event with LLM data
-      await appendEvent({
-        type: 'opportunity_matched_ai',
-        userId,
-        reversible: false,
-        payload: {
-          opportunity: {
-            id: createdOpportunity.id,
-            title: createdOpportunity.title,
-            type: createdOpportunity.type,
-            tags: createdOpportunity.tags,
-            category: createdOpportunity.category
-          },
-          autoFillResult,
-          matchingResult,
-          processingTimestamp: Date.now()
-        }
-      });
+      // Step 3: Emit enhanced opportunity_matched event with LLM data (non-fatal)
+      try {
+        await appendEvent({
+          type: 'opportunity_matched_ai',
+          userId,
+          reversible: false,
+          payload: {
+            opportunity: {
+              id: createdOpportunity.id,
+              title: createdOpportunity.title,
+              type: createdOpportunity.type,
+              tags: createdOpportunity.tags,
+              category: createdOpportunity.category
+            },
+            autoFillResult,
+            matchingResult,
+            processingTimestamp: Date.now()
+          }
+        });
+      } catch (eventError) {
+        logger.warn('Services: createOpportunity - Event log append failed, continuing', { eventError });
+      }
 
       // Step 4: Notify matched users (async, don't wait for completion)
       if (matchingResult.matches.length > 0) {

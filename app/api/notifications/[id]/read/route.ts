@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse, connection } from 'next/server';
 import { auth } from '@/auth';
 import {
-  assertKnownUserRole,
-  // isKnownUserRole, // Unused import, TODO: Remove if not used elsewhere
+  resolvePersistedUserRole,
   UserRolesArray,
 } from '@/features/auth/user-role';
 import {
@@ -21,11 +20,12 @@ import {
  * https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#caching
  */
 export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+  req: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   // Initiate database connection and opt out of prerendering for dynamic route
   await connection();
+
+  const { id } = await context.params
 
   // (1) Start request logging, TODO: Use structured logs or tracing id for traceability
   console.log('API: /api/notifications/[id]/read - Starting POST request');
@@ -50,10 +50,10 @@ export async function POST(
     const userId = session.user.id;
 
     // Validate and normalize user role
-    const userRole = assertKnownUserRole(session.user.role as UserRolesArray);
+    const userRole = resolvePersistedUserRole(session.user.role);
 
     // Notification id from API route
-    const notificationId = params.id;
+    const notificationId = id;
 
     // (4) Authenticated request log context
     console.log('API: /api/notifications/[id]/read - User authenticated', {

@@ -124,6 +124,12 @@ export interface TokenDeskConfig {
   firstSettlerGates?: Array<'wallet' | 'username' | 'dob' | 'verified'> // Which fields gate first-settler reward
   quoteTtlSeconds?: number | null                     // How long is a quote valid
   maxSlippageBps?: number                      // Maximum allowed slippage in bps
+  /**
+   * When true, confidential+ may buy native token via card/PayPal
+   * (PaymentConductor purpose `native_token_onramp`). Env
+   * CONFIDENTIAL_TOKEN_ONRAMP / NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP overrides.
+   */
+  nativeTokenOnramp?: boolean
   // TODO: Migrate business logic to shared utils and hook with Next.js actions API for admin side management.
 }
 
@@ -278,12 +284,39 @@ export function getNativeTokenConfig() {
   return getSystemConfigSnapshot().tokens?.nativeToken ?? {}
 }
 
-export function getRewardCreditRules() {  
-  return getSystemConfigSnapshot().credits?.rewards?.events ?? {}
+export function getRewardCreditRules() {
+  const snapshot = getSystemConfigSnapshot() as {
+    credits?: { rewards?: { events?: Record<string, unknown> } }
+    credit?: { creditAddEvents?: Record<string, unknown> }
+  }
+  // Accept both paths during rename: credits.rewards.events | credit.creditAddEvents
+  return snapshot.credits?.rewards?.events ?? snapshot.credit?.creditAddEvents ?? {}
 }
 
 export function getTokenDeskConfig() {
-  return getSystemConfigSnapshot().tokens?.tokenDesk ?? {} as TokenDeskConfig
+  const snapshot = getSystemConfigSnapshot()
+  return snapshot.credit?.desk ?? snapshot.tokens?.tokenDesk ?? {}
+}
+
+export function getPointsPerNativeToken(): number {
+  const desk = getTokenDeskConfig() as { pointsPerNativeToken?: number }
+  return desk.pointsPerNativeToken ?? 100
+}
+
+/**
+ * Whether confidential+ may buy native token via card/PayPal (BuyNativeViaCard).
+ * Env CONFIDENTIAL_TOKEN_ONRAMP wins; else ring-config tokenDesk.nativeTokenOnramp.
+ * Client UI should prefer NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP (see ring-config-client).
+ */
+export function isNativeTokenOnrampEnabled(): boolean {
+  const env = process.env.CONFIDENTIAL_TOKEN_ONRAMP?.trim().toLowerCase()
+  if (env === 'true') return true
+  if (env === 'false') return false
+  const pub = process.env.NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP?.trim().toLowerCase()
+  if (pub === 'true') return true
+  if (pub === 'false') return false
+  const desk = getTokenDeskConfig() as TokenDeskConfig
+  return desk.nativeTokenOnramp === true
 }
 
 export function assertMainnetHotKeyAllowed(operation: string): void {
@@ -301,11 +334,35 @@ export function assertMainnetHotKeyAllowed(operation: string): void {
  */
 export const getNativeTokenName = cache((tokenName?: string): string => {
   const config = getSystemConfigSnapshot()
-  return tokenName ?? process.env.NATIVE_TOKEN_NAME ?? config.tokens?.nativeToken?.tokenName ?? 'Undefined Native Token Name'
+  const native = config.tokens?.nativeToken as
+    | { tokenName?: string; name?: string }
+    | undefined
+  return (
+    tokenName ??
+    process.env.NATIVE_TOKEN_NAME ??
+    native?.tokenName ??
+    native?.name ??
+    'RING Governance Token'
+  )
 })
 export const getNativeTokenSymbol = cache((tokenSymbol?: string): string => {
   const config = getSystemConfigSnapshot()
-  return process.env.NATIVE_TOKEN_SYMBOL ?? config.tokens?.nativeToken?.tokenSymbol ?? 'Undefined Native Token Symbol'
+  const native = config.tokens?.nativeToken as
+    | { tokenSymbol?: string; symbol?: string }
+    | undefined
+  const chainNative = getNativeChain()
+  const chainSymbol =
+    chainNative === 'solana'
+      ? config.chains?.solana?.tokenSymbol
+      : config.chains?.evm?.tokenSymbol
+  return (
+    tokenSymbol ??
+    process.env.NATIVE_TOKEN_SYMBOL ??
+    native?.tokenSymbol ??
+    native?.symbol ??
+    chainSymbol ??
+    'RING'
+  )
 })
 export const getEvmTokenSymbol = cache((): string => {
   const config = getSystemConfigSnapshot()

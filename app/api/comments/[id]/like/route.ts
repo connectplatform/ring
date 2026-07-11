@@ -10,11 +10,12 @@ type LikeRow = Record<string, unknown> & { id: string }
  * Like or unlike a comment
  */
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   // Establish database connection
   await connection()
+
+  const { id } = await context.params
 
   try {
     // Retrieve current user session
@@ -25,7 +26,7 @@ export async function POST(
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const commentId = params.id
+    const commentId = id
     const userId = session.user.id
 
     // Validate commentId
@@ -121,11 +122,12 @@ export async function POST(
  * Get like status for a comment by the current user
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   // Establish database connection
   await connection()
+
+  const { id } = await context.params
 
   try {
     // Retrieve current user session
@@ -136,7 +138,7 @@ export async function GET(
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const commentId = params.id
+    const commentId = id
     const userId = session.user.id
 
     // Validate commentId

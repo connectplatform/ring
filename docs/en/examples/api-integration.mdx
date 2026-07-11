@@ -1,12 +1,12 @@
 ---
 title: API Integration Examples
 description: Practical patterns for calling Ring Platform REST APIs, Server Actions, and Tunnel realtime from client and server code
-last_modified: "2026-06-14"
+last_modified: "2026-07-10"
 ---
 
 # API Integration Examples
 
-Hands-on patterns for building on Ring Platform. The platform exposes **132 route handlers** (see [API Reference](/en/docs/api)); this page shows the integration paths developers actually use in alpha clones.
+Hands-on patterns for building on Ring Platform. The platform exposes **~244 App Router `/api` route handlers** (see [API Reference](/docs/api) and the RingApiTree widget); this page shows the integration paths developers actually use in alpha clones.
 
 <Callout type="info" title="Pick the right integration path">
 | Path | When to use |
@@ -14,7 +14,7 @@ Hands-on patterns for building on Ring Platform. The platform exposes **132 rout
 | **Server Actions** | Forms and mutations inside the same Next.js app (preferred for entities, opportunities) |
 | **Same-origin REST** | Client components that need JSON (`fetch('/api/...')` with session cookie) |
 | **Tunnel + hooks** | Live UI updates (notifications, chat, discovery) |
-| **MCP / external** | Automation against `/api/mcp/v1/*` with API keys — see [API Reference](/en/docs/api) |
+| **MCP / external** | Automation against `/api/mcp/v1/*` with API keys — see [API Reference](/docs/api) |
 </Callout>
 
 ## Prerequisites
@@ -38,7 +38,7 @@ curl -s "http://localhost:3000/api/opportunities?limit=5" \
 curl -s "http://localhost:3000/api/tunnel/test"
 ```
 
-Full endpoint lists: [Entities](/en/docs/api/entities), [Opportunities](/en/docs/api/opportunities), [Messaging](/en/docs/api/messaging), [Notifications](/en/docs/api/notifications).
+Full endpoint lists: [Entities](/docs/api/entities), [Opportunities](/docs/api/opportunities), [Messaging](/docs/api/messaging), [Notifications](/docs/api/notifications).
 
 ---
 
@@ -177,7 +177,7 @@ Entity and opportunity **create/update** flows in production UI often use **Serv
 
 **Routes:** `GET /api/entities` · `POST /api/entities/create` · `GET /api/entities/{id}` · `DELETE /api/entities/{id}` (body: `{ confirm: true }`)
 
-Responses use **`SerializedEntity`** (ISO date strings). See [Entities API](/en/docs/api/entities) for the full shape and role-based visibility.
+Responses use **`SerializedEntity`** (ISO date strings). See [Entities API](/docs/api/entities) for the full shape and role-based visibility.
 
 <Code language="typescript" title="components/EntityListClient.tsx">
 {`'use client'
@@ -214,13 +214,13 @@ export function EntityListClient() {
 }`}
 </Code>
 
-After mutations, list freshness is driven by `revalidatePath` + Tunnel `entity:*` events ([Discovery mutation sync](/en/docs/architecture/discovery-mutation-sync)).
+After mutations, list freshness is driven by `revalidatePath` + Tunnel `entity:*` events ([Discovery mutation sync](/docs/architecture/discovery-mutation-sync)).
 
 ---
 
 ## Opportunities
 
-**Routes:** `GET /api/opportunities` · `GET /api/opportunities/{id}` · create/update via Server Actions or documented POST routes in [Opportunities API](/en/docs/api/opportunities).
+**Routes:** `GET /api/opportunities` · `GET /api/opportunities/{id}` · create/update via Server Actions or documented POST routes in [Opportunities API](/docs/api/opportunities).
 
 <Code language="typescript" title="components/OpportunityListClient.tsx">
 {`'use client'
@@ -266,7 +266,7 @@ Subscribe to channel `opportunities` with `useTunnel().subscribe()` if you need 
 
 **Routes:** `GET /api/conversations` · `GET|POST /api/conversations/{id}/messages` · `POST /api/conversations/{id}/read` · `POST /api/conversations/{id}/typing`
 
-Persist messages through REST; receive live updates on `conversation:${id}` via Tunnel ([Messaging API](/en/docs/api/messaging), [Tunnel protocol](/en/docs/features/tunnel-protocol)).
+Persist messages through REST; receive live updates on `conversation:${id}` via Tunnel ([Messaging API](/docs/api/messaging), [Tunnel protocol](/docs/features/tunnel-protocol)).
 
 <Code language="typescript" title="components/ConversationThread.tsx">
 {`'use client'
@@ -399,7 +399,7 @@ export function NotificationBell() {
 }`}
 </Code>
 
-Server-side, new notifications call `publishToUserTunnel(userId, 'notifications:unread', { count })` — see [Notifications API](/en/docs/api/notifications).
+Server-side, new notifications call `publishToUserTunnel(userId, 'notifications:unread', { count })` — see [Notifications API](/docs/api/notifications).
 
 ---
 
@@ -461,8 +461,8 @@ export async function notifyUser(userId: string, count: number) {
 
 ## Related documentation
 
-- [API Reference](/en/docs/api) — full route index
-- [Authentication](/en/docs/api/authentication) — Auth.js providers and session
-- [Tunnel protocol](/en/docs/features/tunnel-protocol) — SSE, poll, env vars
-- [Web3 integration](/en/docs/examples/web3-integration) — wallet and on-chain flows
-- [Real-world apps](/en/docs/examples/real-world) — end-to-end clone patterns
+- [API Reference](/docs/api) — full route index
+- [Authentication](/docs/api/authentication) — Auth.js providers and session
+- [Tunnel protocol](/docs/features/tunnel-protocol) — SSE, poll, env vars
+- [Web3 integration](/docs/examples/web3-integration) — wallet and on-chain flows
+- [Real-world apps](/docs/examples/real-world) — end-to-end clone patterns

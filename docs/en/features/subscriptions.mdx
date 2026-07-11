@@ -1,7 +1,7 @@
 ---
 title: SubscriptionConductor
 description: Multi-provider membership subscription billing — Stripe, WayForPay, RING credits, on-chain token, NFT gate, and PayPal. One ledger, config-driven gateways, cron pipelines, and admin dashboard.
-last_modified: "2026-06-30"
+last_modified: "2026-07-10"
 audience: both
 ---
 
@@ -29,7 +29,7 @@ Your platform earns recurring revenue through membership subscriptions — with 
 | WayForPay | Card (hosted page) + recToken recurring (regularApi) | WayForPay (UAH) | ✅ Live |
 | Stripe | Stripe Subscriptions API (Phase S3) | Stripe (USD) | ✅ Live (Phase S3) |
 | Native Token | on-chain Solana recurring via Membership.sol | Native Token (RING) | ✅ Live (Phase S6) |
-| NFT Gate | soulbound certificate 12-month gate | NFT Certificate | 🟡 Phase S7 (stub) |
+| NFT Gate | Metaplex Core buy + GateEscrow stake (MVP-A) | NFT Gate (RING) | ✅ Live (MVP-A) |
 | PayPal | PayPal recurring billing | PayPal (USD) | 🟡 Phase S8 (stub) |
 
 ### Fee rates & net revenue
@@ -110,17 +110,17 @@ Six provider modules implement the `SubscriptionProviderModule` contract (`lib/p
 | `native_token` | `nativeTokenSubscriptionProvider` | `providers/native-token-subscription.ts` |
 | `stripe` | `stripeSubscriptionProvider` | `providers/stripe-subscription.ts` |
 | `wayforpay` | `wayforpaySubscriptionProvider` | `providers/wayforpay-subscription.ts` |
-| `nft_gate` | `nftGateSubscriptionProvider` | `providers/subscription-provider-stubs.ts` |
+| `nft_gate` | `nftGateSubscriptionProvider` | `providers/nft-gate-subscription.ts` |
 | `paypal` | `paypalSubscriptionProvider` | `providers/subscription-provider-stubs.ts` |
 
-Credit Balance, Stripe, WayForPay, and Native Token have full implementations. NFT Gate and PayPal are stubs.
+Credit Balance, Stripe, WayForPay, Native Token, and **NFT Gate (MVP-A)** have implementations. PayPal remains a stub. Primary NFT buy UX is `/nft/gates`; see [Solana NFT Gates](/docs/features/nft-gates). Note: `nft_gate` may still appear under `payment.futureMethods` until moved into `supportedMethods`.
 
 ### Future features
 
 <Callout type="development">
-  **Phase S7 (planned):** NFT Gate — soulbound 12-month membership certificate.
-
   **Phase S8 (planned):** PayPal recurring billing integration.
+
+  NFT Gate MVP-A is documented under [Solana NFT Gates](/docs/features/nft-gates) — remaining GateEscrow program / refund / config writeback items live there as FutureFeature widgets.
 </Callout>
 
 ### subscription_ledger schema
@@ -235,6 +235,7 @@ Run via `scripts/run-all-smokes.sh`. Canonical pipeline registry: [`PIPELINES.md
 
 ## Related
 
+- [Solana NFT Gates](/docs/features/nft-gates) — Metaplex Core mint, GateEscrow, admin art preview
 - [PaymentConductor](/docs/features/payment-conductor) — one-time payment orchestration
 - [WayForPay integration](/docs/features/wayforpay-integration)
 - [Wallet & Credits](/docs/features/wallet)

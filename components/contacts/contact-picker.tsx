@@ -1,17 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, Search } from 'lucide-react'
+import { Check, Loader2, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useUserSearch } from '@/hooks/use-user-search'
 import type { UserSearchResult } from '@/features/auth/services/search-users'
 import type { RingContact } from '@/features/contacts/types'
 import type { Locale } from '@/i18n/shared'
+import { cn } from '@/lib/utils'
 import ContactCard from './contact-card'
 
 export type ContactPickerMode = 'message' | 'send' | 'manage'
+export type ContactPickerSelectionMode = 'single' | 'multiple'
 
 export type ContactPickerSelection =
   | { kind: 'user'; user: UserSearchResult }
@@ -26,6 +29,20 @@ export interface ContactPickerProps {
   /** When adding from manage flow, show loading on this user id */
   pendingUserId?: string | null
   className?: string
+  /** single (default) or multiple selection with chips + confirm */
+  selectionMode?: ContactPickerSelectionMode
+  /** Optional recency map: userId → lastActivity ms (higher = more recent) */
+  recencyByUserId?: Record<string, number>
+  /** Multi-select confirm handler */
+  onConfirmMultiple?: (selections: ContactPickerSelection[]) => void
+  confirmLabel?: string
+  /** Controlled selected user ids for multi mode */
+  selectedUserIds?: string[]
+  onSelectedUserIdsChange?: (ids: string[]) => void
+}
+
+function selectionUserId(selection: ContactPickerSelection): string {
+  return selection.kind === 'user' ? selection.user.id : selection.contact.contactUserId
 }
 
 export default function ContactPicker({
@@ -36,13 +53,24 @@ export default function ContactPicker({
   showSaved = true,
   pendingUserId = null,
   className,
+  selectionMode = 'single',
+  recencyByUserId = {},
+  onConfirmMultiple,
+  confirmLabel,
+  selectedUserIds: controlledSelected,
+  onSelectedUserIdsChange,
 }: ContactPickerProps) {
   const tMessenger = useTranslations('modules.messenger')
   const tContacts = useTranslations('modules.contacts')
-  const { results, loading, error, search, clear, term } = useUserSearch()
+  const { results, loading, error, search, term } = useUserSearch()
   const [savedContacts, setSavedContacts] = useState<RingContact[]>([])
   const [savedLoading, setSavedLoading] = useState(false)
+  const [internalSelected, setInternalSelected] = useState<string[]>([])
+  const [selectionMap, setSelectionMap] = useState<Record<string, ContactPickerSelection>>({})
 
+  const selectedIds = controlledSelected ?? internalSelected
+  const setSelectedIds = onSelectedUserIdsChange ?? setInternalSelected
+  const isMulti = selectionMode === 'multiple'
   const excluded = new Set(excludeUserIds)
 
   const loadSaved = useCallback(async () => {
@@ -64,21 +92,82 @@ export default function ContactPicker({
     void loadSaved()
   }, [loadSaved])
 
-  const filteredSaved = savedContacts.filter((c) => !excluded.has(c.contactUserId))
-  const filteredResults = results.filter((u) => !excluded.has(u.id))
+  const sortByRecency = useCallback(
+    <T,>(items: T[], getId: (item: T) => string, getName: (item: T) => string) => {
+      return [...items].sort((a, b) => {
+        const ra = recencyByUserId[getId(a)] ?? 0
+        const rb = recencyByUserId[getId(b)] ?? 0
+        if (rb !== ra) return rb - ra
+        return getName(a).localeCompare(getName(b))
+      })
+    },
+    [recencyByUserId],
+  )
+
+  const filteredSaved = useMemo(
+    () =>
+      sortByRecency(
+        savedContacts.filter((c) => !excluded.has(c.contactUserId)),
+        (c) => c.contactUserId,
+        (c) => c.displayName || c.username || c.contactUserId,
+      ),
+    [savedContacts, excluded, sortByRecency],
+  )
+
+  const filteredResults = useMemo(
+    () =>
+      sortByRecency(
+        results.filter((u) => !excluded.has(u.id)),
+        (u) => u.id,
+        (u) => u.name || u.username || u.id,
+      ),
+    [results, excluded, sortByRecency],
+  )
+
+  const toggleMulti = (selection: ContactPickerSelection) => {
+    const id = selectionUserId(selection)
+    const next = selectedIds.includes(id)
+      ? selectedIds.filter((x) => x !== id)
+      : [...selectedIds, id]
+    setSelectedIds(next)
+    setSelectionMap((prev) => {
+      if (selectedIds.includes(id)) {
+        const { [id]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [id]: selection }
+    })
+  }
 
   const handleUserSelect = (user: UserSearchResult) => {
-    onSelect({ kind: 'user', user })
+    const selection: ContactPickerSelection = { kind: 'user', user }
+    if (isMulti) {
+      toggleMulti(selection)
+      return
+    }
+    onSelect(selection)
   }
 
   const handleContactSelect = (contact: RingContact) => {
-    onSelect({ kind: 'contact', contact })
+    const selection: ContactPickerSelection = { kind: 'contact', contact }
+    if (isMulti) {
+      toggleMulti(selection)
+      return
+    }
+    onSelect(selection)
+  }
+
+  const confirmMultiple = () => {
+    const selections = selectedIds
+      .map((id) => selectionMap[id])
+      .filter(Boolean) as ContactPickerSelection[]
+    onConfirmMultiple?.(selections)
   }
 
   return (
-    <div className={className}>
+    <div className={cn('space-y-3', className)}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           autoFocus={mode !== 'manage'}
           placeholder={tMessenger('searchUsersPlaceholder')}
@@ -88,11 +177,38 @@ export default function ContactPicker({
         />
       </div>
 
-      {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+
+      {isMulti && selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map((id) => {
+            const sel = selectionMap[id]
+            const label =
+              sel?.kind === 'user'
+                ? sel.user.name || sel.user.username || id
+                : sel?.kind === 'contact'
+                  ? sel.contact.displayName
+                  : id
+            return (
+              <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                {label}
+                <button
+                  type="button"
+                  className="rounded-full p-0.5 hover:bg-muted"
+                  onClick={() => toggleMulti(sel || { kind: 'user', user: { id } as UserSearchResult })}
+                  aria-label={`Remove ${label}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )
+          })}
+        </div>
+      )}
 
       {showSaved && filteredSaved.length > 0 && term.trim().length < 2 && (
-        <div className="mt-4 space-y-1">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">
+        <div className="space-y-1">
+          <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {tContacts('savedContacts')}
           </p>
           {savedLoading ? (
@@ -100,50 +216,65 @@ export default function ContactPicker({
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : (
-            filteredSaved.map((contact) => (
-              <Button
-                key={contact.id}
-                type="button"
-                variant="ghost"
-                className="w-full justify-start h-auto py-2 px-2"
-                onClick={() => handleContactSelect(contact)}
-              >
-                <ContactCard
-                  locale={locale}
-                  name={contact.displayName}
-                  username={contact.username}
-                  photoURL={contact.photoURL}
-                  address={contact.walletAddress}
-                  isFavorite={contact.isFavorite}
-                  linkToProfile={false}
-                  compact
-                />
-              </Button>
-            ))
+            filteredSaved.map((contact) => {
+              const selected = selectedIds.includes(contact.contactUserId)
+              return (
+                <Button
+                  key={contact.id}
+                  type="button"
+                  variant="ghost"
+                  className={cn(
+                    'h-auto w-full justify-start px-2 py-2',
+                    selected && 'bg-accent',
+                  )}
+                  onClick={() => handleContactSelect(contact)}
+                >
+                  <ContactCard
+                    locale={locale}
+                    name={contact.displayName}
+                    username={contact.username}
+                    photoURL={contact.photoURL}
+                    address={contact.walletAddress}
+                    isFavorite={contact.isFavorite}
+                    linkToProfile={false}
+                    compact
+                    actions={
+                      isMulti && selected ? (
+                        <Check className="h-4 w-4 shrink-0 text-primary" />
+                      ) : undefined
+                    }
+                  />
+                </Button>
+              )
+            })
           )}
         </div>
       )}
 
-      <div className="mt-3 max-h-72 overflow-y-auto space-y-1">
+      <div className="max-h-72 space-y-1 overflow-y-auto">
         {loading && (
           <div className="flex items-center justify-center py-6 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {tMessenger('searchingUsers')}
           </div>
         )}
         {!loading && term.trim().length >= 2 && filteredResults.length === 0 && (
-          <p className="text-sm text-muted-foreground py-4 text-center">
+          <p className="py-4 text-center text-sm text-muted-foreground">
             {tMessenger('noUsersFound')}
           </p>
         )}
         {filteredResults.map((user) => {
           const isPending = pendingUserId === user.id
+          const selected = selectedIds.includes(user.id)
           return (
             <Button
               key={user.id}
               type="button"
               variant="ghost"
-              className="w-full justify-start h-auto py-2 px-2"
+              className={cn(
+                'h-auto w-full justify-start px-2 py-2',
+                selected && 'bg-accent',
+              )}
               disabled={isPending}
               onClick={() => handleUserSelect(user)}
             >
@@ -156,7 +287,11 @@ export default function ContactPicker({
                 linkToProfile={false}
                 compact
                 actions={
-                  isPending ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : undefined
+                  isPending ? (
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  ) : isMulti && selected ? (
+                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                  ) : undefined
                 }
               />
             </Button>
@@ -164,8 +299,20 @@ export default function ContactPicker({
         })}
       </div>
 
+      {isMulti && onConfirmMultiple && (
+        <Button
+          type="button"
+          className="w-full"
+          disabled={selectedIds.length === 0}
+          onClick={confirmMultiple}
+        >
+          {confirmLabel || tMessenger('createGroup')}
+          {selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}
+        </Button>
+      )}
+
       {mode === 'manage' && term.trim().length < 2 && !showSaved && (
-        <p className="text-sm text-muted-foreground text-center py-4">
+        <p className="py-4 text-center text-sm text-muted-foreground">
           {tContacts('searchToAdd')}
         </p>
       )}

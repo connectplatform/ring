@@ -74,7 +74,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
   const locale = useLocale() as Locale
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
-  const { currency, toggleCurrency } = useStoreCurrency()
+  const { currency, toggleCurrency, nativeTokenCurrency, defaultCurrency } = useStoreCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const tEntities = useTranslations('modules.entities')
   const tOpp = useTranslations('modules.opportunities')
@@ -162,10 +162,18 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
             type="button"
             onClick={toggleCurrency}
             className={cn(railLinkClass, 'border-0 bg-transparent cursor-pointer text-xs font-semibold')}
-            title={currency === 'UAH' ? 'Switch to RING' : 'Switch to UAH'}
-            aria-label={currency === 'UAH' ? 'Switch to RING' : 'Switch to UAH'}
+            title={
+              currency === nativeTokenCurrency
+                ? `Switch to ${defaultCurrency}`
+                : `Switch to ${nativeTokenCurrency}`
+            }
+            aria-label={
+              currency === nativeTokenCurrency
+                ? `Switch to ${defaultCurrency}`
+                : `Switch to ${nativeTokenCurrency}`
+            }
           >
-            {currency === 'UAH' ? '₴' : 'Ⓡ'}
+            {currency === nativeTokenCurrency ? 'Ⓡ' : currency === 'UAH' ? '₴' : currency === 'USD' ? '$' : currency}
           </button>
         )}
         <button

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
 import { useTyping } from '@/hooks/use-messaging'
+import { useLocalStorage } from '@/hooks/use-local-storage'
 import { Message, SendMessageRequest } from '@/features/chat/types'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -41,33 +42,14 @@ export function MessageComposer({
   replyTo,
   onCancelReplyAction
 }: MessageComposerProps) {
-  const [content, setContent] = useState('')
+  const draftKey = `draft_${conversationId}`
+  const [content, setContent] = useLocalStorage<string>(draftKey, '')
   const [isLoading, setIsLoading] = useState(false)
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const { startTyping, stopTyping } = useTyping(conversationId)
-
-  // Draft persistence in localStorage
-  const draftKey = `draft_${conversationId}`
-
-  // Load draft on mount
-  useEffect(() => {
-    const savedDraft = localStorage.getItem(draftKey)
-    if (savedDraft) {
-      setContent(savedDraft)
-    }
-  }, [draftKey])
-
-  // Save draft on content change
-  useEffect(() => {
-    if (content.trim()) {
-      localStorage.setItem(draftKey, content)
-    } else {
-      localStorage.removeItem(draftKey)
-    }
-  }, [content, draftKey])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -153,7 +135,6 @@ export function MessageComposer({
       if (sentMessage) {
         setContent('')
         setAttachments([])
-        localStorage.removeItem(draftKey)
         onMessageSentAction?.(sentMessage)
         onCancelReplyAction?.()
         
@@ -302,11 +283,16 @@ export function MessageComposer({
     }
   }, [showEmojiPicker])
 
+  const canSend =
+    (content.trim().length > 0 || attachments.length > 0) &&
+    !disabled &&
+    !isLoading &&
+    !attachments.some((att) => att.uploading)
+
   return (
-    <div className={cn("border-t bg-background p-4", className)}>
-      {/* Reply indicator */}
+    <div className={cn('bg-transparent p-[5px]', className)}>
       {replyTo && (
-        <div className="mb-2 p-2 bg-muted rounded-lg text-sm">
+        <div className="mb-2 rounded-lg bg-muted/80 p-2 text-sm">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-muted-foreground">Replying to </span>
@@ -316,43 +302,43 @@ export function MessageComposer({
               variant="ghost"
               size="sm"
               onClick={onCancelReplyAction}
-              className="h-6 w-6 p-0"
+              className="h-8 w-8 p-0"
             >
               ×
             </Button>
           </div>
-          <div className="text-muted-foreground mt-1 truncate">
-            {replyTo.content}
-          </div>
+          <div className="mt-1 truncate text-muted-foreground">{replyTo.content}</div>
         </div>
       )}
 
-      {/* File attachments preview */}
       {attachments.length > 0 && (
         <div className="mb-3 space-y-2">
           {attachments.map((attachment) => (
-            <div key={attachment.id} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-              <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div
+              key={attachment.id}
+              className="flex items-center justify-between rounded-lg bg-muted p-2"
+            >
+              <div className="flex min-w-0 flex-1 items-center space-x-2">
                 <div className="flex-shrink-0">
                   {attachment.type === 'image' && (
-                    <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                      <ImageIcon className="w-4 h-4 text-blue-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-100">
+                      <ImageIcon className="h-4 w-4 text-blue-600" />
                     </div>
                   )}
                   {attachment.type === 'file' && (
-                    <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                      <Paperclip className="w-4 h-4 text-gray-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-100">
+                      <Paperclip className="h-4 w-4 text-gray-600" />
                     </div>
                   )}
                   {(attachment.type === 'video' || attachment.type === 'audio') && (
-                    <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
-                      <Paperclip className="w-4 h-4 text-purple-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded bg-purple-100">
+                      <Paperclip className="h-4 w-4 text-purple-600" />
                     </div>
                   )}
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{attachment.file.name}</div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{attachment.file.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {(attachment.file.size / 1024 / 1024).toFixed(1)} MB
                   </div>
@@ -360,22 +346,22 @@ export function MessageComposer({
                     <Progress value={attachment.uploadProgress} className="mt-1 h-1" />
                   )}
                   {attachment.error && (
-                    <div className="text-xs text-red-500 mt-1">{attachment.error}</div>
+                    <div className="mt-1 text-xs text-red-500">{attachment.error}</div>
                   )}
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-1">
                 {attachment.uploading && (
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => removeAttachment(attachment.id)}
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -383,7 +369,6 @@ export function MessageComposer({
         </div>
       )}
 
-      {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -401,112 +386,119 @@ export function MessageComposer({
         accept="image/*,video/*,audio/*"
       />
 
-      <div className="flex items-end space-x-2">
-        {/* File upload buttons */}
-        <div className="flex space-x-1">
+      <div className="relative rounded-xl bg-background/80">
+        <Textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled || isLoading}
+          className="min-h-[48px] max-h-[120px] resize-none border-0 bg-transparent px-3 pb-14 pt-3 shadow-none outline-none ring-0 focus-visible:ring-0"
+          rows={1}
+          aria-label={placeholder}
+        />
+
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-2 px-1 py-1">
+          <div className="flex items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleFileUpload}
+              disabled={disabled || isLoading}
+              className="h-11 w-11 p-0"
+              aria-label="Attach file"
+            >
+              <Paperclip className="h-6 w-6" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleImageUpload}
+              disabled={disabled || isLoading}
+              className="h-11 w-11 p-0"
+              aria-label="Upload image"
+            >
+              <ImageIcon className="h-6 w-6" aria-hidden focusable="false" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleEmojiPicker}
+              disabled={disabled || isLoading}
+              className="h-11 w-11 p-0"
+              aria-label="Insert emoji"
+            >
+              <Smile className="h-6 w-6" />
+            </Button>
+          </div>
+
           <Button
-            variant="ghost"
+            type="button"
+            onClick={handleSend}
+            disabled={!canSend}
             size="sm"
-            onClick={handleFileUpload}
-            disabled={disabled || isLoading}
-            className="h-8 w-8 p-0"
+            className={cn(
+              'h-11 w-11 p-0',
+              canSend
+                ? 'bg-indigo-600 text-white hover:bg-indigo-500 dark:bg-indigo-500'
+                : 'bg-muted text-muted-foreground',
+            )}
+            aria-label="Send message"
           >
-            <Paperclip className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleImageUpload}
-            disabled={disabled || isLoading}
-            className="h-8 w-8 p-0"
-            aria-label="Upload image"
-          >
-            <ImageIcon className="h-4 w-4" aria-hidden="true" focusable="false" />
+            {isLoading ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </Button>
         </div>
 
-        {/* Text input */}
-        <div className="flex-1 relative">
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled || isLoading}
-            className="min-h-[40px] max-h-[120px] resize-none pr-12"
-            rows={1}
-          />
-          
-          {/* Emoji button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleEmojiPicker}
-            disabled={disabled || isLoading}
-            className="absolute right-2 bottom-2 h-6 w-6 p-0"
+        {showEmojiPicker && (
+          <div
+            ref={emojiPickerRef}
+            className="absolute bottom-14 right-0 z-10 w-64 rounded-lg border bg-background p-3 shadow-lg"
           >
-            <Smile className="h-4 w-4" />
-          </Button>
-
-          {/* Simple inline emoji picker */}
-          {showEmojiPicker && (
-            <div ref={emojiPickerRef} className="absolute right-0 bottom-10 bg-background border rounded-lg shadow-lg p-3 z-10 w-64">
-              <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
-                {[
-                  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣',
-                  '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰',
-                  '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜',
-                  '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏',
-                  '👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🤟',
-                  '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️',
-                  '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤',
-                  '🤍', '💔', '❣️', '💕', '💞', '💓', '💗', '💖'
-                ].map((emoji, index) => (
-                  <Button
-                    key={`${emoji}-${index}`}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEmojiSelect(emoji)}
-                    className="h-8 w-8 p-0 text-lg hover:bg-muted"
-                  >
-                    {emoji}
-                  </Button>
-                ))}
-              </div>
-              <div className="mt-2 pt-2 border-t">
+            <div className="grid max-h-48 grid-cols-8 gap-1 overflow-y-auto">
+              {[
+                '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣',
+                '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰',
+                '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜',
+                '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏',
+                '👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🤟',
+                '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️',
+                '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤',
+                '🤍', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+              ].map((emoji, index) => (
                 <Button
+                  key={`${emoji}-${index}`}
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowEmojiPicker(false)}
-                  className="w-full text-xs"
+                  onClick={() => handleEmojiSelect(emoji)}
+                  className="h-9 w-9 p-0 text-lg hover:bg-muted"
                 >
-                  Close
+                  {emoji}
                 </Button>
-              </div>
+              ))}
             </div>
-          )}
-        </div>
-
-        {/* Send button */}
-        <Button
-          onClick={handleSend}
-          disabled={(!content.trim() && attachments.length === 0) || disabled || isLoading || attachments.some(att => att.uploading)}
-          size="sm"
-          className="h-8 w-8 p-0"
-        >
-          {isLoading ? (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-        </Button>
+            <div className="mt-2 border-t pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowEmojiPicker(false)}
+                className="w-full text-xs"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Helper text */}
-      <div className="mt-2 text-xs text-muted-foreground">
-        Press Enter to send, Shift+Enter for new line
-      </div>
+      <p className="sr-only">Press Enter to send, Shift+Enter for new line</p>
     </div>
   )
 } 

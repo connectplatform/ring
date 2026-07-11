@@ -1,7 +1,7 @@
 ---
 title: Environment Configuration
-description: Required and optional environment variables for Ring Platform — database backend, Firebase Admin SDK, FCM, payments, locales, Tunnel.
-last_modified: "2026-06-28"
+description: Required and optional environment variables for Ring Platform — database backend, Firebase Admin SDK, FCM, payments, locales, Tunnel, and file storage.
+last_modified: "2026-07-09"
 audience: both
 ---
 
@@ -173,7 +173,32 @@ Per‑purpose prefixes:
 - `TTS_*` / `XAI_TTS_*` — AudioConductor (narration)
 - `NEWS_AUTOGEN_*` — newsroom draft defaults
 
-Requires `FILE_BACKEND=ringbase` with `RINGBASE_API_URL` and `RINGBASE_API_TOKEN` for CDN uploads.
+Requires `NEXT_PUBLIC_STORAGE_PROVIDER=ring_filebase` (or `ring-config.json` `storage.provider`) with `RINGBASE_API_URL` and `RINGBASE_API_TOKEN` for CDN-backed uploads. See [RingFileBase](/docs/integrations/ring-filebase) and [Ring CDN](/docs/integrations/ring-cdn).
+
+## File storage (`file()`)
+
+Provider SSOT: `lib/storage/storage-config.ts` — env → `ring-config.json` `storage.provider` → default (`local_storage` in development, `vercel_blob` in production).
+
+```bash
+# local_storage | vercel_blob | ring_filebase | firebase_storage
+NEXT_PUBLIC_STORAGE_PROVIDER=local_storage
+
+# vercel_blob
+# BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+
+# local_storage
+# NEXT_PUBLIC_LOCAL_STORAGE_URL=/uploads
+# LOCAL_STORAGE_DIR=public/uploads
+
+# ring_filebase (self-hosted / k8s)
+# RINGBASE_API_URL=http://ring-filebase-api.ring-filebase.svc.cluster.local
+# RINGBASE_API_TOKEN=...   # Secret — claim-shaped Bearer for ring-filebase-api
+# RINGBASE_PUBLIC_URL=https://cdn.your-domain
+# NEXT_PUBLIC_RINGBASE_API_URL=   # optional fallback for API URL
+# REFMAGIC_CDN_INTERNAL_URL=http://ring-filebase-cdn.ring-filebase.svc.cluster.local
+```
+
+Do **not** set `RINGBASE_API_URL` to your Next.js `api.` hostname — that ingress serves the app, not RingFileBase.
 
 ## Ring Tunnel (real-time)
 

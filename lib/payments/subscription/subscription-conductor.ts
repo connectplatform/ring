@@ -49,12 +49,9 @@ import { ringCreditSubscriptionProvider } from '@/lib/payments/subscription/prov
 import { nativeTokenSubscriptionProvider } from '@/lib/payments/subscription/providers/native-token-subscription'
 import { stripeSubscriptionProvider } from '@/lib/payments/subscription/providers/stripe-subscription'
 import { wayforpaySubscriptionProvider } from '@/lib/payments/subscription/providers/wayforpay-subscription'
-import {
-  nftGateSubscriptionProvider,
-  paypalSubscriptionProvider,
-} from '@/lib/payments/subscription/providers/subscription-provider-stubs'
-// STUB: nftGateSubscriptionProvider, paypalSubscriptionProvider
-// TODO: Implement real providers for NFT Gate and Paypal, updating registry and wiring up their methods to actual payment flows.
+import { nftGateSubscriptionProvider } from '@/lib/payments/subscription/providers/nft-gate-subscription'
+import { paypalSubscriptionProvider } from '@/lib/payments/subscription/providers/subscription-provider-stubs'
+// paypalSubscriptionProvider remains Phase S8 stub.
 
 /**
  * Provider registry: map provider identifier (string) to
@@ -66,8 +63,8 @@ const providerRegistry = new Map<SubscriptionProvider, SubscriptionProviderModul
   ['native_token', nativeTokenSubscriptionProvider],
   ['stripe', stripeSubscriptionProvider],
   ['wayforpay', wayforpaySubscriptionProvider],
-  ['nft_gate', nftGateSubscriptionProvider], // STUB: see above
-  ['paypal', paypalSubscriptionProvider],    // STUB: see above
+  ['nft_gate', nftGateSubscriptionProvider], // Metaplex Core + GateEscrow (MVP-A)
+  ['paypal', paypalSubscriptionProvider],    // STUB: Phase S8
 ])
 
 /**

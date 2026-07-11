@@ -6,13 +6,12 @@
  * unbounded database growth.
  *
  * READS:   news collection where status == 'deleted' AND deletedAt < 6 months ago
- * WRITES:  batch delete of matched documents
+ * WRITES:  hard delete of matched documents via db()
  * SAFETY:  idempotent, max 500 documents per run
  */
 import 'server-only'
 
-import { getAdminDb } from '@/lib/firebase-admin.server'
-import { Timestamp } from 'firebase-admin/firestore'
+import { db } from '@/lib/database'
 
 const MAX_PURGE_BATCH = 500
 const RETENTION_MONTHS = 6
@@ -26,22 +25,24 @@ export interface CleanupDeletedNewsResult {
 export async function cleanupDeletedNews(): Promise<CleanupDeletedNewsResult> {
   const startTime = Date.now()
 
-  // Compute the cutoff date for retention
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - RETENTION_MONTHS)
-  const cutoffTimestamp = Timestamp.fromDate(cutoff)
 
-  const db = getAdminDb()
-  const newsRef = db.collection('news')
+  const result = await db().findDocs<{ status?: string; deletedAt?: Date | string }>(
+    'news',
+    [
+      { field: 'status', operator: '==', value: 'deleted' },
+      { field: 'deletedAt', operator: '<', value: cutoff },
+    ],
+    { limit: MAX_PURGE_BATCH },
+  )
 
-  // Query articles soft-deleted before the retention cutoff
-  const snapshot = await newsRef
-    .where('status', '==', 'deleted')
-    .where('deletedAt', '<', cutoffTimestamp)
-    .limit(MAX_PURGE_BATCH)
-    .get()
+  if (!result.success) {
+    throw result.error || new Error('Failed to query soft-deleted news for purge')
+  }
 
-  if (snapshot.empty) {
+  const rows = result.data ?? []
+  if (rows.length === 0) {
     return {
       purged: 0,
       duration: Date.now() - startTime,
@@ -49,16 +50,16 @@ export async function cleanupDeletedNews(): Promise<CleanupDeletedNewsResult> {
     }
   }
 
-  // Batch hard-delete eligible documents
-  const batch = db.batch()
-  snapshot.docs.forEach((doc) => {
-    batch.delete(doc.ref)
-  })
-  await batch.commit()
+  let purged = 0
+  for (const row of rows) {
+    if (!row.id) continue
+    const del = await db().deleteDoc('news', row.id)
+    if (del.success) purged += 1
+  }
 
   return {
-    purged: snapshot.size,
+    purged,
     duration: Date.now() - startTime,
-    note: `Purged ${snapshot.size} articles soft-deleted before ${cutoff.toISOString().split('T')[0]} (${RETENTION_MONTHS}-month retention)`,
+    note: `Purged ${purged} articles soft-deleted before ${cutoff.toISOString().split('T')[0]} (${RETENTION_MONTHS}-month retention)`,
   }
 }

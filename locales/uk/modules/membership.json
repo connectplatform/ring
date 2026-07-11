@@ -105,6 +105,9 @@
     "fiat_details": {
       "placeholder": "Оплата карткою через WayForPay, кредитний баланс або on-chain RING.",
       "proceed": "Перейти до оплати карткою"
+    },
+    "paypal": {
+      "dao_hint": "Допоможіть відкрити PayPal: зберіть 100 вподобань або внесіть 10 нативних токенів."
     }
   },
   "page": {
@@ -138,14 +141,5 @@
     "premium_features": "Преміум функції",
     "enhanced_visibility": "Покращена видимість",
     "verified_profile": "Верифіковані профілі"
-  },
-  "features": {
-    "browse_entities": "Перегляд підприємств",
-    "view_opportunities": "Перегляд можливостей",
-    "basic_messaging": "Базові повідомлення",
-    "create_entities": "Створення підприємств",
-    "manage_entities": "Управління підприємствами",
-    "confidential_access": "Доступ до конфіденційного контенту",
-    "priority_support": "Пріоритетна підтримка"
   }
 }

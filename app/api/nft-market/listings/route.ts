@@ -1,27 +1,35 @@
-import { NextRequest, NextResponse, connection} from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { getListings, createListingDraft } from '@/features/nft-market/services/listing-service'
+import { createListingDraft } from '@/features/nft-market/services/listing-service'
+import { getNftMarketListings } from '@/features/nft-market/services/listing-query'
+import type { NftListingStatus, NftMarketListingFilters } from '@/features/nft-market/types'
 
 
 export async function GET(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
   const { searchParams } = new URL(req.url)
-  const username = searchParams.get('username') || undefined
-  const status = searchParams.get('status') || 'active'
-  const limit = Number(searchParams.get('limit') || 12)
-
-  const result = await getListings({
-    username,
-    status,
-    limit: Math.max(1, Math.min(100, limit))
-  })
-
-  if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 500 })
+  const filters: NftMarketListingFilters = {
+    q: searchParams.get('q') || undefined,
+    collection: searchParams.get('collection') || undefined,
+    slug: searchParams.get('slug') || undefined,
+    sellerUsername: searchParams.get('username') || undefined,
+    status: (searchParams.get('status') || 'active') as NftListingStatus,
+    startAfter: searchParams.get('startAfter') || searchParams.get('cursor') || undefined,
+    limit: Math.max(1, Math.min(100, Number(searchParams.get('limit') || 24))),
+    sort: (searchParams.get('sort') || 'newest') as NftMarketListingFilters['sort'],
   }
 
-  return NextResponse.json({ success: true, data: result.data })
+  const result = await getNftMarketListings(filters)
+
+  return NextResponse.json({
+    success: true,
+    data: result.items,
+    items: result.items,
+    cursor: result.nextCursor,
+    nextCursor: result.nextCursor,
+    hasMore: result.hasMore,
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -34,26 +42,50 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
-  const { item, price, sellerUsername } = body as any
-  if (!item?.address || !item?.tokenId || !item?.standard) {
-    return NextResponse.json({ error: 'Invalid item' }, { status: 400 })
-  }
-  if (!price?.amount || !price?.currency) {
-    return NextResponse.json({ error: 'Invalid price' }, { status: 400 })
+  // Prefer server actions (`listGateListingAction`) for sell wizard.
+  // This route accepts Solana-shaped drafts only; legacy EVM item payloads are rejected.
+  if (body?.item?.standard === 'ERC721' || body?.item?.standard === 'ERC1155') {
+    return NextResponse.json(
+      {
+        error:
+          'EVM listings are quarantined. Use Solana KEYS gate listing via /nft/market/sell or listGateListingAction.',
+      },
+      { status: 410 },
+    )
   }
 
-  // Use the migrated createListingDraft service
+  const asset = typeof body.asset === 'string' ? body.asset.trim() : ''
+  const slug = typeof body.slug === 'string' ? body.slug.trim() : ''
+  const priceRing =
+    typeof body.priceRing === 'string'
+      ? body.priceRing.trim()
+      : typeof body.price?.amount === 'string'
+        ? body.price.amount.trim()
+        : ''
+
+  if (!asset || !slug || !priceRing) {
+    return NextResponse.json(
+      { error: 'asset, slug and priceRing are required' },
+      { status: 400 },
+    )
+  }
+
   const result = await createListingDraft({
-    sellerUsername: sellerUsername || session.user.username || '',
-    item,
-    price
+    sellerUserId: session.user.id,
+    sellerUsername: body.sellerUsername || session.user.username || '',
+    asset,
+    slug,
+    priceRing,
+    metadataUri: body.metadataUri,
+    imageUri: body.imageUri,
+    licenseExpiresAt: body.licenseExpiresAt,
   })
 
   if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 500 })
+    return NextResponse.json({ error: result.error }, { status: 400 })
   }
 
-  return NextResponse.json({ success: true, id: result.id })
+  return NextResponse.json({ success: true, id: result.id, data: result.data })
 }
 
 

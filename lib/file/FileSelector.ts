@@ -75,10 +75,11 @@ export class FileSelector {
 }
 
 export function getStorageBackendFromEnvironment(): FileBackendType {
+  // SSOT: env override → ring-config storage.provider → local_storage (dev) / vercel_blob (prod)
   const provider = getStorageProvider();
 
   if (!Object.values(StorageProvider).includes(provider as StorageProvider)) {
-    return StorageProvider.VERCEL_BLOB;
+    return StorageProvider.LOCAL_STORAGE;
   }
 
   // LocalStorageSelector intentionally ignores firebase path until first-party support is implemented.

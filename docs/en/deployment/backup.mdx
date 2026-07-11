@@ -1,7 +1,7 @@
 ---
 title: Backup & Recovery
 description: Verified backup scope and restore procedures for PostgreSQL-primary Ring clones, blob storage, and legacy Firebase-full deployments
-last_modified: "2026-06-22"
+last_modified: "2026-07-09"
 audience: both
 ---
 
@@ -19,7 +19,7 @@ Ring clones on **`DB_BACKEND_MODE=k8s-postgres-fcm`** (production default) treat
 |-------|------------------|------------------|
 | **PostgreSQL** | `DATABASE_URL` cluster or Docker volume | Critical — identities, commerce, content |
 | **Schema + migrations** | `data/schema.sql`, `data/migrations/*.sql` | Version-controlled in git; re-apply after empty restore |
-| **Blob / object storage** | Vercel Blob (`BLOB_READ_WRITE_TOKEN`) or clone-specific S3/RGW | High — product images, attachments, generated media |
+| **Blob / object storage** | Vercel Blob (`BLOB_READ_WRITE_TOKEN`), [RingFileBase](/docs/integrations/ring-filebase) + [Ring CDN](/docs/integrations/ring-cdn), or other S3/RGW | High — product images, attachments, generated media |
 | **Runtime secrets** | `.env.local`, k8s Secrets (not in public repo) | Critical — Auth.js, WayForPay/Stripe, FCM service account |
 | **Redis cache** | Docker `ring-redis-data` volume | Low — safe to rebuild; sessions may reset |
 | **FCM tokens** | Postgres `fcm_tokens` JSONB when on postgres-primary | Covered by DB backup |
@@ -120,7 +120,7 @@ Some migrations require a backup first — e.g. `013_users_email_unique.sql` nee
 
 ### Blob storage (`BLOB_READ_WRITE_TOKEN`)
 
-Uploads use Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set (`docker-compose.yml`, `env.local.template`). Blob objects are **not** inside Postgres. Use your provider’s export/replication or treat uploads as rebuildable only if you accept media loss.
+Uploads use the resolved `file()` provider (`local_storage`, `vercel_blob`, or `ring_filebase` — see [RingFileBase](/docs/integrations/ring-filebase)). Object bytes are **not** inside Postgres. Use your provider’s export/replication (MinIO/`mc mirror`, Blob export) or treat uploads as rebuildable only if you accept media loss.
 
 ### `firebase-full` mode (legacy / community)
 

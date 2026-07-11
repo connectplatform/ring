@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { 
   Card, 
@@ -18,32 +19,35 @@ import {
   TrendingDown,
   Package,
   DollarSign,
-  Users,
   Star,
   Clock,
   AlertCircle,
   CheckCircle,
-  XCircle
 } from 'lucide-react'
 import { VendorProfile, VendorDashboardStats } from '@/features/store/types/vendor'
 import { SerializedEntity } from '@/features/entities/types'
 import { formatCurrency } from '@/lib/utils'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
+import { RecentOrders, type VendorRecentOrderRow } from '@/components/vendor/recent-orders'
 
 interface VendorDashboardProps {
   vendor: VendorProfile
   entity: SerializedEntity
   stats: VendorDashboardStats
   locale: string
+  recentOrders?: VendorRecentOrderRow[]
 }
 
-export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboardProps) {
+export function VendorDashboard({ vendor, entity, stats, locale, recentOrders = [] }: VendorDashboardProps) {
   const t = useTranslations('vendor.dashboard')
   const [activeTab, setActiveTab] = useState('overview')
+  const loc = locale as Locale
   
   // Calculate growth percentage
   const growthPercentage = stats.salesLastMonth > 0 
     ? ((stats.salesThisMonth - stats.salesLastMonth) / stats.salesLastMonth) * 100
-    : 0
+    : stats.growthRate || 0
   
   // Trust level badge color
   const trustLevelColor = {
@@ -51,8 +55,11 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
     basic: 'bg-blue-500',
     verified: 'bg-green-500',
     trusted: 'bg-purple-500',
-    premium: 'bg-gold-500'
-  }[vendor.trustLevel]
+    premium: 'bg-amber-500'
+  }[vendor.trustLevel] || 'bg-gray-500'
+
+  const storeStatus = entity.storeStatus || 'open'
+  const reviewsCount = vendor.performanceMetrics?.totalOrders ?? stats.totalOrders
   
   return (
     <div className="space-y-6">
@@ -68,8 +75,8 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
               <Badge className={trustLevelColor}>
                 {t(`trustLevel.${vendor.trustLevel}`)}
               </Badge>
-              <Badge variant={entity.storeStatus === 'open' ? 'default' : 'secondary'}>
-                {t(`status.${entity.storeStatus}`)}
+              <Badge variant={storeStatus === 'open' ? 'default' : 'secondary'}>
+                {t(`status.${storeStatus}`)}
               </Badge>
             </div>
           </div>
@@ -84,7 +91,7 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
               </div>
             </div>
             <div className="flex gap-2">
-              {vendor.complianceStatus.taxDocumentsSubmitted ? (
+              {vendor.complianceStatus?.taxDocumentsSubmitted ? (
                 <Badge variant="outline" className="text-green-600">
                   <CheckCircle className="w-3 h-3 mr-1" />
                   {t('taxVerified')}
@@ -108,7 +115,7 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalSales, 'RING')}</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalSales, 'UAH')}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               {growthPercentage > 0 ? (
                 <>
@@ -134,7 +141,7 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalOrders}</div>
             <p className="text-xs text-muted-foreground">
-              {t('averageValue')}: {formatCurrency(stats.averageOrderValue, 'RING')}
+              {t('averageValue')}: {formatCurrency(stats.averageOrderValue, 'UAH')}
             </p>
           </CardContent>
         </Card>
@@ -157,7 +164,7 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
                   }`}
                 />
               ))}
-              <span className="ml-1">({vendor.performanceMetrics.totalOrders} reviews)</span>
+              <span className="ml-1">({reviewsCount})</span>
             </div>
           </CardContent>
         </Card>
@@ -168,9 +175,9 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.pendingPayouts, 'RING')}</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.pendingPayouts, 'UAH')}</div>
             <p className="text-xs text-muted-foreground">
-              {t('available')}: {formatCurrency(stats.availableBalance, 'RING')}
+              {t('available')}: {formatCurrency(stats.availableBalance, 'UAH')}
             </p>
           </CardContent>
         </Card>
@@ -212,11 +219,11 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
                 <div className="flex justify-between">
                   <span className="text-sm">{t('performance.responseTime')}</span>
                   <span className="font-semibold">
-                    {vendor.performanceMetrics.returnProcessingTime}h
+                    {vendor.performanceMetrics?.returnProcessingTime ?? 24}h
                   </span>
                 </div>
                 <Progress 
-                  value={Math.max(0, 100 - (vendor.performanceMetrics.returnProcessingTime * 2))} 
+                  value={Math.max(0, 100 - ((vendor.performanceMetrics?.returnProcessingTime ?? 24) * 2))} 
                 />
               </div>
             </CardContent>
@@ -228,7 +235,7 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
             <CardHeader>
               <CardTitle>{t('products.title')}</CardTitle>
               <CardDescription>
-                {t('products.active', { count: stats.activeProducts })} / 
+                {t('products.active', { count: stats.activeProducts })} /{' '}
                 {t('products.total', { count: stats.totalProducts })}
               </CardDescription>
             </CardHeader>
@@ -238,22 +245,16 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
                   <span>{t('products.outOfStock')}</span>
                   <Badge variant="destructive">{stats.outOfStockProducts}</Badge>
                 </div>
-                <Button className="w-full">{t('products.manage')}</Button>
+                <Button className="w-full" asChild>
+                  <Link href={ROUTES.VENDOR_PRODUCTS(loc)}>{t('products.manage')}</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         
         <TabsContent value="orders" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('orders.recent')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{t('orders.noRecent')}</p>
-              <Button className="w-full mt-4">{t('orders.viewAll')}</Button>
-            </CardContent>
-          </Card>
+          <RecentOrders orders={recentOrders} locale={locale} />
         </TabsContent>
         
         <TabsContent value="payouts" className="space-y-4">
@@ -265,16 +266,18 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
               <div className="flex justify-between">
                 <span>{t('payouts.totalPaid')}</span>
                 <span className="font-semibold">
-                  {formatCurrency(stats.totalCommissionPaid, 'RING')}
+                  {formatCurrency(stats.totalCommissionPaid, 'UAH')}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>{t('payouts.pending')}</span>
                 <span className="font-semibold text-green-600">
-                  {formatCurrency(stats.pendingPayouts, 'RING')}
+                  {formatCurrency(stats.pendingPayouts, 'UAH')}
                 </span>
               </div>
-              <Button className="w-full">{t('payouts.history')}</Button>
+              <Button className="w-full" asChild>
+                <Link href={ROUTES.VENDOR_EARNINGS(loc)}>{t('payouts.history')}</Link>
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -287,10 +290,18 @@ export function VendorDashboard({ vendor, entity, stats, locale }: VendorDashboa
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 md:grid-cols-4">
-            <Button variant="outline">{t('quickActions.addProduct')}</Button>
-            <Button variant="outline">{t('quickActions.updateInventory')}</Button>
-            <Button variant="outline">{t('quickActions.viewAnalytics')}</Button>
-            <Button variant="outline">{t('quickActions.settings')}</Button>
+            <Button variant="outline" asChild>
+              <Link href={ROUTES.VENDOR_PRODUCTS_ADD(loc)}>{t('quickActions.addProduct')}</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={ROUTES.VENDOR_STOCK(loc)}>{t('quickActions.updateInventory')}</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={ROUTES.VENDOR_ORDERS(loc)}>{t('quickActions.viewOrders')}</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={ROUTES.VENDOR_SETTINGS(loc)}>{t('quickActions.settings')}</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>

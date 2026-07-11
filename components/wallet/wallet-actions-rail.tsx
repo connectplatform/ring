@@ -14,13 +14,13 @@ import {
   Plus,
   Shield,
   BookOpen,
-  Zap,
   CreditCard,
   Lock,
   AlertTriangle,
   PiggyBank,
   ImageIcon,
   Users,
+  Wallet,
 } from 'lucide-react'
 
 interface WalletActionsRailProps {
@@ -125,12 +125,15 @@ export default function WalletActionsRail({ locale, onNavigate }: WalletActionsR
 
   return (
     <div className="flex min-h-0 flex-col space-y-6 text-foreground">
-      <section aria-labelledby="wallet-sidebar-quick-actions">
-        <RailSectionHeading
-          id="wallet-sidebar-quick-actions"
-          icon={<Zap className="h-5 w-5 shrink-0" />}
-          title={t('quickActions')}
-        />
+      <section aria-labelledby="wallet-sidebar-header">
+        <h2
+          id="wallet-sidebar-header"
+          className="mb-1 flex items-center gap-2 text-lg font-semibold"
+        >
+          <Wallet className="h-5 w-5 shrink-0 text-[var(--davinci-beam)]" />
+          {t('title')}
+        </h2>
+        <p className="mb-3 text-sm text-muted-foreground">{t('description')}</p>
         <div className="space-y-2">
           {quickActions.map((action) => (
             <Button
@@ -144,9 +147,8 @@ export default function WalletActionsRail({ locale, onNavigate }: WalletActionsR
             </Button>
           ))}
         </div>
+        <Separator className="mt-4" />
       </section>
-
-      <Separator />
 
       <DavinciGlassPanel
         title={t('boostYourWallet')}

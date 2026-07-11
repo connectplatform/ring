@@ -1,44 +1,50 @@
 ---
 title: PaymentConductor
-description: Unified payment orchestration for store checkout, membership upgrades, and news promotion — WayForPay, Stripe, and internal credit. One ledger, config-driven processor selection, and unified webhook dispatcher.
-last_modified: "2026-06-30"
+description: Unified payment orchestration for store, membership, news promotion, and wallet top-up — WayForPay, Stripe, internal credit, and native token. One ledger, config-driven processors, unified webhooks.
+last_modified: "2026-07-10"
 audience: both
 ---
 
 # PaymentConductor
 
-PaymentConductor (v1, 2026-05-22) is Ring Platform's config-driven payment layer. One ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, and news promotion.
+PaymentConductor is Ring Platform's config-driven payment layer. One ledger (`payment_transactions`) and one webhook dispatcher serve **store checkout**, **membership upgrades**, **news promotion**, and **wallet credit top-up**.
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see configuration and business value; developers see architecture, modules, and webhook flows.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see configuration and business value; developers see modules, purposes, and webhook flows.
 </Callout>
 
 ## Payment purposes
 
-| Purpose | Handler | Typical processor |
-|---------|---------|-------------------|
-| `store_order` | `handlers/store-order.ts` | WayForPay or Stripe |
-| `membership_upgrade` | `handlers/membership-upgrade.ts` | WayForPay or Stripe |
-| `news_promotion` | `handlers/news-promotion.ts` | WayForPay or Stripe |
+| Purpose | Handler | Typical processor | Entry |
+|---------|---------|-------------------|-------|
+| `store_order` | `handlers/store-order.ts` (+ `store-order-stripe.ts`) | WayForPay, Stripe, credit, or native token | `POST /api/store/payments/{wayforpay\|stripe\|token}` → `PaymentConductor.createCheckout` |
+| `membership_upgrade` | `handlers/membership-upgrade.ts` (+ `membership-upgrade-stripe.ts`) | WayForPay or Stripe | `initiateMembershipPayment` (card) → `createCheckout` |
+| `news_promotion` | `handlers/news-promotion.ts` | WayForPay or Stripe | News promotion submit |
+| `wallet_topup` | `handlers/wallet-topup.ts` (WFP) + `handlers/wallet-topup-stripe.ts` (Stripe) | WayForPay or Stripe | `initiateCreditTopupPayment` → `createCheckout` |
+
+<Callout type="tip">
+  `wallet_topup` credits the **fiat credit ledger** (1:1 USD points) via `creditBalanceService.addFiatUsd` — it does **not** buy on-chain RING. To spend native RING directly, use the `native_token` rail on `store_order`. To convert credit points → native RING, use the [Token Desk](/docs/features/wallet).
+</Callout>
 
 <Audience for="founder">
 
-## What founders get from PaymentConductor
+## What founders get
 
-- **One payment layer for everything** — store, membership, and news all route through the same conductor. One ledger to audit, one webhook path to monitor.
-- **Config-driven gateway selection** — choose your card processor in `ring-config.json`; override per-deployment via env vars. No code changes needed.
-- **Fee pass-through** — gateway fees are deducted per transaction; net revenue visible on the admin dashboard.
-- **Internal credit rail** — users can pay with RING credit balance (zero gateway fee).
-- **RING token rail** — optional on-chain Solana payment path.
+- **One payment layer** — store, membership, news, and wallet top-up share the same ledger and webhook path.
+- **Config-driven gateway selection** — choose the card processor in `ring-config.json`; override per purpose via env. No code changes for PSP swaps.
+- **Internal credit rail** — members can pay with in-app credit (zero gateway fee when enabled).
+- **Native token rail** — members can spend your clone's on-chain token at store checkout (opt-in via `PAYMENT_STORE_ALLOW_TOKEN=true`, zero gateway fee).
+- **Admin Payments tab** — platform admins see a user's `membership_upgrade` and `wallet_topup` rows from the ledger (`GET /api/admin/users/[id]/payments`).
+- **Membership PaymentModal** — native-token and card tabs are live; PayPal is wired through the conductors as a Phase S8 stub (returns `PAYPAL_NOT_IMPLEMENTED`) and surfaces as a FutureFeature pool (`membership-paypal`).
 
-### Gateway fee rates (ring-config.json)
+### Gateway fee rates (`ring-config.json`)
 
 | Gateway | Fee % | Fixed Fee | Currency | Status |
 |---------|-------|-----------|----------|--------|
-| WayForPay | 2.5% | — | UAH | ✅ Live |
-| Stripe | 2.9% | $0.30 | USD | ✅ Live (Phase S3) |
-| Credit Balance | 0% | — | USD | ✅ Live |
-| RING Token | 0% | — | RING | ✅ Live |
+| WayForPay | 2.5% | — | UAH | Live |
+| Stripe | 2.9% | $0.30 | USD | Live |
+| Credit Balance | 0% | — | USD | Live |
+| RING Token | 0% | — | RING | Live |
 
 ### Quick setup
 
@@ -55,24 +61,44 @@ PaymentConductor (v1, 2026-05-22) is Ring Platform's config-driven payment layer
 }
 ```
 
-Set env vars for each gateway:
-
-```bash
-PAYMENT_DEFAULT_PROCESSOR=wayforpay
+<Code language="bash" title="Env — PaymentConductor + WayForPay">
+{`PAYMENT_DEFAULT_PROCESSOR=wayforpay
 WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
 WAYFORPAY_SECRET_KEY=your_secret
+WAYFORPAY_MERCHANT_PASSWORD=your_password
+WAYFORPAY_DOMAIN=ring-platform.org
+WAYFORPAY_API_URL=https://api.wayforpay.com/api
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-PAYMENT_FIAT_CURRENCY=USD
-```
+PAYMENT_FIAT_CURRENCY=USD`}
+</Code>
+
+<Callout type="tip">
+  There is **no** `WAYFORPAY_MERCHANT_ID`. Use `WAYFORPAY_MERCHANT_ACCOUNT`. `WAYFORPAY_MERCHANT_PASSWORD` is required for recurring / `regularApi` subscription management.
+</Callout>
 
 ### Per-purpose processor override
 
 ```bash
-PAYMENT_STORE_PROCESSOR=stripe        # Override store checkout to Stripe
-PAYMENT_MEMBERSHIP_PROCESSOR=stripe   # Override membership to Stripe
-PAYMENT_NEWS_PROCESSOR=wayforpay      # News stays on WayForPay
+PAYMENT_STORE_PROCESSOR=stripe
+PAYMENT_MEMBERSHIP_PROCESSOR=stripe
+PAYMENT_NEWS_PROCESSOR=wayforpay
+PAYMENT_WALLET_TOPUP_PROCESSOR=wayforpay
 ```
+
+### Non-card rail gates
+
+```bash
+PAYMENT_STORE_ALLOW_CREDIT=true    # spend credit points at store checkout
+PAYMENT_STORE_ALLOW_TOKEN=false    # spend native token at store checkout
+CONFIDENTIAL_TOKEN_ONRAMP=false  # confidential+ BuyNativeViaCard (native_token_onramp)
+NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP=false
+# Token Desk (credit→RING) is subscriber+ — no confidential env gate
+```
+
+<Callout type="tip">
+  Blank `PAYMENT_*_PROCESSOR` falls back to `PAYMENT_DEFAULT_PROCESSOR` (default `wayforpay`). Set it to `stripe` for USD-first clones.
+</Callout>
 
 </Audience>
 
@@ -80,55 +106,65 @@ PAYMENT_NEWS_PROCESSOR=wayforpay      # News stays on WayForPay
 
 ## Architecture
 
-<RingWidgetFlowStepsFive
-  locale="en"
-  centerLabel="PaymentConductor"
-  centerIcon="Zap"
-  centerColor="from-amber-500 to-orange-600"
-  spokes={[
-    { label: "Checkout", icon: "ShoppingCart", color: "#10b981", description: "User initiates payment" },
-    { label: "WayForPay", icon: "CreditCard", color: "#3b82f6", description: "Ukrainian payment gateway" },
-    { label: "Stripe", icon: "CreditCard", color: "#8b5cf6", description: "Global payment processor" },
-    { label: "Credit", icon: "Wallet", color: "#f59e0b", description: "Internal RING credit balance" },
-    { label: "Webhook", icon: "Webhook", color: "#ec4899", description: "Payment status callbacks" },
-    { label: "Handlers", icon: "Shield", color: "#6366f1", description: "Store/Membership/News logic" },
-    { label: "Ledger", icon: "Database", color: "#0ea5e9", description: "payment_transactions SSOT" },
-  ]}
-  connectionLabels={{ inbound: "Request", outbound: "Response" }}
-/>
-
-Implementation: `lib/payments/conductor/`, `lib/payments/processors/`, `lib/payments/payment.config.ts`.
+Implementation root: `lib/payments/conductor/`, `lib/payments/processors/`, `lib/payments/payment.config.ts`.
 
 ### Key modules
 
 | Module | Path | Role |
 |--------|------|------|
-| Conductor | `lib/payments/conductor/payment-conductor.ts` | Routes payments by purpose + processor |
-| Config | `lib/payments/payment.config.ts` | Reads `ring-config.json` + env overrides |
-| WayForPay | `lib/payments/processors/wayforpay.ts` | HMAC verify, form generation |
-| Stripe | `lib/payments/processors/stripe.ts` | Stripe Checkout, webhook |
-| Internal credit | `lib/payments/processors/internal-credit.ts` | Credit balance deduction |
-| Webhook dispatcher | `lib/payments/webhook-dispatcher.ts` | Unified dispatcher for all providers |
-| Purpose handlers | `lib/payments/handlers/store-order.ts`, `handlers/membership-upgrade.ts`, `handlers/news-promotion.ts` | Per-purpose logic (validation, post-payment hooks) |
+| Conductor | `lib/payments/conductor/payment-conductor.ts` | `createCheckout`, webhook entry |
+| Config | `lib/payments/payment.config.ts` | `ring-config.json` + env overrides |
+| WayForPay | `lib/payments/processors/wayforpay.processor.ts` | Per-purpose checkout (store, membership, news, wallet) |
+| Stripe | `lib/payments/processors/stripe.processor.ts` | Stripe Checkout sessions |
+| Internal credit | `lib/payments/processors/internal-credit.processor.ts` | Credit balance deduction |
+| Native token | `lib/payments/processors/native-token.processor.ts` | Synchronous on-chain RING → treasury (`createNativeTokenCheckout`) |
+| PayPal (stub) | `lib/payments/processors/paypal.processor.ts` | Phase S8 stub — returns `PAYPAL_NOT_IMPLEMENTED` |
+| Webhook dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Route by `orderReference` / Stripe metadata |
+| Purpose handlers | `lib/payments/conductor/handlers/*.ts` | Fulfillment after paid |
+
+`PaymentProcessorId` (`conductor/types.ts`): `wayforpay | stripe | internal-credit | native-token | paypal`.
 
 ### Rails
 
 | Rail | Description | Env gate |
 |------|-------------|----------|
 | `merchant_redirect` | WayForPay / Stripe hosted checkout | Default |
-| `internal_credit` | Wallet credit balance | `PAYMENT_STORE_ALLOW_CREDIT` |
-| `native_token` | RING token on-chain | `PAYMENT_STORE_ALLOW_TOKEN` |
+| `internal_credit` | Wallet credit balance (fiat points) | `PAYMENT_STORE_ALLOW_CREDIT` |
+| `native_token` | RING token on-chain to treasury | `PAYMENT_STORE_ALLOW_TOKEN` |
 
 ### Webhook endpoints
 
-| Endpoint | Provider | |
-|----------|----------|---|
-| `/api/payments/wayforpay/webhook` | WayForPay | HMAC signature verification |
-| `/api/payments/stripe/webhook` | Stripe | `STRIPE_WEBHOOK_SECRET` verification |
+| Endpoint | Provider |
+|----------|----------|
+| `/api/payments/wayforpay/webhook` | WayForPay (HMAC) |
+| `/api/payments/stripe/webhook` | Stripe (`STRIPE_WEBHOOK_SECRET`) |
+
+`internal_credit` and `native_token` settle **synchronously** inside `createCheckout` (no external webhook) — the processor debits credit / transfers on-chain and marks the ledger row paid before returning.
+
+### Store checkout routes (verified)
+
+| Route | Rail | Notes |
+|-------|------|-------|
+| `POST /api/store/payments/wayforpay` | `merchant_redirect` | `createCheckout({ purpose: 'store_order' })`; `initiateStorePayment` is an internal helper inside `wayforpay.processor.ts`, not a ledger bypass |
+| `POST /api/store/payments/stripe` | `merchant_redirect` | Stripe Checkout session |
+| `POST /api/store/payments/token` | `native_token` | Requires `PAYMENT_STORE_ALLOW_TOKEN=true`; `isRailEnabled('store_order', 'native_token')` gate |
+| `POST /api/store/payments/credit` | `internal_credit` | Credit balance deduction |
+
+### Native token checkout (verified)
+
+`createNativeTokenCheckout` (`native-token.processor.ts`) resolves fiat → token via the oracle (`nativeOut = amount / ringPerUsd`, or explicit `metadata.tokenAmount`), checks balance, then `transferNativeTokenForUser` → treasury and `markPaid`. Fails closed with `NATIVE_TOKEN_RAIL_DISABLED`, `TREASURY_NOT_CONFIGURED`, or `INSUFFICIENT_TOKEN_BALANCE`.
+
+### Wallet top-up (verified — credits, not tokens)
+
+`initiateCreditTopupPayment` in `app/_actions/wallet.ts` → `purpose: 'wallet_topup'` → `createWalletTopupWayForPay` (or Stripe) → webhook `handlers/wallet-topup.ts` / `wallet-topup-stripe.ts` credits **fiat USD points** via `creditBalanceService.addFiatUsd` (1:1). This is distinct from the `native_token` rail: card top-up never mints on-chain RING.
+
+### Membership PayPal (verified — stub wired through conductors)
+
+`POST /api/membership/payment/paypal` routes through `SubscriptionConductor` (provider `paypal`) and `PaymentConductor.createCheckout({ metadata.processor: 'paypal' })`. The processor returns `PAYPAL_NOT_IMPLEMENTED` (Phase S8) — the ledger/subscription wiring is live so no parallel checkout path is needed when credentials ship.
 
 ### Database
 
-Apply migration `data/migrations/004_payment_transactions.sql` before enabling the conductor in production. All transactions persist in the `payment_transactions` collection using the `DatabaseService` result contract `{ success, data, error }`.
+Apply `data/migrations/004_payment_transactions.sql` before production. Ledger rows use the `DatabaseService` result contract `{ success, data, error }`.
 
 </Audience>
 
@@ -136,15 +172,34 @@ Apply migration `data/migrations/004_payment_transactions.sql` before enabling t
 
 <Cards>
   <Card title="Payments overview" href="/docs/features/payments">
-    High-level payment integration — store, membership, news, and gateway selection.
-  </Card>
-  <Card title="SubscriptionConductor" href="/docs/features/subscriptions">
-    Multi-provider membership subscription billing with cron pipelines.
+    High-level payment integration — store, membership, news, wallet top-up.
   </Card>
   <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
-    HMAC verification, idempotent orderReference, and 3DS handling.
+    Env SSOT, HMAC, regularApi password, orderReference prefixes.
   </Card>
   <Card title="Architecture: PaymentConductor" href="/docs/architecture/payment-conductor">
-    Deep-dive architecture with data model and webhook dispatch sequences.
+    Types, ledger, dispatcher sequences, API routes.
+  </Card>
+  <Card title="Wallet" href="/docs/features/wallet">
+    Credit top-up via WayForPay (`wallet_topup`).
   </Card>
 </Cards>
+
+<FutureFeatureBacklog title="Backlog — PaymentConductor (TBD)">
+
+<FutureFeatureWidget
+  name="PayPal live capture (membership + store)"
+  description="PayPal processor (paypal.processor.ts) and membership route (POST /api/membership/payment/paypal) are already wired through PaymentConductor + SubscriptionConductor, but return PAYPAL_NOT_IMPLEMENTED (Phase S8). Remaining: live PayPal Orders API capture + webhook verification. WayForPay, Stripe, internal credit, and native token are live."
+  implementationCost={96}
+  labels={['payments', 'paypal', 'membership', 'store']}
+  poolSlug="membership-paypal"
+/>
+
+<FutureFeatureWidget
+  name="Stripe Connect marketplace payouts"
+  description="Automated vendor settlement payouts via Stripe Connect. Today settlements are ledger/admin-driven; see also integrations hub backlog."
+  implementationCost={160}
+  labels={['payments', 'stripe', 'store']}
+/>
+
+</FutureFeatureBacklog>

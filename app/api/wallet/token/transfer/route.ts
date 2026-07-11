@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/auth'
-import { getCurrentRingContactsService } from '@/features/contacts/services'
-import { transferNativeTokenForUser } from '@/features/wallet/chains/native-token-transfer-service'
+import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
 import { GasReserveError } from '@/features/wallet/chains/solana/native-token-transfer'
 import { readJsonBody } from '@/lib/server/request'
-import { db } from '@/lib/database'
-import { getNativeChain } from '@/lib/ring-config-chain'
+import { getNativeChain, getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { isAddress } from 'viem'
-import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 
 const TransferSchema = z.object({
   toAddress: z.string().min(1),
@@ -23,14 +20,12 @@ function isValidRecipientAddress(address: string): boolean {
   if (chain === 'evm' || chain === 'base') {
     return isAddress(address)
   }
-  try {
-    // base58 length check for Solana
-    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
-  } catch {
-    return false
-  }
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
 }
 
+/**
+ * POST /api/wallet/token/transfer — custodial native-token send via WalletConductor.
+ */
 export async function POST(request: NextRequest) {
   await connection()
 
@@ -50,73 +45,45 @@ export async function POST(request: NextRequest) {
     }
 
     const { toAddress, amount, contactUserId, ringContactId, notes } = parsed.data
-    const transferAmount = parseFloat(amount)
-
-    if (Number.isNaN(transferAmount) || transferAmount <= 0) {
-      return NextResponse.json({ error: 'Invalid transfer amount' }, { status: 400 })
-    }
-
-    const chain = getNativeChain()
     if (!isValidRecipientAddress(toAddress)) {
       return NextResponse.json({ error: 'Invalid recipient address' }, { status: 400 })
     }
 
-    const result = await transferNativeTokenForUser({
+    const result = await WalletConductor.transferNative({
       userId: session.user.id,
       toAddress,
       amount,
+      notes,
+      contactUserId,
+      ringContactId,
     })
 
-    const txId = `${getNativeTokenSymbol()}_send_${result.txHash.toLowerCase()}`
-    await db().createDoc(
-      'wallet_transactions',
-      {
-        kind: `${getNativeTokenSymbol()}_send`,
-        txHash: result.txHash,
-        userId: session.user.id,
-        fromAddress: result.fromAddress,
-        toAddress,
-        amount,
-        tokenSymbol: getNativeTokenSymbol(),
-        chain,
-        notes: notes ?? null,
-        contactUserId: contactUserId ?? null,
-        createdAt: new Date().toISOString(),
-      },
-      { id: txId },
-    )
-
-    const contacts = getCurrentRingContactsService()
-    if (ringContactId) {
-      await contacts.touchLastUsed(session.user.id, ringContactId)
-    } else if (contactUserId) {
-      const list = await contacts.listContacts(session.user.id)
-      const match = list.find((c) => c.contactUserId === contactUserId)
-      if (match) {
-        await contacts.touchLastUsed(session.user.id, match.id)
+    if (!result.success) {
+      const message = result.error || 'Transfer failed'
+      if (message.includes('insufficient') || message.includes('Insufficient')) {
+        return NextResponse.json({ error: message, code: 'INSUFFICIENT_FUNDS' }, { status: 400 })
       }
+      if (message.includes('GAS_RESERVE') || message.includes('gas reserve')) {
+        return NextResponse.json({ error: message, code: 'GAS_RESERVE' }, { status: 503 })
+      }
+      return NextResponse.json({ error: message }, { status: 400 })
     }
 
     return NextResponse.json({
       success: true,
       txHash: result.txHash,
       fromAddress: result.fromAddress,
-      toAddress,
-      amount,
-      tokenSymbol: getNativeTokenSymbol(),
+      toAddress: result.toAddress,
+      amount: result.amount,
+      tokenSymbol: result.tokenSymbol ?? getNativeTokenSymbol(),
       chain: result.chain,
     })
   } catch (error) {
     if (error instanceof GasReserveError) {
       return NextResponse.json({ error: error.message, code: 'GAS_RESERVE' }, { status: 503 })
     }
-
     const message = error instanceof Error ? error.message : 'Transfer failed'
-    if (message.includes('insufficient') || message.includes('Insufficient')) {
-      return NextResponse.json({ error: message, code: 'INSUFFICIENT_FUNDS' }, { status: 400 })
-    }
-
-    console.error('POST /api/wallet/ring/transfer failed:', error)
+    console.error('POST /api/wallet/token/transfer failed:', error)
     return NextResponse.json({ error: 'Transfer failed', details: message }, { status: 500 })
   }
 }

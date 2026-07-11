@@ -76,7 +76,7 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
   // Resolve user role for RBAC (Role-Based Access Control)
   // If the resolver performs asynchronous logic (e.g. reads from DB/session), change to an await call
   // TODO: If role resolution relies on data that could change often, consider caching at session load
-  const userRole = resolveSessionUserRole(session)
+  const userRole = resolveSessionUserRole(session.user.role)
 
   // Pagination and filtering setup: safely parse all query params, with defaults for missing/invalid
   const page = Number(searchParams.page ?? '1')

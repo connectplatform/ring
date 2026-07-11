@@ -127,10 +127,26 @@ export const RingIntegrationPlanesHub = dynamic(
   { ssr: false, loading: vizPlaceholder },
 )
 
+export const RingApiTree = dynamic(
+  () =>
+    import('@/components/ring-widgets/ring-api-tree').then((mod) => ({
+      default: mod.RingApiTree,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
 export const RingWelcomeFeatureExplorer = dynamic(
   () =>
     import('@/components/ring-widgets/ring-welcome-feature-explorer').then((mod) => ({
       default: mod.RingWelcomeFeatureExplorer,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
+export const NftWidgetItem = dynamic(
+  () =>
+    import('@/components/ring-widgets/nft-widget-item').then((mod) => ({
+      default: mod.NftWidgetItem,
     })),
   { ssr: false, loading: vizPlaceholder },
 )

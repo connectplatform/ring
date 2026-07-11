@@ -1,14 +1,19 @@
 ---
 title: PaymentConductor architecture
-description: Types, webhook dispatcher, order references, ledger, processors, and API routes
-last_modified: "2026-06-12"
+description: Types, webhook dispatcher, order references, ledger, processors, wallet top-up, and API routes
+last_modified: "2026-07-10"
+audience: both
 ---
 
 # PaymentConductor architecture
 
-PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer. One PostgreSQL ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, news promotion, and optional wallet top-up.
+PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, news promotion, and wallet credit top-up.
 
-**Operator setup:** [Payment integration](/docs/customization/payment-integration) · [Environment — PaymentConductor](/docs/deployment/environment#payment-conductor)
+**Operator setup:** [Payment integration](/docs/customization/payment-integration) · [WayForPay](/docs/features/wayforpay-integration)
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
+</Callout>
 
 <Cards>
   <Card title="Operator guide" href="/docs/customization/payment-integration">
@@ -17,36 +22,30 @@ PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer.
   <Card title="Feature overview" href="/docs/features/payment-conductor">
     Purposes and rails
   </Card>
-  <Card title="Docs components" href="/docs/development/docs-components">
-    MDX authoring reference
+  <Card title="Wallet top-up" href="/docs/features/wallet">
+    Live `wallet_topup` via WayForPay
   </Card>
 </Cards>
 
-## Request flow
+<Audience for="founder">
 
-<RingWidgetFlowStepsFive
-  locale="en"
-  title="PaymentConductor Orchestration"
-  subtitle="Conductor actively orchestrates payment operations across gateways and handlers"
-  centerLabel="PaymentConductor"
-  centerIcon="Zap"
-  centerColor="from-amber-500 to-orange-600"
-  spokes={[
-    { label: "UI/Checkout", icon: "ShoppingCart", color: "#10b981", description: "User initiates payment" },
-    { label: "WayForPay", icon: "CreditCard", color: "#3b82f6", description: "Ukrainian payment gateway" },
-    { label: "Stripe", icon: "CreditCard", color: "#8b5cf6", description: "Global payment processor" },
-    { label: "Credit", icon: "Wallet", color: "#f59e0b", description: "Internal RING credit balance" },
-    { label: "Webhook", icon: "Webhook", color: "#ec4899", description: "Payment status callbacks" },
-    { label: "Handlers", icon: "Shield", color: "#6366f1", description: "Store/Membership/News logic" },
-    { label: "Ledger", icon: "Database", color: "#0ea5e9", description: "payment_transactions SSOT" },
-  ]}
-  connectionLabels={{ inbound: "Request", outbound: "Response" }}
-/>
+## Why this architecture matters
+
+- **Single ledger** — every card redirect and credit settlement writes `payment_transactions` before the PSP redirect returns.
+- **Idempotent callbacks** — duplicate WayForPay / Stripe webhooks do not double-fulfill; `order_reference` is unique.
+- **Purpose handlers** — store stock/settlement, membership role upgrade, news promotion activation, and wallet credit add are separate modules behind one dispatcher.
+- **Admin audit** — Payments tab loads membership + wallet top-up rows for a user without scraping PSP dashboards.
+
+</Audience>
+
+<Audience for="developer">
+
+## Request flow
 
 <Mermaid>
 {`sequenceDiagram
-    participant UI as Checkout / upgrade UI
-    participant API as App API route
+    participant UI as Checkout / upgrade / top-up UI
+    participant API as App API / server action
     participant PC as PaymentConductor
     participant PSP as WayForPay / Stripe
     participant WH as webhook-dispatcher
@@ -60,7 +59,7 @@ PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer.
     PSP->>WH: POST webhook
     WH->>WH: verify signature + parse orderReference
     WH->>DB: mark paid / failed
-    WH->>WH: purpose handler (store / membership / news)`}
+    WH->>WH: purpose handler (store / membership / news / wallet)`}
 </Mermaid>
 
 ## Core modules
@@ -71,16 +70,17 @@ PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer.
 | Dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Verify PSP payloads; route to purpose handlers |
 | Types | `lib/payments/conductor/types.ts` | `PaymentPurpose`, `PaymentRail`, `PaymentProcessorId`, statuses |
 | Order references | `lib/payments/order-reference.ts` | Build / parse idempotent `orderReference` strings |
-| Ledger service | `lib/payments/payment-transaction-service.ts` | CRUD on `payment_transactions` |
+| Ledger service | `lib/payments/payment-transaction-service.ts` | CRUD + `listByUserId` on `payment_transactions` |
 | Config | `lib/payments/payment.config.ts` | `getPaymentProvider`, `isRailEnabled`, webhook URL helpers |
 
 ### Purpose handlers
 
 | Purpose | Handler file |
 |---------|----------------|
-| `store_order` | `conductor/handlers/store-order.ts` |
-| `membership_upgrade` | `conductor/handlers/membership-upgrade.ts` |
+| `store_order` | `conductor/handlers/store-order.ts` (+ Stripe: `store-order-stripe.ts`) |
+| `membership_upgrade` | `conductor/handlers/membership-upgrade.ts` (+ Stripe: `membership-upgrade-stripe.ts`) |
 | `news_promotion` | `conductor/handlers/news-promotion.ts` |
+| `wallet_topup` | `conductor/handlers/wallet-topup.ts` |
 
 ### Processors
 
@@ -89,10 +89,12 @@ PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer.
 | WayForPay | `processors/wayforpay.processor.ts` | `merchant_redirect` |
 | Stripe | `processors/stripe.processor.ts` | `merchant_redirect` |
 | Internal credit | `processors/internal-credit.processor.ts` | `internal_credit` |
+| Native token | `processors/native-token.processor.ts` | `native_token` |
+| PayPal (stub) | `processors/paypal.processor.ts` | `merchant_redirect` (Phase S8 — `PAYPAL_NOT_IMPLEMENTED`) |
 
-Signature verification: `processors/wayforpay-verify.ts` (store vs generic membership/news), `stripe.processor.ts` (`verifyStripeWebhook`).
+Signature verification: `processors/wayforpay-verify.ts`, Stripe verify inside `stripe.processor.ts`. `internal_credit` and `native_token` settle synchronously inside `createCheckout` (no external webhook).
 
-Legacy services (`lib/payments/wayforpay-service.ts`, `wayforpay-store-service.ts`) remain for specialized store/membership helpers; new flows go through the conductor.
+Legacy helpers (`lib/payments/wayforpay-service.ts`, `wayforpay-store-service.ts`) remain for specialized store/membership form building; **new route entry points** go through the conductor. Store route `POST /api/store/payments/wayforpay` uses `PaymentConductor.createCheckout({ purpose: 'store_order' })` — `initiateStorePayment` is only called from inside the WayForPay processor.
 
 ## Types
 
@@ -101,7 +103,8 @@ Legacy services (`lib/payments/wayforpay-service.ts`, `wayforpay-store-service.t
   | 'store_order' | 'membership_upgrade' | 'news_promotion' | 'wallet_topup'
 
 type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
-type PaymentProcessorId = 'wayforpay' | 'stripe' | 'internal-credit'
+type PaymentProcessorId =
+  | 'wayforpay' | 'stripe' | 'internal-credit' | 'native-token' | 'paypal'
 
 type PaymentTransactionStatus =
   | 'created' | 'redirected' | 'pending' | 'paid'
@@ -114,18 +117,24 @@ type PaymentTransactionStatus =
 
 `lib/payments/payment.config.ts`:
 
-- `getPaymentProvider(purpose)` — resolves WayForPay vs Stripe from env overrides
-- `getProcessorForPurpose(purpose)` — alias of above
+- `getPaymentProvider(purpose)` — WayForPay vs Stripe from env overrides
 - `isRailEnabled(purpose, rail)` — credit / token gates
 - `getDefaultStoreCurrencySymbol()` — `PAYMENT_FIAT_CURRENCY` (default `USD`)
-- `canSpendCreditForOrderCurrency(orderCurrency)` — `PAYMENT_CREDIT_ACCEPT_ORDER_CURRENCY`
 - `getWebhookUrl(provider)` — `${site}/api/payments/${provider}/webhook`
 
 Env keys per purpose: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` | `stripe`).
 
-## Order reference prefixes
+WayForPay env SSOT (no `WAYFORPAY_MERCHANT_ID`):
 
-Stable `orderReference` values tie PSP callbacks to domain entities. Webhook dispatcher parses prefix before invoking handlers.
+```bash
+WAYFORPAY_MERCHANT_ACCOUNT=...
+WAYFORPAY_SECRET_KEY=...
+WAYFORPAY_MERCHANT_PASSWORD=...   # regularApi / recurring
+WAYFORPAY_DOMAIN=ring-platform.org
+WAYFORPAY_API_URL=https://api.wayforpay.com/api
+```
+
+## Order reference prefixes
 
 | Purpose | Pattern | Example |
 |---------|---------|---------|
@@ -133,6 +142,7 @@ Stable `orderReference` values tie PSP callbacks to domain entities. Webhook dis
 | `membership_upgrade` | `membership_{userId}_{timestamp}` | `membership_user123_1717000000000` |
 | `membership_upgrade` (legacy) | `ring_{userId}_{timestamp}` | still accepted |
 | `news_promotion` | `news-promo-{base64url(articleId)}-{timestamp}` | `news-promo-YWJj-1717000000000` |
+| `wallet_topup` | `wallettopup_{userId}_{timestamp}` | `wallettopup_user123_1717000000000` |
 
 `buildOrderReference` / `parseOrderReference` in `order-reference.ts`. Duplicate webhook delivery is safe: ledger enforces unique `order_reference`.
 
@@ -140,26 +150,9 @@ Stable `orderReference` values tie PSP callbacks to domain entities. Webhook dis
 
 Migration: `data/migrations/004_payment_transactions.sql`
 
-<Code language="sql" title="Ledger table">
-{`CREATE TABLE payment_transactions (
-    id VARCHAR(255) PRIMARY KEY,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+JSON `data` fields (via `payment-transaction-service.ts`): `purpose`, `processor`, `rail`, `order_reference`, `entity_type`, `entity_id`, `user_id`, `amount_minor`, `currency`, `status`, `status_history`, `processor_payload`, `paid_at`.
 
-CREATE UNIQUE INDEX idx_payment_transactions_order_reference
-    ON payment_transactions ((data->>'order_reference'));`}
-</Code>
-
-JSON `data` fields (via `payment-transaction-service.ts`):
-
-- `purpose`, `processor`, `rail`, `order_reference`
-- `entity_type`, `entity_id`, `user_id`
-- `amount_minor`, `currency`, `status`, `status_history`
-- `processor_payload`, `paid_at`, timestamps
-
-`createPending` returns existing row if `order_reference` already exists — idempotent checkout creation.
+`createPending` returns existing row if `order_reference` already exists. Admin list: `paymentTransactionService.listByUserId` (default purposes: `membership_upgrade`, `wallet_topup`).
 
 ## Webhook dispatcher
 
@@ -167,13 +160,13 @@ JSON `data` fields (via `payment-transaction-service.ts`):
 
 <Step>
 
-**WayForPay** — `dispatchWayForPayWebhook`: parse `orderReference` → verify signature (store vs generic) → purpose handler → membership returns WayForPay ACK.
+**WayForPay** — `dispatchWayForPayWebhook`: parse `orderReference` → verify signature → purpose handler (`store_order`, `membership_upgrade`, `news_promotion`, `wallet_topup`).
 
 </Step>
 
 <Step>
 
-**Stripe** — `dispatchStripeWebhook`: verify `stripe-signature` → read `metadata.purpose` → `handleNewsStripeWebhook` on `checkout.session.completed`.
+**Stripe** — `dispatchStripeWebhook`: verify `stripe-signature` → read `metadata.purpose` → Stripe purpose handlers.
 
 </Step>
 
@@ -187,34 +180,32 @@ JSON `data` fields (via `payment-transaction-service.ts`):
 
 ## API routes
 
-<Tabs items={['Canonical', 'Deprecated aliases']}>
-
-<Tab value="Canonical">
-
 | Method | Path | Role |
 |--------|------|------|
 | `POST` | `/api/payments/wayforpay/webhook` | Unified WayForPay callback |
 | `POST` | `/api/payments/stripe/webhook` | Stripe signed events |
-| `POST` | `/api/store/payments/wayforpay` | Store redirect checkout |
+| `POST` | `/api/store/payments/wayforpay` | Store redirect via conductor (`store_order`) |
+| `POST` | `/api/store/payments/stripe` | Store Stripe Checkout via conductor |
+| `POST` | `/api/store/payments/token` | Store native-token rail (`PAYMENT_STORE_ALLOW_TOKEN=true`) |
 | `GET` | `/api/store/payments/[orderId]/status` | Poll status |
 | `POST` | `/api/store/payments/credit` | Internal credit |
+| `POST` | `/api/membership/payment/paypal` | PayPal stub via conductor (Phase S8) |
+| `GET` | `/api/admin/users/[id]/payments` | Admin Payments tab |
 | `POST` | `/api/membership/payment/token` | RING membership |
 | `POST` | `/api/news/promotion/submit` | News promotion checkout |
 
-</Tab>
+Deprecated aliases (delegate to canonical webhook):
 
-<Tab value="Deprecated aliases">
+- `app/api/store/payments/wayforpay/webhook/route.ts`
+- `app/api/news/promotion/wayforpay-webhook/route.ts`
 
-| File | Delegates to |
-|------|----------------|
-| `app/api/store/payments/wayforpay/webhook/route.ts` | `/api/payments/wayforpay/webhook` |
-| `app/api/news/promotion/wayforpay-webhook/route.ts` | `/api/payments/wayforpay/webhook` |
+### Wallet top-up entry
 
-`app/api/membership/payment/credit/route.ts` re-exports `membership/payment/ring`.
+`initiateCreditTopupPayment` (`app/_actions/wallet.ts`) → `PaymentConductor.createCheckout({ purpose: 'wallet_topup' })` → `createWalletTopupWayForPay` in `wayforpay.processor.ts` → `handleWalletTopupWayForPayWebhook` credits via `creditBalanceService.addFiatUsd`.
 
-</Tab>
+### Membership card entry
 
-</Tabs>
+`initiateMembershipPayment` card path → `PaymentConductor.createCheckout({ purpose: 'membership_upgrade' })`. PaymentModal tabs: native-token, card (live); PayPal = `FutureFeatureWidget` (`poolSlug: membership-paypal`).
 
 ## PaymentConductor API
 
@@ -226,15 +217,15 @@ JSON `data` fields (via `payment-transaction-service.ts`):
 }`}
 </Code>
 
-`createCheckout` resolves processor from `ctx.rail` (internal credit) or `getPaymentProvider(ctx.purpose)`, then delegates to the matching processor. Processors write ledger rows before returning redirect URLs.
-
 ## Security notes
 
 - **Never** store raw card numbers — hosted PSP checkout only
-- WayForPay: HMAC / merchant signature verification per flow (store vs generic)
-- Stripe: `stripe-signature` header + `STRIPE_WEBHOOK_SECRET`
-- Webhook handlers return PSP-expected ACK bodies (WayForPay `accept` JSON for membership)
-- Internal credit routes require authenticated session + order ownership checks
+- WayForPay: HMAC / merchant signature verification per flow
+- Stripe: `stripe-signature` + `STRIPE_WEBHOOK_SECRET`
+- `WAYFORPAY_MERCHANT_PASSWORD` for `regularApi` only — never expose to client
+- Internal credit routes require authenticated session + ownership checks
+
+</Audience>
 
 ## Related
 
@@ -245,7 +236,29 @@ JSON `data` fields (via `payment-transaction-service.ts`):
   <Card title="Payments feature" href="/docs/features/payments">
     User-facing flows
   </Card>
+  <Card title="Admin API" href="/docs/api/admin">
+    User Payments tab endpoint
+  </Card>
   <Card title="Migrations" href="/docs/getting-started/migrations">
     Migration 004 ledger
   </Card>
 </Cards>
+
+<FutureFeatureBacklog title="Backlog — payment architecture (TBD)">
+
+<FutureFeatureWidget
+  name="PayPal live Orders API capture"
+  description="paypal.processor.ts and POST /api/membership/payment/paypal are wired through PaymentConductor + SubscriptionConductor but return PAYPAL_NOT_IMPLEMENTED (Phase S8). Remaining: live PayPal Orders API + webhook signature verify."
+  implementationCost={120}
+  labels={['payments', 'paypal', 'architecture']}
+  poolSlug="membership-paypal"
+/>
+
+<FutureFeatureWidget
+  name="Stripe Connect marketplace payouts"
+  description="Multi-party Connect payouts for vendor settlements instead of admin-driven settlement pipeline."
+  implementationCost={160}
+  labels={['payments', 'stripe', 'architecture']}
+/>
+
+</FutureFeatureBacklog>

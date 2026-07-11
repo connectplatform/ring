@@ -51,8 +51,19 @@
 
 Fixes landed this campaign:
 - `lib/tunnel/publisher.ts` — the "queued" case (`!sseDelivered && !wsDelivered`) now logs at `console.debug`, not `console.log`, so it no longer reads as a failure.
-- `lib/tunnel/native-ws/attach.ts` — `hub.drainUserQueue()` now runs on native WS `auth_ok` too (previously SSE-only via `drainUserQueueForSse`), so messages published during the connect race are delivered instead of waiting for the next SSE session.
+- `lib/tunnel/native-ws/attach.ts` — telemetry + general inbox replay on WS `auth_ok`; `account:status` side effects replay on **subscribe** only (2026-07-08 profile reload loop fix).
+- `lib/tunnel/hub/in-memory-hub.ts` — split offline queues: `userTelemetryQueues`, `userGeneralQueues`, `userSideEffectQueues`; cross-transport message-id dedupe.
 - `lib/tunnel/tunnel-timing.ts` — `priorityRoutes` matching was an exact-string `.includes()`, so a bare `/admin` entry never matched `/admin/analytics`. Now prefix-matched (`matchesRoutePrefix`); `/admin` added to `priorityRoutes` so forensics/analytics admin sessions get earlier tunnel connect.
+
+## Side-effect vs telemetry offline queues (2026-07-08)
+
+| Queue kind | Channels | WS `auth_ok` drain | WS `subscribe` drain |
+|------------|----------|--------------------|----------------------|
+| Telemetry | `telemetry:*` | Yes (latest per channel) | — |
+| General | credit balance, notifications inbox, … | Yes | — |
+| Side effect | `account:status` | **No** | Yes (max 3, stale >60s dropped) |
+
+`AccountStatusTunnelListener` coalesces `session.update({ accountStatusRefresh: true })` to one action per 2s window with message dedupe. It does **not** call `router.refresh()` on reactivate (that caused multi-GET `/profile` storms).
 
 ## Backlog (not yet implemented — tracked in docs widgets)
 

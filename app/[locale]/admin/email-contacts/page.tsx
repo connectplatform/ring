@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { EmailAdminShell } from '@/features/admin/email/email-admin-shell';
 import { 
   Users, Search, Filter, Plus, Eye, Edit, Trash2,
   Building, Mail, Clock, TrendingUp, TrendingDown, Minus,
@@ -183,6 +184,7 @@ export default function EmailContactsPage() {
   };
 
   return (
+    <EmailAdminShell pageContext="email-contacts">
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -388,5 +390,6 @@ export default function EmailContactsPage() {
         </div>
       </div>
     </div>
+    </EmailAdminShell>
   );
 }

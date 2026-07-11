@@ -14,20 +14,30 @@ export const signUpSchema = z.object({
 
 export type SignUpData = z.infer<typeof signUpSchema>;
 
-// Store schemas
+// Store schemas — SSOT for POST /api/store/orders (checkout-client + legacy checkoutInfo)
 export const orderItemSchema = z.object({
   productId: z.string(),
   name: z.string(),
-  price: z.string().regex(/^\d+(\.\d+)?$/),
-  currency: z.enum(['DAAR', 'DAARION']),
+  price: z.union([z.string().regex(/^\d+(\.\d+)?$/), z.number()]),
+  currency: z.enum(['DAAR', 'DAARION', 'UAH', 'USD', 'EUR', 'RING']),
   quantity: z.number().int().positive(),
-})
+  selectedVariants: z.record(z.string(), z.string()).optional(),
+  finalPrice: z.number().optional(),
+  product: z.record(z.string(), z.unknown()).optional(),
+}).passthrough()
 
 export const checkoutInfoSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   email: z.string().email().optional().or(z.literal('')).optional(),
   notes: z.string().max(500).optional().or(z.literal('')).optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string().optional(),
+  method: z.string().optional(),
+  location: z.unknown().optional(),
 })
 
 export const shippingLocationSchema = z.object({
@@ -39,11 +49,40 @@ export const shippingLocationSchema = z.object({
 
 export const orderCreateSchema = z.object({
   items: z.array(orderItemSchema).min(1),
-  totals: z.object({ DAAR: z.number().nonnegative().optional(), DAARION: z.number().nonnegative().optional() }),
-  checkoutInfo: checkoutInfoSchema,
-  shipping: z.object({ provider: z.enum(['nova-post', 'manual', 'pickup']), location: shippingLocationSchema.nullable().optional() }).optional(),
-  payment: z.object({ method: z.enum(['stripe', 'crypto']), status: z.enum(['pending', 'paid', 'failed']) }),
-  status: z.enum(['new', 'paid', 'processing', 'shipped', 'completed', 'canceled'])
+  // Live checkout-client path
+  total: z.number().nonnegative().optional(),
+  subtotal: z.number().nonnegative().optional(),
+  shippingInfo: checkoutInfoSchema.optional(),
+  billingInfo: z.unknown().optional(),
+  // Legacy / alternate path
+  totals: z
+    .object({
+      DAAR: z.number().nonnegative().optional(),
+      DAARION: z.number().nonnegative().optional(),
+      UAH: z.number().nonnegative().optional(),
+      USD: z.number().nonnegative().optional(),
+    })
+    .optional(),
+  checkoutInfo: checkoutInfoSchema.optional(),
+  shipping: z
+    .object({
+      provider: z.enum(['nova-post', 'manual', 'pickup', 'express', 'standard']),
+      location: shippingLocationSchema.nullable().optional(),
+    })
+    .optional(),
+  payment: z.object({
+    method: z.enum(['wayforpay', 'stripe', 'crypto', 'credit', 'ring']),
+    status: z.enum(['pending', 'paid', 'failed', 'processing']),
+  }),
+  status: z.enum(['new', 'paid', 'processing', 'shipped', 'completed', 'canceled']),
+}).superRefine((data, ctx) => {
+  if (!data.shippingInfo && !data.checkoutInfo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'shippingInfo or checkoutInfo is required',
+      path: ['shippingInfo'],
+    })
+  }
 })
 
 export {

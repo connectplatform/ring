@@ -17,14 +17,13 @@ import { FieldValue } from 'firebase-admin/firestore';
  * Fetch a specific news article by ID or slug
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
-  try {
-    const { id } = params;
+  const { id } = await context.params
 
+  try {
     // Try to find by document ID first
     let articleDoc = await getCachedDocument('news', id);
     let articleId = id;
@@ -93,10 +92,11 @@ export async function GET(
  * Update a specific news article (admin or article author — field-level guards for visibility)
  */
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
+
+  const { id } = await context.params
 
   try {
     const session = await auth();
@@ -108,7 +108,6 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
     const formData: Partial<NewsFormData> = await request.json();
 
     const articleDoc = await getCachedDocument('news', id);
@@ -224,10 +223,11 @@ export async function PUT(
  * Delete a specific news article (admin or the article author)
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest, context: { params: Promise<{ id: string }> }
 ) {
   await connection() // Next.js 16: opt out of prerendering
+
+  const { id } = await context.params
 
   try {
     const session = await auth();
@@ -239,7 +239,6 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
     const articleDoc = await getCachedDocument('news', id);
 
     if (!articleDoc || !articleDoc.exists) {

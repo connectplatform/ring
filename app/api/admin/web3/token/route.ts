@@ -85,7 +85,7 @@ export async function GET() {
     },
     holders: {
       estimated: holdersEstimate,
-      note: 'Count of member+ users who have a native wallet provisioned via ensureWallet',
+      note: 'Count of member+ users who have a native wallet provisioned via WalletConductor.ensureNativeWallet',
     },
     gas: gasReserve,
   })

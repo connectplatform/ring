@@ -17,6 +17,8 @@ export interface EventQuery {
   typeIn?: string[]
   userId?: string
   limit?: number
+  /** Default asc (replay). Use desc for recent-activity feeds. */
+  order?: 'asc' | 'desc'
 }
 
 export async function appendEvent<T>(event: Omit<EventRecord<T>, 'id' | 'timeMs' | 'ts'>): Promise<string> {
@@ -64,7 +66,8 @@ export async function getEvents(query: EventQuery = {}): Promise<EventRecord[]> 
     return true
   })
 
-  events.sort((a, b) => a.timeMs - b.timeMs)
+  const order = query.order ?? 'asc'
+  events.sort((a, b) => (order === 'desc' ? b.timeMs - a.timeMs : a.timeMs - b.timeMs))
 
   if (query.limit) {
     events = events.slice(0, query.limit)

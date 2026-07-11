@@ -11,8 +11,15 @@
   "primary": "Primary",
   "lowBalance": "Low Balance",
   "refresh": "Refresh",
-  "walletError": "Wallet Error",
   "tryAgain": "Try Again",
+  "walletError": "Wallet Error",
+  "creditBalanceItem": {
+    "title": "Credits",
+    "convertTo": "Convert to {token}",
+    "convertHint": "≈ {amount} {token} at current rate",
+    "addCredit": "Add Credit",
+    "deskModalTitle": "Token desk — {token}"
+  },
   "subscription": "Subscription",
   "status": "Status",
   "active": "Active",
@@ -26,9 +33,12 @@
   "deskTitle": "Ring Desk",
   "deskBuy": "Buy RING",
   "deskSell": "Sell RING",
-  "deskBuyAmountLabel": "USD credit amount",
+  "deskBuyAmountLabel": "Credit points to spend",
+  "deskAvailableBalance": "Available: {amount} {unit}",
+  "deskUseAllPoints": "All {unit}",
+  "deskQuoteLoading": "Updating quote…",
   "deskSellAmountLabel": "RING amount",
-  "deskBuyHint": "Spend USD platform credits to receive RING on-chain.",
+  "deskBuyHint": "Spend credit points to receive {token} on-chain at the live oracle rate.",
   "deskSellHint": "Sell on-chain RING for USD platform credits (net of tax).",
   "deskGetQuote": "Get quote",
   "deskConfirm": "Confirm",
@@ -38,6 +48,8 @@
   "deskQuoteFailed": "Quote failed",
   "deskExecuteSuccess": "Desk order settled",
   "deskExecuteFailed": "Desk order failed",
+  "deskInsufficientCredit": "Credit balance is lower than requested amount",
+  "deskPurchaseCreditCertificate": "Purchase credit certificate",
   "loadMoreTransactions": "Load more",
   "quickActions": "Quick Actions",
   "sendTokens": "Send RING",
@@ -66,6 +78,8 @@
   "securityGuide": "Security guide",
   "addressCopied": "Address copied",
   "addressCopiedDescription": "Wallet address copied to clipboard",
+  "copyAddress": "Copy address",
+  "sendLabel": "Send",
   "copyFailed": "Copy failed",
   "orderLabel": "Order #{id}",
   "stakingDescription": "Stake DAAR and DAARION tokens to earn platform rewards.",
@@ -80,6 +94,10 @@
     "description_label": "Description (Optional)",
     "description_placeholder": "Add a note for this top-up...",
     "processing": "Processing...",
+    "payment_method": "Payment method",
+    "fiat_amount_label": "Amount ({currency})",
+    "amount_range": "Amount must be between $25 and $2000",
+    "wayforpay_coming_soon": "WayForPay integration coming soon. Please use token transfer for now.",
     "record_transfer": "Record Transfer",
     "blockchain_help": "If you've already sent RING tokens to your wallet, enter the amount and transaction hash to update your balance. Otherwise, first send tokens to your wallet address.",
     "success": "Successfully added {amount} RING to your balance",
@@ -87,11 +105,15 @@
       "blockchain": {
         "name": "Blockchain Transfer",
         "description": "Transfer RING tokens directly from your wallet"
+      },
+      "card": {
+        "name": "Card"
       }
     },
     "error": {
       "invalid_amount": "Amount must be between 0.01 and 10000 RING"
-    }
+    },
+    "proceed_card": "Proceed to Card Payment"
   },
   "send": {
     "title": "Send RING",
@@ -110,7 +132,14 @@
     "tokenNativeTokenOnly": "{token} token only",
     "notes": "Notes (optional)",
     "notesPlaceholder": "Add a note to this transfer…",
-    "sendButton": "Send {amount} RING",
+    "sendButton": "Send {amount} {token}",
+    "sendToContact": "Send {token} to {project} contact",
+    "recipientSearchHint": "Recipient name in Contacts",
+    "allContacts": "All contacts",
+    "noContacts": "No saved contacts yet",
+    "enterAmount": "Enter amount to send",
+    "previewIrreversible": "You are about to send {amount} to {name}. This cannot be reversed.",
+    "recipientUnverified": "{name} is unverified. Ask the user to complete verification if you need reassurance.",
     "confirmTitle": "Confirm Transfer",
     "confirmWarning": "Verify the recipient. On-chain transfers cannot be reversed.",
     "confirmSend": "Confirm Send",

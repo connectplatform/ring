@@ -7,6 +7,7 @@ import { getCachedBalancesForUser } from '@/lib/wallet/wallet-balance-cache'
 import { getNativeTokenSymbol, SupportedChains } from '@/lib/ring-config-chain'
 import { DEFAULT_WALLET_CHAIN } from '@/features/wallet/types/wallet'
 import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { toIsoDate } from '@/lib/serialization/to-iso-date'
 import { logger } from '@/lib/logger'
 
 export interface WalletInfo {
@@ -20,6 +21,7 @@ export interface WalletInfo {
   tokenSymbol?: string
   creditFiatCurrency?: string
   chain?: SupportedChains
+  balanceUpdatedAt?: number
 }
 
 /**
@@ -60,12 +62,13 @@ export async function listWallets(): Promise<WalletInfo[]> {
       address: wallet.address,
       isPrimary: defaultWallet?.address === wallet.address,
       label: wallet.label,
-      createdAt: wallet.createdAt.toISOString(),
+      createdAt: toIsoDate(wallet.createdAt),
       balance: wallet.balance,
       nativeBalance,
       tokenSymbol,
       creditFiatCurrency,
       chain,
+      balanceUpdatedAt: wallet.balanceUpdatedAt,
     }
   })
 

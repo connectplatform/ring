@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { auth } from '@/auth';
 import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 import { getUserNotifications, getNotificationStats } from '@/features/notifications/services/notification-service';
-import { UserRolesArray, assertKnownUserRole } from '@/features/auth/user-role';
+import { UserRolesArray, resolvePersistedUserRole } from '@/features/auth/user-role';
 import { userMigrationService } from '@/features/auth/services/user-migration';
 import {
   NotificationType,
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
 
     const userId = session.user.id;
     // Ensure user role is known and fallback gracefully to 'subscriber'
-    const userRole = assertKnownUserRole(session.user.role as UserRolesArray) || UserRolesArray.subscriber;
+    const userRole = resolvePersistedUserRole(session.user.role);
 
     // ----- [3] Ensure User Document Exists -----
     // Defensive check: if user doc does not exist, create/migrate it, but continue even if migration fails (graceful degradation)
@@ -239,7 +239,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = session.user.id;
-    const userRole = assertKnownUserRole(session.user.role as UserRolesArray);
+    const userRole = resolvePersistedUserRole(session.user.role);
 
     console.log('API: /api/notifications - User authenticated', {
       userId,

@@ -1,10 +1,15 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import type { Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
-
-type CollectionParams = { slug: string }
+import {
+  getNftMarketCollectionBySlugOrId,
+  getNftMarketCollections,
+  getNftMarketListings,
+} from '@/features/nft-market/services/listing-query'
+import { NftMarketWrapper } from '@/features/nft-market/components/nft-market-wrapper'
 
 export async function generateMetadata({
   params,
@@ -41,27 +46,31 @@ export default async function CollectionPage({
     ? (localeParam as Locale)
     : routing.defaultLocale
 
-  const t = await getTranslations('nft.collection')
+  setRequestLocale(locale)
+  const collection = await getNftMarketCollectionBySlugOrId(slug)
+  if (!collection) notFound()
+
+  const [initialPage, collections] = await Promise.all([
+    getNftMarketListings({
+      collection: collection.collection,
+      status: 'active',
+      sort: 'newest',
+      limit: 24,
+    }),
+    getNftMarketCollections(),
+  ])
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          {t('metadata.title') || 'Collection'}: {slug}
-        </h1>
-        <p className="text-muted-foreground">
-          {t('metaDescription.subtitle') || 'Subtitle'}
-        </p>
-      </div>
-
-      {/* TODO: Replace with actual collection items grid (NFT cards) once the
-           collection detail query is implemented. See features/nft-market/adapters/
-           for chain-specific NFT metadata + ownership resolution. */}
-      <div className="bg-card border border-border rounded-lg p-8 text-center">
-        <p className="text-muted-foreground">
-          {t('metadata.comingSoon') || 'Coming soon'}
-        </p>
-      </div>
-    </div>
+    <NftMarketWrapper
+      locale={locale}
+      initialFilters={{
+        q: '',
+        collection: collection.collection,
+        slug: '',
+        sort: 'newest',
+      }}
+      initialPage={initialPage}
+      collections={collections}
+    />
   )
 }

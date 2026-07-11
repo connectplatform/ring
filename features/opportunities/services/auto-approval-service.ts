@@ -72,18 +72,25 @@ export async function maybeAutoApproveOpportunity(
       return { approved: false, reason: 'db_update_failed' }
     }
 
-    await appendEvent({
-      type: 'opportunity_auto_approved',
-      userId: opportunity.createdBy,
-      reversible: false,
-      payload: {
+    try {
+      await appendEvent({
+        type: 'opportunity_auto_approved',
+        userId: opportunity.createdBy,
+        reversible: false,
+        payload: {
+          opportunityId: opportunity.id,
+          topScore,
+          matchCount: qualifying.length,
+          threshold: minScore,
+          bestConfidence,
+        },
+      })
+    } catch (eventError) {
+      logger.warn('AutoApproval: event log append failed, approval stands', {
         opportunityId: opportunity.id,
-        topScore,
-        matchCount: qualifying.length,
-        threshold: minScore,
-        bestConfidence,
-      },
-    })
+        eventError,
+      })
+    }
 
     await syncOpportunityDiscovery({
       opportunityId: opportunity.id,

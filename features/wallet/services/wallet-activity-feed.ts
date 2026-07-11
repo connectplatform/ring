@@ -115,7 +115,7 @@ export async function getWalletActivityFeed(
       rows.push({
         // Each id is namespaced with `chain:` for deduplication and clarity
         // If both tx.id and tx.txHash are missing, fall back to a random UUID (shouldn't happen in production)
-        id: `chain:${tx.id ?? tx.txHash ?? crypto.randomUUID()}`, // TODO: Validate uniqueness/consistency of IDs
+        id: `chain:${tx.id || tx.txHash || crypto.randomUUID()}`,
         source: 'chain',
         kind: tx.kind,
         amount: tx.amount ?? '0', // Default zero if not present

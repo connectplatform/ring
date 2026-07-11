@@ -43,7 +43,9 @@ import {
   Timeline,
   RingWidgetsContact,
   RingIntegrationPlanesHub,
+  RingApiTree,
   RingWelcomeFeatureExplorer,
+  NftWidgetItem,
   FutureFeatureWidget,
   FutureFeatureBacklog,
 } from '@/components/docs/mdx-heavy-components'
@@ -82,7 +84,9 @@ export const docsMdxComponents = {
   CodeSandbox,
   RingWidgetsContact,
   RingIntegrationPlanesHub,
+  RingApiTree,
   RingWelcomeFeatureExplorer,
+  NftWidgetItem,
   FutureFeatureWidget,
   FutureFeatureBacklog,
   h1: ({ children, ...props }: React.ComponentProps<'h1'>) => (

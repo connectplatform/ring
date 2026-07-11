@@ -7,8 +7,14 @@ import { deliverMessageToWs } from '../native-ws/frames';
 import { MessageConverter } from '../protocol';
 import type { TunnelMessage } from '../types';
 import type { PublishToUserResult, TunnelHub, TunnelWsSocket } from './types';
+import {
+  classifyUserQueueChannel,
+  isSideEffectMessageFresh,
+  type UserQueueKind,
+} from './queue-routing';
 
 const MAX_QUEUE = 100;
+const MAX_DELIVERED_IDS = 200;
 const encoder = new TextEncoder();
 
 function ensureMessageId(message: TunnelMessage): TunnelMessage {
@@ -27,11 +33,20 @@ function pushQueue(map: Map<string, TunnelMessage[]>, key: string, message: Tunn
   if (queue.length > MAX_QUEUE) queue.shift();
 }
 
+function payloadAt(message: TunnelMessage): string | undefined {
+  const payload = message.payload as { at?: string } | undefined;
+  return payload?.at;
+}
+
 export class InMemoryTunnelHub implements TunnelHub {
   private sseConnections = new Map<string, Set<ReadableStreamDefaultController>>();
   private wsConnections = new Map<string, Set<TunnelWsSocket>>();
-  /** SSE offline drain on reconnect */
-  private userSseQueues = new Map<string, TunnelMessage[]>();
+  /** General per-user inbox (credit balance, notifications, …) */
+  private userGeneralQueues = new Map<string, TunnelMessage[]>();
+  /** Telemetry fan-out — safe to replay on WS auth_ok (capped per channel) */
+  private userTelemetryQueues = new Map<string, TunnelMessage[]>();
+  /** UI/session side effects — replay only on explicit channel subscribe */
+  private userSideEffectQueues = new Map<string, TunnelMessage[]>();
   /** Poll long-poll user inbox */
   private userPollQueues = new Map<string, TunnelMessage[]>();
   /** Topic queues for poll subscribers (`channel:${name}`) */
@@ -40,6 +55,8 @@ export class InMemoryTunnelHub implements TunnelHub {
   private userChannelSubscriptions = new Map<string, Set<string>>();
   private channelSubscribers = new Map<string, Set<string>>();
   private pollLastMessageIds = new Map<string, string>();
+  /** Cross-transport dedupe — prevents SSE + WS double delivery */
+  private deliveredMessageIds = new Map<string, Set<string>>();
 
   registerSseConnection(userId: string, controller: ReadableStreamDefaultController): void {
     if (!this.sseConnections.has(userId)) {
@@ -87,20 +104,145 @@ export class InMemoryTunnelHub implements TunnelHub {
     return users.size;
   }
 
-  drainUserQueueForSse(userId: string, maxBatch = 10): TunnelMessage[] {
-    return this.drainUserQueue(userId, maxBatch);
+  getUserOfflineQueueDepth(userId: string): { telemetry: number; sideEffect: number; general: number } {
+    return {
+      telemetry: this.userTelemetryQueues.get(userId)?.length ?? 0,
+      sideEffect: this.userSideEffectQueues.get(userId)?.length ?? 0,
+      general: this.userGeneralQueues.get(userId)?.length ?? 0,
+    };
   }
 
-  /** Generalized offline-queue drain — see interface doc in hub/types.ts. */
-  drainUserQueue(userId: string, maxBatch = 10): TunnelMessage[] {
-    const queue = this.userSseQueues.get(userId);
+  private queueForKind(kind: UserQueueKind): Map<string, TunnelMessage[]> {
+    switch (kind) {
+      case 'telemetry':
+        return this.userTelemetryQueues;
+      case 'sideEffect':
+        return this.userSideEffectQueues;
+      default:
+        return this.userGeneralQueues;
+    }
+  }
+
+  private markDelivered(userId: string, messageId: string | undefined): boolean {
+    if (!messageId) return true;
+    if (!this.deliveredMessageIds.has(userId)) {
+      this.deliveredMessageIds.set(userId, new Set());
+    }
+    const set = this.deliveredMessageIds.get(userId)!;
+    if (set.has(messageId)) return false;
+    set.add(messageId);
+    if (set.size > MAX_DELIVERED_IDS) {
+      const oldest = set.values().next().value;
+      if (oldest) set.delete(oldest);
+    }
+    return true;
+  }
+
+  private spliceQueue(
+    map: Map<string, TunnelMessage[]>,
+    userId: string,
+    maxBatch: number,
+    filter?: (message: TunnelMessage) => boolean,
+    /** When true, stale/filtered messages are dropped instead of re-queued forever. */
+    dropFiltered = false,
+  ): TunnelMessage[] {
+    const queue = map.get(userId);
     if (!queue || queue.length === 0) return [];
 
-    const batch = queue.splice(0, maxBatch);
-    if (queue.length === 0) {
-      this.userSseQueues.delete(userId);
+    const batch: TunnelMessage[] = [];
+    const remaining: TunnelMessage[] = [];
+
+    for (const message of queue) {
+      if (batch.length >= maxBatch) {
+        remaining.push(message);
+        continue;
+      }
+      if (filter && !filter(message)) {
+        if (!dropFiltered) {
+          remaining.push(message);
+        }
+        continue;
+      }
+      if (!this.markDelivered(userId, message.id)) {
+        continue;
+      }
+      batch.push(message);
     }
+
+    if (remaining.length === 0) {
+      map.delete(userId);
+    } else {
+      map.set(userId, remaining);
+    }
+
     return batch;
+  }
+
+  /** Keep only the newest account-reactivate notification in a drain batch. */
+  private collapseReactivateSideEffects(messages: TunnelMessage[]): TunnelMessage[] {
+    let latestReactivate: TunnelMessage | null = null;
+    let latestAt = 0;
+    const rest: TunnelMessage[] = [];
+
+    for (const message of messages) {
+      const payload = message.payload as { type?: string; at?: string } | undefined;
+      if (payload?.type === 'account-reactivate-notification') {
+        const ts = Date.parse(payload.at ?? '') || 0;
+        if (!latestReactivate || ts >= latestAt) {
+          latestReactivate = message;
+          latestAt = ts;
+        }
+        continue;
+      }
+      rest.push(message);
+    }
+
+    if (latestReactivate) {
+      rest.push(latestReactivate);
+    }
+    return rest;
+  }
+
+  drainUserQueueForSse(userId: string, maxBatch = 10): TunnelMessage[] {
+    const telemetry = this.drainUserTelemetryQueue(userId, maxBatch);
+    const general = this.drainUserGeneralQueue(userId, Math.max(0, maxBatch - telemetry.length));
+    return [...telemetry, ...general];
+  }
+
+  /** @deprecated Prefer drainUserTelemetryQueue + drainUserGeneralQueue; kept for callers expecting combined drain without side effects. */
+  drainUserQueue(userId: string, maxBatch = 10): TunnelMessage[] {
+    return this.drainUserQueueForSse(userId, maxBatch);
+  }
+
+  drainUserTelemetryQueue(userId: string, maxBatch = 10): TunnelMessage[] {
+    const batch = this.spliceQueue(this.userTelemetryQueues, userId, maxBatch);
+    // Cap replay to the latest message per telemetry channel
+    const byChannel = new Map<string, TunnelMessage>();
+    for (const message of batch) {
+      const channel = message.channel ?? 'telemetry:unknown';
+      byChannel.set(channel, message);
+    }
+    return Array.from(byChannel.values());
+  }
+
+  drainUserGeneralQueue(userId: string, maxBatch = 10): TunnelMessage[] {
+    return this.spliceQueue(this.userGeneralQueues, userId, maxBatch);
+  }
+
+  drainUserSideEffectQueue(userId: string, maxBatch = 3): TunnelMessage[] {
+    const batch = this.spliceQueue(
+      this.userSideEffectQueues,
+      userId,
+      maxBatch,
+      (message) => isSideEffectMessageFresh(payloadAt(message)),
+      true,
+    );
+    return this.collapseReactivateSideEffects(batch);
+  }
+
+  /** Dev-only: purge all offline side-effect messages (e.g. after auth migration). */
+  clearUserSideEffectQueue(userId: string): void {
+    this.userSideEffectQueues.delete(userId);
   }
 
   private deliverSseToUser(userId: string, message: TunnelMessage): boolean {
@@ -142,10 +284,15 @@ export class InMemoryTunnelHub implements TunnelHub {
       if (!wsDelivered) {
         const sseDelivered = this.deliverSseToUser(userId, message);
         if (!sseDelivered) {
-          pushQueue(this.userSseQueues, userId, message);
+          this.enqueueOffline(userId, message);
         }
       }
     });
+  }
+
+  private enqueueOffline(userId: string, message: TunnelMessage): void {
+    const kind = classifyUserQueueChannel(message.channel);
+    pushQueue(this.queueForKind(kind), userId, message);
   }
 
   publishToUser(userId: string, message: TunnelMessage): PublishToUserResult {
@@ -154,7 +301,7 @@ export class InMemoryTunnelHub implements TunnelHub {
     const wsDelivered = this.deliverWsToUser(userId, msg);
 
     if (!sseDelivered && !wsDelivered) {
-      pushQueue(this.userSseQueues, userId, msg);
+      this.enqueueOffline(userId, msg);
     }
 
     pushQueue(this.userPollQueues, userId, msg);
@@ -168,7 +315,7 @@ export class InMemoryTunnelHub implements TunnelHub {
     this.sseConnections.forEach((_connections, userId) => {
       const delivered = this.deliverSseToUser(userId, msg);
       if (!delivered) {
-        pushQueue(this.userSseQueues, userId, msg);
+        this.enqueueOffline(userId, msg);
       }
     });
 

@@ -72,17 +72,91 @@
       "viewOrders": "Переглянути замовлення",
       "stockLevels": "Рівні складу",
       "earnings": "Доходи",
-      "storeSettings": "Налаштування магазину"
+      "storeSettings": "Налаштування магазину",
+      "updateInventory": "Оновити склад",
+      "viewAnalytics": "Аналітика",
+      "settings": "Налаштування"
     },
     "boostSalesTitle": "Підвищте продажі",
     "boostSalesTips": {
       "photos": "Додавайте якісні фото товарів — до 3× більше переглядів",
       "inventory": "Оновлюйте залишки щодня для кращого ранжування",
-      "regenerative": "Підкреслюйте регенеративні практики для бонусів DAAR"
+      "regenerative": "Підкреслюйте регенеративні практики для бонусів DAAR",
+      "quality": "Підкреслюйте регенеративні практики для бонусів DAAR"
     },
     "resourcesTitle": "Ресурси для продавців",
     "resourcesDescription": "Дізнайтеся, як розкрити потенціал вашого магазину",
-    "viewVendorGuide": "Посібник продавця →"
+    "viewVendorGuide": "Посібник продавця →",
+    "subtitle": "Керуйте магазином, замовленнями та виплатами",
+    "trustScore": "Рівень довіри",
+    "taxVerified": "Податки підтверджено",
+    "taxPending": "Податки очікують",
+    "fromLastMonth": "від минулого місяця",
+    "averageValue": "Середній чек",
+    "available": "Доступно",
+    "trustLevel": {
+      "new": "Новий",
+      "basic": "Базовий",
+      "verified": "Перевірений",
+      "trusted": "Довірений",
+      "premium": "Преміум"
+    },
+    "status": {
+      "open": "Відкрито",
+      "closed": "Закрито",
+      "suspended": "Призупинено",
+      "pending": "Очікує"
+    },
+    "metrics": {
+      "totalSales": "Продажі",
+      "totalOrders": "Замовлення",
+      "satisfaction": "Задоволеність",
+      "pendingPayout": "Очікувана виплата"
+    },
+    "tabs": {
+      "overview": "Огляд",
+      "products": "Товари",
+      "orders": "Замовлення",
+      "payouts": "Виплати"
+    },
+    "performance": {
+      "title": "Ефективність",
+      "description": "Виконання та конверсія",
+      "fulfillmentRate": "Рівень виконання",
+      "conversionRate": "Конверсія",
+      "responseTime": "Час обробки повернень"
+    },
+    "products": {
+      "title": "Товари",
+      "active": "{count} активних",
+      "total": "{count} всього",
+      "outOfStock": "Немає в наявності",
+      "manage": "Керувати товарами"
+    },
+    "orders": {
+      "recent": "Останні замовлення",
+      "noRecent": "Поки немає замовлень.",
+      "viewAll": "Усі замовлення"
+    },
+    "payouts": {
+      "summary": "Підсумок виплат",
+      "totalPaid": "Сплачена комісія",
+      "pending": "Очікувані виплати",
+      "history": "Історія виплат"
+    },
+    "recentOrders": {
+      "title": "Останні замовлення",
+      "description": "Найновіші замовлення з вашого магазину",
+      "viewAll": "Усі",
+      "empty": "Замовлень ще немає. Почніть просувати товари!",
+      "unknownCustomer": "Покупець"
+    },
+    "dagi": {
+      "title": "DAGI агент продавця",
+      "comingSoon": "Незабаром",
+      "description": "Активація AI-агента та стейкінг DAARION з’являться тут. Операції магазину вже доступні в меню продавця.",
+      "todoNote": "API провізіонування та стейкінг гаманця заплановані — без mock-активації."
+    }
   },
   "products": {
     "title": "Мої продукти",

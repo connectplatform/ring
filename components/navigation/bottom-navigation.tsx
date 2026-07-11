@@ -35,6 +35,7 @@ import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-
 import { useAuth } from '@/hooks/use-auth'
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { isPlatformAdmin } from '@/features/auth/user-role'
+import { useAdminNavMenu } from '@/features/admin/use-admin-nav-menu'
 import type { Locale } from '@/i18n/shared'
 import { useRouter as useNextRouter } from 'next/navigation'
 import {
@@ -543,6 +544,7 @@ export default function BottomNavigation() {
 
   const isLoggedIn = !!session?.user
   const isAdmin = isPlatformAdmin(session?.user?.role)
+  const { mobileItems: adminMenuItems } = useAdminNavMenu(session?.user?.role, locale)
 
   /**
    * Determine if the given href matches the current route.
@@ -648,42 +650,6 @@ export default function BottomNavigation() {
         href: ROUTES.DOCS(locale),
         iconBg: 'bg-cyan-500/20',
         iconColor: 'text-cyan-400',
-      },
-    ],
-    [locale, t]
-  )
-
-  /**
-   * Memoized menu items for admin users.
-   */
-  const adminMenuItems: BottomNavMenuItem[] = useMemo(
-    () => [
-      {
-        id: 'admin-dashboard',
-        title: t('admin.dashboard', { default: 'Admin' }),
-        description: t('admin.dashboardDesc', { default: 'Dashboard' }),
-        icon: LayoutDashboard,
-        href: `/${locale}/admin`,
-        iconBg: 'bg-red-500/20',
-        iconColor: 'text-red-400',
-      },
-      {
-        id: 'admin-news',
-        title: t('admin.news', { default: 'News' }),
-        description: t('admin.newsDesc', { default: 'News management' }),
-        icon: FileBarChart,
-        href: `/${locale}/admin/news`,
-        iconBg: 'bg-red-500/20',
-        iconColor: 'text-red-400',
-      },
-      {
-        id: 'admin-moderation',
-        title: t('admin.moderation', { default: 'Moderation' }),
-        description: t('admin.moderationDesc', { default: 'Content moderation' }),
-        icon: Database,
-        href: `/${locale}/admin/moderation`,
-        iconBg: 'bg-red-500/20',
-        iconColor: 'text-red-400',
       },
     ],
     [locale, t]

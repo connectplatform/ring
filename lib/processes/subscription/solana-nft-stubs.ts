@@ -53,11 +53,11 @@ export async function runSolanaBatchPayment(batchSize: number = DEFAULT_BATCH_SI
 /**
  * C5: nft-gate-expiry pipeline.
  *
- * Checks NFT ownership for users with nft_gate subscriptions.
- * If the NFT certificate is no longer held (transferred/burned/expired),
- * downgrades the user's membership.
+ * Timed GateEscrow stakes past expiresAt → unstake + invalidate entitlement cache.
+ * Burned ownership also revokes. Membership role downgrade via SubscriptionConductor
+ * when no remaining membership.member stake.
  *
- * @phase Phase S7 — NFT gate integration (TBD).
+ * @phase Phase S7 — NFT gate MVP-A
  */
 
 export async function runNftGateExpiry(): Promise<{
@@ -66,17 +66,65 @@ export async function runNftGateExpiry(): Promise<{
   skipped: boolean
   reason?: string
 }> {
-  // TODO: Phase S7
-  // 1. Query subscription_ledger for active nft_gate subscriptions
-  // 2. For each user, check NFT balance (soulbound certificate)
-  // 3. If balance = 0 → downgrade membership to SUBSCRIBER
-  // 4. Optionally: check NFT expiry timestamp (if certificate has time-limit)
+  try {
+    const { db } = await import('@/lib/database')
+    const { invalidateEntitlementsForAsset } = await import('@/features/nft-gates/gate-escrow')
+    const { hasFeature } = await import('@/features/nft-gates/gate-resolver')
+    const { MEMBERSHIP_GATE_SLUGS } = await import('@/features/nft-gates/types')
 
-  const NOT_YET_IMPLEMENTED = 'NFT gate integration — Phase S7 (TBD)'
-  return {
-    checked: 0,
-    downgraded: 0,
-    skipped: true,
-    reason: NOT_YET_IMPLEMENTED,
+    const stakesResult = await db().queryDocs<{
+      id: string
+      userId: string
+      asset: string
+      slug: string
+      expiresAt?: string
+      unstakedAt?: string
+    }>({
+      collection: 'nft_stakes',
+      pagination: { limit: 500 },
+    })
+
+    if (!stakesResult.success || !stakesResult.data) {
+      return { checked: 0, downgraded: 0, skipped: true, reason: 'nft_stakes query failed' }
+    }
+
+    const now = Date.now()
+    let checked = 0
+    let downgraded = 0
+
+    for (const stake of stakesResult.data) {
+      if (stake.unstakedAt) continue
+      checked += 1
+
+      const expired =
+        stake.expiresAt && new Date(stake.expiresAt).getTime() <= now
+
+      if (!expired) continue
+
+      await db().updateDoc('nft_stakes', stake.id, {
+        unstakedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        expiryReason: 'duration_elapsed',
+      })
+      await invalidateEntitlementsForAsset(stake.userId, stake.asset)
+
+      if (MEMBERSHIP_GATE_SLUGS.includes(stake.slug as (typeof MEMBERSHIP_GATE_SLUGS)[number])) {
+        const stillMember = await hasFeature(stake.userId, 'membership.member')
+        if (!stillMember) {
+          const { SubscriptionConductor } = await import(
+            '@/lib/payments/subscription/subscription-conductor'
+          )
+          await SubscriptionConductor.cancelSubscription(stake.userId, 'nft_gate', stake.asset)
+          downgraded += 1
+        }
+      }
+    }
+
+    logger.info('NFT gate expiry: completed', { checked, downgraded })
+    return { checked, downgraded, skipped: false }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    logger.error('NFT gate expiry: failed', { error: message })
+    return { checked: 0, downgraded: 0, skipped: true, reason: message }
   }
 }

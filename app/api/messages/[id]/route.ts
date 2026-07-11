@@ -16,9 +16,12 @@ const messageService = new MessageService()
  * PUT /api/messages/[id]
  * Edit a message
  */
+
+type RouteContext = { params: Promise<{ id: string }> }
+
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
@@ -32,7 +35,7 @@ export async function PUT(
       )
     }
 
-    const messageId = params.id
+    const { id: messageId } = await context.params
     const userId = session.user.id
 
     // Parse and validate request body
@@ -102,7 +105,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
@@ -116,7 +119,7 @@ export async function DELETE(
       )
     }
 
-    const messageId = params.id
+    const { id: messageId } = await context.params
     const userId = session.user.id
 
     // Get the original message to verify ownership
@@ -164,7 +167,7 @@ export async function DELETE(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   await connection() // Next.js 16: opt out of prerendering
 
@@ -178,7 +181,7 @@ export async function GET(
       )
     }
 
-    const messageId = params.id
+    const { id: messageId } = await context.params
 
     // Get the message
     const message = await messageService.getMessage(messageId)
