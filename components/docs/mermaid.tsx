@@ -23,6 +23,22 @@ function normalizeSvgWidth(svg: string): string {
   })
 }
 
+/** Mermaid sometimes emits white/near-white strokes under light themes — force slate edges. */
+function fixLightModeStrokes(svg: string, isDark: boolean): string {
+  if (isDark) return svg
+  const visible = '#334155'
+  return svg
+    .replace(/stroke:\s*#fff(?:fff)?\b/gi, `stroke:${visible}`)
+    .replace(/stroke:\s*#f{3,8}\b/gi, `stroke:${visible}`)
+    .replace(/stroke:\s*#e[eE]{5}\b/gi, `stroke:${visible}`)
+    .replace(/stroke:\s*#f[5-9a-fA-F]{5}\b/gi, `stroke:${visible}`)
+    .replace(/stroke:\s*white\b/gi, `stroke:${visible}`)
+    .replace(/stroke:\s*rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)/gi, `stroke:${visible}`)
+    .replace(/stroke="\s*#fff(?:fff)?\s*"/gi, `stroke="${visible}"`)
+    .replace(/stroke="\s*white\s*"/gi, `stroke="${visible}"`)
+    .replace(/--mermaid-c-lineColor:\s*#[fFeE][0-9a-fA-F]{5}/g, `--mermaid-c-lineColor:${visible}`)
+}
+
 export function Mermaid({ children, source: sourceProp, title, type = 'diagram' }: MermaidProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [svg, setSvg] = React.useState<string>('')
@@ -71,10 +87,15 @@ export function Mermaid({ children, source: sourceProp, title, type = 'diagram' 
     const renderDiagram = async () => {
       try {
         const isDark = currentTheme === 'dark'
-        const themeKey = isDark ? 'dark' : 'light'
+        const themeKey = isDark ? 'dark-base-v2' : 'light-base-v2'
+        // `base` honors themeVariables fully; `neutral`/`default` wash out edge strokes in light mode.
+        const lightLines = '#334155' // slate-700 — visible on white backgrounds
+        const lightBorders = '#64748b' // slate-500
+        const darkLines = '#94a3b8' // slate-400
+        const darkBorders = '#64748b'
         const config = {
           startOnLoad: false,
-          theme: isDark ? 'dark' : 'neutral',
+          theme: 'base',
           securityLevel: 'loose',
           fontFamily: 'ui-sans-serif, system-ui, sans-serif',
           flowchart: {
@@ -104,33 +125,75 @@ export function Mermaid({ children, source: sourceProp, title, type = 'diagram' 
             ? {
                 background: '#1f2937',
                 primaryColor: '#3b82f6',
-                primaryTextColor: '#ffffff',
-                primaryBorderColor: '#4b5563',
-                lineColor: '#6b7280',
+                primaryTextColor: '#f8fafc',
+                primaryBorderColor: darkBorders,
                 secondaryColor: '#374151',
                 tertiaryColor: '#1f2937',
                 mainBkg: '#374151',
                 secondBkg: '#1f2937',
-                border1: '#4b5563',
-                border2: '#6b7280',
+                lineColor: darkLines,
+                border1: darkBorders,
+                border2: darkLines,
+                clusterBkg: '#1f2937',
+                clusterBorder: darkLines,
+                titleColor: '#f8fafc',
+                edgeLabelBackground: '#1f2937',
+                arrowheadColor: darkLines,
+                actorBkg: '#374151',
+                actorBorder: darkBorders,
+                actorTextColor: '#f8fafc',
+                actorLineColor: darkLines,
+                signalColor: darkLines,
+                signalTextColor: '#f8fafc',
+                labelBoxBkgColor: '#374151',
+                labelBoxBorderColor: darkBorders,
+                labelTextColor: '#f8fafc',
+                loopTextColor: '#f8fafc',
+                noteBkgColor: '#374151',
+                noteTextColor: '#f8fafc',
+                noteBorderColor: darkBorders,
+                activationBorderColor: darkBorders,
+                activationBkgColor: '#4b5563',
+                sequenceNumberColor: '#0f172a',
               }
             : {
                 background: '#ffffff',
-                primaryColor: '#3b82f6',
-                primaryTextColor: '#000000',
-                primaryBorderColor: '#d1d5db',
-                lineColor: '#6b7280',
-                secondaryColor: '#f3f4f6',
+                primaryColor: '#dbeafe',
+                primaryTextColor: '#0f172a',
+                primaryBorderColor: lightBorders,
+                secondaryColor: '#f1f5f9',
                 tertiaryColor: '#ffffff',
-                mainBkg: '#f3f4f6',
+                mainBkg: '#f8fafc',
                 secondBkg: '#ffffff',
-                border1: '#d1d5db',
-                border2: '#9ca3af',
+                lineColor: lightLines,
+                border1: lightBorders,
+                border2: lightLines,
+                clusterBkg: '#f8fafc',
+                clusterBorder: lightLines,
+                titleColor: '#0f172a',
+                edgeLabelBackground: '#ffffff',
+                arrowheadColor: lightLines,
+                actorBkg: '#f8fafc',
+                actorBorder: lightBorders,
+                actorTextColor: '#0f172a',
+                actorLineColor: lightLines,
+                signalColor: lightLines,
+                signalTextColor: '#0f172a',
+                labelBoxBkgColor: '#f8fafc',
+                labelBoxBorderColor: lightBorders,
+                labelTextColor: '#0f172a',
+                loopTextColor: '#0f172a',
+                noteBkgColor: '#fef9c3',
+                noteTextColor: '#0f172a',
+                noteBorderColor: lightBorders,
+                activationBorderColor: lightBorders,
+                activationBkgColor: '#e2e8f0',
+                sequenceNumberColor: '#ffffff',
               },
         } as const
 
-        const rendered = await renderMermaidDiagram(source, config, themeKey)
-        setSvg(normalizeSvgWidth(rendered))
+        const rendered = await renderMermaidDiagram(source, config as Parameters<typeof renderMermaidDiagram>[1], themeKey)
+        setSvg(normalizeSvgWidth(fixLightModeStrokes(rendered, isDark)))
         setError('')
       } catch (err: unknown) {
         console.error('Mermaid render error:', err)
@@ -175,7 +238,7 @@ export function Mermaid({ children, source: sourceProp, title, type = 'diagram' 
   ) : svg ? (
     <div
       ref={containerRef}
-      className="w-full min-w-0 [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:w-full"
+      className="w-full min-w-0 [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:w-full dark:[&_.edgePath_path]:stroke-slate-400 [&_.edgePath_path]:stroke-slate-700 dark:[&_.flowchart-link]:stroke-slate-400 [&_.flowchart-link]:stroke-slate-700 dark:[&_.messageLine0]:stroke-slate-400 [&_.messageLine0]:stroke-slate-700 dark:[&_.messageLine1]:stroke-slate-400 [&_.messageLine1]:stroke-slate-700 dark:[&_.actor-line]:stroke-slate-400 [&_.actor-line]:stroke-slate-700 dark:[&_.cluster_rect]:stroke-slate-400 [&_.cluster_rect]:stroke-slate-700"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   ) : null

@@ -11,21 +11,29 @@ export interface DocsTabsProps {
 }
 
 export interface DocsTabProps {
-  value: string
+  /** Preferred — matches TabsList trigger value. */
+  value?: string
+  /** Alias for `value` (legacy MDX used title=). */
+  title?: string
   children: React.ReactNode
+}
+
+function tabPanelValue(props: DocsTabProps): string | undefined {
+  return props.value || props.title
 }
 
 function collectTabValues(children: React.ReactNode): string[] {
   const values: string[] = []
   React.Children.forEach(children, (child) => {
-    if (React.isValidElement<DocsTabProps>(child) && child.props.value) {
-      values.push(child.props.value)
+    if (React.isValidElement<DocsTabProps>(child)) {
+      const v = tabPanelValue(child.props)
+      if (v) values.push(v)
     }
   })
   return values
 }
 
-/** MDX-friendly tabs — triggers from `items` or from child `<Tab value="…">` panels. */
+/** MDX-friendly tabs — triggers from `items` or from child `<Tab value="…">` / `title="…"` panels. */
 export function Tabs({ items, children, defaultValue }: DocsTabsProps) {
   const tabValues = (items?.length ? items : collectTabValues(children))
   const first = tabValues[0]
@@ -48,6 +56,10 @@ export function Tabs({ items, children, defaultValue }: DocsTabsProps) {
   )
 }
 
-export function Tab({ value, children }: DocsTabProps) {
-  return <TabsContent value={value}>{children}</TabsContent>
+export function Tab({ value, title, children }: DocsTabProps) {
+  const panelValue = value || title
+  if (!panelValue) {
+    return <div className="space-y-4">{children}</div>
+  }
+  return <TabsContent value={panelValue}>{children}</TabsContent>
 }

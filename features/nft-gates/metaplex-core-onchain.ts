@@ -268,6 +268,91 @@ export async function verifyMetaplexCoreCollection(params: {
   }
 }
 
+/**
+ * Mint a non-soulbound Metaplex Core asset into a member-created collection.
+ * Unlike gate mint, does not attach PermanentFreezeDelegate or gate feature attrs.
+ */
+export async function mintMetaplexCoreOpenAsset(params: {
+  collectionMint: string
+  ownerPubkey: string
+  name: string
+  metadataUri: string
+  attributes?: Array<{ key: string; value: string }>
+}): Promise<{
+  success: boolean
+  asset?: string
+  signature?: string
+  mode: 'metaplex-core'
+  error?: string
+}> {
+  try {
+    await assertFeePayerGasReserve(getNativeTokenSymbol())
+    const umi = createSponsorUmi()
+
+    let collection
+    try {
+      collection = await fetchCollection(umi, publicKey(params.collectionMint))
+    } catch (fetchError) {
+      const message =
+        fetchError instanceof Error ? fetchError.message : String(fetchError)
+      return {
+        success: false,
+        mode: 'metaplex-core',
+        error: `Collection ${params.collectionMint} not found on RPC: ${message}`,
+      }
+    }
+
+    const asset = generateSigner(umi)
+    const attributeList = [
+      { key: 'lane', value: 'member' },
+      { key: 'soulbound', value: 'false' },
+      ...(params.attributes ?? []),
+    ]
+
+    const tx = await create(umi, {
+      asset,
+      collection,
+      owner: publicKey(params.ownerPubkey),
+      name: params.name.slice(0, 32),
+      uri: params.metadataUri,
+      plugins: [
+        {
+          type: 'Attributes',
+          attributeList,
+        },
+      ],
+    }).sendAndConfirm(umi)
+
+    const signature = signatureToBase58(tx.signature)
+    const assetAddress = asset.publicKey.toString()
+
+    logger.info('Metaplex Core: member asset minted', {
+      asset: assetAddress,
+      collection: params.collectionMint,
+      owner: params.ownerPubkey,
+      signature,
+    })
+
+    return {
+      success: true,
+      asset: assetAddress,
+      signature,
+      mode: 'metaplex-core',
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.error('Metaplex Core member mint failed', {
+      error: message,
+      collection: params.collectionMint,
+    })
+    return {
+      success: false,
+      mode: 'metaplex-core',
+      error: message,
+    }
+  }
+}
+
 /** Prefetch collection existence (preflight before RING payment). */
 export async function assertCollectionExists(collectionMint: string): Promise<{
   ok: boolean

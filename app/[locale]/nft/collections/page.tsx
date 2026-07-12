@@ -60,12 +60,17 @@ export default async function CollectionsPage(props: LocalePageProps<Collections
           <div>
             <h1 className="text-3xl font-bold tracking-tight">NFT Collections</h1>
             <p className="mt-2 max-w-2xl text-muted-foreground">
-              Browse verified Ringdom KEYS collection aggregates and jump into filtered listings.
+              Browse verified Ringdom KEYS aggregates and member-created collections from active Exhibition listings.
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link href={ROUTES.NFT_MARKET(locale)}>Open marketplace</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href={ROUTES.NFT_CREATE(locale)}>Create collection</Link>
+            </Button>
+            <Button asChild>
+              <Link href={ROUTES.NFT_MARKET(locale)}>Open marketplace</Link>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -90,8 +95,13 @@ export default async function CollectionsPage(props: LocalePageProps<Collections
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                     sizes="(min-width: 1024px) 33vw, 50vw"
                   />
-                  <div className="absolute left-3 top-3">
+                  <div className="absolute left-3 top-3 flex gap-2">
                     <Badge>{collection.symbol}</Badge>
+                    {collection.lane === 'member' ? (
+                      <Badge variant="secondary">Member</Badge>
+                    ) : (
+                      <Badge className="bg-emerald-700 text-white">KEYS</Badge>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-3 p-4">

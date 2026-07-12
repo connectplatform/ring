@@ -26,13 +26,15 @@ export function GateStakeCard({ owned, stakes, focusSlug }: GateStakeCardProps) 
   const [busyAsset, setBusyAsset] = useState<string | null>(null)
 
   const activeAssets = new Set(stakes.map((s) => s.asset))
-  const rows = focusSlug ? owned.filter((o) => o.slug === focusSlug) : owned
+  // Member-lane mints are ownership-only; GateEscrow stake is KEYS/gate SKUs only.
+  const gateOwned = owned.filter((o) => o.source !== 'member_mint')
+  const rows = focusSlug ? gateOwned.filter((o) => o.slug === focusSlug) : gateOwned
 
-  function onStake(asset: string, slug: NftGateSlug) {
+  function onStake(asset: string, slug: string) {
     setError(null)
     setBusyAsset(asset)
     startTransition(async () => {
-      const result = await stakeGateAction(asset, slug)
+      const result = await stakeGateAction(asset, slug as NftGateSlug)
       if (!result.success) setError(result.error || 'Stake failed')
       setBusyAsset(null)
     })

@@ -1,308 +1,249 @@
 ---
 title: Quick Start
-description: Quick start with install.sh and local dev (v1.6.0 — no Ring CLI in OSS)
-last_modified: "2026-06-06"
+description: Choose Ringdom managed hosting or self-host with install.sh — founder deployment paths plus required .env.local vars for a local Postgres instance
+last_modified: "2026-07-12"
+audience: both
 ---
 
-# Quick Start Examples
+# Quick Start
 
-Get up and running with Ring Platform in minutes.
+Get a Ring Platform clone running in minutes — either as a **managed Ringdom settlement** or as a **self-hosted** open-source install via `./install.sh`.
 
-## Clone and install (v1.6.0)
+<Callout type="info">
+  Use **Founder** / **Developer** tabs. Founders compare ways to launch. Developers configure env vars and boot Postgres.
+</Callout>
 
-```bash
-git clone https://github.com/connectplatform/ring.git
-cd ring
-./install.sh
-```
+<Audience for="founder">
 
-The **Ring CLI** (`ring` command) is not in the public repo. See [Community tooling](/docs/development/community-tooling).
+Pick the path that matches how much ops you want on your plate.
 
-## 🚀 5-Minute Setup
+<RingDeploymentPaths />
 
-### Basic Ring Platform Integration
+### What each path means
 
-// app/page.tsx
+| Path | Best when | You get |
+|------|-----------|---------|
+| **Ringdom.org** | You type your needs in chat with AI agent | AI builds your superapp, deploys and maintains |
+| **Self-host OSS** | You want full control on your machine / VPS | `install.sh` → Next.js + PostgreSQL clone you operate |
 
-<Code language="typescript" title="TypeScript">
-{`import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
+<Callout type="tip" title="Ringdom, Promptor or Self-Host?">
+Ringdom.org is AI-managed Enterprise Cloud Service [`https://ringdom.org/new`](https://ringdom.org/new) for founders who know what they need. 
+</Callout>
 
-export default async function HomePage() {
-  const session = await auth()
-  
-  if (!session) {
-    redirect('/login')
-  }
+### Founder checklist — self-host
 
-  return (
-    <div className="container mx-auto p-8">
-      <h1>Welcome to Ring Platform</h1>
-      <div>Hello, {session.user?.name}!</div>
-    </div>
-  )
-}`}
-</Code>
+<Steps>
 
-### Environment Setup
+<Step>
 
-.env.local Firebase Configuration OAuth Providers
+**Clone and run install**
 
 <Code language="bash" title="terminal">
-{`NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-key
-
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret`}
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+./install.sh`}
 </Code>
 
-## 📱 Basic Components
+`install.sh` copies `env.local.template` → `.env.local`, generates secrets, and walks interactive setup.
 
-### User Profile Component
+</Step>
 
-// components/UserProfile.tsx
+<Step>
 
-<Code language="typescript" title="TypeScript">
-{`import { useSession } from 'next-auth/react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+**Fill required env vars**
 
-export function UserProfile() {
-  const { data: session } = useSession()
-  
-  if (!session) return null
+At minimum set the variables in the **Developer** section below (`DB_BACKEND_MODE`, Postgres `DB_*`, `AUTH_SECRET`, one OAuth provider). Without these the app will not boot healthy.
 
-  return (
-    <div className="flex items-center space-x-4">
-      <Avatar>
-        <AvatarImage src={session.user?.image || ''} />
-        <AvatarFallback>
-          {session.user?.name?.charAt(0) || 'U'}
-        </AvatarFallback>
-      </Avatar>
-      <div>
-        <div className="font-medium">{session.user?.name}</div>
-        <div className="text-sm text-gray-500">{session.user?.email}</div>
-      </div>
-    </div>
-  )
-}`}
+</Step>
+
+<Step>
+
+**Start Postgres + schema, then `npm run dev`**
+
+Follow [Installation](/docs/getting-started/installation) for Docker Postgres and `data/schema.sql`. Open `http://localhost:3000`.
+
+</Step>
+
+</Steps>
+
+<Cards>
+  <Card title="Full installation guide" href="/docs/getting-started/installation">
+    Path 1 install.sh vs manual, migrations, and OAuth redirect URIs.
+  </Card>
+  <Card title="WalletConductor" href="/docs/features/wallet-conductor">
+    After boot — credit top-up, desk, and custodial wallets.
+  </Card>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    Store / membership / wallet_topup rails when you are ready for payments.
+  </Card>
+</Cards>
+
+</Audience>
+
+<Audience for="developer">
+
+## Self-host with `install.sh`
+
+<Code language="bash" title="Clone + install">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+./install.sh
+# or: ./install.sh --quick`}
 </Code>
 
-### Entity List Component
+The public OSS repo does **not** ship the commercial Ring CLI. See [Community tooling](/docs/development/community-tooling).
 
-// components/EntityList.tsx
+`install.sh` will:
 
-<Code language="typescript" title="TypeScript">
-{`'use client'
+1. Verify Node.js 20+
+2. Copy `env.local.template` → `.env.local` (generates `AUTH_SECRET` / `WALLET_ENCRYPTION_KEY` when prompted)
+3. Copy `ring-config.template.json` → `ring-config.json` when missing
+4. Run `npm install`
 
-import { useEffect, useState } from 'react'
+Then finish the required env values below and start PostgreSQL.
 
-interface Entity {
-  id: string
-  name: string
-  type: string
-  description: string
-}
+## Required environment variables
 
-export function EntityList() {
-  const [entities, setEntities] = useState<Entity[]>([])
-  const [loading, setLoading] = useState(true)
+SSOT template: `env.local.template`. These are the **minimum** for a self-hosted local instance with `DB_BACKEND_MODE=k8s-postgres-fcm` (recommended).
 
-  useEffect(() => {
-    async function fetchEntities() {
-      try {
-        const response = await fetch('/api/entities')
-        const data = await response.json()
-        setEntities(data.entities || [])
-      } catch (error) {
-        console.error('Failed to fetch entities:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+### Critical — will not start without
 
-    fetchEntities()
-  }, [])
+<Code language="bash" title=".env.local — required core">
+{`# CRITICAL — platform refuses boot without a mode
+DB_BACKEND_MODE=k8s-postgres-fcm
 
-  if (loading) {
-    return <div>Loading entities...</div>
-  }
+# PostgreSQL (required for k8s-postgres-fcm / supabase-fcm)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
+DB_SSL=false
+# Optional single URL instead of DB_* parts:
+# DATABASE_URL=postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {entities.map((entity) => (
-        <div key={entity.id} className="border rounded-lg p-4 bg-white shadow-sm">
-          <h3 className="font-semibold text-lg mb-2">{entity.name}</h3>
-          <div className="text-sm text-gray-600 mb-2">{entity.type}</div>
-          <div className="text-gray-700">{entity.description}</div>
-        </div>
-      ))}
-    </div>
-  )
-}`}
+# Auth.js — generate: openssl rand -base64 32
+AUTH_SECRET=
+
+# Public URL for callbacks / links
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NODE_ENV=development`}
 </Code>
 
-## 🔐 Authentication Examples
+### Auth providers (at least one for login)
 
-### Magic Link Authentication
-
-// app/(public)/[locale]/login/page.tsx
-
-<Code language="typescript" title="TypeScript">
-{`'use client'
-
-import { signIn } from 'next-auth/react'
-import { useState } from 'react'
-
-export default function SignIn() {
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    try {
-      await signIn('email', { 
-        email,
-        callbackUrl: '/dashboard'
-      })
-    } catch (error) {
-      console.error('Sign in failed:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="max-w-md mx-auto mt-8">
-      <form onSubmit={handleMagicLink} className="space-y-4">
-        <input
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 border rounded-lg"
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Sending...' : 'Send Magic Link'}
-        </button>
-      </form>
-    </div>
-  )
-}`}
+<Code language="bash" title=".env.local — OAuth (pick what you enable)">
+{`AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+# Optional Apple:
+# AUTH_APPLE_ID=
+# AUTH_APPLE_SECRET=
+# Optional magic link (Resend):
+# AUTH_RESEND_KEY=`}
 </Code>
 
-## 🌐 API Integration
+Google Cloud redirect URI for local:
 
-### Basic API Call
+`http://localhost:3000/api/auth/callback/google`
 
-// lib/api.ts
+### Real-time tunnel (local / self-hosted)
 
-<Code language="typescript" title="TypeScript">
-{`export async function createEntity(data: {
-  name: string
-  type: string
-  description: string
-}) {
-  const response = await fetch('/api/entities/create', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to create entity')
-  }
-
-  return response.json()
-}
-
-// Usage in component
-const handleCreateEntity = async () => {
-  try {
-    const entity = await createEntity({
-      name: 'My Company',
-      type: 'technology',
-      description: 'Building the future'
-    })
-    console.log('Entity created:', entity)
-  } catch (error) {
-    console.error('Error:', error)
-  }
-}`}
+<Code language="bash" title=".env.local — tunnel">
+{`RING_DEPLOY_TARGET=self-hosted
+NEXT_PUBLIC_RING_DEPLOY_TARGET=self-hosted`}
 </Code>
 
-## 💰 Web3 Integration
+### Locales (defaults match community portal)
 
-### Wallet Connection
-
-// components/WalletConnect.tsx
-
-<Code language="typescript" title="TypeScript">
-{`'use client'
-
-import { useEffect, useState } from 'react'
-
-export function WalletConnect() {
-  const [wallet, setWallet] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const connectWallet = async () => {
-    setLoading(true)
-    try {
-      const response = await fetch('/api/wallet/create', {
-        method: 'POST',
-      })
-      const data = await response.json()
-      setWallet(data.address)
-    } catch (error) {
-      console.error('Failed to connect wallet:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="p-4 border rounded-lg">
-      {wallet ? (
-        <div>
-          <div className="text-sm text-gray-600">Wallet Connected:</div>
-          <div className="font-mono text-sm">{wallet}</div>
-        </div>
-      ) : (
-        <button
-          onClick={connectWallet}
-          disabled={loading}
-          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
-        >
-          {loading ? 'Connecting...' : 'Connect Wallet'}
-        </button>
-      )}
-    </div>
-  )
-}`}
+<Code language="bash" title=".env.local — locales">
+{`NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en`}
 </Code>
 
-## 🎯 Next Steps
+### Wallet / Solana (required once you open custodial wallet features)
 
-1. **[Authentication Examples](/en/docs/examples/authentication)** - Explore advanced auth patterns
-2. **[API Integration](/en/docs/examples/api-integration)** - Deep dive into API usage
-3. **[Web3 Integration](/en/docs/examples/web3-integration)** - Advanced blockchain features
-4. **[Real World Apps](/en/docs/examples/real-world)** - Complete application examples
+Generated by `install.sh` when present in template:
 
----
+<Code language="bash" title=".env.local — wallet">
+{`WALLET_ENCRYPTION_KEY=   # 32+ hex chars — install.sh can generate
+SOLANA_RPC_URL=https://api.devnet.solana.com
+# SOLANA_TREASURY_PRIVATE_KEY=   # needed for gasless sends / desk treasury ops
+# SOLANA_FEE_PAYER_PRIVATE_KEY=`}
+</Code>
 
-*Need help? Join our [Discord Community](https://discord.gg/ring-platform) or check the [API Documentation](/en/docs/api).*
+### Optional for first homepage boot
+
+| Area | Vars | Needed for |
+|------|------|------------|
+| Firebase FCM | `AUTH_FIREBASE_*`, `NEXT_PUBLIC_FIREBASE_*` | Push only — not required for Postgres homepage |
+| WayForPay / Stripe | `WAYFORPAY_*`, `STRIPE_*` | Checkout — add before store payments |
+| Supabase mode | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` | Only if `DB_BACKEND_MODE=supabase-fcm` |
+
+Full annotated list: `env.local.template`. Deep walkthrough: [Installation → Configure environment](/docs/getting-started/installation#configure-environment).
+
+## Postgres + first boot
+
+<Steps>
+
+<Step>
+
+**Start PostgreSQL 16**
+
+<Code language="bash" title="Docker Postgres">
+{`docker run -d --name ring-postgres-dev \\
+  -e POSTGRES_USER=ring_user \\
+  -e POSTGRES_PASSWORD=ring_password_2024 \\
+  -e POSTGRES_DB=ring_platform \\
+  -p 5432:5432 \\
+  postgres:16-alpine`}
+</Code>
+
+</Step>
+
+<Step>
+
+**Apply schema**
+
+<Code language="bash" title="psql">
+{`export DATABASE_URL="postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform"
+psql "$DATABASE_URL" -f data/schema.sql`}
+</Code>
+
+Then apply kingdom migrations as listed in [Migrations](/docs/getting-started/migrations).
+
+</Step>
+
+<Step>
+
+**Run the app**
+
+<Code language="bash" title="terminal">
+{`npm run dev
+# open http://localhost:3000
+curl -s http://localhost:3000/api/health`}
+</Code>
+
+Expect `status: "healthy"` when `AUTH_SECRET` and DB are correct (`degraded` / 503 usually means missing `AUTH_SECRET`).
+
+</Step>
+
+</Steps>
+
+</Audience>
+
+## Related
+
+<Cards>
+  <Card title="Installation" href="/docs/getting-started/installation">
+    install.sh vs manual, Docker Postgres, OAuth.
+  </Card>
+  <Card title="Prerequisites" href="/docs/getting-started/prerequisites">
+    Node 20+, Postgres, what is optional on day one.
+  </Card>
+  <Card title="First success" href="/docs/getting-started/first-success">
+    Health check and smoke paths after boot.
+  </Card>
+  <Card title="Deployment" href="/docs/deployment">
+    Self-hosted, Docker, Vercel, environment.
+  </Card>
+</Cards>

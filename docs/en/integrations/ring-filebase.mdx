@@ -48,7 +48,7 @@ Product images, KYC scans, chat attachments, and ImageConductor outputs all need
     Keep `storage.provider` / env on `local_storage` — files land under `public/uploads` (or your PVC mount).
   </Card>
   <Card title="Production marketplace" href="/docs/features/store">
-    Set `ring_filebase`, point `RINGBASE_API_URL` at the in-cluster API, publish URLs via [Ring CDN](/docs/integrations/ring-cdn).
+    Set `ring_filebase`, point `RINGBASE_API_URL` at the in-cluster API, publish URLs via Ring CDN (see Related below).
   </Card>
   <Card title="Managed Ringdom hosting" href="/docs/development/oss-vs-enterprise">
     Operators deploy `ring-filebase` + `ring-filebase-minio` namespaces; your clone only needs ConfigMap/Secret wiring.

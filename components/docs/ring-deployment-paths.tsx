@@ -104,18 +104,8 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
         settlementPreview: true,
         ringdomBlurb:
           'Ringdom is managed Ring hosting SaaS: LegioX-guided ringization, Kubernetes operations, and ongoing settlement support — the turn-key path when you want outcomes instead of DIY ops.',
-        ringdomCta: { href: 'https://ringdom.org/en/settler', label: 'Start on Ringdom' },
-        route: [
-          { kind: 'text', text: 'Open the settlement chat on LegioX.pro (same experience on Ringdom)' },
-          { kind: 'text', text: 'Describe your community, product, or organization — attach notes, images, or audio' },
-          { kind: 'text', text: 'Reggie and LegioX agents enable modules, branding, and integrations from your brief' },
-          { kind: 'text', text: 'Iterate in chat until your Ring clone matches the vision — deploy on Ringdom or export' },
-        ],
-        note: {
-          variant: 'development',
-          title: 'Coming Q1 2026',
-          body: 'Full conversational customization ships on LegioX.pro. Until then, start on Ringdom for expert-led ringization today.',
-        },
+        ringdomCta: { href: 'https://ringdom.org/new', label: 'Start on Ringdom' },
+        route: [],
         docLink: { href: 'https://legiox.pro', label: 'LegioX.pro' },
       },
       {
@@ -201,18 +191,8 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
         settlementPreview: true,
         ringdomBlurb:
           'Ringdom — managed Ring hosting SaaS: ringization під керівництвом LegioX, Kubernetes-операції та супровід поселення — turn-key шлях, коли потрібен результат, а не археологія репозиторію.',
-        ringdomCta: { href: 'https://ringdom.org/en/settler', label: 'Start on Ringdom' },
-        route: [
-          { kind: 'text', text: 'Відкрийте settlement chat на LegioX.pro (той самий досвід на Ringdom)' },
-          { kind: 'text', text: 'Опишіть спільноту, продукт чи організацію — додайте нотатки, зображення або аудіо' },
-          { kind: 'text', text: 'Reggie та агенти LegioX увімкнуть модулі, брендинг і інтеграції з вашого брифу' },
-          { kind: 'text', text: 'Ітеруйте в чаті, поки клон Ring не відповідає баченню — деплой на Ringdom або експорт' },
-        ],
-        note: {
-          variant: 'development',
-          title: 'З’явиться Q1 2026',
-          body: 'Повне розмовне налаштування на LegioX.pro. До того — почніть на Ringdom з експертною ringization вже сьогодні.',
-        },
+        ringdomCta: { href: 'https://ringdom.org/new', label: 'Start on Ringdom' },
+        route: [],
         docLink: { href: 'https://legiox.pro', label: 'LegioX.pro' },
       },
       {
@@ -298,18 +278,8 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
         settlementPreview: true,
         ringdomBlurb:
           'Ringdom — managed Ring hosting SaaS: ringization под руководством LegioX, Kubernetes-операции и сопровождение поселения — turn-key путь, когда нужен результат, а не археология репозитория.',
-        ringdomCta: { href: 'https://ringdom.org/en/settler', label: 'Start on Ringdom' },
-        route: [
-          { kind: 'text', text: 'Откройте settlement chat на LegioX.pro (тот же опыт на Ringdom)' },
-          { kind: 'text', text: 'Опишите сообщество, продукт или организацию — прикрепите заметки, изображения или аудио' },
-          { kind: 'text', text: 'Reggie и агенты LegioX включат модули, брендинг и интеграции из вашего брифа' },
-          { kind: 'text', text: 'Итерируйте в чате, пока клон Ring не совпадёт с видением — деплой на Ringdom или экспорт' },
-        ],
-        note: {
-          variant: 'development',
-          title: 'Q1 2026',
-          body: 'Полная conversational-настройка на LegioX.pro. До этого — начните на Ringdom с экспертной ringization уже сегодня.',
-        },
+        ringdomCta: { href: 'https://ringdom.org/new', label: 'Start on Ringdom' },
+        route: [],
         docLink: { href: 'https://legiox.pro', label: 'LegioX.pro' },
       },
       {
@@ -488,7 +458,7 @@ function PathPanel({
   return (
     <div
       className={cn(
-        'col-start-1 row-start-1 p-4 transition-opacity duration-200 md:p-5',
+        'col-start-1 row-start-1 py-3 transition-opacity duration-200 md:py-4',
         isActive ? 'relative z-10 opacity-100' : 'pointer-events-none invisible z-0 opacity-0',
       )}
       aria-hidden={!isActive}
@@ -499,20 +469,24 @@ function PathPanel({
         <RingLegioxSettlementChatPreview locale={locale} isActive={isActive} className="mb-5" />
       ) : null}
 
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {t.routeLabel}
-      </p>
-      <ol className="mb-4 space-y-3">
-        {path.route.map((step, i) => (
-          <RouteStepRow
-            key={`${path.id}-${i}`}
-            step={step}
-            index={i}
-            copyLabel={t.copyLabel}
-            copiedLabel={t.copiedLabel}
-          />
-        ))}
-      </ol>
+      {path.route.length > 0 ? (
+        <>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t.routeLabel}
+          </p>
+          <ol className="mb-4 space-y-3">
+            {path.route.map((step, i) => (
+              <RouteStepRow
+                key={`${path.id}-${i}`}
+                step={step}
+                index={i}
+                copyLabel={t.copyLabel}
+                copiedLabel={t.copiedLabel}
+              />
+            ))}
+          </ol>
+        </>
+      ) : null}
 
       {path.includes && path.includes.length > 0 ? (
         <>
@@ -636,7 +610,7 @@ export function RingDeploymentPaths({ locale = 'en', defaultPath = 0 }: RingDepl
         role="tabpanel"
         id={`deploy-panel-${paths[active].id}`}
         aria-labelledby={`deploy-tab-${paths[active].id}`}
-        className="mt-3 w-full overflow-hidden rounded-xl border border-border/80 bg-muted/15"
+        className="mt-3 w-full overflow-hidden bg-transparent"
       >
         <div className="grid">
           {paths.map((path, index) => (

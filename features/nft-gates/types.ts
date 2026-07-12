@@ -11,8 +11,16 @@ export interface NftOwnershipRecord {
   id: string
   userId: string
   asset: string
-  slug: NftGateSlug
+  /** Gate SKU or member mint slug (e.g. member-open). */
+  slug: NftGateSlug | string
   collectionMint?: string
+  /** Member collection row id when source is member_mint. */
+  collectionId?: string
+  /** Provenance: gate primary sale vs member creator mint. */
+  source?: 'gate_purchase' | 'member_mint'
+  name?: string
+  description?: string
+  metadataUri?: string
   soulbound: boolean
   purchaseId: string
   signature?: string

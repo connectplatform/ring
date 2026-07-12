@@ -97,6 +97,12 @@ export async function getNftMarketListings(
   if (filters.collection) {
     queryFilters.push({ field: 'collection', operator: '==', value: filters.collection })
   }
+  if (filters.collectionId) {
+    queryFilters.push({ field: 'collectionId', operator: '==', value: filters.collectionId })
+  }
+  if (filters.lane) {
+    queryFilters.push({ field: 'lane', operator: '==', value: filters.lane })
+  }
   if (filters.slug) {
     queryFilters.push({ field: 'slug', operator: '==', value: filters.slug })
   }
@@ -157,5 +163,35 @@ export async function getNftMarketCollectionBySlugOrId(
     filters: [{ field: 'collection', operator: '==', value: slugOrId }],
     pagination: { limit: 1 },
   })
-  return byCollection.success ? byCollection.data?.[0] ?? null : null
+  if (byCollection.success && byCollection.data?.[0]) return byCollection.data[0]
+
+  // Member creator collections may not yet have a market cache row.
+  const member = await db().readDoc<{
+    id: string
+    collectionMint?: string
+    name?: string
+    symbol?: string
+    uri?: string
+    imageUri?: string
+    creatorUserId?: string
+    mintCount?: number
+  }>('nft_member_collections', slugOrId)
+  if (member.success && member.data) {
+    return {
+      id: member.data.id,
+      collection: member.data.collectionMint || member.data.id,
+      slug: member.data.id,
+      name: member.data.name || 'Member collection',
+      symbol: member.data.symbol || 'MEMBER',
+      uri: member.data.uri,
+      imageUri: member.data.imageUri,
+      activeListings: 0,
+      itemCount: member.data.mintCount || 0,
+      creatorUserId: member.data.creatorUserId,
+      lane: 'member',
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  return null
 }

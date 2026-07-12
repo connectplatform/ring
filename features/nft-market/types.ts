@@ -4,6 +4,8 @@ export type NftListingStatus = 'draft' | 'active' | 'sold' | 'cancelled' | 'expi
 export type NftListingMode = 'ledger-dev' | 'metaplex-core'
 export type NftChainFamily = 'solana' | 'evm'
 export type NftSettlementCurrency = 'RING'
+/** Exhibition lane: KEYS vendor gates vs member-created collections. */
+export type NftMarketLane = 'keys' | 'member'
 
 export interface NftListingAttribute {
   traitType: string
@@ -23,12 +25,16 @@ export interface NftMarketListing {
   id: string
   chainFamily: NftChainFamily
   mode: NftListingMode
+  /** Dual-lane Exhibition: keys = verified KEYS gates; member = creator mints. */
+  lane?: NftMarketLane
   asset: string
   collection?: string
+  /** Member collection row id when lane is member. */
+  collectionId?: string
   collectionName?: string
   collectionSymbol: 'KEYS' | string
   collectionUri?: string
-  slug: NftGateSlug
+  slug: NftGateSlug | string
   name: string
   description?: string
   imageUri?: string
@@ -96,6 +102,26 @@ export interface NftMarketCollection {
   floorPriceRaw?: string
   volumeRaw?: string
   itemCount?: number
+  creatorUserId?: string
+  lane?: NftMarketLane
+  updatedAt: string
+}
+
+export interface NftMemberCollection {
+  id: string
+  creatorUserId: string
+  collectionMint?: string
+  name: string
+  symbol: string
+  uri?: string
+  imageUri?: string
+  description?: string
+  status: 'draft' | 'active' | 'archived'
+  mintCount: number
+  maxMints: number
+  mode: NftListingMode
+  createSignature?: string
+  createdAt: string
   updatedAt: string
 }
 
@@ -103,8 +129,12 @@ export interface CreateNftListingDraftInput {
   sellerUserId: string
   sellerUsername?: string
   asset: string
-  slug: NftGateSlug
+  slug: NftGateSlug | string
   priceRing: string | number
+  lane?: NftMarketLane
+  collectionId?: string
+  name?: string
+  description?: string
   metadataUri?: string
   imageUri?: string
   attributes?: NftListingAttribute[]
@@ -124,6 +154,8 @@ export interface CancelNftListingInput {
 export interface NftMarketListingFilters {
   q?: string
   collection?: string
+  collectionId?: string
+  lane?: NftMarketLane
   slug?: NftGateSlug | string
   sellerUserId?: string
   sellerUsername?: string

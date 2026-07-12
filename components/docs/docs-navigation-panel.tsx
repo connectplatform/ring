@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import DocsAudienceSelector from '@/components/docs/docs-audience-selector'
 import { useDocsAudienceOptional } from '@/components/docs/docs-audience-context'
 import { isDocsNavItemActive, normalizeDocsNavPath } from '@/lib/docs/docs-nav-active'
-import { getCuratedPageSet } from '@/lib/docs/audience-curated-docs'
+import { getAudienceSectionOrder, getCuratedPageOrder, getCuratedPageSet } from '@/lib/docs/audience-curated-docs'
 import type {
   DocsNavItem,
   DocsNavSection,
@@ -31,11 +31,7 @@ function filterItems(items: DocsNavItem[], query: string): DocsNavItem[] {
 
 /**
  * Filter a section's items by the active audience's curated set.
- * If the section is not present in the audience's curated map, ALL items
- * are kept (fallback for sections not yet curated).
- * If the section IS in the curated map, only items whose `pageSlug` is in the
- * curated list are kept. SSoT: the `pageSlug` is set by the navigation tree
- * from `meta.json` — no href re-parsing.
+ * Unlisted sections → []; listed sections → curated order.
  */
 function filterItemsByAudience(
   items: DocsNavItem[],
@@ -44,32 +40,42 @@ function filterItemsByAudience(
 ): DocsNavItem[] {
   if (!audience) return items
   const curated = getCuratedPageSet(audience, sectionSlug)
-  if (!curated) {
-    // No curated list for this section — keep all items (graceful fallback)
-    return items
+  if (!curated) return []
+  const bySlug = new Map(items.map((item) => [item.pageSlug, item]))
+  const ordered: DocsNavItem[] = []
+  for (const slug of getCuratedPageOrder(audience, sectionSlug)) {
+    const hit = bySlug.get(slug)
+    if (hit) ordered.push(hit)
   }
-  return items.filter((item) => curated.has(item.pageSlug))
+  return ordered.length > 0 ? ordered : items.filter((item) => curated.has(item.pageSlug))
+}
+
+function filterAndOrderSectionsByAudience(
+  sections: DocsNavSection[],
+  audience: DocsAudience | null,
+): DocsNavSection[] {
+  if (!audience) return sections
+
+  const bySlug = new Map(sections.map((s) => [s.sectionSlug, s]))
+  const ordered: DocsNavSection[] = []
+
+  for (const sectionSlug of getAudienceSectionOrder(audience)) {
+    const section = bySlug.get(sectionSlug)
+    if (!section) continue
+    const items = filterItemsByAudience(section.items, section.sectionSlug, audience)
+    if (items.length === 0) continue
+    ordered.push({ ...section, items })
+  }
+
+  return ordered
 }
 
 function filterSections(
   sections: DocsNavSection[],
   query: string,
-  audience: DocsAudience | null,
 ): DocsNavSection[] {
-  // 1) Apply audience filter first (only when audience is set)
-  const audienceFiltered = audience
-    ? sections
-        .map((section) => {
-          const items = filterItemsByAudience(section.items, section.sectionSlug, audience)
-          if (items.length === 0) return null
-          return { ...section, items }
-        })
-        .filter((section): section is DocsNavSection => section !== null)
-    : sections
-
-  // 2) Apply search query filter on the audience-filtered set
-  if (!query.trim()) return audienceFiltered
-  return audienceFiltered
+  if (!query.trim()) return sections
+  return sections
     .map((section) => {
       const sectionMatches = matchesTitle(section.title, query)
       const items = sectionMatches
@@ -103,18 +109,9 @@ export default function DocsNavigationPanel({
   const deferredQuery = useDeferredValue(query)
   const isSearchStale = query !== deferredQuery
 
-  // Pre-filter by audience once (no search) — audience toggle is rare + cheap.
+  // Pre-filter + reorder by audience once (no search) — audience toggle is rare + cheap.
   const audienceFilteredSections = useMemo(
-    () =>
-      audience
-        ? navSections
-            .map((section) => {
-              const items = filterItemsByAudience(section.items, section.sectionSlug, audience)
-              if (items.length === 0) return null
-              return { ...section, items }
-            })
-            .filter((section): section is DocsNavSection => section !== null)
-        : navSections,
+    () => filterAndOrderSectionsByAudience(navSections, audience),
     [navSections, audience],
   )
 
@@ -124,7 +121,7 @@ export default function DocsNavigationPanel({
     [topPinnedLinks, deferredQuery],
   )
   const filteredSections = useMemo(
-    () => filterSections(audienceFilteredSections, deferredQuery, null),
+    () => filterSections(audienceFilteredSections, deferredQuery),
     [audienceFilteredSections, deferredQuery],
   )
   const filteredQuick = useMemo(

@@ -1,5 +1,5 @@
 /**
- * Audience-curated docs sidebar visibility.
+ * Audience-curated docs sidebar visibility + section order.
  *
  * The docs right-sidebar reads from this map to filter which articles appear
  * under each section for the active audience (`founder` / `developer`).
@@ -7,52 +7,31 @@
  * Contract:
  *   - `AUDIENCE_CURATED_DOCS[audience][sectionSlug]` is the curated list of
  *     page slugs visible to that audience in that section.
+ *   - **Object key order** = sidebar **section order** for that audience.
+ *   - Sections **not** listed for an audience are **hidden** (no “show all”
+ *     fallback — that leaked api/cli/development into Founder).
  *   - Articles with frontmatter `audience: both` (or unset) appear in BOTH
  *     audiences and should be placed in the same section in each map.
- *   - Articles with frontmatter `audience: founder` only appear under
- *     `AUDIENCE_CURATED_DOCS.founder`.
- *   - Articles with frontmatter `audience: developer` only appear under
- *     `AUDIENCE_CURATED_DOCS.developer`.
- *   - Sections not present for an audience are hidden from that audience's
- *     sidebar entirely.
  *
  * SSoT: this map is derived from the human-readable curated indexes at
  *   `docs/{locale}/for-founders.mdx` and `docs/{locale}/for-developers.mdx`.
  * The MDX files are info sources (cross-linkable, future TODOs). The runtime
  * sidebar filtering consumes this TypeScript module.
  *
- * `as const` on the data below narrows each section's page-slug list to a
- * readonly tuple of literal strings, giving `isArticleVisibleToAudience` exact
- * type inference.
+ * Index revision 2026-07-12: Founder prioritizes features → examples →
+ * customization → web3 (operator product value). Developer = system layers.
+ * Trace: chat 4632c32f Phase B + Emperor priority note 2026-07-12.
  *
- * NOTE: This module extends the ring-docs-enhancer agent's architecture.
- * The agent's content-filtering uses <Audience for="…"> blocks within
- * individual MDX files (the SSoT approach — "one file, both audiences").
- *
- * This module adds an additional *nav-level* filter: when the sidebar
- * audience toggle is set, it also hides entire articles that have no
- * content targeting the active audience. This is distinct from the agent's
- * content-level filter and adds maintenance burden — every article
- * added/removed from a section via meta.json must also be reflected here.
- *
- * The canonical reference for sidebar content is docs/{locale}/.../meta.json.
- *
- * Index revision 2026-07-11: Founder = operator journey hubs; Developer =
- * system layers. NFT market + NFT gates are verified in both audience trees.
- * See for-founders.mdx / for-developers.mdx.
- *
- * TODO(future): derive the section→page-slug map at build time from the MDX
- * frontmatter `audience:` field. The current manual curation is more
- * expressive (per-section ordering, audience-specific section grouping) but
- * adds maintenance cost when articles are added/removed. Auto-derivation
- * could be the base, with a manual override map layered on top.
+ * The canonical reference for *available* pages is docs/{locale}/.../meta.json;
+ * this module chooses which subset + order each audience sees.
  */
 
 import type { DocsAudience } from '@/lib/docs/docs-audience'
 
 export const AUDIENCE_CURATED_DOCS = {
   // ---------------------------------------------------------------
-  // Founders — operators & decision-makers (journey hubs)
+  // Founders — operators & decision-makers
+  // Object key order = sidebar section order (top priority first).
   // ---------------------------------------------------------------
   founder: {
     'getting-started': [
@@ -62,18 +41,19 @@ export const AUDIENCE_CURATED_DOCS = {
       'next-steps',
     ],
     features: [
-      // Hub 2 — Make money
+      // Make money
       'store',
       'subscriptions',
       'payment-conductor',
       'payments',
       'wallet',
+      'wallet-conductor',
       'affiliate-enablement',
       'refcodes',
       'nft-market',
       'nft-gates',
       'staking',
-      // Hub 3 — Grow the network
+      // Grow the network
       'entities',
       'opportunities',
       'messaging',
@@ -83,14 +63,14 @@ export const AUDIENCE_CURATED_DOCS = {
       'public-profile',
       'username-reservation',
       'scientific-editor',
-      // Hub 4 — Reach members
+      // Reach members
       'notifications',
       'push-notifications-fcm',
       'email-ai-crm',
       'tunnel-protocol',
       'video-conductor',
       'media-conductor',
-      // Hub 5 — Trust & brand
+      // Trust & brand
       'authentication',
       'security',
       'admin',
@@ -99,13 +79,29 @@ export const AUDIENCE_CURATED_DOCS = {
       'mobile-experience',
       'performance',
     ],
-    architecture: [
-      'data-model',
-      'security',
-      'real-time',
-      'discovery-mutation-sync',
-      'payment-conductor',
+    examples: [
+      'quick-start',
+      'basic-setup',
+      'white-label',
+      'custom-branding',
+      'web3-integration',
+      'real-world',
+      'advanced-features',
     ],
+    customization: [
+      'quick-start',
+      'customization-guide',
+      'branding',
+      'themes',
+      'features',
+      'localization',
+      'token-economics',
+      'payment-integration',
+      'success-stories',
+    ],
+    web3: ['token-launch-jurisdictions'],
+    wallet: ['security-tips'],
+    integrations: ['ethereum-wallets', 'ring-filebase', 'ring-cdn'],
     deployment: [
       'self-hosted',
       'vercel',
@@ -115,36 +111,19 @@ export const AUDIENCE_CURATED_DOCS = {
       'performance',
       'backup',
     ],
-    customization: [
-      'quick-start',
-      'customization-guide',
-      'branding',
-      'themes',
-      'token-economics',
-      'payment-integration',
-      'success-stories',
-    ],
-    integrations: [
-      'ethereum-wallets',
-      'ring-filebase',
-      'ring-cdn',
-    ],
-    examples: [
-      'quick-start',
-      'white-label',
-      'real-world',
-      'custom-branding',
-    ],
-    wallet: [
-      'security-tips',
-    ],
-    web3: [
-      'token-launch-jurisdictions',
+    // High-level only — no backend/api/cli/development/mcp for founders
+    architecture: [
+      'data-model',
+      'security',
+      'real-time',
+      'discovery-mutation-sync',
+      'payment-conductor',
     ],
   },
 
   // ---------------------------------------------------------------
   // Developers — engineers & integrators (system layers)
+  // Object key order = sidebar section order.
   // ---------------------------------------------------------------
   developer: {
     'getting-started': [
@@ -169,10 +148,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'news-kingdom',
       'email-ai-crm',
     ],
-    backend: [
-      'k8s-postgres-fcm',
-      'firebase',
-    ],
+    backend: ['k8s-postgres-fcm', 'firebase'],
     api: [
       'authentication',
       'entities',
@@ -185,26 +161,24 @@ export const AUDIENCE_CURATED_DOCS = {
       'email-ai-crm',
     ],
     features: [
-      // Payments cluster (ordered)
       'payment-conductor',
       'wayforpay-integration',
       'subscriptions',
       'payments',
       'store',
       'wallet',
+      'wallet-conductor',
       'refcodes',
       'affiliate-enablement',
       'nft-market',
       'nft-gates',
       'staking',
-      // Realtime & communication
       'tunnel-protocol',
       'messaging',
       'webrtc-calls',
       'push-notifications-fcm',
       'notifications',
       'email-ai-crm',
-      // Identity, trust, content
       'authentication',
       'security',
       'admin',
@@ -218,12 +192,10 @@ export const AUDIENCE_CURATED_DOCS = {
       'scientific-editor',
       'locale-system',
       'doc-system',
-      // Media & UX
       'video-conductor',
       'media-conductor',
       'mobile-experience',
       'performance',
-      // ERP (nested under features/erp — pageSlug is leaf)
       'inventory',
       'vendor-management',
       'commissions',
@@ -238,7 +210,6 @@ export const AUDIENCE_CURATED_DOCS = {
       'backup',
     ],
     development: [
-      // Engineering core
       'local-setup',
       'code-structure',
       'code-style',
@@ -254,16 +225,12 @@ export const AUDIENCE_CURATED_DOCS = {
       'ring-mcp',
       'whitelabel-navigation',
       'oss-vs-enterprise',
-      // Generative media
       'generative-images',
       'generative-newsroom',
       'generative-videos',
       'scripted-media-pipeline',
     ],
-    mcp: [
-      'ring-image-create',
-      'ring-video-create',
-    ],
+    mcp: ['ring-image-create', 'ring-video-create'],
     customization: [
       'quick-start',
       'customization-guide',
@@ -277,17 +244,9 @@ export const AUDIENCE_CURATED_DOCS = {
       'themes',
       'components',
     ],
-    integrations: [
-      'ethereum-wallets',
-      'ring-filebase',
-      'ring-cdn',
-    ],
-    web3: [
-      'token-launch-jurisdictions',
-    ],
-    wallet: [
-      'security-tips',
-    ],
+    integrations: ['ethereum-wallets', 'ring-filebase', 'ring-cdn'],
+    web3: ['token-launch-jurisdictions'],
+    wallet: ['security-tips'],
     examples: [
       'quick-start',
       'basic-setup',
@@ -308,10 +267,25 @@ export const AUDIENCE_CURATED_DOCS = {
 
 export type CuratedPageSet = ReadonlySet<string>
 
+/** Sidebar section order for an audience = curated map key order. */
+export function getAudienceSectionOrder(audience: DocsAudience): readonly string[] {
+  return Object.keys(AUDIENCE_CURATED_DOCS[audience])
+}
+
+/** Page slug order within a curated section (empty if section not curated). */
+export function getCuratedPageOrder(
+  audience: DocsAudience,
+  sectionSlug: string,
+): readonly string[] {
+  const section = AUDIENCE_CURATED_DOCS[audience][
+    sectionSlug as keyof (typeof AUDIENCE_CURATED_DOCS)[DocsAudience]
+  ] as readonly string[] | undefined
+  return section ?? []
+}
+
 /**
- * Get a memoized `Set` of page slugs curated for a (audience, section) pair.
- * `null` means the section is not curated for the audience — consumers should
- * fall back to showing all items in that section.
+ * Curated page slugs for (audience, section).
+ * `null` = section not curated → **hide** the section for that audience.
  */
 export function getCuratedPageSet(
   audience: DocsAudience,
@@ -324,11 +298,6 @@ export function getCuratedPageSet(
   return new Set(section)
 }
 
-/**
- * Test whether an article (identified by its section + page slug) is visible
- * to the given audience. Returns `true` if the article should appear in that
- * audience's sidebar.
- */
 export function isArticleVisibleToAudience(
   audience: DocsAudience,
   sectionSlug: string,

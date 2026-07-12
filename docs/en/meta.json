@@ -1,24 +1,24 @@
 {
   "title": "Platform Documentation",
-  "description": "Ordered top-level doc sections. Each slug is a folder under docs/{locale}/ with its own meta.json (title, description, pages[]).",
+  "description": "Default filesystem section order. Audience-specific sidebar order is AUDIENCE_CURATED_DOCS key order in lib/docs/audience-curated-docs.ts (Founder: features→examples→customization→web3 first).",
   "pages": [
     "welcome",
     "index",
     "getting-started",
-    "architecture",
-    "backend",
     "features",
-    "wallet",
-    "vendor-guide",
-    "api",
-    "cli",
+    "examples",
     "customization",
     "web3",
+    "wallet",
+    "integrations",
+    "vendor-guide",
     "deployment",
+    "architecture",
+    "backend",
+    "api",
+    "cli",
     "development",
     "mcp",
-    "roadmap",
-    "examples",
-    "integrations"
+    "roadmap"
   ]
 }

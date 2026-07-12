@@ -1,76 +1,89 @@
 ---
 title: NFT Exhibition Marketplace
-description: Trade eligible Solana KEYS gate NFTs for RING, then stake purchased gates to activate platform features
-last_modified: "2026-07-11"
+description: Dual-lane Solana Exhibition — verified KEYS gates and member-created Metaplex Core collections, settled in RING
+last_modified: "2026-07-12"
 audience: both
 ---
 
 # NFT Exhibition Marketplace
 
 <Callout type="success">
-  The shipped marketplace is **Solana-first**: verified Ringdom **KEYS** gate NFTs list for **RING**. It replaces the older generic marketplace description with the live Exhibition flow.
+  The shipped marketplace is **Solana-first** with **two lanes**: verified Ringdom **KEYS** gate NFTs, and an open **member creator** lane for on-platform Metaplex Core collections. Both settle in **RING** (ledger-dev PoC when `gateMarketProgramId` is empty).
 </Callout>
 
-The NFT Exhibition Marketplace lets members list, browse, buy, and cancel eligible Ringdom gate NFTs. A purchase transfers ownership, but **ownership alone does not unlock product access**. Buyers must stake the purchased gate through GateEscrow before `GateResolver.hasFeature` grants the related feature.
+The NFT Exhibition Marketplace lets members list, browse, buy, and cancel eligible assets. For **KEYS** gates, a purchase transfers ownership, but **ownership alone does not unlock product access** — buyers must stake through GateEscrow before `GateResolver.hasFeature` grants the related feature. For **member** mints, purchase is ownership + RING only (no stake CTA, no feature unlock).
 
 | Surface | Verified truth |
 |---------|----------------|
 | Marketplace | `/nft/market`, `/nft/market/[listingId]`, `/nft/market/sell` |
+| Member create | `/nft/create`, `/nft/create/[collectionId]` |
 | Collections | `/nft/collections`, `/nft/collections/[slug]` |
 | Search | Search redirects land on `/nft/market?q=...` |
-| Feed | `useCursorFeed` with `moduleId="nft-market"` |
+| Feed | `useCursorFeed` with `moduleId="nft-market"`; optional `lane=keys\|member` |
 | Payment | RING only |
-| Collection symbol | `KEYS` from gate collection metadata |
+| KEYS symbol | `KEYS` from gate collection metadata |
+| Member collections | `nft_member_collections` + listing `lane: 'member'` |
 | Listing storage | `nft_listings` |
 | Sale ledger | `nft_market_sales` |
 | Collection cache | `nft_market_collections` |
-| Migration | `data/migrations/031_nft_exhibition_market_schema.sql` |
+| Migrations | `031_nft_exhibition_market_schema.sql`, `032_nft_member_collections_schema.sql` |
 
 <Audience for="founder">
 
 ## Why this matters for your clone
 
-The marketplace turns tradeable vendor access keys into a visible economy. Operators can let a vendor sell a store deed, DAGI key, annual license, or quarterly license while keeping membership gates soulbound.
+The marketplace turns tradeable vendor access keys into a visible economy **and** lets privileged members create their own on-platform collections without opening an external NFT import path.
 
 <Cards>
-  <Card title="Create resale liquidity" href="/docs/features/nft-market">
+  <Card title="KEYS resale liquidity" href="/docs/features/nft-market">
     Vendor-grade gates can move from one member to another without making membership transferable.
   </Card>
-  <Card title="Keep access gated" href="/docs/features/nft-gates">
-    A buyer must stake the gate before features activate. Listing and staking are mutually exclusive.
+  <Card title="Member creator lane" href="/docs/features/nft-market">
+    Members create Metaplex Core collections, mint, and list for RING — ownership transfer only, no GateEscrow features.
+  </Card>
+  <Card title="Keep KEYS access gated" href="/docs/features/nft-gates">
+    A KEYS buyer must stake the gate before features activate. Listing and staking are mutually exclusive.
   </Card>
   <Card title="Use RING settlement" href="/docs/features/wallet">
     Buyers pay in the clone native token through the custodial Solana wallet path.
-  </Card>
-  <Card title="Show seller inventory" href="/docs/features/public-profile">
-    Public profile pages display a member's active marketplace listings.
   </Card>
 </Cards>
 
 ### Operator Checklist
 
-- Enable NFT gates and marketplace config for the clone.
-- Mint or import eligible vendor gates from the KEYS collection.
-- Confirm sellers understand that staked gates must be unstaked before listing.
-- Confirm buyers understand that a bought gate must be staked before benefits activate.
+- Enable NFT gates and marketplace config (`nft.marketplaceEnabled`).
+- Enable member collections PoC with `nft.memberCollectionsEnabled` and caps (`maxCollectionsPerMember`, `maxMintsPerCollection`).
+- Mint or import eligible vendor gates from the KEYS collection for lane K.
+- Confirm KEYS sellers understand that staked gates must be unstaked before listing.
+- Confirm KEYS buyers understand that a bought gate must be staked before benefits activate.
+- Confirm member mints never promise GateEscrow feature unlock.
 - Keep mainnet GateMarket disabled until the Anchor programs pass audit and Squads authority setup.
 
 <Callout type="warning">
-  Membership NFTs are soulbound and never listable. The marketplace is only for `vendor-store-deed`, `vendor-dagi-key`, `vendor-annual-store-license`, and `vendor-quarterly-store-license`.
+  Membership NFTs are soulbound and never listable. KEYS lane remains only for `vendor-store-deed`, `vendor-dagi-key`, `vendor-annual-store-license`, and `vendor-quarterly-store-license`. Member lane assets use `source: member_mint` and are never GateEscrow feature keys.
 </Callout>
 
 ### User Journey
 
-<Mermaid title="Marketplace journey">
+<Mermaid title="Dual-lane marketplace journey">
 {`flowchart TD
-  Seller[Seller owns tradeable KEYS gate] --> Unstaked{Gate is unstaked?}
-  Unstaked -- no --> Stop[Unstake before listing]
-  Unstaked -- yes --> List[List on /nft/market/sell]
-  List --> Active[Active listing]
-  Active --> Buyer[Buyer pays RING]
-  Buyer --> Ownership[Ownership transfers]
-  Ownership --> Stake[Buyer stakes gate]
-  Stake --> Feature[Feature access activates]
+  subgraph keys [Lane K KEYS]
+    SellerK[Seller owns tradeable KEYS gate] --> Unstaked{Gate is unstaked?}
+    Unstaked -- no --> Stop[Unstake before listing]
+    Unstaked -- yes --> ListK[List on /nft/market/sell]
+    ListK --> ActiveK[Active listing]
+    ActiveK --> BuyerK[Buyer pays RING]
+    BuyerK --> OwnK[Ownership transfers]
+    OwnK --> Stake[Buyer stakes gate]
+    Stake --> Feature[Feature access activates]
+  end
+  subgraph member [Lane M Member]
+    Member[hasMemberPrivileges] --> Create[/nft/create collection]
+    Create --> Mint[Mint asset]
+    Mint --> ListM[List for RING]
+    ListM --> BuyerM[Buyer pays RING]
+    BuyerM --> OwnM[Ownership only]
+  end
 `}
 </Mermaid>
 
@@ -82,34 +95,32 @@ The marketplace turns tradeable vendor access keys into a visible economy. Opera
 
 | Path | Role |
 |------|------|
-| `app/[locale]/nft/market/page.tsx` | Server page, parses `q`, `collection`, `slug`, `sort`, loads active listings |
-| `app/[locale]/nft/market/[listingId]/page.tsx` | Details route with Davinci layout and consecutive mobile rail |
-| `app/[locale]/nft/market/sell/page.tsx` | Seller wizard route |
-| `app/[locale]/nft/collections/page.tsx` | Collection aggregate gallery |
-| `app/[locale]/nft/collections/[slug]/page.tsx` | Collection-filtered market view |
-| `features/nft-market/components/nft-market-wrapper.tsx` | Filter rail, `useCursorFeed`, floating sort controls |
-| `features/nft-market/components/nft-listing-details-wrapper.tsx` | Buy, cancel, and post-purchase stake actions |
-| `features/nft-market/listing-policy.ts` | Tradeable SKU, soulbound, stake, duplicate listing, collection checks |
-| `features/nft-market/services/listing-service.ts` | Draft, activate, cancel, sold marking, collection cache refresh |
-| `features/nft-market/services/solana-market-client.ts` | Ledger-dev list/cancel/buy adapter; Anchor branch intentionally blocked |
-| `features/wallet/conductor/wallet-conductor.ts` | `purchaseNftListing` orchestration and idempotent sale ledger |
+| `app/[locale]/nft/market/page.tsx` | Server page, parses `q`, `collection`, `slug`, `lane`, `sort` |
+| `app/[locale]/nft/create/page.tsx` | Member create/mint/list wizard (requires `hasMemberPrivileges`) |
+| `app/[locale]/nft/market/sell/page.tsx` | KEYS seller wizard (excludes `member_mint`) |
+| `app/_actions/nft-member.ts` | `createMemberCollectionAction`, `mintMemberAssetAction`, `listMemberAssetAction` |
+| `features/nft-market/member/*` | Collection/mint services + `assertMemberAssetCanBeListed` |
+| `features/nft-market/listing-policy.ts` | KEYS tradeable SKU / stake / collection checks (lane K only) |
+| `features/nft-market/services/listing-service.ts` | Dual-lane draft/activate; member vs KEYS policy branch |
+| `features/nft-market/services/solana-market-client.ts` | Ledger-dev list/cancel/buy; Anchor branch blocked until program IDs |
+| `features/wallet/conductor/wallet-conductor.ts` | `purchaseNftListing` for both lanes |
 
 ### Listing and Purchase Sequence
 
 <Mermaid title="NFT market list and buy">
 {`sequenceDiagram
   participant Seller
-  participant Action as app/_actions/nft-market
-  participant Policy as listing-policy
+  participant Action as app/_actions/nft-market or nft-member
+  participant Policy as listing-policy or member-listing-policy
   participant Service as listing-service
   participant Market as SolanaMarketClient
   participant Wallet as WalletConductor
   participant Escrow as GateEscrow
 
-  Seller->>Action: listGateListingAction(formData)
-  Action->>Service: createListingDraft()
-  Service->>Policy: assertGateCanBeListed()
-  Policy-->>Service: tradeable, unstaked, owned, KEYS
+  Seller->>Action: list action
+  Action->>Service: createListingDraft(lane)
+  Service->>Policy: assertGateCanBeListed or assertMemberAssetCanBeListed
+  Policy-->>Service: ok
   Service->>Market: listGate()
   Market-->>Service: ledger-dev listingPda + signature
   Service-->>Action: active listing
@@ -118,7 +129,7 @@ The marketplace turns tradeable vendor access keys into a visible economy. Opera
   Wallet->>Market: buyGate()
   Market-->>Wallet: RING settlement signature
   Wallet->>Service: markSold()
-  Buyer->>Escrow: stakeGateAction(asset, slug)
+  Note over Escrow: KEYS only: stakeGateAction after buy
 `}
 </Mermaid>
 
@@ -127,24 +138,24 @@ The marketplace turns tradeable vendor access keys into a visible economy. Opera
 <Steps>
 
 <Step>
-`isNftMarketplaceEnabled()` must pass. The config reads `nft.marketplaceEnabled` from `ring-config.json`.
+`isNftMarketplaceEnabled()` must pass. Member create/mint also requires `isMemberCollectionsEnabled()`.
 </Step>
 
 <Step>
-The slug must be one of the four tradeable SKUs: `vendor-store-deed`, `vendor-dagi-key`, `vendor-annual-store-license`, or `vendor-quarterly-store-license`.
+**Lane K:** slug must be one of the four tradeable SKUs. Template/ownership must not be soulbound; asset verifies against KEYS; no active stake.
 </Step>
 
 <Step>
-The template and ownership record must not be soulbound, the asset must verify against the KEYS collection, and there must be no active stake for the same asset.
+**Lane M:** `hasMemberPrivileges`, ownership `source: member_mint`, collection active, not soulbound, no active listing. No GateEscrow stake check for listing.
 </Step>
 
 <Step>
-An active listing blocks duplicate listings for the same asset. A staked gate blocks listing; an active listing means feature access is not active through staking.
+An active listing blocks duplicate listings for the same asset. For KEYS: a staked gate blocks listing; an active listing means feature access is not active through staking.
 </Step>
 
 </Steps>
 
-<Code language="typescript" title="Verified tradeable SKUs">
+<Code language="typescript" title="Verified tradeable KEYS SKUs">
 {`export const TRADEABLE_GATE_SLUGS = [
   'vendor-store-deed',
   'vendor-dagi-key',
@@ -157,21 +168,21 @@ An active listing blocks duplicate listings for the same asset. A staked gate bl
 
 | Key | Effect |
 |-----|--------|
-| `nft.marketplaceEnabled` | Enables listing policy for the marketplace |
-| `nft.gateMarketProgramId` | Empty today means ledger-dev adapter; non-empty Anchor path throws in this build |
+| `nft.marketplaceEnabled` | Master secondary-market switch |
+| `nft.memberCollectionsEnabled` | Enables member create/mint/list PoC |
+| `nft.maxCollectionsPerMember` | Cap (default 3) |
+| `nft.maxMintsPerCollection` | Cap (default 50) |
+| `nft.gateMarketProgramId` | Empty = ledger-dev; non-empty Anchor path throws in this build |
 | `nft.marketplaceFeeRecipient` | Optional RING fee recipient |
-| `nft.marketplaceFeeBps` | Fee split basis points, clamped from 0 to 10000 |
+| `nft.marketplaceFeeBps` | Fee split basis points, clamped 0–10000 |
 
 ### Persistence
 
-Migration `031_nft_exhibition_market_schema.sql` creates:
-
-- `nft_listings` for active/draft/sold/cancelled listing rows and search text.
-- `nft_market_sales` for idempotent purchase reservation and confirmation.
-- `nft_market_collections` for collection aggregates and floor/listing cache.
+- `031_nft_exhibition_market_schema.sql` — listings, sales, collection cache
+- `032_nft_member_collections_schema.sql` — `nft_member_collections` + listing `lane` / `collectionId` indexes + KEYS lane backfill
 
 <Callout type="development">
-  `SolanaMarketClient.buyGate` currently settles through ledger-dev RING transfers when `gateMarketProgramId` is empty. The Anchor GateMarket CPI path is intentionally not implemented in this build.
+  `SolanaMarketClient.buyGate` settles through ledger-dev RING transfers when `gateMarketProgramId` is empty. Member lane reuses the same purchase path. The Anchor GateMarket CPI path is intentionally not implemented in this build.
 </Callout>
 
 The future program scaffold lives under `solana/programs/{gate-escrow,gate-market}`. `solana/SECURITY.md` blocks production or mainnet deployment until Smart Contract Security Auditor review, Squads authorities, pinned deployment records, and invariant tests are complete.
@@ -184,7 +195,7 @@ The future program scaffold lives under `solana/programs/{gate-escrow,gate-marke
 
 <FutureFeatureWidget
   name="GateMarket Anchor buy_listing"
-  description="Replace ledger-dev buy/list/cancel with an audited atomic CPI flow for Metaplex Core ownership transfer and SPL Token RING settlement."
+  description="Replace ledger-dev buy/list/cancel with an audited atomic CPI flow for Metaplex Core ownership transfer and SPL Token RING settlement for both KEYS and member lanes."
   implementationCost={180}
   labels={['solana', 'gate-market', 'audit']}
   poolSlug="gate-market-anchor-buy-listing"

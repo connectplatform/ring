@@ -1,16 +1,21 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { LocalePageProps } from '@/utils/page-props'
 import { setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
+import { auth } from '@/auth'
 import { getUserByUsername } from '@/features/auth/services/get-user-by-username'
+import { hasMemberPrivileges, resolveSessionUserRole } from '@/features/auth/user-role'
 import UserProfileWrapper from '@/components/wrappers/user-profile-wrapper'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
 import ProfileListings from '@/features/nft-market/components/profile-listings'
-import CreateListingForm from '../../../components/nft/forms/create-listing-form'
 import { getNftMarketListings } from '@/features/nft-market/services/listing-query'
+import { isMemberCollectionsEnabled, isNftMarketplaceEnabled } from '@/features/nft-gates/config'
+import { Button } from '@/components/ui/button'
+import { ROUTES } from '@/constants/routes'
 import Image from 'next/image'
 
 // Define the expected route params for this page
@@ -88,6 +93,11 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
   const user = await getUserByUsername(username)
   if (!user) return notFound() // Show 404 page if user does not exist
   const profileUsername = user.username || username
+  const session = await auth()
+  const isOwner = Boolean(session?.user?.id && session.user.id === user.id)
+  const ownerRole = resolveSessionUserRole(session?.user?.role as string)
+  const showCreateCta = isOwner && isMemberCollectionsEnabled() && hasMemberPrivileges(ownerRole)
+  const showSellCta = isOwner && isNftMarketplaceEnabled()
   const initialListings = await getNftMarketListings({
     sellerUsername: profileUsername,
     status: 'active',
@@ -140,13 +150,29 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
           </div>
         </section>
 
-        {/* Section for creating a new NFT listing (shows listing form) */}
-        <section className="mt-10">
-          <h2 className="text-xl font-medium">Create Listing</h2>
-          <div className="mt-4 max-w-xl">
-            <CreateListingForm username={user.username || username} />
-          </div>
-        </section>
+        {isOwner && (showSellCta || showCreateCta) ? (
+          <section className="mt-10">
+            <h2 className="text-xl font-medium">NFT Exhibition</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Sell verified KEYS gates or create on-platform member collections. EVM listing forms are retired.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {showSellCta ? (
+                <Button asChild>
+                  <Link href={ROUTES.NFT_MARKET_SELL(validLocale)}>Sell KEYS gate</Link>
+                </Button>
+              ) : null}
+              {showCreateCta ? (
+                <Button asChild variant="outline">
+                  <Link href={ROUTES.NFT_CREATE(validLocale)}>Create / mint</Link>
+                </Button>
+              ) : null}
+              <Button asChild variant="ghost">
+                <Link href={ROUTES.NFT_MARKET(validLocale)}>Browse market</Link>
+              </Button>
+            </div>
+          </section>
+        ) : null}
       </div>
     </UserProfileWrapper>
   )

@@ -155,6 +155,9 @@ export class PostgreSQLAdapter implements IDatabaseService {
     nft_market_collections: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    nft_member_collections: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     settlements: new Set([
       'id', 'created_at', 'updated_at'
     ]),

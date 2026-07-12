@@ -33,6 +33,7 @@ export function NftSellWizard({
   const eligible = useMemo(
     () =>
       owned.filter((item) => {
+        if (item.source === 'member_mint') return false
         const template = templates.find((t) => t.slug === item.slug)
         return template && !template.soulbound && !item.soulbound
       }),
@@ -55,8 +56,14 @@ export function NftSellWizard({
         <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary">Seller console</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">List an eligible KEYS gate</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Select an owned, tradeable gate NFT, set a RING price, and activate the marketplace listing.
+          Select an owned, tradeable KEYS gate NFT, set a RING price, and activate the marketplace listing.
+          Member-created mints are listed from Create / mint, not this KEYS seller console.
         </p>
+        <div className="mt-4">
+          <Button asChild variant="outline" size="sm">
+            <Link href={ROUTES.NFT_CREATE(locale)}>Create / mint member assets</Link>
+          </Button>
+        </div>
       </div>
 
       {eligible.length === 0 ? (
@@ -67,10 +74,16 @@ export function NftSellWizard({
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Membership and soulbound gates cannot be listed. Buy or unstake a tradeable vendor gate first.
+              To sell your own Metaplex Core creations, use the member creator lane.
             </p>
-            <Button asChild>
-              <Link href={ROUTES.NFT_GATES(locale)}>View NFT gates</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href={ROUTES.NFT_GATES(locale)}>View NFT gates</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={ROUTES.NFT_CREATE(locale)}>Create / mint</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (

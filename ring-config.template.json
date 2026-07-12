@@ -635,7 +635,10 @@
     "collectionSymbol": "KEYS",
     "marketplaceEnabled": true,
     "gateMarketProgramId": "",
-    "marketplaceFeeRecipient": ""
+    "marketplaceFeeRecipient": "",
+    "memberCollectionsEnabled": true,
+    "maxCollectionsPerMember": 3,
+    "maxMintsPerCollection": 50
   },
   "store": {
     "defaultCurrency": "USD"

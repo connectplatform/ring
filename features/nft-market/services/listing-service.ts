@@ -20,8 +20,11 @@ import type {
   NftMarketSale,
 } from '@/features/nft-market/types'
 import { assertGateCanBeListed } from '@/features/nft-market/listing-policy'
+import { assertMemberAssetCanBeListed } from '@/features/nft-market/member/member-listing-policy'
+import { getMemberCollectionById } from '@/features/nft-market/member/member-collection-service'
 import { getNftMarketListings } from './listing-query'
 import { SolanaMarketClient, splitMarketplaceFee } from './solana-market-client'
+import type { NftMarketLane } from '@/features/nft-market/types'
 
 type ServiceResult<T = { id: string }> = {
   success: boolean
@@ -41,6 +44,10 @@ function toLegacyDraftInput(data: any, sellerUserId: string): CreateNftListingDr
     asset: data.asset ?? data.item?.asset ?? data.item?.address ?? '',
     slug: data.slug ?? data.item?.slug,
     priceRing: data.priceRing ?? data.price?.amount ?? data.amount ?? '',
+    lane: data.lane === 'member' ? 'member' : 'keys',
+    collectionId: data.collectionId,
+    name: data.name,
+    description: data.description,
     metadataUri: data.metadataUri,
     imageUri: data.imageUri,
     attributes: data.attributes,
@@ -81,13 +88,15 @@ async function refreshCollectionCache(listing: NftMarketListing) {
     collection: listing.collection ?? id,
     slug: listing.slug,
     name: listing.collectionName ?? 'Ringdom Keys Collection',
-    symbol: getNftCollectionSymbol(),
-    uri: getNftCollectionUri(),
+    symbol: listing.collectionSymbol || getNftCollectionSymbol(),
+    uri: listing.collectionUri || getNftCollectionUri(),
     imageUri: listing.imageUri,
     activeListings: items.length,
     floorPriceRaw: rawPrices[0]?.toString(),
     volumeRaw: volume.toString(),
     itemCount: items.length,
+    creatorUserId: listing.lane === 'member' ? listing.sellerUserId : undefined,
+    lane: listing.lane || 'keys',
     updatedAt: nowIso(),
   }
   const existing = await db().readDoc('nft_market_collections', id)
@@ -108,16 +117,7 @@ export async function createListingDraft(data: any): Promise<ServiceResult<NftMa
       return { success: false, error: 'asset, slug and priceRing are required' }
     }
 
-    const policy = await assertGateCanBeListed({
-      userId: sellerUserId,
-      asset: input.asset,
-      slug: input.slug,
-    })
-    if (!policy.ok) return { success: false, error: policy.error }
-
-    const template = await getNftGateTemplateResolved(input.slug)
-    if (!template) return { success: false, error: 'Unknown gate template' }
-
+    const lane: NftMarketLane = input.lane === 'member' ? 'member' : 'keys'
     const sellerWallet = await getNativeWallet(sellerUserId, 'solana')
     if (!sellerWallet?.address) {
       return { success: false, error: 'Seller custodial Solana wallet is required' }
@@ -128,45 +128,118 @@ export async function createListingDraft(data: any): Promise<ServiceResult<NftMa
     const feeBps = getMarketplaceFeeBps()
     const { feeRaw, sellerProceedsRaw } = splitMarketplaceFee(priceRaw, feeBps)
     const createdAt = nowIso()
-    const listing: NftMarketListing = {
-      id: `nft_listing_${randomUUID()}`,
-      chainFamily: 'solana',
-      mode: 'ledger-dev',
-      asset: input.asset,
-      collection: getNftCollectionMint(),
-      collectionName: 'Ringdom Keys Collection',
-      collectionSymbol: getNftCollectionSymbol(),
-      collectionUri: getNftCollectionUri(),
-      slug: input.slug,
-      name: template.name,
-      description: template.description,
-      imageUri: input.imageUri ?? policy.ownership?.imageUri,
-      metadataUri: input.metadataUri,
-      attributes: input.attributes,
-      sellerUserId,
-      sellerUsername: await resolveSellerUsername(sellerUserId, input.sellerUsername),
-      sellerWallet: sellerWallet.address,
-      ownershipId: policy.ownership?.id,
-      priceRaw,
-      priceRing: String(input.priceRing),
-      decimals,
-      currency: 'RING',
-      ringMint: getNativeTokenAddress(),
-      feeBps,
-      feeRecipient: getMarketplaceFeeRecipient(),
-      feeRaw,
-      sellerProceedsRaw,
-      licenseExpiresAt: input.licenseExpiresAt,
-      createdAt,
-      updatedAt: createdAt,
-      status: 'draft',
-      searchText: [
-        template.name,
-        template.description,
-        input.slug,
-        getNftCollectionSymbol(),
-        input.asset,
-      ].filter(Boolean).join(' '),
+    const sellerUsername = await resolveSellerUsername(sellerUserId, input.sellerUsername)
+
+    let listing: NftMarketListing
+
+    if (lane === 'member') {
+      if (!input.collectionId) {
+        return { success: false, error: 'collectionId is required for member listings' }
+      }
+      const policy = await assertMemberAssetCanBeListed({
+        userId: sellerUserId,
+        asset: input.asset,
+        collectionId: input.collectionId,
+      })
+      if (!policy.ok) return { success: false, error: policy.error }
+
+      const collection = await getMemberCollectionById(input.collectionId)
+      if (!collection) return { success: false, error: 'Member collection not found' }
+
+      const name = input.name || policy.ownership?.name || collection.name
+      const description = input.description || policy.ownership?.description || collection.description
+      listing = {
+        id: `nft_listing_${randomUUID()}`,
+        chainFamily: 'solana',
+        mode: collection.mode,
+        lane: 'member',
+        asset: input.asset,
+        collection: collection.collectionMint,
+        collectionId: collection.id,
+        collectionName: collection.name,
+        collectionSymbol: collection.symbol,
+        collectionUri: collection.uri,
+        slug: input.slug || 'member-open',
+        name,
+        description,
+        imageUri: input.imageUri ?? policy.ownership?.imageUri ?? collection.imageUri,
+        metadataUri: input.metadataUri ?? policy.ownership?.metadataUri,
+        attributes: input.attributes,
+        sellerUserId,
+        sellerUsername,
+        sellerWallet: sellerWallet.address,
+        ownershipId: policy.ownership?.id,
+        priceRaw,
+        priceRing: String(input.priceRing),
+        decimals,
+        currency: 'RING',
+        ringMint: getNativeTokenAddress(),
+        feeBps,
+        feeRecipient: getMarketplaceFeeRecipient(),
+        feeRaw,
+        sellerProceedsRaw,
+        licenseExpiresAt: input.licenseExpiresAt,
+        createdAt,
+        updatedAt: createdAt,
+        status: 'draft',
+        searchText: [name, description, collection.symbol, collection.name, input.asset]
+          .filter(Boolean)
+          .join(' '),
+      }
+    } else {
+      const policy = await assertGateCanBeListed({
+        userId: sellerUserId,
+        asset: input.asset,
+        slug: String(input.slug),
+      })
+      if (!policy.ok) return { success: false, error: policy.error }
+
+      const template = await getNftGateTemplateResolved(input.slug)
+      if (!template) return { success: false, error: 'Unknown gate template' }
+
+      listing = {
+        id: `nft_listing_${randomUUID()}`,
+        chainFamily: 'solana',
+        mode: 'ledger-dev',
+        lane: 'keys',
+        asset: input.asset,
+        collection: getNftCollectionMint(),
+        collectionName: 'Ringdom Keys Collection',
+        collectionSymbol: getNftCollectionSymbol(),
+        collectionUri: getNftCollectionUri(),
+        slug: input.slug,
+        name: template.name,
+        description: template.description,
+        imageUri: input.imageUri ?? policy.ownership?.imageUri,
+        metadataUri: input.metadataUri,
+        attributes: input.attributes,
+        sellerUserId,
+        sellerUsername,
+        sellerWallet: sellerWallet.address,
+        ownershipId: policy.ownership?.id,
+        priceRaw,
+        priceRing: String(input.priceRing),
+        decimals,
+        currency: 'RING',
+        ringMint: getNativeTokenAddress(),
+        feeBps,
+        feeRecipient: getMarketplaceFeeRecipient(),
+        feeRaw,
+        sellerProceedsRaw,
+        licenseExpiresAt: input.licenseExpiresAt,
+        createdAt,
+        updatedAt: createdAt,
+        status: 'draft',
+        searchText: [
+          template.name,
+          template.description,
+          input.slug,
+          getNftCollectionSymbol(),
+          input.asset,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      }
     }
 
     const created = await db().createDoc<NftMarketListing>('nft_listings', listing, { id: listing.id })
@@ -198,11 +271,18 @@ export async function activateListing(
       return { success: false, error: 'Only draft listings can be activated' }
     }
 
-    const policy = await assertGateCanBeListed({
-      userId: sellerUserId,
-      asset: listing.asset,
-      slug: listing.slug,
-    })
+    const policy =
+      listing.lane === 'member' && listing.collectionId
+        ? await assertMemberAssetCanBeListed({
+            userId: sellerUserId,
+            asset: listing.asset,
+            collectionId: listing.collectionId,
+          })
+        : await assertGateCanBeListed({
+            userId: sellerUserId,
+            asset: listing.asset,
+            slug: String(listing.slug),
+          })
     if (!policy.ok) return { success: false, error: policy.error }
 
     const market = await SolanaMarketClient.listGate({

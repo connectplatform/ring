@@ -1,452 +1,229 @@
 ---
-title: NFT Маркетплейс
-description: Зразок NFT маркетплейсу з публічними профілями, EVM інтеграцією та комплексним управлінням лістингами
+title: NFT Exhibition Marketplace
+description: Dual-lane Solana Exhibition — verified KEYS gates and member-created Metaplex Core collections, settled in RING
+last_modified: "2026-07-12"
+audience: both
 ---
 
-# NFT Маркетплейс
+# NFT Exhibition Marketplace
 
-Повноцінний NFT маркетплейс, де учасники можуть лістити, шукати, купувати і продавати NFT через Web3 контракти з публічними профілями користувачів та підтримкою білого лейбла.
+<Callout type="success">
+  The shipped marketplace is **Solana-first** with **two lanes**: verified Ringdom **KEYS** gate NFTs, and an open **member creator** lane for on-platform Metaplex Core collections. Both settle in **RING** (ledger-dev PoC when `gateMarketProgramId` is empty).
+</Callout>
 
-## Огляд
+The NFT Exhibition Marketplace lets members list, browse, buy, and cancel eligible assets. For **KEYS** gates, a purchase transfers ownership, but **ownership alone does not unlock product access** — buyers must stake through GateEscrow before `GateResolver.hasFeature` grants the related feature. For **member** mints, purchase is ownership + RING only (no stake CTA, no feature unlock).
 
-Платформа Ring NFT маркетплейс дозволяє автентифікованим учасникам створювати лістинги NFT, переглядати колекції та виконувати безпечні блокчейн транзакції, демонструючи свої NFT колекції через публічні профілі за адресою `/[locale]/[username]` (наприклад, `/uk/johndoe`).
+| Surface | Verified truth |
+|---------|----------------|
+| Marketplace | `/nft/market`, `/nft/market/[listingId]`, `/nft/market/sell` |
+| Member create | `/nft/create`, `/nft/create/[collectionId]` |
+| Collections | `/nft/collections`, `/nft/collections/[slug]` |
+| Search | Search redirects land on `/nft/market?q=...` |
+| Feed | `useCursorFeed` with `moduleId="nft-market"`; optional `lane=keys\|member` |
+| Payment | RING only |
+| KEYS symbol | `KEYS` from gate collection metadata |
+| Member collections | `nft_member_collections` + listing `lane: 'member'` |
+| Listing storage | `nft_listings` |
+| Sale ledger | `nft_market_sales` |
+| Collection cache | `nft_market_collections` |
+| Migrations | `031_nft_exhibition_market_schema.sql`, `032_nft_member_collections_schema.sql` |
 
-## Ключові Можливості
+<Audience for="founder">
 
-### Система Торгівлі NFT
+## Why this matters for your clone
 
-**Управління Життєвим Циклом Лістинга**
-- **Створення Чернетки**: Серверна валідація чернеткових лістингів з метаданими
-- **Активація через Гаманець**: Клієнтська підпис транзакцій для активації лістингів on-chain
-- **Відстеження Статусу**: Комплексне управління станом (Чернетка → Активний → Проданий/Скасований)
+The marketplace turns tradeable vendor access keys into a visible economy **and** lets privileged members create their own on-platform collections without opening an external NFT import path.
 
-**Підтримувані Стандарти**
-- **ERC-721**: Індивідуальні унікальні NFT
-- **ERC-1155**: Напів-функціональні токени з пакетними операціями
-- **Мульти-чейн Підтримка**: Мережі Ethereum та Polygon
+<Cards>
+  <Card title="KEYS resale liquidity" href="/docs/features/nft-market">
+    Vendor-grade gates can move from one member to another without making membership transferable.
+  </Card>
+  <Card title="Member creator lane" href="/docs/features/nft-market">
+    Members create Metaplex Core collections, mint, and list for RING — ownership transfer only, no GateEscrow features.
+  </Card>
+  <Card title="Keep KEYS access gated" href="/docs/features/nft-gates">
+    A KEYS buyer must stake the gate before features activate. Listing and staking are mutually exclusive.
+  </Card>
+  <Card title="Use RING settlement" href="/docs/features/wallet">
+    Buyers pay in the clone native token through the custodial Solana wallet path.
+  </Card>
+</Cards>
 
-### Інтеграція Публічного Профілю
+### Operator Checklist
 
-**Сторінки Профілів Користувачів** за адресою `/[locale]/[username]`
-// Структура маршрутів публічного профілю (Next.js 16 App Router)
+- Enable NFT gates and marketplace config (`nft.marketplaceEnabled`).
+- Enable member collections PoC with `nft.memberCollectionsEnabled` and caps (`maxCollectionsPerMember`, `maxMintsPerCollection`).
+- Mint or import eligible vendor gates from the KEYS collection for lane K.
+- Confirm KEYS sellers understand that staked gates must be unstaked before listing.
+- Confirm KEYS buyers understand that a bought gate must be staked before benefits activate.
+- Confirm member mints never promise GateEscrow feature unlock.
+- Keep mainnet GateMarket disabled until the Anchor programs pass audit and Squads authority setup.
 
-<Code language="typescript" title="TypeScript">
-{`/[locale]/[username]  // наприклад, /uk/johndoe`}
+<Callout type="warning">
+  Membership NFTs are soulbound and never listable. KEYS lane remains only for `vendor-store-deed`, `vendor-dagi-key`, `vendor-annual-store-license`, and `vendor-quarterly-store-license`. Member lane assets use `source: member_mint` and are never GateEscrow feature keys.
+</Callout>
+
+### User Journey
+
+<Mermaid title="Dual-lane marketplace journey">
+{`flowchart TD
+  subgraph keys [Lane K KEYS]
+    SellerK[Seller owns tradeable KEYS gate] --> Unstaked{Gate is unstaked?}
+    Unstaked -- no --> Stop[Unstake before listing]
+    Unstaked -- yes --> ListK[List on /nft/market/sell]
+    ListK --> ActiveK[Active listing]
+    ActiveK --> BuyerK[Buyer pays RING]
+    BuyerK --> OwnK[Ownership transfers]
+    OwnK --> Stake[Buyer stakes gate]
+    Stake --> Feature[Feature access activates]
+  end
+  subgraph member [Lane M Member]
+    Member[hasMemberPrivileges] --> Create[/nft/create collection]
+    Create --> Mint[Mint asset]
+    Mint --> ListM[List for RING]
+    ListM --> BuyerM[Buyer pays RING]
+    BuyerM --> OwnM[Ownership only]
+  end
+`}
+</Mermaid>
+
+</Audience>
+
+<Audience for="developer">
+
+## Implementation Map
+
+| Path | Role |
+|------|------|
+| `app/[locale]/nft/market/page.tsx` | Server page, parses `q`, `collection`, `slug`, `lane`, `sort` |
+| `app/[locale]/nft/create/page.tsx` | Member create/mint/list wizard (requires `hasMemberPrivileges`) |
+| `app/[locale]/nft/market/sell/page.tsx` | KEYS seller wizard (excludes `member_mint`) |
+| `app/_actions/nft-member.ts` | `createMemberCollectionAction`, `mintMemberAssetAction`, `listMemberAssetAction` |
+| `features/nft-market/member/*` | Collection/mint services + `assertMemberAssetCanBeListed` |
+| `features/nft-market/listing-policy.ts` | KEYS tradeable SKU / stake / collection checks (lane K only) |
+| `features/nft-market/services/listing-service.ts` | Dual-lane draft/activate; member vs KEYS policy branch |
+| `features/nft-market/services/solana-market-client.ts` | Ledger-dev list/cancel/buy; Anchor branch blocked until program IDs |
+| `features/wallet/conductor/wallet-conductor.ts` | `purchaseNftListing` for both lanes |
+
+### Listing and Purchase Sequence
+
+<Mermaid title="NFT market list and buy">
+{`sequenceDiagram
+  participant Seller
+  participant Action as app/_actions/nft-market or nft-member
+  participant Policy as listing-policy or member-listing-policy
+  participant Service as listing-service
+  participant Market as SolanaMarketClient
+  participant Wallet as WalletConductor
+  participant Escrow as GateEscrow
+
+  Seller->>Action: list action
+  Action->>Service: createListingDraft(lane)
+  Service->>Policy: assertGateCanBeListed or assertMemberAssetCanBeListed
+  Policy-->>Service: ok
+  Service->>Market: listGate()
+  Market-->>Service: ledger-dev listingPda + signature
+  Service-->>Action: active listing
+  Buyer->>Action: purchaseGateListingAction(listingId, idempotencyKey)
+  Action->>Wallet: purchaseNftListing()
+  Wallet->>Market: buyGate()
+  Market-->>Wallet: RING settlement signature
+  Wallet->>Service: markSold()
+  Note over Escrow: KEYS only: stakeGateAction after buy
+`}
+</Mermaid>
+
+### Listing Policy
+
+<Steps>
+
+<Step>
+`isNftMarketplaceEnabled()` must pass. Member create/mint also requires `isMemberCollectionsEnabled()`.
+</Step>
+
+<Step>
+**Lane K:** slug must be one of the four tradeable SKUs. Template/ownership must not be soulbound; asset verifies against KEYS; no active stake.
+</Step>
+
+<Step>
+**Lane M:** `hasMemberPrivileges`, ownership `source: member_mint`, collection active, not soulbound, no active listing. No GateEscrow stake check for listing.
+</Step>
+
+<Step>
+An active listing blocks duplicate listings for the same asset. For KEYS: a staked gate blocks listing; an active listing means feature access is not active through staking.
+</Step>
+
+</Steps>
+
+<Code language="typescript" title="Verified tradeable KEYS SKUs">
+{`export const TRADEABLE_GATE_SLUGS = [
+  'vendor-store-deed',
+  'vendor-dagi-key',
+  'vendor-annual-store-license',
+  'vendor-quarterly-store-license',
+] as const`}
 </Code>
 
-**Можливості Профілю**
-- **Показ NFT**: Відображення належних та створених користувачем NFT
-- **Сітка Колекції**: Візуальна сітка з мініатюрами NFT
-- **Атрибуція Творця**: Виділення NFT, створених користувачем
-- **SEO Оптимізація**: Динамічні метатеги для пошукових систем
-- **Серверний Рендеринг**: Швидке завантаження з пошуком імені користувача
-
-### Перегляд Маркетплейсу
-
-**Управління Колекціями**
-- **Перегляд Колекцій**: `/[locale]/nft/collections`
-- **Індивідуальні Предмети**: `/[locale]/nft/items/[chain]/[contract]/[tokenId]`
-- **Розширений Пошук**: `/[locale]/nft/search` з фільтрами
-- **Навігація по Категоріях**: Фільтр по колекції, творцю, діапазону цін
-
-### Web3 Інтеграція
-
-**Підключення Гаманця та Підпис**
-// EVM адаптер для підписання транзакцій
-
-<Code language="typescript" title="TypeScript">
-{`import { ethers } from 'ethers'
-
-const provider = new ethers.BrowserProvider(window.ethereum)
-const signer = await provider.getSigner()
-
-// Підпис транзакції маркетплейсу
-const signature = await signer.signMessage(listingData)`}
-</Code>
-
-**Операції Смарт Контрактів**
-- **Затвердити та Лістит**: Затвердити переказ NFT та створити лістинг маркетплейсу
-- **Покупка**: Виконати транзакцію покупки з комісіями маркетплейсу
-- **Скасувати Лістит**: Видалити активний лістинг та повернути газ
-- **Підтримка Роялті**: Опціональний роялті творця
-
-## Реалізація
-
-### Створення Лістинга NFT
-
-**Крок 1: Створити Чернетку Лістинга**
-// Server action створює чернетковий лістинг
-
-<Code language="typescript" title="TypeScript">
-{`'use server'
-
-export async function createNFTListing(formData: FormData) {
-  const session = await auth()
-
-  if (!session?.user.role || session.user.role < UserRole.member) {
-    throw new Error('Потрібна роль MEMBER для NFT лістингів')
-  }
-
-  // Валідувати володіння NFT та метадані
-  const nftValidation = await validateNFTOwnership({
-    contract: formData.contractAddress,
-    tokenId: formData.tokenId,
-    owner: session.user.walletAddress
-  })
-
-  if (!nftValidation.isValid) {
-    throw new Error('Валідація володіння NFT не вдалася')
-  }
-
-  // Створити чернетковий лістинг в Firestore
-  const listingId = await createDraftListing({
-    sellerId: session.user.id,
-    contractAddress: formData.contractAddress,
-    tokenId: formData.tokenId,
-    price: formData.price,
-    currency: formData.currency,
-    metadata: {
-      name: formData.name,
-      description: formData.description,
-      image: formData.image,
-      attributes: formData.attributes
-    },
-    status: 'draft'
-  })
-
-  return { listingId }
-}`}
-</Code>
-
-**Крок 2: Активувати через Гаманець**
-// Клієнтська активація гаманця
-
-<Code language="typescript" title="TypeScript">
-{`'use client'
-
-export function ActivateListing({ listingId }: { listingId: string }) {
-  const [isActivating, setIsActivating] = useState(false)
-
-  const handleActivate = async () => {
-    setIsActivating(true)
-
-    try {
-      // Підключити гаманець
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-
-      // Отримати деталі лістинга
-      const listing = await getListing(listingId)
-
-      // Затвердити переказ NFT на контракт маркетплейсу
-      const nftContract = new ethers.Contract(
-        listing.contractAddress,
-        ERC721_ABI,
-        signer
-      )
-
-      const approveTx = await nftContract.approve(
-        MARKETPLACE_CONTRACT_ADDRESS,
-        listing.tokenId
-      )
-      await approveTx.wait()
-
-      // Створити лістинг маркетплейсу
-      const marketplaceContract = new ethers.Contract(
-        MARKETPLACE_CONTRACT_ADDRESS,
-        MARKETPLACE_ABI,
-        signer
-      )
-
-      const listingTx = await marketplaceContract.createListing(
-        listing.contractAddress,
-        listing.tokenId,
-        ethers.parseEther(listing.price.toString())
-      )
-      await listingTx.wait()
-
-      // Активувати лістинг в бэкенді
-      await activateListing(listingId, listingTx.hash)
-
-    } catch (error) {
-      console.error('Активація не вдалася:', error)
-      setIsActivating(false)
-    }
-  }
-
-  return (
-    <button
-      onClick={handleActivate}
-      disabled={isActivating}
-      className="activate-button"
-    >
-      {isActivating ? 'Активація...' : 'Активувати Лістит'}
-    </button>
-  )
-}`}
-</Code>
-
-### Потік Покупки NFT
-
-**Транзакція Покупки з Обробкою Комісій**
-// Виконати покупку NFT
-
-<Code language="typescript" title="TypeScript">
-{`export async function purchaseNFT(listingId: string, buyerAddress: string) {
-  // Отримати деталі лістинга
-  const listing = await getListing(listingId)
-
-  if (listing.status !== 'active') {
-    throw new Error('Лістинг недоступний')
-  }
-
-  // Розрахувати комісію маркетплейсу (конфігурируемі базисні пункти)
-  const marketplaceFee = (listing.price * MARKETPLACE_FEE_BPS) / 10000
-  const sellerProceeds = listing.price - marketplaceFee
-
-  // Виконати покупку маркетплейсу
-  const marketplaceContract = new ethers.Contract(
-    MARKETPLACE_CONTRACT_ADDRESS,
-    MARKETPLACE_ABI,
-    signer
-  )
-
-  const purchaseTx = await marketplaceContract.purchaseNFT(listingId, {
-    value: ethers.parseEther(listing.price.toString())
-  })
-  await purchaseTx.wait()
-
-  // Оновити статус лістинга
-  await updateListingStatus(listingId, 'sold', {
-    buyerAddress,
-    transactionHash: purchaseTx.hash,
-    marketplaceFee,
-    sellerProceeds
-  })
-
-  // Переказати кошти продавцю (за вирахуванням комісії маркетплейсу)
-  await transferFunds(sellerAddress, sellerProceeds)
-
-  return { transactionHash: purchaseTx.hash }
-}`}
-</Code>
-
-### Відображення NFT Профілю
-
-**Компонент Публічного Профілю**
-// components/profile/PublicProfile.tsx
-
-<Code language="typescript" title="TypeScript">
-{`export default function PublicProfile({ username }: { username: string }) {
-  const [profile, setProfile] = useState(null)
-  const [nftListings, setNftListings] = useState([])
-
-  useEffect(() => {
-    // Отримати профіль користувача
-    const fetchProfile = async () => {
-      const userData = await getUserByUsername(username)
-      setProfile(userData)
-    }
-
-    // Отримати лістинги NFT користувача
-    const fetchListings = async () => {
-      const listings = await getUserNFTListings(username)
-      setNftListings(listings)
-    }
-
-    fetchProfile()
-    fetchListings()
-  }, [username])
-
-  if (!profile) return <div>Завантаження...</div>
-
-  return (
-    <div className="profile-container">
-      <ProfileHeader user={profile} />
-      <NFTListingsGrid listings={nftListings} />
-    </div>
-  )
-}`}
-</Code>
-
-## Кінцеві Точки API
-
-### Управління Лістингами
-<Code language="typescript" title="TypeScript">
-{`// GET /api/nft-market/listings - Отримати всі активні лістинги
-// POST /api/nft-market/listings - Створити новий чернетковий лістинг
-// GET /api/nft-market/listings/[id] - Отримати конкретний лістинг
-// PUT /api/nft-market/listings/[id] - Оновити деталі лістинга
-// POST /api/nft-market/listings/activate - Активувати лістинг після on-chain tx
-// DELETE /api/nft-market/listings/[id] - Скасувати лістинг`}
-</Code>
-
-### Перегляд Колекцій
-// GET /api/nft-market/collections - Отримати колекції NFT
-
-<Code language="typescript" title="TypeScript">
-{`// GET /api/nft-market/collections/[id]/items - Отримати предмети колекції
-// GET /api/nft-market/search - Розширений пошук з фільтрами
-// GET /api/nft-market/items/[chain]/[contract]/[tokenId] - Деталі індивідуального NFT`}
-</Code>
-
-## Моделі Даних
-
-### Схема Лістинга NFT
-<Code language="typescript" title="interface NFTListing {">
-{`id: string
-  sellerId: string
-  contractAddress: string
-  tokenId: string
-  tokenStandard: 'ERC-721' | 'ERC-1155'
-  chainId: number
-  price: number
-  currency: string
-  status: 'draft' | 'active' | 'sold' | 'cancelled'
-  metadata: {
-    name: string
-    description: string
-    image: string
-    attributes: Array<{
-      trait_type: string
-      value: string
-    }>
-  }
-  transactionHash?: string
-  buyerAddress?: string
-  createdAt: Date
-  updatedAt: Date
-}`}
-</Code>
-
-### Схема Колекції NFT
-<Code language="typescript" title="interface NFTCollection {">
-{`id: string
-  name: string
-  description: string
-  creatorAddress: string
-  contractAddress: string
-  chainId: number
-  totalSupply: number
-  floorPrice?: number
-  volume24h?: number
-  metadata: {
-    image: string
-    banner?: string
-    externalUrl?: string
-  }
-}`}
-</Code>
-
-## Міркування Безпеки
-
-### Рольовий Контроль Доступу
-- **Створення Лістинга**: Потрібна роль MEMBER+
-- **Публічний Перегляд**: Доступно для всіх користувачів
-- **Транзакції Покупки**: Потрібне підключення гаманця
-
-### Безпека Смарт Контрактів
-- **Захист від Перезапуску**: OpenZeppelin guards
-- **Контроль Доступу**: Тільки авторизовані операції маркетплейсу
-- **Управління Комісіями**: Конфігурируемі комісії маркетплейсу
-- **Аварійна Пауза**: Функціональність circuit breaker
-
-### Валідація Транзакцій
-- **Володіння NFT**: Верифікується перед створенням лістинга
-- **Валідація Ціни**: Мінімум та максимум ціни
-- **Запобігання Дублюванню**: Валідація хэша транзакції
-- **Валідація Мережі**: Перевірка ID ланцюжка
-
-## Білий Лейбл Темізація
-
-**Кастомизація Бренду**
-// features/nft-market/theme.config.ts
-
-<Code language="typescript" title="TypeScript">
-{`export const nftMarketTheme = {
-  colors: {
-    primary: '#your-brand-color',
-    secondary: '#your-secondary-color',
-    accent: '#your-accent-color'
-  },
-  fonts: {
-    heading: 'your-heading-font',
-    body: 'your-body-font'
-  },
-  logo: {
-    main: '/your-logo.png',
-    icon: '/your-icon.png'
-  },
-  marketplace: {
-    fee: 250, // 2.5% базисних пунктів
-    supportedChains: [1, 137], // Ethereum, Polygon
-    defaultCurrency: 'ETH'
-  }
-}`}
-</Code>
-
-## Обробка Помилок
-
-### Поширені Сценарії Помилок
-// Обробка помилок NFT маркетплейсу
-
-<Code language="typescript" title="TypeScript">
-{`export function handleMarketplaceError(error: MarketplaceError) {
-  switch (error.code) {
-    case 'INSUFFICIENT_FUNDS':
-      return 'Недостатньо коштів для транзакції'
-    case 'NFT_NOT_OWNED':
-      return 'Ви не володієте цим NFT'
-    case 'LISTING_EXPIRED':
-      return 'Лістинг закінчився'
-    case 'NETWORK_ERROR':
-      return 'Помилка підключення до мережі'
-    case 'CONTRACT_ERROR':
-      return 'Виконання смарт контракту не вдалося'
-    default:
-      return 'Транзакція не вдалася'
-  }
-}`}
-</Code>
-
-### Моніторинг Статусу Транзакцій
-// Моніторити статус транзакції
-
-<Code language="typescript" title="TypeScript">
-{`export async function monitorTransaction(txHash: string) {
-  const provider = new ethers.JsonRpcProvider(RPC_URL)
-
-  // Чекати підтвердження
-  const receipt = await provider.waitForTransaction(txHash)
-
-  if (receipt.status === 1) {
-    // Успіх - оновити статус лістинга
-    await updateListingStatus(listingId, 'confirmed')
-  } else {
-    // Невдача - обробити помилку
-    await handleTransactionFailure(txHash)
-  }
-}`}
-</Code>
-
-## Чек-лист Інтеграції
-
-### Підготовка до Запуску
-- [ ] Розгорнути смарт контракти маркетплейсу
-- [ ] Конфігурувати підтримувані ланцюжки та RPC endpoints
-- [ ] Налаштувати провайдери підключення гаманців
-- [ ] Конфігурувати комісії маркетплейсу та параметри
-- [ ] Протестувати затвердження NFT та потоки лістинга
-- [ ] Валікувати маршрути публічних профілів
-
-### Розгортання в Продакшен
-- [ ] Увімкнути маркетплейс на підтримувані ланцюжках
-- [ ] Конфігурувати моніторинг та сповіщення
-- [ ] Налаштувати watchers транзакцій
-- [ ] Увімкнути білий лейбл темізацію
-- [ ] Протестувати end-to-end потоки покупки
-- [ ] Моніторити вартість газу та оптимізувати
-
----
-
-*Цей NFT маркетплейс надає повну Web3 екосистему торгівлі з професійною білою лейбл темізацією та комплексним управлінням транзакціями.*
+### Configuration Keys
+
+| Key | Effect |
+|-----|--------|
+| `nft.marketplaceEnabled` | Master secondary-market switch |
+| `nft.memberCollectionsEnabled` | Enables member create/mint/list PoC |
+| `nft.maxCollectionsPerMember` | Cap (default 3) |
+| `nft.maxMintsPerCollection` | Cap (default 50) |
+| `nft.gateMarketProgramId` | Empty = ledger-dev; non-empty Anchor path throws in this build |
+| `nft.marketplaceFeeRecipient` | Optional RING fee recipient |
+| `nft.marketplaceFeeBps` | Fee split basis points, clamped 0–10000 |
+
+### Persistence
+
+- `031_nft_exhibition_market_schema.sql` — listings, sales, collection cache
+- `032_nft_member_collections_schema.sql` — `nft_member_collections` + listing `lane` / `collectionId` indexes + KEYS lane backfill
+
+<Callout type="development">
+  `SolanaMarketClient.buyGate` settles through ledger-dev RING transfers when `gateMarketProgramId` is empty. Member lane reuses the same purchase path. The Anchor GateMarket CPI path is intentionally not implemented in this build.
+</Callout>
+
+The future program scaffold lives under `solana/programs/{gate-escrow,gate-market}`. `solana/SECURITY.md` blocks production or mainnet deployment until Smart Contract Security Auditor review, Squads authorities, pinned deployment records, and invariant tests are complete.
+
+</Audience>
+
+## Future On-Chain Work
+
+<FutureFeatureBacklog title="Backlog — on-chain NFT marketplace">
+
+<FutureFeatureWidget
+  name="GateMarket Anchor buy_listing"
+  description="Replace ledger-dev buy/list/cancel with an audited atomic CPI flow for Metaplex Core ownership transfer and SPL Token RING settlement for both KEYS and member lanes."
+  implementationCost={180}
+  labels={['solana', 'gate-market', 'audit']}
+  poolSlug="gate-market-anchor-buy-listing"
+/>
+
+<FutureFeatureWidget
+  name="Mainnet marketplace enablement"
+  description="Enable production marketplaceEnabled only after GateMarket and GateEscrow audits, Squads-controlled authorities, pinned IDs, and deployment records."
+  implementationCost={120}
+  labels={['mainnet', 'squads', 'security']}
+  poolSlug="nft-market-mainnet-enable"
+/>
+
+</FutureFeatureBacklog>
+
+## Related Documentation
+
+<Cards>
+  <Card title="Solana NFT Gates" href="/docs/features/nft-gates">
+    Primary sale, KEYS collection metadata, GateEscrow staking, and template activation.
+  </Card>
+  <Card title="Wallet" href="/docs/features/wallet">
+    Native RING balance and custodial Solana wallet flows used for marketplace settlement.
+  </Card>
+  <Card title="Subscriptions" href="/docs/features/subscriptions">
+    How `nft_gate` fits beside other access providers.
+  </Card>
+  <Card title="Security" href="/docs/features/security">
+    Production guardrails before audited on-chain marketplace deployment.
+  </Card>
+</Cards>

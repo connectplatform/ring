@@ -148,6 +148,7 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'nft_listings', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'nft_market_sales', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'nft_market_collections', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'nft_member_collections', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'news', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'news_categories', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'news_likes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },

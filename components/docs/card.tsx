@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
@@ -22,6 +23,40 @@ export function Cards({ children, className }: CardsProps) {
   )
 }
 
+/**
+ * MDX often puts markdown links inside Card body text. Card itself is a Link,
+ * so nested <a> causes hydration errors. Flatten anchors to plain text spans.
+ */
+function flattenNestedAnchors(node: ReactNode): ReactNode {
+  return React.Children.map(node, (child) => {
+    if (child == null || typeof child === 'boolean') return child
+    if (typeof child === 'string' || typeof child === 'number') return child
+
+    if (!React.isValidElement(child)) return child
+
+    const element = child as ReactElement<{ children?: ReactNode; href?: string }>
+    const type = element.type
+    const isAnchor =
+      type === 'a' ||
+      (typeof type === 'function' &&
+        ((type as { displayName?: string }).displayName === 'Link' ||
+          (type as { name?: string }).name === 'Link'))
+
+    if (isAnchor) {
+      return <span>{flattenNestedAnchors(element.props.children)}</span>
+    }
+
+    if (element.props?.children != null) {
+      return React.cloneElement(element, {
+        ...element.props,
+        children: flattenNestedAnchors(element.props.children),
+      })
+    }
+
+    return element
+  })
+}
+
 /** Linked doc card — distinct from shadcn `UiCard` in the MDX component map. */
 export function Card({ title, href, children }: CardProps) {
   return (
@@ -34,7 +69,9 @@ export function Card({ title, href, children }: CardProps) {
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
       </div>
       {children ? (
-        <div className="mt-2 text-sm leading-relaxed text-muted-foreground">{children}</div>
+        <div className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {flattenNestedAnchors(children)}
+        </div>
       ) : null}
     </Link>
   )

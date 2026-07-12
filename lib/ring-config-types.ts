@@ -476,6 +476,15 @@ export interface NftGateConfig {
   marketplaceFeeBps?: number
   /** Sponsor pays mint/stake/unstake SOL (buyer need not hold SOL). */
   sponsorFeePayer?: boolean
+  /**
+   * PoC: members may create on-platform Metaplex Core collections and mint/list
+   * (lane M). KEYS vendor-gate resale remains a separate verified lane.
+   */
+  memberCollectionsEnabled?: boolean
+  /** Cap of member-owned collections per user (default 3). */
+  maxCollectionsPerMember?: number
+  /** Cap of mints per member collection (default 50). */
+  maxMintsPerCollection?: number
   templates?: NftGateTemplate[]
 }
 

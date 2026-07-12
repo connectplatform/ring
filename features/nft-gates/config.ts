@@ -106,3 +106,21 @@ export function getMarketplaceFeeBps(): number {
 export function isSponsorFeePayerEnabled(): boolean {
   return getNftGateConfig().sponsorFeePayer !== false
 }
+
+/** Member creator lane (on-platform collections + mint/list PoC). */
+export function isMemberCollectionsEnabled(): boolean {
+  const cfg = getNftGateConfig()
+  return Boolean(cfg.enabled && cfg.marketplaceEnabled && cfg.memberCollectionsEnabled)
+}
+
+export function getMaxCollectionsPerMember(): number {
+  const raw = getNftGateConfig().maxCollectionsPerMember
+  if (!Number.isFinite(raw) || raw == null || raw < 1) return 3
+  return Math.min(50, Math.floor(raw))
+}
+
+export function getMaxMintsPerCollection(): number {
+  const raw = getNftGateConfig().maxMintsPerCollection
+  if (!Number.isFinite(raw) || raw == null || raw < 1) return 50
+  return Math.min(500, Math.floor(raw))
+}

@@ -18,10 +18,12 @@ function firstParam(value: string | string[] | undefined) {
 }
 
 function parseFilters(searchParams: Record<string, string | string[] | undefined>): NftMarketFilters {
+  const laneRaw = firstParam(searchParams.lane)?.trim() || ''
   return {
     q: firstParam(searchParams.q)?.trim() || '',
     collection: firstParam(searchParams.collection)?.trim() || '',
     slug: firstParam(searchParams.slug)?.trim() || '',
+    lane: laneRaw === 'keys' || laneRaw === 'member' ? laneRaw : '',
     sort: normalizeNftMarketSort(firstParam(searchParams.sort)),
   }
 }
@@ -67,6 +69,7 @@ export default async function NftMarketPage({
       q: filters.q || undefined,
       collection: filters.collection || undefined,
       slug: filters.slug || undefined,
+      lane: filters.lane || undefined,
       sort: filters.sort,
       status: 'active',
       limit: 24,

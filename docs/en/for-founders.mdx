@@ -1,7 +1,7 @@
 ---
 title: For Founders
-description: Curated docTree for founders and operators — journey hubs from first install to revenue, trust, and go-live
-last_modified: "2026-07-11"
+description: Curated docTree for founders and operators — Features, Examples, Customization, and Web3 first, then go-live
+last_modified: "2026-07-12"
 audience: founder
 ---
 
@@ -12,13 +12,14 @@ audience: founder
 //   2. Cross-linking target from other docs (e.g., from welcome/index.mdx)
 //   3. TODO tracking for missing audience-specific content
 // The runtime sidebar filtering consumes audience-curated-docs.ts instead.
+// Index revision 2026-07-12: section order = features → examples → customization → web3.
 
 # For Founders
 
-Curated index for **founders, operators, and decision-makers**. Hubs follow an operator journey — not a flat product dump. The sidebar **Founder** tab applies the same ordering via `lib/docs/audience-curated-docs.ts`.
+Curated index for **founders, operators, and decision-makers**. Sidebar **Founder** tab mirrors this via `lib/docs/audience-curated-docs.ts` — section **key order** is the sidebar order. Product value (Features, Examples, Customization, Web3) sits above deploy/architecture. API / CLI / Development / MCP stay on the [For Developers](/docs/for-developers) tree.
 
 <Callout type="info">
-  Flip **Founder** / **Developer** in the docs sidebar anytime. For a visual map of every HTTP door on your clone, open the [API Reference](/docs/api) (RingApiTree widget). Deep MCP, CLI, and module trees stay on the [For Developers](/docs/for-developers) index.
+  Flip **Founder** / **Developer** in the docs sidebar anytime. For a visual map of every HTTP door on your clone, open the [API Reference](/docs/api) (RingApiTree widget).
 </Callout>
 
 ---
@@ -34,68 +35,84 @@ Curated index for **founders, operators, and decision-makers**. Hubs follow an o
 
 ---
 
-## 2. Make money
+## 2. Features (make money → grow → reach → trust)
 
-[**Features** →](/docs/features) · [**Payment integration (ops)** →](/docs/customization/payment-integration)
+[**Features** →](/docs/features)
+
+### Make money
 
 - [Multi-Vendor Store](/docs/features/store) — Catalog, checkout, commissions
 - [SubscriptionConductor](/docs/features/subscriptions) — Recurring membership revenue
 - [PaymentConductor](/docs/features/payment-conductor) — Store, membership, news, wallet top-up
 - [Payments overview](/docs/features/payments) — Rails and gateway selection
-- [Wallet](/docs/features/wallet) — Credits + live WayForPay top-up
-- [Affiliates](/docs/features/affiliate-enablement) — Revenue share
-- [Refcodes](/docs/features/refcodes) — Share URLs and rewards
-- [NFT Marketplace](/docs/features/nft-market) — RING resale market for eligible KEYS vendor gates
-- [Solana NFT Gates](/docs/features/nft-gates) — Metaplex Core membership / vendor unlocks, stake-to-activate
-- [Staking](/docs/features/staking) — Passive pools
-- [Payment integration](/docs/customization/payment-integration) — WayForPay / Stripe cabinet checklist
+- [Wallet](/docs/features/wallet) · [WalletConductor](/docs/features/wallet-conductor)
+- [Affiliates](/docs/features/affiliate-enablement) · [Refcodes](/docs/features/refcodes)
+- [NFT Marketplace](/docs/features/nft-market) · [Solana NFT Gates](/docs/features/nft-gates) · [Staking](/docs/features/staking)
 
-Deep WayForPay HMAC / `regularApi` lives on the Developer tree: [WayForPay integration](/docs/features/wayforpay-integration).
+### Grow the network
 
----
+- [Entities](/docs/features/entities) · [Opportunities](/docs/features/opportunities)
+- [Messaging](/docs/features/messaging) · [WebRTC Calls](/docs/features/webrtc-calls)
+- [News](/docs/features/news) · [Member Blog](/docs/features/member-blog)
+- [Public Profile](/docs/features/public-profile) · [Username Reservation](/docs/features/username-reservation)
+- [Scientific Editor](/docs/features/scientific-editor)
 
-## 3. Grow the network
+### Reach members
 
-- [Entities](/docs/features/entities) — Verified directories
-- [Opportunities](/docs/features/opportunities) — Offers + requests marketplace
-- [Messaging](/docs/features/messaging) — Deal chat + Tunnel live events
-- [WebRTC Calls & STUNner](/docs/features/webrtc-calls) — 1:1 audio/video in direct chats
-- [News](/docs/features/news) — Newsroom and promotion
-- [Member Blog](/docs/features/member-blog) — Long-form member content
-- [Public Profile](/docs/features/public-profile) — SEO member pages
-- [Username Reservation](/docs/features/username-reservation) — Branded handles
-- [Scientific Editor](/docs/features/scientific-editor) — Live co-authoring
+- [Notifications](/docs/features/notifications) · [Push (FCM)](/docs/features/push-notifications-fcm)
+- [Email AI-CRM](/docs/features/email-ai-crm) · [Tunnel Protocol](/docs/features/tunnel-protocol)
+- [VideoConductor](/docs/features/video-conductor) · [MediaConductor](/docs/features/media-conductor)
 
----
+### Trust & brand
 
-## 4. Reach members
+- [Authentication](/docs/features/authentication) · [Security](/docs/features/security)
+- [Admin console](/docs/features/admin) · [Manage via Telegram](/docs/features/manage-via-telegram)
+- [Locale System](/docs/features/locale-system) · [Mobile](/docs/features/mobile-experience) · [Performance](/docs/features/performance)
 
-- [Notifications](/docs/features/notifications) — In-app alerts
-- [Push Notifications (FCM)](/docs/features/push-notifications-fcm) — Mobile push
-- [Email AI-CRM](/docs/features/email-ai-crm) — `info@` inbox assistance
-- [Tunnel Protocol](/docs/features/tunnel-protocol) — Live UI without reloads
-- [VideoConductor](/docs/features/video-conductor) — Scripted AI video
-- [MediaConductor](/docs/features/media-conductor) — Docs narration + walkthroughs (cached)
+Deep WayForPay HMAC lives on Developer: [WayForPay integration](/docs/features/wayforpay-integration).
 
 ---
 
-## 5. Trust & brand
+## 3. Examples (clone patterns)
 
-- [Authentication](/docs/features/authentication) — Auth.js multi-provider
-- [Security](/docs/features/security) — Compliance posture
-- [Admin console](/docs/features/admin) — Role-aware three-pane ops nav (Security hub, Email CRM, Store rail)
-- [Manage via Telegram](/docs/features/manage-via-telegram) — Admin bot (whitelist RBAC, news approval)
-- [Locale System](/docs/features/locale-system) — EN / UK / RU and more
-- [Mobile Experience](/docs/features/mobile-experience) — PWA
-- [Performance](/docs/features/performance) — Web vitals for operators
-- [Branding](/docs/customization/branding) · [Themes](/docs/customization/themes) · [Token economics](/docs/customization/token-economics)
-- [Customization quick start](/docs/customization/quick-start) · [Guide](/docs/customization/customization-guide) · [Success stories](/docs/customization/success-stories)
+[**Examples** →](/docs/examples)
 
-Member Telegram Login (identity badge) is separate — see [Username reservation](/docs/features/username-reservation).
+- [Quick start](/docs/examples/quick-start) · [Basic setup](/docs/examples/basic-setup)
+- [White-label](/docs/examples/white-label) · [Custom branding](/docs/examples/custom-branding)
+- [Web3 integration](/docs/examples/web3-integration)
+- [Real-world](/docs/examples/real-world) · [Advanced features](/docs/examples/advanced-features)
 
 ---
 
-## 6. Go live & operate
+## 4. Customization (your clone’s look & rails)
+
+[**Customization** →](/docs/customization)
+
+- [Quick start](/docs/customization/quick-start) · [Guide](/docs/customization/customization-guide)
+- [Branding](/docs/customization/branding) · [Themes](/docs/customization/themes) · [Features flags](/docs/customization/features)
+- [Localization](/docs/customization/localization)
+- [Token economics](/docs/customization/token-economics) · [Payment integration](/docs/customization/payment-integration)
+- [Success stories](/docs/customization/success-stories)
+
+---
+
+## 5. Web3 & wallet safety
+
+[**Web3** →](/docs/web3) · [**Wallet tips** →](/docs/wallet/security-tips)
+
+- [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions)
+- [Wallet Security Tips](/docs/wallet/security-tips)
+
+---
+
+## 6. Integrations (storage & wallets)
+
+- [Ethereum Wallets](/docs/integrations/ethereum-wallets)
+- [Ring Filebase](/docs/integrations/ring-filebase) · [Ring CDN](/docs/integrations/ring-cdn)
+
+---
+
+## 7. Go live & operate
 
 [**Deployment** →](/docs/deployment)
 
@@ -104,45 +121,23 @@ Member Telegram Login (identity badge) is separate — see [Username reservation
 - [Environment](/docs/deployment/environment) — Required secrets checklist
 - [Monitoring](/docs/deployment/monitoring) · [Backup](/docs/deployment/backup) · [Performance](/docs/deployment/performance)
 
----
-
-## 7. Marketplace ops
-
-- [Vendor Guide](/docs/vendor-guide) — Seller onboarding on ring-platform.org (root guide; linked from store)
-- [Store feature](/docs/features/store) — Operator commissions and vendor desk
-- ERP deep pages (inventory, commissions) stay on the Developer tree under Features → ERP
+Marketplace seller onboarding: [Vendor Guide](/docs/vendor-guide) (root guide; linked from store).
 
 ---
 
-## 8. Web3 compliance
-
-- [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions)
-- [Wallet Security Tips](/docs/wallet/security-tips)
-
----
-
-## Architecture (high-level only)
+## 8. Architecture (high-level only)
 
 [**Architecture** →](/docs/architecture)
 
-- [Data Model](/docs/architecture/data-model)
-- [Security](/docs/architecture/security)
-- [Real-Time](/docs/architecture/real-time)
-- [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync)
+- [Data Model](/docs/architecture/data-model) · [Security](/docs/architecture/security)
+- [Real-Time](/docs/architecture/real-time) · [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync)
 - [PaymentConductor](/docs/architecture/payment-conductor)
-
----
-
-## Examples & integrations
-
-- [Examples](/docs/examples) — quick-start, white-label, real-world, custom-branding
-- [Ethereum Wallets](/docs/integrations/ethereum-wallets)
 
 ---
 
 ## Reference
 
-- [API Reference](/docs/api) — visual RingApiTree of ~244 `/api` doors
+- [API Reference](/docs/api) — visual RingApiTree (Developer-depth; still useful for operators)
 - [Roadmap](/docs/roadmap) · [Docs hub](/docs) · [For Developers](/docs/for-developers)
 
-*Founders optimize for revenue, retention, and trust. Use the sidebar to flip to Developer for module depth and MCP.*
+*Founders optimize for revenue, retention, and trust. Flip to Developer for module depth, MCP, and CLI.*

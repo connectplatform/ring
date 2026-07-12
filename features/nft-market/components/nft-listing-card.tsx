@@ -49,10 +49,15 @@ export function NftListingCard({
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           sizes={compact ? '160px' : '(min-width: 1024px) 280px, 50vw'}
         />
-        <div className="absolute left-3 top-3 flex gap-2">
+        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge className="bg-black/70 text-white backdrop-blur">
-            {listing.collectionSymbol || 'KEYS'}
+            {listing.collectionSymbol || (listing.lane === 'member' ? 'MEMBER' : 'KEYS')}
           </Badge>
+          {listing.lane === 'member' ? (
+            <Badge variant="secondary">Member</Badge>
+          ) : (
+            <Badge className="bg-emerald-700/90 text-white">KEYS verified</Badge>
+          )}
           {listing.status !== 'active' ? (
             <Badge variant="secondary">{listing.status}</Badge>
           ) : null}
@@ -62,13 +67,15 @@ export function NftListingCard({
       <div className={compact ? 'space-y-2 p-3' : 'space-y-3 p-4'}>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {listing.slug}
+            {listing.lane === 'member' ? listing.collectionName || 'Member collection' : listing.slug}
           </p>
           <h3 className="line-clamp-2 font-semibold leading-tight">{listing.name}</h3>
         </div>
 
         <div className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-muted-foreground">{formatRemainingTerm(listing.licenseExpiresAt)}</span>
+          <span className="text-muted-foreground">
+            {listing.lane === 'member' ? 'Creator mint' : formatRemainingTerm(listing.licenseExpiresAt)}
+          </span>
           <span className="truncate text-muted-foreground">{formatSeller(listing)}</span>
         </div>
 

@@ -129,6 +129,10 @@ function ListingActions({
   const canBuy = signedIn && !isSeller && listing.status === 'active'
   const canCancel = signedIn && isSeller && (listing.status === 'active' || listing.status === 'draft')
   const purchased = purchaseState?.success
+  const isMemberLane = listing.lane === 'member'
+  const purchaseSuccessMessage = isMemberLane
+    ? purchaseState?.message || 'Purchased. Ownership transferred — no stake required for member mints.'
+    : purchaseState?.message || 'Purchased. Stake it to activate gate benefits.'
 
   return (
     <div className="space-y-3">
@@ -151,7 +155,7 @@ function ListingActions({
       {purchaseState?.success ? (
         <Alert>
           <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription>{purchaseState.message || 'Purchased. Stake it to activate gate benefits.'}</AlertDescription>
+          <AlertDescription>{purchaseSuccessMessage}</AlertDescription>
         </Alert>
       ) : null}
       {stakeError ? (
@@ -175,7 +179,7 @@ function ListingActions({
         </form>
       ) : null}
 
-      {purchased ? (
+      {purchased && !isMemberLane ? (
         <Button
           type="button"
           className="w-full"
@@ -194,6 +198,12 @@ function ListingActions({
           }}
         >
           {isStaking ? 'Staking...' : 'Stake to activate'}
+        </Button>
+      ) : null}
+
+      {purchased && isMemberLane ? (
+        <Button asChild variant="outline" className="w-full">
+          <Link href={ROUTES.NFT_MARKET()}>Back to market</Link>
         </Button>
       ) : null}
 
@@ -260,13 +270,20 @@ export function NftListingDetailsWrapper({
 
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
-              <Badge>{listing.collectionSymbol || 'KEYS'}</Badge>
+              <Badge>{listing.collectionSymbol || (listing.lane === 'member' ? 'MEMBER' : 'KEYS')}</Badge>
+              {listing.lane === 'member' ? (
+                <Badge variant="secondary">Member collection</Badge>
+              ) : (
+                <Badge className="bg-emerald-700 text-white">KEYS verified</Badge>
+              )}
               <Badge variant="outline">{listing.status}</Badge>
               <Badge variant="secondary">{listing.mode}</Badge>
             </div>
 
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.22em] text-primary">{listing.slug}</p>
+              <p className="text-sm font-medium uppercase tracking-[0.22em] text-primary">
+                {listing.lane === 'member' ? 'Member mint' : listing.slug}
+              </p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">{listing.name}</h1>
               {listing.description ? (
                 <p className="mt-4 text-muted-foreground">{listing.description}</p>
@@ -276,13 +293,25 @@ export function NftListingDetailsWrapper({
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border bg-card/70 p-4">
                 <KeyRound className="mb-2 h-5 w-5 text-primary" />
-                <p className="text-xs text-muted-foreground">Term</p>
-                <p className="font-semibold">{formatRemainingTerm(listing.licenseExpiresAt)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {listing.lane === 'member' ? 'Access' : 'Term'}
+                </p>
+                <p className="font-semibold">
+                  {listing.lane === 'member'
+                    ? 'Ownership only'
+                    : formatRemainingTerm(listing.licenseExpiresAt)}
+                </p>
               </div>
               <div className="rounded-2xl border bg-card/70 p-4">
                 <ShieldCheck className="mb-2 h-5 w-5 text-primary" />
-                <p className="text-xs text-muted-foreground">Verified collection</p>
-                <p className="font-semibold">{listing.collectionSymbol || 'KEYS'}</p>
+                <p className="text-xs text-muted-foreground">
+                  {listing.lane === 'member' ? 'Lane' : 'Verified collection'}
+                </p>
+                <p className="font-semibold">
+                  {listing.lane === 'member'
+                    ? 'Open member'
+                    : listing.collectionSymbol || 'KEYS'}
+                </p>
               </div>
               <div className="rounded-2xl border bg-card/70 p-4">
                 <XCircle className="mb-2 h-5 w-5 text-primary" />
@@ -300,7 +329,9 @@ export function NftListingDetailsWrapper({
                   </p>
                 </div>
                 <p className="max-w-[14rem] text-right text-xs text-muted-foreground">
-                  RING settlement, verified Solana KEYS gate listing.
+                  {listing.lane === 'member'
+                    ? 'RING settlement for member-created Metaplex Core assets. No GateEscrow stake.'
+                    : 'RING settlement, verified Solana KEYS gate listing.'}
                 </p>
               </div>
               <div className="mt-5">

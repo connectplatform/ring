@@ -91,6 +91,9 @@ const BASE_ROUTES = {
   NFT_MARKET: '/nft/market',
   NFT_MARKET_LISTING: (listingId: string) => `/nft/market/${encodeURIComponent(listingId)}`,
   NFT_MARKET_SELL: '/nft/market/sell',
+  NFT_CREATE: '/nft/create',
+  NFT_CREATE_COLLECTION: (collectionId: string) =>
+    `/nft/create/${encodeURIComponent(collectionId)}`,
   NFT_COLLECTION: (collection: string) => `/nft/collections/${encodeURIComponent(collection)}`,
   NFT_COLLECTIONS: '/nft/collections',
   NFT_GATES: '/nft/gates',
@@ -191,6 +194,9 @@ export const ROUTES = {
   NFT_MARKET_LISTING: (listingId: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/nft/market/${encodeURIComponent(listingId)}`),
   NFT_MARKET_SELL: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/market/sell'),
+  NFT_CREATE: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/create'),
+  NFT_CREATE_COLLECTION: (collectionId: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/nft/create/${encodeURIComponent(collectionId)}`),
   NFT_COLLECTION: (collection: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/nft/collections/${encodeURIComponent(collection)}`),
   NFT_COLLECTIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/nft/collections'),

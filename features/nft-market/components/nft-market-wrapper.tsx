@@ -32,6 +32,7 @@ export type NftMarketFilters = {
   q: string
   collection: string
   slug: string
+  lane?: '' | 'keys' | 'member'
   sort: NonNullable<NftMarketListingFilters['sort']>
 }
 
@@ -53,6 +54,7 @@ function buildUrl(locale: Locale, filters: NftMarketFilters) {
   if (filters.q) params.set('q', filters.q)
   if (filters.collection) params.set('collection', filters.collection)
   if (filters.slug) params.set('slug', filters.slug)
+  if (filters.lane) params.set('lane', filters.lane)
   if (filters.sort !== 'newest') params.set('sort', filters.sort)
   const query = params.toString()
   return `${ROUTES.NFT_MARKET(locale)}${query ? `?${query}` : ''}`
@@ -85,6 +87,10 @@ function MarketFiltersRail({
               q: String(formData.get('q') || '').trim(),
               collection: String(formData.get('collection') || ''),
               slug: String(formData.get('slug') || '').trim(),
+              lane: (() => {
+                const value = String(formData.get('lane') || '')
+                return value === 'keys' || value === 'member' ? value : ''
+              })(),
               sort: normalizeNftMarketSort(String(formData.get('sort') || 'newest')),
             })
           }}
@@ -111,6 +117,20 @@ function MarketFiltersRail({
                   {collection.symbol} · {collection.activeListings} listed
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="nft-market-lane">Lane</Label>
+            <select
+              id="nft-market-lane"
+              name="lane"
+              defaultValue={filters.lane || 'all'}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All lanes</option>
+              <option value="keys">KEYS verified</option>
+              <option value="member">Member collections</option>
             </select>
           </div>
 
@@ -149,8 +169,11 @@ function MarketFiltersRail({
         <Button asChild variant="outline" className="mt-4 w-full">
           <Link href={ROUTES.NFT_MARKET_SELL(locale)}>
             <Store className="mr-2 h-4 w-4" />
-            List a gate NFT
+            List a KEYS gate
           </Link>
+        </Button>
+        <Button asChild variant="secondary" className="mt-2 w-full">
+          <Link href={ROUTES.NFT_CREATE(locale)}>Create member mint</Link>
         </Button>
       </DavinciGlassPanel>
     </div>
@@ -178,6 +201,7 @@ export function NftMarketFeed({
         q: filters.q || undefined,
         collection: filters.collection || undefined,
         slug: filters.slug || undefined,
+        lane: filters.lane || undefined,
         sort: filters.sort,
         status: 'active',
         limit: PAGE_SIZE,
@@ -268,15 +292,21 @@ export function NftMarketWrapper({
       <RingBreadcrumbs items={[{ label: 'NFT Exhibition', href: ROUTES.NFT_MARKET(locale) }]} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary">KEYS marketplace</p>
+          <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary">Exhibition marketplace</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">NFT Exhibition Marketplace</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Trade verified Ringdom KEYS gate NFTs in RING, then stake purchased gates to activate their platform features.
+            Two lanes in one feed: verified KEYS gates (stake after buy) and member-created Metaplex Core collections
+            (ownership + RING only). Ledger-dev settlement for PoC.
           </p>
         </div>
-        <Button asChild>
-          <Link href={ROUTES.NFT_MARKET_SELL(locale)}>Sell eligible gate</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={ROUTES.NFT_CREATE(locale)}>Create / mint</Link>
+          </Button>
+          <Button asChild>
+            <Link href={ROUTES.NFT_MARKET_SELL(locale)}>Sell KEYS gate</Link>
+          </Button>
+        </div>
       </div>
     </div>
   )
