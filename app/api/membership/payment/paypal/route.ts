@@ -23,15 +23,7 @@ type PayPalPaymentRequest = z.infer<typeof PayPalPaymentRequestSchema>
 
 /**
  * POST /api/membership/payment/paypal
- * Process membership fee payment via PayPal.
- *
- * SSOT: PayPal integration is currently a stub (Phase S7).
- * This endpoint handles:
- * - membership_upgrade: Upgrade from SUBSCRIBER to MEMBER via PayPal
- * - subscription_renewal: Renew existing subscription via PayPal
- * - membership_fee: One-time payment without subscription via PayPal
- *
- * PayPal payments default to auto_subscribe=true (recurring billing).
+ * Membership fee via PaymentConductor (processor paypal) + SubscriptionConductor provider paypal.
  */
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -87,77 +79,90 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SSOT: route through SubscriptionConductor paypal provider (Phase S8 stub)
-    // and PaymentConductor paypal processor — no parallel hardcoded 501 path.
+    // SSOT: PaymentConductor paypal processor + SubscriptionConductor paypal provider
     if (type === 'subscription_renewal') {
-      const renewal = await SubscriptionConductor.renewSubscription(userId, 'paypal')
-      return NextResponse.json(
-        {
-          error: renewal.error || 'PayPal integration not yet implemented',
-          code: 'PAYPAL_NOT_IMPLEMENTED',
-          message:
-            'PayPal payment processing is currently in development (Phase S8). Please use credit balance, native token, or card payment.',
-          available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
-        },
-        { status: 501 }
+      const existing = await SubscriptionConductor.getSubscription(userId)
+      const renewal = await SubscriptionConductor.renewSubscription(
+        userId,
+        'paypal',
+        existing?.paypal_subscription_id,
       )
-    }
-
-    const { PaymentConductor } = await import('@/lib/payments/conductor/payment-conductor')
-    const checkout = await PaymentConductor.createCheckout({
-      purpose: 'membership_upgrade',
-      userId,
-      userEmail,
-      entityId: userId,
-      amount: paymentAmount,
-      currency: 'USD',
-      returnUrl: '',
-      metadata: { processor: 'paypal', type, auto_subscribe },
-    })
-
-    if (!checkout.success) {
-      // Also probe SubscriptionConductor so ledger provider stays SSOT when PayPal goes live
-      if (auto_subscribe) {
-        const sub = await SubscriptionConductor.createSubscription({
-          userId,
-          userEmail,
-          provider: 'paypal',
-          gateway: 'paypal',
-          method: 'paypal',
-          amount: paymentAmount,
-          currency: 'USD',
-          gatewayFeePercent: 0,
-          gatewayFeeFixed: 0,
-          metadata: { source: 'paypal_payment', type },
-        })
+      if (!renewal.success) {
         return NextResponse.json(
           {
-            error: checkout.error || sub.error || 'PayPal integration not yet implemented',
-            code: checkout.code || 'PAYPAL_NOT_IMPLEMENTED',
+            error: renewal.error || 'PayPal renewal failed',
+            code: 'PAYPAL_RENEW_FAILED',
             message:
-              'PayPal payment processing is currently in development (Phase S8). Please use credit balance, native token, or card payment.',
-            available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
+              'PayPal renew is webhook-driven. Use a new membership_upgrade checkout or wait for SALE.COMPLETED.',
+            available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay', 'paypal'],
           },
-          { status: 501 }
+          { status: 400 },
+        )
+      }
+      return NextResponse.json({ success: true, ...renewal })
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ring-platform.org'
+    const returnUrl = `${baseUrl}/membership/manage?status=paypal_return`
+
+    // Prefer SubscriptionConductor (creates PaymentConductor checkout once via paypal provider)
+    const sub = await SubscriptionConductor.createSubscription({
+      userId,
+      userEmail,
+      provider: 'paypal',
+      gateway: 'paypal',
+      method: 'paypal',
+      amount: paymentAmount,
+      currency: 'USD',
+      gatewayFeePercent: 2.9,
+      gatewayFeeFixed: 0.3,
+      returnUrl,
+      metadata: {
+        source: 'paypal_payment',
+        type,
+        auto_subscribe,
+        returnUrl,
+      },
+    })
+
+    if (!sub.success || !sub.redirectUrl) {
+      // Fallback: direct PaymentConductor if provider path failed
+      const { PaymentConductor } = await import('@/lib/payments/conductor/payment-conductor')
+      const checkout = await PaymentConductor.createCheckout({
+        purpose: 'membership_upgrade',
+        rail: 'merchant_redirect',
+        userId,
+        userEmail,
+        entityId: userId,
+        amount: paymentAmount,
+        currency: 'USD',
+        returnUrl,
+        metadata: { processor: 'paypal', type, auto_subscribe },
+      })
+
+      if (!checkout.success || !checkout.paymentUrl) {
+        return NextResponse.json(
+          {
+            error: sub.error || checkout.error || 'PayPal checkout failed',
+            code: checkout.code || 'PAYPAL_CHECKOUT_FAILED',
+            message: sub.error || checkout.error || 'Unable to start PayPal checkout',
+            available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay', 'paypal'],
+          },
+          { status: 400 },
         )
       }
 
-      return NextResponse.json(
-        {
-          error: checkout.error || 'PayPal integration not yet implemented',
-          code: checkout.code || 'PAYPAL_NOT_IMPLEMENTED',
-          message:
-            'PayPal payment processing is currently in development (Phase S8). Please use credit balance, native token, or card payment.',
-          available_providers: ['credit_balance', 'native_token', 'stripe', 'wayforpay'],
-        },
-        { status: 501 }
-      )
+      return NextResponse.json({
+        success: true,
+        paymentUrl: checkout.paymentUrl,
+        orderReference: checkout.orderReference,
+      })
     }
 
     return NextResponse.json({
       success: true,
-      paymentUrl: checkout.paymentUrl,
-      orderReference: checkout.orderReference,
+      paymentUrl: sub.redirectUrl,
+      orderReference: sub.gatewayReference || sub.subscriptionId,
     })
 
   } catch (error) {
@@ -188,17 +193,23 @@ export async function GET(request: NextRequest) {
 
     const membershipFee = getMembershipRingUpgradeAmount()
 
+    const { isPayPalCredentialsConfigured } = await import('@/lib/payments/processors/paypal-client')
+    const live = isPayPalCredentialsConfigured()
+
     const response = {
-      status: 'not_implemented',
-      message: 'PayPal integration is currently in development (Phase S8)',
+      status: live ? 'live' : 'credentials_missing',
+      message: live
+        ? 'PayPal Orders v2 via PaymentConductor is available'
+        : 'Set PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET (and WEBHOOK_ID) to enable PayPal',
       conductor: {
-        payment: 'PaymentConductor.createCheckout({ metadata.processor: paypal })',
-        subscription: 'SubscriptionConductor provider paypal (Phase S8 stub)',
+        payment: 'PaymentConductor.createCheckout({ rail: merchant_redirect, metadata.processor: paypal })',
+        subscription: 'SubscriptionConductor provider paypal',
+        webhook: 'POST /api/payments/paypal/webhook',
       },
       provider: {
         name: 'paypal',
         supported_methods: ['paypal_account'],
-        supported_currencies: ['USD', 'EUR', 'GBP'],
+        supported_currencies: ['USD', 'EUR'],
       },
       pricing: {
         membership_fee: {
@@ -206,7 +217,7 @@ export async function GET(request: NextRequest) {
           currency: 'USD',
         },
         fees: {
-          processing_fee: '3.49% + $0.49', // Typical PayPal fees
+          processing_fee: '2.9% + $0.30 (ring-config payment.gateways.paypal)',
           platform_fee: '0',
         },
       },
@@ -214,12 +225,12 @@ export async function GET(request: NextRequest) {
         {
           provider: 'credit_balance',
           endpoint: '/api/membership/payment/credit',
-          description: 'Pay with fiat USD credit balance',
+          description: 'Pay with credit units (points)',
         },
         {
           provider: 'native_token',
           endpoint: '/api/membership/payment/token',
-          description: 'Pay with on-chain RING token (gasless)',
+          description: 'Pay with on-chain native token',
         },
         {
           provider: 'stripe',
@@ -232,17 +243,6 @@ export async function GET(request: NextRequest) {
           description: 'Pay with credit/debit card via WayForPay',
         },
       ],
-      roadmap: {
-        phase: 'S8',
-        status: 'in_development',
-        features: [
-          'PayPal order creation',
-          'PayPal approval redirect',
-          'PayPal webhook handling',
-          'SubscriptionConductor paypal provider (live)',
-          'PaymentConductor paypal.processor (live)',
-        ],
-      },
     }
 
     return NextResponse.json(response)

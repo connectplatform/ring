@@ -43,6 +43,10 @@ export function getConversationTitle(
     )
   }
 
+  if (conversation.type === 'order_lab') {
+    return conversation.metadata.subject || `Order Lab ${conversation.metadata.orderId || ''}`.trim()
+  }
+
   return 'Conversation'
 }
 
@@ -136,6 +140,8 @@ export function getConversationTypeGlyph(type: Conversation['type']): string {
       return '✨'
     case 'group':
       return '👥'
+    case 'order_lab':
+      return '🧪'
     case 'direct':
     default:
       return '👤'

@@ -22,7 +22,10 @@ import { cn } from '@/lib/utils'
 interface ProductImage {
   url: string
   alt: string
+  /** WebP / list thumbnail — preferred for strip & first paint */
   thumbnail?: string
+  /** Original full-res URL for lightbox (defaults to url) */
+  originalUrl?: string
 }
 
 interface ProductImageGalleryProps {
@@ -54,6 +57,8 @@ export default function ProductImageGallery({
   }]
 
   const currentImage = displayImages[currentIndex]
+  const stripSrc = currentImage.thumbnail || currentImage.url
+  const lightboxSrc = currentImage.originalUrl || currentImage.url
 
   // Auto-play slideshow
   useEffect(() => {
@@ -132,7 +137,7 @@ export default function ProductImageGallery({
         >
           {/* Main Image */}
           <Image
-            src={currentImage.url}
+            src={stripSrc}
             alt={currentImage.alt}
             fill
             sizes="(max-width: 448px) 100vw, 448px"
@@ -262,7 +267,7 @@ export default function ProductImageGallery({
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div className="relative w-full h-full">
               <Image
-                src={currentImage.url}
+                src={lightboxSrc}
                 alt={currentImage.alt}
                 fill
                 sizes="100vw"

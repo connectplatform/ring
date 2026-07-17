@@ -1,21 +1,307 @@
 {
-  "title": "Ring Platform Deployment Calculator",
-  "description": "Calculate your deployment time, costs, and get a customized roadmap for launching your Ring platform",
+  "title": "Ring Project Calculator",
+  "description": "Estimate ringization cost, Ringdom hosting, niche packs, modules, and milestones for your Ring SuperApp",
   "hero": {
-    "title": "Ring Platform Deployment Calculator",
-    "subtitle": "Estimate your deployment time, costs, and get a customized roadmap"
+    "title": "Ring Project Calculator",
+    "subtitle": "Choose a niche pack, toggle modules and Ringdom services, and see realistic one-time and monthly costs"
+  },
+  "sections": {
+    "niches": "Niche pack",
+    "nichesHint": "Tap a SuperApp niche — modules in the pack are pre-selected at pack pricing",
+    "modules": "Modules",
+    "modulesHint": "Toggle individual modules on or off. Pack modules keep the discount",
+    "externals": "Ringdom services",
+    "externalsHint": "Optional monthly infrastructure: storage, CDN, mail, DNS",
+    "scale": "Expected scale",
+    "hosting": "Select hosting",
+    "hostingHint": "Self-host on your infrastructure, or Ringdom AI-managed hosting with instant CDN"
+  },
+  "niches": {
+    "marketplace": {
+      "name": "Marketplace SuperApp",
+      "description": "Buy/sell with entities and messaging"
+    },
+    "opportunities": {
+      "name": "Opportunities Network",
+      "description": "Jobs, projects, AI matching"
+    },
+    "cooperative": {
+      "name": "Niche Social Network",
+      "description": "Community graph with messaging, meetups, and map"
+    },
+    "news_media": {
+      "name": "News & Media Hub",
+      "description": "Publishing, CRM inbox, analytics"
+    },
+    "multi_vendor": {
+      "name": "Multi-Vendor Store",
+      "description": "Store, ERP, referral codes"
+    },
+    "scientific": {
+      "name": "Scientific Publishing",
+      "description": "Co-editing, AI assistant, entities"
+    },
+    "enterprise": {
+      "name": "Enterprise Intranet",
+      "description": "Internal network, CRM, opportunities"
+    },
+    "digital_city": {
+      "name": "Digital City",
+      "description": "Maps, places, meetups, messenger, opportunities, DAO"
+    }
+  },
+  "modules": {
+    "auth": {
+      "name": "Authentication",
+      "description": "Auth.js login and roles"
+    },
+    "entities": {
+      "name": "Entities",
+      "description": "Org and user profiles"
+    },
+    "opportunities": {
+      "name": "Opportunities",
+      "description": "Offers, requests, matching"
+    },
+    "messaging": {
+      "name": "Messaging",
+      "description": "Realtime conversations"
+    },
+    "store": {
+      "name": "Store",
+      "description": "E-commerce marketplace"
+    },
+    "news": {
+      "name": "News",
+      "description": "Editorial publishing"
+    },
+    "wallet": {
+      "name": "Wallet",
+      "description": "Credits and tokens"
+    },
+    "nft": {
+      "name": "NFT Market",
+      "description": "Collections and trading"
+    },
+    "staking": {
+      "name": "Staking",
+      "description": "Token staking rewards"
+    },
+    "ai_matcher": {
+      "name": "AI Matcher",
+      "description": "Intelligent matching"
+    },
+    "analytics": {
+      "name": "Analytics",
+      "description": "Usage and growth"
+    },
+    "erp": {
+      "name": "Vendor ERP",
+      "description": "Stock, orders, settlements"
+    },
+    "refcodes": {
+      "name": "Referral Codes",
+      "description": "Share and earn rails"
+    },
+    "email_crm": {
+      "name": "Email CRM",
+      "description": "AI-assisted inbox"
+    },
+    "map": {
+      "name": "Maps",
+      "description": "Interactive GIS map with PostGIS nearby search"
+    },
+    "places": {
+      "name": "Places",
+      "description": "Location listings with geolocation CRUD"
+    },
+    "meetups": {
+      "name": "Meetups",
+      "description": "Local events and community gatherings"
+    },
+    "dao": {
+      "name": "DAO / Public pools",
+      "description": "Community funding pools for future features"
+    }
+  },
+  "domains": {
+    "core": "Core",
+    "commerce": "Commerce",
+    "community": "Community",
+    "web3": "Web3",
+    "ai": "AI",
+    "admin": "Admin"
+  },
+  "externals": {
+    "ringbase": {
+      "name": "RingBase",
+      "description": "Object storage API for media"
+    },
+    "ringcdn": {
+      "name": "RingCDN",
+      "description": "Instant edge propagation"
+    },
+    "mail": {
+      "name": "k8s-mail",
+      "description": "Platform mail on K8s"
+    },
+    "dns": {
+      "name": "ringdomNS",
+      "description": "Managed DNS for your clone"
+    }
+  },
+  "scales": {
+    "small": {
+      "name": "Small",
+      "description": "10–100 users"
+    },
+    "medium": {
+      "name": "Medium",
+      "description": "100–1,000 users"
+    },
+    "large": {
+      "name": "Large",
+      "description": "1,000–10,000 users"
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "10,000+ users"
+    }
+  },
+  "branding": {
+    "title": "UI & branding customization",
+    "description": "Theme, logos, locale overlay",
+    "badge": "{cost} when on"
+  },
+  "labels": {
+    "inPack": "In pack · 30% off",
+    "perMonth": "{cost}/mo",
+    "setupMeta": "Setup: {hours}h · {cost}/mo",
+    "regionCost": "{cost}/mo"
+  },
+  "calculating": "Calculating...",
+  "calculate": "Lock estimate",
+  "results": {
+    "title": "Estimate",
+    "oneTime": "One-time ringization",
+    "monthly": "Monthly Ringdom",
+    "packSavings": "Pack savings",
+    "packSavingsDetail": "Niche pack saves {savings} vs a-la-carte ({alaCarte})",
+    "recommendedConfig": "Recommended configuration",
+    "timeline": "4-week milestone plan",
+    "timelineDescription": "Realistic founder rollout from config to launch",
+    "complexity": "Customization complexity",
+    "nextSteps": "Next steps",
+    "hours": "Est. hours",
+    "ringTokens": "RNG",
+    "complexityLabel": "Complexity",
+    "niche": "Niche pack",
+    "hosting": "Hosting",
+    "features": "Modules",
+    "externals": "Ringdom services",
+    "rate": "RNG rate",
+    "rateDetail": "{pointsPerToken} {creditUnit} = 1 {token} · 1 {creditUnit} = {unitRate} {currency}",
+    "selfHost": "Self-hosted (no Ringdom hosting fee)",
+    "ringdomHosting": "Ringdom AI-managed hosting",
+    "complexityLevel": "Complexity level",
+    "complexityHint": {
+      "low": "Low complexity — branding and config may be enough",
+      "medium": "Medium — consider Settler credits or Ring customization help",
+      "high": "High — AI self-construct or a customization opportunity is recommended"
+    },
+    "complexAlert": "For complex builds, become a Settler or post a ring customization opportunity to connect with experienced builders."
+  },
+  "timelineTasks": {
+    "simple": {
+      "week1": [
+        "Clone Ring Platform",
+        "Apply niche preset and branding"
+      ],
+      "week2": [
+        "Enable pack modules",
+        "Wire auth and entities"
+      ],
+      "week3": [
+        "Smoke-test core flows",
+        "Optional Ringdom services"
+      ],
+      "week4": [
+        "Hardening, launch checklist",
+        "Go live"
+      ]
+    },
+    "medium": {
+      "week1": [
+        "Settler / project kickoff",
+        "Ringize config and vertical presets"
+      ],
+      "week2": [
+        "Pack modules + extras",
+        "Payments / matcher as needed"
+      ],
+      "week3": [
+        "RingBase / CDN / mail wiring",
+        "QA across locales"
+      ],
+      "week4": [
+        "K8s deploy or production cutover",
+        "Monitoring and founder handover"
+      ]
+    },
+    "complex": {
+      "week1": [
+        "Architecture + niche confirmation",
+        "AI self-construct plan",
+        "Security baseline"
+      ],
+      "week2": [
+        "Core + commerce/community modules",
+        "Custom module scoping"
+      ],
+      "week3": [
+        "Web3 / AI / ERP integrations",
+        "External Ringdom services"
+      ],
+      "week4": [
+        "Load and acceptance tests",
+        "Production deploy",
+        "Milestone review"
+      ]
+    }
+  },
+  "complexity": {
+    "simple": "Simple",
+    "medium": "Medium",
+    "complex": "Complex"
+  },
+  "timeline": {
+    "week1": "Week 1",
+    "week2": "Week 2",
+    "week3": "Week 3",
+    "week4": "Week 4"
+  },
+  "actions": {
+    "contact": "Talk to us",
+    "becomeSettler": "Become a Settler",
+    "findDevelopers": "Find customizers",
+    "startBuilding": "Start Building",
+    "orderThisBuild": "Order this build"
+  },
+  "checkout": {
+    "payCard": "Pay with card",
+    "payCredit": "Pay with credits"
   },
   "configuration": {
-    "title": "Platform Configuration",
-    "description": "Tell us about your project to get accurate estimates"
+    "title": "Project configuration",
+    "description": "Build your Ring SuperApp estimate"
   },
   "questions": {
-    "useCase": "What's your use case?",
-    "userScale": "How many users initially?",
-    "modules": "Which modules do you need?",
-    "database": "Database preference?",
+    "useCase": "Niche pack?",
+    "userScale": "Scale?",
+    "modules": "Modules?",
+    "database": "Database?",
     "tokenEconomy": "Token economy?",
-    "region": "Geographic region?"
+    "region": "Region?"
   },
   "useCases": {
     "marketplace": {
@@ -44,48 +330,6 @@
     "medium": "Medium (100-1000 users)",
     "large": "Large (1000-10000 users)",
     "enterprise": "Enterprise (10000+ users)"
-  },
-  "modules": {
-    "auth": {
-      "name": "Authentication",
-      "description": "User login and registration"
-    },
-    "entities": {
-      "name": "Entities",
-      "description": "Organization and user profiles"
-    },
-    "opportunities": {
-      "name": "Opportunities",
-      "description": "Job/project posting and matching"
-    },
-    "messaging": {
-      "name": "Messaging",
-      "description": "Real-time communication"
-    },
-    "store": {
-      "name": "Store",
-      "description": "E-commerce marketplace"
-    },
-    "wallet": {
-      "name": "Wallet",
-      "description": "Token and payment management"
-    },
-    "nft": {
-      "name": "NFT Market",
-      "description": "NFT marketplace and trading"
-    },
-    "staking": {
-      "name": "Staking",
-      "description": "Token staking system"
-    },
-    "analytics": {
-      "name": "Analytics",
-      "description": "User and platform analytics"
-    },
-    "api": {
-      "name": "API Access",
-      "description": "REST API for integrations"
-    }
   },
   "databases": {
     "firebase": {
@@ -119,71 +363,123 @@
       "hosting": "US-based hosting"
     }
   },
-  "labels": {
-    "setupMeta": "Setup: {hours}h · {cost}/mo",
-    "regionCost": "{cost}/mo"
-  },
   "tokenEconomy": {
     "label": "Yes, include RING token economy for platform operations",
-    "warning": "Token implementation adds complexity but enables powerful economic incentives. This includes smart contracts, staking, and governance features."
+    "warning": "Token implementation adds complexity but enables powerful economic incentives."
   },
-  "calculating": "Calculating...",
-  "calculate": "Calculate Deployment",
-  "results": {
-    "title": "Results",
-    "recommendedConfig": "Recommended Configuration",
-    "timeline": "4-Week Deployment Timeline",
-    "timelineDescription": "Recommended rollout schedule",
-    "complexity": "Customization Complexity",
-    "nextSteps": "Next Steps",
-    "hours": "Hours",
-    "monthly": "Monthly",
-    "ringTokens": "RING tokens",
-    "complexityLabel": "Complexity",
-    "database": "Database",
-    "hosting": "Hosting",
-    "features": "Features",
-    "complexityLevel": "Complexity Level",
-    "complexityHint": {
-      "low": "Low complexity — focus on branding and basic configuration",
-      "medium": "Medium complexity — consider professional development help",
-      "high": "High complexity — recommend Ring customization services"
+  "hosting": {
+    "self_host": {
+      "name": "Self-host",
+      "description": "Own infrastructure — you run the clone; no Ringdom hosting fee"
     },
-    "complexAlert": "For complex deployments, we recommend posting a customization opportunity to connect with experienced Ring developers."
-  },
-  "timelineTasks": {
-    "simple": {
-      "week1": ["Platform setup and basic configuration"],
-      "week2": ["Core module implementation"],
-      "week3": ["Testing and refinements"],
-      "week4": ["Deployment and launch"]
-    },
-    "medium": {
-      "week1": ["Platform setup", "Database configuration"],
-      "week2": ["Core modules implementation"],
-      "week3": ["Advanced features and testing"],
-      "week4": ["Deployment and monitoring setup"]
-    },
-    "complex": {
-      "week1": ["Platform architecture planning", "Database setup", "Security configuration"],
-      "week2": ["Core modules (Auth, Entities)", "Basic AI matching setup"],
-      "week3": ["Advanced modules (Store, Wallet)", "Token economy implementation"],
-      "week4": ["Integration testing", "Performance optimization", "Production deployment"]
+    "ringdom": {
+      "name": "Ringdom",
+      "description": "AI-managed hosting with instant CDN on Ringdom clusters"
     }
   },
-  "complexity": {
-    "simple": "Simple",
-    "medium": "Medium",
-    "complex": "Complex"
+  "humanDev": {
+    "title": "I need a human dev for my project",
+    "description": "Request an integrator from the Ring network",
+    "hint": "Integrator request will be advertised in our network on order activation"
   },
-  "timeline": {
-    "week1": "Week 1",
-    "week2": "Week 2",
-    "week3": "Week 3",
-    "week4": "Week 4"
+  "displayUnit": {
+    "label": "Display currency",
+    "active": "Showing {currency} (left-rail / mobile menu toggle)",
+    "railHint": "Switch RING ↔ USD in the left rail or mobile menu"
   },
-  "actions": {
-    "startBuilding": "Start Building",
-    "findDevelopers": "Find Developers"
+  "order": {
+    "checkoutTitle": "Ring project order checkout",
+    "depositDue": "Deposit due",
+    "successTitle": "Payment received",
+    "successBody": "Your ringization deposit is recorded. Status: {paymentStatus} / work {workStatus}.",
+    "backToCalculator": "Back to calculator",
+    "browseCustomizationJobs": "Browse customization jobs",
+    "myJobs": "My jobs",
+    "myJobsTitle": "My jobs",
+    "myJobsSubtitle": "Ring customization orders assigned to you as integrator",
+    "myJobsEmpty": "No assigned jobs yet. Request available ring_customization opportunities.",
+    "progressComplete": "{progress}% complete",
+    "viewOpportunity": "View opportunity",
+    "deskBadge": "Ringdom-certified integrator",
+    "deskTitle": "Integrator desk",
+    "deskSubtitle": "Work orders assigned to you for Ring customization builds",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterCompleted": "Completed",
+    "filterDisputed": "Disputed",
+    "kpiActive": "Active jobs",
+    "kpiCompleted": "Completed",
+    "kpiDisputed": "Disputed",
+    "findWork": "Find work",
+    "openJob": "Open",
+    "client": "Client",
+    "estHours": "Est. {hours}h",
+    "scopeBrief": "Scope brief",
+    "briefNiche": "Niche",
+    "briefHosting": "Hosting",
+    "briefComplexity": "Complexity",
+    "briefHours": "Estimated hours",
+    "briefOneTime": "One-time estimate",
+    "briefMonthly": "Monthly estimate",
+    "showFullBrief": "Show full brief",
+    "hideFullBrief": "Hide full brief",
+    "nextActions": "Next actions",
+    "progressLabel": "Progress {progress}%",
+    "startWork": "Start work",
+    "saveProgress": "Save progress",
+    "markComplete": "Mark complete",
+    "flagDispute": "Flag dispute",
+    "confirmDispute": "Flag this job as disputed? The client will be notified.",
+    "backToDesk": "Back to desk",
+    "updatedAt": "Updated {date}",
+    "updateFailed": "Update failed",
+    "lab": {
+      "badge": "Order Lab",
+      "title": "Ring clone control panel",
+      "subtitle": "Progress, env, deploy, and dual chat for this paid customization order",
+      "chatTitle": "Lab chat",
+      "chatRailLabel": "Lab chat",
+      "tabCustomer": "Customer",
+      "tabReggie": "Reggie",
+      "noCustomerChat": "Customer conversation unavailable",
+      "noReggieChat": "Reggie conversation unavailable",
+      "envTitle": "Environment config",
+      "saveEnv": "Save env",
+      "envSaved": "Environment saved (secrets encrypted).",
+      "cloneEssentials": "Clone essentials",
+      "secret": "secret",
+      "enterSecret": "Enter new value to update",
+      "deployTitle": "Deployment status",
+      "edge": "Edge",
+      "edgeUnavailable": "unavailable",
+      "edgeUnavailableHint": "Configure RING_EDGE_*_API_URL and TOKEN for this edge.",
+      "namespace": "Namespace",
+      "deploymentName": "Deployment name",
+      "imageTag": "Image tag",
+      "saveDeployMeta": "Save meta",
+      "deploy": "Deploy / Redeploy",
+      "refreshPods": "Refresh pods",
+      "viewLogs": "Logs",
+      "restartPod": "Restart",
+      "projectRoom": "Project room",
+      "noProjectRoom": "Project room unavailable",
+      "namespaceAdminLock": "Namespace and edge are set by an admin in CRM — ask them if this field is empty."
+    },
+    "buyerBadge": "My Projects",
+    "buyerTitle": "My project orders",
+    "buyerSubtitle": "Track ringization status and chat with your integrator and Reggie",
+    "buyerEmpty": "No project orders yet. Start from the calculator.",
+    "openCalculator": "Open calculator",
+    "openLab": "Open project",
+    "openMyOrder": "Open my project",
+    "backToOrders": "All projects",
+    "orderStatus": "Order status",
+    "projectStatus": "Project status",
+    "openProject": "Open live site",
+    "noDeployYet": "No deployment yet — your integrator will publish the clone here.",
+    "integratorLabel": "Integrator",
+    "awaitingIntegrator": "Awaiting integrator assignment",
+    "filterPaid": "Paid",
+    "kpiPaid": "Paid"
   }
 }

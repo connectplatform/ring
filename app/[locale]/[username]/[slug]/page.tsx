@@ -11,7 +11,10 @@ function profileArticlePathname(username: string, slug: string): string {
 }
 import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
-import { connection } from 'next/server'
+import { after, connection } from 'next/server'
+import { RegisterMoodPlayerElements } from '@/features/mood-player/components/register-mood-player-elements'
+import { ReviseArticleButton } from '@/features/news/components/revise-article-button'
+import { sanitizeNewsHtml } from '@/features/news/lib/sanitize-news-html'
 import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
@@ -81,13 +84,28 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
   const article = await getBlogPost(username, slug, locale)
   if (!article) notFound()
 
+  after(() => {
+    void import('@/features/news/services/news-service').then(({ recordArticlePageView }) =>
+      recordArticlePageView(article.id),
+    )
+  })
+
   return (
     <article className="container mx-auto px-6 py-10 max-w-3xl prose prose-lg">
       <h1>{article.title}</h1>
       <p className="text-sm text-muted-foreground not-prose">
         {article.authorName} · {article.blogUsername}
       </p>
-      <div dangerouslySetInnerHTML={{ __html: article.content }} />
+      <div className="not-prose mb-4">
+        <ReviseArticleButton
+          slug={article.slug}
+          locale={locale}
+          status={article.status}
+          authorId={article.authorId}
+        />
+      </div>
+      <RegisterMoodPlayerElements />
+      <div dangerouslySetInnerHTML={{ __html: sanitizeNewsHtml(article.content || '') }} />
     </article>
   )
 }

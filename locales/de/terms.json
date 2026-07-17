@@ -1,0 +1,45 @@
+{
+  "termsOfServiceText": {
+    "title": "Nutzungsbedingungen",
+    "lastUpdated": "Stand: {date}",
+    "introduction": {
+      "title": "Einleitung",
+      "content": "Willkommen bei Connect.Software. Mit der Nutzung unseres Dienstes erklären Sie sich mit diesen Bedingungen einverstanden."
+    },
+    "userAgreement": {
+      "title": "Nutzungsvereinbarung",
+      "content": "Durch den Zugriff auf und die Nutzung von Connect.Software erkennen Sie diese Bedingungen und Regelungen an."
+    },
+    "accountResponsibilities": {
+      "title": "Pflichten für Ihr Konto",
+      "content": "Als Nutzerin oder Nutzer von Connect.Software sind Sie verantwortlich für:",
+      "item1": "Die Vertraulichkeit Ihrer Zugangsdaten",
+      "item2": "Die Richtigkeit und Aktualität Ihrer Angaben",
+      "item3": "Die Einhaltung aller für Sie geltenden Gesetze und Vorschriften"
+    },
+    "contentGuidelines": {
+      "title": "Inhaltsrichtlinien",
+      "content": "Alle Inhalte auf der Plattform müssen unseren Community-Richtlinien entsprechen und keine Gesetze oder Rechte Dritter verletzen."
+    },
+    "intellectualProperty": {
+      "title": "Geistiges Eigentum",
+      "content": "Inhalte und Materialien der Plattform können durch Rechte des geistigen Eigentums geschützt sein. An Ihren eigenen Inhalten behalten Sie das Eigentum; uns erteilen Sie die für den Betrieb der Plattform erforderlichen Nutzungsrechte im Rahmen der jeweiligen Produktbedingungen."
+    },
+    "limitationOfLiability": {
+      "title": "Haftungsbeschränkung",
+      "content": "Connect.Software haftet nicht für mittelbare, beiläufige, besondere, Folge- oder Strafschäden, die aus oder im Zusammenhang mit Ihrer Nutzung entstehen, soweit gesetzlich zulässig."
+    },
+    "termination": {
+      "title": "Kündigung und Sperrung",
+      "content": "Wir behalten uns vor, Konten bei Verstößen gegen diese Bedingungen oder aus anderen sachlich gerechtfertigten Gründen zu sperren oder zu beenden."
+    },
+    "changes": {
+      "title": "Änderungen der Bedingungen",
+      "content": "Wir können diese Nutzungsbedingungen aktualisieren. Wesentliche Änderungen teilen wir über die Plattform oder auf andere angemessene Weise mit."
+    },
+    "contact": {
+      "title": "Kontakt Rechtliches",
+      "content": "Fragen zu diesen Nutzungsbedingungen richten Sie bitte an legal@connect.software"
+    }
+  }
+}

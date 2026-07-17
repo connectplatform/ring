@@ -1,0 +1,45 @@
+{
+  "sidebar": {
+    "title": "Documentación",
+    "navigation": {
+      "title": "Documentación"
+    },
+    "quickAccess": {
+      "title": "Acceso rápido"
+    }
+  },
+  "article": {
+    "back": "Volver",
+    "docsRoot": "Docs",
+    "lastModified": "Actualizado {date}",
+    "listenMinutes": "{minutes} min de escucha",
+    "playNarration": "Reproducir narración",
+    "watchVideo": "Ver vídeo",
+    "narrationComingSoon": "La narración de audio de docs está en la hoja de ruta (integración AudioConductor).",
+    "videoComingSoon": "Los walkthroughs en vídeo de docs están en la hoja de ruta.",
+    "narrationReady": "La narración está lista — usa el reproductor abajo.",
+    "narrationCached": "Reproduciendo narración en caché para esta versión del artículo.",
+    "narrationFailed": "No se pudo generar la narración. Revisa la configuración TTS.",
+    "videoReady": "El vídeo walkthrough está listo — usa el reproductor abajo.",
+    "videoFailed": "No se pudo generar el vídeo walkthrough.",
+    "videoMemberRequired": "Inicia sesión como Member para generar vídeos walkthrough de docs."
+  },
+  "notFound": {
+    "badge": "Documentación",
+    "title": "Esta página de docs no se encontró",
+    "description": "La URL que abriste no está en la biblioteca de documentación de Ring Platform. Puede haberse movido, renombrado o nunca existir.",
+    "unknownSection": "La sección «{section}» no forma parte de nuestro árbol de docs — lo hemos registrado para revisión.",
+    "backToDocs": "Volver al inicio de docs",
+    "browseSection": "Explorar esta sección",
+    "popularInSection": "Popular en {section}",
+    "popularDocs": "Empieza aquí",
+    "readArticle": "Leer artículo"
+  },
+  "comingSoon": {
+    "title": "Documentación en preparación",
+    "description": "Estamos preparando la documentación de Connect.Software. ¡Vuelve pronto!"
+  },
+  "mobile": {
+    "message": "Abre esta página en un ordenador para ver la documentación completa."
+  }
+}

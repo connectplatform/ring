@@ -4,6 +4,10 @@ import type { NewsCategory, NewsFilters, NewsStatus, NewsVisibility } from '@/fe
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpFromResult, mcpError } from '@/app/api/mcp/v1/_lib/respond'
 import { queryInt, queryString, readJsonBody } from '@/app/api/mcp/v1/_lib/query'
+import {
+  coerceMediaImageAsset,
+  coerceMediaImageAssetList,
+} from '@/lib/file/media-asset'
 
 // ---------------------------------------------------------------------------
 // Create-news-article schema — validates the body at the route layer.
@@ -13,6 +17,12 @@ import { queryInt, queryString, readJsonBody } from '@/app/api/mcp/v1/_lib/query
 //
 // Has default: status (→'draft', preserved from original code)
 // ---------------------------------------------------------------------------
+const mediaImageAssetSchema = z.object({
+  url: z.string().min(1),
+  fileId: z.string().optional(),
+  derivatives: z.record(z.string(), z.any()).optional(),
+})
+
 const createNewsArticleSchema = z.object({
   // Required — NewsFormData has no defaults for these
   title: z.string().min(1, 'title is required'),
@@ -29,8 +39,9 @@ const createNewsArticleSchema = z.object({
   // Optional fields from NewsFormData
   slug: z.string().optional(),
   featuredImage: z.string().optional(),
+  featuredImageAsset: mediaImageAssetSchema.optional(),
   audioUrl: z.string().optional(),
-  gallery: z.array(z.string()).optional(),
+  gallery: z.array(z.union([z.string(), mediaImageAssetSchema])).optional(),
 }).passthrough()
 
 // Set of all valid news categories for runtime checking
@@ -128,7 +139,16 @@ export const POST = withMcpGuard(async (request) => {
   }
 
   // Cast is safe — Zod verified title + content; service validates full NewsFormData
-  const result = await createNewsArticle(parsed.data as Parameters<typeof createNewsArticle>[0])
+  const bodyData = parsed.data
+  const featuredImageAsset =
+    coerceMediaImageAsset(bodyData.featuredImageAsset) ||
+    coerceMediaImageAsset(bodyData.featuredImage)
+  const result = await createNewsArticle({
+    ...bodyData,
+    featuredImage: featuredImageAsset?.url || bodyData.featuredImage,
+    featuredImageAsset: featuredImageAsset || undefined,
+    gallery: coerceMediaImageAssetList(bodyData.gallery),
+  } as Parameters<typeof createNewsArticle>[0])
 
   // Invalidate news-stats cache + revalidate admin paths
   if (result.success) {

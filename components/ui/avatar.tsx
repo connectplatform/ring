@@ -45,7 +45,13 @@ export function Avatar({
   uploading = false
 }: AvatarProps) {
   const [dragOver, setDragOver] = useState(false)
+  const [imageFailed, setImageFailed] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const resolvedSrc = src && !imageFailed ? src : null
+
+  React.useEffect(() => {
+    setImageFailed(false)
+  }, [src])
 
   const sizeClasses = {
     sm: "h-8 w-8 text-xs",
@@ -122,20 +128,16 @@ export function Avatar({
         />
       )}
 
-      {/* Image or fallback */}
-      {src ? (
+      {/* Image or fallback — onError must reveal initials, not leave a blank hole */}
+      {resolvedSrc ? (
         <Image
-          src={src}
+          src={resolvedSrc}
           alt={alt}
           width={sizePixels[size]}
           height={sizePixels[size]}
           className="h-full w-full object-cover rounded-full"
-          onError={(e) => {
-            // Hide broken images
-            const target = e.target as HTMLImageElement
-            target.style.display = 'none'
-          }}
-          unoptimized={!src.startsWith('/')} // Don't optimize external images
+          onError={() => setImageFailed(true)}
+          unoptimized={!resolvedSrc.startsWith('/')} // Don't optimize external images
         />
       ) : (
         <span className="font-medium text-muted-foreground">

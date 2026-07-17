@@ -1,7 +1,7 @@
 ---
 title: NFT Exhibition Marketplace
 description: Dual-lane Solana Exhibition — verified KEYS gates and member-created Metaplex Core collections, settled in RING
-last_modified: "2026-07-12"
+last_modified: "2026-07-14"
 audience: both
 ---
 
@@ -27,6 +27,13 @@ The NFT Exhibition Marketplace lets members list, browse, buy, and cancel eligib
 | Sale ledger | `nft_market_sales` |
 | Collection cache | `nft_market_collections` |
 | Migrations | `031_nft_exhibition_market_schema.sql`, `032_nft_member_collections_schema.sql` |
+| Media field | Generative Gallery — Upload \| Generate on `/nft/create` (see below) |
+
+## Generative Gallery (media)
+
+Member collection cover and mint media use the shared **Generative Gallery** field (`features/generative-media/`): Upload or Generate tabs, Ghost-write prompt enrichment, ImageConductor `n=4` variations, WebP strip derivatives, and a hidden `genmedia:` tool chat (`Conversation.type: 'product'` + `metadata.kind: 'generative_gallery'` — not a separate channel; see [Messaging](/docs/features/messaging)). On mint, `buildMetaplexMetadataJson` + `uploadNftMetadataJson` produce off-chain Metaplex JSON (`image`, optional `animation_url`, `properties.files`); ownership and listing details can show showcase animation + gallery thumbs.
+
+Full operator and integrator reference: [Generative Gallery](/docs/features/generative-media).
 
 <Audience for="founder">
 
@@ -99,6 +106,7 @@ The marketplace turns tradeable vendor access keys into a visible economy **and*
 | `app/[locale]/nft/create/page.tsx` | Member create/mint/list wizard (requires `hasMemberPrivileges`) |
 | `app/[locale]/nft/market/sell/page.tsx` | KEYS seller wizard (excludes `member_mint`) |
 | `app/_actions/nft-member.ts` | `createMemberCollectionAction`, `mintMemberAssetAction`, `listMemberAssetAction` |
+| `features/generative-media/*` | Gallery SSOT; mint metadata helpers; see [Generative Gallery](/docs/features/generative-media) |
 | `features/nft-market/member/*` | Collection/mint services + `assertMemberAssetCanBeListed` |
 | `features/nft-market/listing-policy.ts` | KEYS tradeable SKU / stake / collection checks (lane K only) |
 | `features/nft-market/services/listing-service.ts` | Dual-lane draft/activate; member vs KEYS policy branch |
@@ -214,6 +222,9 @@ The future program scaffold lives under `solana/programs/{gate-escrow,gate-marke
 ## Related Documentation
 
 <Cards>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Upload \| Generate field, credits billing, Metaplex metadata, product form reuse.
+  </Card>
   <Card title="Solana NFT Gates" href="/docs/features/nft-gates">
     Primary sale, KEYS collection metadata, GateEscrow staking, and template activation.
   </Card>

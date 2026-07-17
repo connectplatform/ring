@@ -71,7 +71,7 @@ export const orderCreateSchema = z.object({
     })
     .optional(),
   payment: z.object({
-    method: z.enum(['wayforpay', 'stripe', 'crypto', 'credit', 'ring']),
+    method: z.enum(['wayforpay', 'stripe', 'crypto', 'credit', 'token', 'paypal', 'card']),
     status: z.enum(['pending', 'paid', 'failed', 'processing']),
   }),
   status: z.enum(['new', 'paid', 'processing', 'shipped', 'completed', 'canceled']),

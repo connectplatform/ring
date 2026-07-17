@@ -18,10 +18,10 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useSession } from 'next-auth/react'
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bell,
   Heart,
@@ -41,9 +41,23 @@ import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 import { eventBus } from '@/lib/event-bus.client'
+import { formatNativeBalance } from '@/features/wallet/utils/balance-cache'
+import {
+  getClientCreditUnitLabel,
+  getClientNativeTokenSymbol,
+} from '@/lib/ring-config-client'
+import { usePrimaryNativeBalance } from '@/hooks/use-primary-native-balance'
 
 interface MobileUserWidgetProps {
   className?: string
+}
+
+function resolveSessionAvatarSrc(user: {
+  image?: string | null
+  photoURL?: string | null
+  avatarThumb?: string | null
+}): string | null {
+  return user.avatarThumb || user.image || user.photoURL || null
 }
 
 /**
@@ -57,8 +71,6 @@ interface GridItemProps {
   description: string
   href: string
   color: string
-  gradientFrom: string
-  gradientTo: string
   index: number
   onNavigate: () => void
 }
@@ -70,8 +82,6 @@ function GridItem({
   description,
   href, 
   color,
-  gradientFrom,
-  gradientTo,
   index,
   onNavigate 
 }: GridItemProps) {
@@ -161,7 +171,6 @@ function GridItem({
  * Main Mobile User Widget
  */
 export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const locale = useLocale() as Locale
   const { data: session } = useSession()
@@ -183,6 +192,20 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   
   const cartCount = store?.totalItems || 0
   const [messagesCount] = useState(0) // TODO: Implement
+  const creditUnitLabel = getClientCreditUnitLabel()
+  const nativeSymbol = getClientNativeTokenSymbol()
+  const {
+    nativeBalance,
+    loading: nativeLoading,
+    error: nativeError,
+  } = usePrimaryNativeBalance({ enabled: isOpen && Boolean(session?.user?.id) })
+  const avatarSrc = session?.user
+    ? resolveSessionAvatarSrc(session.user as {
+        image?: string | null
+        photoURL?: string | null
+        avatarThumb?: string | null
+      })
+    : null
 
   // Initialize position from localStorage
   useEffect(() => {
@@ -259,6 +282,18 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     return num.toFixed(0)
   }
 
+  const walletDescription = (() => {
+    const creditPart = `${formatBalance(tokenBalance?.amount ?? null)} ${creditUnitLabel}`
+    if (nativeLoading && nativeBalance === null) {
+      return `${creditPart} · …`
+    }
+    if (nativeError && nativeBalance === null) {
+      return `${creditPart} · — ${nativeSymbol}`
+    }
+    const nativePart = `${formatNativeBalance(nativeBalance ?? '0')} ${nativeSymbol}`
+    return `${creditPart} · ${nativePart}`
+  })()
+
   if (!session?.user || !mounted) return null
 
   // Grid menu items configuration - 3 rows x 2 columns
@@ -268,18 +303,14 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       label: 'Profile', 
       description: 'View & edit profile',
       href: ROUTES.PROFILE(locale),
-      color: '#3B82F6', // Blue
-      gradientFrom: 'blue-500/20',
-      gradientTo: 'cyan-500/20'
+      color: '#3B82F6',
     },
     { 
       icon: <Wallet className="w-6 h-6 text-white" />, 
       label: 'Wallet', 
-      description: `${formatBalance(tokenBalance?.amount)} PHD`,
+      description: walletDescription,
       href: ROUTES.WALLET(locale),
-      color: '#8B5CF6', // Purple
-      gradientFrom: 'purple-500/20',
-      gradientTo: 'violet-500/20'
+      color: '#8B5CF6',
     },
     { 
       icon: <Bell className="w-6 h-6 text-white" />, 
@@ -287,9 +318,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       label: 'Notifications', 
       description: 'Activity alerts',
       href: ROUTES.PROFILE(locale) + '?tab=notifications',
-      color: '#06B6D4', // Cyan
-      gradientFrom: 'cyan-500/20',
-      gradientTo: 'blue-500/20'
+      color: '#06B6D4',
     },
     { 
       icon: <ShoppingCart className="w-6 h-6 text-white" />, 
@@ -297,9 +326,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       label: 'Cart', 
       description: 'Shopping items',
       href: ROUTES.CART(locale),
-      color: '#10B981', // Green
-      gradientFrom: 'green-500/20',
-      gradientTo: 'emerald-500/20'
+      color: '#10B981',
     },
     { 
       icon: <Heart className="w-6 h-6 text-white" />, 
@@ -307,9 +334,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       label: 'Favorites', 
       description: 'Saved products',
       href: ROUTES.STORE(locale) + '?filter=favorites',
-      color: '#EC4899', // Pink
-      gradientFrom: 'pink-500/20',
-      gradientTo: 'rose-500/20'
+      color: '#EC4899',
     },
     { 
       icon: <MessageCircle className="w-6 h-6 text-white" />, 
@@ -317,9 +342,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       label: 'Messages', 
       description: 'Direct chats',
       href: ROUTES.PROFILE(locale) + '?tab=messages',
-      color: '#F97316', // Orange
-      gradientFrom: 'orange-500/20',
-      gradientTo: 'amber-500/20'
+      color: '#F97316',
     }
   ]
 
@@ -380,7 +403,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
           )}>
             <div className="w-full h-full rounded-full bg-background border-2 border-background overflow-hidden">
               <Avatar
-                src={session.user.image || session.user.photoURL}
+                src={avatarSrc}
                 alt={session.user.name || 'User'}
                 size="md"
                 fallback={session.user.name?.charAt(0) || 'U'}
@@ -463,7 +486,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
                 >
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <Avatar
-                      src={session.user.image || session.user.photoURL}
+                      src={avatarSrc}
                       alt={session.user.name || 'User'}
                       size="lg"
                       fallback={session.user.name?.charAt(0) || 'U'}
@@ -473,9 +496,6 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
                   <h2 className="text-2xl font-bold text-white mb-1">
                     {session.user.name || 'Anonymous'}
                   </h2>
-                  <p className="text-sm text-white/70">
-                    {formatBalance(tokenBalance?.amount)} PHD
-                  </p>
                 </motion.div>
 
                 {/* 3x2 Grid of Action Cards */}

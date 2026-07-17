@@ -1,13 +1,17 @@
 ---
 title: Email AI-CRM API
 description: Admin email CRM routes, cron processor, and inbound webhook
-last_modified: "2026-06-10"
+last_modified: "2026-07-17"
 ---
 
 # Email AI-CRM API
 
 <Callout type="warning" title="Admin access">
 All `/api/admin/email/*` routes require an authenticated **platform admin** session (`admin` or `superadmin` role).
+</Callout>
+
+<Callout type="info" title="Admin UI paths">
+Review UI lives at **`/admin/crm/*`** (`CrmAdminShell`). API paths stay `/api/admin/email/*` — see [Email AI-CRM](/docs/features/email-ai-crm) and [Owner Project Lab](/docs/features/owner-project-lab).
 </Callout>
 
 <Callout type="info" title="Cron / webhook">
@@ -171,5 +175,6 @@ Calls `EmailProcessor.ingestEvent()` with `uid: 0` (no IMAP mark-seen).
 ## Related
 
 - [Email AI-CRM feature](/docs/features/email-ai-crm)
+- [Owner Project Lab](/docs/features/owner-project-lab)
 - [Admin API](/docs/api/admin)
 - [Developer guide](/docs/examples/email-ai-crm)

@@ -5,7 +5,7 @@
     "name": "my-ring-clone",
     "displayName": "My Ring Clone",
     "shortName": "Ring",
-    "description": "Open-source white-label community, opportunity, and marketplace platform — Entities, Opportunities, Store, Web3, and AI matching in one React 19 / Next.js 16 stack",
+    "description": "Open-source white-label community, opportunity, and marketplace platform \u2014 Entities, Opportunities, Store, Web3, and AI matching in one React 19 / Next.js 16 stack",
     "version": "1.0.0",
     "organization": "Your Organization Name",
     "contactEmail": "contact@your-domain.com"
@@ -170,22 +170,8 @@
   "tokens": {
     "creditUnit": "USD",
     "creditFiatCurrency": "USD",
-    "creditAddEvents": {
-      "adminVerify": {
-        "amount": "1",
-        "enabled": true,
-        "requireUsername": true
-      },
-      "ringUsername": {
-        "amount": "1",
-        "enabled": true,
-        "requireVerified": true
-      }
-    },
     "desk": {
       "supplyPolicy": "treasury_transfer",
-      "sellTaxBps": 500,
-      "sellTaxDestination": "treasury_ata",
       "firstSettlerDiscountBps": 2000,
       "firstSettlerOneTime": true,
       "firstSettlerGates": [
@@ -252,7 +238,7 @@
   },
   "calculator": {
     "enabled": true,
-    "presetId": "deployment"
+    "presetId": "project"
   },
   "roadmap": {
     "enabled": true
@@ -330,7 +316,13 @@
       "application/pdf",
       "video/mp4"
     ],
-    "note": "SSOT for file(). ring_filebase via RINGBASE_API_URL. Env NEXT_PUBLIC_STORAGE_PROVIDER overrides."
+    "note": "SSOT for file(). ring_filebase via RINGBASE_API_URL. Env NEXT_PUBLIC_STORAGE_PROVIDER overrides. webpDerivative.provider=ringbase matches RingBase native ladders (upload-core also requests derivativesProfile when storage.provider is ring_filebase).",
+    "webpDerivative": {
+      "provider": "ringbase",
+      "maxEdge": 1600,
+      "quality": 82,
+      "_comment": "off | sharp | ringbase \u2014 ringbase is default for ring_filebase mode; sharp only if opted in; off disables post-upload deriveWebpSibling"
+    }
   },
   "security": {
     "rateLimiting": {
@@ -433,7 +425,7 @@
       "enabled": false,
       "chainId": 8453,
       "decimals": 8,
-      "note": "US L2 mirror — Phase 1.5 CDP Paymaster + ERC-20 mirror"
+      "note": "US L2 mirror \u2014 Phase 1.5 CDP Paymaster + ERC-20 mirror"
     }
   },
   "integrations": {
@@ -516,7 +508,7 @@
         "label": "Tokens"
       },
       "paypal": {
-        "enabled": false,
+        "enabled": true,
         "feePercent": 2.9,
         "feeFixedCents": 30,
         "currency": "USD"
@@ -646,5 +638,155 @@
   "exchangeRates": {
     "USD": 1.0,
     "RING": 1.0
+  },
+  "entities": {
+    "preset": "platform"
+  },
+  "productFieldsPresets": {
+    "platform": {
+      "storeCategories": [
+        "agricultural",
+        "commerce",
+        "city",
+        "education",
+        "insurance",
+        "hoa",
+        "wallet",
+        "mvm",
+        "nft",
+        "dao",
+        "other"
+      ]
+    },
+    "agricultural": {
+      "storeCategories": [
+        "organic-produce",
+        "honey-sweets",
+        "essential-oils",
+        "dairy-eggs",
+        "meat-poultry",
+        "herbs-spices",
+        "grains-legumes"
+      ]
+    }
+  },
+  "productBadgesPresets": {
+    "platform": {
+      "productBadges": [
+        "new",
+        "featured",
+        "popular",
+        "best-seller"
+      ]
+    },
+    "agricultural": {
+      "productBadges": [
+        "organic",
+        "local",
+        "regenerative",
+        "seasonal",
+        "fair-trade",
+        "new",
+        "featured"
+      ]
+    }
+  },
+  "home": {
+    "preset": "platform"
+  },
+  "credit": {
+    "creditUnitLabel": "points",
+    "unitToDefaultCurrency": 1,
+    "rewards": {
+      "minRole": "subscriber",
+      "multipliers": {
+        "subscriber": 1,
+        "member": 1.5,
+        "confidential": 2,
+        "admin": 2,
+        "superadmin": 2
+      },
+      "dailyEarnCap": {
+        "subscriber": 50,
+        "member": 100,
+        "confidential": 150,
+        "admin": 150,
+        "superadmin": 150
+      },
+      "events": {
+        "adminVerify": {
+          "amount": "50",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "ringUsername": {
+          "amount": "10",
+          "enabled": true,
+          "requireVerified": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedBio": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedLocation": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedWebsite": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedTelegram": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedWhatsapp": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "profileCompleted": {
+          "amount": "25",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "newsStoryApproved": {
+          "amount": "30",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_object"
+        },
+        "commentCreated": {
+          "amount": "2",
+          "enabled": true,
+          "requireUsername": false,
+          "idempotencyMode": "once_per_object"
+        },
+        "reviewCreated": {
+          "amount": "5",
+          "enabled": true,
+          "requireUsername": false,
+          "idempotencyMode": "once_per_object"
+        },
+        "requestCreated": {
+          "amount": "15",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_object"
+        }
+      }
+    }
   }
 }

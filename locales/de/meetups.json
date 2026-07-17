@@ -1,0 +1,173 @@
+{
+  "title": "Tier-Treffen",
+  "createMeetup": "Treffen erstellen",
+  "editMeetup": "Treffen bearbeiten",
+  "deleteMeetup": "Treffen löschen",
+  "noMeetups": "Keine Treffen gefunden",
+  "discoverMeetups": "Entdecken Sie Tier-Treffen in Ihrer Nähe und nehmen Sie teil – optional auch für Community-Events rund um Connect.Software.",
+  "upcomingMeetups": "Bevorstehende Treffen",
+  "pastMeetups": "Vergangene Treffen",
+  "myMeetups": "Meine Treffen",
+  "types": {
+    "dog_park_meetup": "Hundewiese-Treffen",
+    "hiking": "Wandern mit Tieren",
+    "beach_day": "Strandtag",
+    "training_class": "Trainingseinheit",
+    "playtime": "Spielstunde",
+    "socialization": "Sozialisations-Event",
+    "charity": "Benefiz-Event",
+    "other": "Sonstiges"
+  },
+  "privacy": {
+    "public": "Öffentlich",
+    "private": "Privat",
+    "publicDescription": "Jede*r kann sehen und teilnehmen",
+    "privateDescription": "Nur auf Einladung"
+  },
+  "fields": {
+    "title": "Titel des Treffens",
+    "description": "Beschreibung",
+    "meetupType": "Art",
+    "startTime": "Startzeit",
+    "endTime": "Endzeit",
+    "location": "Ort",
+    "maxParticipants": "Maximale Teilnehmerzahl",
+    "allowedPets": "Erlaubte Tiere",
+    "requiresRsvp": "Anmeldung (RSVP) erforderlich",
+    "entryFee": "Teilnahmegebühr",
+    "photos": "Fotos",
+    "safetyGuidelines": "Sicherheitshinweise"
+  },
+  "allowedPets": {
+    "title": "Erlaubte Tiere",
+    "dogs": "Hunde",
+    "cats": "Katzen",
+    "smallPets": "Kleintiere",
+    "allPets": "Alle Tiere willkommen",
+    "noPets": "Ohne Tiere (nur Menschen)"
+  },
+  "rsvp": {
+    "title": "Anmeldung",
+    "going": "Ich nehme teil",
+    "interested": "Interessiert",
+    "notGoing": "Nehme nicht teil",
+    "rsvpNow": "Jetzt anmelden",
+    "cancelRsvp": "Anmeldung zurückziehen",
+    "waitlist": "Auf Warteliste setzen",
+    "onWaitlist": "Auf Warteliste",
+    "spotsAvailable": "{{count}} freie Plätze",
+    "noSpotsAvailable": "Event ausgebucht",
+    "attendees": "Teilnehmende",
+    "viewAttendees": "Teilnehmerliste"
+  },
+  "participants": {
+    "title": "Teilnehmende",
+    "organizer": "Organisation",
+    "attendees": "Teilnehmerinnen",
+    "waitlist": "Warteliste",
+    "petCount": "{{count}} Tiere",
+    "humanCount": "{{count}} Personen",
+    "invited": "Eingeladen",
+    "confirmed": "Bestätigt",
+    "declined": "Abgesagt"
+  },
+  "groupChat": {
+    "title": "Gruppenchat",
+    "openChat": "Chat öffnen",
+    "chatCreated": "Für dieses Treffen wurde automatisch ein Gruppenchat angelegt",
+    "joinChat": "Chat beitreten",
+    "leaveChat": "Chat verlassen",
+    "members": "{{count}} Mitglieder"
+  },
+  "safety": {
+    "title": "Sicherheitshinweise",
+    "leashRequired": "Leinenpflicht",
+    "supervisionRequired": "Tiere müssen ständig beaufsichtigt werden",
+    "vaccinationProof": "Impfnachweis kann erforderlich sein",
+    "aggressivePets": "Aggressive Tiere nicht zugelassen",
+    "childrenWelcome": "Kinder willkommen",
+    "weatherDependent": "Wetterabhängiges Event",
+    "emergencyContact": "Notfallkontakt verfügbar"
+  },
+  "search": {
+    "placeholder": "Treffen suchen …",
+    "filterByType": "Nach Art filtern",
+    "filterByDate": "Nach Datum filtern",
+    "filterByLocation": "Nach Ort filtern",
+    "filterByPets": "Nach erlaubten Tieren filtern",
+    "radius": "Radius",
+    "withinKm": "innerhalb von {{km}} km",
+    "sortBy": "Sortieren nach",
+    "sortOptions": {
+      "date": "Datum",
+      "distance": "Entfernung",
+      "popular": "Beliebteste",
+      "newest": "Neueste"
+    }
+  },
+  "status": {
+    "upcoming": "Bevorstehend",
+    "ongoing": "Läuft gerade",
+    "finished": "Beendet",
+    "canceled": "Abgesagt",
+    "postponed": "Verschoben",
+    "full": "Ausgebucht"
+  },
+  "actions": {
+    "saveMeetup": "Treffen speichern",
+    "updateMeetup": "Treffen aktualisieren",
+    "cancelEdit": "Abbrechen",
+    "deleteMeetupConfirm": "Dieses Treffen wirklich löschen?",
+    "cancelMeetup": "Treffen absagen",
+    "cancelMeetupConfirm": "Treffen wirklich absagen? Alle Teilnehmenden werden benachrichtigt.",
+    "postponeMeetup": "Treffen verschieben",
+    "shareMeetup": "Treffen teilen",
+    "reportMeetup": "Treffen melden",
+    "inviteFriends": "Freundinnen einladen",
+    "checkIn": "Einchecken",
+    "uploadPhoto": "Foto hochladen",
+    "viewOnMap": "Auf Karte anzeigen",
+    "getDirections": "Route anzeigen"
+  },
+  "validation": {
+    "titleRequired": "Titel ist erforderlich",
+    "typeRequired": "Treffen-Art ist erforderlich",
+    "startTimeRequired": "Startzeit ist erforderlich",
+    "locationRequired": "Ort ist erforderlich",
+    "startTimeInPast": "Startzeit darf nicht in der Vergangenheit liegen",
+    "endTimeBeforeStart": "Endzeit muss nach der Startzeit liegen",
+    "maxParticipantsInvalid": "Maximale Teilnehmerzahl mindestens 2",
+    "entryFeeInvalid": "Teilnahmegebühr muss eine positive Zahl sein"
+  },
+  "success": {
+    "created": "Treffen erstellt. Gruppenchat wurde angelegt.",
+    "updated": "Treffen aktualisiert.",
+    "deleted": "Treffen gelöscht",
+    "canceled": "Treffen abgesagt. Alle Teilnehmenden wurden informiert.",
+    "postponed": "Treffen verschoben. Alle Teilnehmenden wurden informiert.",
+    "rsvpConfirmed": "Anmeldung bestätigt.",
+    "rsvpCanceled": "Anmeldung zurückgezogen",
+    "joinedWaitlist": "Sie stehen auf der Warteliste",
+    "photoUploaded": "Foto erfolgreich hochgeladen",
+    "checkedIn": "Check-in erfolgreich"
+  },
+  "errors": {
+    "loadFailed": "Treffen konnten nicht geladen werden",
+    "saveFailed": "Treffen konnte nicht gespeichert werden",
+    "deleteFailed": "Treffen konnte nicht gelöscht werden",
+    "rsvpFailed": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+    "joinChatFailed": "Beitritt zum Gruppenchat fehlgeschlagen",
+    "uploadFailed": "Foto-Upload fehlgeschlagen",
+    "locationAccessDenied": "Standortzugriff verweigert"
+  },
+  "notifications": {
+    "newMeetupNearby": "Neues Treffen in der Nähe: {{title}}",
+    "meetupStartingSoon": "Treffen beginnt in {{minutes}} Minuten!",
+    "meetupCanceled": "Treffen abgesagt: {{title}}",
+    "meetupPostponed": "Treffen verschoben: {{title}}",
+    "newAttendee": "{{name}} nimmt an Ihrem Treffen teil",
+    "waitlistPromoted": "Sie wurden von der Warteliste nachgerückt: {{title}}",
+    "reminderOneDayBefore": "Erinnerung: Morgen Treffen – {{title}}",
+    "reminderOneHourBefore": "Erinnerung: Treffen in 1 Stunde – {{title}}"
+  }
+}

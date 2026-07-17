@@ -9,6 +9,7 @@ import {
   VendorMerchantPayoutRailType,
 } from '@/lib/ring-config-types'
 import type { SupportedCurrencies, SupportedTokens } from '@/lib/ring-config-types'
+import type { GenerativeGalleryValue } from '@/features/generative-media/types'
 
 // Inventory Sync Configuration
 export interface InventorySync {
@@ -108,6 +109,8 @@ export interface StoreProduct {
 
   // Extended product fields for detailed product pages
   images?: string[]
+  /** Rich gallery with derivatives (RingBase ladder); preferred for display over images[]. */
+  generativeGallery?: GenerativeGalleryValue
   vendorName?: string
   stock?: number
   allowPreorder?: boolean // Allow preorders when out of stock (stock=0)
@@ -160,6 +163,12 @@ export interface StoreProduct {
   fulfillmentOptions?: FulfillmentOptions
   productCompliance?: ProductCompliance
   status?: ProductStatus
+
+  /**
+   * Per-product promotions (CRUD on vendor/admin product form).
+   * Persisted in product JSONB — not ring-config.
+   */
+  promotions?: import('./types/promotions').ProductPromotion[]
 }
 
 export interface CartItem {
@@ -183,7 +192,7 @@ export interface CheckoutInfo {
 }
 
 // Payment-related types
-export type PaymentMethod = 'wayforpay' | 'stripe' | 'crypto' | 'credit'
+export type PaymentMethod = 'wayforpay' | 'stripe' | 'crypto' | 'credit' | 'paypal' | 'card' | 'token'
 export type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'partially_refunded'
 export type RefundStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
 export type DisputeStatus = 'open' | 'investigating' | 'resolved' | 'closed' | 'escalated'

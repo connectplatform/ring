@@ -1,0 +1,188 @@
+{
+  "title": "Встречи с питомцами",
+  "createMeetup": "Создать встречу",
+  "editMeetup": "Редактировать встречу",
+  "deleteMeetup": "Удалить встречу",
+  "noMeetups": "Встречи не найдены",
+  "discoverMeetups": "Открывайте и присоединяйтесь к встречам с питомцами в вашем районе!",
+  "upcomingMeetups": "Предстоящие встречи",
+  "pastMeetups": "Прошедшие встречи",
+  "myMeetups": "Мои встречи",
+
+  "types": {
+    "dog_park_meetup": "Встреча в собачьем парке",
+    "hiking": "Походы с питомцами",
+    "beach_day": "День на пляже",
+    "training_class": "Занятие по дрессировке",
+    "playtime": "Время для игр",
+    "socialization": "Социализация",
+    "charity": "Благотворительное мероприятие",
+    "other": "Другое"
+  },
+
+  "privacy": {
+    "public": "Публичная",
+    "private": "Приватная",
+    "publicDescription": "Любой может увидеть и присоединиться",
+    "privateDescription": "Только по приглашению"
+  },
+
+  "fields": {
+    "title": "Название встречи",
+    "description": "Описание",
+    "meetupType": "Тип",
+    "startTime": "Время начала",
+    "endTime": "Время окончания",
+    "location": "Место",
+    "maxParticipants": "Максимум участников",
+    "allowedPets": "Разрешённые питомцы",
+    "requiresRsvp": "Требуется регистрация",
+    "entryFee": "Входная плата",
+    "photos": "Фотографии",
+    "safetyGuidelines": "Правила безопасности"
+  },
+
+  "allowedPets": {
+    "title": "Разрешённые питомцы",
+    "dogs": "Собаки",
+    "cats": "Кошки",
+    "smallPets": "Мелкие питомцы",
+    "allPets": "Все питомцы приветствуются",
+    "noPets": "Без питомцев (только для людей)"
+  },
+
+  "rsvp": {
+    "title": "Регистрация",
+    "going": "Иду",
+    "interested": "Интересно",
+    "notGoing": "Не иду",
+    "rsvpNow": "Зарегистрироваться",
+    "cancelRsvp": "Отменить регистрацию",
+    "waitlist": "Встать в лист ожидания",
+    "onWaitlist": "В листе ожидания",
+    "spotsAvailable": "Доступно мест: {{count}}",
+    "noSpotsAvailable": "Мероприятие заполнено",
+    "attendees": "Участники",
+    "viewAttendees": "Просмотреть участников"
+  },
+
+  "participants": {
+    "title": "Участники",
+    "organizer": "Организатор",
+    "attendees": "Участники",
+    "waitlist": "Лист ожидания",
+    "petCount": "{{count}} питомцев",
+    "humanCount": "{{count}} человек",
+    "invited": "Приглашённые",
+    "confirmed": "Подтверждённые",
+    "declined": "Отклонённые"
+  },
+
+  "groupChat": {
+    "title": "Групповой чат",
+    "openChat": "Открыть чат",
+    "chatCreated": "Групповой чат автоматически создан для этой встречи",
+    "joinChat": "Присоединиться к чату",
+    "leaveChat": "Выйти из чата",
+    "members": "{{count}} участников"
+  },
+
+  "safety": {
+    "title": "Правила безопасности",
+    "leashRequired": "Поводки обязательны",
+    "supervisionRequired": "Присмотр за питомцами обязателен всегда",
+    "vaccinationProof": "Может потребоваться подтверждение вакцинации",
+    "aggressivePets": "Агрессивные питомцы не допускаются",
+    "childrenWelcome": "Дети приветствуются",
+    "weatherDependent": "Зависит от погоды",
+    "emergencyContact": "Экстренный контакт доступен"
+  },
+
+  "search": {
+    "placeholder": "Искать встречи...",
+    "filterByType": "Фильтр по типу",
+    "filterByDate": "Фильтр по дате",
+    "filterByLocation": "Фильтр по месту",
+    "filterByPets": "Фильтр по разрешённым питомцам",
+    "radius": "Радиус",
+    "withinKm": "в пределах {{km}} км",
+    "sortBy": "Сортировать по",
+    "sortOptions": {
+      "date": "Дате",
+      "distance": "Расстоянию",
+      "popular": "Популярности",
+      "newest": "Новизне"
+    }
+  },
+
+  "status": {
+    "upcoming": "Предстоящая",
+    "ongoing": "Идёт сейчас",
+    "finished": "Завершена",
+    "canceled": "Отменена",
+    "postponed": "Отложена",
+    "full": "Заполнена"
+  },
+
+  "actions": {
+    "saveMeetup": "Сохранить встречу",
+    "updateMeetup": "Обновить встречу",
+    "cancelEdit": "Отмена",
+    "deleteMeetupConfirm": "Вы уверены, что хотите удалить эту встречу?",
+    "cancelMeetup": "Отменить встречу",
+    "cancelMeetupConfirm": "Вы уверены, что хотите отменить эту встречу? Все участники будут уведомлены.",
+    "postponeMeetup": "Отложить встречу",
+    "shareMeetup": "Поделиться встречей",
+    "reportMeetup": "Пожаловаться на встречу",
+    "inviteFriends": "Пригласить друзей",
+    "checkIn": "Отметиться",
+    "uploadPhoto": "Загрузить фото",
+    "viewOnMap": "Показать на карте",
+    "getDirections": "Построить маршрут"
+  },
+
+  "validation": {
+    "titleRequired": "Название встречи обязательно",
+    "typeRequired": "Тип встречи обязателен",
+    "startTimeRequired": "Время начала обязательно",
+    "locationRequired": "Место обязательно",
+    "startTimeInPast": "Время начала не может быть в прошлом",
+    "endTimeBeforeStart": "Время окончания должно быть после начала",
+    "maxParticipantsInvalid": "Максимум участников — не менее 2",
+    "entryFeeInvalid": "Входная плата должна быть положительным числом"
+  },
+
+  "success": {
+    "created": "Встреча успешно создана! Групповой чат создан.",
+    "updated": "Встреча успешно обновлена!",
+    "deleted": "Встреча удалена",
+    "canceled": "Встреча отменена. Все участники уведомлены.",
+    "postponed": "Встреча отложена. Все участники уведомлены.",
+    "rsvpConfirmed": "Ваша регистрация подтверждена!",
+    "rsvpCanceled": "Ваша регистрация отменена",
+    "joinedWaitlist": "Вы добавлены в лист ожидания",
+    "photoUploaded": "Фото успешно загружено",
+    "checkedIn": "Успешно отмечены!"
+  },
+
+  "errors": {
+    "loadFailed": "Не удалось загрузить встречи",
+    "saveFailed": "Не удалось сохранить встречу",
+    "deleteFailed": "Не удалось удалить встречу",
+    "rsvpFailed": "Не удалось зарегистрироваться. Попробуйте ещё раз.",
+    "joinChatFailed": "Не удалось присоединиться к групповому чату",
+    "uploadFailed": "Не удалось загрузить фото",
+    "locationAccessDenied": "Доступ к геолокации отклонён"
+  },
+
+  "notifications": {
+    "newMeetupNearby": "Новая встреча рядом: {{title}}",
+    "meetupStartingSoon": "Встреча начнётся через {{minutes}} минут!",
+    "meetupCanceled": "Встреча отменена: {{title}}",
+    "meetupPostponed": "Встреча отложена: {{title}}",
+    "newAttendee": "{{name}} присоединяется к вашей встрече",
+    "waitlistPromoted": "Вас перевели из листа ожидания! {{title}}",
+    "reminderOneDayBefore": "Напоминание: встреча завтра — {{title}}",
+    "reminderOneHourBefore": "Напоминание: встреча начнётся через 1 час — {{title}}"
+  }
+}

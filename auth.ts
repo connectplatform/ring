@@ -253,11 +253,30 @@ const nextAuthApp = NextAuth({
         }
       }
 
-      const sessionPatch = session as { accountStatusRefresh?: boolean } | undefined
+      const sessionPatch = session as {
+        accountStatusRefresh?: boolean
+        photoURL?: string | null
+        image?: string | null
+        avatarThumb?: string | null
+      } | undefined
+
+      // Accept client photo patches (e.g. after avatar upload) before optional DB rehydrate
+      let clientPhotoPatch: string | null = null
+      if (trigger === 'update' && sessionPatch) {
+        clientPhotoPatch =
+          sessionPatch.avatarThumb ||
+          sessionPatch.photoURL ||
+          sessionPatch.image ||
+          null
+        if (clientPhotoPatch) {
+          token.photoURL = clientPhotoPatch
+        }
+      }
 
       // Decide if we need to fetch/update fresh user data from DB. This keeps JWT stateless but up-to-date.
+      // Any session update() rehydrates photo/profile fields so chrome matches /profile after upload.
       const needsUserData =
-        (trigger === 'update' && sessionPatch?.accountStatusRefresh === true) ||
+        trigger === 'update' ||
         (user && account) ||
         (user && !token.name) ||
         (token.userId && !token.role)
@@ -285,6 +304,10 @@ const nextAuthApp = NextAuth({
                 authLog('Found user data for JWT:', { name: userData?.name, email: userData?.email, role: userData?.role })
               }
               applyUserRowToJwt(token, userData)
+              // Prefer client patch when present so a race after upload does not wipe with stale DB
+              if (clientPhotoPatch) {
+                token.photoURL = clientPhotoPatch
+              }
             } else {
               authLog('User document not found for ID:', userId)
               const repairEmail = normalizeAuthEmail(
@@ -296,6 +319,9 @@ const nextAuthApp = NextAuth({
                   authLog('JWT repair: remapping userId to canonical email match:', canonical.id)
                   token.userId = canonical.id
                   applyUserRowToJwt(token, canonical)
+                  if (clientPhotoPatch) {
+                    token.photoURL = clientPhotoPatch
+                  }
                 }
               }
             }
@@ -388,9 +414,10 @@ const nextAuthApp = NextAuth({
         ;(session.user as any).bio = token.bio as string
         ;(session.user as any).organization = token.organization as string
         ;(session.user as any).position = token.position as string
-        // Hydrate user image if we have stored photoURL
+        // Hydrate chrome image + photoURL from JWT (avatarThumb preferred via applyUserRowToJwt)
         if (token.photoURL) {
           session.user.image = token.photoURL as string
+          session.user.photoURL = token.photoURL as string
         }
         // Expose JWTs/tokens for use in websocket, API calls
         session.accessToken = token.accessToken as string

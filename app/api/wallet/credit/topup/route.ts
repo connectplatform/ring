@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { CreditTopUpRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
-import { formatCreditAmount, getCreditCurrencyCode } from '@/lib/payments/credit-currency';
+import { formatCreditAmount, getCreditUnitLabel, getFiatCreditAccountingRate } from '@/lib/payments/credit-currency';
 import { isPlatformAdmin } from '@/features/auth/user-role';
 import {
   isChainProofRequired,
@@ -11,20 +11,12 @@ import {
   verifyTopUpTransaction,
 } from '@/features/wallet/services/topup-verification';
 import { getWalletAddressesForUser } from '@/features/refcodes/lib/user-wallets';
-import { nativeTokenPriceOracleService } from '@/services/blockchain/price-oracle-service';
-import { getNativeChainConfig } from '@/lib/ring-config-chain';
 
 /**
  * POST /api/wallet/credit/topup
- * Handler for credit top-up to user's wallet.
- * 
- * Expects JSON body:
- * {
- *   "amount": "100.0",
- *   "description": "Top-up from wallet",
- *   "tx_hash": "0x...", // Optional blockchain transaction hash
- *   "metadata": {} // Optional additional data
- * }
+ * Credit ledger credit (points). Accounting rate = getFiatCreditAccountingRate()
+ * (credit.unitToDefaultCurrency). Native oracle is not used for ledger usd_equivalent —
+ * on-chain proof (when required) only verifies the transfer; Token Desk owns credit↔native FX.
  */
 export async function POST(request: NextRequest) {
   // Opt out of prerendering in Next.js 16 (required for serverless DB connections)
@@ -63,16 +55,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security check: enforce min/max amount limits
+    // Security check: enforce min/max amount limits (amounts are credit units)
     const amount = parseFloat(validatedRequest.amount);
-    const creditCurrency = getCreditCurrencyCode();
+    const creditUnit = getCreditUnitLabel();
     const maxTopUpAmount = 10000; // TODO: move to config or env
     const minTopUpAmount = 0.01;
 
     if (amount > maxTopUpAmount) {
       // Reject too-large top up
       return NextResponse.json(
-        { error: `Maximum top-up amount is ${formatCreditAmount(maxTopUpAmount, creditCurrency)}` },
+        { error: `Maximum top-up amount is ${formatCreditAmount(maxTopUpAmount, creditUnit)}` },
         { status: 400 }
       );
     }
@@ -80,25 +72,13 @@ export async function POST(request: NextRequest) {
     if (amount < minTopUpAmount) {
       // Reject tiny top up
       return NextResponse.json(
-        { error: `Minimum top-up amount is ${formatCreditAmount(minTopUpAmount, creditCurrency)}` },
+        { error: `Minimum top-up amount is ${formatCreditAmount(minTopUpAmount, creditUnit)}` },
         { status: 400 }
       );
     }
 
-    // Lookup current native token/USD rate (Solana default chain, fallback to 1.00 on error)
-    let usdRate = '1.00';
-    try {
-      // Fetch rate from multi-source blockchain price oracle (can be cached)
-      // TODO: use React Server Actions for price oracle when available in Next16
-      const solanaChainId = getNativeChainConfig().solana?.chainId as number; // STUB: null-check chainId
-      const price = await nativeTokenPriceOracleService.getNativeTokenUsdPrice(solanaChainId);
-      if (price?.price && parseFloat(price.price) > 0) {
-        usdRate = price.price;
-      }
-    } catch (oracleError) {
-      // Log oracle issues, fallback to static rate for reliability
-      logger.warn('Credit top-up: price oracle unavailable, using fallback rate', { oracleError });
-    }
+    // Credit units → store.defaultCurrency (SSOT). Not native-token oracle.
+    const creditUnitToDefaultCurrencyRate = getFiatCreditAccountingRate()
 
     // Prepare transaction type: support for top_up, bonus, admin/manual, etc.
     // TODO: Implement transaction type inference based on metadata or admin action
@@ -180,7 +160,7 @@ export async function POST(request: NextRequest) {
       userId,
       validatedRequest,
       transactionType,
-      usdRate
+      creditUnitToDefaultCurrencyRate,
     );
 
     // Log successful credit event for audit/tracking
@@ -199,7 +179,7 @@ export async function POST(request: NextRequest) {
       new_balance: result.newBalance,
       amount_added: validatedRequest.amount,
       usd_equivalent: result.transaction.usd_equivalent,
-      message: `Successfully added ${formatCreditAmount(validatedRequest.amount, creditCurrency)} to your balance`,
+      message: `Successfully added ${formatCreditAmount(validatedRequest.amount, creditUnit)} to your balance`,
     });
 
   } catch (error) {

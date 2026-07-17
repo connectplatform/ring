@@ -1,0 +1,276 @@
+---
+title: Generative Gallery
+description: Upload or AI-generate image galleries for NFT create and store products — credit-billed Ghost-write + ImageConductor, RingFileBase derivatives, hidden tool chats, Metaplex metadata.
+last_modified: "2026-07-15"
+audience: both
+---
+
+# Generative Gallery
+
+Generative Gallery is Ring Platform’s **shared media field** for NFT create and multi-vendor product forms. Operators and members **upload** images or **generate** four ImageConductor variations, enrich prompts with **Ghost-write** (TextConductor + web search), and keep history in a **hidden tool chat** (`genmedia:…`) that never clutters Messages.
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see operator value and surfaces; developers see modules, billing, and verified paths.
+</Callout>
+
+## Where it ships
+
+| Surface | Role |
+|---------|------|
+| NFT create wizard | Collection cover + mint media via `GenerativeMediaField` (`scope: 'nft'`) |
+| Vendor / admin product form | Product image gallery (`scope: 'product'`); admin reuses the same form |
+| Product detail gallery | Prefers `derivatives.thumb` / `webpUrl` for strip; lightbox uses original |
+| News cards / hero / OG | `pickImageSrc` → card / hero / og; blur LQIP when present |
+| Avatar | `avatarThumb` (sync_thumb) preferred over `photoURL` original |
+| Chat image bubbles | `MessageAttachment.derivatives.thumb` preferred over original URL |
+| NFT mint + listings | Off-chain Metaplex JSON (`image`, optional `animation_url`, `properties.files`) + showcase on ownership / listing details |
+
+SSOT module: `features/generative-media/`.
+
+<Audience for="founder">
+
+## Why this matters for your clone
+
+- **One field, two businesses** — the same Upload \| Generate widget powers store catalog photos and member NFT art, so vendors and creators learn one workflow.
+- **Credit-first spend** — Ghost-write and image generation debit platform credits through WalletConductor before the turn runs; insufficient balance fails early with a clear error.
+- **Clean inbox** — generation history lives in a product-tool conversation marked hidden (`generative_gallery` / `genmedia:`), so Messages stays for real people.
+- **Faster storefront paint** — with `storage.provider=ring_filebase`, uploads return a full `derivatives` map (`thumb`, `blur`, cards, …) under `{fileId}_v_*`; UI prefers thumbs for list/gallery first paint and originals in lightbox.
+- **Richer NFT showcase** — mint builds Metaplex off-chain metadata with gallery files; listing details can show animation + gallery thumbs when present.
+
+<Cards>
+  <Card title="NFT Marketplace" href="/docs/features/nft-market">
+    Member create/mint/list — Generative Gallery is the media path.
+  </Card>
+  <Card title="Multi-Vendor Store" href="/docs/features/store">
+    Vendor and admin product forms use the same gallery field.
+  </Card>
+  <Card title="WalletConductor" href="/docs/features/wallet-conductor">
+    `spendCredits` powers generative billing today.
+  </Card>
+  <Card title="MediaConductor" href="/docs/features/media-conductor">
+    Sibling facade for docs narration/walkthroughs — not this field.
+  </Card>
+</Cards>
+
+### Operator checklist
+
+- Ensure ImageConductor / TextConductor providers are configured (same stack as other generative features).
+- Fund or sell **platform credits** so Ghost-write and Generate can bill (`GENERATIVE_CREDIT_*` optional overrides; code defaults apply).
+- Prefer **`ring_filebase`** so image ladders come from RingFileBase on upload (no Next-side sharp required for those paths). Optional `storage.webpDerivative.provider=sharp` remains a soft fallback for non-RingBase providers.
+- Train vendors: Upload tab for photos; Generate tab for AI variations; set primary before save.
+- On NFT listings, verify showcase thumbs/animation when creators attach multi-item galleries.
+
+### Typical journeys
+
+<Mermaid title="Founder view — Upload or Generate">
+{`flowchart LR
+  Field[GenerativeMediaField]
+  Field --> Upload[Upload tab]
+  Field --> Gen[Generate tab]
+  Upload --> Strip[Gallery strip + WebP]
+  Gen --> Ghost[Ghost-write optional]
+  Ghost --> IC[ImageConductor n=4]
+  IC --> Strip
+  Strip --> NFT[NFT mint metadata]
+  Strip --> Store[Product images]
+`}
+</Mermaid>
+
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+Credit-first generative turns run through server actions → `features/generative-media/service.ts` → ImageConductor / TextConductor, with optional WebP derive and FCM/in-app notify when generation completes in the background.
+
+<Mermaid title="Generative gallery image turn">
+{`sequenceDiagram
+  participant UI as GenerativeMediaField / EditorFsModal
+  participant SA as app/_actions/generative-media
+  participant Bill as billing.billGenerativeTurn
+  participant WC as WalletConductor.spendCredits
+  participant Svc as generative-media/service
+  participant IC as ImageConductor
+  participant WebP as deriveWebpSibling
+  participant Chat as hidden product conversation
+
+  UI->>SA: runGenMediaImageAction
+  SA->>Svc: runGenMediaImageTurn
+  Svc->>Bill: action image_gen + referenceId
+  Bill->>WC: spendCredits
+  WC-->>Bill: transactionId
+  Bill-->>Svc: ok
+  Svc->>Chat: user prompt message
+  Svc->>IC: generate n=4 + referenceImages
+  IC-->>Svc: image URLs
+  Svc->>WebP: per image
+  Svc->>Chat: ImageConductor attachments
+  opt notifyIfBackground
+    Svc->>Svc: createNotification IN_APP + PUSH
+  end
+  Svc-->>UI: galleryItems
+`}
+</Mermaid>
+
+### Modules
+
+| Path | Role |
+|------|------|
+| `features/generative-media/types.ts` | `GalleryItem`, `GenerativeGalleryValue`, scopes `nft` \| `product`, `buildGenMediaChatKey` → `genmedia:scope:entity:page:field` |
+| `features/generative-media/billing.ts` | Credit-first `WalletConductor.spendCredits` + `generative_usage` ledger |
+| `features/generative-media/service.ts` | Hidden tool chat, upload (no caption), Ghost-write, ImageConductor turn |
+| `features/generative-media/nft-metadata.ts` | Metaplex JSON + `uploadNftMetadataJson` + `parseGalleryFromForm` |
+| `features/generative-media/parse-product-images.ts` | FormData URL gallery for vendor/admin (`resolveProductImagesFromForm`) |
+| `features/generative-media/components/generative-media-field.tsx` | Upload \| Generate tabs SSOT widget |
+| `features/generative-media/components/generative-gallery-strip.tsx` | Strip, primary, replace/delete |
+| `features/generative-media/components/generative-media-editor-fs-modal.tsx` | Fullscreen history + Ghost-write + Use this image |
+| `app/_actions/generative-media.ts` | `listGenMediaMessagesAction`, `runGenMediaImageAction`, `runGhostWriteAction`, `postGenMediaUploadAction`, `deleteGenMediaFileAction` |
+| `lib/images/derive-webp.ts` | Optional Next-side WebP sibling via `storage.webpDerivative` (`off` default; `sharp` / `ringbase`); `IMAGE_WEBP_DISABLED` kill-switch. Prefer RingFileBase upload `derivatives` when provider is `ring_filebase`. |
+| `lib/file/adapters/RingBaseAdapter.ts` | Upload → RingBase; returns `fileId` + `derivatives` map; public URL `/files/{uuid}` (no extension — Content-Type from object metadata) |
+| `lib/file/media-asset.ts` | `MediaImageAsset` / `pickImageSrc` / `pickGalleryDisplayUrl` — display SSOT over `derivatives` |
+| `features/chat/services/conversation-service.ts` | `isHiddenToolConversation` — `hiddenFromInbox` / `generative_gallery` / `genmedia:` \| `imggen:` |
+| `locales/{en,uk,ru}/modules/generativeMedia.json` | UI copy; scope `modGenerativeMedia` in `lib/i18n/message-scopes.ts` |
+
+### Auth gates (verified)
+
+<Steps>
+
+<Step>
+
+**Session required**
+
+All generative-media server actions call `auth()`; unauthenticated → `Unauthorized`.
+
+</Step>
+
+<Step>
+
+**NFT scope needs member+**
+
+`runGenMediaImageAction`, `runGhostWriteAction`, and `postGenMediaUploadAction` pass `requireMember = true` when `scope === 'nft'` (`hasMemberPrivileges` or platform admin).
+
+</Step>
+
+<Step>
+
+**Product scope**
+
+Same actions for `scope === 'product'` only require a signed-in actor (vendor/admin form path).
+
+</Step>
+
+</Steps>
+
+### Billing (credit-first)
+
+`billGenerativeTurn` prices from env (optional) with code defaults:
+
+| Action | Env key | Default credits |
+|--------|---------|-----------------|
+| Ghost-write | `GENERATIVE_CREDIT_GHOST_WRITE` | `5` |
+| Image gen | `GENERATIVE_CREDIT_IMAGE` | `15` |
+| Video gen (priced; studio polish TBD) | `GENERATIVE_CREDIT_VIDEO` | `50` |
+
+Flow: soft-idempotent on `referenceId` in `generative_usage` → `creditBalanceService.hasSufficientBalance` → `WalletConductor.spendCredits` → ledger row (warn-only if collection write fails).
+
+<Callout type="tip">
+  Optional `GENERATIVE_CREDIT_*` keys are listed in `env.local.template`. When `storage.provider` is **`ring_filebase`**, prefer the upload API’s `derivatives` map (`{fileId}_v_*` keys) over Next-side sharp. Optional `ring-config.storage.webpDerivative` remains for other providers (`provider: "off"` default; `"sharp"` imports sharp). Ops override: `IMAGE_WEBP_DISABLED=1`.
+</Callout>
+
+### Image turn details
+
+- Prompt required, max **4000** characters.
+- `ImageConductor.generate`: `n: 4`, `aspectRatio: '1:1'`, up to **3** `referenceImages`.
+- Uploads post as `type: 'image'` with **empty caption** and `metadata.kind: 'gallery_upload'`.
+- Ghost-write uses `TextConductor.generate` with `webSearch: true` and returns enriched prompt only.
+
+### Product + NFT wiring
+
+| Integration | Path |
+|-------------|------|
+| NFT wizard | `features/nft-market/components/nft-create-wizard.tsx` |
+| Legacy wrapper | `features/nft-market/components/nft-media-field.tsx` → re-exports `GenerativeMediaField` |
+| Mint metadata | `features/nft-market/member/member-mint-service.ts` → `buildMetaplexMetadataJson` / `uploadNftMetadataJson` |
+| Listing UI | `features/nft-market/components/nft-listing-details-wrapper.tsx` — `animationUrl` + gallery thumbs |
+| Vendor form | `app/[locale]/(protected)/vendor/products/product-form.tsx` |
+| Admin add/edit | Reuses `ProductForm`; images resolved in `app/_actions/admin-store-erp.ts` + `vendor-actions.ts` via `resolveProductImagesFromForm` |
+| Storefront | `components/store/product-image-gallery.tsx` + `productDetailsClient` prefers `derivatives.thumb` / `webpUrl` for strip |
+
+### Conversation channel reuse
+
+Generative Gallery does **not** introduce `Conversation.type: 'generative'`. It reuses the **`product` channel** (same as the store product agent) and annotates the subtype:
+
+| Field | Value |
+|-------|--------|
+| `type` | `'product'` |
+| `metadata.kind` | `'generative_gallery'` |
+| `metadata.hiddenFromInbox` | `true` |
+| `metadata.productId` / `subject` | `genmedia:{scope}:{entity}:{page}:{field}` from `buildGenMediaChatKey` |
+
+Store product-agent chats also use `type: 'product'` with a real catalog `productId` and **no** tool `kind` — they remain **visible** in Messages. Taxonomy SSOT: [Real-Time Messaging](/docs/features/messaging).
+
+`isHiddenToolConversation` returns true when metadata has `hiddenFromInbox`, `kind === 'generative_gallery'`, or `productId` / `subject` starts with `genmedia:` or `imggen:` (legacy). Prefer setting `hiddenFromInbox` on new tool chats.
+
+Message payload kinds (`gallery_upload`, `ghost_write_request`, `image_gen_complete`, …) are **message** metadata — separate from conversation `metadata.kind`.
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="Real-Time Messaging" href="/docs/features/messaging">
+    Conversation.type vs metadata.kind — why tool chats reuse product channel.
+  </Card>
+  <Card title="NFT Marketplace" href="/docs/features/nft-market">
+    Dual-lane Solana exhibition; Generative Gallery section on create/mint.
+  </Card>
+  <Card title="Store" href="/docs/features/store">
+    Multi-vendor catalog and product forms.
+  </Card>
+  <Card title="WalletConductor" href="/docs/features/wallet-conductor">
+    Credit spend used by generative billing.
+  </Card>
+  <Card title="MediaConductor" href="/docs/features/media-conductor">
+    Docs narration / walkthrough facade.
+  </Card>
+  <Card title="VideoConductor" href="/docs/features/video-conductor">
+    Scripted video engine — future studio polish for gallery video.
+  </Card>
+  <Card title="RingFileBase" href="/docs/integrations/ring-filebase">
+    Object storage + `{fileId}_v_*` derivative ladders (upload SSOT).
+  </Card>
+  <Card title="Ring CDN" href="/docs/integrations/ring-cdn">
+    Public `/files/...` delivery for originals and derivatives.
+  </Card>
+  <Card title="Generative images (dev)" href="/docs/development/generative-images">
+    Lower-level ImageConductor / storage notes.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — Generative Gallery">
+
+<FutureFeatureWidget
+  name="RING burn + encrypted memo billing"
+  description="Replace or augment credit-first WalletConductor.spendCredits with native RING burn and an encrypted on-chain/off-chain memo for generative usage. Not shipped — today’s path is platform credits + generative_usage ledger only."
+  implementationCost={96}
+  labels={['billing', 'ring', 'wallet', 'generative']}
+  poolSlug="generative-ring-burn-encrypted-memo"
+/>
+
+<FutureFeatureWidget
+  name="Sharp-less deploy fallback"
+  description="Soft-skip: ring-config storage.webpDerivative defaults to off; sharp loads only when provider=sharp; IMAGE_WEBP_DISABLED kill-switch. Keep as soft backlog only if a clone still needs packaging without the sharp package entirely (RingFileBase ladders already cover ring_filebase clones)."
+  implementationCost={12}
+  labels={['deploy', 'images', 'webp', 'sharp', 'shipped-partial']}
+  poolSlug="generative-webp-sharp-fallback"
+/>
+
+<FutureFeatureWidget
+  name="Full Video / MediaConductor studio polish"
+  description="GalleryItem already allows source video and Metaplex animation_url. Ship a polished in-field VideoConductor / MediaConductor studio (generate, preview, attach) with GENERATIVE_CREDIT_VIDEO billing end-to-end — beyond priced stubs and image-first UX."
+  implementationCost={120}
+  labels={['video', 'media-conductor', 'studio', 'generative']}
+  poolSlug="generative-video-studio-polish"
+/>
+
+</FutureFeatureBacklog>

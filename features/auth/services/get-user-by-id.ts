@@ -53,6 +53,9 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     username: userData?.username,
     role: resolvePersistedUserRole(userData?.role),
     photoURL: userData?.photoURL || userData?.image,
+    avatarThumb:
+      (typeof userData?.avatarThumb === 'string' && userData.avatarThumb) ||
+      undefined,
     authProvider: userData?.authProvider || 'credentials',
     authProviderId: userData?.authProviderId || userData?.id,
     isVerified: Boolean(userData?.isVerified ?? userData?.is_verified ?? false),

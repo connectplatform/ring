@@ -50,9 +50,11 @@ async function persistGeneratedImage(
   index: number
 ): Promise<GeneratedImage> {
   const objectKey = buildObjectKey(ctx.purpose, index)
+  const { ringbaseDerivativeUploadOptions } = await import('@/lib/file/derivatives-profile')
   const upload = await file().upload(objectKey, output.buffer, {
     access: 'public',
     contentType: output.contentType,
+    ...ringbaseDerivativeUploadOptions(ctx.purpose, output.contentType, 'public'),
     metadata: {
       source: output.provider,
       model: output.model,

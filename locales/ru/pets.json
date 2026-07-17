@@ -1,0 +1,149 @@
+{
+  "title": "Мои питомцы",
+  "addPet": "Добавить питомца",
+  "editPet": "Редактировать питомца",
+  "deletePet": "Удалить питомца",
+  "noPets": "Пока нет питомцев",
+  "addYourFirstPet": "Добавьте первого питомца, чтобы находить pet-friendly места и общаться с другими владельцами!",
+
+  "types": {
+    "dog": "Собака",
+    "cat": "Кошка",
+    "bird": "Птица",
+    "rabbit": "Кролик",
+    "hamster": "Хомяк",
+    "guinea_pig": "Морская свинка",
+    "reptile": "Рептилия",
+    "fish": "Рыба",
+    "horse": "Лошадь",
+    "other": "Другое"
+  },
+
+  "sizes": {
+    "tiny": "Крошечный",
+    "small": "Маленький",
+    "medium": "Средний",
+    "large": "Крупный",
+    "giant": "Гигантский"
+  },
+
+  "genders": {
+    "male": "Самец",
+    "female": "Самка",
+    "unknown": "Неизвестно"
+  },
+
+  "temperament": {
+    "title": "Характер",
+    "calm": "Спокойный",
+    "playful": "Игривый",
+    "shy": "Застенчивый",
+    "aggressive": "Агрессивный",
+    "social": "Общительный",
+    "energetic": "Энергичный",
+    "lazy": "Ленивый",
+    "anxious": "Тревожный"
+  },
+
+  "fields": {
+    "name": "Имя питомца",
+    "petType": "Тип",
+    "breed": "Порода",
+    "size": "Размер",
+    "weight": "Вес (кг)",
+    "color": "Окрас",
+    "age": "Возраст",
+    "ageYears": "Лет",
+    "ageMonths": "Месяцев",
+    "gender": "Пол",
+    "bio": "О питомце",
+    "isNeutered": "Стерилизован/кастрирован",
+    "isVaccinated": "Привит",
+    "vaccinationDate": "Дата вакцинации",
+    "microchipId": "Номер чипа",
+    "energyLevel": "Уровень энергии",
+    "friendlinessPeople": "Дружелюбие к людям",
+    "friendlinessPets": "Дружелюбие к животным",
+    "trainability": "Обучаемость",
+    "hasSpecialNeeds": "Особые потребности",
+    "specialNeeds": "Подробности об особых потребностях",
+    "dietaryRestrictions": "Диетические ограничения",
+    "medications": "Лекарства",
+    "goodWithKids": "Ладит с детьми",
+    "goodWithDogs": "Ладит с собаками",
+    "goodWithCats": "Ладит с кошками",
+    "goodInApartments": "Подходит для квартиры",
+    "photos": "Фотографии",
+    "primaryPhoto": "Главное фото",
+    "isActive": "Активен",
+    "isPublic": "Публичный профиль"
+  },
+
+  "levels": {
+    "veryLow": "Очень низкий",
+    "low": "Низкий",
+    "medium": "Средний",
+    "high": "Высокий",
+    "veryHigh": "Очень высокий"
+  },
+
+  "compatibility": {
+    "title": "Совместимость",
+    "description": "Помогите нам подобрать совместимых питомцев и подходящие места",
+    "goodWithKidsLabel": "Ладит с детьми",
+    "goodWithDogsLabel": "Ладит с другими собаками",
+    "goodWithCatsLabel": "Ладит с кошками",
+    "goodInApartmentsLabel": "Подходит для жизни в квартире"
+  },
+
+  "health": {
+    "title": "Здоровье и уход",
+    "vaccinated": "Актуальные прививки",
+    "neutered": "Стерилизован/кастрирован",
+    "microchipped": "Чипирован"
+  },
+
+  "profile": {
+    "title": "Профиль питомца",
+    "viewProfile": "Просмотреть профиль",
+    "editProfile": "Редактировать профиль",
+    "shareProfile": "Поделиться профилем",
+    "visibility": "Видимость профиля",
+    "publicProfile": "Публичный (виден всем)",
+    "privateProfile": "Приватный (виден только вам)",
+    "stats": "Статистика"
+  },
+
+  "actions": {
+    "savePet": "Сохранить питомца",
+    "updatePet": "Обновить питомца",
+    "cancelEdit": "Отмена",
+    "deletePetConfirm": "Вы уверены, что хотите удалить профиль этого питомца?",
+    "uploadPhoto": "Загрузить фото",
+    "setAsPrimary": "Сделать главным фото",
+    "removePhoto": "Удалить фото"
+  },
+
+  "validation": {
+    "nameRequired": "Укажите имя питомца",
+    "typeRequired": "Укажите тип питомца",
+    "ageInvalid": "Некорректный возраст",
+    "weightInvalid": "Вес должен быть положительным числом",
+    "photosLimit": "Можно загрузить не более 10 фотографий"
+  },
+
+  "success": {
+    "created": "Профиль питомца успешно создан!",
+    "updated": "Профиль питомца успешно обновлён!",
+    "deleted": "Профиль питомца удалён",
+    "photoUploaded": "Фото успешно загружено",
+    "photoRemoved": "Фото удалено"
+  },
+
+  "errors": {
+    "loadFailed": "Не удалось загрузить профили питомцев",
+    "saveFailed": "Не удалось сохранить профиль питомца",
+    "deleteFailed": "Не удалось удалить профиль питомца",
+    "uploadFailed": "Не удалось загрузить фото"
+  }
+}

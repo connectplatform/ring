@@ -7,7 +7,7 @@
  *
  * The subscription_ledger collection is SSOT for all subscription state.
  * Gateway-specific references (stripe_subscription_id, wayforpay_rec_token,
- * solana_tx_signature) are stored per-row.
+ * paypal_subscription_id, solana_tx_signature, nft_mint_address) are stored per-row.
  *
  * SSOT hierarchy:
  *   1. ring-config.json → payment.cardPaymentProcessor   (default card gateway)
@@ -50,8 +50,8 @@ import { nativeTokenSubscriptionProvider } from '@/lib/payments/subscription/pro
 import { stripeSubscriptionProvider } from '@/lib/payments/subscription/providers/stripe-subscription'
 import { wayforpaySubscriptionProvider } from '@/lib/payments/subscription/providers/wayforpay-subscription'
 import { nftGateSubscriptionProvider } from '@/lib/payments/subscription/providers/nft-gate-subscription'
-import { paypalSubscriptionProvider } from '@/lib/payments/subscription/providers/subscription-provider-stubs'
-// paypalSubscriptionProvider remains Phase S8 stub.
+import { paypalSubscriptionProvider } from '@/lib/payments/subscription/providers/paypal-subscription'
+// paypalSubscriptionProvider — Subscriptions v1 (recurring) + Orders v2 one-shot
 
 /**
  * Provider registry: map provider identifier (string) to
@@ -64,7 +64,7 @@ const providerRegistry = new Map<SubscriptionProvider, SubscriptionProviderModul
   ['stripe', stripeSubscriptionProvider],
   ['wayforpay', wayforpaySubscriptionProvider],
   ['nft_gate', nftGateSubscriptionProvider], // Metaplex Core + GateEscrow (MVP-A)
-  ['paypal', paypalSubscriptionProvider],    // STUB: Phase S8
+  ['paypal', paypalSubscriptionProvider],    // PaymentConductor Orders v2 + webhook capture
 ])
 
 /**
@@ -87,17 +87,20 @@ const COLLECTION = 'subscription_ledger'
 async function insertLedgerRow(
   input: CreateSubscriptionInput,
   gatewayReference?: string,
+  options?: { status?: SubscriptionLedgerStatus },
 ): Promise<SubscriptionLedgerRow> {
   const now = Date.now()
   const period = 30 * 24 * 60 * 60 * 1000 // 30 days — mirrors Membership.sol
   const nextPaymentDue = now + period
+  const status = options?.status ?? 'active'
+  const isPending = status === 'pending'
 
   const row: Omit<SubscriptionLedgerRow, 'id'> = {
     user_id: input.userId,
     provider: input.provider,
     gateway: input.gateway,
     method: input.method,
-    status: 'active',
+    status,
     amount: input.amount,
     currency: input.currency,
     gateway_fee_percent: input.gatewayFeePercent,
@@ -107,15 +110,15 @@ async function insertLedgerRow(
     failed_attempts: 0,
     max_failed_attempts: 3,
     auto_renew: true,
-    total_paid: String(input.amount),
-    payments_count: 1,
+    total_paid: isPending ? '0' : String(input.amount),
+    payments_count: isPending ? 0 : 1,
     created_at: now,
     updated_at: now,
   }
 
   // Build a unique id for this subscription.
   const id = `sub_${now}_${input.userId.slice(-8)}`
-  // Compose row with possible gateway reference (for Stripe, WayForPay etc.).
+  // Compose row with possible gateway reference (for Stripe, WayForPay, PayPal etc.).
   const result = await db().createDoc(
     COLLECTION,
     {
@@ -132,7 +135,7 @@ async function insertLedgerRow(
     throw result.error ?? new Error('Failed to create subscription_ledger row')
   }
 
-  return { id, ...row } as SubscriptionLedgerRow
+  return { id, ...row, ...(gatewayReference ? gatewayRefToField(input.provider, gatewayReference) : {}) } as SubscriptionLedgerRow
 }
 
 /**
@@ -153,6 +156,8 @@ function gatewayRefToField(
       return { solana_tx_signature: ref }
     case 'nft_gate':
       return { nft_mint_address: ref }
+    case 'paypal':
+      return { paypal_subscription_id: ref }
     // STUB: Add more mappings as providers are implemented.
     default:
       return {}
@@ -271,24 +276,28 @@ export const SubscriptionConductor = {
     const gatewayReference =
       result.gatewayReference ??
       (input.metadata?.recToken ? String(input.metadata.recToken) : undefined)
+    const ledgerStatus = result.ledgerStatus ?? 'active'
 
     try {
       // Persist the subscription in the ledger (SSOT)
-      const row = await insertLedgerRow(input, gatewayReference)
+      const row = await insertLedgerRow(input, gatewayReference, { status: ledgerStatus })
       logger.info('SubscriptionConductor: subscription created', {
         userId: input.userId,
         provider: input.provider,
         ledgerId: row.id,
+        ledgerStatus,
         gatewayReference: result.gatewayReference,
       })
 
-      // Promote user to MEMBER on ledger insert
-      await upgradeUserRoleOnSubscription(
-        input.userId,
-        row.id,
-        input.amount,
-        input.currency,
-      )
+      // Promote user to MEMBER only when ledger is active (not pending redirect flows)
+      if (ledgerStatus === 'active') {
+        await upgradeUserRoleOnSubscription(
+          input.userId,
+          row.id,
+          input.amount,
+          input.currency,
+        )
+      }
 
       // Append ledger id as subscriptionId on result for downstream use
       return {
@@ -327,29 +336,31 @@ export const SubscriptionConductor = {
 
     try {
       // 2. Mark all ledger entries as cancelled for user+provider+active (defensive in case of duplicate or old subs).
-      const rows = await db().queryDocs<Record<string, unknown>>({
-        collection: COLLECTION,
-        filters: [
-          { field: 'user_id', operator: '==', value: userId },
-          { field: 'provider', operator: '==', value: provider },
-          { field: 'status', operator: '==', value: 'active' },
-        ],
-      })
+      const now = Date.now()
+      for (const status of ['active', 'pending'] as const) {
+        const rows = await db().queryDocs<Record<string, unknown>>({
+          collection: COLLECTION,
+          filters: [
+            { field: 'user_id', operator: '==', value: userId },
+            { field: 'provider', operator: '==', value: provider },
+            { field: 'status', operator: '==', value: status },
+          ],
+        })
 
-      if (rows.success && rows.data) {
-        const now = Date.now()
-        for (const row of rows.data) {
-          await db().updateDoc(COLLECTION, String(row.id), {
-            status: 'cancelled',
-            cancelled_at: now,
-            auto_renew: false,
-            updated_at: now,
-          }).catch(() => { /* best-effort, tolerate partial failures */ })
+        if (rows.success && rows.data) {
+          for (const row of rows.data) {
+            await db().updateDoc(COLLECTION, String(row.id), {
+              status: 'cancelled',
+              cancelled_at: now,
+              auto_renew: false,
+              updated_at: now,
+            }).catch(() => { /* best-effort, tolerate partial failures */ })
+          }
         }
-
-        // Attempt user role downgrade, if appropriate.
-        await downgradeUserRoleOnCancellation(userId)
       }
+
+      // Attempt user role downgrade, if appropriate.
+      await downgradeUserRoleOnCancellation(userId)
 
       logger.info('SubscriptionConductor: subscription cancelled', { userId, provider })
     } catch (error) {
@@ -431,6 +442,9 @@ export const SubscriptionConductor = {
       failed_attempts?: number
       cancelled_at?: number
       expired_at?: number
+      payments_count?: number
+      total_paid?: string
+      paypal_subscription_id?: string
       metadata?: Record<string, unknown>
     },
   ): Promise<SubscriptionLedgerRow | null> {
@@ -448,7 +462,12 @@ export const SubscriptionConductor = {
         ...(patch.failed_attempts !== undefined && { failed_attempts: patch.failed_attempts }),
         ...(patch.cancelled_at !== undefined && { cancelled_at: patch.cancelled_at }),
         ...(patch.expired_at !== undefined && { expired_at: patch.expired_at }),
-        ...(patch.metadata && { metadata: { ...existing.metadata, ...patch.metadata } }),
+        ...(patch.payments_count !== undefined && { payments_count: patch.payments_count }),
+        ...(patch.total_paid !== undefined && { total_paid: patch.total_paid }),
+        ...(patch.paypal_subscription_id !== undefined && {
+          paypal_subscription_id: patch.paypal_subscription_id,
+        }),
+        ...(patch.metadata && { metadata: { ...(existing as { metadata?: Record<string, unknown> }).metadata, ...patch.metadata } }),
         updated_at: now,
       }
 
@@ -481,6 +500,50 @@ export const SubscriptionConductor = {
   },
 
   // ---- Querying Subscription State ----
+
+  /**
+   * Insert an already-paid ledger row without calling the payment provider.
+   * Used by Orders v2 CAPTURE webhooks (one-shot membership) so we never
+   * re-enter PayPal create from a webhook.
+   */
+  async recordPaidSubscription(
+    input: CreateSubscriptionInput,
+    gatewayReference?: string,
+  ): Promise<SubscriptionLedgerRow> {
+    const row = await insertLedgerRow(input, gatewayReference, { status: 'active' })
+    await upgradeUserRoleOnSubscription(
+      input.userId,
+      row.id,
+      input.amount,
+      input.currency,
+    )
+    logger.info('SubscriptionConductor: paid subscription recorded', {
+      userId: input.userId,
+      provider: input.provider,
+      ledgerId: row.id,
+      gatewayReference,
+    })
+    return row
+  },
+
+  /**
+   * Look up a ledger row by PayPal Subscriptions v1 id (I-…).
+   */
+  async findByPaypalSubscriptionId(
+    paypalSubscriptionId: string,
+  ): Promise<SubscriptionLedgerRow | null> {
+    if (!paypalSubscriptionId) return null
+    const result = await db().queryDocs<Record<string, unknown>>({
+      collection: COLLECTION,
+      filters: [
+        { field: 'paypal_subscription_id', operator: '==', value: paypalSubscriptionId },
+      ],
+      pagination: { limit: 1 },
+    })
+    if (!result.success || !result.data?.length) return null
+    const parsed = subscriptionLedgerSchema.safeParse(result.data[0])
+    return parsed.success ? parsed.data : null
+  },
 
   /**
    * Get the latest subscription ledger row for a user.

@@ -33,7 +33,7 @@ interface SubscriptionData {
     can_upgrade: boolean
   }
   subscription: {
-    status: 'inactive' | 'active' | 'expired' | 'cancelled' | 'suspended' | 'grace_period'
+    status: 'inactive' | 'pending' | 'active' | 'expired' | 'cancelled' | 'suspended' | 'grace_period'
     provider?: string
     gateway?: string
     method?: string
@@ -138,6 +138,7 @@ export function SubscriptionManagement({ className, onSubscriptionChange }: Subs
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'outline'; icon: any; color: string }> = {
       'active': { variant: 'default', icon: CheckCircle, color: 'text-green-600' },
+      'pending': { variant: 'outline', icon: Clock, color: 'text-blue-600' },
       'expired': { variant: 'destructive', icon: AlertTriangle, color: 'text-red-600' },
       'cancelled': { variant: 'secondary', icon: XCircle, color: 'text-gray-600' },
       'suspended': { variant: 'outline', icon: AlertTriangle, color: 'text-orange-600' },
@@ -257,7 +258,7 @@ export function SubscriptionManagement({ className, onSubscriptionChange }: Subs
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {subscription.payments_count} payments • {subscription.total_paid} RING total
+                    {subscription.payments_count} payments • {subscription.total_paid} total paid
                   </div>
                 </div>
                 

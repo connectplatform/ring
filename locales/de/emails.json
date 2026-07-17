@@ -1,0 +1,7 @@
+{
+  "templates": {
+    "welcome": {
+      "subject": "Willkommen bei {platform}!"
+    }
+  }
+}

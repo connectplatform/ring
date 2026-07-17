@@ -1,0 +1,34 @@
+{
+  "privacyPolicyText": {
+    "title": "política de privacidad",
+    "lastUpdated": "Estado: {date}",
+    "introduction": {
+      "title": "Introducción",
+      "content": "Esta política de privacidad describe cómo Connect.Software (basado en la plataforma Ring) recopila, utiliza y protege los datos personales."
+    },
+    "dataCollection": {
+      "title": "Qué datos recopilamos",
+      "content": "Recopilamos información que usted comparte activamente con nosotros, p. B. al registrarse, mantener su perfil o cuando se comunica con nosotros.",
+      "item1": "Detalles de la cuenta (nombre, correo electrónico, detalles del perfil)",
+      "item2": "Datos de uso e interacciones con la plataforma",
+      "item3": "Datos de comunicación cuando nos escribes",
+      "item4": "Datos técnicos como dirección IP e información del navegador."
+    },
+    "dataUsage": {
+      "title": "Para qué utilizamos tus datos",
+      "content": "Utilizamos estos datos para proporcionar, mantener y mejorar nuestros Servicios, comunicarnos con usted y garantizar la seguridad de la Plataforma."
+    },
+    "dataSecurity": {
+      "title": "Seguridad de datos",
+      "content": "Utilizamos medidas técnicas y organizativas apropiadas para proteger sus datos personales contra el acceso no autorizado, la alteración, la divulgación o la destrucción."
+    },
+    "userRights": {
+      "title": "Tus derechos",
+      "content": "Tiene derecho a la información, rectificación o eliminación de sus datos personales. Puede oponerse o restringir determinados procesos de comunicación y análisis, en la medida que lo exija la ley."
+    },
+    "contactUsPrivacy": {
+      "title": "Protección de datos de contacto",
+      "content": "Si tiene alguna pregunta sobre esta política de privacidad, puede contactarnos en privacidad@connect.software"
+    }
+  }
+}

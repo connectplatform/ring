@@ -1,80 +1,73 @@
-"use client"
-import React, { useCallback, useEffect, useRef, useState, use } from 'react'
+'use client'
+
+import React, { use, useCallback, useMemo } from 'react'
 import type { Locale } from '@/i18n/shared'
-import { useInView } from '@/hooks/use-intersection-observer'
 import StoreWrapper from '@/components/wrappers/store-wrapper'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
+
+type OrderRow = {
+  id: string
+  status?: string
+  createdAt?: string
+}
 
 export default function MyOrdersClient({ params }: { params: Promise<{ locale: Locale }> }) {
-  // Suspense for data loading: using React's experimental `use` for async params
-  // TODO: When Next.js 16+ implements more stable async route params, prefer that pattern.
   const resolvedParams = use(params)
   const locale = resolvedParams.locale
+  const limit = 20
 
-  // State for orders, pagination, and loading
-  const [items, setItems] = useState<any[]>([]) // Holds fetched order items
-  const [lastVisible, setLastVisible] = useState<string | null>(null) // Indicates the last order fetched, for pagination
-  const [loading, setLoading] = useState(false) // True while fetching
+  const filterFingerprint = useMemo(
+    () => buildFilterFingerprint('my-orders', { scope: 'buyer' }),
+    [],
+  )
 
-  // Infinite scroll hook from custom intersection observer
-  // inView - is the sentinel in viewport?
-  // ref - sentinel element for trigger
-  const { ref, inView } = useInView({ rootMargin: '200px' })
+  const fetchPage = useCallback(async (cursor: string | null) => {
+    const url = `/api/store/orders?limit=${limit}${cursor ? `&startAfter=${encodeURIComponent(cursor)}&afterId=${encodeURIComponent(cursor)}` : ''}`
+    const res = await fetch(url, { cache: 'no-store' })
+    const data = res.ok ? await res.json() : { items: [] }
+    return normalizePaginatedResponse<OrderRow>(
+      {
+        items: data.items || [],
+        lastVisible: data.lastVisible,
+        cursor: data.cursor ?? data.lastVisible,
+        hasMore: data.hasMore,
+      },
+      limit,
+    )
+  }, [])
 
-  // Loads orders (initial or next page)
-  // Uses lastVisible to indicate pagination, and only acts if not already loading
-  const load = useCallback(async (reset = false) => {
-    if (loading) return // Guard: skip fetch if already loading
-    setLoading(true)
-    try {
-      // Condition the fetch URL to pass afterId if paginating further
-      const url = `/api/store/orders?limit=20${!reset && lastVisible ? `&afterId=${lastVisible}` : ''}`
-      const res = await fetch(url, { cache: 'no-store' })
-      // If failed, return empty orders (TODO: surface error UI if needed)
-      const data = res.ok ? await res.json() : { items: [] }
-      // If reset (initial load), replace. Else, append.
-      setItems(prev => reset ? (data.items || []) : [...prev, ...(data.items || [])])
-      setLastVisible(data.lastVisible || null) // For next pagination, null if no more data
-    } finally {
-      setLoading(false) // Always clear loading state
-    }
-  }, [lastVisible, loading])
-
-  // Only run load(true) on first component mount (tracks with a ref)
-  // TODO: Use React.startTransition if switching to concurrent mode, for better scheduling.
-  const hasInitializedRef = useRef(false)
-  useEffect(() => {
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true
-      void load(true) // Initial load, reset items
-    }
-  }, [load])
-
-  // Trigger load for next page when sentinel is in view and there is more data to fetch
-  useEffect(() => {
-    if (inView && lastVisible && !loading)
-      void load(false)
-  }, [inView, lastVisible, loading, load])
+  const { items, loading, hasMore, sentinelRef, error } = useCursorFeed<OrderRow>({
+    moduleId: 'my-orders',
+    locale,
+    limit,
+    filterFingerprint,
+    initialItems: [],
+    initialCursor: null,
+    fetchPage,
+  })
 
   return (
     <StoreWrapper locale={locale}>
       <div data-locale={locale}>
         <h1 className="text-2xl font-semibold mb-4">My Orders</h1>
-        {/* If no items, either loading, or display empty state */}
+        {error && <div className="mb-4 text-sm text-destructive">{error}</div>}
         {items.length === 0 ? (
           <div className="text-muted-foreground">{loading ? 'Loading…' : 'No orders yet.'}</div>
         ) : (
           <div className="space-y-2">
-            {/* Render order cards */}
-            {items.map((o: any) => (
+            {items.map((o) => (
               <div key={o.id} className="border rounded p-3">
-                {/* Display order primary info */}
                 <div className="font-medium">Order #{o.id}</div>
                 <div className="text-sm text-muted-foreground">Status: {o.status || 'new'}</div>
                 <div className="text-sm">Created: {o.createdAt}</div>
               </div>
             ))}
-            {/* Sentinel div for intersection observer: triggers loading next page when visible */}
-            <div ref={ref} className="h-10" />
+            {loading && items.length > 0 && (
+              <div className="py-4 text-center text-sm text-muted-foreground">Loading…</div>
+            )}
+            {hasMore && <div ref={sentinelRef} className="h-10" aria-hidden />}
           </div>
         )}
       </div>

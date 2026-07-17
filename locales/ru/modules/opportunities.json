@@ -1,77 +1,77 @@
 {
-  "introTitle": "Discover Opportunities",
-  "introDescription": "The Opportunities page curates jobs, partnerships, grants, and collaborations from entities in our ecosystem. Sign in to browse and apply.",
-  "loadingMessage": "Loading opportunities...",
-  "loadingOpportunities": "Loading opportunities directory with filtering and search capabilities",
-  "loadingOpportunityDetails": "Loading opportunity details and related information",
-  "loadingMoreOpportunities": "Loading more opportunities...",
-  "loadingEntity": "Loading entity...",
-  "privateUser": "Private User",
-  "opportunities": "Opportunities",
-  "opportunitiesDescription": "Discover opportunities in the Ring community",
-  "opportunitiesSubtitle": "{count} opportunities available",
-  "myOpportunities": "My Opportunities",
-  "myOpportunitiesDescription": "View and manage your opportunities",
-  "myOpportunitiesSubtitle": "{count} opportunities available",
-  "myOpportunitiesEmpty": "You haven't posted any opportunities yet. Create your first opportunity to get started.",
-  "myOpportunitiesCreate": "Create Opportunity",
-  "myOpportunitiesCreateDescription": "Create your first opportunity to get started",
-  "myOpportunitiesCreateButton": "Create Opportunity",
-  "createOpportunity": "Create Opportunity",
-  "viewAll": "View All",
-  "allOpportunities": "All Opportunities",
-  "savedOpportunities": "Saved",
-  "appliedOpportunities": "Applied",
-  "postedOpportunities": "Posted",
-  "all": "All",
-  "applied": "Applied",
-  "created": "Posted",
-  "createdOpportunities": "Posted",
-  "totalOpportunities": "All Opportunities",
-  "createNew": "Create New Opportunity",
-  "draftOpportunities": "Drafts",
-  "expiredOpportunities": "Expired",
-  "add": "Add",
-  "cancel": "Cancel",
-  "tags": "Tags",
-  "addOpportunity": "Add Opportunity",
-  "errorFetchingMoreOpportunities": "Failed to load more opportunities.",
-  "errorFetchingEntities": "Failed to load related entities.",
-  "viewDetails": "View details",
-  "upgradeToBeMember": "Upgrade to Member",
-  "upgradeToMemberToPostOpportunities": "Upgrade to Member to Post Opportunities",
-  "subscriberUpgradeMessage": "As a subscriber, you can view opportunities but need to upgrade to member status to post your own.",
-  "backToOpportunities": "Back to Opportunities",
-  "loading": "Loading...",
-  "organizationDetails": "Organization Details",
-  "name": "Name",
-  "type": "Type",
-  "opportunityDetails": "Opportunity Details",
-  "location": "Location",
-  "expirationDate": "Expiration Date",
-  "attachments": "Attachments",
-  "confidentialOpportunity": "Confidential Opportunity",
-  "confidentialOpportunityDescription": "This opportunity contains confidential information and is only visible to authorized users.",
-  "confidentialInformation": "Confidential Information",
-  "confidentialInformationDescription": "Additional confidential details are available for authorized users.",
-  "noPermission": "You don't have permission to view this opportunity.",
-  "noDataAvailable": "No data available for this opportunity.",
-  "confidential": "Confidential",
-  "processing": "Processing...",
-  "posting": "Posting...",
-  "posted": "Posted",
+  "introTitle": "Откройте возможности",
+  "introDescription": "Страница «Возможности» собирает вакансии, партнёрства, гранты и совместные проекты от организаций нашей экосистемы. Войдите, чтобы просматривать и подавать заявки.",
+  "loadingMessage": "Загрузка возможностей...",
+  "loadingOpportunities": "Загрузка каталога возможностей с фильтрацией и поиском",
+  "loadingOpportunityDetails": "Загрузка сведений о возможности и связанной информации",
+  "loadingMoreOpportunities": "Загрузка дополнительных возможностей...",
+  "loadingEntity": "Загрузка организации...",
+  "privateUser": "Приватный пользователь",
+  "opportunities": "Возможности",
+  "opportunitiesDescription": "Откройте возможности в сообществе Ring",
+  "opportunitiesSubtitle": "Доступно {count} возможностей",
+  "myOpportunities": "Мои возможности",
+  "myOpportunitiesDescription": "Просматривайте и управляйте своими возможностями",
+  "myOpportunitiesSubtitle": "Доступно {count} возможностей",
+  "myOpportunitiesEmpty": "Вы ещё не опубликовали ни одной возможности. Создайте свою первую возможность, чтобы начать.",
+  "myOpportunitiesCreate": "Создать возможность",
+  "myOpportunitiesCreateDescription": "Создайте свою первую возможность, чтобы начать",
+  "myOpportunitiesCreateButton": "Создать возможность",
+  "createOpportunity": "Создать возможность",
+  "viewAll": "Показать все",
+  "allOpportunities": "Все возможности",
+  "savedOpportunities": "Сохранённые",
+  "appliedOpportunities": "Заявки",
+  "postedOpportunities": "Опубликованные",
+  "all": "Все",
+  "applied": "Подано",
+  "created": "Опубликовано",
+  "createdOpportunities": "Опубликованные",
+  "totalOpportunities": "Все возможности",
+  "createNew": "Создать новую возможность",
+  "draftOpportunities": "Черновики",
+  "expiredOpportunities": "Просроченные",
+  "add": "Добавить",
+  "cancel": "Отмена",
+  "tags": "Теги",
+  "addOpportunity": "Добавить возможность",
+  "errorFetchingMoreOpportunities": "Не удалось загрузить дополнительные возможности.",
+  "errorFetchingEntities": "Не удалось загрузить связанные организации.",
+  "viewDetails": "Подробнее",
+  "upgradeToBeMember": "Повысить до Участника",
+  "upgradeToMemberToPostOpportunities": "Повысьте статус до Участника, чтобы публиковать возможности",
+  "subscriberUpgradeMessage": "Как подписчик, вы можете просматривать возможности, но для публикации собственных нужно повысить статус до Участника.",
+  "backToOpportunities": "Назад к возможностям",
+  "loading": "Загрузка...",
+  "organizationDetails": "Данные организации",
+  "name": "Название",
+  "type": "Тип",
+  "opportunityDetails": "Детали возможности",
+  "location": "Местоположение",
+  "expirationDate": "Дата окончания",
+  "attachments": "Вложения",
+  "confidentialOpportunity": "Конфиденциальная возможность",
+  "confidentialOpportunityDescription": "Эта возможность содержит конфиденциальную информацию и доступна только авторизованным пользователям.",
+  "confidentialInformation": "Конфиденциальная информация",
+  "confidentialInformationDescription": "Дополнительные конфиденциальные сведения доступны авторизованным пользователям.",
+  "noPermission": "У вас нет прав для просмотра этой возможности.",
+  "noDataAvailable": "Для этой возможности нет доступных данных.",
+  "confidential": "Конфиденциально",
+  "processing": "Обработка...",
+  "posting": "Публикация...",
+  "posted": "Опубликовано",
   "activeFilters": "Активные фильтры",
-  "search": "Search",
-  "searchOpportunities": "Search opportunities...",
-  "category": "Category",
-  "selectCategory": "Select category",
-  "allCategories": "All categories",
-  "technology": "Technology",
-  "business": "Business",
-  "education": "Education",
-  "healthcare": "Healthcare",
-  "selectType": "Select type",
-  "allTypes": "All types",
+  "search": "Поиск",
+  "searchOpportunities": "Поиск возможностей...",
+  "category": "Категория",
+  "selectCategory": "Выберите категорию",
+  "allCategories": "Все категории",
+  "technology": "Технологии",
+  "business": "Бизнес",
+  "education": "Образование",
+  "healthcare": "Здравоохранение",
+  "selectType": "Выберите тип",
+  "allTypes": "Все типы",
   "filters": {
     "title": "Фильтры",
     "subtitle": "Уточните по типу возможности, категории и другим параметрам",
@@ -82,7 +82,7 @@
     "priority": "приоритет",
     "budget": "бюджет",
     "activeFilters": "Активные фильтры",
-    "clearAll": "Очистить все",
+    "clearAll": "Очистить всё",
     "sectionTypes": "Типы возможностей",
     "sectionCategories": "Категории",
     "sectionLocation": "Локация",
@@ -96,27 +96,27 @@
     "priorityNormal": "Обычный",
     "priorityLow": "Низкий"
   },
-  "sortBy": "Sort by",
-  "newest": "Newest",
-  "oldest": "Oldest",
-  "budget": "Budget",
-  "deadline": "Deadline",
-  "showingResults": "Showing {count} results",
-  "noOpportunities": "No opportunities found",
-  "noOpportunitiesDescription": "Try adjusting your search criteria or check back later for new opportunities.",
-  "clearFilters": "Clear Filters",
-  "createFirstOpportunity": "Create Your First Opportunity",
-  "noCreatedOpportunities": "No opportunities created yet",
-  "noAppliedOpportunities": "No applications yet",
-  "applyToOpportunities": "Browse opportunities and apply to get started",
-  "getStartedWithOpportunities": "Create or apply to opportunities to get started",
+  "sortBy": "Сортировать по",
+  "newest": "Новые",
+  "oldest": "Старые",
+  "budget": "Бюджет",
+  "deadline": "Срок",
+  "showingResults": "Показано {count} результатов",
+  "noOpportunities": "Возможности не найдены",
+  "noOpportunitiesDescription": "Попробуйте изменить критерии поиска или зайдите позже за новыми возможностями.",
+  "clearFilters": "Очистить фильтры",
+  "createFirstOpportunity": "Создайте свою первую возможность",
+  "noCreatedOpportunities": "Пока нет созданных возможностей",
+  "noAppliedOpportunities": "Пока нет заявок",
+  "applyToOpportunities": "Просмотрите возможности и подайте заявку, чтобы начать",
+  "getStartedWithOpportunities": "Создайте возможность или подайте заявку, чтобы начать",
   "browseOpportunities": "Просмотреть возможности",
   "investment": "Инвестиции",
   "sales": "Продажи",
   "procurement": "Закупки",
   "quickActions": "Быстрые действия",
   "categories": "Категории",
-  "helpResources": "Справка и ресурсы",
+  "helpResources": "Помощь и ресурсы",
   "opportunitiesHelp": "Узнайте, как эффективно находить возможности и подавать заявки.",
   "viewGuide": "Открыть руководство",
   "yourActivity": "Ваша активность",
@@ -131,7 +131,7 @@
   "archivedOpportunities": "Архив",
   "archiveView": "Показать архивные возможности",
   "deleteArchivedOnly": "Удалить можно только архивные возможности. Сначала переместите объявление в архив.",
-  "confirmDeleteArchived": "Безвозвратно удалить архивную возможность «{title}»?",
+  "confirmDeleteArchived": "Навсегда удалить архивную возможность «{title}»?",
   "deleteFailed": "Не удалось удалить возможность",
   "noArchivedOpportunities": "Нет архивных возможностей",
   "delete": "Удалить",
@@ -140,97 +140,150 @@
   "unknown": "Неизвестно",
   "type_selector": {
     "title": "What would you like to create?",
-    "subtitle": "Choose an opportunity type first — each opens a tailored form for that collaboration style.",
-    "examples": "Examples",
+    "subtitle": "Four paths: found a Ring project, share your CV, list products as a vendor, or post an institution program/investment.",
+    "examples": "Примеры",
     "request": {
-      "title": "Request",
-      "description": "Looking for services, advice, or collaboration from others in the community.",
+      "title": "Запрос",
+      "description": "Ищете услуги, консультацию или сотрудничество с другими участниками сообщества.",
       "examples": {
-        "freelancer": "Need a freelancer for my project",
-        "service": "Looking for consulting services",
-        "advice": "Seeking professional advice"
+        "freelancer": "Нужен фрилансер для моего проекта",
+        "service": "Ищу консалтинговые услуги",
+        "advice": "Нужна профессиональная консультация"
       },
-      "button": "Create Request"
+      "button": "Создать запрос"
     },
     "offer": {
-      "title": "Offer",
-      "description": "Post official job opportunities from your organization.",
+      "title": "Предложение",
+      "description": "Публикуйте официальные вакансии от вашей организации.",
       "examples": {
-        "job": "Job opening at my company",
-        "contract": "Contract position available",
-        "internship": "Internship opportunity"
+        "job": "Вакансия в моей компании",
+        "contract": "Открыта контрактная позиция",
+        "internship": "Возможность стажировки"
       },
-      "button": "Create Offer",
-      "member_required": "Member Access Required",
-      "upgrade_message": "Upgrade to Member to post offers from your organization.",
-      "upgrade_button": "Upgrade to Member"
+      "button": "Создать предложение",
+      "member_required": "Требуется доступ Участника",
+      "upgrade_message": "Повысьте статус до Участника, чтобы публиковать предложения от вашей организации.",
+      "upgrade_button": "Повысить до Участника"
     },
     "partnership": {
-      "title": "Partnership",
-      "description": "Seek strategic partnerships and business collaborations.",
+      "title": "Партнёрство",
+      "description": "Ищите стратегические партнёрства и бизнес-сотрудничество.",
       "examples": {
-        "strategic": "Strategic business partnership",
-        "joint_venture": "Joint venture opportunity",
-        "collaboration": "Cross-industry collaboration"
+        "strategic": "Стратегическое бизнес-партнёрство",
+        "joint_venture": "Возможность совместного предприятия",
+        "collaboration": "Межотраслевое сотрудничество"
       },
-      "button": "Create Partnership",
-      "upgrade_button": "Upgrade to Member"
+      "button": "Создать партнёрство",
+      "upgrade_button": "Повысить до Участника"
     },
     "volunteer": {
-      "title": "Volunteer",
-      "description": "Post volunteer opportunities for community causes.",
+      "title": "Волонтёрство",
+      "description": "Публикуйте волонтёрские возможности для общественных инициатив.",
       "examples": {
-        "community": "Community service project",
-        "nonprofit": "Nonprofit organization help",
-        "social": "Social impact initiative"
+        "community": "Проект общественного служения",
+        "nonprofit": "Помощь некоммерческой организации",
+        "social": "Инициатива с социальным эффектом"
       },
-      "button": "Create Volunteer",
-      "upgrade_button": "Upgrade to Member"
+      "button": "Создать волонтёрство",
+      "upgrade_button": "Повысить до Участника"
     },
     "cv": {
-      "title": "Резюме Разработчика",
-      "description": "Поделитесь своим профилем разработчика и навыками для проектов платформы Ring.",
+      "title": "Резюме разработчика",
+      "description": "Developers: publish your skills and availability for Ring opportunities.",
       "examples": {
-        "developer_cv": "Резюме разработчика и опыт",
+        "developer_cv": "Резюме разработчика и опыт работы",
         "portfolio": "Портфолио проектов и достижений",
         "skills": "Технические навыки и экспертиза"
       },
-      "button": "Поделиться Профилем Разработчика",
-      "upgrade_button": "Требуется Вход"
+      "button": "Поделиться профилем разработчика",
+      "upgrade_button": "Требуется вход"
     },
     "resource": {
-      "title": "Resource",
-      "description": "Share or request resources, tools, and equipment.",
+      "title": "Ресурс",
+      "description": "Делитесь или запрашивайте ресурсы, инструменты и оборудование.",
       "examples": {
-        "equipment": "Equipment sharing",
-        "workspace": "Workspace or office space",
-        "tools": "Professional tools access"
+        "equipment": "Совместное использование оборудования",
+        "workspace": "Рабочее место или офисное пространство",
+        "tools": "Доступ к профессиональным инструментам"
       },
-      "button": "Create Resource",
-      "upgrade_button": "Upgrade to Member"
+      "button": "Создать ресурс",
+      "upgrade_button": "Повысить до Участника"
     },
     "event": {
-      "title": "Event",
-      "description": "Organize events and invite community participation.",
+      "title": "Событие",
+      "description": "Организуйте события и приглашайте участников сообщества.",
       "examples": {
-        "conference": "Industry conference",
-        "workshop": "Skills workshop",
-        "networking": "Networking event"
+        "conference": "Отраслевая конференция",
+        "workshop": "Мастер-класс",
+        "networking": "Нетворкинг-событие"
       },
-      "button": "Create Event",
+      "button": "Создать событие",
+      "upgrade_button": "Повысить до Участника"
+    },
+    "ring_customization": {
+      "title": "Настройка Ring",
+      "description": "Нужна помощь с настройкой Ring",
+      "examples": {
+        "platform_deployment": "Полное развёртывание платформы",
+        "module_development": "Разработка индивидуальных модулей",
+        "branding": "Настройка бренда/темы",
+        "database_migration": "Миграция базы данных",
+        "localization": "Многоязычная локализация",
+        "payment_integration": "Интеграция платёжного шлюза",
+        "smart_contracts": "Разработка индивидуальных смарт-контрактов",
+        "ai_customization": "Настройка ИИ-агентов",
+        "token_economics": "Разработка токеномики",
+        "documentation": "Документация и обучение"
+      },
+      "button": "Создать проект Ring",
+      "upgrade_button": "Повысить до Участника"
+    },
+    "project_order": {
+      "title": "Project order",
+      "description": "Founders: configure a Ring-powered build in the calculator and place a custom project order.",
+      "examples": {
+        "platform_deployment": "Deploy a white-label Ring",
+        "module_development": "Custom module build",
+        "branding": "Brand & theme package",
+        "ai_customization": "AI matcher customization"
+      },
+      "button": "Open calculator"
+    },
+    "vendor_listing": {
+      "title": "Product or service",
+      "description": "Vendors: list products and services in your member storefront.",
+      "examples": {
+        "job": "Physical or digital product",
+        "contract": "Professional service",
+        "internship": "Recurring offering"
+      },
+      "button": "Add to store",
+      "upgrade_button": "Upgrade to Member",
+      "member_required": "Member Access Required",
+      "upgrade_message": "Upgrade to Member to sell products and services."
+    },
+    "program": {
+      "title": "Program / investment",
+      "description": "Institutions: publish programs or investment opportunities for admin review and CRM follow-up.",
+      "examples": {
+        "strategic": "Accelerator program",
+        "joint_venture": "Investment call",
+        "collaboration": "Institution partnership"
+      },
+      "button": "Create listing",
       "upgrade_button": "Upgrade to Member"
     }
   },
-  "addRequest": "Create Request",
-  "addRequestDescription": "Looking for services, advice, or collaboration from the community.",
-  "addOffer": "Create Offer",
-  "addOfferDescription": "Post an official opportunity from your organization.",
-  "description": "Description",
-  "locationPlaceholder": "e.g., Remote, Cherkasy, Ukraine",
-  "requirements": "Requirements",
+  "addRequest": "Создать запрос",
+  "addRequestDescription": "Ищете услуги, консультацию или сотрудничество с сообществом.",
+  "addOffer": "Создать предложение",
+  "addOfferDescription": "Опубликуйте официальную возможность от вашей организации.",
+  "description": "Описание",
+  "locationPlaceholder": "например, Удалённо, Черкассы, Украина",
+  "requirements": "Требования",
   "title": "Название",
   "finance": "Финансы",
-  "platform_deployment": "Развертывание платформы",
+  "platform_deployment": "Развёртывание платформы",
   "module_development": "Разработка модулей",
   "branding_customization": "Брендинг и настройка",
   "database_migration": "Миграция базы данных",
@@ -241,293 +294,293 @@
   "token_economics": "Токеномика",
   "documentation_training": "Документация и обучение",
   "other": "Другое",
-  "entity": "Entity",
-  "selectEntity": "Select entity",
-  "min": "Min",
-  "max": "Max",
-  "currency": "Currency",
-  "contactEmail": "Contact Email",
-  "requiredSkills": "Required Skills",
-  "addSkill": "Add skill",
-  "addTag": "Add tag",
-  "markAsConfidential": "Mark as confidential",
-  "learnMoreaboutConfidential": "Learn more about confidential opportunities",
-  "save": "Save",
-  "saving": "Saving...",
-  "redirecting": "Redirecting...",
-  "applicationDeadline": "Application Deadline",
-  "maxApplicants": "Maximum Applicants",
-  "maxApplicantsPlaceholder": "Leave empty for unlimited",
-  "priority": "Priority",
-  "selectPriority": "Select priority",
-  "priorityLow": "Low",
-  "priorityNormal": "Normal",
-  "priorityUrgent": "Urgent",
-  "applicants": "Applicants",
-  "partnership": "Partnership",
-  "volunteer": "Volunteer",
-  "resource": "Resource",
+  "entity": "Организация",
+  "selectEntity": "Выберите организацию",
+  "min": "Мин",
+  "max": "Макс",
+  "currency": "Валюта",
+  "contactEmail": "Email для связи",
+  "requiredSkills": "Необходимые навыки",
+  "addSkill": "Добавить навык",
+  "addTag": "Добавить тег",
+  "markAsConfidential": "Отметить как конфиденциальное",
+  "learnMoreaboutConfidential": "Узнать больше о конфиденциальных возможностях",
+  "save": "Сохранить",
+  "saving": "Сохранение...",
+  "redirecting": "Перенаправление...",
+  "applicationDeadline": "Срок подачи заявок",
+  "maxApplicants": "Максимум кандидатов",
+  "maxApplicantsPlaceholder": "Оставьте пустым для неограниченного количества",
+  "priority": "Приоритет",
+  "selectPriority": "Выберите приоритет",
+  "priorityLow": "Низкий",
+  "priorityNormal": "Обычный",
+  "priorityUrgent": "Срочный",
+  "applicants": "Кандидаты",
+  "partnership": "Партнёрство",
+  "volunteer": "Волонтёрство",
+  "resource": "Ресурс",
   "event": "Событие",
   "ring_customization": "Настройка Ring",
   "request": "Запрос технологии",
   "offer": "Предложение технологии",
-  "mentorship": "CV разработчика",
+  "mentorship": "Резюме разработчика",
   "matchQuality": {
     "factors": {
-      "skillMatch": "Skills",
-      "experienceMatch": "Experience",
-      "industryMatch": "Industry",
-      "locationMatch": "Location",
-      "budgetMatch": "Budget",
-      "availabilityMatch": "Availability",
-      "careerMatch": "Career Fit",
-      "cultureMatch": "Culture Fit"
+      "skillMatch": "Навыки",
+      "experienceMatch": "Опыт",
+      "industryMatch": "Отрасль",
+      "locationMatch": "Местоположение",
+      "budgetMatch": "Бюджет",
+      "availabilityMatch": "Доступность",
+      "careerMatch": "Карьерное соответствие",
+      "cultureMatch": "Культурное соответствие"
     },
-    "detailedBreakdown": "Match Analysis",
-    "explanation": "AI Explanation",
-    "factorsBreakdown": "Factor Breakdown",
-    "scoringNote": "Scoring based on AI analysis of user profile and opportunity requirements",
-    "matchScore": "Match Score",
+    "detailedBreakdown": "Анализ соответствия",
+    "explanation": "Объяснение ИИ",
+    "factorsBreakdown": "Разбор факторов",
+    "scoringNote": "Оценка основана на анализе ИИ профиля пользователя и требований возможности",
+    "matchScore": "Балл соответствия",
     "levels": {
-      "excellent": "Excellent",
-      "good": "Good",
-      "fair": "Fair",
-      "poor": "Poor"
+      "excellent": "Отличное",
+      "good": "Хорошее",
+      "fair": "Удовлетворительное",
+      "poor": "Слабое"
     },
-    "clickForDetails": "Click for detailed breakdown",
+    "clickForDetails": "Нажмите для подробного разбора",
     "confidence": {
-      "high": "High confidence",
-      "medium": "Medium confidence",
-      "low": "Low confidence"
+      "high": "Высокая уверенность",
+      "medium": "Средняя уверенность",
+      "low": "Низкая уверенность"
     }
   },
   "enrichment": {
-    "title": "AI Opportunity Enrichment",
+    "title": "ИИ-обогащение возможности",
     "stats": {
-      "accepted": "Accepted",
-      "modified": "Modified",
-      "pending": "Pending"
+      "accepted": "Принято",
+      "modified": "Изменено",
+      "pending": "Ожидает"
     },
-    "confidence": "Confidence",
-    "description": "AI has analyzed your opportunity and suggests the following improvements. Review and accept the changes you want to apply.",
+    "confidence": "Уверенность",
+    "description": "ИИ проанализировал вашу возможность и предлагает следующие улучшения. Просмотрите и примите изменения, которые хотите применить.",
     "fields": {
-      "suggestedTags": "Suggested Tags",
-      "estimatedBudget": "Budget Estimate",
-      "requiredSkills": "Required Skills",
-      "industryCategory": "Industry Category",
-      "locationPreference": "Location Preference",
-      "experienceLevel": "Experience Level",
-      "urgency": "Urgency Level",
-      "estimatedDuration": "Estimated Duration",
-      "companySize": "Company Size",
-      "workType": "Work Type"
+      "suggestedTags": "Предлагаемые теги",
+      "estimatedBudget": "Оценка бюджета",
+      "requiredSkills": "Необходимые навыки",
+      "industryCategory": "Отраслевая категория",
+      "locationPreference": "Предпочтение по локации",
+      "experienceLevel": "Уровень опыта",
+      "urgency": "Уровень срочности",
+      "estimatedDuration": "Ориентировочная продолжительность",
+      "companySize": "Размер компании",
+      "workType": "Тип работы"
     },
-    "noValue": "Not specified",
-    "selectValue": "Select value",
-    "enterValue": "Enter value",
+    "noValue": "Не указано",
+    "selectValue": "Выберите значение",
+    "enterValue": "Введите значение",
     "options": {
-      "remote": "Remote",
-      "hybrid": "Hybrid",
-      "onsite": "On-site",
+      "remote": "Удалённо",
+      "hybrid": "Гибридно",
+      "onsite": "В офисе",
       "junior": "Junior",
-      "mid": "Mid-level",
+      "mid": "Middle",
       "senior": "Senior",
       "lead": "Lead",
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High",
-      "startup": "Startup",
+      "low": "Низкий",
+      "medium": "Средний",
+      "high": "Высокий",
+      "startup": "Стартап",
       "scaleup": "Scale-up",
-      "enterprise": "Enterprise",
-      "fullTime": "Full-time",
-      "partTime": "Part-time",
-      "contract": "Contract",
-      "freelance": "Freelance"
+      "enterprise": "Крупная компания",
+      "fullTime": "Полная занятость",
+      "partTime": "Частичная занятость",
+      "contract": "Контракт",
+      "freelance": "Фриланс"
     },
-    "modified": "Modified",
-    "reject": "Reject All",
-    "acceptSelected": "Accept Selected",
-    "advancedInfo": "Advanced Information",
-    "processingTime": "Processing Time",
-    "suggestionsCount": "Suggestions",
-    "aiModel": "AI Model",
-    "hideAdvanced": "Hide Advanced",
-    "showAdvanced": "Show Advanced"
+    "modified": "Изменено",
+    "reject": "Отклонить всё",
+    "acceptSelected": "Принять выбранное",
+    "advancedInfo": "Расширенная информация",
+    "processingTime": "Время обработки",
+    "suggestionsCount": "Предложения",
+    "aiModel": "Модель ИИ",
+    "hideAdvanced": "Скрыть расширенное",
+    "showAdvanced": "Показать расширенное"
   },
   "status": {
-    "opportunityTitle": "Opportunity Title",
-    "applicationId": "Application ID",
-    "submissionId": "Submission ID",
-    "reviewId": "Review ID",
-    "rejectionReason": "Rejection Reason",
-    "changesRequired": "Changes Required",
-    "nextStep": "Next Step",
-    "needHelp": "Need help? Contact our support team",
+    "opportunityTitle": "Название возможности",
+    "applicationId": "ID заявки",
+    "submissionId": "ID подачи",
+    "reviewId": "ID проверки",
+    "rejectionReason": "Причина отклонения",
+    "changesRequired": "Требуются изменения",
+    "nextStep": "Следующий шаг",
+    "needHelp": "Нужна помощь? Свяжитесь со службой поддержки",
     "actions": {
-      "viewOpportunity": "View Opportunity",
-      "viewApplication": "View Application",
-      "backToOpportunities": "Back to Opportunities",
+      "viewOpportunity": "Просмотреть возможность",
+      "viewApplication": "Просмотреть заявку",
+      "backToOpportunities": "Назад к возможностям",
       "continue": "Продолжить",
-      "continueEditing": "Continue Editing",
-      "createNew": "Create New Opportunity",
-      "contactSupport": "Contact Support",
-      "applyAgain": "Apply Again",
-      "makeChanges": "Make Changes",
-      "uploadDocuments": "Upload Documents",
-      "checkStatus": "Check Status",
-      "viewMyApplications": "View My Applications",
-      "viewScheduled": "View Scheduled",
-      "manageOpportunity": "Manage Opportunity"
+      "continueEditing": "Продолжить редактирование",
+      "createNew": "Создать новую возможность",
+      "contactSupport": "Связаться с поддержкой",
+      "applyAgain": "Подать заявку снова",
+      "makeChanges": "Внести изменения",
+      "uploadDocuments": "Загрузить документы",
+      "checkStatus": "Проверить статус",
+      "viewMyApplications": "Мои заявки",
+      "viewScheduled": "Запланированные",
+      "manageOpportunity": "Управлять возможностью"
     },
     "create": {
       "draft": {
-        "title": "Opportunity Draft Saved",
-        "description": "Your opportunity has been saved as a draft. You can continue editing it anytime before submitting for review.",
-        "instruction": "Complete all required fields and submit your opportunity for review when ready."
+        "title": "Черновик возможности сохранён",
+        "description": "Ваша возможность сохранена как черновик. Вы можете продолжить редактирование в любое время перед отправкой на проверку.",
+        "instruction": "Заполните все обязательные поля и отправьте возможность на проверку, когда будете готовы."
       },
       "pending_review": {
-        "title": "Opportunity Pending Review",
-        "description": "Your opportunity has been submitted and is awaiting review by our moderation team. We'll notify you once the review is complete."
+        "title": "Возможность на проверке",
+        "description": "Ваша возможность отправлена и ожидает проверки нашей командой модерации. Мы уведомим вас, когда проверка будет завершена."
       },
       "published": {
-        "title": "Opportunity Published!",
-        "description": "Your opportunity has been successfully published and is now visible to potential applicants on the platform."
+        "title": "Возможность опубликована!",
+        "description": "Ваша возможность успешно опубликована и теперь видна потенциальным кандидатам на платформе."
       },
       "success": {
         "title": "Возможность создана!",
         "description": "Ваша возможность успешно сохранена. Управляйте ею в разделе «Мои возможности»."
       },
       "failed": {
-        "title": "Opportunity Creation Failed",
-        "description": "We couldn't create your opportunity due to a technical issue. Please try again or contact support for assistance."
+        "title": "Ошибка создания возможности",
+        "description": "Не удалось создать возможность из-за технической проблемы. Попробуйте ещё раз или обратитесь в поддержку."
       },
       "rejected": {
-        "title": "Opportunity Rejected",
-        "description": "Your opportunity submission was rejected during the review process. Please review the feedback and make necessary corrections."
+        "title": "Возможность отклонена",
+        "description": "Ваша возможность была отклонена в процессе проверки. Ознакомьтесь с отзывом и внесите необходимые исправления."
       }
     },
     "update": {
       "success": {
         "title": "Изменения сохранены!",
-        "description": "Ваша возможность успешно обновлена. Продолжайте управлять ею в разделе «Мои возможности»."
+        "description": "Ваша возможность успешно обновлена. Управляйте ею в разделе «Мои возможности»."
       },
       "failed": {
         "title": "Ошибка обновления",
-        "description": "Не удалось сохранить изменения. Попробуйте снова или обратитесь в поддержку."
+        "description": "Не удалось сохранить изменения. Попробуйте ещё раз или обратитесь в поддержку."
       }
     },
     "delete": {
       "success": {
         "title": "Возможность удалена",
-        "description": "Ваша возможность успешно удалена с платформы."
+        "description": "Ваша возможность удалена с платформы."
       },
       "failed": {
         "title": "Ошибка удаления",
-        "description": "Не удалось удалить возможность. Попробуйте снова или обратитесь в поддержку."
+        "description": "Не удалось удалить эту возможность. Попробуйте ещё раз или обратитесь в поддержку."
       }
     },
     "apply": {
       "submitted": {
-        "title": "Application Submitted!",
-        "description": "Your application has been successfully submitted. The opportunity owner will review it and get back to you soon."
+        "title": "Заявка отправлена!",
+        "description": "Ваша заявка успешно отправлена. Владелец возможности рассмотрит её и скоро свяжется с вами."
       },
       "under_review": {
-        "title": "Application Under Review",
-        "description": "Your application is currently being reviewed by the opportunity owner. This process may take several days.",
-        "reviewing": "Reviewing your application..."
+        "title": "Заявка на рассмотрении",
+        "description": "Ваша заявка сейчас рассматривается владельцем возможности. Этот процесс может занять несколько дней.",
+        "reviewing": "Рассмотрение вашей заявки..."
       },
       "accepted": {
-        "title": "Application Accepted!",
-        "description": "Congratulations! Your application has been accepted. The opportunity owner will contact you with next steps."
+        "title": "Заявка принята!",
+        "description": "Поздравляем! Ваша заявка принята. Владелец возможности свяжется с вами насчёт дальнейших шагов."
       },
       "rejected": {
-        "title": "Application Not Selected",
-        "description": "Unfortunately, your application was not selected for this opportunity. Don't give up - there are many other opportunities available."
+        "title": "Заявка не выбрана",
+        "description": "К сожалению, ваша заявка не была выбрана для этой возможности. Не отчаивайтесь — доступно множество других возможностей."
       },
       "pending_documents": {
-        "title": "Documents Required",
-        "description": "Your application is on hold pending additional documentation. Please upload the required documents to proceed.",
-        "documentsNeeded": "Please upload the requested documents to complete your application."
+        "title": "Требуются документы",
+        "description": "Ваша заявка приостановлена до предоставления дополнительных документов. Загрузите необходимые документы, чтобы продолжить.",
+        "documentsNeeded": "Загрузите запрошенные документы, чтобы завершить оформление заявки."
       }
     },
     "submit": {
       "received": {
-        "title": "Submission Received",
-        "description": "Your submission has been received and logged in our system. You will receive updates on its processing status."
+        "title": "Заявка получена",
+        "description": "Ваше обращение получено и зарегистрировано в нашей системе. Вы будете получать уведомления о статусе обработки."
       },
       "processing": {
-        "title": "Processing Submission",
-        "description": "Your submission is currently being processed. This may involve validation, review, and preparation for the next stage."
+        "title": "Обработка обращения",
+        "description": "Ваше обращение сейчас обрабатывается. Это может включать проверку, рассмотрение и подготовку к следующему этапу."
       },
       "approved": {
-        "title": "Submission Approved!",
-        "description": "Your submission has been approved and is ready for the next phase of the opportunity process."
+        "title": "Обращение одобрено!",
+        "description": "Ваше обращение одобрено и готово к следующему этапу процесса."
       },
       "requires_changes": {
-        "title": "Changes Required",
-        "description": "Your submission requires modifications before it can be approved. Please review the feedback and make the necessary changes."
+        "title": "Требуются изменения",
+        "description": "Ваше обращение требует изменений перед одобрением. Ознакомьтесь с отзывом и внесите необходимые правки."
       },
       "rejected": {
-        "title": "Submission Rejected",
-        "description": "Your submission was rejected. Please review the feedback and consider resubmitting with improvements."
+        "title": "Обращение отклонено",
+        "description": "Ваше обращение было отклонено. Ознакомьтесь с отзывом и рассмотрите возможность повторной отправки с улучшениями."
       }
     },
     "approve": {
       "pending": {
-        "title": "Approval Pending",
-        "description": "Your opportunity is pending administrative approval. This additional review ensures compliance with our platform standards."
+        "title": "Одобрение ожидается",
+        "description": "Ваша возможность ожидает административного одобрения. Эта дополнительная проверка обеспечивает соответствие стандартам платформы."
       },
       "approved": {
-        "title": "Opportunity Approved!",
-        "description": "Your opportunity has been approved by our administrative team and is now fully active on the platform."
+        "title": "Возможность одобрена!",
+        "description": "Ваша возможность одобрена нашей администрацией и теперь полностью активна на платформе."
       },
       "rejected": {
-        "title": "Approval Rejected",
-        "description": "Your opportunity was not approved during the administrative review. Please review the feedback and address any issues."
+        "title": "Одобрение отклонено",
+        "description": "Ваша возможность не была одобрена в ходе административной проверки. Ознакомьтесь с отзывом и устраните проблемы."
       },
       "needs_revision": {
-        "title": "Revision Required",
-        "description": "Your opportunity requires revisions before it can be approved. Please review the feedback and make the necessary changes."
+        "title": "Требуется доработка",
+        "description": "Ваша возможность требует доработки перед одобрением. Ознакомьтесь с отзывом и внесите необходимые изменения."
       }
     },
     "publish": {
       "scheduled": {
-        "title": "Publication Scheduled",
-        "description": "Your opportunity is scheduled for publication. It will become visible to users at the specified time."
+        "title": "Публикация запланирована",
+        "description": "Публикация вашей возможности запланирована. Она станет видимой пользователям в указанное время."
       },
       "published": {
-        "title": "Opportunity Published!",
-        "description": "Your opportunity is now live and visible to all platform users. Applicants can now discover and apply for it."
+        "title": "Возможность опубликована!",
+        "description": "Ваша возможность теперь активна и видна всем пользователям платформы. Кандидаты могут находить её и подавать заявки."
       },
       "failed": {
-        "title": "Publication Failed",
-        "description": "We encountered an error while publishing your opportunity. Please try again or contact support for assistance."
+        "title": "Ошибка публикации",
+        "description": "При публикации вашей возможности произошла ошибка. Попробуйте ещё раз или обратитесь в поддержку."
       },
       "unpublished": {
-        "title": "Opportunity Unpublished",
-        "description": "Your opportunity has been unpublished and is no longer visible to other users. You can republish it anytime from your dashboard."
+        "title": "Возможность снята с публикации",
+        "description": "Ваша возможность снята с публикации и больше не видна другим пользователям. Вы можете повторно опубликовать её в любое время из панели управления."
       }
     }
   },
   "progressSteps": {
     "account": "Аккаунт",
     "opportunityDetails": "Детали возможности",
-    "publish": "Опубликовать"
+    "publish": "Публикация"
   },
   "creationTips": {
     "requestType": "Запрос",
-    "requestTypeDescription": "Найдите услуги, советы или сотрудничество от других участников сообщества. Доступно всем подписчикам.",
+    "requestTypeDescription": "Найдите услуги, консультацию или сотрудничество в сообществе Ring. Доступно всем подписчикам.",
     "offerType": "Предложение",
-    "offerTypeDescription": "Опубликуйте официальные возможности от вашей организации. Требуется статус Участника или выше.",
+    "offerTypeDescription": "Публикуйте официальные возможности от вашей организации. Требуется статус Участника или выше.",
     "cvType": "Резюме разработчика",
-    "cvTypeDescription": "Поделитесь своим профилем разработчика и навыками, чтобы подключиться к возможностям платформы.",
+    "cvTypeDescription": "Поделитесь профилем разработчика и навыками, чтобы находить подходящие возможности на платформе.",
     "confidentialOpportunities": "Конфиденциальные возможности",
-    "confidentialOpportunitiesDescription": "Частные возможности, видимые только участникам с конфиденциальным доступом. Требуется специальный доступ."
+    "confidentialOpportunitiesDescription": "Приватные возможности, видимые только участникам с конфиденциальным доступом. Требуется особый доступ."
   },
   "types": {
     "request": {
       "title": "Создать запрос",
-      "description": "Ищу услуги, советы или сотрудничество от сообщества."
+      "description": "Ищете услуги, консультацию или сотрудничество с сообществом."
     },
     "offer": {
       "title": "Создать предложение",
@@ -539,11 +592,11 @@
     },
     "volunteer": {
       "title": "Создать волонтёрскую возможность",
-      "description": "Публикуйте волонтёрские возможности для общественных дел."
+      "description": "Публикуйте волонтёрские возможности для общественных инициатив."
     },
     "mentorship": {
       "title": "Создать менторство",
-      "description": "Предлагайте или ищите менторские возможности."
+      "description": "Предлагайте или ищите возможности менторства."
     },
     "resource": {
       "title": "Создать ресурс",
@@ -551,20 +604,24 @@
     },
     "event": {
       "title": "Создать событие",
-      "description": "Организуйте события и приглашайте участие сообщества."
+      "description": "Организуйте события и приглашайте сообщество к участию."
     },
     "ring_customization": {
-      "title": "Проект кастомизации Ring",
-      "description": "Опишите развёртывание Ring Platform, модуль или брендинг."
+      "title": "Проект настройки Ring",
+      "description": "Опишите объём работ по развёртыванию, модулям или брендингу платформы Ring."
+    },
+    "program": {
+      "title": "Program / investment",
+      "description": "Institution offering for community review and CRM routing."
     }
   },
   "form": {
-    "optionalDetails": "Дополнительные детали",
+    "optionalDetails": "Дополнительные сведения",
     "show": "Показать",
     "hide": "Скрыть",
     "optional": "Необязательно",
     "editTitle": "Редактировать возможность",
-    "editDescription": "Обновите детали объявления и сохраните изменения.",
+    "editDescription": "Обновите данные объявления и сохраните изменения.",
     "saveChanges": "Сохранить изменения",
     "descriptionPlaceholder": "Подробно опишите вашу возможность...",
     "requirementsPlaceholder": "Перечислите конкретные требования или квалификацию...",
@@ -576,7 +633,7 @@
       "mentorship": "Название программы менторства",
       "resource": "Название ресурса или оборудования",
       "event": "Название события",
-      "ring_customization": "Название проекта кастомизации Ring"
+      "ring_customization": "Название проекта настройки Ring"
     },
     "budgetLabels": {
       "request": "Доступный бюджет",
@@ -587,81 +644,88 @@
       "resource": "Стоимость/плата",
       "event": "Стоимость билета",
       "ring_customization": "Бюджет проекта"
-    }
+    },
+    "programSubtype": "Subtype",
+    "selectProgramSubtype": "Program or investment",
+    "subtypeProgram": "Program",
+    "subtypeInvestment": "Investment",
+    "instrument": "Funding instrument",
+    "eligibility": "Eligibility",
+    "applicationUrl": "Application URL"
   },
   "formRail": {
     "backToBrowse": "Назад к возможностям",
     "checklistTitle": "Перед публикацией",
     "guideTitle": "Документация",
-    "guideDescription": "Как возможности находят, модерируют и подбирают с помощью AI.",
+    "guideDescription": "Узнайте, как возможности подбираются, модерируются и находятся.",
     "docsOverview": "Обзор возможностей",
-    "docsMatching": "AI-подбор",
+    "docsMatching": "ИИ-подбор",
     "docsEntities": "Профили организаций",
     "memberNoteTitle": "Публикация для участников",
-    "memberNoteBody": "Предложения и проекты Ring публикуются от имени верифицированной организации.",
+    "memberNoteBody": "Предложения и проекты настройки Ring публикуются от имени верифицированной организации.",
     "memberBadge": "Участник+",
     "visibilityTitle": "Видимость",
     "request": {
-      "tipsTitle": "Советы для запроса",
+      "tipsTitle": "Советы по запросу",
       "tip1Title": "Будьте конкретны",
-      "tip1Body": "Укажите результат, сроки и критерии успеха.",
-      "tip2Title": "Реалистичный бюджет",
-      "tip2Body": "Диапазон бюджета ускоряет подбор релевантных специалистов.",
-      "tip3Title": "Правильная категория",
-      "tip3Body": "Категория и теги влияют на поиск и AI-матчинг.",
-      "visibilityBody": "Запросы видны подписчикам, если не отмечены конфиденциальными.",
-      "check1": "Понятное название",
+      "tip1Body": "Укажите результат, сроки и критерии успеха, чтобы отвечающие поняли, подходят ли они.",
+      "tip2Title": "Установите реалистичный бюджет",
+      "tip2Body": "Диапазон бюджета помогает подбору быстрее находить подходящих специалистов.",
+      "tip3Title": "Выберите правильную категорию",
+      "tip3Body": "Категория и теги влияют на видимость в поиске и ИИ-подборе.",
+      "visibilityBody": "Запросы видны подписчикам, просматривающим возможности, если не отмечены как конфиденциальные.",
+      "check1": "Понятное, конкретное название",
       "check2": "Категория и локация",
       "check3": "Подробное описание",
-      "check4": "Бюджет или дедлайн (по желанию)"
+      "check4": "Бюджет или срок (по желанию)"
     },
     "offer": {
-      "tipsTitle": "Советы для предложения",
+      "tipsTitle": "Советы по предложению",
       "tip1Title": "Привяжите организацию",
-      "tip1Body": "Официальные вакансии должны быть от профиля организации.",
-      "tip2Title": "Диапазон оплаты",
-      "tip2Body": "Прозрачная компенсация повышает доверие кандидатов.",
-      "tip3Title": "Дедлайн подачи",
-      "tip3Body": "Срок закрытия сохраняет список актуальным.",
+      "tip1Body": "Официальные предложения должны быть привязаны к профилю организации, которой вы управляете.",
+      "tip2Title": "Диапазон зарплаты или контракта",
+      "tip2Body": "Прозрачные диапазоны оплаты повышают качество подбора и доверие кандидатов.",
+      "tip3Title": "Срок подачи заявок",
+      "tip3Body": "Установите срок, чтобы объявление автоматически истекало и оставалось актуальным в поиске.",
       "check1": "Организация выбрана",
       "check2": "Название роли и категория",
       "check3": "Требования и навыки",
-      "check4": "Оплата или дедлайн"
+      "check4": "Оплата или срок"
     },
     "cv": {
-      "tipsTitle": "Советы для CV разработчика",
-      "tip1Title": "Стек Ring",
-      "tip1Body": "Оцените Ring Platform, React 19 и Next.js — это важно для матчера.",
+      "tipsTitle": "Советы по резюме разработчика",
+      "tip1Title": "Отметьте стек Ring",
+      "tip1Body": "Оцените навыки Ring Platform, React 19 и Next.js — они влияют на ранжирование в подборе.",
       "tip2Title": "Ссылки на портфолио",
-      "tip2Body": "GitHub и живые проекты важнее общих фраз.",
+      "tip2Body": "Ссылки на GitHub и работающие проекты важнее общих описаний.",
       "tip3Title": "Доступность",
-      "tip3Body": "Укажите, когда можете начать работу.",
+      "tip3Body": "Укажите, когда вы можете приступить к работе — срочные проекты фильтруют по доступности.",
       "check1": "Контакты и локация",
       "check2": "Профессиональное резюме",
-      "check3": "Оценки навыков",
-      "check4": "Резюме или портфолио"
+      "check3": "Оценки навыков заполнены",
+      "check4": "Прикреплено резюме или портфолио"
     },
     "ring": {
-      "tipsTitle": "Объём кастомизации",
+      "tipsTitle": "Объём настройки",
       "tip1Title": "Определите модули",
-      "tip1Body": "Перечислите модули, интеграции или white-label поверхности.",
-      "tip2Title": "Среда развёртывания",
-      "tip2Body": "Облако или self-hosted, локали, ожидаемая нагрузка.",
+      "tip1Body": "Перечислите модули, интеграции или white-label компоненты, которые нужно настроить.",
+      "tip2Title": "Цель развёртывания",
+      "tip2Body": "Укажите облако или self-hosted, локали и ожидаемый уровень нагрузки.",
       "tip3Title": "Бюджет и сроки",
-      "tip3Body": "Диапазон помогает партнёрам оценить проект.",
-      "check1": "Контекст бренда/организации",
+      "tip3Body": "Проекты Ring сильно различаются — диапазон помогает партнёрам точнее оценить проект.",
+      "check1": "Контекст организации или бренда",
       "check2": "Краткое описание объёма",
       "check3": "Технические требования",
-      "check4": "Бюджет или этапы"
+      "check4": "Бюджет или сроки этапов"
     },
     "picker": {
       "tipsTitle": "Выберите тип",
-      "tip1Title": "Соответствие цели",
-      "tip1Body": "Запрос — поиск помощи; предложение — роль; CV — профиль; Ring — работа с платформой.",
-      "tip2Title": "Только для участников",
-      "tip2Body": "Предложения и Ring требуют статуса Участника или выше.",
-      "check1": "Выбран тип сотрудничества",
-      "check2": "Проверена роль аккаунта"
+      "tip1Title": "Соотнесите цель с типом",
+      "tip1Body": "Запрос — поиск помощи; предложение — публикация роли; резюме — ваш профиль; тип Ring — работа с платформой.",
+      "tip2Title": "Типы только для участников",
+      "tip2Body": "Предложения и настройка Ring требуют прав Участника или выше.",
+      "check1": "Выберите формат сотрудничества",
+      "check2": "Подтвердите роль аккаунта"
     }
   }
 }

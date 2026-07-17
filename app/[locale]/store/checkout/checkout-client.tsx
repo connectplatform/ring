@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useTransition, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
@@ -15,6 +15,8 @@ import { SpecialOfferModal } from '@/features/store/components/special-offer-mod
 import { StoreCurrency } from '@/features/store/types'
 import { getDefaultStoreCurrencySymbol } from '@/lib/payments/payment.config'
 import { flattenShippingAddress } from '@/features/store/lib/flatten-shipping-address'
+import { isCheckoutSpecialOfferEnabledForVendors } from '@/app/_actions/vendor-actions'
+import { followCheckoutResult } from '@/lib/payments/checkout-redirect'
 
 export default function CheckoutClient({ locale }: { locale: Locale }) {
 	const router = useRouter()
@@ -25,8 +27,37 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 	const [billingData, setBillingData] = useState<BillingData | null>(null)
   const t = useTranslations('modules.store.checkout')
   const { success: toastSuccess } = useToast()
-  const [showOffer, setShowOffer] = useState(true)
+  const [showOffer, setShowOffer] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  const vendorOwnerRefs = useMemo(() => {
+    return cartItems
+      .map((i) => {
+        const p = i.product as { productOwner?: string; ownerEntityId?: string; vendorId?: string }
+        // Prefer entity id; fall back to user/vendor refs (resolved server-side like payment routes)
+        return p.ownerEntityId || p.productOwner || p.vendorId || ''
+      })
+      .filter(Boolean)
+  }, [cartItems])
+
+  // Opt-in: only show Special Offer when a cart seller enabled promotions.checkoutSpecialOfferEnabled
+  useEffect(() => {
+    let cancelled = false
+    if (vendorOwnerRefs.length === 0) {
+      setShowOffer(false)
+      return
+    }
+    void isCheckoutSpecialOfferEnabledForVendors(vendorOwnerRefs)
+      .then((enabled) => {
+        if (!cancelled) setShowOffer(enabled)
+      })
+      .catch(() => {
+        if (!cancelled) setShowOffer(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [vendorOwnerRefs])
 
 	const handleProceedToPayment = async (data: BillingData) => {
 		setBillingData(data)
@@ -110,13 +141,12 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 			const orderData = await orderRes.json()
 			setOrderId(orderData.orderId)
 
+			const methodRaw = billingData.paymentMethod
 			const method =
-				(billingData.paymentMethod as string) === 'ring'
-					? 'credit'
-					: billingData.paymentMethod
+				methodRaw === 'wayforpay' || methodRaw === 'card' ? 'card' : methodRaw
 
 			if (orderData.referralApplied) {
-				if (method === 'wayforpay') {
+				if (method === 'card') {
 					stashReferralCheckoutFlash({ referralCode: orderData.referralCode })
 				} else {
 					toastSuccess({
@@ -128,8 +158,8 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 				}
 			}
 
-			if (method === 'wayforpay') {
-				const paymentRes = await fetch('/api/store/payments/wayforpay', {
+			if (method === 'card') {
+				const paymentRes = await fetch('/api/store/payments/card', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
@@ -141,8 +171,15 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 
 				if (!paymentRes.ok) throw new Error('Failed to initiate payment')
 				const paymentResult = await paymentRes.json()
-				if (paymentResult.success && paymentResult.paymentUrl) {
-					window.location.href = paymentResult.paymentUrl
+				if (
+					paymentResult.success &&
+					(paymentResult.redirect || paymentResult.paymentUrl || paymentResult.paymentFields)
+				) {
+					followCheckoutResult({
+						redirect: paymentResult.redirect,
+						paymentUrl: paymentResult.paymentUrl,
+						paymentFields: paymentResult.paymentFields,
+					})
 					return
 				}
 				throw new Error(paymentResult.error || 'Failed to initiate payment')
@@ -160,6 +197,38 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 				}
 				clearCart()
 				router.push(`/${locale}/store/checkout/success`)
+				return
+			}
+
+			if (method === 'token') {
+				const tokenRes = await fetch('/api/store/payments/token', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ orderId: orderData.orderId }),
+				})
+				const tokenResult = await tokenRes.json()
+				if (!tokenRes.ok || !tokenResult.success) {
+					throw new Error(tokenResult.error || 'Native token payment failed')
+				}
+				clearCart()
+				router.push(`/${locale}/store/checkout/success`)
+				return
+			}
+
+			if (method === 'paypal') {
+				const paypalRes = await fetch('/api/store/payments/paypal', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						orderId: orderData.orderId,
+						returnUrl: `${window.location.origin}/${locale}/store/checkout/processing?orderId=${orderData.orderId}`,
+					}),
+				})
+				const paypalResult = await paypalRes.json()
+				if (!paypalRes.ok || !paypalResult.success || !paypalResult.paymentUrl) {
+					throw new Error(paypalResult.error || 'PayPal payment failed')
+				}
+				window.location.href = paypalResult.paymentUrl
 				return
 			}
 
@@ -190,13 +259,13 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 			<SpecialOfferModal
 				offer={{
 					id: 'checkout-offer-1',
-					title: t('specialOfferTitle', { default: 'Limited time: Free Shipping' }) as unknown as string,
-					description: t('specialOfferDesc', { default: 'Order today and get free shipping on all items.' }) as unknown as string,
+					title: t('specialOfferTitle'),
+					description: t('specialOfferDesc'),
 					price: undefined,
-					currency: 'UAH',
+					currency: getDefaultStoreCurrencySymbol() as 'USD' | 'UAH' | 'EUR' | 'RING',
 					expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-					ctaText: t('specialOfferCta', { default: 'Apply Offer' }) as unknown as string,
-					dismissText: t('dismiss', { default: 'Dismiss' }) as unknown as string,
+					ctaText: t('specialOfferCta'),
+					dismissText: t('dismiss'),
 					onClick: () => setShowOffer(false)
 				}}
 				open={showOffer}
@@ -207,9 +276,9 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 			{step === 'prebilling' && (
 				<PrebillingPage
 					cartItems={cartItems}
-					cartTotal={{ [getDefaultStoreCurrencySymbol() as StoreCurrency]: cartTotal }}
-					currency={getDefaultStoreCurrencySymbol() as StoreCurrency}
-					defaultCurrency={getDefaultStoreCurrencySymbol() as StoreCurrency}
+					cartTotal={{ [getDefaultStoreCurrencySymbol()]: cartTotal } as Record<StoreCurrency, number>}
+					currency={getDefaultStoreCurrencySymbol()}
+					defaultCurrency={getDefaultStoreCurrencySymbol()}
 					onProceedToPayment={handleProceedToPayment}
 					returnTo={`/${locale}/store/checkout`}
 				/>

@@ -1,11 +1,14 @@
 'use client'
 
-import React, { Suspense } from 'react'
+import React, { Suspense, useCallback, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import EntityDetails from '@/features/entities/components/entity-details'
 import { SerializedEntity } from '@/features/entities/types'
 import { EntityConversationPanel } from '@/features/chat/components/entity-conversation-panel'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
+import EntitiesBrowseRail from '@/components/entities/entities-browse-rail'
 import type { Locale } from '@/i18n/shared'
 
 interface EntityDetailsWrapperProps {
@@ -19,13 +22,17 @@ interface EntityDetailsWrapperProps {
 export default function EntityDetailsWrapper({
   initialEntity,
   initialError,
-  params,
-  searchParams,
   locale,
 }: EntityDetailsWrapperProps) {
   const { data: session, status } = useSession()
   const t = useTranslations('modules.entities.wrapper')
   const tCommon = useTranslations('common')
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+  const closeRail = useCallback(() => setRightSidebarOpen(false), [])
+  const rightRail = useMemo(
+    () => <EntitiesBrowseRail locale={locale} onNavigate={closeRail} />,
+    [locale, closeRail],
+  )
 
   if (status === 'loading') {
     return <div>{tCommon('loading')}</div>
@@ -42,19 +49,26 @@ export default function EntityDetailsWrapper({
       entityCreatorId={initialEntity.addedBy}
       className="border-0 shadow-none"
     />
-  ) : null;
+  ) : null
 
   return (
-    <div className="ring-content-panel min-w-0 min-h-full">
-    <Suspense fallback={<div>{tCommon('loading')}</div>}>
-      <EntityDetails 
-        initialEntity={initialEntity} 
-        initialError={initialError} 
-        chatComponent={chatComponent}
-        locale={locale}
-      />
-    </Suspense>
-    </div>
+    <RingRightRailLayout
+      showRightRail
+      flushCenterPane
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
+      rightRail={rightRail}
+    >
+      <DavinciCenterPane>
+        <Suspense fallback={<div>{tCommon('loading')}</div>}>
+          <EntityDetails
+            initialEntity={initialEntity}
+            initialError={initialError}
+            chatComponent={chatComponent}
+            locale={locale}
+          />
+        </Suspense>
+      </DavinciCenterPane>
+    </RingRightRailLayout>
   )
 }
-

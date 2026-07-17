@@ -1,0 +1,471 @@
+{
+  "title": "Panel de editor",
+  "becomeVendor": "Conviértete en editor",
+  "onboarding": {
+    "title": "Tienda de editores en Connect.Software",
+    "subtitle": "Enumere conjuntos de habilidades, servicios e integraciones en Connect Marketplace, visibles para los equipos que utilizan Ring y ConnectPlatform.",
+    "success": "¡Bienvenido! Se ha creado su tienda de editor.",
+    "redirecting": "Redirigir al panel...",
+    "form": {
+      "storeSlug": "URL de la tienda (slug)",
+      "storeUrlPrefix": "connect.software/store/vendors/",
+      "storeSlugHint": "Nombre compatible con URL (letras minúsculas, guiones), p. B. “integraciones acme”",
+      "storeSlugPlaceholder": "integraciones-acme",
+      "storeName": "Nombre de la tienda",
+      "storeNameHint": "Nombre para mostrar de su equipo o empresa",
+      "storeNamePlaceholder": "Acme Integraciones GmbH",
+      "storeDescription": "Breve descripción",
+      "storeDescriptionHint": "Lo que enumera: MCP, conjuntos de habilidades, enrutadores, paquetes, consejos (máximo 500 caracteres)",
+      "storeDescriptionPlaceholder": "Conectamos despliegues en anillo con servidores de observabilidad, autenticación y MCP...",
+      "categoriesSelected": "{count, plural, one {# categoría seleccionada} other {# categorías seleccionadas}}",
+      "categoriesSelectHint": "Selecciona al menos una categoría",
+      "storeCategories": "Puntos focales",
+      "storeCategoriesHint": "Seleccione todas las categorías apropiadas",
+      "storeLogo": "Logotipo de la tienda",
+      "storeLogoHint": "Imagen cuadrada, recomendado 512×512 (JPG, PNG, WebP, máx. 5 MB)",
+      "uploadLogo": "Subir logotipo",
+      "changeLogo": "Cambiar logotipo",
+      "removeLogo": "Quitar logotipo",
+      "submit": "Crear tienda editorial",
+      "submitting": "Se está creando la tienda..."
+    },
+    "categories": {
+      "organic-produce": "Tiempo de ejecución e infraestructura",
+      "honey-sweets": "API y datos",
+      "essential-oils": "Seguridad y autenticación",
+      "dairy-eggs": "Multiinquilino e identidad",
+      "meat-poultry": "DevOps y CI/CD",
+      "herbs-spices": "Observabilidad y calidad",
+      "grains-legumes": "Integración y ETL",
+      "baked-goods": "UI/UX y sistemas de diseño",
+      "preserves-pickles": "Almacenamiento y archivos",
+      "beverages": "Tiempo real y mensajería",
+      "nuts-seeds": "Herramientas de agente y MCP",
+      "handmade-crafts": "Consultoría e ingeniería personalizada"
+    },
+    "validation": {
+      "slugRequired": "El slug de la tienda es obligatorio",
+      "slugInvalid": "Slug: letras minúsculas, números y guiones únicamente",
+      "slugTooShort": "El slug debe tener al menos 3 caracteres",
+      "slugTooLong": "El slug debe tener como máximo 50 caracteres",
+      "nameRequired": "El nombre de la tienda es obligatorio.",
+      "nameTooShort": "El nombre debe tener al menos 3 caracteres",
+      "nameTooLong": "Nombre máximo 100 caracteres",
+      "descriptionRequired": "Se requiere descripción",
+      "descriptionTooLong": "Descripción máximo 500 caracteres",
+      "categoriesRequired": "Elija al menos una categoría",
+      "logoTooBig": "Archivo de logotipo máx. 5 megas",
+      "logoInvalidType": "Logotipo: JPG, PNG o WebP"
+    }
+  },
+  "dashboard": {
+    "title": "Panel de editor",
+    "welcome": "Bienvenido de nuevo",
+    "overview": "Descripción general",
+    "analytics": "Analytics",
+    "settings": "Ajustes",
+    "quickActionsTitle": "Acciones rápidas",
+    "quickActionsFab": "Acciones rápidas",
+    "quickActions": {
+      "manageProducts": "Gestionar productos",
+      "addProduct": "Añadir producto",
+      "viewOrders": "Ver pedidos",
+      "stockLevels": "Niveles de stock",
+      "earnings": "Ingresos",
+      "storeSettings": "Ajustes de store",
+      "updateInventory": "Actualizar inventario",
+      "viewAnalytics": "Ver analytics",
+      "settings": "Ajustes",
+      "title": "Acciones rápidas"
+    },
+    "boostSalesTitle": "Impulsa tus ventas",
+    "boostSalesTips": {
+      "photos": "Añade fotos de producto de alta calidad para 3× más vistas",
+      "inventory": "Actualiza el inventario a diario para mejor ranking",
+      "quality": "Destaca listados verificados y docs claros para mejor descubrimiento"
+    },
+    "resourcesTitle": "Recursos para vendors",
+    "resourcesDescription": "Aprende a maximizar el potencial de tu store",
+    "viewVendorGuide": "Ver guía de vendor →",
+    "subtitle": "Gestiona tu store, pedidos y pagos",
+    "trustScore": "Puntuación de confianza",
+    "taxVerified": "Impuestos verificados",
+    "taxPending": "Impuestos pendientes",
+    "fromLastMonth": "respecto al mes anterior",
+    "averageValue": "Pedido medio",
+    "available": "Disponible",
+    "trustLevel": {
+      "new": "Nuevo",
+      "basic": "Básico",
+      "verified": "Verificado",
+      "trusted": "De confianza",
+      "premium": "Premium"
+    },
+    "status": {
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "suspended": "Suspendido",
+      "pending": "Pendiente"
+    },
+    "metrics": {
+      "totalSales": "Ventas totales",
+      "totalOrders": "Pedidos totales",
+      "satisfaction": "Satisfacción",
+      "pendingPayout": "Pago pendiente"
+    },
+    "tabs": {
+      "overview": "Resumen",
+      "products": "Productos",
+      "orders": "Pedidos",
+      "payouts": "Pagos"
+    },
+    "performance": {
+      "title": "Rendimiento",
+      "description": "Salud de fulfillment y conversión",
+      "fulfillmentRate": "Tasa de fulfillment",
+      "conversionRate": "Tasa de conversión",
+      "responseTime": "Tiempo de procesamiento de devoluciones"
+    },
+    "products": {
+      "title": "Productos",
+      "active": "{count} activos",
+      "total": "{count} totales",
+      "outOfStock": "Agotado",
+      "manage": "Gestionar productos"
+    },
+    "orders": {
+      "recent": "Pedidos recientes",
+      "noRecent": "Aún no hay pedidos recientes.",
+      "viewAll": "Ver todos los pedidos"
+    },
+    "payouts": {
+      "summary": "Resumen de pagos",
+      "totalPaid": "Comisión pagada",
+      "pending": "Pagos pendientes",
+      "history": "Historial de pagos"
+    },
+    "recentOrders": {
+      "title": "Pedidos recientes",
+      "description": "Últimos pedidos de clientes de tu store",
+      "viewAll": "Ver todos",
+      "empty": "Aún no hay pedidos. ¡Empieza a promocionar tus productos!",
+      "unknownCustomer": "Cliente"
+    },
+    "dagi": {
+      "title": "Agente vendor DAGI",
+      "comingSoon": "Próximamente",
+      "description": "La activación del agente IA y el staking DAARION llegarán aquí. Las operaciones de store (productos, pedidos, stock, ingresos) ya están en el menú vendor.",
+      "todoNote": "La API de provisioning y el staking de wallet siguen planificados — sin activación mock."
+    },
+    "promotions": {
+      "label": "Promociones",
+      "checkoutOffer": "Oferta especial en checkout",
+      "checkoutOfferHint": "Mostrar popup de envío gratis en checkout cuando la política esté activa",
+      "on": "Activado",
+      "off": "Desactivado",
+      "saved": "Promociones actualizadas",
+      "freeShippingHint": "Política de envío gratis para tu storefront",
+      "freeShipOff": "Envío gratis: Desactivado",
+      "freeShipAlways": "Siempre gratis",
+      "freeShipConditional": "Gratis sobre pedido mínimo",
+      "minOrder": "Importe mínimo del pedido"
+    }
+  },
+  "products": {
+    "title": "Mis ofertas",
+    "myProducts": "Mis ofertas",
+    "addProduct": "Añadir oferta",
+    "editProduct": "Editar oferta",
+    "createSubtitle": "Añade un nuevo producto a tu store",
+    "editSubtitle": "Actualizar detalles del producto",
+    "noProducts": "Aún no hay ofertas",
+    "addFirstProduct": "Crea tu primer anuncio para que sea visible en Marketplace",
+    "totalProducts": "{count} Ofertas",
+    "activeProducts": "{count} activo",
+    "pendingProducts": "{count} en revisión",
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "pending": "Lanzamiento pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado"
+    },
+    "mainStore": {
+      "badge": "Mercado principal",
+      "submit": "Enviar para revisión",
+      "pending": "⏳ Examen de administración",
+      "approved": "✓ Listado en el mercado principal",
+      "rejected": "❌ No publicado",
+      "notSubmitted": "Aún no enviado"
+    },
+    "actions": {
+      "edit": "Editar",
+      "duplicate": "Duplicado",
+      "delete": "Borrar",
+      "preview": "avance",
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "viewInStore": "Ver en tienda",
+      "viewInMainStore": "Ver en el mercado principal"
+    },
+    "filters": {
+      "all": "Todas las ofertas",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "pendingApproval": "Lanzamiento pendiente",
+      "approved": "Lanzado al mercado principal",
+      "rejected": "Rechazado",
+      "search": "Buscar ofertas...",
+      "sortBy": "Ordenar por",
+      "sortNewest": "Lo más nuevo primero",
+      "sortOldest": "El más viejo primero",
+      "sortPriceAsc": "Precio aumentando",
+      "sortPriceDesc": "Precio descendente",
+      "sortNameAsc": "Nombre A-Z",
+      "sortNameDesc": "Nombre Z-A"
+    },
+    "form": {
+      "productDetails": "Detalles del producto",
+      "mainPhoto": "Foto principal",
+      "addPhoto": "Añadir foto",
+      "photo": "Medios/Capturas de pantalla",
+      "photoHint": "1-5 imágenes. La primera imagen es la imagen principal.",
+      "photoPlaceholder": "Arrastre o haga clic en las imágenes para seleccionar",
+      "video": "Vídeo (opcional)",
+      "videoHint": "Vídeo de demostración (máx. 50 MB, MP4/WebM)",
+      "name": "Título de la oferta",
+      "nameHint": "Título claro y con capacidad de búsqueda",
+      "namePlaceholder": "Servidor MCP para observabilidad",
+      "category": "categoría",
+      "categoryHint": "Elige la categoría más adecuada",
+      "categoryPlaceholder": "Seleccione categoría...",
+      "priceLabel": "Precio ({currency})",
+      "priceUAH": "Precio (UAH)",
+      "priceHint": "Precio en grivna ucraniana",
+      "pricePlaceholder": "100.00",
+      "stock": "Capacidad disponible / número de piezas",
+      "stockHint": "Unidades o espacios disponibles",
+      "stockPlaceholder": "50",
+      "daarPrice": "Precio del token DAAR (opcional)",
+      "daarPriceHint": "Derivado de UAH cuando está vacío",
+      "description": "Breve descripción",
+      "descriptionHint": "Texto breve (máx. 200 caracteres)",
+      "descriptionPlaceholder": "Lo que obtienen los compradores: alcance, SLA, alcance de entrega...",
+      "activeInMyStore": "Activo en mi tienda",
+      "activeInMyStoreHint": "Visible en la tienda de su propio editor",
+      "submitToMainStore": "Enviar al mercado principal",
+      "submitToMainStoreHint": "Enviar para revisión del administrador del catálogo central",
+      "submit": "Crear oferta",
+      "update": "Oferta de actualización",
+      "submitting": "Se creará...",
+      "updating": "Guardado...",
+      "cancel": "Cancelar",
+      "referralCommission": "Comisión de referral %",
+      "referralCommissionHint": "Opcional. Déjalo vacío para heredar la tasa de merchant o plataforma.",
+      "referralCommissionPlaceholder": "Heredar ({percent}%)",
+      "rep": "Representante del producto",
+      "repHint": "Opcional. Asigna un usuario Ring por username para representar este producto.",
+      "repPlaceholder": "Buscar por username…",
+      "addProductParameter": "Añadir parámetro de producto",
+      "parameterName": "Nombre del parámetro",
+      "parameterValue": "Valor del parámetro",
+      "removeParameter": "Quitar parámetro",
+      "productAudience": "Producto solo para members",
+      "productAudienceHint": "Solo members y superiores ven este producto en el store principal. Los públicos son visibles para todos.",
+      "promotionsTitle": "Promociones del producto",
+      "promotionsHint": "2x1, porcentaje o importe fijo — aplicados en carrito/checkout.",
+      "addPromotion": "Añadir promoción",
+      "noPromotions": "No hay promociones en este producto.",
+      "promoBogo": "Compra X llévate Y gratis",
+      "promoPercent": "Porcentaje de descuento",
+      "promoAmount": "Importe de descuento",
+      "promoLabel": "Etiqueta (opcional)",
+      "buyQty": "Cant. compra",
+      "getQty": "Gratis",
+      "percentOff": "% dto.",
+      "amountOff": "Importe dto. / unidad",
+      "removePromotion": "Quitar promoción"
+    },
+    "validation": {
+      "nameRequired": "Se requiere título",
+      "nameTooShort": "Título de al menos 3 caracteres.",
+      "nameTooLong": "Título máximo 100 caracteres.",
+      "categoryRequired": "Seleccionar categoría",
+      "priceRequired": "Se requiere precio",
+      "priceInvalid": "El precio debe ser un número positivo.",
+      "stockRequired": "Se requiere capacidad/cantidad",
+      "stockInvalid": "El valor debe ser ≥ 0",
+      "photoRequired": "Se requiere al menos una imagen.",
+      "photoCountExceeded": "Máximo de 5 imágenes",
+      "photoSizeExceeded": "Imagen máx. 5 megas",
+      "photoInvalidType": "Imágenes: JPG, PNG o WebP",
+      "videoSizeExceeded": "Vídeo máx. 50 megas",
+      "videoInvalidType": "Vídeo: MP4 o WebM",
+      "descriptionTooLong": "Breve descripción máx. 200 caracteres"
+    },
+    "deleteConfirm": {
+      "title": "Eliminar oferta",
+      "message": "¿Realmente eliminar “{name}”? Esta acción no se puede deshacer.",
+      "confirm": "Si, eliminar",
+      "cancel": "Cancelar"
+    }
+  },
+  "storefront": {
+    "title": "Tienda del editor",
+    "followVendor": "Seguir",
+    "messageVendor": "Noticias",
+    "memberSince": "Miembro desde",
+    "totalSales": "Ventas totales",
+    "rating": "Evaluación",
+    "responseTime": "Tiempo de respuesta",
+    "poweredBy": "Operado con",
+    "metadataTitle": "{name} - Ring Platform",
+    "metadataDescription": "Compra en {name} en Ring Platform",
+    "tabs": {
+      "products": "Ofertas",
+      "about": "Sobre nosotros",
+      "reviews": "Reseñas",
+      "contact": "contacto"
+    },
+    "about": {
+      "story": "Nuestro perfil",
+      "location": "Ubicación",
+      "shipping": "Reglas de entrega e implementación",
+      "returns": "Cancelación y reembolso",
+      "businessHours": "Accesibilidad",
+      "certifications": "Certificaciones",
+      "sustainability": "Sostenibilidad y Gobernanza"
+    },
+    "contact": {
+      "phone": "teléfono",
+      "email": "correo electrónico",
+      "address": "DIRECCIÓN",
+      "sendMessage": "Enviar mensaje"
+    }
+  },
+  "orders": {
+    "title": "Pedidos de vendor",
+    "description": "Pedidos que contienen tus productos",
+    "empty": "Aún no hay pedidos para tu store.",
+    "orderId": "Pedido",
+    "status": "Estado",
+    "total": "Total del pedido",
+    "netAmount": "Tu neto",
+    "date": "Fecha"
+  },
+  "earnings": {
+    "title": "Ingresos y pagos",
+    "description": "Liquidaciones de vendor pendientes y completadas",
+    "pending": "Pago pendiente",
+    "history": "Historial de pagos",
+    "amount": "Importe",
+    "commission": "Comisión",
+    "status": "Estado",
+    "scheduled": "Fecha",
+    "empty": "Aún no hay registros de pago.",
+    "simulatedBadge": "Simulado"
+  },
+  "settings": {
+    "title": "Ajustes de store",
+    "description": "Configuración de merchant y preferencias de liquidación",
+    "readOnlyNote": "La frecuencia de pago y las comisiones las gestiona la política de la plataforma. Contacta al admin para cambios.",
+    "storefront": "Storefront",
+    "storeName": "Nombre del store",
+    "entityId": "ID de entidad",
+    "settlement": "Liquidación",
+    "frequency": "Frecuencia de pago",
+    "defaultFrequency": "Semanal",
+    "holdPeriod": "Periodo de retención",
+    "days": "días",
+    "platformCommission": "Comisión de plataforma",
+    "referralCommission": "Comisión de referral",
+    "referralSource": {
+      "product": "override de producto",
+      "merchant": "config de merchant",
+      "default": "default de plataforma",
+      "env": "default de entorno"
+    },
+    "noMerchantConfig": "La configuración de merchant aún no está provisionada."
+  },
+  "stock": {
+    "title": "Inventario",
+    "description": "Niveles de stock de tus productos",
+    "empty": "No hay productos que seguir.",
+    "product": "Productos",
+    "stock": "Stock",
+    "restock": "Reponer",
+    "restocking": "Añadiendo…",
+    "quantity": "Cantidad"
+  },
+  "navbar": {
+    "myStore": "mi tienda",
+    "dashboard": "Dashboard",
+    "myProducts": "Mis ofertas",
+    "addProduct": "Añadir oferta",
+    "orders": "Órdenes",
+    "earnings": "ganancia",
+    "settings": "Ajustes",
+    "stock": "Stock",
+    "comingSoon": "Pronto"
+  },
+  "notifications": {
+    "productCreated": "Se ha creado la oferta “{name}”",
+    "productUpdated": "La oferta “{name}” ha sido actualizada",
+    "productDeleted": "Oferta eliminada",
+    "productSubmitted": "Oferta enviada para revisión en el mercado principal",
+    "vendorCreated": "Se creó la tienda del editor: bienvenido a Connect.Software",
+    "approvalPending": "Oferta pendiente de revisión del administrador",
+    "approvalApproved": "“{name}” se ha lanzado al mercado principal",
+    "approvalRejected": "“{name}” no fue publicado. Razón: {reason}"
+  },
+  "startWrapper": {
+    "setupProgress": "Progreso de la configuración",
+    "storeDetails": "Detalles de la tienda",
+    "completeStoreInfo": "Perfil completo y logo al 100%.",
+    "whyChoosePlatform": "¿Por qué Ring Platform?",
+    "benefits": {
+      "aiEnrichment": {
+        "title": "IA para listados",
+        "description": "Ingrese información básica: sugerencias de descripción, etiquetas y categorías apropiadas."
+      },
+      "automatedSettlements": {
+        "title": "Asentamiento en proceso de cambio",
+        "description": "Órdenes, comisiones y pagos a lo largo del canal Marketplace."
+      },
+      "ringRewards": {
+        "title": "Recompensas de token RING",
+        "description": "Gana recompensas de comunidad y tokens RING por listados de calidad y ventas verificadas"
+      },
+      "trustTier": {
+        "title": "Confianza y verificación",
+        "description": "Las pruebas, las revisiones y las aprobaciones de los administradores aumentan la visibilidad y la conversión."
+      }
+    },
+    "nextSteps": {
+      "title": "Próximos pasos",
+      "completeStore": "Información completa de la tienda",
+      "uploadLogo": "Subir logotipo",
+      "addFirstProduct": "Crear primera oferta"
+    },
+    "vendorGuide": {
+      "title": "Guía del editor",
+      "description": "Administre la tienda, los listados y los lanzamientos de manera eficiente",
+      "viewGuide": "Ver guía →"
+    },
+    "progressBenefits": "Progreso y beneficios"
+  },
+  "startPage": {
+    "title": "Incorporación de editores",
+    "subtitle": "Configure una tienda y publíquela en Connect.Software",
+    "progressSteps": {
+      "account": "Cuenta",
+      "storeSetup": "Configuración de la tienda",
+      "launch": "ir en vivo"
+    },
+    "trustIndicators": {
+      "vendors": "50+ vendors",
+      "activation": "Activación rápida",
+      "security": "Plataforma segura"
+    }
+  }
+}

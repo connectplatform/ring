@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     returnUrl,
   })
 
-  if (!pay.success || !pay.paymentUrl) {
+  if (!pay.success || !(pay.redirect || pay.paymentUrl || pay.paymentFields)) {
     // Failed payment setup: send 500/server error
     return NextResponse.json({ error: pay.error ?? 'Payment init failed' }, { status: 500 })
   }
@@ -109,7 +109,9 @@ export async function POST(request: NextRequest) {
     success: true,
     status: 'payment_pending',
     aiScore,
+    redirect: pay.redirect,
     paymentUrl: pay.paymentUrl,
+    paymentFields: pay.paymentFields,
     orderReference: pay.orderReference,
   })
 }

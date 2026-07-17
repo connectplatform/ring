@@ -1,45 +1,45 @@
 {
   "termsOfServiceText": {
-    "title": "Terms of Service",
-    "lastUpdated": "Last updated: {date}",
+    "title": "Условия использования",
+    "lastUpdated": "Последнее обновление: {date}",
     "introduction": {
-      "title": "Introduction",
-      "content": "Welcome to Ring Platform. By using our service, you agree to these terms."
+      "title": "Введение",
+      "content": "Добро пожаловать в Ring Platform. Используя наш сервис, вы соглашаетесь с настоящими условиями."
     },
     "userAgreement": {
-      "title": "User Agreement",
-      "content": "By accessing and using Ring Platform, you accept and agree to be bound by the terms and provision of this agreement."
+      "title": "Соглашение пользователя",
+      "content": "Получая доступ к Ring Platform и используя её, вы принимаете и соглашаетесь соблюдать условия и положения настоящего соглашения."
     },
     "accountResponsibilities": {
-      "title": "Account Responsibilities",
-      "content": "As a user of Ring Platform, you are responsible for:",
-      "item1": "Maintaining the confidentiality of your account credentials",
-      "item2": "Providing accurate and up-to-date information",
-      "item3": "Complying with all applicable laws and regulations"
+      "title": "Обязанности пользователя",
+      "content": "Как пользователь Ring Platform, вы несёте ответственность за:",
+      "item1": "Сохранение конфиденциальности учётных данных вашей учётной записи",
+      "item2": "Предоставление точной и актуальной информации",
+      "item3": "Соблюдение всех применимых законов и нормативных требований"
     },
     "contentGuidelines": {
-      "title": "Content Guidelines",
-      "content": "Users must ensure that all content posted on the platform complies with our community guidelines and does not violate any laws or regulations."
+      "title": "Правила размещения контента",
+      "content": "Пользователи обязаны обеспечивать, чтобы весь контент, размещаемый на платформе, соответствовал правилам сообщества и не нарушал законы или нормативные акты."
     },
     "intellectualProperty": {
-      "title": "Intellectual Property",
-      "content": "All content and materials on Ring Platform are protected by intellectual property rights. Users retain ownership of their content while granting us a license to use it."
+      "title": "Интеллектуальная собственность",
+      "content": "Весь контент и материалы на Ring Platform защищены правами интеллектуальной собственности. Пользователи сохраняют право собственности на свой контент, предоставляя нам лицензию на его использование."
     },
     "limitationOfLiability": {
-      "title": "Limitation of Liability",
-      "content": "Ring Platform shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the service."
+      "title": "Ограничение ответственности",
+      "content": "Ring Platform не несёт ответственности за любые косвенные, случайные, особые, вытекающие или штрафные убытки, возникающие в связи с использованием вами сервиса."
     },
     "termination": {
-      "title": "Account Termination",
-      "content": "We reserve the right to terminate or suspend your account at any time for violations of these terms or for any other reason at our sole discretion."
+      "title": "Прекращение действия учётной записи",
+      "content": "Мы оставляем за собой право прекратить или приостановить действие вашей учётной записи в любое время за нарушение настоящих условий или по любой другой причине по нашему исключительному усмотрению."
     },
     "changes": {
-      "title": "Changes to Terms",
-      "content": "We may update these terms of service from time to time. We will notify users of any material changes by posting the updated terms on our platform."
+      "title": "Изменения условий",
+      "content": "Мы можем время от времени обновлять настоящие условия использования. Мы уведомим пользователей о любых существенных изменениях, опубликовав обновлённые условия на нашей платформе."
     },
     "contact": {
-      "title": "Contact Information",
-      "content": "If you have any questions about these Terms of Service, please contact us at legal@ring.ck.ua"
+      "title": "Контактная информация",
+      "content": "Если у вас есть вопросы об этих Условиях использования, свяжитесь с нами по адресу legal@ring.ck.ua"
     }
   }
 }

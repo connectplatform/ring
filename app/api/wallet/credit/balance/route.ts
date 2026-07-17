@@ -94,13 +94,15 @@ export async function GET(request: NextRequest) {
       status: creditBalance.subscription_active ? 'ACTIVE' as const : 'INACTIVE' as const,
     };
 
-    // TODO: Calculate monthly limits dynamically based on user or org plan, not hard-coded values.
-    // STUB: These are currently static example values only
-    const monthlySpendLimit = '1000'; // 1000 RING per month
-    const remainingMonthlyLimit = '750'; // Example hard-coded "remaining" value
-    const minBalanceWarning = '12'; // 12 RING (example hard-coded threshold)
+    // TODO: Calculate monthly limits dynamically based on user or org plan.
+    // STUB values — must NOT be rendered in UI until real spend policy SSOT exists
+    // (profile Balances card + /wallet WalletBalanceHero intentionally omit limits).
+    const monthlySpendLimit = '1000' // STUB — do not display
+    const remainingMonthlyLimit = '750' // STUB — do not display
+    const minBalanceWarning = '12' // STUB — do not display
 
     // Assemble response object in well-structured format (validated shape optional)
+    // limits kept for schema compatibility; consumers must treat as non-authoritative stubs.
     const response = {
       balance: {
         amount: creditBalance.amount,

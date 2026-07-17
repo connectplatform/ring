@@ -1,0 +1,139 @@
+---
+title: Vertical Presets (SSOT)
+description: Named presets select shared or clone-local catalogs; build merges platform then clone overlay
+last_modified: "2026-07-14"
+---
+
+# Vertical Presets (SSOT)
+
+Ring white-labels share **one platform codebase**: `ring-platform.org`. Verticals are selected by **preset name** in `ring-config.json`. Typed catalogs live under `features/*/presets/<preset>.ts` (and home under `components/pages/home-presets/<preset>.tsx`).
+
+## Two sources of preset modules
+
+| Source | What lives there | When it wins |
+|--------|------------------|--------------|
+| **Platform** (`ring-platform.org`) | Shared niches (`platform`, `agricultural`, …) | Base of every build |
+| **Clone project dir** (e.g. `ring-greenfood-live`) | Branding, `ring-config.json`, **custom** `<preset>.ts` + registry overlays | **Overwrite on collision** after platform copy |
+
+### Build merge (clone truth prevails)
+
+Use **`ringdom-clone-build`** (ringdom-mcp):
+
+1. Copy latest `ring-platform.org` → build tmp (skips `node_modules` / `.next` / `.git`)
+2. Copy **all** files from the clone project dir onto that tmp — **overwrite collisions**
+3. Docker / CI build from the tmp dir
+
+```text
+ringdom-clone-build({ project_name: "ring-greenfood-live", dry_run?: true })
+→ .ringdom-build/<project>/<timestamp>
+```
+
+Do **not** expect a thin overlay alone to be a runnable app — merge first.
+
+## Two tiers of content
+
+| Tier | What | Where |
+|------|------|--------|
+| **1 — data** | Category lists, badge tokens, labels | `ring-config.json` maps + `locales/` |
+| **2 — typed logic** | Entity catalogs, zod/forms, niche field UIs | `features/*/presets/<preset>.ts` (platform and/or clone overlay) |
+
+## Config keys
+
+```json
+{
+  "entities": { "preset": "platform" },
+  "home": { "preset": "platform" },
+  "productFields": { "preset": "platform" },
+  "productBadges": { "preset": "platform" },
+  "productFieldsPresets": {
+    "platform": { "storeCategories": ["commerce", "education", "…"] },
+    "agricultural": { "storeCategories": ["organic-produce", "honey-sweets", "…"] }
+  },
+  "productBadgesPresets": {
+    "platform": { "productBadges": ["new", "featured", "popular"] },
+    "agricultural": { "productBadges": ["organic", "local", "regenerative"] }
+  }
+}
+```
+
+GreenFood sets `entities` / `productFields` / `productBadges` to `"agricultural"` and `home.preset` to `"mvm-landing"`.
+
+### Accessors (named preset SSOT)
+
+All use the configured `*.preset` string. If a singular key is unset, **entities** and **productBadges** fall back to `productFields.preset`, then `"platform"` — no hard-coded niche if/else.
+
+- `getEntitiesPreset()` → `features/entities/presets` registry
+- `getHomePreset()` → `components/pages/home-presets` registry
+- `getProductFieldsPreset()` / `getProductFieldsPresets()`
+- `getProductBadgesPreset()` / `getProductBadgesPresets()`
+
+## Entities registry
+
+```
+features/entities/presets/
+  types.ts             # EntityTypeCatalog contract
+  platform.ts          # export const entityTypes (26 industries)
+  agricultural.ts      # healthy-living UI catalog (lightweight)
+  agricultural-erp.ts  # heavy ERP field catalogs — async-only via loadErpEntityTypes()
+  index.ts             # ENTITIES_PRESET_REGISTRY + getEntityTypes()
+```
+
+**Rule:** preset *names* appear in ring-config + the registry map. Consumers call `getEntityTypes()` / `getEntityTypeList()` — never import `agricultural.ts` directly.
+
+**Custom niche on a clone:** add `features/entities/presets/<name>.ts` in the clone project, overlay `index.ts` to register it, set `entities.preset` to that name, then `ringdom-clone-build`.
+
+**Bundle discipline:** sync catalogs are lightweight UI lists. Heavy ERP field catalogs live in `*-erp.ts` modules loaded only via async `loadErpEntityTypes()`.
+
+### Copy / icons layering (no hardcoded UI strings)
+
+- **Catalog** (`presets/<name>.ts`): ids, emoji, English fallback names/descriptions
+- **Copy**: `locales/*/modules/entities.json` → `types.<id>` + `types.<id>Desc`
+- **Visual skin**: `components/entities/entity-type-icons.tsx` `TYPE_VISUALS` map
+- **Render**: `useEntityTypeLabel()` / `useEntityTypeDescription()` — i18n first, catalog fallback
+
+## Home landing registry
+
+```
+components/pages/
+  home.tsx                       # platform default landing
+  home-presets/mvm-landing.tsx   # multi-vendor-marketplace e-commerce landing
+  home-content-resolver.tsx      # HOME_PRESET_REGISTRY + getHomePreset()
+```
+
+### Add a shared vertical (platform)
+
+1. Add `features/entities/presets/<name>.ts` (+ optional `<name>-erp.ts`)
+2. One line in `ENTITIES_PRESET_REGISTRY` (+ `ERP_CATALOG_REGISTRY` if needed)
+3. Optional landing → `components/pages/home-presets/<name>.tsx`
+4. Optional Tier-1 maps under `productFieldsPresets` / `productBadgesPresets`
+5. i18n keys in `locales/*/modules/entities.json`
+6. Document the preset id in `ring-config.template.json`
+
+Target roster: `platform`, `agricultural`, then `tourism`, `sport`, `business`, `pet`, `auto`, `connect`, `technopark`, `manufacturing`.
+
+## Thin exclude (propagation)
+
+`.reggie-propagate-exclude.json` protects **overlay-only** paths from being overwritten by Reggie:
+
+- `ring-config.json`
+- `public/logo*.svg`, `favicon.ico`, `public/branding/`
+- `locales/{en,uk,ru}/config.json`, `vendor.json`
+- Custom `features/*/presets/<clone-only>.ts` (+ registry overlay) when not upstreamed yet
+
+Propagation source remains **`ring-platform.org`** → clones for shared code. Clone-local custom presets stay in the clone dir and win at **`ringdom-clone-build`**.
+
+## GreenFood cutover
+
+```text
+ensure ring-config: entities/productFields/productBadges = agricultural, home = mvm-landing
+keep branding + locale deltas in ring-greenfood-live
+ringdom-clone-build({ project_name: "ring-greenfood-live" })
+build/deploy from .ringdom-build/ring-greenfood-live/<stamp>
+```
+
+## Deprecated
+
+- Hard-coded `if (productPreset === 'agricultural')` in accessors
+- Per-clone `custom-types.ts` / `overrides.ts` without a named preset module
+- `switch (vertical)` in feature code — use the registry
+- Building Docker images from a thin overlay without platform merge

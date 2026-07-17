@@ -20,6 +20,7 @@ import { useNotificationContext } from '@/features/notifications/components/noti
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
+import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
@@ -174,7 +175,7 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
               {balanceLoading ? '···' : displayBalance}
             </span>
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              RING
+              {getClientCreditUnitLabel()}
             </span>
           </div>
         ),

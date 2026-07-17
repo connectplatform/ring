@@ -1,0 +1,86 @@
+{
+  "title": "Teilen & Verdienen",
+  "explainer": "Teilen Sie Ihren persönlichen Link. Wenn jemand darüber den ersten Kauf tätigt, verdienen Sie automatisch Projekt-Token — kein Wallet-Rechnen, einfach teilen.",
+  "yourLinks": "Ihre Share-Links",
+  "noWallets": "Verbinden Sie ein Wallet, um Ihren Share-Link zu erhalten.",
+  "connectWallet": "Wallet verbinden",
+  "copyLink": "Link kopieren",
+  "copied": "Kopiert!",
+  "share": "Teilen",
+  "shareTitle": "Ring Platform beitreten",
+  "shareText": "Schauen Sie sich das an — nutzen Sie meinen Link für Ihren ersten Kauf.",
+  "history": "Aktuelle Belohnungen",
+  "viewTx": "Transaktion ansehen",
+  "loadError": "Empfehlungs-Dashboard konnte nicht geladen werden. Bitte versuchen Sie es später erneut.",
+  "retry": "Erneut versuchen",
+  "visitsTitle": "Link-Besuche",
+  "linkVisits": "{count, plural, one {# Besuch} other {# Besuche}}",
+  "linkVisitsToday": "{count, plural, one {# heute} other {# heute}}",
+  "stats": {
+    "earned": "Verdiente Token ({token})",
+    "minted": "Ausgezahlte Belohnungen",
+    "pending": "Wartet auf Freigabe",
+    "processing": "Mint läuft",
+    "visitsTotal": "Besuche gesamt",
+    "visitsToday": "Heute",
+    "visits7d": "Letzte 7 Tage",
+    "visits28d": "Letzte 28 Tage"
+  },
+  "notifications": {
+    "minted": {
+      "title": "Empfehlungsbelohnung gemintet",
+      "body": "Ihre Empfehlungsbelohnung von {amount} {token} wurde gemintet."
+    }
+  },
+  "status": {
+    "pending_approval": "Wartet auf Freigabe",
+    "approved": "Freigegeben",
+    "minting": "Minting",
+    "minted": "Ausgezahlt",
+    "failed": "Fehlgeschlagen",
+    "rejected": "Abgelehnt"
+  },
+  "admin": {
+    "title": "Empfehlungsbelohnungen",
+    "description": "Fiat-markierte Empfehlungsauszahlungen prüfen, On-Chain-Belohnungen minten und Programmgesundheit überwachen.",
+    "empty": "Keine Belohnungen warten auf Freigabe.",
+    "pendingTitle": "Ausstehende Freigabe",
+    "failedTitle": "Fehlgeschlagene Mints",
+    "recentTitle": "Aktuelle Aktivität",
+    "recentEmpty": "Noch keine Empfehlungsbelohnungen.",
+    "order": "Bestellung",
+    "refCode": "Ref-Code",
+    "amount": "Belohnung",
+    "referrer": "Referrer-Wallet",
+    "approve": "Freigeben & minten",
+    "reject": "Ablehnen",
+    "retryMint": "Mint erneut versuchen",
+    "batchMint": "Freigegebene Warteschlange minten",
+    "viewTx": "Transaktion ansehen",
+    "approveSuccess": "Belohnung freigegeben und Mint eingereicht.",
+    "approveFailed": "Freigabe oder Mint fehlgeschlagen.",
+    "rejectSuccess": "Belohnung abgelehnt.",
+    "rejectFailed": "Belohnung konnte nicht abgelehnt werden.",
+    "mintSuccess": "Mint-Transaktion eingereicht.",
+    "mintFailed": "Mint fehlgeschlagen — Contract-Env und Operator-Wallet prüfen.",
+    "batchMintSuccess": "{processed} Belohnungen verarbeitet, {succeeded} gemintet.",
+    "stats": {
+      "codes": "Aktive Codes",
+      "rewards": "Belohnungen gesamt",
+      "pending": "Ausstehende Freigabe",
+      "minted": "Gemintet",
+      "visitsTotal": "Besuche (gesamt)",
+      "visitsToday": "Besuche heute",
+      "visits7d": "Besuche (7 Tage)",
+      "visits28d": "Besuche (28 Tage)"
+    },
+    "status": {
+      "pending_approval": "Ausstehende Freigabe",
+      "approved": "Freigegeben",
+      "minting": "Minting",
+      "minted": "Gemintet",
+      "failed": "Fehlgeschlagen",
+      "rejected": "Abgelehnt"
+    }
+  }
+}

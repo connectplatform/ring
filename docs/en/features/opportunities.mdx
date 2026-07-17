@@ -339,13 +339,15 @@ When **Platform Settings → AI → Matcher → Auto-approve** is enabled, new o
 ### API-First Architecture
 
 <Code language="typescript" title="REST routes (alpha)">
-{`GET  /api/opportunities              // List (role-aware pagination)
-GET  /api/opportunities/{id}         // Detail
-GET  /api/opportunities/search       // Search
-PATCH /api/opportunities/update      // Update (prefer Server Actions in UI)
-DELETE /api/opportunities/delete/{id} // Delete
-POST /api/opportunities/upload       // Attachments
-// Create: createOpportunity Server Action (app/_actions/opportunities.ts)`}
+{`GET    /api/opportunities              // List (role-aware pagination)
+POST   /api/opportunities              // Create (JSON → createOpportunity service)
+GET    /api/opportunities/{id}         // Detail
+GET    /api/opportunities/search       // Search
+PUT    /api/opportunities/{id}         // Update (prefer Server Actions in UI)
+PATCH  /api/opportunities/{id}         // Partial update (same handler as PUT)
+DELETE /api/opportunities/{id}         // Delete
+POST   /api/opportunities/upload       // Attachments
+// UI forms may still use createOpportunity Server Action (app/_actions/opportunities.ts)`}
 </Code>
 
 ## 🏆 Why Choose Ring Platform?

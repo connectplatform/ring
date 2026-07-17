@@ -1,13 +1,15 @@
 ---
 title: Payments Overview
-description: PaymentConductor with WayForPay, Stripe, and internal credit — store, membership, news promotion, and wallet top-up. Links to deep-dive articles.
-last_modified: "2026-07-09"
+description: PaymentConductor with WayForPay, Stripe, PayPal, and internal credit — store, membership, news promotion, and wallet top-up. Links to deep-dive articles.
+last_modified: "2026-07-16"
 audience: both
 ---
 
 # Payments Overview
 
-Ring Platform routes card and credit flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe is supported for international rails. Wallet credit top-up is a live `wallet_topup` purpose.
+Ring Platform routes card, credit, token, and PayPal flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe and PayPal cover international rails. Wallet credit top-up is a live `wallet_topup` purpose (Card via env processor; optional PayPal tab). Membership recurring PayPal uses [SubscriptionConductor](/docs/features/subscriptions) (Subscriptions v1).
+
+Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/architecture/payment-conductor) · [WayForPay HPP](/docs/features/wayforpay-integration).
 
 > **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor) · [WayForPay](/docs/features/wayforpay-integration) · [SubscriptionConductor](/docs/features/subscriptions)
 
@@ -19,10 +21,10 @@ Ring Platform routes card and credit flows through **PaymentConductor** (`lib/pa
 
 | Purpose | Description | PSP / rail |
 |---------|-------------|------------|
-| `store_order` | Cart → checkout | WayForPay / Stripe / internal credit |
-| `membership_upgrade` | Role upgrade (e.g. SUBSCRIBER → MEMBER) | WayForPay / Stripe / native token |
+| `store_order` | Cart → checkout | WayForPay / Stripe / credit / token / PayPal |
+| `membership_upgrade` | Role upgrade (e.g. SUBSCRIBER → MEMBER) | WayForPay / Stripe / native token / PayPal |
 | `news_promotion` | News Kingdom sponsored articles | WayForPay / Stripe |
-| `wallet_topup` | Fiat credit top-up (card / Apple Pay / Google Pay) | WayForPay |
+| `wallet_topup` | Fiat credit top-up (Card / PayPal tabs) | WayForPay **or** Stripe (`PAYMENT_WALLET_TOPUP_PROCESSOR`); PayPal when `processor=paypal` |
 | Internal credit | Spend existing credit balance | Internal |
 | RING token | On-chain native-token payments | RING |
 
@@ -33,7 +35,8 @@ Ring Platform routes card and credit flows through **PaymentConductor** (`lib/pa
 - **One ledger** — `payment_transactions` for store, membership, news, and wallet top-up.
 - **Config-driven gateways** — `PAYMENT_DEFAULT_PROCESSOR` plus per-purpose overrides (`PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`).
 - **Admin visibility** — Payments tab on the user detail sheet lists membership and wallet top-up rows.
-- **Membership UI** — PaymentModal: native-token and card are live; PayPal is a community FutureFeature (`membership-paypal`), not shipped.
+- **Membership UI** — PaymentModal: native-token, card, and PayPal (when `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true`). Manage cancel/history at `/membership/manage`.
+- **Store PayPal** — optional checkout rail with the same public flag + `PAYPAL_*` credentials.
 
 ### `ring-config.json` payment section
 
@@ -64,11 +67,11 @@ Checkout / upgrade / promotion / wallet top-up
         ↓
 lib/payments/conductor/payment-conductor.ts
         ↓
-Processors: wayforpay.processor | stripe.processor | internal-credit.processor
+Processors: wayforpay.processor | stripe.processor | internal-credit.processor | native-token.processor | paypal.processor
         ↓
 payment_transactions (PostgreSQL, migration 004)
         ↓
-lib/payments/conductor/webhook-dispatcher.ts → handlers/*
+lib/payments/conductor/webhook-dispatcher.ts → handlers/* (+ PayPal Subscriptions lifecycle)
 ```
 
 ### Key modules
@@ -80,8 +83,9 @@ lib/payments/conductor/webhook-dispatcher.ts → handlers/*
 | WayForPay | `lib/payments/processors/wayforpay.processor.ts` | HMAC, form/redirect, all four purposes |
 | Stripe | `lib/payments/processors/stripe.processor.ts` | Checkout + webhook verify |
 | Internal credit | `lib/payments/processors/internal-credit.processor.ts` | Credit deduction |
-| Dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Purpose routing |
-| Webhooks | `app/api/payments/wayforpay/webhook`, `app/api/payments/stripe/webhook` | Canonical PSP callbacks |
+| PayPal | `lib/payments/processors/paypal.processor.ts` | Orders v2 + webhook verify |
+| Dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Purpose routing + Subscriptions events |
+| Webhooks | `app/api/payments/{wayforpay,stripe,paypal}/webhook` | Canonical PSP callbacks |
 
 ### Environment variables
 
@@ -98,7 +102,9 @@ PAYMENT_FIAT_CURRENCY=USD
 PAYMENT_STORE_PROCESSOR=stripe
 PAYMENT_MEMBERSHIP_PROCESSOR=stripe
 PAYMENT_NEWS_PROCESSOR=wayforpay
-PAYMENT_WALLET_TOPUP_PROCESSOR=wayforpay`}
+PAYMENT_WALLET_TOPUP_PROCESSOR=wayforpay
+NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=false
+# PAYPAL_CLIENT_ID= PAYPAL_CLIENT_SECRET= PAYPAL_WEBHOOK_ID=`}
 </Code>
 
 No `WAYFORPAY_MERCHANT_ID`. Templates: `env.local.template`, `docker.env.template`, `docker-compose.template.yml`.
@@ -119,28 +125,12 @@ Apply `data/migrations/004_payment_transactions.sql` before enabling the conduct
     Env SSOT, HMAC, regularApi, orderReference.
   </Card>
   <Card title="Wallet & Credits" href="/docs/features/wallet">
-    Live WayForPay credit top-up (`wallet_topup`).
+    Add Credit Card / PayPal → `wallet_topup` ledger credit.
+  </Card>
+  <Card title="SubscriptionConductor" href="/docs/features/subscriptions">
+    Membership PayPal Subscriptions v1 + manage page.
   </Card>
   <Card title="Payment integration (ops)" href="/docs/customization/payment-integration">
     Operator PSP setup checklist.
   </Card>
 </Cards>
-
-<FutureFeatureBacklog title="Backlog — payments (TBD)">
-
-<FutureFeatureWidget
-  name="PayPal membership payments"
-  description="PayPal rail for membership. PaymentModal shows a PayPal tab backed by FutureFeatureWidget (poolSlug membership-paypal) — processor not implemented."
-  implementationCost={96}
-  labels={['payments', 'paypal', 'membership']}
-  poolSlug="membership-paypal"
-/>
-
-<FutureFeatureWidget
-  name="PayPal store checkout"
-  description="Add PayPal to PaymentConductor for store_order. Live processors: WayForPay, Stripe, internal credit."
-  implementationCost={120}
-  labels={['payments', 'paypal', 'store']}
-/>
-
-</FutureFeatureBacklog>

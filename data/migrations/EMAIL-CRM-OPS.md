@@ -104,8 +104,8 @@ Route: `app/api/cron/email-processor/route.ts` — fail-closed without `Authoriz
 
 1. Send email to `info@ringdom.org` from an external mailbox.
 2. Trigger cron `poll` (or wait for CronJob).
-3. **Admin UI** on ring-ringdom-org: `/en/admin/email-inbox` — thread appears.
-4. `/en/admin/email-drafts` — approve draft → **Send**.
+3. **Admin UI** on ring-ringdom-org: `/en/admin/crm/inbox` — thread appears.
+4. `/en/admin/crm/drafts` — approve draft → **Send**.
 5. Confirm reply in sender inbox + outbound row in `email_messages`.
 
 Then set `EMAIL_AUTO_SEND_ENABLED=true` in the clone Secret and roll the deployment.
@@ -116,14 +116,15 @@ Then set `EMAIL_AUTO_SEND_ENABLED=true` in the clone Secret and roll the deploym
 
 | UI | Path |
 |----|------|
-| Inbox | `/{locale}/admin/email-inbox` |
-| Thread | `/{locale}/admin/email-inbox/[id]` |
-| Drafts | `/{locale}/admin/email-drafts` |
-| Contacts | `/{locale}/admin/email-contacts` |
-| Analytics | `/{locale}/admin/email-analytics` |
-| Tasks | `/{locale}/admin/email-tasks` |
+| Inbox | `/{locale}/admin/crm/inbox` |
+| Thread | `/{locale}/admin/crm/inbox/[id]` |
+| Drafts | `/{locale}/admin/crm/drafts` |
+| Contacts | `/{locale}/admin/crm/contacts` |
+| Analytics | `/{locale}/admin/crm/analytics` |
+| Tasks | `/{locale}/admin/crm/tasks` |
+| Custom orders | `/{locale}/admin/crm/orders` |
 
-API prefix: `/api/admin/email/*` — session + `isPlatformAdmin`.
+API prefix: `/api/admin/email/*` — session + `isPlatformAdmin` (paths unchanged).
 
 ---
 

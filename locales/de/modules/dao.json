@@ -1,0 +1,76 @@
+{
+  "listingTitle": "Öffentliche Pools",
+  "listingDescription": "Liken und {token} einzahlen, um zukünftige Features für diesen Clone in die Warteschlange zu stellen.",
+  "detailBack": "Alle Pools",
+  "listingEmpty": "Noch keine öffentlichen Pools. Liken und einzahlen über Docs-Backlog-Widgets, um den ersten Pool zu starten.",
+  "fundingSummary": "{pledged} / {goal} {token}",
+  "admin": {
+    "list": {
+      "title": "Öffentliche Pools (DAO)",
+      "description": "Erstellen, bearbeiten und verwalten Sie Future-Feature-Pools — Warteschlangen-Gates, Lieferstatus und öffentliche Links.",
+      "createPool": "Pool erstellen",
+      "totalPools": "Pools gesamt",
+      "queuedInProgress": "In Warteschlange / in Arbeit",
+      "completed": "Abgeschlossen",
+      "allPools": "Alle Pools",
+      "allPoolsDescription": "Statusänderungen werden an Docs-Widgets und",
+      "empty": "Noch keine Pools — manuell erstellen oder aus Docs-Backlog-Widgets übernehmen.",
+      "tableTitle": "Titel",
+      "tableKind": "Art",
+      "tableLikes": "Likes",
+      "tableFunding": "Finanzierung",
+      "tableStatus": "Status",
+      "tableActions": "Aktionen",
+      "edit": "Bearbeiten",
+      "view": "Ansehen",
+      "statusUpdated": "Pool-Status aktualisiert",
+      "updateFailed": "Aktualisierung fehlgeschlagen",
+      "deleteConfirm": "Pool \"{title}\" löschen? Signale und Beiträge werden entfernt.",
+      "deleted": "Pool gelöscht",
+      "deleteFailed": "Löschen fehlgeschlagen"
+    },
+    "form": {
+      "titleLabel": "Titel",
+      "descriptionLabel": "Beschreibung",
+      "poolSlugOptional": "Pool-Slug (optional)",
+      "poolSlugPlaceholder": "manual:my-feature — wird aus dem Titel erzeugt, wenn leer",
+      "poolSlugReadonly": "Pool-Slug",
+      "kindLabel": "Art",
+      "goalHoursLabel": "Zielstunden",
+      "fundingModeLabel": "Finanzierungsmodus",
+      "statusLabel": "Status",
+      "docPathLabel": "Doc-Pfad (optional)",
+      "docPathPlaceholder": "en/architecture/data-model",
+      "labelsLabel": "Labels (kommagetrennt)",
+      "labelsPlaceholder": "platform, wallet",
+      "likesCount": "Likes: {count}",
+      "pledgedSummary": "Zugesagt: {pledged} / {goal} {token}",
+      "saving": "Speichern…",
+      "createPool": "Pool erstellen",
+      "saveChanges": "Änderungen speichern",
+      "cancel": "Abbrechen",
+      "saveFailed": "Speichern fehlgeschlagen"
+    },
+    "create": {
+      "title": "Öffentlichen Pool erstellen",
+      "description": "Manueller Pool — erscheint unter /dao und kann das Future-Feature-Widget überall einbetten."
+    },
+    "edit": {
+      "title": "Öffentlichen Pool bearbeiten"
+    },
+    "kind": {
+      "future_feature": "Zukünftiges Feature"
+    },
+    "fundingMode": {
+      "donation": "Spende",
+      "escrow": "Treuhand"
+    },
+    "status": {
+      "open": "Offen",
+      "queued": "In Warteschlange",
+      "in_progress": "In Arbeit",
+      "completed": "Abgeschlossen",
+      "cancelled": "Abgebrochen"
+    }
+  }
+}

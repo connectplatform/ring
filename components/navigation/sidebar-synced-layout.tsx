@@ -7,27 +7,19 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { useSession } from 'next-auth/react'
-import { isPlatformAdmin } from '@/features/auth/user-role'
+import { hasMemberPrivileges } from '@/features/auth/user-role'
 import {
-  BarChart3,
   Bell,
   Briefcase,
   Calculator,
   Coins,
-  DollarSign,
   FileText,
   Globe,
   Heart,
-  Home,
   Map,
   MessageCircle,
   Moon,
-  Package,
   Rocket,
-  Settings,
-  Share2,
-  Shield,
-  ShoppingBag,
   ShoppingCart,
   Store,
   Sun,
@@ -43,7 +35,6 @@ import { useCreditBalanceContext } from '@/components/providers/credit-balance-p
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
-import { useVendorStatus } from '@/hooks/use-vendor-status'
 import {
   localeDisplayLabel,
   localeNativeTitle,
@@ -56,6 +47,7 @@ import { cn } from '@/lib/utils'
 import packageInfo from '@/package.json'
 import type { Locale } from '@/i18n/shared'
 import { TunnelIndicatorCompact } from './tunnel-indicator'
+import { AdminSupermenuToggle } from './admin-supermenu'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
   ssr: false,
@@ -73,9 +65,10 @@ const ASIDE_PAD = 'pl-1 pr-2'
 const RAIL_LOGO_SIZE = Math.round(64 * 0.9)
 
 type SyncedRow =
-  | { kind: 'pair'; key: string; href?: string; rail: React.ReactNode; aside: React.ReactNode; tall?: boolean }
+  | { kind: 'pair'; key: string; href?: string; rail: React.ReactNode; aside: React.ReactNode; tall?: boolean; markActive?: boolean }
   | { kind: 'aside-only'; key: string; href: string; icon: React.ReactNode; label: React.ReactNode }
   | { kind: 'section'; key: string; label: string }
+  | { kind: 'admin-toggle'; key: string }
 
 function formatBalance(balance: string | null) {
   if (!balance || balance === '0') return '0.00'
@@ -132,7 +125,6 @@ export function SidebarSyncedLayout({
   const { currency, toggleCurrency, nativeTokenCurrency, defaultCurrency } = useStoreCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const [mounted, setMounted] = useState(false)
-  const { hasVendor: hasVendorStore } = useVendorStatus()
 
   const tNav = useTranslations('navigation')
   const tEntities = useTranslations('modules.entities')
@@ -148,6 +140,7 @@ export function SidebarSyncedLayout({
 
   const cartCount = store?.totalItems || 0
   const displayBalance = formatBalance(tokenBalance?.amount)
+  const showAdminToggle = hasMemberPrivileges(session?.user?.role)
 
   useEffect(() => {
     setMounted(true)
@@ -155,7 +148,11 @@ export function SidebarSyncedLayout({
 
   const isActive = (href: string) => {
     if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-    return pathname.startsWith(href)
+    // Documentation hub: don't steal active state from deeper docs pages that have their own nav rows
+    if (href === ROUTES.DOCS(locale)) {
+      return pathname === href || pathname === `${href}/`
+    }
+    return pathname === href || pathname.startsWith(`${href}/`)
   }
 
   const switchLocale = () => {
@@ -170,6 +167,7 @@ export function SidebarSyncedLayout({
         key: 'brand',
         href: ROUTES.HOME(locale),
         tall: true,
+        markActive: false,
         rail: (
           <div className="flex w-[90%] max-h-[90%] items-center justify-center overflow-hidden aspect-square">
             <AnimatedLogo size={RAIL_LOGO_SIZE} />
@@ -263,7 +261,6 @@ export function SidebarSyncedLayout({
       icon: React.ReactNode
       badge?: string
     }> = [
-      { key: 'home', href: ROUTES.HOME(locale), label: tNav('mainNav.home'), icon: <Home className="size-[18px]" strokeWidth={1.5} /> },
       { key: 'entities', href: ROUTES.ENTITIES(locale), label: tEntities('title'), icon: <Users className="size-[18px]" strokeWidth={1.5} />, badge: 'Hot' },
       { key: 'opportunities', href: ROUTES.OPPORTUNITIES(locale), label: tOpp('opportunities'), icon: <Briefcase className="size-[18px]" strokeWidth={1.5} />, badge: 'New' },
       { key: 'store-nav', href: ROUTES.STORE(locale), label: tStore('title'), icon: <Store className="size-[18px]" strokeWidth={1.5} /> },
@@ -289,90 +286,39 @@ export function SidebarSyncedLayout({
       })
     }
 
-    if (session?.user && isPlatformAdmin(session.user.role)) {
-      list.push({
-        kind: 'pair',
-        key: 'admin-entry',
-        href: ROUTES.ADMIN(locale),
-        rail: <Shield className="size-[18px]" strokeWidth={1.5} />,
-        aside: <span className="truncate">{tNav('sidebar.adminDashboard')}</span>,
-      })
-      for (const item of [
-        { href: ROUTES.ADMIN_USERS(locale), label: tNav('sidebar.userManagement'), icon: Users },
-        { href: ROUTES.ADMIN_ANALYTICS(locale), label: tNav('sidebar.analytics'), icon: BarChart3 },
-        { href: ROUTES.ADMIN_SECURITY(locale), label: tNav('sidebar.security'), icon: Shield },
-        { href: ROUTES.ADMIN_REFCODES(locale), label: tNav('sidebar.referralRewards'), icon: Share2 },
-        { href: ROUTES.ADMIN_STORE(locale), label: tNav('sidebar.storeManagement'), icon: ShoppingBag },
-      ]) {
-        list.push({
-          kind: 'aside-only',
-          key: item.href,
-          href: item.href,
-          icon: <item.icon className="size-3.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-          label: <span className="truncate">{item.label}</span>,
-        })
-      }
+    if (showAdminToggle) {
+      list.push({ kind: 'admin-toggle', key: 'admin-supermenu' })
     }
 
-    if (session?.user && hasVendorStore) {
-      list.push({ kind: 'section', key: 'vendor-h', label: tNav('sidebar.vendor') })
-      for (const item of [
-        { href: ROUTES.VENDOR_DASHBOARD(locale), label: tNav('sidebar.vendorDashboard'), icon: BarChart3 },
-        { href: ROUTES.VENDOR_PRODUCTS(locale), label: tNav('sidebar.vendorProducts'), icon: Package },
-        { href: ROUTES.VENDOR_ORDERS(locale), label: tNav('sidebar.vendorOrders'), icon: ShoppingBag },
-        { href: ROUTES.VENDOR_STOCK(locale), label: tNav('sidebar.vendorStock'), icon: Package },
-        { href: ROUTES.VENDOR_EARNINGS(locale), label: tNav('sidebar.vendorEarnings'), icon: DollarSign },
-        { href: ROUTES.VENDOR_SETTINGS(locale), label: tNav('sidebar.vendorSettings'), icon: Settings },
-      ]) {
-        list.push({
-          kind: 'aside-only',
-          key: item.href,
-          href: item.href,
-          icon: <item.icon className="size-3.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-          label: <span className="truncate">{item.label}</span>,
-        })
-      }
-    }
-
-    if (session?.user) {
-      list.push({
-        kind: 'aside-only',
-        key: 'refcodes',
-        href: ROUTES.REFCODES(locale),
-        icon: <Share2 className="size-3.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-        label: <span className="truncate">{tNav('refcodes')}</span>,
-      })
-    }
-
-    list.push({ kind: 'section', key: 'concepts-h', label: 'Platform Concepts' })
+    list.push({ kind: 'section', key: 'concepts-h', label: tNav('sidebar.concepts', { default: 'Platform Concepts' }) })
     for (const item of [
-      { href: `/${locale}/docs/customization/token-economics`, label: tNav('sidebar.ringEconomy'), icon: Coins },
-      { href: `/${locale}/about-publisher`, label: tNav('sidebar.appPublisher'), icon: Heart },
-      { href: `/${locale}/global-impact`, label: tNav('sidebar.globalImpact'), icon: Globe },
-      { href: `/${locale}/ai-web3`, label: tNav('sidebar.aiMeetsWeb3'), icon: Zap },
+      { key: 'ring-economy', href: `/${locale}/docs/customization/token-economics`, label: tNav('sidebar.ringEconomy'), icon: <Coins className="size-[18px]" strokeWidth={1.5} /> },
+      { key: 'app-publisher', href: `/${locale}/about-publisher`, label: tNav('sidebar.appPublisher'), icon: <Heart className="size-[18px]" strokeWidth={1.5} /> },
+      { key: 'global-impact', href: `/${locale}/global-impact`, label: tNav('sidebar.globalImpact'), icon: <Globe className="size-[18px]" strokeWidth={1.5} /> },
+      { key: 'ai-web3', href: `/${locale}/ai-web3`, label: tNav('sidebar.aiMeetsWeb3'), icon: <Zap className="size-[18px]" strokeWidth={1.5} /> },
     ]) {
       list.push({
-        kind: 'aside-only',
-        key: item.href,
+        kind: 'pair',
+        key: item.key,
         href: item.href,
-        icon: <item.icon className="size-3.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-        label: <span className="truncate">{item.label}</span>,
+        rail: item.icon,
+        aside: <span className="truncate">{item.label}</span>,
       })
     }
 
     list.push({ kind: 'section', key: 'started-h', label: tNav('sidebar.getStarted') })
     for (const item of [
-      { href: ROUTES.DOCS(locale), label: tNav('sidebar.documentation'), icon: FileText },
-      { href: `/${locale}/docs/getting-started`, label: tNav('sidebar.quickStart'), icon: Rocket },
-      { href: `/${locale}/calculator`, label: tNav('sidebar.deploymentCalculator'), icon: Calculator },
-      { href: `/${locale}/roadmap`, label: tNav('sidebar.roadmap'), icon: Map },
+      // Documentation already in primary nav — omit duplicate
+      { key: 'quick-start', href: `/${locale}/docs/getting-started`, label: tNav('sidebar.quickStart'), icon: <Rocket className="size-[18px]" strokeWidth={1.5} /> },
+      { key: 'calculator', href: `/${locale}/calculator`, label: tNav('sidebar.deploymentCalculator'), icon: <Calculator className="size-[18px]" strokeWidth={1.5} /> },
+      { key: 'roadmap', href: `/${locale}/roadmap`, label: tNav('sidebar.roadmap'), icon: <Map className="size-[18px]" strokeWidth={1.5} /> },
     ]) {
       list.push({
-        kind: 'aside-only',
-        key: `started-${item.href}`,
+        kind: 'pair',
+        key: item.key,
         href: item.href,
-        icon: <item.icon className="size-3.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-        label: <span className="truncate">{item.label}</span>,
+        rail: item.icon,
+        aside: <span className="truncate">{item.label}</span>,
       })
     }
 
@@ -382,11 +328,11 @@ export function SidebarSyncedLayout({
     cartCount,
     displayBalance,
     favorites.length,
-    hasVendorStore,
     locale,
     messagesCount,
     notificationCount,
     session?.user,
+    showAdminToggle,
     tEntities,
     tFav,
     tNav,
@@ -413,6 +359,16 @@ export function SidebarSyncedLayout({
       continue
     }
 
+    if (row.kind === 'admin-toggle') {
+      gridCells.push(
+        <div key={`${row.key}-rail`} className={ROW} aria-hidden />,
+        <div key={`${row.key}-aside`} className={cn(ROW, ASIDE_PAD)}>
+          <AdminSupermenuToggle />
+        </div>,
+      )
+      continue
+    }
+
     if (row.kind === 'aside-only') {
       gridCells.push(
         <div key={`${row.key}-rail`} className={ROW} aria-hidden />,
@@ -434,12 +390,13 @@ export function SidebarSyncedLayout({
     }
 
     const rowClass = row.tall ? BRAND_ROW : ROW
+    const showActive = row.markActive !== false && row.href ? isActive(row.href) : false
     gridCells.push(
       row.href ? (
         <Link
           key={`${row.key}-rail`}
           href={toAppHref(row.href)}
-          data-current={isActive(row.href) ? '' : undefined}
+          data-current={showActive ? '' : undefined}
           className={cn(railLinkClass, rowClass)}
         >
           {row.rail}
@@ -453,7 +410,7 @@ export function SidebarSyncedLayout({
         <Link
           key={`${row.key}-aside`}
           href={toAppHref(row.href)}
-          data-current={isActive(row.href) ? '' : undefined}
+          data-current={showActive ? '' : undefined}
           className={cn(
             'sidebar-nav-item sidebar-aside-col min-w-0 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
             ASIDE_PAD,

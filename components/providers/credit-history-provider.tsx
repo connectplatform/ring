@@ -11,7 +11,7 @@
  * @see components/providers/credit-balance-provider.tsx
  */
 
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react'
 import { useCreditHistory } from '@/hooks/use-credit-history'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import type { CreditTransaction } from '@/lib/zod/credit-schemas'
@@ -44,12 +44,21 @@ export function CreditHistoryProvider({
   const { lastRefreshed } = useCreditBalanceContext()
   const history = useCreditHistory({ limit })
 
+  // Keep refresh stable in the effect: useCursorFeed's reload identity churns after
+  // every fetch (loadPage closes over items/cursor). Depending on history.refresh
+  // re-fires the effect → infinite GET /api/wallet/credit/history.
+  const refreshRef = useRef(history.refresh)
+  refreshRef.current = history.refresh
+  const lastSyncedBalanceAt = useRef<number | null>(null)
+
   useEffect(() => {
     if (!lastRefreshed) return
-    void history.refresh().catch(() => {
+    if (lastSyncedBalanceAt.current === lastRefreshed) return
+    lastSyncedBalanceAt.current = lastRefreshed
+    void refreshRef.current().catch(() => {
       /* useCreditHistory handles errors internally */
     })
-  }, [lastRefreshed, history.refresh])
+  }, [lastRefreshed])
 
   return (
     <CreditHistoryContext.Provider value={history}>{children}</CreditHistoryContext.Provider>

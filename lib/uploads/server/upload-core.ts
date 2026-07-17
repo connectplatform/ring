@@ -7,6 +7,7 @@ import {
   StorageConfig,
 } from '@/lib/storage/storage-config'
 import { file, getStorageBackendFromEnvironment } from '@/lib/file'
+import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { ConversationService } from '@/features/chat/services/conversation-service'
 import { checkEntityOwnership } from '@/features/entities/utils/entity-utils'
@@ -409,6 +410,44 @@ const policies: Record<string, UploadPolicy> = {
       return `${tenantPrefix}/products/${productId}/photo-${index}.${ext || 'png'}`
     },
   },
+  'nft:media': {
+    purpose: 'nft:media',
+    authMode: 'authenticated',
+    requiresRole: ['member', 'confidential', 'admin', 'superadmin'],
+    maxSizeBytes: 12 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+    keyBuilder: async ({ actor, tenantPrefix, file, scope }) => {
+      if (!actor.userId) throw new Error('Authenticated user required')
+      const fieldId = sanitizeSegment(scope?.mediaIndex || 'field', 'field')
+      const index = sanitizeSegment(scope?.fileCategory || buildObjectId(), '0')
+      const ext = sanitizeExtension(file.name) || 'png'
+      return `${tenantPrefix}/nft/${actor.userId}/${fieldId}/${index}.${ext}`
+    },
+  },
+  'mood:track': {
+    purpose: 'mood:track',
+    authMode: 'authenticated',
+    requiresRole: ['subscriber', 'member', 'confidential', 'admin', 'superadmin'],
+    maxSizeBytes: 40 * 1024 * 1024,
+    // Audio only — cover/video use URL fields or a future mood:cover purpose
+    allowedTypes: [
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/wav',
+      'audio/ogg',
+      'audio/webm',
+      'audio/mp4',
+      'audio/x-m4a',
+      'audio/aac',
+    ],
+    keyBuilder: async ({ actor, tenantPrefix, file, scope }) => {
+      if (!actor.userId) throw new Error('Authenticated user required')
+      const playlistId = sanitizeSegment(scope?.productId || scope?.mediaIndex || 'playlist', 'playlist')
+      const trackId = sanitizeSegment(scope?.fileCategory || buildObjectId(), 'track')
+      const ext = sanitizeExtension(file.name) || 'mp3'
+      return `${tenantPrefix}/mood-player/${actor.userId}/${playlistId}/${trackId}.${ext}`
+    },
+  },
   'refmagic:temp-docx': {
     purpose: 'refmagic:temp-docx',
     authMode: 'public',
@@ -531,6 +570,14 @@ async function executePolicy(
     access: meta.privateAccess ? 'private' : 'public',
     addRandomSuffix: false,
     contentType: input.file.type || undefined,
+    ...ringbaseDerivativeUploadOptions(
+      meta.purpose,
+      input.file.type,
+      meta.privateAccess ? 'private' : 'public',
+    ),
+    metadata: {
+      purpose: String(meta.purpose || ''),
+    },
   })
 
   if (!uploadResult.success) {
@@ -556,6 +603,8 @@ async function executePolicy(
     uploadedAt: now,
     provider: getStorageBackendFromEnvironment(),
     objectKey,
+    fileId: uploadResult.fileId,
+    derivatives: uploadResult.derivatives,
     ...responseMeta,
   }
 
@@ -563,6 +612,10 @@ async function executePolicy(
   if (meta.purpose === 'profile:avatar' && actor.userId && uploadResult.url) {
     try {
       const { db } = await import('@/lib/database')
+      const thumb =
+        uploadResult.derivatives?.sync_thumb ||
+        uploadResult.derivatives?.thumb ||
+        undefined
       await db().updateDoc(
         'users',
         actor.userId,
@@ -570,6 +623,7 @@ async function executePolicy(
           photoURL: uploadResult.url,
           image: uploadResult.url,
           avatar: uploadResult.url,
+          ...(thumb ? { avatarThumb: thumb } : {}),
         },
         { merge: true },
       )

@@ -45,17 +45,13 @@ import {
   davinciGlassSurface,
   davinciBeamInnerSurface,
   davinciAuthButtonLift,
-  davinciTerminalSurface,
   HeroAmbient,
 } from '@/lib/ui/davinci'
 import { KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
 import { UserRolesArray } from '@/features/auth/user-role'
-import WalletSection from '@/features/wallet/components/wallet-section'
-import ProfileAccountTokenWidgets from '@/features/wallet/components/profile-account-token-widgets'
 import { useAuth } from '@/hooks/use-auth'
 import { useSession } from 'next-auth/react'
-import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { ROUTES } from '@/constants/routes'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
@@ -75,7 +71,6 @@ import {
   Award,
   LogOut,
   Sparkles,
-  Wallet,
   Lock,
   Monitor,
   Smartphone,
@@ -87,7 +82,6 @@ import {
   Globe,
   Layout,
   Info,
-  Coins,
   Medal,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
@@ -124,7 +118,6 @@ export default function ProfileContent({
   const locale = useLocale() as Locale
   const t = useTranslations('modules.profile')
   const router = useRouter()
-  const creditBalance = useCreditBalanceContext()
   const { getKycStatus, refreshSession, signOut } = useAuth()
   const { update: updateSession } = useSession() // TODO: Consider React 19 cache API and server-initiated data
   const [isEditing, setIsEditing] = useState(false)
@@ -274,6 +267,16 @@ export default function ProfileContent({
 
       const result = await response.json()
       if (result.success) {
+        const thumb =
+          result.derivatives?.sync_thumb ||
+          result.derivatives?.thumb ||
+          result.url
+        // Patch JWT immediately so MobileUserWidget / sidebar chrome update without re-login
+        await updateSession({
+          photoURL: result.url || thumb,
+          image: thumb || result.url,
+          avatarThumb: thumb,
+        })
         await refreshSession()
         router.refresh()
       } else {
@@ -422,27 +425,6 @@ export default function ProfileContent({
   }
 
   /**
-   * Calculate a % profile completion metric for display & styles.
-   * Can be improved by weighting or data completeness checks.
-   */
-  const calculateProfileCompletion = () => {
-    let completed = 0
-    let total = 10
-    // Each fulfilled prop increments completed score
-    if (user.name) completed++
-    if (user.username) completed++
-    if ((user as any)?.bio) completed++
-    if ((user as any)?.phoneNumber) completed++
-    if ((user as any)?.organization) completed++
-    if ((user as any)?.photoURL) completed++
-    if ((user as any)?.communication?.telegramUsername) completed++
-    if ((user as any)?.integrations?.socialProfiles) completed++
-    if ((user as any)?.skills?.length > 0) completed++
-    if (user.isVerified) completed++
-    return Math.round((completed / total) * 100)
-  }
-
-  /**
    * Localized navigation items for the Profile section (sidebar/rail + mobile)
    */
   const profileMenuItems = [
@@ -451,7 +433,6 @@ export default function ProfileContent({
     { id: 'professional', label: t('professional'), icon: Briefcase },
     { id: 'regional', label: t('regional'), icon: MapPin },
     { id: 'verification', label: t('verification'), icon: CheckCircle },
-    { id: 'wallet', label: t('wallet'), icon: Wallet },
     { id: 'security', label: t('security'), icon: Shield },
   ]
 
@@ -487,13 +468,6 @@ export default function ProfileContent({
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       profileMenuItems={profileMenuItems}
-      profileCompletion={calculateProfileCompletion()}
-      communicationsForm={{
-        telegramUsername: (user as any)?.communication?.telegramUsername || '',
-        whatsappNumber: (user as any)?.communication?.whatsappNumber || ''
-      }}
-      kycStatus={kycStatus}
-      user={user as Record<string, unknown>}
       onNavigate={() => setRightSidebarOpen(false)}
       onEditProfile={handleEditProfile}
       onNavigateSettings={handleNavigateSettings}
@@ -548,7 +522,7 @@ export default function ProfileContent({
                 {/* Avatar Section: profile pic, fallback, editable state */}
                 <div className="flex flex-col items-center space-y-2 shrink-0">
                   <Avatar
-                    src={user.photoURL || session?.user?.image}
+                    src={(user as { avatarThumb?: string | null }).avatarThumb || user.photoURL || session?.user?.image}
                     alt={user.name || 'User'}
                     size="2xl"
                     fallback={user.name?.charAt(0) || 'U'}
@@ -669,62 +643,21 @@ export default function ProfileContent({
                       </div>
                     )}
                   </div>
-                  {/* Credit balance (+ recharge) */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <div className={cn(
-                      davinciTerminalSurface,
-                      'flex items-center gap-3 px-3 py-2 text-left',
-                    )}>
-                      <Coins className="h-4 w-4 shrink-0 text-[var(--davinci-beam)]" />
-                      <div>
-                        <p className="text-[10px] leading-tight text-muted-foreground">Credits</p>
-                        <p className="text-sm font-semibold text-[var(--davinci-beam)]">
-                          {creditBalance?.balance?.amount ? Number(creditBalance.balance.amount).toLocaleString() : '0'} pts
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        'text-xs h-8 rounded-xl',
-                        'border-[color-mix(in_oklch,var(--davinci-beam)_25%,transparent)]',
-                        'hover:border-[var(--davinci-beam)] hover:text-[var(--davinci-beam)]',
-                        'transition-colors duration-200',
-                      )}
-                      onClick={() => router.push(`/${locale.toLowerCase()}/checkout` as any)}
-                    >
-                      Recharge
-                    </Button>
-                  </div>
                 </div>
               </div>
             </div>
           </BorderBeam>
 
-          {/* Progress widget (badges, ring, CTAs) – only once mounted in browser */}
+          {/* Balances + Quests card – only once mounted in browser */}
           {mounted && (
             <div className="mb-6">
               <UserProgressWidget
-                profileCompletion={calculateProfileCompletion()}
                 usernameSet={!!user.username}
                 bioSet={!!((user as any)?.bio)}
                 telegramSet={!!((user as any)?.communication?.telegramUsername)}
-                whatsappSet={!!((user as any)?.communication?.whatsappNumber)}
-                phoneSet={!!((user as any)?.phoneNumber)}
-                timezoneSet={!!((user as any)?.cultural?.timezone)}
                 kycApproved={kycStatus === KYCStatus.APPROVED}
-                membershipActive={!!((user as any)?.membership?.active)}
-                potentialRing={
-                  700 -
-                  ((user as any)?.communication?.telegramUsername ? 50 : 0) -
-                  ((user as any)?.communication?.whatsappNumber ? 50 : 0) -
-                  ((user as any)?.phoneNumber ? 100 : 0) -
-                  (kycStatus === KYCStatus.APPROVED ? 500 : 0)
-                }
                 locale={locale.toLowerCase()}
                 onNavigateTab={setActiveTab}
-                onCheckout={() => router.push(`/${locale.toLowerCase()}/checkout` as any)}
                 onOpenUsernameModal={() => setSetUsernameModalOpen(true)}
                 onOpenBioModal={() => setBioEditModalOpen(true)}
               />
@@ -775,7 +708,6 @@ export default function ProfileContent({
                   {activeTab === 'overview' && t('overviewDescription')}
                   {activeTab === 'communications' && t('communicationsTabDescription')}
                   {activeTab === 'professional' && t('professionalTabDescription')}
-                  {activeTab === 'wallet' && t('walletTabDescription')}
                   {activeTab === 'security' && t('securityTabDescription')}
                 </p>
               </div>
@@ -1141,17 +1073,6 @@ export default function ProfileContent({
                       uploadedAt: new Date(doc.uploadedAt),
                       fileName: doc.fileName,
                     }))}
-                  />
-                </div>
-              )}
-
-              {/* Wallet Tab */}
-              {activeTab === 'wallet' && (
-                <div className="space-y-6">
-                  <ProfileAccountTokenWidgets />
-                  <WalletSection
-                    locale={locale.toLowerCase() as Locale}
-                    embedded={true}
                   />
                 </div>
               )}

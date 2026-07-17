@@ -29,8 +29,8 @@ import {
   getMembershipRingUpgradeAmount,
 } from '@/lib/membership/pricing'
 import { ROUTES } from '@/constants/routes'
-import { FutureFeatureWidget } from '@/components/docs/future-feature-widget'
 import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import { followCheckoutResult } from '@/lib/payments/checkout-redirect'
 
 type PaymentRail = 'on_chain_ring'
 
@@ -49,11 +49,37 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const [selectedTab, setSelectedTab] = useState('wallet_native_token')
   const [onChainRingBalance, setOnChainRingBalance] = useState('0')
   const [onChainLoading, setOnChainLoading] = useState(true)
+  const [paypalLoading, setPaypalLoading] = useState(false)
+  const [paypalError, setPaypalError] = useState<string | null>(null)
+  const paypalEnabled = process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL === 'true'
   const [formState, formAction] = useActionState(
     (state: Awaited<ReturnType<typeof initiateMembershipPayment>> | null, formData: FormData) =>
       initiateMembershipPayment(state, formData, locale),
     null,
   )
+
+  const startPayPalCheckout = async () => {
+    setPaypalError(null)
+    setPaypalLoading(true)
+    try {
+      const res = await fetch('/api/membership/payment/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'membership_upgrade',
+          auto_subscribe: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.paymentUrl) {
+        throw new Error(data.error || data.message || 'PayPal checkout failed')
+      }
+      window.location.href = data.paymentUrl
+    } catch (e) {
+      setPaypalError(e instanceof Error ? e.message : 'PayPal checkout failed')
+      setPaypalLoading(false)
+    }
+  }
 
   const fiatTier = getMemberFiatTier()
   const membershipRingCost = getMembershipRingUpgradeAmount()
@@ -61,8 +87,12 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const hasSufficientOnChainRing = walletRingAmount >= membershipRingCost
 
   useEffect(() => {
-    if (formState?.paymentUrl) {
-      window.location.href = formState.paymentUrl
+    if (formState?.redirect || formState?.paymentUrl || formState?.paymentFields) {
+      followCheckoutResult({
+        redirect: formState.redirect,
+        paymentUrl: formState.paymentUrl,
+        paymentFields: formState.paymentFields,
+      })
     }
   }, [formState])
 
@@ -225,18 +255,38 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
             </TabsContent>
 
             <TabsContent value="paypal" className="space-y-4">
-              <FutureFeatureWidget
-                name="PayPal membership payments"
-                description="Pay membership fees with PayPal. Collect community support to unlock this payment rail."
-                implementationCost={10}
-                labels={['payments', 'paypal', 'membership']}
-                poolSlug="membership-paypal"
-              />
-              <p className="text-center text-xs text-muted-foreground">
-                {t('payment.paypal.dao_hint', {
-                  defaultValue: 'Help unlock PayPal by collecting 100 likes or contributing 10 native tokens.',
-                })}
-              </p>
+              <div className="rounded-lg bg-muted p-4 text-center">
+                <div className="mb-2 flex items-center justify-center space-x-2">
+                  <span className="text-2xl font-bold">{formatMembershipFiatAmount(fiatTier)}</span>
+                  <span className="text-sm text-muted-foreground">{fiatTier.currency}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('payment.paypal.blurb', {
+                    defaultValue: 'Pay membership fee with PayPal (Orders v2 via PaymentConductor)',
+                  })}
+                </p>
+              </div>
+              {paypalError && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">{paypalError}</AlertDescription>
+                </Alert>
+              )}
+              <Button
+                className="w-full"
+                disabled={!paypalEnabled || paypalLoading}
+                onClick={() => void startPayPalCheckout()}
+                data-testid="button-membership-pay-paypal"
+              >
+                <ArrowRight className="mr-2 h-4 w-4" />
+                {paypalLoading
+                  ? t('payment.paypal.redirecting', { defaultValue: 'Redirecting…' })
+                  : paypalEnabled
+                    ? t('payment.paypal.pay_now', { defaultValue: 'Pay with PayPal' })
+                    : t('payment.paypal.disabled', {
+                        defaultValue: 'PayPal disabled (set NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true)',
+                      })}
+              </Button>
             </TabsContent>
           </Tabs>
 

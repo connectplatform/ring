@@ -14,6 +14,7 @@ export { EntityCard, EntityCardComponent } from './entity-card-element'
 export { OpportunityWidget, OpportunityWidgetComponent } from './opportunity-widget'
 export { NewsFeed, NewsFeedComponent } from './news-feed-element'
 export { SearchWidget, SearchWidgetComponent } from './search-widget'
+export { registerRingMoodPlayer, RingMoodPlayerElement } from './mood-player-element'
 
 /**
  * Register all custom elements at once
@@ -26,6 +27,7 @@ export function registerAllCustomElements() {
   import('./opportunity-widget')
   import('./news-feed-element')
   import('./search-widget')
+  import('./mood-player-element')
 }
 
 /**
@@ -37,7 +39,8 @@ export function getRegistrationStatus() {
     'entity-card': !!customElements.get('entity-card'),
     'opportunity-widget': !!customElements.get('opportunity-widget'),
     'news-feed': !!customElements.get('news-feed'),
-    'search-widget': !!customElements.get('search-widget')
+    'search-widget': !!customElements.get('search-widget'),
+    'ring-mood-player': !!customElements.get('ring-mood-player'),
   }
 }
 
@@ -58,5 +61,6 @@ export function generateEmbedScript(baseUrl: string = 'https://ring.ck.ua') {
 <!-- <opportunity-widget categories="investment" max-items="3"></opportunity-widget> -->
 <!-- <news-feed max-items="5" show-images="true"></news-feed> -->
 <!-- <search-widget placeholder="Search Ring..." theme="light"></search-widget> -->
+<!-- <ring-mood-player playlist="PLAYLIST_ID" show-lyrics="true"></ring-mood-player> -->
   `.trim()
 } 

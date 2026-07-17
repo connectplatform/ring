@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { db } from '@/lib/database';
 import { mapNewsDocument } from '@/lib/news/map-news-document';
 import { NewsArticle } from '@/features/news/types';
+import { pickImageSrc } from '@/lib/file/media-asset';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,7 +34,10 @@ import { calculateReadingTimeWithImages } from '@/features/news/utils/reading-ti
 import { auth } from '@/auth';
 import { canViewNewsArticle, buildNewsVisibilityFilters } from '@/features/news/lib/news-visibility-filter';
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role';
-import { connection } from 'next/server'
+import { after, connection } from 'next/server'
+import { RegisterMoodPlayerElements } from '@/features/mood-player/components/register-mood-player-elements'
+import { ReviseArticleButton } from '@/features/news/components/revise-article-button'
+import { sanitizeNewsHtml } from '@/features/news/lib/sanitize-news-html'
 
 // --- Type for page params
 interface NewsArticlePageParams {
@@ -162,6 +166,11 @@ export async function generateMetadata({
   // TODO: In Next.js 16/React 19, leverage the new metadata API
   // TODO: Use dynamic route segment metadata configs for SSG/ISR logic
   
+  const ogImage = pickImageSrc(
+    article.featuredImageAsset || article.featuredImage,
+    'og',
+  ) || article.seo?.ogImage;
+
   return {
     title,
     description,
@@ -180,8 +189,8 @@ export async function generateMetadata({
       url: canonicalUrl,
       type: 'article',
       locale: validLocale === 'uk' ? 'uk_UA' : 'en_US',
-      images: article.featuredImage
-        ? [{ url: article.featuredImage, alt: article.title }]
+      images: ogImage
+        ? [{ url: ogImage, alt: article.title }]
         : [],
       publishedTime: toDate(article.publishedAt).toISOString(),
       modifiedTime: toDate(article.updatedAt ?? article.publishedAt).toISOString(),
@@ -193,7 +202,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title,
       description,
-      images: article.featuredImage ? [article.featuredImage] : [],
+      images: ogImage ? [ogImage] : [],
     },
     other: {
       'article:published_time': toDate(article.publishedAt).toISOString(),
@@ -253,6 +262,13 @@ export default async function NewsArticlePage(
   if (!canViewNewsArticle(article, { userRole, userId: session?.user?.id })) {
     return notFound();
   }
+
+  // Record a page view without blocking the HTML response
+  after(() => {
+    void import('@/features/news/services/news-service').then(({ recordArticlePageView }) =>
+      recordArticlePageView(article.id),
+    )
+  })
 
   // --- Compose derived values for rendering & SEO, etc
   const newsBrand = `${getRingSeoBranding().siteName} News`;
@@ -316,7 +332,9 @@ export default async function NewsArticlePage(
             "@type": "NewsArticle",
             "headline": article.title,
             "description": article.excerpt,
-            "image": article.featuredImage || `${siteBase}/images/logo.png`,
+            "image": pickImageSrc(article.featuredImageAsset || article.featuredImage, 'og')
+              || article.featuredImage
+              || `${siteBase}/images/logo.png`,
             "author": {
               "@type": "Person",
               "name": article.authorName,
@@ -371,6 +389,7 @@ export default async function NewsArticlePage(
               excerpt: article.excerpt,
               category: article.category,
               featuredImage: article.featuredImage,
+              featuredImageAsset: article.featuredImageAsset,
               authorName: article.authorName,
               publishedAt: publishedDate,
               views: article.views,
@@ -385,6 +404,7 @@ export default async function NewsArticlePage(
               featured: tr('featured', 'Featured'),
               backToNews: tr('backToNews', 'Back to News'),
             }}
+            blurDataUrl={article.featuredImageAsset?.derivatives?.blur}
             userHasLiked={userHasLiked}
             likeCount={likeCount}
             showReadingProgress={true} // TODO: Consider toggling via searchParams in future for A/B exp.
@@ -402,7 +422,7 @@ export default async function NewsArticlePage(
                   Interactive actions bar: Like, Comments, Social Sharing 
                   TODO: Migrate to a reusable UI section component if used elsewhere.
                 */}
-                <div className="flex items-center gap-4 mb-8 pb-4 border-b border-border/30">
+                <div className="flex flex-wrap items-center gap-4 mb-8 pb-4 border-b border-border/30">
                   {/* Like button, hydrated by NewsLikeButton (client component), SSR initial state */}
                   <NewsLikeButton
                     targetId={article.id || ''}
@@ -419,6 +439,12 @@ export default async function NewsArticlePage(
                     initialCount={article.comments || 0}
                     className="text-sm text-muted-foreground"
                   />
+                  <ReviseArticleButton
+                    slug={article.slug}
+                    locale={locale as Locale}
+                    status={article.status}
+                    authorId={article.authorId}
+                  />
                   {/* Social sharing widget (copy link, share to social, etc) */}
                   <div className="ml-auto">
                     <SocialShare
@@ -431,12 +457,12 @@ export default async function NewsArticlePage(
                 </div>
 
                 {/* 
-                  Main article content, styled with Tailwind + Prose for beautiful typographic output.
-                  Uses dangerouslySetInnerHTML -- safe here as only editorial input from admins.
+                  Main article content — TipTap/mood/embed HTML allowlisted via sanitizeNewsHtml.
                 */}
                 <div className="article-content prose prose-lg prose-slate max-w-none mb-8 font-serif leading-relaxed">
+                  <RegisterMoodPlayerElements />
                   <div
-                    dangerouslySetInnerHTML={{ __html: article.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeNewsHtml(article.content || '') }}
                     className="text-foreground"
                   />
                 </div>
@@ -506,20 +532,22 @@ export default async function NewsArticlePage(
                       {tr('gallery', 'Gallery')}
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {article.gallery.map((image, index) => (
-                        <div key={index} className="relative h-48 overflow-hidden rounded-lg">
-                          {/* 
-                            Next.js <Image> component, with object-cover and smooth hover effect.
-                            TODO: Use native Next.js blur-up placeholder for featured images if available.
-                          */}
+                      {article.gallery.map((image, index) => {
+                        const gallerySrc = pickImageSrc(image, 'card')
+                        const galleryBlur = image.derivatives?.blur
+                        return (
+                        <div key={image.fileId || image.url || index} className="relative h-48 overflow-hidden rounded-lg">
                           <Image
-                            src={image}
+                            src={gallerySrc}
                             alt={`Gallery image ${index + 1}`}
                             fill
                             className="object-cover hover:scale-105 transition-transform duration-200"
+                            placeholder={galleryBlur ? 'blur' : 'empty'}
+                            blurDataURL={galleryBlur}
                           />
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}

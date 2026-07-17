@@ -140,7 +140,7 @@
   "unknown": "Unknown",
   "type_selector": {
     "title": "What would you like to create?",
-    "subtitle": "Choose an opportunity type first — each opens a tailored form for that collaboration style.",
+    "subtitle": "Four paths: found a Ring project, share your CV, list products as a vendor, or post an institution program/investment.",
     "examples": "Examples",
     "request": {
       "title": "Request",
@@ -189,7 +189,7 @@
     },
     "cv": {
       "title": "Developer CV",
-      "description": "Share your developer profile and skills for Ring platform projects.",
+      "description": "Developers: publish your skills and availability for Ring opportunities.",
       "examples": {
         "developer_cv": "Developer portfolio and experience",
         "portfolio": "Project portfolio and achievements",
@@ -236,6 +236,41 @@
         "documentation": "Documentation & training"
       },
       "button": "Create Ring Project",
+      "upgrade_button": "Upgrade to Member"
+    },
+    "project_order": {
+      "title": "Project order",
+      "description": "Founders: configure a Ring-powered build in the calculator and place a custom project order.",
+      "examples": {
+        "platform_deployment": "Deploy a white-label Ring",
+        "module_development": "Custom module build",
+        "branding": "Brand & theme package",
+        "ai_customization": "AI matcher customization"
+      },
+      "button": "Open calculator"
+    },
+    "vendor_listing": {
+      "title": "Product or service",
+      "description": "Vendors: list products and services in your member storefront.",
+      "examples": {
+        "job": "Physical or digital product",
+        "contract": "Professional service",
+        "internship": "Recurring offering"
+      },
+      "button": "Add to store",
+      "upgrade_button": "Upgrade to Member",
+      "member_required": "Member Access Required",
+      "upgrade_message": "Upgrade to Member to sell products and services."
+    },
+    "program": {
+      "title": "Program / investment",
+      "description": "Institutions: publish programs or investment opportunities for admin review and CRM follow-up.",
+      "examples": {
+        "strategic": "Accelerator program",
+        "joint_venture": "Investment call",
+        "collaboration": "Institution partnership"
+      },
+      "button": "Create listing",
       "upgrade_button": "Upgrade to Member"
     }
   },
@@ -574,6 +609,10 @@
     "ring_customization": {
       "title": "Ring Customization Project",
       "description": "Describe a Ring Platform deployment, module, or branding customization scope."
+    },
+    "program": {
+      "title": "Program / investment",
+      "description": "Institution offering for community review and CRM routing."
     }
   },
   "form": {
@@ -605,7 +644,14 @@
       "resource": "Cost/fee",
       "event": "Ticket price",
       "ring_customization": "Project budget"
-    }
+    },
+    "programSubtype": "Subtype",
+    "selectProgramSubtype": "Program or investment",
+    "subtypeProgram": "Program",
+    "subtypeInvestment": "Investment",
+    "instrument": "Funding instrument",
+    "eligibility": "Eligibility",
+    "applicationUrl": "Application URL"
   },
   "formRail": {
     "backToBrowse": "Back to opportunities",

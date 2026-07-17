@@ -20,23 +20,24 @@
     ],
     "ogTitle": "Ring Platform — клонируйте, кастомизируйте, разворачивайте.",
     "ogDescription": "Open-source стек для сообществ, которые сотрудничают, торгуют и растут — с путём Ringdom, когда нужна turn-key доставка.",
+    "ogImage": "/og-home-1200x630.jpg",
     "twitterTitle": "Ring Platform",
     "twitterDescription": "OSS платформа сообщества и маркетплейса. Entities, Opportunities, Store, Web3, AI-матчер."
   },
   "store": {
-    "title": "Ring Store - Innovative Products & Services",
-    "description": "Discover and purchase innovative products and services on Ring platform. Secure checkout with multiple payment options including RING tokens.",
+    "title": "Ring Store - Инновационные продукты и услуги",
+    "description": "Откройте и приобретите инновационные продукты и услуги на платформе Ring. Безопасное оформление заказа с несколькими способами оплаты, включая RING токены.",
     "keywords": [
       "Ring Store",
-      "products",
-      "services",
-      "blockchain",
-      "RING tokens",
-      "secure checkout"
+      "продукты",
+      "услуги",
+      "блокчейн",
+      "RING токены",
+      "безопасная оплата"
     ],
     "list": {
-      "title": "Ring Store - Browse {{count}} Products",
-      "description": "Browse {{count}} innovative products and services. Find everything you need on Ring platform's decentralized marketplace."
+      "title": "Ring Store - Просмотр {{count}} продуктов",
+      "description": "Просмотрите {{count}} инновационных продуктов и услуг. Найдите всё необходимое на децентрализованном маркетплейсе Ring Platform."
     },
     "product": {
       "title": "{{name}} - Ring Store",
@@ -44,33 +45,33 @@
       "keywords": [
         "{{name}}",
         "Ring Store",
-        "product",
-        "blockchain",
-        "RING tokens"
+        "продукт",
+        "блокчейн",
+        "RING токены"
       ]
     },
     "checkout": {
-      "title": "Secure Checkout - Ring Store",
-      "description": "Complete your purchase securely on Ring platform. Multiple payment options available including RING tokens and traditional methods.",
+      "title": "Безопасная оплата - Ring Store",
+      "description": "Безопасно завершите покупку на платформе Ring. Доступны несколько способов оплаты, включая RING токены и традиционные методы.",
       "status": {
-        "title": "Checkout {{status}} - Ring Store",
-        "description": "Your checkout is {{status}}. View your order status and next steps."
+        "title": "Статус оплаты: {{status}} - Ring Store",
+        "description": "Статус вашей оплаты: {{status}}. Просматривайте статус заказа и следующие шаги."
       }
     },
     "cart": {
-      "title": "Shopping Cart - Ring Store",
-      "description": "Review your selected items and proceed to secure checkout. Manage your cart on Ring platform."
+      "title": "Корзина - Ring Store",
+      "description": "Просмотрите выбранные товары и переходите к безопасной оплате. Управляйте своей корзиной на платформе Ring."
     },
     "orders": {
-      "title": "My Orders - Ring Store",
-      "description": "View and manage your order history on Ring platform. Track shipments and manage returns.",
+      "title": "Мои заказы - Ring Store",
+      "description": "Просматривайте и управляйте историей заказов на платформе Ring. Отслеживайте доставки и управляйте возвратами.",
       "list": {
-        "title": "Order History - {{count}} Orders",
-        "description": "View your complete order history with {{count}} orders. Track shipments and manage returns."
+        "title": "История заказов - {{count}} заказов",
+        "description": "Просмотрите полную историю заказов с {{count}} заказами. Отслеживайте доставки и управляйте возвратами."
       },
       "detail": {
-        "title": "Order #{{orderId}} - Ring Store",
-        "description": "View details for order #{{orderId}}. Track shipment status and manage your order."
+        "title": "Заказ №{{orderId}} - Ring Store",
+        "description": "Просмотреть детали заказа №{{orderId}}. Отслеживать статус доставки и управлять заказом."
       }
     },
     "settings": {
@@ -79,11 +80,11 @@
     }
   },
   "auth": {
-    "title": "Authentication - Ring Platform",
-    "description": "Secure authentication and account management for Ring platform users. Multiple sign-in options available.",
+    "title": "Авторизация - Ring Platform",
+    "description": "Безопасная авторизация и управление аккаунтом для пользователей платформы Ring. Доступны несколько вариантов входа.",
     "login": {
-      "title": "Sign In - Ring Platform",
-      "description": "Sign in to your Ring Platform account. Access your professional network, opportunities, and blockchain features."
+      "title": "Войти - Ring Platform",
+      "description": "Войдите в свой аккаунт Ring Platform. Получите доступ к профессиональной сети, возможностям и функциям блокчейна."
     },
     "walletConnect": {
       "title": "Подключить кошелёк - Ring Platform",
@@ -91,103 +92,123 @@
     },
     "status": {
       "title": "{{action}} {{status}} - Ring Platform",
-      "description": "Your {{action}} is {{status}}. Manage your authentication status and next steps."
+      "description": "Статус вашей операции {{action}}: {{status}}. Управляйте своим статусом авторизации и следующими шагами."
     }
   },
   "entities": {
-    "title": "Professional Entities - Ring Platform",
-    "description": "Discover and connect with professional entities, organizations, and businesses on Ring platform. Comprehensive directory with verification system.",
+    "title": "Профессиональные организации - Ring Platform",
+    "description": "Открывайте и подключайтесь к профессиональным организациям, учреждениям и бизнесам на платформе Ring. Полный каталог с системой верификации.",
     "keywords": [
-      "entities",
-      "organizations",
-      "businesses",
-      "professional directory",
-      "verification",
+      "организации",
+      "учреждения",
+      "бизнесы",
+      "профессиональный каталог",
+      "верификация",
       "Ring Platform"
     ],
     "list": {
-      "title": "Professional Entities Directory - {{count}} Organizations",
-      "description": "Browse {{count}} verified professional entities and organizations. Connect with businesses and expand your professional network."
+      "title": "Каталог профессиональных организаций - {{count}} организаций",
+      "description": "Просмотрите {{count}} верифицированных профессиональных организаций и учреждений. Подключайтесь к бизнесам и расширяйте профессиональную сеть."
     },
     "detail": {
-      "title": "{{name}} - Professional Entity",
+      "title": "{{name}} - Профессиональная организация",
       "description": "{{description}}",
       "keywords": [
         "{{name}}",
-        "professional entity",
-        "organization",
+        "профессиональная организация",
+        "учреждение",
         "Ring Platform",
         "{{type}}"
       ]
     },
     "add": {
-      "title": "Add Your Entity - Ring Platform",
-      "description": "Register your organization or business entity on Ring platform. Get verified and connect with the professional community."
+      "title": "Добавить сущность — Ring Platform",
+      "description": "Зарегистрируйте организацию или бизнес на платформе Ring. Пройдите верификацию и подключитесь к профессиональному сообществу."
+    },
+    "my": {
+      "title": "Мои сущности — Ring Platform",
+      "description": "Управляйте организациями, которыми вы владеете, магазинами, которыми управляете, и сущностями, где вы участник."
+    },
+    "edit": {
+      "title": "Редактировать сущность — Ring Platform",
+      "description": "Обновите профиль вашей организации на Ring Platform."
+    },
+    "delete": {
+      "title": "Удалить сущность — Ring Platform",
+      "description": "Навсегда удалите вашу организацию с Ring Platform."
     },
     "status": {
-      "title": "Entity {{action}} {{status}} - Ring Platform",
-      "description": "Your entity {{action}} is {{status}}. Manage your entity status and next steps on Ring platform."
+      "title": "Организация {{action}} {{status}} - Ring Platform",
+      "description": "Статус вашей организации {{action}}: {{status}}. Управляйте статусом организации и следующими шагами на платформе Ring."
     }
   },
   "opportunities": {
-    "title": "Business Opportunities - Ring Platform",
-    "description": "Discover and create business opportunities, partnerships, and collaborations on Ring platform. Connect with professionals and grow your network.",
+    "title": "Бизнес-возможности - Ring Platform",
+    "description": "Открывайте и создавайте бизнес-возможности, партнёрства и сотрудничество на платформе Ring. Подключайтесь к профессионалам и развивайте сеть.",
     "keywords": [
-      "opportunities",
-      "business",
-      "partnerships",
-      "collaborations",
-      "professional networking",
+      "возможности",
+      "бизнес",
+      "партнёрства",
+      "сотрудничество",
+      "профессиональные сети",
       "Ring Platform"
     ],
     "list": {
-      "title": "Business Opportunities - {{count}} Active Listings",
-      "description": "Browse {{count}} active business opportunities and partnerships. Find your next collaboration on Ring platform."
+      "title": "Бизнес-возможности - {{count}} активных предложений",
+      "description": "Просмотрите {{count}} активных бизнес-возможностей и партнёрств. Найдите своё следующее сотрудничество на платформе Ring."
     },
     "detail": {
-      "title": "{{title}} - Business Opportunity",
+      "title": "{{title}} - Бизнес-возможность",
       "description": "{{description}}",
       "keywords": [
         "{{title}}",
-        "business opportunity",
-        "partnership",
-        "collaboration",
+        "бизнес-возможность",
+        "партнёрство",
+        "сотрудничество",
         "Ring Platform",
         "{{type}}"
       ]
     },
     "add": {
-      "title": "Post Opportunity - Ring Platform",
-      "description": "Create and post a new business opportunity or partnership request. Connect with the right professionals on Ring platform."
+      "title": "Опубликовать возможность — Ring Platform",
+      "description": "Создайте и опубликуйте новую бизнес-возможность или запрос на партнёрство. Подключайтесь к нужным профессионалам на Ring Platform."
+    },
+    "edit": {
+      "title": "Редактировать возможность — Ring Platform",
+      "description": "Обновите объявление — название, описание, бюджет и видимость."
+    },
+    "my": {
+      "title": "Мои возможности — Ring Platform",
+      "description": "Управляйте опубликованными возможностями — черновиками, на проверке и активными объявлениями."
     },
     "status": {
-      "title": "Opportunity {{action}} {{status}} - Ring Platform",
-      "description": "Your opportunity {{action}} is {{status}}. Manage your opportunity status and next steps."
+      "title": "Возможность {{action}} {{status}} - Ring Platform",
+      "description": "Статус вашей возможности {{action}}: {{status}}. Управляйте статусом возможности и следующими шагами."
     }
   },
   "news": {
-    "title": "Ring Platform News & Updates",
-    "description": "Stay updated with the latest news, announcements, and developments from Ring Platform and the decentralized ecosystem.",
+    "title": "Новости и обновления Ring Platform",
+    "description": "Следите за последними новостями, объявлениями и разработками от Ring Platform и децентрализованной экосистемы.",
     "keywords": [
-      "news",
-      "updates",
-      "announcements",
+      "новости",
+      "обновления",
+      "объявления",
       "Ring Platform",
-      "blockchain",
-      "decentralized"
+      "блокчейн",
+      "децентрализация"
     ],
     "list": {
-      "title": "Latest News - {{count}} Articles",
-      "description": "Read the latest {{count}} news articles and updates from Ring Platform and the blockchain ecosystem."
+      "title": "Последние новости - {{count}} статей",
+      "description": "Читайте последние {{count}} новостных статей и обновлений от Ring Platform и экосистемы блокчейна."
     },
     "article": {
-      "title": "{{title}} - Ring News",
+      "title": "{{title}} - Ring Новости",
       "description": "{{excerpt}}",
       "keywords": [
         "{{title}}",
-        "Ring News",
-        "blockchain",
-        "decentralized",
+        "Ring Новости",
+        "блокчейн",
+        "децентрализация",
         "{{category}}"
       ]
     },
@@ -197,40 +218,40 @@
     }
   },
   "profile": {
-    "title": "My Profile - Ring Platform",
-    "description": "Manage your Ring Platform profile, preferences, and account settings. Update your professional information and privacy settings.",
+    "title": "Мой профиль - Ring Platform",
+    "description": "Управляйте своим профилем Ring Platform, настройками и параметрами аккаунта. Обновляйте профессиональную информацию и настройки приватности.",
     "user": {
-      "title": "{{username}}'s Profile - Ring Platform",
-      "description": "View {{username}}'s professional profile on Ring Platform. Connect and collaborate with verified professionals."
+      "title": "Профиль {{username}} - Ring Platform",
+      "description": "Просмотреть профессиональный профиль {{username}} на Ring Platform. Подключайтесь и сотрудничайте с верифицированными профессионалами."
     }
   },
   "settings": {
-    "title": "Account Settings - Ring Platform",
-    "description": "Manage your Ring Platform account settings, preferences, and security options. Control your privacy and notification preferences.",
+    "title": "Настройки аккаунта - Ring Platform",
+    "description": "Управляйте настройками аккаунта Ring Platform, предпочтениями и параметрами безопасности. Контролируйте приватность и уведомления.",
     "notifications": {
-      "title": "Notification Settings - Ring Platform",
-      "description": "Manage your notification preferences for Ring Platform. Control how you receive updates and alerts."
+      "title": "Настройки уведомлений - Ring Platform",
+      "description": "Управляйте настройками уведомлений для Ring Platform. Контролируйте, как вы получаете обновления и оповещения."
     }
   },
   "notifications": {
-    "title": "Notifications - Ring Platform",
-    "description": "View and manage your Ring Platform notifications. Stay updated with important alerts and messages.",
+    "title": "Уведомления - Ring Platform",
+    "description": "Просматривайте и управляйте уведомлениями Ring Platform. Следите за важными оповещениями и сообщениями.",
     "status": {
-      "title": "Notification {{action}} {{status}} - Ring Platform",
-      "description": "Your notification {{action}} is {{status}}. Manage your notification settings and preferences."
+      "title": "Уведомление {{action}} {{status}} - Ring Platform",
+      "description": "Статус вашего уведомления {{action}}: {{status}}. Управляйте настройками уведомлений и предпочтениями."
     }
   },
   "about": {
-    "title": "About Ring Platform - Decentralized Professional Network",
-    "description": "Learn about Ring Platform's mission to create a decentralized professional networking and opportunities ecosystem. Discover our vision for the future of work.",
+    "title": "О Ring Platform - Децентрализованная профессиональная сеть",
+    "description": "Узнайте о миссии Ring Platform по созданию децентрализованной экосистемы профессиональных сетей и возможностей. Откройте наше видение будущего работы.",
     "keywords": [
-      "about",
+      "о нас",
       "Ring Platform",
-      "decentralized",
-      "professional network",
-      "blockchain",
-      "mission",
-      "vision"
+      "децентрализация",
+      "профессиональная сеть",
+      "блокчейн",
+      "миссия",
+      "видение"
     ]
   },
   "about-publisher": {
@@ -253,12 +274,14 @@
     "title": "Токеномика - Экономика RING",
     "description": "Понимание экономики токенов RING, распределения и полезности в экосистеме Платформы Ring.",
     "keywords": [
+      "Ring Token",
       "RING",
-      "токеномика",
+      "Токеномика",
       "Web3",
-      "блокчейн",
-      "криптовалюта",
-      "Ring Platform"
+      "Блокчейн",
+      "Криптовалюта",
+      "Цифровая экономика",
+      "DeFi"
     ],
     "ogTitle": "Экономика токена RING",
     "ogDescription": "Как RING обеспечивает микротранзакции, доступ к ИИ и управление сообществом на Ring Platform."
@@ -268,10 +291,12 @@
     "description": "ИИ-оркестрированное коллективное решение проблем, white-label клонирование и технологическое изобилие для сообществ по всему миру.",
     "keywords": [
       "Ring Platform",
-      "глобальное воздействие",
-      "коллективный интеллект",
-      "white-label",
-      "open source",
+      "Глобальное воздействие",
+      "Коллективный интеллект",
+      "White-label",
+      "Sonoratek LLC",
+      "Ringdom",
+      "Open Source",
       "ИИ",
       "Web3"
     ],
@@ -284,10 +309,11 @@
     "keywords": [
       "ИИ",
       "Web3",
-      "блокчейн",
+      "Блокчейн",
       "Ring Platform",
-      "коллективный интеллект",
-      "RING"
+      "Коллективный интеллект",
+      "Умные контракты",
+      "RING токен"
     ],
     "ogTitle": "ИИ + Web3 на Ring Platform",
     "ogDescription": "ИИ-оркестрированное сотрудничество с блокчейн-верифицированным доверием и токен-инцентивами."
@@ -308,61 +334,62 @@
     "ogDescription": "Реализованные возможности, планы токеномики и этапы документации для Ring-клонов."
   },
   "calculator": {
-    "title": "Калькулятор Развертывания Платформы Ring",
-    "description": "Рассчитайте время развертывания, затраты и получите персонализированный план запуска вашей платформы Ring.",
+    "title": "Калькулятор проекта Ring",
+    "description": "Оцените стоимость рингизации, хостинг Ringdom, нишевые пакеты, модули и вехи для вашего Ring SuperApp.",
     "keywords": [
       "Ring Platform",
-      "калькулятор",
-      "развертывание",
-      "оценка затрат",
+      "калькулятор проекта",
+      "рингизация",
+      "нишевые пакеты",
+      "хостинг Ringdom",
       "white-label"
     ],
-    "ogTitle": "Калькулятор развертывания Ring",
-    "ogDescription": "Оцените время, стоимость и модули для вашего Ring-сообщества или маркетплейса."
+    "ogTitle": "Калькулятор проекта Ring",
+    "ogDescription": "Нишевые пакеты, модули, RingBase/CDN/почта/DNS — реалистичные разовые и ежемесячные затраты."
   },
   "contact": {
-    "title": "Contact Ring Platform - Get in Touch",
-    "description": "Get in touch with the Ring Platform team. Contact us for support, partnerships, or general inquiries about our decentralized platform.",
+    "title": "Связаться с Ring Platform - Контакты",
+    "description": "Свяжитесь с командой Ring Platform. Обращайтесь к нам для поддержки, партнёрств или общих вопросов о нашей децентрализованной платформе.",
     "keywords": [
-      "contact",
-      "support",
+      "контакты",
+      "поддержка",
       "Ring Platform",
-      "partnerships",
-      "inquiries"
+      "партнёрства",
+      "запросы"
     ]
   },
   "privacy": {
-    "title": "Privacy Policy - Ring Platform",
-    "description": "Read Ring Platform's comprehensive privacy policy. Learn how we protect your data and respect your privacy in the decentralized ecosystem.",
+    "title": "Политика конфиденциальности - Ring Platform",
+    "description": "Ознакомьтесь с всеобъемлющей политикой конфиденциальности Ring Platform. Узнайте, как мы защищаем ваши данные и уважаем приватность в децентрализованной экосистеме.",
     "keywords": [
-      "privacy policy",
-      "data protection",
+      "политика конфиденциальности",
+      "защита данных",
       "Ring Platform",
-      "privacy",
-      "security"
+      "приватность",
+      "безопасность"
     ]
   },
   "terms": {
-    "title": "Terms of Service - Ring Platform",
-    "description": "Read Ring Platform's terms of service and user agreement. Understand your rights and responsibilities on our decentralized platform.",
+    "title": "Условия использования - Ring Platform",
+    "description": "Ознакомьтесь с условиями использования и пользовательским соглашением Ring Platform. Поймите свои права и обязанности на нашей децентрализованной платформе.",
     "keywords": [
-      "terms of service",
-      "user agreement",
+      "условия использования",
+      "пользовательское соглашение",
       "Ring Platform",
-      "terms",
-      "conditions"
+      "условия",
+      "положения"
     ]
   },
   "membership": {
-    "title": "Ring Membership - Premium Features & Benefits",
-    "description": "Discover Ring Platform membership benefits and premium features. Upgrade to access exclusive opportunities and enhanced networking tools.",
+    "title": "Членство Ring - Премиум функции и преимущества",
+    "description": "Откройте преимущества членства Ring Platform и премиум функции. Улучшите доступ к эксклюзивным возможностям и расширенным инструментам сети.",
     "keywords": [
-      "membership",
-      "premium",
-      "benefits",
+      "членство",
+      "премиум",
+      "преимущества",
       "Ring Platform",
-      "upgrade",
-      "exclusive"
+      "улучшение",
+      "эксклюзив"
     ]
   },
   "wallet": {
@@ -420,7 +447,7 @@
   },
   "nft": {
     "title": "NFT Маркетплейс - Ring Platform",
-    "description": "Исследуйте, покупайте и продавайте NFT на децентрализованном маркетплейсе Ring Platform.",
+    "description": "Исследуйте, покупайте и продавайте NFT на децентрализованном маркетплейсе Ring Platform. Откройте уникальные цифровые активы и коллекции.",
     "keywords": [
       "NFT",
       "маркетплейс",
@@ -431,7 +458,7 @@
     ],
     "collections": {
       "title": "NFT Коллекции - Ring Platform",
-      "description": "Просматривайте NFT коллекции на Ring Platform от верифицированных авторов."
+      "description": "Просматривайте NFT коллекции на Ring Platform. Откройте уникальное цифровое искусство и активы от верифицированных авторов."
     },
     "collection": {
       "title": "{{slug}} - NFT коллекция | Ring Platform",
@@ -439,7 +466,7 @@
     },
     "search": {
       "title": "Поиск NFT - Ring Platform",
-      "description": "Ищите NFT, коллекции и цифровые активы на маркетплейсе Ring Platform."
+      "description": "Ищите NFT, коллекции и цифровые активы на децентрализованном маркетплейсе Ring Platform."
     },
     "item": {
       "title": "NFT #{{tokenId}} на {{chain}} - Ring Platform",
@@ -448,26 +475,26 @@
   },
   "tunnel": {
     "title": "Тест Tunnel Transport - Ring Platform",
-    "description": "Внутренняя тестовая страница абстракции tunnel transport Ring Platform."
+    "description": "Внутренняя тестовая страница абстракции tunnel transport и realtime fallback Ring Platform."
   },
   "admin": {
-    "title": "Admin Dashboard - Ring Platform",
-    "description": "Administrative dashboard for Ring Platform management. Monitor users, content, and platform analytics.",
+    "title": "Панель администратора - Ring Platform",
+    "description": "Административная панель для управления Ring Platform. Мониторинг пользователей, контента и аналитики платформы.",
     "analytics": {
-      "title": "Platform Analytics - Ring Admin",
-      "description": "View comprehensive analytics and insights about Ring Platform usage, engagement, and performance."
+      "title": "Аналитика платформы - Ring Admin",
+      "description": "Просматривайте всеобъемлющую аналитику и инсайты об использовании, вовлечённости и производительности Ring Platform."
     },
     "users": {
-      "title": "User Management - Ring Admin",
-      "description": "Manage Ring Platform users, roles, and permissions. Monitor user activity and handle moderation."
+      "title": "Управление пользователями - Ring Admin",
+      "description": "Управляйте пользователями Ring Platform, ролями и разрешениями. Мониторьте активность пользователей и модерацию."
     },
     "moderation": {
-      "title": "Content Moderation - Ring Admin",
-      "description": "Moderate Ring Platform content, handle reports, and maintain community standards."
+      "title": "Модерация контента - Ring Admin",
+      "description": "Модерируйте контент Ring Platform, обрабатывайте жалобы и поддерживайте стандарты сообщества."
     },
     "security": {
-      "title": "Security Dashboard - Ring Admin",
-      "description": "Monitor Ring Platform security, review logs, and manage security settings and protocols."
+      "title": "Панель безопасности - Ring Admin",
+      "description": "Мониторьте безопасность Ring Platform, просматривайте логи и управляйте настройками безопасности и протоколами."
     }
   },
   "fcm": {

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { computePaginationCursor } from '@/lib/pagination/cursor-pagination';
 import { db } from '@/lib/database';
 import { NewsFilters, NewsFormData } from '@/features/news/types';
+import { mapNewsDocument } from '@/lib/news/map-news-document';
 
 type NewsRow = Record<string, unknown> & { id: string };
 
@@ -137,16 +138,18 @@ export async function GET(request: NextRequest) {
       (article) => article.id,
     );
 
+    const mappedArticles = filteredArticles.map((row) => mapNewsDocument(row));
+
     return NextResponse.json({
       success: true,
-      data: filteredArticles,
-      items: filteredArticles,
+      data: mappedArticles,
+      items: mappedArticles,
       cursor: hasMore ? nextCursor : null,
       hasMore,
       pagination: {
         limit,
         offset: useCursorPagination ? undefined : filters.offset,
-        total: filteredArticles.length,
+        total: mappedArticles.length,
       },
       filters: filters,
     });
@@ -230,6 +233,7 @@ export async function POST(request: NextRequest) {
       category: formData.category || 'other',
       tags: formData.tags || [],
       featuredImage: formData.featuredImage || null,
+      featuredImageAsset: formData.featuredImageAsset || null,
       gallery: formData.gallery || [],
       status: formData.status || 'draft',
       visibility: formData.visibility || 'public',

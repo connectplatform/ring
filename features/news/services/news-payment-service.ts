@@ -15,7 +15,18 @@ export async function createPromotionPayment(params: {
   userEmail: string
   amountUah: number
   returnUrl: string
-}): Promise<{ success: boolean; paymentUrl?: string; orderReference?: string; error?: string }> {
+}): Promise<{
+  success: boolean
+  redirect?: {
+    mode: 'navigate' | 'form_post'
+    url: string
+    fields?: Record<string, string | string[]>
+  }
+  paymentUrl?: string
+  paymentFields?: Record<string, string | string[]>
+  orderReference?: string
+  error?: string
+}> {
   const result = await PaymentConductor.createCheckout({
     purpose: 'news_promotion',
     userId: params.userId,
@@ -29,7 +40,9 @@ export async function createPromotionPayment(params: {
 
   return {
     success: result.success,
+    redirect: result.redirect,
     paymentUrl: result.paymentUrl,
+    paymentFields: result.paymentFields,
     orderReference: result.orderReference,
     error: result.error,
   }

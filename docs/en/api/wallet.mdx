@@ -1,7 +1,7 @@
 ---
 title: Wallet API
 description: Server actions and HTTP routes for custodial wallets, native-token transfers, fiat credit ledger, and Solana desk quotes — with credit.unitToDefaultCurrency as fiat spend SSOT
-last_modified: "2026-07-11"
+last_modified: "2026-07-14"
 audience: both
 ---
 
@@ -53,7 +53,7 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
 - **First login** — `ensureUserWallets` / `WalletConductor.ensureNativeWallet` provisions custodial address (Solana or EVM per clone).
 - **Check balance** — `listUserWallets` + `getCreditBalance`.
 - **Send native tokens** — `transferNativeTokens` (treasury-sponsored gas on Solana).
-- **Top up credits (card)** — `initiateCreditTopupPayment` → PaymentConductor `wallet_topup` → WayForPay → webhook credits ledger.
+- **Top up credits (card / PayPal)** — `initiateCreditTopupPayment` → `WalletConductor.initiateTopUp` → PaymentConductor `wallet_topup` → UI `followCheckoutResult(redirect)` → webhook credits ledger. Card uses env processor; PayPal tab sends `processor=paypal`.
 - **Top up credits (chain proof)** — `topUpCredits` / `verifyTopUpTransaction`.
 - **Pay with credits (ad-hoc)** — `spendCredits` Server Action or `POST /api/wallet/credit/spend`.
 - **Pay in store** — checkout rail `internal_credit` (PaymentConductor), not a raw UI call to `/credit/spend`.
@@ -77,7 +77,7 @@ All server actions live in `app/_actions/wallet.ts`. Pattern: auth → service /
 | `ensureUserWallets` / `listUserWallets` / `getWalletBalance` | Provision + list custodial wallets |
 | `getCreditBalance` / `getCreditHistory` / `getSpendSummary` | Fiat ledger reads |
 | `topUpCredits` / `spendCredits` / `transferCredits` | Fiat ledger mutations (`spendCredits` → `WalletConductor.spendCredits`) |
-| `initiateCreditTopupPayment` | Card top-up via PaymentConductor `wallet_topup` |
+| `initiateCreditTopupPayment` | Thin adapter → `WalletConductor.initiateTopUp` → PaymentConductor `wallet_topup`; returns `{ redirect, paymentUrl?, paymentFields? }` — client must call `followCheckoutResult` |
 | `transferNativeTokens` | Gasless native-token send |
 | `executeDeskQuote` | Credit ↔ native desk trade |
 | `createPinAccessTokenAction` | PIN-gated single-use access token |

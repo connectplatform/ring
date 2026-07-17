@@ -1,0 +1,20 @@
+{
+  "title": "Filter",
+  "apply": "Filter anwenden",
+  "clear": "Alle löschen",
+  "reset": "Zurücksetzen",
+  "search": "Suchen",
+  "sortBy": "Sortieren nach",
+  "category": "Kategorie",
+  "tags": "Tags",
+  "location": "Ort",
+  "dateRange": "Datumsbereich",
+  "priceRange": "Preisspanne",
+  "status": "Status",
+  "type": "Typ",
+  "all": "Alle",
+  "none": "Keine",
+  "loading": "Filter werden geladen …",
+  "noResults": "Keine Treffer",
+  "results": "{count} Treffer gefunden"
+}

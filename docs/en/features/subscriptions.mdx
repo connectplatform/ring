@@ -1,86 +1,78 @@
 ---
 title: SubscriptionConductor
-description: Multi-provider membership subscription billing — Stripe, WayForPay, RING credits, on-chain token, NFT gate, and PayPal. One ledger, config-driven gateways, cron pipelines, and admin dashboard.
-last_modified: "2026-07-10"
+description: Multi-provider membership billing — Stripe, WayForPay, credit, native token, NFT gate, and live PayPal Subscriptions v1. One ledger, manage page, webhooks, and cron.
+last_modified: "2026-07-16"
 audience: both
 ---
 
 # SubscriptionConductor
 
 <Callout type="info">
-  Filter this page with **Founder** / **Developer** in the docs sidebar. Founders learn *what* each provider costs and how to set fees; developers get the architecture, provider module contracts, and cron pipeline details.
+  Filter this page with **Founder** / **Developer** in the docs sidebar. Founders learn provider costs, the manage page, and PayPal enablement; developers get ledger fields, Subscriptions v1, and webhook branches.
 </Callout>
 
-SubscriptionConductor (v1, Phase S4) is Ring Platform's multi-provider membership subscription billing system. One SSOT ledger (`subscription_ledger`) tracks all subscriber state regardless of payment method. Six provider modules implement a shared `SubscriptionProviderModule` contract, and five cron pipelines keep subscriptions current.
+SubscriptionConductor is Ring Platform's multi-provider **membership** billing facade. One SSOT ledger (`subscription_ledger`) tracks subscriber state for every rail. Provider modules implement `SubscriptionProviderModule`; PaymentConductor still owns one-shot Orders (store / wallet / one-shot membership).
 
-Implementation: `lib/payments/subscription/`.
+Implementation: `lib/payments/subscription/`. Manage UI: `/membership/manage`.
 
 <Audience for="founder">
 
-## What founders get from SubscriptionConductor
+## What founders get
 
-Your platform earns recurring revenue through membership subscriptions — with zero platform fees on internal methods (credit balance, RING token, NFT gate). Choose which gateways to enable, set fee pass-through, and watch net revenue in the admin dashboard.
+Recurring membership revenue with clear gateway fees. Internal rails (credit points, native token, NFT gate) charge **0%** platform PSP fee. Members manage cancel / renew / history on **Manage membership** (`/membership/manage`) — not only the upgrade funnel at `/membership`.
 
 ### Feature status
 
 | Provider | Details | Gateway | Status |
 |----------|---------|---------|--------|
-| Credit Balance | auto-deduct from internal fiat USD credits | Credit Points | ✅ Live |
-| WayForPay | Card (hosted page) + recToken recurring (regularApi) | WayForPay (UAH) | ✅ Live |
-| Stripe | Stripe Subscriptions API (Phase S3) | Stripe (USD) | ✅ Live (Phase S3) |
-| Native Token | on-chain Solana recurring via Membership.sol | Native Token (RING) | ✅ Live (Phase S6) |
-| NFT Gate | Metaplex Core buy + GateEscrow stake (MVP-A) | NFT Gate (RING) | ✅ Live (MVP-A) |
-| PayPal | PayPal recurring billing | PayPal (USD) | 🟡 Phase S8 (stub) |
+| Credit Balance | Auto-deduct credit units (points) | Credit points | ✅ Live |
+| WayForPay | Card HPP + `recToken` regularApi | WayForPay | ✅ Live |
+| Stripe | Stripe Subscriptions API | Stripe | ✅ Live |
+| Native Token | On-chain Solana / RingMembership | Native RING | ✅ Live |
+| NFT Gate | Metaplex Core + GateEscrow stake | NFT Gate | ✅ Live (MVP-A) |
+| PayPal | **Subscriptions v1** (recurring) + Orders one-shot | PayPal | ✅ Live (flags + credentials) |
+
+### PayPal for membership (operator view)
+
+1. Set `payment.gateways.paypal.enabled: true` in `ring-config.json`.
+2. Fill sandbox/live credentials: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE`.
+3. Turn on the public UI flag: `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true` (also gates store PayPal + membership PaymentModal PayPal tab).
+4. In PayPal Developer, subscribe the webhook to Orders **and** billing events (`BILLING.SUBSCRIPTION.*`, `PAYMENT.SALE.COMPLETED`).
+5. After first Product/Plan create, cache `PAYPAL_MEMBERSHIP_PRODUCT_ID` / `PAYPAL_MEMBERSHIP_PLAN_ID` so checkout does not recreate catalog objects every time.
+
+Members land on `/membership/manage` after upgrade (members hitting `/membership` redirect there). Cancel uses the PayPal subscription id (`I-…`) stored on the ledger.
 
 ### Fee rates & net revenue
 
-Each gateway deducts its own fee. Internal methods (credit balance, RING token, NFT gate) charge **0%** — every dollar goes to your platform.
-
 | Provider | Fee % | Fixed Fee | Currency |
 |----------|-------|-----------|----------|
-| WayForPay | 2.5% | — | UAH |
+| WayForPay | 2.5% | — | UAH (typical) |
 | Stripe | 2.9% | $0.30 | USD |
-| Credit Balance | 0% | — | USD |
-| Native Token | 0% | — | RING (Tokens) |
+| Credit Balance | 0% | — | Credit units |
+| Native Token | 0% | — | RING |
 | NFT Gate | 0% | — | RING |
 | PayPal | 2.9% | $0.30 | USD |
 
-**Net revenue formula:** `net = gross - (gross × feePercent / 100) - feeFixed`. The `calculateNetRevenue()` function in `subscription-config.ts` computes this server-side; the admin dashboard displays gross, fee, and net per subscription.
+**Net:** `net = gross - (gross × feePercent / 100) - feeFixed` via `calculateNetRevenue()` in `subscription-config.ts`.
 
-### Configuration (ring-config.json)
-
-All provider settings live in `ring-config.json` under `payment.gateways`:
+### Configuration sketch
 
 ```json
 {
   "payment": {
     "cardPaymentProcessor": "wayforpay",
-    "supportedMethods": ["wayforpay", "credit_balance", "native_token"],
-    "futureMethods": ["stripe", "paypal", "nft_gate"],
     "gateways": {
-      "wayforpay": { "enabled": true, "feePercent": 2.5, "currency": "UAH" },
-      "stripe": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" },
-      "credit_balance": { "enabled": true, "feePercent": 0, "currency": "USD" },
-      "native_token": { "enabled": true, "feePercent": 0, "currency": "RING", "label": "Tokens" },
-      "paypal": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" },
-      "nft_gate": { "enabled": false, "feePercent": 0, "currency": "RING", "label": "NFT Certificate" }
+      "paypal": { "enabled": true, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" }
     }
   }
 }
 ```
 
-- `cardPaymentProcessor` — default card gateway (`wayforpay` or `stripe`). Override per-deployment with `PAYMENT_MEMBERSHIP_PROCESSOR=stripe`.
-- `supportedMethods` — providers shown to users at checkout.
-- `futureMethods` — providers tagged as "Coming Soon" in the UI.
-- `gateways.<provider>.feePercent` — percentage fee deducted before your net revenue.
+Prod public flags must also be baked as Docker `NEXT_PUBLIC_*` build-args and applied via `k8s` ConfigMap/Secret — see [ENV-PROD-WIRING](https://github.com/connectplatform/ring/blob/main/k8s/ENV-PROD-WIRING.md) in the clone (`ring-platform.org/k8s/ENV-PROD-WIRING.md`).
 
 ### Admin dashboard
 
-Superadmins access `/admin/subscriptions` for:
-
-- **Subscription list** — filter by provider, status, user; each row shows gross, fee, and net revenue.
-- **Aggregated stats** — `/api/admin/subscriptions/stats` returns `total_active`, `due_for_payment`, breakdowns `by_provider` and `by_method`.
-- **Revenue tracking** — `calculateNetRevenue()` is called per row so founders see real take-home amounts after gateway fees.
+Superadmins: `/admin/subscriptions` — list, filters, net revenue, `/api/admin/subscriptions/stats`.
 
 </Audience>
 
@@ -89,155 +81,132 @@ Superadmins access `/admin/subscriptions` for:
 ## Architecture
 
 ```
-Membership upgrade / checkout
+Membership upgrade / PaymentModal / manage cancel
         ↓
-lib/payments/subscription/subscription-conductor.ts
+SubscriptionConductor (create | cancel | renew | recordPaidSubscription)
         ↓
-Provider modules: stripe | wayforpay | credit_balance | native_token | nft_gate | paypal
+Providers: stripe | wayforpay | credit_balance | native_token | nft_gate | paypal
         ↓
-subscription_ledger (PostgreSQL — provider-agnostic SSOT)
+subscription_ledger  (paypal_subscription_id = PayPal I-… for recurring)
         ↓
-Cron pipelines: expiry + payment + credit-balance + solana-batch + nft-gate
+Cron: expiry · credit-balance · payment · solana-batch · nft-gate
 ```
+
+PayPal **recurring** uses Subscriptions v1 inside `paypal-subscription.ts` (Product → Plan → `POST /v1/billing/subscriptions`). Ledger starts **`pending`**; `BILLING.SUBSCRIPTION.ACTIVATED` promotes to **`active`** without calling provider create again.
+
+PayPal **one-shot** (`auto_subscribe=false`) uses PaymentConductor Orders v2; fulfillment is `PAYMENT.CAPTURE.COMPLETED` → `handleMembershipPayPalCapture` → `recordPaidSubscription` / activate pending.
+
+Store checkout PayPal remains Orders-only: `POST /api/store/payments/paypal`.
 
 ### Provider registry
 
-Six provider modules implement the `SubscriptionProviderModule` contract (`lib/payments/subscription/subscription-types.ts`). The conductor resolves them by provider ID:
-
-| Provider ID | Module | Source |
-|-------------|--------|--------|
+| Provider ID | Module | Path |
+|-------------|--------|------|
 | `credit_balance` | `ringCreditSubscriptionProvider` | `providers/ring-credit-subscription.ts` |
 | `native_token` | `nativeTokenSubscriptionProvider` | `providers/native-token-subscription.ts` |
 | `stripe` | `stripeSubscriptionProvider` | `providers/stripe-subscription.ts` |
 | `wayforpay` | `wayforpaySubscriptionProvider` | `providers/wayforpay-subscription.ts` |
 | `nft_gate` | `nftGateSubscriptionProvider` | `providers/nft-gate-subscription.ts` |
-| `paypal` | `paypalSubscriptionProvider` | `providers/subscription-provider-stubs.ts` |
+| `paypal` | `paypalSubscriptionProvider` | `providers/paypal-subscription.ts` |
 
-Credit Balance, Stripe, WayForPay, Native Token, and **NFT Gate (MVP-A)** have implementations. PayPal remains a stub. Primary NFT buy UX is `/nft/gates`; see [Solana NFT Gates](/docs/features/nft-gates). Note: `nft_gate` may still appear under `payment.futureMethods` until moved into `supportedMethods`.
+Client helpers: `createPayPalBillingSubscription`, `cancelPayPalBillingSubscription`, `getPayPalBillingSubscription` in `lib/payments/processors/paypal-client.ts`.
 
-### Future features
+### subscription_ledger (verified fields)
 
-<Callout type="development">
-  **Phase S8 (planned):** PayPal recurring billing integration.
+Schema: `lib/payments/subscription/subscription-ledger-schema.ts`.
 
-  NFT Gate MVP-A is documented under [Solana NFT Gates](/docs/features/nft-gates) — remaining GateEscrow program / refund / config writeback items live there as FutureFeature widgets.
-</Callout>
+| Field | Notes |
+|-------|--------|
+| `status` | `pending` \| `active` \| `expired` \| `cancelled` \| `suspended` \| `grace_period` |
+| `method` | includes `paypal` |
+| `paypal_subscription_id` | PayPal Subscriptions `I-…` (not Orders `orderReference`) |
+| `stripe_subscription_id` / `wayforpay_rec_token` / `solana_tx_signature` / `nft_mint_address` | Other rails |
 
-### subscription_ledger schema
+`gatewayRefToField('paypal')` → `{ paypal_subscription_id }`. Cancel API + `app/_actions/membership.ts` pass that id into `SubscriptionConductor.cancelSubscription`.
 
-SSOT collection: `subscription_ledger`. Schema defined in `lib/payments/subscription/subscription-ledger-schema.ts` (Zod).
+### Conductor extras (PayPal / webhooks)
 
-Key fields:
+| Operation | Role |
+|-----------|------|
+| `createSubscription` | Honors `ledgerStatus: 'pending'` — skips MEMBER upgrade until active |
+| `recordPaidSubscription` | Insert active row **without** calling provider (Orders capture) |
+| `findByPaypalSubscriptionId` | Webhook lookup by `I-…` |
+| `updateSubscriptionStatus` | Can set `paypal_subscription_id`, payments aggregates |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Ledger row ID (`sub_<ts>_<userIdSuffix>`) |
-| `user_id` | `string` | Owner user ID |
-| `provider` | `enum` | `stripe`, `wayforpay`, `credit_balance`, `native_token`, `nft_gate`, `paypal` |
-| `gateway` | `string` | Human-readable label (e.g. "Stripe", "WayForPay") |
-| `method` | `enum` | `card`, `credit_balance`, `crypto`, `nft` |
-| `status` | `enum` | `active`, `expired`, `cancelled`, `suspended`, `grace_period` |
-| `amount` | `number` | Subscription price (minor units) |
-| `currency` | `string` | Billing currency |
-| `gateway_fee_percent` | `number` | Percentage fee (e.g. `2.9`) |
-| `gateway_fee_fixed` | `number` | Fixed fee in minor units (e.g. `30` for Stripe) |
-| `stripe_subscription_id` | `string?` | Stripe reference (if Stripe provider) |
-| `wayforpay_rec_token` | `string?` | WayForPay recurring token |
-| `solana_tx_signature` | `string?` | On-chain transaction signature |
-| `nft_mint_address` | `string?` | NFT certificate mint address |
-| `start_time` | `number` | Subscription start (ms epoch) |
-| `next_payment_due` | `number` | Next payment due timestamp |
-| `failed_attempts` | `number` | Consecutive payment failures (max 3 → auto-expiry) |
-| `auto_renew` | `boolean` | Auto-renew flag |
-| `total_paid` | `string` | Lifetime total paid |
-| `payments_count` | `number` | Successful payment count |
+### PayPal webhook branches
 
-### Conductor API
+`dispatchPayPalWebhook` (`webhook-dispatcher.ts`):
 
-`SubscriptionConductor` (`lib/payments/subscription/subscription-conductor.ts`) exposes:
+| Event | Handler |
+|-------|---------|
+| `PAYMENT.CAPTURE.COMPLETED` | Orders purpose handlers (store / membership capture / wallet / news) |
+| `BILLING.SUBSCRIPTION.ACTIVATED` | `membership-paypal-subscription.ts` → activate ledger |
+| `PAYMENT.SALE.COMPLETED` | Advance `next_payment_due` / `payments_count` |
+| `BILLING.SUBSCRIPTION.CANCELLED` / `SUSPENDED` / `EXPIRED` / `PAYMENT.FAILED` | Terminal / suspended status |
 
-| Operation | Signature | Description |
-|-----------|-----------|-------------|
-| `createSubscription` | `(input: CreateSubscriptionInput) → CreateSubscriptionResult` | Route to provider module, insert ledger row |
-| `cancelSubscription` | `(userId, provider, gatewayRef?) → CancelSubscriptionResult` | Cancel at provider + mark ledger rows cancelled |
-| `renewSubscription` | `(userId, provider, gatewayRef?) → RenewSubscriptionResult` | Renew at provider + update ledger |
-| `getSubscription` | `(userId) → SubscriptionLedgerRow \| null` | Latest active subscription for user |
-| `getSubscriptions` | `(filter) → SubscriptionLedgerRow[]` | Query by user, provider, status, method, due window |
-| `getStats` | `() → SubscriptionStats` | Aggregate counts by status, provider, method |
-| `calculateNetRevenue` | `(row) → { gross, fee, net, currency }` | Per-row net revenue |
+Canonical route: `POST /api/payments/paypal/webhook`.
 
-### API routes
+### Membership & manage routes
 
-| Method | Path | Purpose | Auth |
-|--------|------|---------|------|
-| `POST` | `/api/membership/subscription/create` | Create subscription via conductor | Session |
-| `GET` | `/api/membership/subscription/status` | Get subscription status + balance | Session |
-| `POST` | `/api/membership/subscription/cancel` | Cancel subscription | Session |
-| `POST` | `/api/membership/payment/token` | Process native token payment | Session |
-| `POST` | `/api/membership/payment/credit` | Process credit balance payment | Session |
-| `GET` | `/api/membership/payment/credit` | Get credit balance pricing info | Session |
-| `GET` | `/api/admin/subscriptions` | List all subscriptions | Superadmin |
-| `GET` | `/api/admin/subscriptions/stats` | Aggregated stats | Superadmin |
+| Method | Path | Role |
+|--------|------|------|
+| `POST` | `/api/membership/payment/paypal` | Create recurring (default) or renew status-sync |
+| `POST` | `/api/membership/subscription/cancel` | Cancel; extracts `paypal_subscription_id` |
+| `GET` | `/api/membership/subscription/status` | `can_cancel` for `active` \| `pending` |
+| Page | `/[locale]/(protected)/membership/manage` | `SubscriptionManagement` + role + NFT stakes + `payment_transactions` |
+| Route helper | `ROUTES.MEMBERSHIP_MANAGE(locale)` | `/membership/manage` |
 
-### Cron pipelines
-
-Five cron pipelines registered in `lib/processes/registry.ts` under the `membership` category:
-
-| Pipeline ID | Cron Path | Handler | Schedule |
-|-------------|-----------|---------|----------|
-| `subscription-expiry-check` | `/api/cron/subscription-expiry` | `runSubscriptionExpiryCheck` | Daily midnight |
-| `credit-balance-monthly` | `/api/cron/credit-balance-monthly` | `runCreditBalanceMonthly` | Hourly |
-| `subscription-payment` | `/api/cron/subscription-payment` | `runSubscriptionPaymentCheck` | Daily 2am |
-| `solana-batch-payment` | `/api/cron/solana-batch-payment` | `runSolanaBatchPayment` | Daily 3am |
-| `nft-gate-expiry` | `/api/cron/nft-gate-expiry` | `runNftGateExpiry` | Daily 4am |
-
-Pipelines are triggered via HTTP cron jobs hitting the `cronPath` endpoints. Handlers import from `lib/processes/subscription/`:
-
-- `expiry-check.ts` — marks overdue subscriptions as `expired` and downgrades user roles
-- `credit-balance-monthly.ts` — deducts monthly fee from user credit balance
-- `subscription-payment.ts` — processes Stripe/WayForPay recurring charges
-- `solana-nft-stubs.ts` — batch RING token transfers and NFT gate expiry
-
-### Adding a new provider
-
-1. Implement `SubscriptionProviderModule` contract in `providers/<name>-subscription.ts`
-2. Register in `subscription-conductor.ts` `providerRegistry` Map
-3. Add gateway config to `ring-config.json` `payment.gateways.<provider>`
-4. Add to `SUBSCRIPTION_PROVIDERS` array in `subscription-ledger-schema.ts`
-5. Update `getMembershipPaymentOptions()` in `subscription-config.ts`
-6. If needed, add a cron pipeline handler in `lib/processes/subscription/`
+UI: `components/membership/payment-modal.tsx` PayPal tab when `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true`; `components/membership/subscription-management.tsx` on the manage page.
 
 ### Environment variables
 
-```bash
-PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay    # Override card gateway for membership
-WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
-WAYFORPAY_SECRET_KEY=your_secret
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
+<Code language="bash" title="PayPal + store/membership public flags">
+{`NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN=true
+NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true
+PAYMENT_STORE_ALLOW_TOKEN=true
+PAYPAL_MODE=sandbox
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_WEBHOOK_ID=
+# After first catalog create:
+# PAYPAL_MEMBERSHIP_PRODUCT_ID=
+# PAYPAL_MEMBERSHIP_PLAN_ID=
+PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay`}
+</Code>
 
-### Smoke tests
+Secrets stay runtime (K8s Secret). Public flags also need Dockerfile / `prod.js` build-args for client bundles.
 
-5 smoke test suites exercise the full subscription pipeline (`AI-RING/scripts/`):
+### Cron pipelines
 
-| Suite | Prefix | Coverage |
-|-------|--------|----------|
-| `smoke-subscription-conductor.cts` | `smk39_` | 13 pipelines (conductor create/cancel/renew, ledger SSOT, Stripe API, WayForPay, config) |
-| `smoke-subscription-cron.cts` | `smk40_` | 5 cron pipelines (expiry, credit, payment, solana, nft) |
-| `smoke-subscription-cron-http.cts` | `smk41_` | 5 HTTP cron routes with `CRON_SECRET` auth |
-| `smoke-subscription-stripe.cts` | `smk39_` | Stripe API + webhook (customer, price, subscription, cancel, dispatch, zod) |
-| `smoke-subscription-admin.cts` | `smk42_` | Admin dashboard list + stats endpoints |
+Unchanged five membership crons in `lib/processes/registry.ts` (expiry, credit-balance monthly, subscription-payment, solana-batch, nft-gate-expiry). PayPal renewals are primarily webhook-driven (`PAYMENT.SALE.COMPLETED`); manual renew is a Subscriptions `GET` status sync.
 
-Run via `scripts/run-all-smokes.sh`. Canonical pipeline registry: [`PIPELINES.md`](https://github.com/ringplatform/ring/blob/main/AI-RING/scripts/PIPELINES.md).
+### Anti-patterns
+
+- Do **not** call `SubscriptionConductor.createSubscription` from PayPal webhooks (re-opens checkout). Use `recordPaidSubscription` / `updateSubscriptionStatus`.
+- Do **not** store Orders `orderReference` as `paypal_subscription_id`.
+- Do **not** treat `returnUrl` alone as paid — wait for webhook events.
 
 </Audience>
 
 ## Related
 
-- [Solana NFT Gates](/docs/features/nft-gates) — Metaplex Core mint, GateEscrow, admin art preview
-- [PaymentConductor](/docs/features/payment-conductor) — one-time payment orchestration
-- [WayForPay integration](/docs/features/wayforpay-integration)
-- [Wallet & Credits](/docs/features/wallet)
-- [Store](/docs/features/store) — membership checkout flow
-- [Admin dashboard](/docs/features/admin)
+<Cards>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    One-shot Orders, store/wallet/news purposes, CheckoutRedirect.
+  </Card>
+  <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
+    Card HPP + regularApi recToken pattern mirrored by PayPal I-….
+  </Card>
+  <Card title="Architecture: PaymentConductor" href="/docs/architecture/payment-conductor">
+    Webhook dispatcher and API route table.
+  </Card>
+  <Card title="NFT Gates" href="/docs/features/nft-gates">
+    GateEscrow stakes shown on the manage page.
+  </Card>
+  <Card title="Payments overview" href="/docs/features/payments">
+    Purpose map across the clone.
+  </Card>
+  <Card title="Payment integration (ops)" href="/docs/customization/payment-integration">
+    Operator PSP checklist.
+  </Card>
+</Cards>

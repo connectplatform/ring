@@ -1,7 +1,7 @@
 ---
 title: Customization Guide
-description: Brand and configure your Ring clone — ring-config.json, HomeWrapper, locales, features, and propagation exclusions (v1.6.0)
-last_modified: "2026-07-01"
+description: Brand and configure your Ring clone — ring-config presets, locales, thin overlay exclusions (v1.7.0 Preset SSOT)
+last_modified: "2026-07-14"
 ---
 
 # Customization Guide
@@ -10,27 +10,29 @@ last_modified: "2026-07-01"
   **Time estimate:** 1–4 hours for branding + feature toggles. **Prerequisites:** [Quick Start](/docs/customization/quick-start) completed locally.
 </Callout>
 
-Ring clones share one codebase. Customization is **config-first** (`ring-config.json`, env, locales), then optional component overrides. The legacy **portal** layer is **removed** — the public home is **`HomeWrapper`** + **`HomeContent`**, not a separate portal app.
+Ring clones share one codebase (`ring-platform.org`). Customization is **config-first** (`ring-config.json` presets, env, locales). Vertical niches ship as **in-repo presets** — do not fork niche TypeScript into the clone. See [Vertical presets](/docs/customization/vertical-presets).
 
 ## Customization map
 
 <Mermaid title="Where white-label settings live">
 {`flowchart TB
-  RC[ring-config.json]
+  RC[ring-config.json presets]
   ENV[.env.local overrides]
-  I18N[locales/ JSON]
+  I18N[locales/ JSON deltas]
   HW[home-wrapper.tsx]
   HC[HomeContent / home.tsx]
   NAV[navigation + sidebar]
+  PRE[features/*/presets]
   EX[.reggie-propagate-exclude.json]
 
-  RC -->|branding features matcher| Core[ring-config-core.ts]
+  RC -->|productFields entities productBadges| Core[ring-config-core.ts]
+  Core -->|getEntityTypes etc| PRE
   ENV -->|NEXT_PUBLIC_BRAND_*| Brand[lib/site-branding.ts]
   I18N -->|pages.home hero copy| HC
   HW -->|layout right rail| Page[app/.../page.tsx]
   HC --> HW
   Core --> NAV
-  EX -->|protect fork| Reggie[Reggie propagate]`}
+  EX -->|thin overlay only| Reggie[Reggie propagate from platform]`}
 </Mermaid>
 
 ## 1. `ring-config.json` (install-time SSOT)
@@ -59,6 +61,18 @@ Created by `./install.sh` or copied from `ring-config.template.json`. Merged wit
 ```
 
 Used for SEO (`lib/seo-metadata.ts`), JSON-LD, and `getSiteBaseUrl()`.
+
+### Vertical presets (preferred over code forks)
+
+```json
+{
+  "entities": { "preset": "platform" },
+  "productFields": { "preset": "platform" },
+  "productBadges": { "preset": "platform" }
+}
+```
+
+Agricultural / GreenFood-style clones use `"agricultural"` for all three. Full registry: [Vertical presets](/docs/customization/vertical-presets).
 
 ### Branding block
 
@@ -157,7 +171,7 @@ NEXT_PUBLIC_DEFAULT_LOCALE=en
 
 Full guide: [Localization](/docs/customization/localization).
 
-Protected locale files (often per-clone) are listed in `.reggie-propagate-exclude.json` — e.g. `locales/*/config.json`, `vendor.json`, `calculator.json`.
+Protected locale files (overlay deltas) are listed in `.reggie-propagate-exclude.json` — typically `locales/*/config.json`, `vendor.json` only.
 
 ## 4. Theme and visual polish
 
@@ -191,22 +205,30 @@ Avoid editing generated design tokens in unrelated clones — prefer `ring-confi
 
 Contract addresses and treasury: env + [Token economics](/docs/customization/token-economics). Set `tokens.native` in `ring-config.json` for display metadata.
 
-## 7. Reggie propagation exclusions
+## 7. Reggie propagation — thin overlay only
 
-When pulling updates from `ring-greenfood-live` (or upstream), protect fork-specific files:
+**Source of truth:** always propagate **from `ring-platform.org`**. Exclude protects brand/locale overlay — **not** vertical code.
 
 ```json
 {
-  "exclude_paths": [
+  "customized_files": [
     "ring-config.json",
-    ".env.local",
+    "public/logo.svg",
+    "public/logo-light.svg",
+    "public/logo-dark.svg",
+    "public/favicon.ico",
     "locales/en/config.json",
-    "components/wrappers/home-wrapper.tsx"
-  ]
+    "locales/uk/config.json",
+    "locales/ru/config.json",
+    "locales/en/vendor.json",
+    "locales/uk/vendor.json",
+    "locales/ru/vendor.json"
+  ],
+  "customized_directories": ["public/branding/"]
 }
 ```
 
-File: `.reggie-propagate-exclude.json` at repo root.
+File: `.reggie-propagate-exclude.json` at repo root. Do **not** exclude niche fields, entity catalogs, or home-wrapper forks — select presets instead. Details: [Vertical presets](/docs/customization/vertical-presets).
 
 ## 8. Verification checklist
 
@@ -221,6 +243,12 @@ File: `.reggie-propagate-exclude.json` at repo root.
 <Step>
 
 **Home** — `/` hero matches `pages.home` in each supported locale
+
+</Step>
+
+<Step>
+
+**Presets** — `entities` / `productFields` / `productBadges` match the vertical
 
 </Step>
 
@@ -247,6 +275,9 @@ File: `.reggie-propagate-exclude.json` at repo root.
 ## Next steps
 
 <Cards>
+  <Card title="Vertical presets" href="/docs/customization/vertical-presets">
+    Ship niches in platform; select via ring-config
+  </Card>
   <Card title="Database selection" href="/docs/customization/database-selection">
     `DB_BACKEND_MODE` and migration strategy
   </Card>

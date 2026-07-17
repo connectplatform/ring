@@ -1,0 +1,173 @@
+{
+  "title": "Encuentro de animales",
+  "createMeetup": "Crear reuniones",
+  "editMeetup": "Editar reuniones",
+  "deleteMeetup": "Eliminar reunión",
+  "noMeetups": "No se encontraron reuniones",
+  "discoverMeetups": "Descubra encuentros con animales en su zona y participe, opcionalmente también en eventos comunitarios relacionados con Connect.Software.",
+  "upcomingMeetups": "Próximas reuniones",
+  "pastMeetups": "Reuniones pasadas",
+  "myMeetups": "mis reuniones",
+  "types": {
+    "dog_park_meetup": "Reunión de pradera para perros",
+    "hiking": "Senderismo con animales",
+    "beach_day": "dia de playa",
+    "training_class": "Sesión de entrenamiento",
+    "playtime": "hora de juego",
+    "socialization": "Evento de socialización",
+    "charity": "Evento benéfico",
+    "other": "Misceláneas"
+  },
+  "privacy": {
+    "public": "Público",
+    "private": "Privado",
+    "publicDescription": "Cualquiera puede ver y participar.",
+    "privateDescription": "Sólo por invitación"
+  },
+  "fields": {
+    "title": "Título de la reunión",
+    "description": "Descripción",
+    "meetupType": "Arte",
+    "startTime": "Hora de inicio",
+    "endTime": "Fin de los tiempos",
+    "location": "Ubicación",
+    "maxParticipants": "Número máximo de participantes",
+    "allowedPets": "Se admiten animales",
+    "requiresRsvp": "Se requiere registro (RSVP)",
+    "entryFee": "Cuota de participación",
+    "photos": "Fotos",
+    "safetyGuidelines": "Instrucciones de seguridad"
+  },
+  "allowedPets": {
+    "title": "Se admiten animales",
+    "dogs": "perros",
+    "cats": "gatos",
+    "smallPets": "animales pequeños",
+    "allPets": "Todos los animales son bienvenidos.",
+    "noPets": "Sin animales (solo personas)"
+  },
+  "rsvp": {
+    "title": "Registro",
+    "going": "estoy participando",
+    "interested": "Interesado",
+    "notGoing": "no participes",
+    "rsvpNow": "Regístrate ahora",
+    "cancelRsvp": "Retirar registro",
+    "waitlist": "Poner en lista de espera",
+    "onWaitlist": "En lista de espera",
+    "spotsAvailable": "{{count}} plazas libres",
+    "noSpotsAvailable": "Evento completo",
+    "attendees": "participantes",
+    "viewAttendees": "Lista de participantes"
+  },
+  "participants": {
+    "title": "participantes",
+    "organizer": "organización",
+    "attendees": "participantes",
+    "waitlist": "Lista de espera",
+    "petCount": "{{count}} animales",
+    "humanCount": "{{count}} personas",
+    "invited": "Invitado",
+    "confirmed": "Confirmado",
+    "declined": "Cancelado"
+  },
+  "groupChat": {
+    "title": "Chat grupal",
+    "openChat": "abrir chat",
+    "chatCreated": "Se creó automáticamente un chat grupal para esta reunión.",
+    "joinChat": "Unirse al chat",
+    "leaveChat": "salir del chat",
+    "members": "{{count}} miembros"
+  },
+  "safety": {
+    "title": "Instrucciones de seguridad",
+    "leashRequired": "Requisito de correa",
+    "supervisionRequired": "Los animales deben estar supervisados ​​en todo momento.",
+    "vaccinationProof": "Es posible que se requiera prueba de vacunación.",
+    "aggressivePets": "No se permiten animales agresivos.",
+    "childrenWelcome": "Niños bienvenidos",
+    "weatherDependent": "Evento dependiente del clima",
+    "emergencyContact": "Contacto de emergencia disponible"
+  },
+  "search": {
+    "placeholder": "Buscando una reunión...",
+    "filterByType": "Filtrar por tipo",
+    "filterByDate": "Filtrar por fecha",
+    "filterByLocation": "Filtrar por ubicación",
+    "filterByPets": "Filtrar por animales permitidos",
+    "radius": "radio",
+    "withinKm": "dentro de {{km}} km",
+    "sortBy": "Ordenar por",
+    "sortOptions": {
+      "date": "Fecha",
+      "distance": "distancia",
+      "popular": "mas popular",
+      "newest": "El último"
+    }
+  },
+  "status": {
+    "upcoming": "Próximo",
+    "ongoing": "Actualmente funcionando",
+    "finished": "Finalizado",
+    "canceled": "Cancelado",
+    "postponed": "Demora",
+    "full": "Completamente reservado"
+  },
+  "actions": {
+    "saveMeetup": "Guardar reunión",
+    "updateMeetup": "Reunión de actualización",
+    "cancelEdit": "Cancelar",
+    "deleteMeetupConfirm": "¿Realmente eliminar esta reunión?",
+    "cancelMeetup": "Cancelar reunión",
+    "cancelMeetupConfirm": "¿Realmente cancelar la reunión? Todos los participantes serán notificados.",
+    "postponeMeetup": "posponer reunión",
+    "shareMeetup": "Compartir reunión",
+    "reportMeetup": "Informe de reunión",
+    "inviteFriends": "invitar amigos",
+    "checkIn": "Registrarse",
+    "uploadPhoto": "Subir foto",
+    "viewOnMap": "Mostrar en el mapa",
+    "getDirections": "Mostrar ruta"
+  },
+  "validation": {
+    "titleRequired": "Se requiere título",
+    "typeRequired": "Se requiere tipo de reunión",
+    "startTimeRequired": "Se requiere hora de inicio",
+    "locationRequired": "Se requiere ubicación",
+    "startTimeInPast": "La hora de inicio no puede estar en el pasado.",
+    "endTimeBeforeStart": "La hora de finalización debe ser posterior a la hora de inicio.",
+    "maxParticipantsInvalid": "Número máximo de participantes al menos 2",
+    "entryFeeInvalid": "La cuota de participación debe ser un número positivo."
+  },
+  "success": {
+    "created": "Reunión creada. Se ha creado el chat grupal.",
+    "updated": "Reunión actualizada.",
+    "deleted": "Reunión eliminada",
+    "canceled": "Reunión cancelada. Todos los participantes fueron informados.",
+    "postponed": "Reunión pospuesta. Todos los participantes fueron informados.",
+    "rsvpConfirmed": "Inscripción confirmada.",
+    "rsvpCanceled": "Registro retirado",
+    "joinedWaitlist": "Estás en la lista de espera.",
+    "photoUploaded": "Foto cargada exitosamente",
+    "checkedIn": "Registro exitoso"
+  },
+  "errors": {
+    "loadFailed": "No se pudieron cargar las reuniones",
+    "saveFailed": "No se pudo guardar la reunión",
+    "deleteFailed": "No se pudo eliminar la reunión",
+    "rsvpFailed": "Error de inicio de sesion. Por favor inténtalo de nuevo.",
+    "joinChatFailed": "No se pudo unir al chat grupal",
+    "uploadFailed": "Error al subir la foto",
+    "locationAccessDenied": "Acceso a la ubicación denegado"
+  },
+  "notifications": {
+    "newMeetupNearby": "Nueva reunión cercana: {{title}}",
+    "meetupStartingSoon": "¡La reunión comienza en {{minutes}} minutos!",
+    "meetupCanceled": "Reunión cancelada: {{title}}",
+    "meetupPostponed": "Reunión pospuesta: {{title}}",
+    "newAttendee": "{{name}} se une a tu reunión",
+    "waitlistPromoted": "Has ascendido de la lista de espera: {{title}}",
+    "reminderOneDayBefore": "Recordatorio: Reunión mañana – {{title}}",
+    "reminderOneHourBefore": "Recordatorio: Reunión en 1 hora – {{title}}"
+  }
+}

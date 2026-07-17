@@ -30,7 +30,16 @@ export type CreditTopupFormState = {
   success?: boolean
   error?: string
   message?: string
+  /** Conductor-owned browser handoff */
+  redirect?: {
+    mode: 'navigate' | 'form_post'
+    url: string
+    fields?: Record<string, string | string[]>
+  }
+  /** @deprecated Prefer redirect */
   paymentUrl?: string
+  /** @deprecated Prefer redirect.fields */
+  paymentFields?: Record<string, string | string[]>
 }
 
 /**
@@ -64,6 +73,11 @@ export const WalletConductor = {
         String(formData.get('returnUrl') ?? '') ||
         `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${locale}/wallet`
       const source = String(formData.get('source') ?? 'credit_add_fs_modal')
+      const processorRaw = String(formData.get('processor') ?? '').toLowerCase()
+      const processor =
+        processorRaw === 'paypal' || processorRaw === 'stripe' || processorRaw === 'wayforpay'
+          ? processorRaw
+          : undefined
 
       const result = await PaymentConductor.createCheckout({
         purpose: 'wallet_topup',
@@ -74,17 +88,22 @@ export const WalletConductor = {
         currency: getClientCreditFiatCurrency(),
         returnUrl,
         locale,
-        metadata: { source },
+        metadata: {
+          source,
+          ...(processor ? { processor } : {}),
+        },
       })
 
       if (!result.success) {
         return { error: result.error || 'Failed to initiate payment' }
       }
-      if (result.paymentUrl) {
+      if (result.redirect || result.paymentUrl || result.paymentFields) {
         return {
           success: true,
           message: 'Redirecting to payment…',
+          redirect: result.redirect,
           paymentUrl: result.paymentUrl,
+          paymentFields: result.paymentFields,
         }
       }
       return { success: true, message: 'Payment processed' }
@@ -142,11 +161,13 @@ export const WalletConductor = {
       if (!result.success) {
         return { error: result.error || result.code || 'Failed to initiate onramp' }
       }
-      if (result.paymentUrl) {
+      if (result.redirect || result.paymentUrl || result.paymentFields) {
         return {
           success: true,
           message: 'Redirecting to payment…',
+          redirect: result.redirect,
           paymentUrl: result.paymentUrl,
+          paymentFields: result.paymentFields,
         }
       }
       return { success: true, message: 'Payment processed' }
@@ -201,6 +222,10 @@ export const WalletConductor = {
     notes?: string
     contactUserId?: string
     ringContactId?: string
+    /** Human display name for the recipient (contact or typed label) — stored for i18n history rows */
+    contactDisplayName?: string
+    /** Username for profile link on history rows */
+    contactUsername?: string
   }): Promise<
     WalletConductorResult & {
       txHash?: string
@@ -217,14 +242,31 @@ export const WalletConductor = {
         return { success: false, error: 'Valid recipient address and amount are required' }
       }
 
+      // UI sends human amounts ("1.00"); on-chain SPL transfer expects raw integer units.
+      const amountRaw = nativeTokenUiToRaw(params.amount)
+      if (amountRaw <= 0n) {
+        return { success: false, error: 'Valid recipient address and amount are required' }
+      }
+
       const result = await transferNativeTokenForUser({
         userId: params.userId,
         toAddress: params.toAddress,
-        amount: params.amount,
+        amount: amountRaw.toString(),
       })
 
-      const symbol = getNativeTokenSymbol(result.chain)
+      const symbol = getNativeTokenSymbol()
       const txId = `native_token_send_${result.txHash.toLowerCase()}`
+      const { fetchOnChainTransactionDetails } = await import(
+        '@/features/wallet/lib/on-chain-tx-details'
+      )
+      const { getNativeTokenAddress } = await import('@/lib/ring-config-chain')
+      const onChain = await fetchOnChainTransactionDetails({
+        txHash: result.txHash,
+        chain: result.chain,
+        amountRaw: amountRaw.toString(),
+        mint: getNativeTokenAddress() || null,
+      })
+
       await db().createDoc(
         'wallet_transactions',
         {
@@ -234,11 +276,22 @@ export const WalletConductor = {
           fromAddress: result.fromAddress,
           toAddress: params.toAddress,
           amount: params.amount,
+          amountRaw: amountRaw.toString(),
           tokenSymbol: symbol,
           chain: result.chain,
+          mint: getNativeTokenAddress() || null,
           notes: params.notes ?? null,
           contactUserId: params.contactUserId ?? null,
+          contactDisplayName: params.contactDisplayName ?? null,
+          contactUsername: params.contactUsername ?? null,
           createdAt: new Date().toISOString(),
+          status: onChain.status,
+          slot: onChain.slot ?? null,
+          blockTime: onChain.blockTime ?? null,
+          feeLamports: onChain.feeLamports ?? null,
+          explorerUrl: onChain.explorerUrl,
+          err: onChain.err ?? null,
+          onChainSnapshot: onChain.onChainSnapshot ?? null,
         },
         { id: txId },
       )

@@ -1,16 +1,17 @@
 ---
-title: News Module - Digital Newspaper Experience
-description: News Kingdom — promotion, member blogs, Telegram approval, OpenRouter scoring (v1.6.0)
+title: News Module
+description: TipTap news authoring, My News dashboard, community revise/amendments, and News Kingdom publishing
 icon: Newspaper
-last_modified: "2026-06-20"
+last_modified: "2026-07-16"
+audience: both
 ---
 
-# News Module - Digital Newspaper Experience
+# News Module
 
-The Ring Platform News module transforms content management into a professional digital newspaper experience, featuring author-centric workflows, advanced publishing tools, and enterprise-grade content distribution.
+Ring news is a full publishing surface: member authors create articles, promote to the main page when enabled, and readers engage on public and blog URLs. As of **2026-07-16**, article bodies are authored in **TipTap** (TinyMCE removed), and members can propose **pending revisions** on published articles for the author to accept or reject.
 
-<Callout type="success" title="v1.6.0 News Kingdom">
-React 19, Next.js 16, PaymentConductor promotion, member blogs at `/blog/[username]/[slug]`, content favorites API, and autonomous newsroom drafts (Grok + ImageConductor + Telegram approval).
+<Callout type="info">
+  Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page.
 </Callout>
 
 <Cards>
@@ -18,526 +19,189 @@ React 19, Next.js 16, PaymentConductor promotion, member blogs at `/blog/[userna
     Migrations, promotion workflow, scoring, and Telegram callbacks.
   </Card>
   <Card title="Member blogs" href="/docs/features/member-blog">
-  Per-user blog paths, `blogUsername`, and public article URLs.
+    Per-user blog paths via `blogUsername` and public article URLs.
   </Card>
   <Card title="Generative newsroom" href="/docs/development/generative-newsroom">
     Autonomous draft pipeline, featured images, TTS, and locale fan-out.
   </Card>
-  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
-    WayForPay/Stripe promotion payments and webhook handlers.
+  <Card title="Scientific Editor" href="/docs/features/scientific-editor">
+    TipTap publications editor (equations, versions) — separate from news articles.
   </Card>
 </Cards>
 
-## 🎯 Overview
+## What ships today
 
-The News module provides a complete content management system that rivals professional publishing platforms. Built with modern web technologies and designed for scale, it enables communities to create, manage, and distribute high-quality content.
+| Surface | What it does |
+|---------|----------------|
+| TipTap NewsEditor | Slash `/` commands, paste URL embeds, Mood Player widget, image upload, AI generate image, debounced autosave |
+| My News | `/my-news` — author dashboard, visit charts, create/edit, **Proposed amendments: $count** |
+| Create | `/news/create` (members) and admin create — shared `ArticleEditor` |
+| Revise | **Revise** on published articles → `/news/[slug]/revise` → `pending-revision` (live article unchanged until Accept) |
+| Amendments | Author preview with pale red/green hunks → Accept applies content / Reject closes |
+| Public render | `/news/[slug]` and `/[username]/[slug]` — HTML allowlisted via `sanitizeNewsHtml` |
 
-## News Kingdom (2026-05-21)
+<Audience for="founder">
 
-| Capability | Details |
-|------------|---------|
-| Migrations | `002_news_content_schema.sql`, `003_news_kingdom_upgrade.sql` |
-| Promotion | WayForPay/Stripe via PaymentConductor + Telegram admin approval |
-| Scoring | OpenRouter-powered duplicate/score checks |
-| Member blogs | `lib/blog/blog-path.ts`, `blogUsername` field |
-| Favorites | `POST /api/user/favorites`, `useContentFavorite` |
-| **Autonomous newsroom (2026-06)** | Grok `web_search` drafts, ImageConductor featured image, TTS `audioUrl`, Telegram approve → locale fan-out |
+## Operator journey
 
-Architecture: [News Kingdom](/docs/architecture/news-kingdom) · Member blogs: [feature doc](/docs/features/member-blog) · **Autonomous newsroom:** [generative-newsroom](/en/docs/development/generative-newsroom)
+### Author a story
 
-## 🏗️ Architecture
+1. Open **My News** (`/my-news`) and create an article, or go to `/news/create`.
+2. Write in the TipTap editor — type `/` for headings, lists, image, embed, or generate image.
+3. Paste a YouTube, Rumble, X, Facebook, Suno, or generic link to insert an embed card/player.
+4. Publish when ready. Use promotion panels if your clone enables paid/main-page promotion.
 
-### Database Schema
+### Community revise (crowdsourced edits)
 
-The News module uses PostgreSQL with JSONB for flexible content storage:
+1. Any **member** (not the author) sees **Revise** on a published article.
+2. They edit a copy and submit — the live page does **not** change yet.
+3. On **My News**, the author sees **Proposed amendments: N**.
+4. Open the preview: deleted lines are crossed out (pale red); added lines are pale green.
+5. **Accept** updates the published body; **Reject** closes that proposal.
 
-```sql
-CREATE TABLE news (
-    id VARCHAR(255) PRIMARY KEY,
-    data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+<Callout type="tip" title="Why this matters">
+  Members improve accuracy without silent overwrite. Authors stay in control of the live article.
+</Callout>
 
--- Performance indexes
-CREATE INDEX idx_news_author_id ON news ((data->>'authorId'));
-CREATE INDEX idx_news_category ON news ((data->>'category'));
-CREATE INDEX idx_news_status ON news ((data->>'status'));
-CREATE INDEX idx_news_published_at ON news ((data->>'publishedAt'));
-CREATE INDEX idx_news_locale ON news ((data->>'locale'));
-CREATE INDEX idx_news_translation_group ON news ((data->>'translationGroupId'));
-```
+### Permissions (simplified)
 
-### Service Architecture
+| Action | Who |
+|--------|-----|
+| Create / edit own | Member+ (and admins) |
+| Propose revision on published | Member+ (not needed for the author — they Edit) |
+| Accept / reject amendments | Article author or platform admin |
+| Invite co-editors by email | Scaffolded APIs only — not a full UI yet |
 
-All news operations use the `DatabaseService` abstraction layer with React 19 patterns:
+</Audience>
 
-- **READ operations**: `cache()` for performance optimization
-- **MUTATIONS**: `revalidatePath()` for UI freshness
-- **TRANSACTIONS**: PostgreSQL ACID guarantees for data integrity
+<Audience for="developer">
 
-## 👥 User Roles & Permissions
+## TipTap NewsEditor
 
-### Author Permissions Matrix
+TinyMCE Cloud/`addButton` paths are gone. Authoring SSOT:
 
-| Permission | Visitor | Subscriber | Member | Confidential | Admin |
-|------------|---------|------------|--------|--------------|-------|
-| View Public Articles | ✅ | ✅ | ✅ | ✅ | ✅ |
-| View Subscriber Articles | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Create Articles | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Edit Own Articles | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Edit All Articles | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Delete Own Articles | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Delete All Articles | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Access My News Dashboard | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Path | Role |
+|------|------|
+| `features/news/components/editor/tiptap-news-editor.tsx` | TipTap surface + slash + paste embeds + autosave |
+| `features/news/components/editor/extensions/slash-commands.ts` | Slash item builders |
+| `features/news/components/editor/extensions/embed-node.ts` | `<ring-embed>` TipTap node |
+| `features/news/components/editor/mood-player-node.ts` | `<ring-mood-player>` node |
+| `features/news/lib/editor-widget-detector.ts` | URL → provider classifier (no network) |
+| `features/news/lib/sanitize-news-html.ts` | Public HTML allowlist |
+| `features/news/components/article-editor.tsx` | Form shell; mounts TipTapNewsEditor |
+| `features/news/components/editor/rich-text-editor.tsx` | Re-exports TipTapNewsEditor (legacy name) |
 
-## 📝 Content Management
+Embed preview (authenticated): `POST /api/news/embed-preview` with `{ url }` — OG title/description/image when fetch succeeds.
 
-### Article Structure
+Autosave: debounced `PUT /api/news/[id]` with `{ content }` (HTML). Storage remains HTML on `news.content` for public render compatibility; TipTap JSON is editor-internal.
 
-Each news article contains comprehensive metadata:
+### Slash command groups
 
-```typescript
-interface NewsArticle {
-  id: string
-  title: string
-  slug: string
-  content: string // HTML content
-  excerpt: string
-  authorId: string
-  authorName: string
-  category: NewsCategory
-  tags: string[]
-  featuredImage?: string
-  gallery?: string[]
-  status: 'draft' | 'published' | 'archived'
-  visibility: 'public' | 'subscriber' | 'member' | 'confidential'
-  featured: boolean
-  views: number
-  likes: number
-  comments: number
-  publishedAt?: Date
-  createdAt: Date
-  updatedAt: Date
-  seo?: NewsSEO
-  // Multilingual support
-  locale?: string
-  translationGroupId?: string
-  availableTranslations?: string[]
-}
-```
+- **basic** — H1–H3, lists, quote, code block, divider  
+- **media** — image upload, AI generate image, embed URL  
+- **insert** — link  
 
-### Categories
+Dependency: `@tiptap/suggestion` (TipTap 3.x).
 
-The module supports 9 predefined categories:
+## My News & create routes
 
-- **platform-updates**: Latest Ring Platform features and improvements
-- **partnerships**: Collaborations and integrations
-- **community**: Community highlights and member stories
-- **industry-news**: Web3 and blockchain developments
-- **events**: Upcoming events and gatherings
-- **announcements**: Important platform communications
-- **press-releases**: Official press releases
-- **tutorials**: How-to guides and educational content
-- **other**: Miscellaneous content
+| Route helper | Path |
+|--------------|------|
+| `ROUTES.MY_NEWS` | `/my-news` |
+| `ROUTES.NEWS_CREATE` | `/news/create` |
+| `ROUTES.NEWS_REVISE(slug)` | `/news/[slug]/revise` |
+| `ROUTES.MY_NEWS_AMENDMENTS(articleId)` | `/my-news/[articleId]/amendments` |
+| `ROUTES.MY_NEWS_AMENDMENT_PREVIEW(...)` | `/my-news/[articleId]/amendments/[revisionId]` |
 
-### Content Status Flow
+UI: `app/[locale]/(protected)/my-news/`, `components/wrappers/my-news-wrapper.tsx`.
 
-<Mermaid title="Article lifecycle">
-{`flowchart LR
-  Draft["Draft\nAuthor edits"] --> Published["Published\nPublic visibility"] --> Archived["Archived\nHidden from lists"]`}
+## Pending revisions API
+
+Collection: `news_revisions` via `DatabaseService` `createDoc` / `queryDocs` / `updateDoc`.
+
+| Method | Route | Behavior |
+|--------|-------|----------|
+| `GET` | `/api/news/[id]/revisions?status=pending-revision` | List |
+| `POST` | `/api/news/[id]/revisions` | Body `{ proposedContent }` → status `pending-revision` |
+| `GET` | `/api/news/revisions/[revisionId]` | One revision |
+| `PATCH` | `/api/news/revisions/[revisionId]` | `{ action: 'accept' \| 'reject' }` — accept writes `proposedContent` onto the article |
+
+Service: `features/news/services/revision-service.ts`  
+Permissions: `features/news/lib/news-collaboration-permissions.ts` (`canProposeRevision`, `canResolveRevision`)  
+Types: `features/news/types/collaboration.ts`  
+Diff UI: `features/news/lib/revision-diff.ts` + `features/news/components/revision-hunk-preview.tsx` (ported from file-registry-viewer LCS)
+
+<Mermaid title="Pending revision accept flow">
+{`sequenceDiagram
+  participant Member
+  participant ReviseAPI as POST_revisions
+  participant Author
+  participant PatchAPI as PATCH_revision
+  participant News as news_doc
+  Member->>ReviseAPI: proposedContent
+  ReviseAPI-->>Author: pending-revision
+  Author->>PatchAPI: accept
+  PatchAPI->>News: content equals proposedContent`}
 </Mermaid>
 
-## 🎨 User Interface
+### Public sanitize
 
-### 3-Column Responsive Layout
+`sanitizeNewsHtml` strips scripts/handlers and allowlists tags including `iframe` (YouTube nocookie + Rumble hosts), `ring-embed`, and `ring-mood-player`. Used on `/news/[slug]` and `/[username]/[slug]`.
 
-The news interface uses a professional 3-column layout:
+### ACL / invite scaffolding (not full product)
 
-<Mermaid title="Desktop news layout">
-{`flowchart TB
-  subgraph desktop["3-column desktop layout"]
-    Nav["280px sidebar\nCategories & RSS"]
-    Main["Main content"]
-    Widgets["320px widgets\nTrending & popular"]
-  end
-  Nav --- Main
-  Main --- Widgets`}
-</Mermaid>
+| Piece | Status |
+|-------|--------|
+| `lib/database/schema/news-collaboration.sql` | Conceptual schema notes |
+| `GET/POST /api/news/[id]/collaborators` | **501** stub |
+| `GET/POST /api/news/collaboration/invite/[token]` | **501** stub |
+| Roles `owner\|admin\|editor\|reviewer\|viewer` | Types only (Zemna Phase 4 map) |
 
-**Desktop**: Full 3-column layout with fixed sidebars
-**Tablet**: Content fills remaining width, sidebars hidden
-**Mobile**: Single column, stacked layout
+### CRDT collab (gated, not wired into NewsEditor)
 
-### Homepage Features
+`features/news/lib/news-collab-gate.ts` + existing `hooks/use-collaboration.ts` / Tunnel Yjs provider. Channel convention: `collab:news:{articleId}`. Requires `NEXT_PUBLIC_COLLAB_ENABLED=true` and native WSS — TipTap Collaboration extensions not mounted on news yet. See [Real Time](/docs/architecture/real-time).
 
-#### Featured Articles Carousel
+### Core news service (unchanged kingdom)
 
-- **Auto-playing slideshow** with touch/swipe support
-- **Hero layout** with large featured images
-- **Category badges** and metadata overlays
-- **Call-to-action buttons** for reading
-- **Progress indicators** and manual controls
+`features/news/services/news-service.ts` — `createNewsArticle`, `updateNewsArticle`, `getMyArticles`, `getUserArticleStats`, `recordArticlePageView`, etc. Promotion and Telegram flows: [News Kingdom](/docs/architecture/news-kingdom).
 
-#### Trending & Popular Widgets
+</Audience>
 
-- **Real-time article views** and engagement metrics
-- **Popular categories** with article counts
-- **Newsletter signup** integration
-- **RSS feed links** for content syndication
+## Related reading
 
-### Article Detail Pages
+- [Member blogs](/docs/features/member-blog)
+- [News Kingdom architecture](/docs/architecture/news-kingdom)
+- [Generative newsroom](/docs/development/generative-newsroom)
+- [Scientific Editor](/docs/features/scientific-editor) (publications TipTap — not news)
+- [Real Time](/docs/architecture/real-time) (Tunnel / future CRDT)
 
-#### Professional Typography
-
-- **Serif fonts** for article body text
-- **Optimized line height** and spacing
-- **Print-friendly CSS** for offline reading
-- **Responsive text sizing** across devices
-
-#### Reading Experience Features
-
-- **Reading time estimation** based on word count
-- **Table of contents** with smooth scrolling
-- **Social sharing buttons** (Twitter, Facebook, LinkedIn, Telegram)
-- **Copy link functionality** for easy sharing
-
-#### Author Bio Cards
-
-- **Professional author profiles** with avatars
-- **Bio descriptions** and social media links
-- **Article statistics** (total published, views, likes)
-- **Author verification** badges
-
-#### Related Articles
-
-- **Smart recommendations** based on category and tags
-- **Engagement metrics** for each related article
-- **Quick navigation** to similar content
-
-## 🛠️ Services & APIs
-
-### Core Services
-
-#### NewsService (`features/news/services/news-service.ts`)
-
-**Article CRUD Operations:**
-```typescript
-// Create article (MEMBER+ roles only)
-createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult>
-
-// Update article (author or admin only)
-updateNewsArticle(articleId: string, formData: NewsFormData): Promise<UpdateNewsResult>
-
-// Delete article (author or admin only)
-deleteNewsArticle(articleId: string): Promise<DeleteResult>
-```
-
-**Query Operations:**
-```typescript
-// Get articles with filters (cached)
-getNewsArticles(filters: NewsFilters): Promise<NewsArticlesResult>
-
-// Get author's articles
-getMyArticles(authorId: string, filters?: NewsFilters): Promise<MyArticlesResult>
-
-// Get author statistics
-getUserArticleStats(authorId: string): Promise<StatsResult>
-```
-
-#### Reading Time Calculator (`features/news/utils/reading-time.ts`)
-
-```typescript
-// Calculate reading time with image adjustments
-calculateReadingTimeWithImages(htmlContent: string): {
-  minutes: number
-  text: string
-}
-```
-
-### API Routes
-
-#### Public APIs
-
-**Article Queries:**
-```
-GET /api/news?category=platform-updates&status=published&limit=10
-```
-
-**Category-specific:**
-```
-GET /api/news/category/platform-updates
-```
-
-**RSS Feeds:**
-```
-GET /api/news/rss
-GET /api/news/rss?category=platform-updates
-```
-
-#### Admin APIs
-
-**Article Management:**
-```
-POST /api/admin/news          # Create article
-PUT /api/admin/news/[id]      # Update article
-DELETE /api/admin/news/[id]   # Delete article
-```
-
-### Components
-
-#### Display Components
-
-- **FeaturedCarousel**: Hero slideshow component
-- **AuthorBioCard**: Professional author profiles
-- **SocialShare**: Multi-platform sharing buttons
-- **TableOfContents**: Auto-generated navigation
-- **NewsCard**: Article preview cards
-- **NewsList**: Paginated article listings
-
-#### Form Components
-
-- **ArticleEditor**: Rich text editor with TinyMCE
-- **AdminNewsManager**: Bulk article management
-- **CategoriesManager**: Category administration
-
-## 🌍 Multilingual Support
-
-### i18n Architecture
-
-The News module supports full internationalization:
-
-- **URL-based locale routing**: `/en/news/`, `/uk/news/`, `/ru/news/`
-- **Translated UI elements**: All interface text localized
-- **Category translations**: Category names in all supported languages
-- **Content metadata**: SEO titles and descriptions localized
-
-### Translation Files Structure
-
-```
-locales/
-├── en/modules/news.json
-├── uk/modules/news.json
-└── ru/modules/news.json
-```
-
-### Future: Article Translation Groups
-
-The schema supports future article translation features:
-
-```typescript
-// Translation group linking
-translationGroupId: "group-uuid"
-availableTranslations: ["en", "uk", "ru"]
-locale: "en" // Current article locale
-```
-
-<FutureFeatureBacklog title="Backlog — news & editorial">
+<FutureFeatureBacklog title="Backlog — news collaboration">
 <FutureFeatureWidget
-  name="Multi-locale article translation groups"
-  description="Auto-link translated articles into translation groups with canonical URL detection — readers see locale-switching UI while search engines index per-locale pages."
+  name="Email invite + collaborator ACL UI"
+  description="Ship invite accept flow for news_collaborators / news_collaboration_invites (APIs currently return 501). Owner/admin assign editor/reviewer roles on an article."
+  implementationCost={64}
+  labels={['news', 'acl', 'collaboration']}
+/>
+<FutureFeatureWidget
+  name="TipTap CRDT collab on news articles"
+  description="Mount @tiptap/extension-collaboration + CollaborationCaret on TipTapNewsEditor using YjsTunnelProvider and channel collab:news:{articleId}, with Postgres yjs_state snapshots."
+  implementationCost={80}
+  labels={['news', 'crdt', 'tunnel']}
+/>
+<FutureFeatureWidget
+  name="Per-hunk selective accept"
+  description="Author accepts individual diff hunks via buildPatchedCode selected line ids instead of full proposedContent replace."
+  implementationCost={32}
+  labels={['news', 'revisions']}
+/>
+<FutureFeatureWidget
+  name="Multi-locale article translation groups UI"
+  description="Locale-switching UI for translationGroupId / availableTranslations already on the schema — readers jump between linked locale copies."
   implementationCost={56}
   labels={['news', 'i18n', 'seo']}
 />
-<FutureFeatureWidget
-  name="Editorial review queue"
-  description="Optional review step between draft and publish — editors approve, request changes, or reject with inline notes. Replaces the current single-author publish flow for newsroom teams."
-  implementationCost={72}
-  labels={['news', 'workflow', 'editorial']}
-/>
-<FutureFeatureWidget
-  name="AI-generated article summaries + TTS"
-  description="Auto-generate TL;DR summaries and text-to-speech audio for each article via NewsConductor — increases accessibility and time-on-page for mobile readers."
-  implementationCost={40}
-  labels={['news', 'ai', 'accessibility']}
-/>
 </FutureFeatureBacklog>
 
-## 📊 Analytics & Metrics
-
-### Article Performance
-
-- **View tracking** with unique visitor counting
-- **Engagement metrics** (likes, comments, shares)
-- **Reading time analytics** for content optimization
-- **Category popularity** trends
-
-### Author Dashboard
-
-- **Personal article statistics** (views, likes, comments)
-- **Publishing activity** timeline
-- **Audience engagement** insights
-- **Content performance** comparisons
-
-### Admin Analytics
-
-- **Site-wide content metrics** overview
-- **Author productivity** tracking
-- **Category performance** analysis
-- **SEO performance** monitoring
-
-## 🔒 Security & Permissions
-
-### Content Security
-
-- **XSS protection** through proper HTML sanitization
-- **CSRF protection** on all forms
-- **Rate limiting** on API endpoints
-- **Input validation** for all user content
-
-### Access Control
-
-- **Role-based permissions** for all operations
-- **Author ownership** verification
-- **Content visibility** levels (public, subscriber, member, confidential)
-- **Admin override** capabilities
-
-## 🚀 Performance Optimization
-
-### Caching Strategy
-
-- **React 19 cache()** for read operations
-- **Database query caching** for popular articles
-- **Static generation** for category pages
-- **CDN optimization** for images and assets
-
-### Database Performance
-
-- **GIN indexes** on JSONB fields for fast queries
-- **Composite indexes** for common filter combinations
-- **Query optimization** for large article datasets
-- **Connection pooling** for high-traffic scenarios
-
-## 📡 Content Distribution
-
-### RSS Feeds
-
-- **Category-specific feeds**: `/api/news/rss?category=platform-updates`
-- **Full content feeds**: `/api/news/rss` (all articles)
-- **Auto-discovery** meta tags in HTML
-- **Standard RSS 2.0** format compliance
-
-### Social Sharing
-
-- **OpenGraph meta tags** for rich previews
-- **Twitter Card support** for enhanced sharing
-- **LinkedIn optimization** for professional networking
-- **Telegram integration** for community sharing
-
-## 🔧 Administration
-
-### Admin Dashboard
-
-- **Bulk operations** for multiple articles
-- **Category management** with custom colors and icons
-- **User role management** for authors and editors
-- **Content moderation** tools
-
-### Content Workflow
-
-1. **Draft Creation**: Authors create content in draft mode
-2. **Review Process**: Optional editorial review (future feature)
-3. **Publishing**: Set publish date and visibility
-4. **Post-Publication**: Analytics and engagement tracking
-
-## 📚 API Reference
-
-### NewsService Methods
-
-```typescript
-interface NewsService {
-  // Article management
-  createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult>
-  updateNewsArticle(id: string, formData: NewsFormData): Promise<UpdateNewsResult>
-  deleteNewsArticle(id: string): Promise<DeleteResult>
-
-  // Query operations
-  getNewsArticles(filters?: NewsFilters): Promise<NewsArticlesResult>
-  getMyArticles(authorId: string, filters?: NewsFilters): Promise<MyArticlesResult>
-  getUserArticleStats(authorId: string): Promise<StatsResult>
-}
-```
-
-### Component Props
-
-```typescript
-interface NewsListProps {
-  initialArticles?: NewsArticle[]
-  categories?: NewsCategoryInfo[]
-  showFilters?: boolean
-  showSearch?: boolean
-  limit?: number
-  locale?: string
-}
-
-interface ArticleEditorProps {
-  mode: 'create' | 'edit'
-  article?: NewsArticle
-  locale: string
-  translations: any
-}
-```
-
-## 🎯 Use Cases
-
-### Community Publishing
-
-- **Member-generated content** for community engagement
-- **Educational tutorials** and how-to guides
-- **Event announcements** and community updates
-- **Success stories** and testimonials
-
-### Corporate Communications
-
-- **Product announcements** and feature releases
-- **Industry insights** and thought leadership
-- **Press releases** and media communications
-- **Executive communications** and company updates
-
-### Educational Platforms
-
-- **Course content** and learning materials
-- **Research publications** and white papers
-- **Student showcases** and project highlights
-- **Academic announcements** and events
-
-## 🔮 Future Enhancements
-
-### Editorial Workflow
-
-- **Review queue** for article submissions
-- **Editorial assignments** and approval workflows
-- **Content scheduling** with automated publishing
-- **Revision history** and rollback capabilities
-
-### Advanced Features
-
-- **Article translation** system with AI assistance
-- **Content recommendations** using machine learning
-- **Newsletter integration** with automated distribution
-- **Paywall functionality** for premium content
-
-### Analytics Enhancements
-
-- **Advanced metrics** (time on page, scroll depth)
-- **A/B testing** for headlines and content
-- **SEO optimization** suggestions
-- **Audience segmentation** and targeting
-
----
-
-## 🎖️ Implementation Excellence
-
-This News module represents the pinnacle of modern content management, combining:
-
-- **Production architecture** with React 19 and Next.js 16
-- **Enterprise-grade performance** with DatabaseService
-- **Professional publishing experience** rivaling major platforms
-- **Complete multilingual support** for global audiences
-- **Scalable content distribution** with RSS and social sharing
-
-The module transforms Ring Platform into a comprehensive content management powerhouse, enabling communities to create, manage, and distribute high-quality content at scale.
-
-<Callout type="tip" title="Production ready">
-News Kingdom migrations, promotion workflow, and member blogs are deployed on production Ring clones. Run `002` and `003` news migrations before enabling promotion features.
+<Callout type="success" title="Production note">
+News Kingdom migrations (`002` / `003`) and promotion remain required for paid main-page flows. TipTap + pending-revision ship on the news feature surface without changing `NewsStatus` (`draft | published | archived | deleted`).
 </Callout>

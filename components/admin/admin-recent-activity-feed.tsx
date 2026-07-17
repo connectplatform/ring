@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle,
+  Coins,
   CreditCard,
   Shield,
   Users,
@@ -25,6 +26,8 @@ function iconFor(item: AdminActivityItem) {
       return Shield
     case 'payments':
       return CreditCard
+    case 'rewards':
+      return Coins
     default:
       return item.type.includes('fail') ? AlertTriangle : CheckCircle
   }
@@ -65,6 +68,7 @@ export function AdminRecentActivityFeed({
     { value: 'new_user', label: t('activityFilterNewUser') },
     { value: 'verification', label: t('activityFilterVerification') },
     { value: 'payments', label: t('activityFilterPayments') },
+    { value: 'rewards', label: t('activityFilterRewards') },
   ]
 
   useEffect(() => {
@@ -105,7 +109,7 @@ export function AdminRecentActivityFeed({
           onValueChange={(v) => setFilter(v as AdminActivityFilter)}
           className="mt-2"
         >
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
             {filterTabs.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value} className="text-xs">
                 {tab.label}

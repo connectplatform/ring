@@ -10,6 +10,8 @@ export type WalletTransactionKind =
   | 'desk_sell'
   | 'airdrop_verify'
   | 'airdrop_username'
+  | 'payment_request_sent'
+  | 'payment_request_received'
   | string
 
 export type WalletTransactionRow = {
@@ -17,15 +19,33 @@ export type WalletTransactionRow = {
   kind: WalletTransactionKind
   userId: string
   txHash?: string
-  fromAddress?: string
-  toAddress?: string
+  /** Raw integer amount in token smallest units (on-chain) */
+  amountRaw?: string | null
   amount?: string
   tokenSymbol?: string
   chain?: string
+  mint?: string | null
   notes?: string | null
   contactUserId?: string | null
+  /** Human label for recipient (saved at send time for history i18n) */
+  contactDisplayName?: string | null
+  /** Username for public profile link */
+  contactUsername?: string | null
   deskOrderId?: string | null
   createdAt?: string
+  /** On-chain confirmation status — also used for payment_request_* lifecycle */
+  status?: 'confirmed' | 'finalized' | 'failed' | 'unknown' | 'pending' | 'paid' | 'cancelled' | string | null
+  slot?: number | null
+  blockTime?: number | null
+  feeLamports?: number | null
+  explorerUrl?: string | null
+  err?: string | null
+  /** JSON-safe RPC snapshot for detail modal */
+  onChainSnapshot?: Record<string, unknown> | null
+  fromAddress?: string
+  toAddress?: string
+  /** Extensible payload (payment request linkage, etc.) */
+  metadata?: Record<string, unknown> | null
 }
 
 type DocRow = WalletTransactionRow & Record<string, unknown> & { id: string }
@@ -84,4 +104,38 @@ export async function createWalletTransaction(
   }
 
   return docId
+}
+
+/**
+ * Patch an existing wallet_transactions doc by id (no ownership check — caller must authorize).
+ */
+export async function updateWalletTransaction(
+  transactionId: string,
+  patch: Partial<WalletTransactionRow>,
+): Promise<void> {
+  const result = await db().updateDoc('wallet_transactions', transactionId, patch)
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to update wallet transaction')
+  }
+}
+
+/**
+ * Fetch a single wallet_transactions doc by id (owner-scoped).
+ */
+export async function getWalletTransactionById(
+  userId: string,
+  transactionId: string,
+): Promise<(WalletTransactionRow & { id: string }) | null> {
+  const result = await db().findDocById<DocRow>('wallet_transactions', transactionId)
+  if (!result.success || !result.data) return null
+  if (result.data.userId !== userId) return null
+  return result.data
+}
+
+/** Deterministic ledger ids for a payment-request message. */
+export function paymentRequestLedgerIds(messageId: string) {
+  return {
+    sentId: `payment_request_sent_${messageId}`,
+    receivedId: `payment_request_received_${messageId}`,
+  }
 }

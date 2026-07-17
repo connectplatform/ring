@@ -234,6 +234,7 @@
   "emailContacts": "Контакти",
   "emailAnalytics": "Аналітика email",
   "emailTasks": "Завдання email",
+  "crmOrders": "Кастомні замовлення",
   "bulkImport": "Масовий імпорт",
   "exportData": "Експорт даних",
   "userReports": "Звіти користувачів",
@@ -764,6 +765,12 @@
     "mint": "Mint",
     "burnTokens": "Burn токенів",
     "burn": "Burn"
+  },
+  "rewards": "Винагороди",
+  "activityFilterRewards": "Винагороди",
+  "rewardMonitoring": {
+    "title": "Моніторинг винагород",
+    "subtitle": "Відстежуйте кредитні винагороди, обсяг mint і стан доставки."
   },
   "moderationTabReports": "Скарги користувачів"
 }

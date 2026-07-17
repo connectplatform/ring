@@ -1,0 +1,174 @@
+{
+  "title": "Suscripción empresarial",
+  "manageSubscription": "Administrar suscripción",
+  "upgradeSubscription": "Mejora",
+  "cancelSubscription": "Cancelar suscripción",
+  "renewSubscription": "Ampliar suscripción",
+  "noSubscription": "Sin suscripción activa",
+  "plans": {
+    "title": "Planes de suscripción",
+    "basic": "base",
+    "premium": "De primera calidad",
+    "enterprise": "Empresa",
+    "selectPlan": "Elige plan",
+    "currentPlan": "Plan actual",
+    "recommendedPlan": "Recomendado",
+    "mostPopular": "mas popular"
+  },
+  "pricing": {
+    "listingFee": "Tarifa de cotización única",
+    "monthlySubscription": "Suscripción mensual",
+    "perMonth": "/Mes",
+    "perYear": "/Año",
+    "billingPeriod": "período de facturación",
+    "monthly": "Mensual",
+    "yearly": "Anualmente (ahorre 20%)",
+    "savePercent": "Ahorre {{percent}} %",
+    "total": "En total",
+    "subtotal": "Total parcial",
+    "tax": "Impuesto",
+    "discount": "Descuento"
+  },
+  "features": {
+    "title": "Servicios",
+    "mapVisibility": "Visibilidad en el mapa",
+    "unlimitedPhotos": "Fotos ilimitadas",
+    "prioritySupport": "Apoyo prioritario",
+    "analyticsAccess": "Acceso a análisis",
+    "vendorAccount": "cuenta de vendedor",
+    "featuredListing": "Listado destacado",
+    "customBranding": "Marca propia",
+    "apiAccess": "Acceso API",
+    "includedFeatures": "Servicios incluidos",
+    "additionalFeatures": "Servicios adicionales"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "gracePeriod": "periodo de gracia",
+    "pastDue": "Atrasado",
+    "canceled": "Abandonar",
+    "suspended": "Obstruido",
+    "trial": "Fase de prueba",
+    "pending": "Pago pendiente"
+  },
+  "billing": {
+    "title": "Información de facturación",
+    "paymentMethod": "Medios de pago",
+    "addPaymentMethod": "Agregar método de pago",
+    "updatePaymentMethod": "Actualizar métodos de pago",
+    "billingHistory": "Historial de facturación",
+    "invoices": "Facturas",
+    "nextBillingDate": "Próximo débito",
+    "lastPayment": "pago final",
+    "cardEnding": "Mapa que termina en {{last4}}",
+    "expires": "Válido hasta el {{date}}",
+    "downloadInvoice": "Descargar factura"
+  },
+  "payment": {
+    "title": "pago",
+    "cardNumber": "Número de tarjeta",
+    "expiryDate": "Fecha de caducidad",
+    "cvv": "CVV",
+    "cardholderName": "titular de la tarjeta",
+    "billingAddress": "Dirección de Envio",
+    "payNow": "Paga ahora",
+    "payWithCard": "pagar con tarjeta",
+    "payWithApplePay": "Pagar con Apple Pay",
+    "payWithGooglePay": "Pagar con Google Pay",
+    "securePayment": "Pago seguro",
+    "poweredByStripe": "Desarrollado por Stripe"
+  },
+  "visibility": {
+    "title": "Visibilidad del mapa",
+    "enabled": "Tu ubicación es visible en el mapa.",
+    "disabled": "Tu ubicación está oculta en el mapa.",
+    "requiresSubscription": "Se requiere suscripción activa para la visibilidad del mapa",
+    "gracePeriodWarning": "El pago falló. Tienes {{days}} días para actualizar el método de pago antes de que se oculte la ubicación.",
+    "suspendedWarning": "Tu ubicación está actualmente oculta. Renovar la suscripción para restaurar la visibilidad."
+  },
+  "actions": {
+    "subscribe": "Suscríbete ahora",
+    "updatePlan": "Cambiar de plan",
+    "cancelPlan": "Cancelar plan",
+    "reactivate": "Reactivar suscripción",
+    "pauseSubscription": "Pausar suscripción",
+    "resumeSubscription": "Continuar suscripción",
+    "confirmCancellation": "¿Realmente cancelar tu suscripción? Tu ubicación quedará oculta en el mapa.",
+    "confirmUpgrade": "¿Actualizar a {{plan}} por {{price}}/mes?",
+    "confirmDowngrade": "¿Bajar de categoría a {{plan}}? Algunas funciones estarán deshabilitadas."
+  },
+  "grace_period": {
+    "title": "Pago fallido – período de gracia",
+    "description": "El pago falló. Tienes {{days}} días de gracia para actualizar el método de pago.",
+    "daysRemaining": "{{days}} días más",
+    "updatePayment": "Actualizar métodos de pago",
+    "contactSupport": "Contactar con soporte"
+  },
+  "cancellation": {
+    "title": "Cancelar suscripción",
+    "confirmTitle": "¿De verdad renunciar?",
+    "confirmMessage": "La suscripción finaliza y tu ubicación quedará oculta en el mapa. Puedes reactivarlo más tarde.",
+    "reasonTitle": "Ayúdanos a mejorar (opcional)",
+    "reasonPlaceholder": "¿Por qué estás renunciando?",
+    "reasons": {
+      "tooExpensive": "Demasiado caro",
+      "notEnoughCustomers": "Muy pocos clientes",
+      "technicalIssues": "Problemas técnicos",
+      "seasonalBusiness": "Negocio estacional",
+      "movingLocation": "Cambio de ubicación",
+      "other": "Otra razón"
+    },
+    "keepSubscription": "Mantener suscripción",
+    "confirmCancel": "Sí, cancela tu suscripción"
+  },
+  "renewal": {
+    "title": "Ampliar suscripción",
+    "automaticRenewal": "Renovación automática",
+    "enabled": "A",
+    "disabled": "Fuera de",
+    "nextRenewalDate": "Próxima extensión el {{date}}",
+    "renewNow": "Ampliar ahora",
+    "enableAutoRenewal": "Habilitar la renovación automática",
+    "disableAutoRenewal": "Desactivar la renovación automática"
+  },
+  "validation": {
+    "cardNumberInvalid": "Número de tarjeta no válido",
+    "expiryDateInvalid": "Fecha de vencimiento no válida",
+    "cvvInvalid": "CVV no válido",
+    "cardholderNameRequired": "Se requiere el nombre del titular de la tarjeta",
+    "paymentMethodRequired": "Pago requerido"
+  },
+  "success": {
+    "subscribed": "Suscripción activada.",
+    "updated": "Suscripción actualizada.",
+    "canceled": "Suscripción cancelada",
+    "renewed": "Suscripción extendida.",
+    "paymentUpdated": "Métodos de pago actualizados.",
+    "paymentReceived": "Pago recibido. ¡Gracias!"
+  },
+  "errors": {
+    "paymentFailed": "El pago falló. Consultar medios de pago.",
+    "cardDeclined": "Tarjeta rechazada. Elija otro método de pago.",
+    "insufficientFunds": "Fondos insuficientes. Elija otro método de pago.",
+    "subscriptionFailed": "No se pudo activar la suscripción.",
+    "updateFailed": "La suscripción no se pudo actualizar.",
+    "cancelFailed": "La cancelación falló. Por favor contacte al soporte.",
+    "networkError": "Error de red. Verifique la conexión y vuelva a intentarlo."
+  },
+  "notifications": {
+    "paymentSuccess": "Pago exitoso. Tu suscripción está activa.",
+    "paymentFailed": "El pago falló. Actualice el método de pago.",
+    "subscriptionExpiring": "Tu suscripción finaliza en {{days}} días.",
+    "gracePeriodStarted": "El pago falló. Tienes {{days}} días para corregir.",
+    "subscriptionCanceled": "Su suscripción ha sido cancelada.",
+    "subscriptionReactivated": "Su suscripción ha sido reactivada."
+  },
+  "help": {
+    "title": "¿Necesitas ayuda?",
+    "contactSupport": "Contactar con soporte",
+    "viewFaq": "Ver preguntas frecuentes",
+    "billingQuestions": "Preguntas sobre facturación",
+    "technicalSupport": "Apoyo técnico"
+  }
+}

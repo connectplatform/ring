@@ -30,6 +30,11 @@ const VendorCTACard = dynamic(
   () => import('@/components/vendor/vendor-cta-card'),
   { ssr: false }
 )
+const StoreShareEarnCard = dynamic(
+  () =>
+    import('@/components/store/store-share-earn-card').then((m) => m.StoreShareEarnCard),
+  { ssr: false }
+)
 
 // ----------- Storage Constants -----------
 // TODO: After planned @store-page-client upgrade, storage scheme may need namespacing per user/session
@@ -171,7 +176,8 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
         catalogPriceBounds={catalogPriceBounds}
         // TODO: store-page-client might require context or additional props in future upgrade
       />
-      <div className="mt-6">
+      <div className="mt-6 space-y-4">
+        <StoreShareEarnCard />
         <VendorCTACard />
       </div>
     </>
@@ -198,6 +204,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
       rightRailPurpose="store"
       rightRailContent={[
         { blockType: 'store-filters' },
+        { blockType: 'share-earn' },
         { blockType: 'vendor-cta' },
       ]}
       rightRail={filtersRail}

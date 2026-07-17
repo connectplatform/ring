@@ -59,6 +59,14 @@ export interface StorePaymentRequest {
 export interface StorePaymentResponse {
   success: boolean;
   paymentUrl?: string;
+  /** Conductor-shaped redirect (preferred). */
+  redirect?: {
+    mode: 'navigate' | 'form_post';
+    url: string;
+    fields?: Record<string, string | string[]>;
+  };
+  /** @deprecated Prefer redirect.fields */
+  paymentFields?: Record<string, string | string[]>;
   wayforpayOrderId?: string;
   error?: string;
 }
@@ -357,19 +365,34 @@ export async function initiateStorePayment(request: StorePaymentRequest): Promis
     paymentData.productName.forEach(name => formData.append('productName[]', name));
     paymentData.productCount.forEach(count => formData.append('productCount[]', count.toString()));
     paymentData.productPrice.forEach(price => formData.append('productPrice[]', price.toString()));
-    
-    // For mobile/API integration, we need to get the payment URL
-    // WayForPay doesn't provide a direct API for this, so we'll return the checkout URL with form data
-    const paymentUrl = `${WAYFORPAY_CHECKOUT_URL}?${formData.toString()}`;
-    
-    logger.info('WayForPay Store: Payment URL generated successfully', {
+
+    // HPP requires POST form — return fields for client submit (never GET query).
+    const paymentFields: Record<string, string | string[]> = {};
+    formData.forEach((value, key) => {
+      const existing = paymentFields[key];
+      if (existing === undefined) {
+        paymentFields[key] = value;
+      } else if (Array.isArray(existing)) {
+        existing.push(value);
+      } else {
+        paymentFields[key] = [existing, value];
+      }
+    });
+
+    logger.info('WayForPay Store: Payment HPP fields generated successfully', {
       orderReference,
       orderId: request.orderId
     });
-    
+
     return {
       success: true,
-      paymentUrl,
+      paymentUrl: WAYFORPAY_CHECKOUT_URL,
+      paymentFields,
+      redirect: {
+        mode: 'form_post',
+        url: WAYFORPAY_CHECKOUT_URL,
+        fields: paymentFields,
+      },
       wayforpayOrderId: orderReference
     };
     

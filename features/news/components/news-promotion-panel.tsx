@@ -28,8 +28,13 @@ export function NewsPromotionPanel({ article }: NewsPromotionPanelProps) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Submit failed')
-      if (json.paymentUrl) {
-        window.location.href = json.paymentUrl
+      if (json.redirect || json.paymentUrl || json.paymentFields) {
+        const { followCheckoutResult } = await import('@/lib/payments/checkout-redirect')
+        followCheckoutResult({
+          redirect: json.redirect,
+          paymentUrl: json.paymentUrl,
+          paymentFields: json.paymentFields,
+        })
         return
       }
       window.location.reload()

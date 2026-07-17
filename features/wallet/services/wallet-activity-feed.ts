@@ -1,13 +1,21 @@
 import 'server-only' // This ensures the file runs only on the server (Next.js specific directive).
 
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
-import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { listWalletTransactionsByUser } from '@/lib/wallet/wallet-transaction-db'
 import type { CreditTransaction } from '@/lib/zod/credit-schemas'
 
 // Defines the possible sources for wallet activity.
 export type WalletActivitySource = 'credit' | 'chain'
+
+export type WalletActivityFeedFilter =
+  | 'all'
+  | 'credit'
+  | 'chain'
+  | 'incoming'
+  | 'outgoing'
+  | 'requests'
 
 // Strongly-typed rows for wallet activity feed; new activities (credit or chain) must fit this shape.
 export type WalletActivityRow = {
@@ -32,6 +40,23 @@ const CREDIT_DEBIT_TYPES = new Set([
   'desk_buy',
 ])
 
+/** Credit legs of token-desk that belong with a wallet-scoped chain settlement */
+const DESK_CREDIT_KINDS = new Set(['desk_buy', 'desk_sell', 'desk_refund'])
+
+const POISONED_TOKEN_SYMBOLS = new Set([
+  'solana',
+  'evm',
+  'base',
+  'ethereum',
+  'polygon',
+  'pol',
+])
+
+const PAYMENT_REQUEST_KINDS = new Set([
+  'payment_request_sent',
+  'payment_request_received',
+])
+
 /**
  * Determines direction ('in'/'out') for a credit transaction, based on its type.
  * Out if the type is one of CREDIT_DEBIT_TYPES, otherwise In.
@@ -42,103 +67,187 @@ function creditDirection(tx: CreditTransaction): 'in' | 'out' {
 
 /**
  * Determines the direction for chain transaction by kind.
- * Could be improved to cover more types explicitly.
+ * Kind SSOT: wallet_transactions.kind uses `nativetoken_send` / `nativetoken_receive`
+ * (also accept legacy snake forms for older rows).
  */
 function chainDirection(kind: string): 'in' | 'out' {
-  if (kind === 'native_token_send' || kind === 'desk_sell') return 'out'
-  if (kind === 'desk_buy' || kind === 'native_token_receive') return 'in'
-  return 'in' // Default to 'in' if unknown, but TODO: Consider explicit error/log for unknown kinds.
+  if (
+    kind === 'nativetoken_send' ||
+    kind === 'native_token_send' ||
+    kind === 'desk_sell' ||
+    kind === 'payment_request_sent'
+  ) {
+    return 'out'
+  }
+  if (
+    kind === 'nativetoken_receive' ||
+    kind === 'native_token_receive' ||
+    kind === 'desk_buy' ||
+    kind === 'payment_request_received'
+  ) {
+    return 'in'
+  }
+  return 'in'
+}
+
+/** Sanitize ledger tokenSymbol pollution (chain ids / placeholder strings). */
+function resolveChainCurrency(stored: string | undefined | null, fallback: string): string {
+  if (!stored) return fallback
+  if (stored.startsWith('Undefined')) return fallback
+  if (POISONED_TOKEN_SYMBOLS.has(stored.toLowerCase())) return fallback
+  return stored
+}
+
+function deskOrderIdFromCredit(tx: CreditTransaction): string | null {
+  const meta = tx.metadata
+  if (!meta || typeof meta !== 'object') return null
+  const id = (meta as Record<string, unknown>).desk_order_id
+  return typeof id === 'string' && id ? id : null
+}
+
+function matchesFeedFilter(row: WalletActivityRow, filter: WalletActivityFeedFilter): boolean {
+  if (filter === 'all' || filter === 'credit' || filter === 'chain') return true
+  if (filter === 'incoming') return row.direction === 'in'
+  if (filter === 'outgoing') return row.direction === 'out'
+  if (filter === 'requests') return PAYMENT_REQUEST_KINDS.has(row.kind)
+  return true
 }
 
 /**
  * Fetches and returns a unified wallet activity feed for a user, combining
  * both credit and/or chain activities, with efficient sorting and limiting.
- * 
- * @param userId - The user's ID to query history for
- * @param options - Filter, limit, and/or wallet address for narrowing results
- * @returns a promise of an array of normalized wallet activities (rows)
  */
 export async function getWalletActivityFeed(
   userId: string,
   options?: {
-    filter?: 'all' | 'credit' | 'chain'
+    filter?: WalletActivityFeedFilter
     limit?: number
     walletAddress?: string
   },
 ): Promise<WalletActivityRow[]> {
-  // Extract fetch options, providing sensible defaults
   const filter = options?.filter ?? 'all'
   const limit = options?.limit ?? 50
+  const walletAddress = options?.walletAddress?.toLowerCase()
 
-  // Get default fiat and native token symbols (could be improved/cached) 
-  const fiatCurrency = getDefaultStoreCurrencySymbol()
+  const creditUnit = getClientCreditUnitLabel()
   const tokenSymbol = getNativeTokenSymbol()
 
-  // Result array to collect unified, normalized wallet activities
   const rows: WalletActivityRow[] = []
 
-  // Handle credit transactions if needed
-  if (filter === 'all' || filter === 'credit') {
-    // Get the user's credit history with optional limiting
+  // Directional / requests filters still need both sources, then post-filter.
+  const needsBoth =
+    filter === 'all' ||
+    filter === 'incoming' ||
+    filter === 'outgoing' ||
+    filter === 'requests' ||
+    Boolean(walletAddress)
+
+  const includeCredit =
+    needsBoth || filter === 'credit'
+  const includeChain =
+    needsBoth || filter === 'chain' || filter === 'requests'
+
+  let chainTxsForScope = includeChain
+    ? await listWalletTransactionsByUser(userId, {
+        limit: walletAddress || filter === 'requests' ? Math.max(limit * 3, 50) : limit,
+      })
+    : []
+
+  if (walletAddress) {
+    chainTxsForScope = chainTxsForScope.filter(
+      (tx) =>
+        tx.fromAddress?.toLowerCase() === walletAddress ||
+        tx.toAddress?.toLowerCase() === walletAddress ||
+        PAYMENT_REQUEST_KINDS.has(tx.kind),
+    )
+  }
+
+  const deskOrderIdsForWallet = new Set(
+    chainTxsForScope
+      .map((tx) => tx.deskOrderId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  )
+
+  if (includeCredit && filter !== 'requests') {
     const history = await creditBalanceService.getCreditHistory(userId, { limit })
-    // Map each credit transaction to a standardized WalletActivityRow
     for (const tx of history.transactions) {
+      if (walletAddress) {
+        if (!DESK_CREDIT_KINDS.has(tx.type)) continue
+        const orderId = deskOrderIdFromCredit(tx)
+        if (!orderId || !deskOrderIdsForWallet.has(orderId)) continue
+      }
+
       rows.push({
         id: `credit:${tx.id}`,
         source: 'credit',
         kind: tx.type,
         amount: tx.amount,
-        currency: fiatCurrency,
+        currency: creditUnit,
         direction: creditDirection(tx),
-        createdAt: new Date(tx.timestamp).toISOString(),
+        createdAt: new Date(tx.timestamp).getTime()
+          ? new Date(tx.timestamp).toISOString()
+          : new Date().toISOString(),
         description: tx.description,
-        metadata: tx.metadata,
-      })
-    }
-    // TODO: Use Promise.all if additional asynchronous enrichment is added per transaction.
-  }
-
-  // Handle chain transactions if needed
-  if (filter === 'all' || filter === 'chain') {
-    // Fetch all relevant chain transactions for the user
-    let chainTxs = await listWalletTransactionsByUser(userId, { limit })
-    // Optional: Filter by specific wallet address if present
-    if (options?.walletAddress) {
-      const addr = options.walletAddress.toLowerCase()
-      chainTxs = chainTxs.filter(
-        (tx) =>
-          tx.fromAddress?.toLowerCase() === addr || tx.toAddress?.toLowerCase() === addr,
-      )
-    }
-    // Map each chain transaction to the unified WalletActivityRow
-    for (const tx of chainTxs) {
-      rows.push({
-        // Each id is namespaced with `chain:` for deduplication and clarity
-        // If both tx.id and tx.txHash are missing, fall back to a random UUID (shouldn't happen in production)
-        id: `chain:${tx.id || tx.txHash || crypto.randomUUID()}`,
-        source: 'chain',
-        kind: tx.kind,
-        amount: tx.amount ?? '0', // Default zero if not present
-        currency: tx.tokenSymbol ?? tokenSymbol, // Default to main chain token symbol if missing
-        direction: chainDirection(tx.kind), // Compute the direction (in/out)
-        createdAt: tx.createdAt ?? new Date().toISOString(), // Set as now if missing, but consider better fallback
-        description: tx.notes ?? undefined,
-        txHash: tx.txHash,
         metadata: {
-          fromAddress: tx.fromAddress,
-          toAddress: tx.toAddress,
-          deskOrderId: tx.deskOrderId,
+          ...tx.metadata,
+          creditUnit,
+          tokenSymbol,
+          detailId: tx.id,
+          detailSource: 'credit',
         },
       })
     }
   }
 
-  // Sort all collected activities by creation date (most recent first)
-  // TODO: Use Array.prototype.toSorted (ES2023, supported in Node18+/Next16+) for immutable sorting.
-  rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  // Optionally, in Node18+/Next16+:
-  // const sortedRows = rows.toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  if (includeChain) {
+    for (const tx of chainTxsForScope) {
+      if (filter === 'requests' && !PAYMENT_REQUEST_KINDS.has(tx.kind)) continue
 
-  // Return the most recent [limit] items
-  return rows.slice(0, limit)
+      const currency = resolveChainCurrency(tx.tokenSymbol, tokenSymbol)
+      const docId = tx.id || tx.txHash
+      const requestStatus =
+        typeof tx.status === 'string' &&
+        (tx.status === 'pending' || tx.status === 'paid' || tx.status === 'cancelled')
+          ? tx.status
+          : undefined
+
+      rows.push({
+        id: `chain:${docId || crypto.randomUUID()}`,
+        source: 'chain',
+        kind: tx.kind,
+        amount: tx.amount ?? '0',
+        currency,
+        direction: chainDirection(tx.kind),
+        createdAt: tx.createdAt ?? new Date().toISOString(),
+        description: tx.notes ?? undefined,
+        txHash: tx.txHash,
+        metadata: {
+          ...(tx.metadata ?? {}),
+          fromAddress: tx.fromAddress,
+          toAddress: tx.toAddress,
+          deskOrderId: tx.deskOrderId,
+          contactUserId: tx.contactUserId,
+          contactDisplayName: tx.contactDisplayName,
+          contactUsername: tx.contactUsername,
+          counterparty_name: tx.contactDisplayName ?? undefined,
+          counterparty_username: tx.contactUsername ?? undefined,
+          tokenSymbol: currency,
+          detailId: docId,
+          detailSource: 'chain',
+          explorerUrl: tx.explorerUrl,
+          status: tx.status,
+          requestStatus,
+          slot: tx.slot,
+          blockTime: tx.blockTime,
+          feeLamports: tx.feeLamports,
+          amountRaw: tx.amountRaw,
+          chain: tx.chain,
+        },
+      })
+    }
+  }
+
+  const filtered = rows.filter((row) => matchesFeedFilter(row, filter))
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  return filtered.slice(0, limit)
 }

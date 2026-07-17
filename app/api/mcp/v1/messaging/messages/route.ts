@@ -1,13 +1,10 @@
-import { z } from 'zod'
 import { MessageService } from '@/features/chat/services/message-service'
+import { ConversationService } from '@/features/chat/services/conversation-service'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
-import { readJsonBody } from '@/app/api/mcp/v1/_lib/query'
+import { queryInt, queryString, readJsonBody } from '@/app/api/mcp/v1/_lib/query'
+import { z } from 'zod'
 
-// ---------------------------------------------------------------------------
-// Send-message schema — validates the required fields and typed attachments.
-// Attachment shape matches Omit<MessageAttachment, 'id'> from chat types.
-// ---------------------------------------------------------------------------
 const attachmentSchema = z.object({
   type: z.enum(['image', 'file', 'document']),
   url: z.string(),
@@ -27,9 +24,61 @@ const sendMessageSchema = z.object({
 }).passthrough()
 
 /**
- * POST handler for sending a new message in a conversation.
- * Uses withMcpGuard for authentication and authorization middleware.
- * Reads request body, validates with Zod, and delegates to MessageService.
+ * GET — list messages for a conversation (Reggie poller).
+ * Query: conversationId (required), since (ISO timestamp, optional), limit (default 50).
+ * Auth: RING_MCP_ACCESS_KEY via withMcpGuard.
+ */
+export const GET = withMcpGuard(async (request, actor) => {
+  const conversationId = queryString(request, 'conversationId')
+  if (!conversationId) {
+    return mcpError('conversationId query parameter is required', 400)
+  }
+
+  const limit = queryInt(request, 'limit', 50) || 50
+  const since = queryString(request, 'since')
+
+  const conversationService = new ConversationService()
+  const conversation = await conversationService.getConversationById(
+    conversationId,
+    actor.id,
+  ).catch(() => null)
+
+  // Allow override senderId as participant check — Reggie may poll as actor or as ring-reggie-agent
+  const asUser = queryString(request, 'asUserId') || actor.id
+  let allowed = false
+  if (conversation) {
+    allowed = conversation.participants.some(
+      (p) => p.userId === asUser || p.userId === actor.id,
+    )
+  }
+  if (!allowed) {
+    // Re-fetch without user gate if ConversationService requires membership
+    try {
+      const service = new MessageService()
+      const messages = await service.getMessages(conversationId, asUser, { limit })
+      const filtered = since
+        ? messages.filter((m) => new Date(m.timestamp).getTime() > new Date(since).getTime())
+        : messages
+      return mcpOk({ items: filtered, total: filtered.length, conversationId })
+    } catch {
+      return mcpError('Access denied to conversation or not found', 403)
+    }
+  }
+
+  const service = new MessageService()
+  try {
+    const messages = await service.getMessages(conversationId, asUser, { limit })
+    const filtered = since
+      ? messages.filter((m) => new Date(m.timestamp).getTime() > new Date(since).getTime())
+      : messages
+    return mcpOk({ items: filtered, total: filtered.length, conversationId })
+  } catch (error) {
+    return mcpError(error instanceof Error ? error.message : 'Failed to list messages', 500)
+  }
+})
+
+/**
+ * POST — send a message (existing). Supports senderId override for agents.
  */
 export const POST = withMcpGuard(async (request, actor) => {
   const body = await readJsonBody(request)

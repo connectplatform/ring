@@ -1,12 +1,28 @@
 import 'server-only'
 
 import { db } from '@/lib/database'
-import { RewardCreditAddEventConfigSchema, type RewardCreditAddEventConfig, type RewardCreditAddEventStatus } from '@/lib/zod/credit-reward-schemas'
+import {
+  RewardCreditAddEventConfigSchema,
+  type RewardCreditAddEventConfig,
+  type RewardCreditAddEventStatus,
+} from '@/lib/zod/credit-reward-schemas'
+
+function normalizeEventRow(row: Record<string, unknown>): Record<string, unknown> {
+  // queryDocs may return flat JSONB fields or nested data
+  const data =
+    row.data && typeof row.data === 'object' && !Array.isArray(row.data)
+      ? (row.data as Record<string, unknown>)
+      : row
+  return {
+    ...data,
+    id: String(row.id ?? data.id ?? ''),
+  }
+}
 
 export async function findRewardCreditAddEventByIdempotencyKey(
   idempotencyKey: string,
 ): Promise<RewardCreditAddEventConfig | null> {
-  const result = await db().queryDocs<RewardCreditAddEventConfig>({
+  const result = await db().queryDocs<Record<string, unknown>>({
     collection: 'credit_add_events',
     filters: [{ field: 'idempotency_key', operator: '==', value: idempotencyKey }],
     pagination: { limit: 1 },
@@ -16,35 +32,42 @@ export async function findRewardCreditAddEventByIdempotencyKey(
     return null
   }
 
-  // Validate and parse using the schema
   try {
-    return RewardCreditAddEventConfigSchema.parse(result.data[0])
+    return RewardCreditAddEventConfigSchema.parse(normalizeEventRow(result.data[0]))
   } catch {
     return null
   }
 }
 
-export async function createRewardCreditAddEvent(event: RewardCreditAddEventConfig): Promise<RewardCreditAddEventConfig> {
-  const id = `credit_add_event_${crypto.randomUUID()}`
+export async function createRewardCreditAddEvent(
+  event: RewardCreditAddEventConfig,
+): Promise<RewardCreditAddEventConfig> {
+  const id = event.id?.startsWith('credit_add_event_')
+    ? event.id
+    : `credit_add_event_${crypto.randomUUID()}`
   const now = new Date().toISOString()
-  // Validate and strip unknown properties before storing
-  const validatedEvent = RewardCreditAddEventConfigSchema.parse(event)
-  const payload: RewardCreditAddEventConfig = {
-    ...validatedEvent,
+  const validatedEvent = RewardCreditAddEventConfigSchema.parse({
+    ...event,
     id,
-    created_at: now,
+    created_at: event.created_at || now,
     updated_at: now,
-  }
+  })
+  const payload: RewardCreditAddEventConfig = validatedEvent
 
-  // Exclude 'id' from doc payload to comply with db.createDoc contract
-  // Table SSOT: credit_add_events (migration 022)
   const { id: _omit, ...docPayload } = payload
   const result = await db().createDoc('credit_add_events', docPayload, { id })
   if (!result.success) {
-    throw new Error(result.error?.message || 'Failed to create reward credit add event')
+    const msg = result.error?.message || 'Failed to create reward credit add event'
+    // Unique idempotency race → surface so caller can treat as existing
+    if (/unique|duplicate|idempotency/i.test(msg)) {
+      const err = new Error(msg)
+      ;(err as Error & { code?: string }).code = 'IDEMPOTENCY_CONFLICT'
+      throw err
+    }
+    throw new Error(msg)
   }
 
-  return { ...payload }
+  return { ...payload, id }
 }
 
 export async function updateRewardCreditAddEventStatus(
@@ -52,10 +75,8 @@ export async function updateRewardCreditAddEventStatus(
   status: RewardCreditAddEventStatus,
   patch: Partial<RewardCreditAddEventConfig> = {},
 ): Promise<void> {
-  // Optionally validate patch before updating
   let safePatch: Partial<RewardCreditAddEventConfig>
   try {
-    // Only keep fields from the schema
     safePatch = RewardCreditAddEventConfigSchema.partial().parse(patch)
   } catch {
     throw new Error('Invalid patch data for reward credit add event')
@@ -70,4 +91,58 @@ export async function updateRewardCreditAddEventStatus(
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to update reward credit add event')
   }
+}
+
+/** Completed reward points for a user on a UTC calendar day. */
+export async function sumCompletedRewardPointsForUtcDay(
+  userId: string,
+  utcDay: string,
+): Promise<number> {
+  const result = await db().queryDocs<Record<string, unknown>>({
+    collection: 'credit_add_events',
+    filters: [
+      { field: 'user_id', operator: '==', value: userId },
+      { field: 'status', operator: '==', value: 'completed' },
+    ],
+    orderBy: [{ field: 'created_at', direction: 'desc' }],
+    pagination: { limit: 500 },
+  })
+  if (!result.success || !result.data?.length) return 0
+
+  let sum = 0
+  for (const raw of result.data) {
+    const row = normalizeEventRow(raw)
+    const created = String(row.created_at ?? row.completed_at ?? '')
+    if (!created.startsWith(utcDay)) continue
+    const meta = (row.metadata as Record<string, unknown>) || {}
+    const amt = Number(meta.final_amount ?? row.amount ?? 0)
+    if (Number.isFinite(amt)) sum += amt
+  }
+  return sum
+}
+
+export async function listCompletedRewardEventsForUser(
+  userId: string,
+  limit = 500,
+): Promise<RewardCreditAddEventConfig[]> {
+  const result = await db().queryDocs<Record<string, unknown>>({
+    collection: 'credit_add_events',
+    filters: [
+      { field: 'user_id', operator: '==', value: userId },
+      { field: 'status', operator: '==', value: 'completed' },
+    ],
+    orderBy: [{ field: 'created_at', direction: 'desc' }],
+    pagination: { limit },
+  })
+  if (!result.success || !result.data?.length) return []
+
+  const out: RewardCreditAddEventConfig[] = []
+  for (const raw of result.data) {
+    try {
+      out.push(RewardCreditAddEventConfigSchema.parse(normalizeEventRow(raw)))
+    } catch {
+      // skip malformed rows
+    }
+  }
+  return out
 }

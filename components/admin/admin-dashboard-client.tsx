@@ -10,31 +10,21 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { davinciGlassSurface, davinciPanelSurface } from '@/lib/ui/davinci'
 import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
 import type { PlatformAnalyticsSummary } from '@/features/analytics/types/platform-analytics'
 import type { SecurityOverviewSummary } from '@/features/admin/security/types/security-overview'
-import type { AdminNavIconKey } from '@/features/admin/admin-nav-config'
-import { AdminNavIcon } from '@/features/admin/admin-nav-icons'
 import { AdminRecentActivityFeed } from '@/components/admin/admin-recent-activity-feed'
 import { toAppHref } from '@/i18n/routing'
-
-export interface AdminDashboardModuleTile {
-  id: string
-  title: string
-  description: string
-  href: string
-  icon: AdminNavIconKey
-  color: string
-}
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 
 interface AdminDashboardClientProps {
   analytics: PlatformAnalyticsSummary
   security: SecurityOverviewSummary
-  modules: AdminDashboardModuleTile[]
   labels: ModulesAdminLabels
+  locale: Locale
 }
 
 function StatTile({
@@ -42,14 +32,16 @@ function StatTile({
   label,
   hint,
   icon: Icon,
+  href,
 }: {
   value: string | number
   label: string
   hint?: string
   icon: React.ComponentType<{ className?: string }>
+  href?: string
 }) {
-  return (
-    <div className={cn(davinciGlassSurface, 'p-4')}>
+  const inner = (
+    <div className={cn(davinciGlassSurface, 'p-4 transition-colors', href && 'hover:bg-foreground/5')}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-2xl font-bold tracking-tight text-[var(--davinci-beam)] tabular-nums">
@@ -64,13 +56,24 @@ function StatTile({
       </div>
     </div>
   )
+
+  if (!href) return inner
+  return (
+    <Link href={toAppHref(href)} className="block rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-[var(--davinci-beam)]/40">
+      {inner}
+    </Link>
+  )
 }
 
+/**
+ * Wallet-parity admin home: live System Stats hero → Recent Activity feed.
+ * Module launchers live in the right rail / Admin supermenu — not here.
+ */
 export function AdminDashboardClient({
   analytics,
   security,
-  modules,
   labels,
+  locale,
 }: AdminDashboardClientProps) {
   const t = useTranslations('modules.admin')
 
@@ -82,7 +85,7 @@ export function AdminDashboardClient({
     : 0
 
   return (
-    <div className="flex min-h-[calc(100dvh-8rem)] flex-col gap-6">
+    <div className="flex min-h-[calc(100dvh-8rem)] flex-col space-y-6">
       <section className={cn(davinciPanelSurface, 'p-5 sm:p-6')}>
         <div className="mb-4 flex items-center gap-2">
           <Activity className="h-5 w-5 text-[var(--davinci-beam)]" />
@@ -99,24 +102,28 @@ export function AdminDashboardClient({
               count: analytics.platform.newUsers,
             })}
             icon={Users}
+            href={ROUTES.ADMIN_USERS(locale)}
           />
           <StatTile
             value={sessions.toLocaleString()}
             label={t('dashboardStatsSessions')}
             hint={t('dashboardStatsSessionsHint')}
             icon={Activity}
+            href={ROUTES.ADMIN_ANALYTICS(locale)}
           />
           <StatTile
             value={pageViews.toLocaleString()}
             label={t('dashboardStatsPageViews')}
             hint={t('dashboardStatsPageViewsHint')}
             icon={Eye}
+            href={ROUTES.ADMIN_ANALYTICS(locale)}
           />
           <StatTile
             value={security.verificationQueueCount.toLocaleString()}
             label={t('dashboardStatsVerification')}
             hint={t('dashboardStatsVerificationHint')}
             icon={ShieldCheck}
+            href={`${ROUTES.ADMIN_SECURITY(locale)}?tab=verification`}
           />
           <StatTile
             value={security.fraudCandidateCount.toLocaleString()}
@@ -125,45 +132,15 @@ export function AdminDashboardClient({
               count: security.highRiskFraudCount,
             })}
             icon={Shield}
+            href={`${ROUTES.ADMIN_SECURITY(locale)}?tab=fraud`}
           />
           <StatTile
             value={analytics.errors.count24h.toLocaleString()}
             label={t('dashboardStatsErrors')}
             hint={t('dashboardStatsErrorsHint')}
             icon={AlertTriangle}
+            href={ROUTES.ADMIN_ANALYTICS(locale)}
           />
-        </div>
-      </section>
-
-      <section className={cn(davinciPanelSurface, 'p-5 sm:p-6')}>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">{t('dashboardModules')}</h2>
-          <p className="text-xs text-muted-foreground">{t('dashboardModulesHint')}</p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {modules.map((mod) => (
-            <div
-              key={mod.id}
-              className={cn(davinciGlassSurface, 'flex flex-col gap-3 p-4')}
-            >
-              <div className="flex items-start gap-3">
-                <div className={cn('rounded-lg p-2.5 text-white', mod.color)}>
-                  <AdminNavIcon name={mod.icon} className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-foreground">{mod.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
-                    {mod.description}
-                  </p>
-                </div>
-              </div>
-              <Button asChild size="sm" className="w-full">
-                <Link href={toAppHref(mod.href)}>
-                  {t('dashboardOpenModule', { name: mod.title })}
-                </Link>
-              </Button>
-            </div>
-          ))}
         </div>
       </section>
 

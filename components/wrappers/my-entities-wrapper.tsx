@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -15,6 +15,9 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { MyEntitiesCounts, MyEntitiesView } from '@/features/entities/lib/my-entities-views'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
+import EntitiesBrowseRail from '@/components/entities/entities-browse-rail'
 
 interface MyEntitiesWrapperProps {
   locale: Locale
@@ -39,6 +42,12 @@ export default function MyEntitiesWrapper({
   const router = useRouter()
   const { data: session } = useSession()
   const [, startTransition] = useTransition()
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+  const closeRail = useCallback(() => setRightSidebarOpen(false), [])
+  const rightRail = useMemo(
+    () => <EntitiesBrowseRail locale={locale} onNavigate={closeRail} />,
+    [locale, closeRail],
+  )
 
   const [view, setView] = useState<MyEntitiesView>(initialView)
   const [searchQuery, setSearchQuery] = useState('')
@@ -90,16 +99,31 @@ export default function MyEntitiesWrapper({
 
   if (initialError) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="pt-6 text-destructive">{initialError}</CardContent>
-        </Card>
-      </div>
+      <RingRightRailLayout
+        showRightRail
+        flushCenterPane
+        isOpen={rightSidebarOpen}
+        onToggle={setRightSidebarOpen}
+        rightRail={rightRail}
+      >
+        <DavinciCenterPane>
+          <Card>
+            <CardContent className="pt-6 text-destructive">{initialError}</CardContent>
+          </Card>
+        </DavinciCenterPane>
+      </RingRightRailLayout>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <RingRightRailLayout
+      showRightRail
+      flushCenterPane
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
+      rightRail={rightRail}
+    >
+      <DavinciCenterPane contentClassName="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('myEntities')}</h1>
@@ -215,6 +239,7 @@ export default function MyEntitiesWrapper({
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </DavinciCenterPane>
+    </RingRightRailLayout>
   )
 }

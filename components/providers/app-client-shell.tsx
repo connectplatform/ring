@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
+import type { Session } from 'next-auth'
 import { SessionProvider } from '@/features/auth/components/session-provider'
 import { CreditBalanceProvider } from '@/components/providers/credit-balance-provider'
 import { Web3ScopeProvider } from '@/components/providers/web3-scope-provider'
@@ -20,6 +21,7 @@ import { StoreCurrencyProvider } from '@/features/store/currency-context'
 import { StoreProvider } from '@/features/store/context'
 import GoogleOneTap from '@/features/auth/components/google-one-tap'
 import { Toaster } from '@/components/ui/toaster'
+import { RingAnalyticsBeacon } from '@/components/providers/ring-analytics-beacon'
 
 /** Static whitelabel defaults for Suspense fallback — from ring-config snapshot. */
 const APP_SHELL_STATIC_INSTANCE_CONFIG: PublicInstanceConfig =
@@ -39,13 +41,16 @@ export function AppShellStaticFallback() {
 /** Full client chrome after hydration (session, tunnel, wagmi, FCM). */
 export function AppClientShell({
   instanceConfig,
+  session = null,
   children,
 }: {
   instanceConfig: PublicInstanceConfig
+  /** SSR session from root layout — prevents loading→unauthenticated flash on protected forms. */
+  session?: Session | null
   children: React.ReactNode
 }) {
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <WebVitalsProvider>
         <DeviceTelemetryProvider>
           <ThemeProvider>
@@ -60,6 +65,9 @@ export function AppClientShell({
                           <StoreProvider>
                             {children}
                             <GoogleOneTap />
+                            <Suspense fallback={null}>
+                              <RingAnalyticsBeacon />
+                            </Suspense>
                           </StoreProvider>
                         </StoreCurrencyProvider>
                       </Web3ScopeProvider>

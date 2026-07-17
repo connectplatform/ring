@@ -5,6 +5,11 @@ import { useLocalStorage } from '@/hooks/use-local-storage'
 import type { StoreProduct, CartItem, CheckoutInfo } from './types'
 import { getClientStoreService } from './client'
 import { generateProductEmbedding } from '@/lib/vector-search'
+import {
+  DEFAULT_CURRENCY,
+  resolveStorePriceCurrency,
+  type StoreCurrency,
+} from '@/features/store/currency-context'
 
 interface StoreContextType {
   // Legacy support
@@ -22,7 +27,8 @@ interface StoreContextType {
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
   totalItems: number
-  totalPriceByCurrency: Record<'DAAR' | 'DAARION', number>
+  /** Totals keyed by resolved catalog currency (ring-config SSOT). */
+  totalPriceByCurrency: Record<string, number>
   checkout: (info: CheckoutInfo) => Promise<{ orderId: string }>
 
   // ERP Extension: Loading states
@@ -190,7 +196,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ? rawCart.filter((entry) => entry && typeof entry.id === 'string' && typeof entry.qty === 'number' && Number.isFinite(entry.qty))
       : []
     return source.map(({ id, qty }) => ({
-      product: productMap.get(id) || { id, name: 'Unknown', price: '0', currency: 'DAAR', inStock: false },
+      product: productMap.get(id) || {
+        id,
+        name: 'Unknown',
+        price: '0',
+        currency: DEFAULT_CURRENCY as StoreProduct['currency'],
+        inStock: false,
+      },
       quantity: Math.max(0, Math.floor(qty)),
     }))
   }, [rawCart, products])
@@ -217,12 +229,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const totalItems = useMemo(() => cartItems.reduce((sum, i) => sum + i.quantity, 0), [cartItems])
 
   const totalPriceByCurrency = useMemo(() => {
-    return cartItems.reduce<Record<'DAAR' | 'DAARION', number>>((acc, i) => {
+    return cartItems.reduce<Record<string, number>>((acc, i) => {
       const price = parseFloat(i.product.price || '0') * i.quantity
-      const cur = i.product.currency
+      const cur = resolveStorePriceCurrency(i.product.currency as StoreCurrency)
       acc[cur] = (acc[cur] || 0) + price
       return acc
-    }, { DAAR: 0, DAARION: 0 })
+    }, {})
   }, [cartItems])
 
   const checkout = async (info: CheckoutInfo) => {

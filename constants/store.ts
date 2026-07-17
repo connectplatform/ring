@@ -189,18 +189,18 @@ export const TIER_BENEFITS = {
   }
 }
 
-// Supported Currencies for Multi-Vendor
+// Supported Currencies for Multi-Vendor — prefer ring-config SSOT at runtime
+// via getSupportedCurrencies() / getNativeTokenSymbol(). This list is a
+// compile-time union aid for legacy validators; do not hardcode clone tokens.
 export const SUPPORTED_CURRENCIES = [
   'RING',
-  'DAAR',
-  'DAARION',
   'USD',
   'EUR',
   'UAH',
   'GBP',
   'CAD',
-  'AUD'
-]
+  'AUD',
+] as const
 
 // Default Store Settings
 export const DEFAULT_STORE_SETTINGS = {

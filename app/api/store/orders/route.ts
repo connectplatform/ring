@@ -20,9 +20,18 @@ export async function GET(req: NextRequest) {
     }
     const url = new URL(req.url)
     const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '20', 10) || 20, 1), 100)
-    const startAfter = url.searchParams.get('afterId') || undefined
-    const { items, lastVisible } = await StoreOrdersService.listOrdersForUser(session.user.id, { limit, startAfter })
-    return NextResponse.json({ items, lastVisible })
+    const startAfter =
+      url.searchParams.get('startAfter') || url.searchParams.get('afterId') || undefined
+    const { items, lastVisible } = await StoreOrdersService.listOrdersForUser(session.user.id, {
+      limit,
+      startAfter,
+    })
+    return NextResponse.json({
+      items,
+      lastVisible,
+      cursor: lastVisible,
+      hasMore: Boolean(lastVisible),
+    })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 })
   }
@@ -43,24 +52,32 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data
-    // Normalize dual shapes (checkout-client shippingInfo/total vs legacy checkoutInfo/totals)
-    const shippingInfo = data.shippingInfo || data.checkoutInfo
-    const total =
-      typeof data.total === 'number'
-        ? data.total
-        : Object.values(data.totals || {}).reduce((s, n) => s + (typeof n === 'number' ? n : 0), 0)
+        // Normalize dual shapes (checkout-client shippingInfo/total vs legacy checkoutInfo/totals)
+        // payment.method 'ring' = legacy credit alias (old "RING credits" naming) — NOT native token.
+        // Prefs heal also maps ring→credit on write; keep route alias for old clients.
+        const shippingInfo = data.shippingInfo || data.checkoutInfo
+        const total =
+          typeof data.total === 'number'
+            ? data.total
+            : Object.values(data.totals || {}).reduce((s, n) => s + (typeof n === 'number' ? n : 0), 0)
 
-    const normalized = {
-      ...data,
-      shippingInfo,
-      checkoutInfo: data.checkoutInfo || shippingInfo,
-      total,
-      subtotal: data.subtotal ?? total,
-      payment: {
-        ...data.payment,
-        method: data.payment.method === 'ring' ? 'credit' : data.payment.method,
-      },
-    }
+        const normalized = {
+          ...data,
+          shippingInfo,
+          checkoutInfo: data.checkoutInfo || shippingInfo,
+          total,
+          subtotal: data.subtotal ?? total,
+          payment: {
+            ...data.payment,
+            method:
+              // Legacy credit alias ("RING credits") — not in orderCreateSchema enum; defensive cast for old clients/prefs.
+              (data.payment.method as string) === 'ring'
+                ? 'credit'
+                : data.payment.method === 'card'
+                  ? 'wayforpay'
+                  : data.payment.method,
+          },
+        }
 
     const refCode = req.cookies.get(REF_COOKIE_NAME)?.value
     const buyerWallets = await getBuyerWalletAddresses(session.user.id)

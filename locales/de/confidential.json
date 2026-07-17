@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "metadata": {
+      "title": "Vertrauliche Organisationen | Connect.Software"
+    },
+    "metaDescription": {
+      "description": "Eingeschränktes Organisationsverzeichnis für Connect.Software-Confidential-Mitglieder—Kontext MCP, Skillsets und Router-Marktplatz. Nur mit Session; nicht indexiert."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Vertrauliche Organisationen — Connect.Software",
+      "mainEntityDescription": "Sensible Partner- und Mandantendaten für vertrauenswürdige Betreiber im Connect.Software-Workspace und Marktplatz-Stack."
+    },
+    "wrapper": {
+      "loading": "Vertrauliche Entities werden geladen…",
+      "permissionDenied": "Sie haben keine Berechtigung, diese Seite anzusehen."
+    }
+  },
+  "opportunities": {
+    "metadata": {
+      "title": "Vertrauliche Opportunities | Connect.Software"
+    },
+    "metaDescription": {
+      "description": "Private Listings und Partnerschaftssignale für Connect.Software-Confidential-Mitglieder—im Einklang mit MCP-Marktplatz, Integrationen und On-Prem- oder Cloud-Betrieb."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Vertrauliche Opportunities — Connect.Software",
+      "mainEntityDescription": "Confidential-Pipeline: Implementierungspartner, Enterprise-Piloten und eingeschränkte Vendor- oder Kundenprozesse nach Authentifizierung."
+    },
+    "wrapper": {
+      "loading": "Vertrauliche Opportunities werden geladen…",
+      "permissionDenied": "Sie haben keine Berechtigung, diese Seite anzusehen."
+    }
+  }
+}

@@ -12,7 +12,7 @@ import {
   Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
   Building2, Wallet, Shield, Crown, Heart, Bell, MessageCircle,
   Home, Info, Phone, FileText, HelpCircle, ChevronRight,
-  Sparkles, Zap, Globe, Share2
+  Sparkles, Zap, Globe
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
@@ -227,12 +227,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         label: t('wallet'),
         icon: Wallet,
         gradient: 'from-amber-500 to-orange-600'
-      },
-      {
-        href: ROUTES.REFCODES(locale),
-        label: t('refcodes'),
-        icon: Share2,
-        gradient: 'from-pink-500 to-violet-600'
       },
       {
         href: ROUTES.SETTINGS(locale),

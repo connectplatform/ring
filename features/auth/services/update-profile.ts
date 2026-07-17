@@ -132,6 +132,10 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
       updatedAt: new Date(), // Add a timestamp for the update
     };
 
+    // Snapshot before update for one-time reward transitions
+    const beforeResult = await db().findDocById<Record<string, unknown>>('users', userId);
+    const before = beforeResult.success ? beforeResult.data : null;
+
     // Step 5: Update the PostgreSQL document
     const updateResult = await db().updateDoc('users', userId, updateData);
     if (!updateResult.success) {
@@ -140,6 +144,23 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
     }
 
     console.log('Services: updateProfile - Profile updated successfully for user:', userId);
+
+    // Credit rewards for newly filled profile fields (non-blocking)
+    void import('@/lib/wallet/profile-reward-hooks')
+      .then(async ({ maybeAwardProfileRewards }) => {
+        const afterResult = await db().findDocById<Record<string, unknown>>('users', userId);
+        const after = afterResult.success && afterResult.data
+          ? afterResult.data
+          : { ...(before || {}), ...updateData };
+        await maybeAwardProfileRewards({
+          userId,
+          before,
+          after,
+          userRole: typeof userRole === 'string' ? userRole : null,
+        });
+      })
+      .catch(() => undefined);
+
     return true; // Indicate successful update
 
   } catch (error) {

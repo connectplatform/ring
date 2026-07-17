@@ -23,6 +23,7 @@ export type OpportunityFormTypeKey =
   | 'event'
   | 'ring_customization'
   | 'cv'
+  | 'program'
 
 export interface OpportunityFormTypePreset {
   id: OpportunityFormTypeKey
@@ -121,6 +122,17 @@ export const opportunityFormTypePresets: Record<
     titleKey: 'ring_customization.title',
     descriptionKey: 'ring_customization.description',
   },
+  // Institution program / investment (offer clone)
+  program: {
+    id: 'program' as OpportunityFormTypeKey,
+    color: 'from-indigo-500 to-violet-500',
+    bgColor: 'bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-violet-950/20',
+    borderColor: 'border-indigo-200 dark:border-indigo-800',
+    textColor: 'text-indigo-700 dark:text-indigo-300',
+    icon: Target,
+    titleKey: 'program.title',
+    descriptionKey: 'program.description',
+  },
 }
 
 export function getOpportunityFormTypePreset(
@@ -129,15 +141,27 @@ export function getOpportunityFormTypePreset(
   return opportunityFormTypePresets[type as keyof typeof opportunityFormTypePresets]
 }
 
-/** Keys for the fullscreen opportunity type picker (add flow). */
-export type OpportunityTypeKey = 'ring_customization' | 'request' | 'cv' | 'offer'
+/** Keys for the Add Opportunity persona picker (public 2×2). */
+export type OpportunityTypeKey =
+  | 'project_order'
+  | 'cv'
+  | 'vendor_listing'
+  | 'program'
+
+/** Legacy form/deep-link types still supported outside the picker. */
+export type OpportunityLegacyPickerKey =
+  | 'ring_customization'
+  | 'request'
+  | 'offer'
 
 export const OPPORTUNITY_SELECTOR_TYPE_ORDER: OpportunityTypeKey[] = [
-  'request',
+  'project_order',
   'cv',
-  'offer',
-  'ring_customization',
+  'vendor_listing',
+  'program',
 ]
+
+export type OpportunitySelectorNavigationKind = 'route' | 'opportunity-form'
 
 export interface OpportunitySelectorTypePreset {
   icon: typeof Target
@@ -145,25 +169,26 @@ export interface OpportunitySelectorTypePreset {
   requiresMembership: boolean
   popular?: boolean
   examples: string[]
+  /** How the tile navigates when clicked. */
+  navigationKind: OpportunitySelectorNavigationKind
+  /**
+   * For opportunity-form: query type; for route: resolved in selector via ROUTES.
+   * project_order → calculator; vendor_listing → vendor products/start.
+   */
+  formType?: string
 }
 
 export const opportunitySelectorTypePresets: Record<
   OpportunityTypeKey,
   OpportunitySelectorTypePreset
 > = {
-  ring_customization: {
+  project_order: {
     icon: Zap,
     accentIcon: Crown,
-    requiresMembership: true,
-    popular: true,
-    examples: ['platform_deployment', 'module_development', 'branding', 'ai_customization'],
-  },
-  request: {
-    icon: MessageSquare,
-    accentIcon: Target,
     requiresMembership: false,
     popular: true,
-    examples: ['freelancer', 'service', 'advice'],
+    examples: ['platform_deployment', 'module_development', 'branding', 'ai_customization'],
+    navigationKind: 'route',
   },
   cv: {
     icon: Sparkles,
@@ -171,11 +196,26 @@ export const opportunitySelectorTypePresets: Record<
     requiresMembership: false,
     popular: true,
     examples: ['developer_cv', 'portfolio', 'skills'],
+    navigationKind: 'opportunity-form',
+    formType: 'cv',
   },
-  offer: {
+  vendor_listing: {
     icon: Briefcase,
     accentIcon: TrendingUp,
     requiresMembership: true,
     examples: ['job', 'contract', 'internship'],
+    navigationKind: 'route',
+  },
+  program: {
+    icon: Target,
+    accentIcon: Crown,
+    requiresMembership: true,
+    popular: true,
+    examples: ['strategic', 'joint_venture', 'collaboration'],
+    navigationKind: 'opportunity-form',
+    formType: 'program',
   },
 }
+
+// TODO(legacy-picker): request / offer / ring_customization remain creatable via deep link
+// and admin tools; ring_customization continues to be auto-published from calculator project_orders.

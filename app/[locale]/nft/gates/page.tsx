@@ -13,6 +13,7 @@ import { listOwnedGateAssets } from '@/features/nft-gates/purchase'
 import { listActiveStakes } from '@/features/nft-gates/gate-escrow'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { NftGatesClient } from '@/components/nft/nft-gates-client'
+import { NftPageShell } from '@/features/nft-market/components/nft-page-shell'
 
 export async function generateMetadata({
   params,
@@ -46,21 +47,24 @@ export default async function NftGatesPage(props: LocalePageProps) {
     : [[], []]
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">NFT Feature Gates</h1>
-        <p className="text-muted-foreground max-w-2xl">
-          Buy Metaplex Core gate NFTs with {getNativeTokenSymbol()}, then stake into GateEscrow to
-          unlock membership and vendor features. Membership gates are soulbound; vendor keys are
-          tradeable in a later market.
-        </p>
-        {!enabled && (
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            NFT gates are disabled in ring-config (`nft.enabled`).
+    <NftPageShell
+      locale={locale}
+      header={
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">NFT Feature Gates</h1>
+          <p className="max-w-2xl text-muted-foreground">
+            Buy Metaplex Core gate NFTs with {getNativeTokenSymbol()}, then stake into GateEscrow to
+            unlock membership and vendor features. Membership gates are soulbound; vendor keys are
+            tradeable on the Exhibition Marketplace.
           </p>
-        )}
-      </div>
-
+          {!enabled && (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              NFT gates are disabled in ring-config (`nft.enabled`).
+            </p>
+          )}
+        </div>
+      }
+    >
       <Suspense fallback={<div className="text-muted-foreground">Loading gates…</div>}>
         <NftGatesClient
           locale={locale}
@@ -71,6 +75,6 @@ export default async function NftGatesPage(props: LocalePageProps) {
           signedIn={Boolean(userId)}
         />
       </Suspense>
-    </div>
+    </NftPageShell>
   )
 }

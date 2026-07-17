@@ -15,6 +15,7 @@ declare module "next-auth" {
       username?: string
       image?: string | null
       photoURL?: string | null
+      avatarThumb?: string | null
       role: UserRole
       isVerified: boolean
       needsOnboarding?: boolean

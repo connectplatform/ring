@@ -7,6 +7,10 @@ import {
   Timestamp,
 } from 'firebase-admin/firestore';
 import { NewsArticle } from '@/features/news/types';
+import {
+  coerceMediaImageAsset,
+  coerceMediaImageAssetList,
+} from '@/lib/file/media-asset';
 
 /**
  * Helper function to safely convert various timestamp formats to Firestore Timestamp
@@ -92,6 +96,7 @@ export const newsConverter: FirestoreDataConverter<NewsArticle> = {
       // Optional fields with defaults
       tags: article.tags ?? [],
       featuredImage: article.featuredImage ?? null,
+      featuredImageAsset: article.featuredImageAsset ?? null,
       gallery: article.gallery ?? [],
       views: article.views ?? 0,
       likes: article.likes ?? 0,
@@ -128,7 +133,10 @@ export const newsConverter: FirestoreDataConverter<NewsArticle> = {
       // Optional fields with fallbacks
       tags: Array.isArray(data.tags) ? data.tags : [],
       featuredImage: data.featuredImage ?? null,
-      gallery: Array.isArray(data.gallery) ? data.gallery : [],
+      featuredImageAsset:
+        coerceMediaImageAsset(data.featuredImageAsset) ||
+        coerceMediaImageAsset(data.featuredImage),
+      gallery: coerceMediaImageAssetList(data.gallery),
       views: typeof data.views === 'number' ? data.views : 0,
       likes: typeof data.likes === 'number' ? data.likes : 0,
       comments: typeof data.comments === 'number' ? data.comments : 0,

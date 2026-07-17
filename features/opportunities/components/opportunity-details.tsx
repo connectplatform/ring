@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useTransition } from 'react'
 import { useSession, SessionProvider } from 'next-auth/react'
 import { hasConfidentialAccess, resolveSessionUserRole } from '@/features/auth/user-role'
 import { SerializedOpportunity, OpportunityVisibility } from '@/features/opportunities/types'
@@ -43,6 +43,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { formatDateValue, formatBudget } from '@/lib/utils'
+import { useLocale } from 'next-intl'
+import { MessageUserButton } from '@/features/auth/components/message-user-button'
+import type { Locale } from '@/i18n/shared'
+import { Loader2 } from 'lucide-react'
 
 /**
  * Represents an attachment for an opportunity
@@ -150,7 +154,11 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 }) => {
   const { data: session, status } = useSession()
   const t = useTranslations('modules.opportunities')
+  const locale = useLocale() as Locale
   const { balance: tokenBalance } = useCreditBalanceContext()
+  const [requestPending, startRequest] = useTransition()
+  const [requestError, setRequestError] = useState<string | null>(null)
+  const [requested, setRequested] = useState(false)
 
   // Real-time updates
   const realtime = useRealtimeOpportunities({
@@ -160,6 +168,14 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 
   const [opportunity, setOpportunity] = useState(initialOpportunity)
   const [isBookmarked, setIsBookmarked] = useState(false)
+
+  useEffect(() => {
+    const applicants = (initialOpportunity as { applicants?: string[] }).applicants
+    const uid = session?.user?.id
+    if (uid && Array.isArray(applicants)) {
+      setRequested(applicants.map(String).includes(uid))
+    }
+  }, [initialOpportunity, session?.user?.id])
 
   // Update opportunity when real-time updates come in
   useEffect(() => {
@@ -176,6 +192,13 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
     return () => window.removeEventListener('opportunity-update', handleUpdate)
   }, [opportunity.id])
 
+  const projectOrderId = (opportunity as { projectOrderId?: string }).projectOrderId
+  const canRequestProjectJob =
+    String(opportunity.type || '').toLowerCase() === 'ring_customization' &&
+    Boolean(projectOrderId) &&
+    (opportunity as { isActive?: boolean }).isActive !== false &&
+    String((opportunity as { status?: string }).status || 'active').toLowerCase() !== 'closed'
+
   const isConfidential = opportunity.visibility === 'confidential' as OpportunityVisibility
 
   if (status === 'loading') {
@@ -184,7 +207,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+      <div className="flex min-h-[40vh] items-center justify-center py-12">
         <div className="max-w-md w-full">
           <UnifiedLoginInline variant="hero" />
         </div>
@@ -232,10 +255,10 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   const entityTrustScore = initialEntity?.storeMetrics?.trustScore || 0
 
   return (
-    <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
+    <div className="min-h-full text-foreground">
       {/* Real-time Status Indicator */}
       <div className="bg-background border-b">
-        <div className="container mx-auto px-4 py-2">
+        <div className="mx-auto py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
@@ -259,7 +282,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="mx-auto max-w-4xl">
         {/* Back Navigation */}
         <div className="mb-6">
           <Link href="/opportunities">
@@ -528,27 +551,52 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
-              <Button className="flex-1" size="lg">
-                Apply Now
-              </Button>
+              {canRequestProjectJob ? (
+                <Button
+                  className="flex-1"
+                  size="lg"
+                  disabled={requestPending || requested}
+                  onClick={() => {
+                    setRequestError(null)
+                    startRequest(async () => {
+                      try {
+                        const res = await fetch(`/api/opportunities/${opportunity.id}/request`, {
+                          method: 'POST',
+                        })
+                        const json = await res.json()
+                        if (!res.ok) throw new Error(json.error || 'Request failed')
+                        setRequested(true)
+                        setOpportunity((prev) => ({
+                          ...prev,
+                          applicantCount: json.applicantCount ?? (prev.applicantCount || 0) + 1,
+                        }))
+                      } catch (e) {
+                        setRequestError(e instanceof Error ? e.message : 'Request failed')
+                      }
+                    })
+                  }}
+                >
+                  {requestPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {requested ? 'Requested' : 'Request'}
+                </Button>
+              ) : null}
 
-              {/* Quick Actions */}
               <div className="flex gap-2">
-                {session?.user && (
-                  <Button variant="outline" size="lg">
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Message
-                  </Button>
-                )}
-
-                {opportunity.budget && tokenBalance && (
-                  <Button variant="outline" size="lg">
-                    <Wallet className="w-4 h-4 mr-2" />
-                    Pay with RING
-                  </Button>
-                )}
+                {session?.user &&
+                  (opportunity.contactInfo?.contactAccount || opportunity.createdBy) && (
+                    <MessageUserButton
+                      locale={locale}
+                      targetUserId={
+                        opportunity.contactInfo?.contactAccount || opportunity.createdBy
+                      }
+                      targetUserName={opportunity.title}
+                    />
+                  )}
               </div>
             </div>
+            {requestError ? (
+              <p className="mt-2 text-sm text-destructive">{requestError}</p>
+            ) : null}
           </CardContent>
         </Card>
 

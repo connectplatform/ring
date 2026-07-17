@@ -190,14 +190,18 @@ NEXT_PUBLIC_STORAGE_PROVIDER=local_storage
 # NEXT_PUBLIC_LOCAL_STORAGE_URL=/uploads
 # LOCAL_STORAGE_DIR=public/uploads
 
-# ring_filebase (self-hosted / k8s)
+# ring_filebase (self-hosted / k8s) — write authority is k3s-or primary
+# Prod (in-cluster):
 # RINGBASE_API_URL=http://ring-filebase-api.ring-filebase.svc.cluster.local
+# Local / CI (public write API on primary):
+# RINGBASE_API_URL=https://filebase-api.ring-platform.org
 # RINGBASE_API_TOKEN=...   # Secret — claim-shaped Bearer for ring-filebase-api
-# RINGBASE_PUBLIC_URL=https://cdn.your-domain
+# RINGBASE_PUBLIC_URL=https://cdn.ring-platform.org
 # NEXT_PUBLIC_RINGBASE_API_URL=   # optional fallback for API URL
 # REFMAGIC_CDN_INTERNAL_URL=http://ring-filebase-cdn.ring-filebase.svc.cluster.local
 ```
 
+CDN slaves (k3s-3 / k8s-1) are pull-mirrors only — never point uploads at them.
 Do **not** set `RINGBASE_API_URL` to your Next.js `api.` hostname — that ingress serves the app, not RingFileBase.
 
 ## Ring Tunnel (real-time)

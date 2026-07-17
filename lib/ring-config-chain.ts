@@ -117,8 +117,7 @@ export interface BaseChainConfig {
 
 export interface TokenDeskConfig {
   supplyPolicy?: 'treasury_transfer' | 'mint'   // Token minting vs direct transfer
-  sellTaxBps?: number                          // Sell tax basis points (100 = 1%)
-  sellTaxDestination?: 'treasury_ata' | 'burn' // Sell tax recipient method
+  /** Greed-free policy: no desk/P2P RING tax knobs — Solana gas only via fee payer. */
   firstSettlerDiscountBps?: number             // First settler discount
   firstSettlerOneTime?: boolean                // One-time discount enable
   firstSettlerGates?: Array<'wallet' | 'username' | 'dob' | 'verified'> // Which fields gate first-settler reward
@@ -166,8 +165,6 @@ const SUPPORTED_CHAINS: {
   },
   tokenDesk: {
     supplyPolicy: 'treasury_transfer',
-    sellTaxBps: 500,
-    sellTaxDestination: 'treasury_ata',
     firstSettlerDiscountBps: 2000,
     firstSettlerOneTime: true,
     firstSettlerGates: ['wallet', 'username', 'dob', 'verified'],
@@ -284,13 +281,89 @@ export function getNativeTokenConfig() {
   return getSystemConfigSnapshot().tokens?.nativeToken ?? {}
 }
 
-export function getRewardCreditRules() {
+/**
+ * Write SSOT: credit.rewards.events
+ * Read order: credit.rewards.events → credit.creditAddEvents → credits.rewards.events
+ */
+export function getRewardCreditRules(): Record<string, unknown> {
   const snapshot = getSystemConfigSnapshot() as {
     credits?: { rewards?: { events?: Record<string, unknown> } }
-    credit?: { creditAddEvents?: Record<string, unknown> }
+    credit?: {
+      creditAddEvents?: Record<string, unknown>
+      rewards?: { events?: Record<string, unknown> }
+    }
   }
-  // Accept both paths during rename: credits.rewards.events | credit.creditAddEvents
-  return snapshot.credits?.rewards?.events ?? snapshot.credit?.creditAddEvents ?? {}
+  return (
+    snapshot.credit?.rewards?.events ??
+    snapshot.credit?.creditAddEvents ??
+    snapshot.credits?.rewards?.events ??
+    {}
+  )
+}
+
+function getCreditRewardsBlock(): {
+  minRole?: string
+  multipliers?: Record<string, number>
+  dailyEarnCap?: Record<string, number>
+} {
+  const snapshot = getSystemConfigSnapshot() as {
+    credit?: {
+      rewards?: {
+        minRole?: string
+        multipliers?: Record<string, number>
+        dailyEarnCap?: Record<string, number>
+      }
+    }
+    credits?: {
+      rewards?: {
+        minRole?: string
+        multipliers?: Record<string, number>
+        dailyEarnCap?: Record<string, number>
+      }
+    }
+  }
+  return snapshot.credit?.rewards ?? snapshot.credits?.rewards ?? {}
+}
+
+export function getRewardMinRole(): string {
+  return getCreditRewardsBlock().minRole?.trim() || 'subscriber'
+}
+
+export function getRewardMultiplierForRole(role: string): number {
+  const map = getCreditRewardsBlock().multipliers ?? {}
+  const raw = map[role]
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
+  return 1
+}
+
+export function getRewardDailyEarnCap(role: string): number {
+  const map = getCreditRewardsBlock().dailyEarnCap ?? {}
+  const raw = map[role]
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) return raw
+  return Number.POSITIVE_INFINITY
+}
+
+/** Public catalog for progress UI — amounts from enabled rules only. */
+export function getPublicRewardCatalog(): Array<{
+  trigger: string
+  amount: number
+  enabled: boolean
+  idempotencyMode: string
+}> {
+  const rules = getRewardCreditRules()
+  return Object.entries(rules).map(([trigger, raw]) => {
+    const rule = (raw ?? {}) as {
+      amount?: string
+      enabled?: boolean
+      idempotencyMode?: string
+    }
+    return {
+      trigger,
+      amount: Number(rule.amount) || 0,
+      enabled: rule.enabled !== false,
+      idempotencyMode: rule.idempotencyMode ?? 'once_per_user',
+    }
+  })
 }
 
 export function getTokenDeskConfig() {
@@ -355,8 +428,13 @@ export const getNativeTokenSymbol = cache((tokenSymbol?: string): string => {
     chainNative === 'solana'
       ? config.chains?.solana?.tokenSymbol
       : config.chains?.evm?.tokenSymbol
+  // First arg is an optional *symbol override*, never a chain id.
+  // Callers historically passed result.chain ("solana") and poisoned ledgers.
+  const chainIds = new Set(['solana', 'evm', 'base', 'ethereum', 'polygon', 'pol'])
+  const override =
+    tokenSymbol && !chainIds.has(tokenSymbol.toLowerCase()) ? tokenSymbol : undefined
   return (
-    tokenSymbol ??
+    override ??
     process.env.NATIVE_TOKEN_SYMBOL ??
     native?.tokenSymbol ??
     native?.symbol ??

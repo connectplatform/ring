@@ -7,72 +7,59 @@
  * Handles wire-up to ring-config APIs for pricing, currency, and formatting.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useStore } from '@/features/store/context'
 import {
   useStoreCurrency,
-  useDisplayPrice,
+  DEFAULT_CURRENCY,
+  resolveStorePriceCurrency,
 } from '@/features/store/currency-context'
-import { getDefaultStoreCurrencySymbol } from '@/lib/payments/payment.config'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import CartSidebarContent from '@/components/layout/rails/cart-rail'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { ShoppingCart, CreditCard, ArrowLeft } from 'lucide-react'
+import {
+  ShoppingCart,
+  CreditCard,
+  ArrowLeft,
+  Tag,
+  Bookmark,
+  Percent,
+  CheckCircle,
+} from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
-import { StoreCurrency } from '@/features/store/types'
-
-// ---- Currency helpers from SSOT ----
-
-/**
- * Returns currency and formatting helpers from ring-config SSOT.
- */
-function useCartCurrency() {
-  // Get currency settings from store
-  const { currency } = useStoreCurrency()
-  return { currency }
-}
-
-/**
- * Memoized format price with current config currency.
- * // TODO: React 19 useCallback is stable, but could use use( )?  
- * Consider using useOptimistic or use to simplify, when stable.
- */
-function useFormatCartPrice(currency: StoreCurrency) {
-  // Memoize price formatter to currency
-  return React.useCallback(
-    (amount: number) => useDisplayPrice(amount),
-    [currency]
-  )
-}
+import type { StoreCurrency } from '@/features/store/currency-context'
+import { applyProductPromotionToLine } from '@/features/store/types/promotions'
 
 /**
  * Computes cart total with correct currency conversion using SSOT.
+ * Applies per-product promotions (BOGO / % / amount) after conversion.
+ * convertPrice must be the context function — never a Hook wrapper.
  */
 function useCartTotal(
   cartItems: any[],
   currency: StoreCurrency,
   convertPrice: (n: number, f: StoreCurrency, t: StoreCurrency) => number,
 ): number {
-  // Get the default currency for correct conversion
-  const DEFAULT_CURRENCY = getDefaultStoreCurrencySymbol()
-  return React.useMemo(() => {
-    // Calculate total by summing each item's (converted) finalPrice * quantity
+  return useMemo(() => {
     return cartItems.reduce((sum, item) => {
-      // Use finalPrice if set, else fallback to base product price
       const raw = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price)
-      // Catalog prices are always in DEFAULT_CURRENCY, must convert to display currency
-      const converted = convertPrice(raw, DEFAULT_CURRENCY, currency)
-      return sum + converted * item.quantity
+      const from = resolveStorePriceCurrency(item.product.currency || DEFAULT_CURRENCY)
+      const unit = convertPrice(raw, from, currency)
+      const { lineTotal } = applyProductPromotionToLine(
+        unit,
+        item.quantity,
+        item.product.promotions,
+      )
+      return sum + lineTotal
     }, 0)
-    // NOTE: including DEFAULT_CURRENCY in deps for completeness, but string value rarely changes
-  }, [cartItems, convertPrice, currency, DEFAULT_CURRENCY])
+  }, [cartItems, convertPrice, currency])
 }
 
 // ---- Main Wrapper ----
@@ -88,31 +75,38 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   const router = useRouter()
   // Get cart items from global store context
   const { cartItems } = useStore()
-  // Current currency
-  const { currency } = useCartCurrency()
+  // Currency SSOT — convertPrice/formatPrice are plain functions from context (safe in useMemo)
+  const { currency, convertPrice, formatPrice } = useStoreCurrency()
 
   // Translation dictionary hook for cart
   const t = useTranslations('modules.store.cart')
-  // Count number of items for summary/labels
-  const totalItems = cartItems.length
 
-  // TODO: The parameters to useCartTotal and formatCartPrice:
-  // - Currently both `convertPrice` and `currency` are `currency` type. Should pass explicit conversion function for true SSOT compliance.
-  // - Convert useCartTotal to use native server function if possible, using Next 16/React 19 hooks (if stable in this part of codebase).
-
-  // Calculate cart total (in current currency)
-  const cartTotal = useCartTotal(cartItems, currency, (amount: number) => parseFloat(useDisplayPrice(amount)))
-  // Price formatting function (memoized to currency)
-  const formatCartPrice = useFormatCartPrice(currency)
+  const formatCartPrice = useCallback(
+    (amount: number) => formatPrice(amount, currency),
+    [formatPrice, currency],
+  )
 
   // Track mount state for conditional client rendering (to avoid hydration mismatches for toggles)
   const [mounted, setMounted] = useState(false)
   // Whether floating sidebar is open (mobile/toggle)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null)
 
   // Set mounted true after first render; used for mobile-component toggling
   useEffect(() => setMounted(true), [])
-  // Effectively equivalent to useEffect once, React 19 could enable use( ) for client transitions
+
+  // Until client storage hydrates, treat cart as empty so SSR HTML matches first paint.
+  const visibleCartItems = mounted ? cartItems : []
+  const totalItems = visibleCartItems.length
+  const cartTotal = useCartTotal(visibleCartItems, currency, convertPrice)
+
+  const handleApplyPromo = useCallback(() => {
+    if (promoCode.trim().toLowerCase() === 'welcome10') {
+      setAppliedPromo('WELCOME10')
+      setPromoCode('')
+    }
+  }, [promoCode])
 
   // Closes the side rail by setting state
   const closeRail = useCallback(() => setRightSidebarOpen(false), [])
@@ -122,10 +116,15 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
     return (
       <CartSidebarContent
         locale={locale}
-        cartItems={cartItems}
+        cartItems={visibleCartItems}
         totalPrice={cartTotal}
         totalItems={totalItems}
         formatPrice={formatCartPrice}
+        appliedPromo={appliedPromo}
+        promoCode={promoCode}
+        onApplyPromo={handleApplyPromo}
+        onRemovePromo={() => setAppliedPromo(null)}
+        onPromoCodeChange={setPromoCode}
         onNavigate={closeRail}
       />
     )
@@ -142,7 +141,7 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
           i18nKey: 'modules.store.cart.sidebar',
           params: {
             locale,
-            cartItems,
+            cartItems: visibleCartItems,
             totalPrice: cartTotal,
             totalItems: totalItems,
             formatPrice: formatCartPrice,
@@ -152,11 +151,11 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
       ]}
       showRightRail={false} // Sidebar only shows when opened by user
       railWidth={380}
-      contentClassName="pb-24 lg:pb-8"
+      contentClassName="pb-[calc(11rem+env(safe-area-inset-bottom,0px))] lg:pb-8"
       flushCenterPane
     >
       <DavinciCenterPane>
-        {/* Header Section: Back link and Cart title */}
+        {/* Header Section: Back link and Cart title (single title — list has no duplicate). */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             {/* Link back to store home */}
@@ -178,51 +177,107 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
             {/* Slot for main cart children (product list) */}
             {children}
           </div>
-          {/* Order summary for desktop (sticks to top) */}
-          {cartItems.length > 0 && (
+          {/* Desktop sidebar: mirrors greenfood CartWrapper RightSidebarContent (items only) */}
+          {totalItems > 0 && (
             <div className="hidden lg:block">
-              <div className="sticky top-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <ShoppingCart className="h-4 w-4" />
-                      {t('orderSummary', { defaultValue: 'Order Summary' })}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Subtotal for order */}
-                    <div className="flex justify-between text-sm">
-                      <span>
-                        {t('subtotal', { defaultValue: 'Subtotal' })} ({totalItems}{' '}
-                        {totalItems === 1
-                          ? t('item', { defaultValue: 'item' })
-                          : t('items', { defaultValue: 'items' })})
-                      </span>
-                      <span>{formatCartPrice(cartTotal)}</span>
+              <div className="sticky top-8 space-y-8">
+                <div className="border-t border-border/60 pt-4 space-y-3">
+                  <h2 className="text-base font-semibold flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    {t('orderSummary', { defaultValue: 'Order Summary' })}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {t('orderSummaryDescription', {
+                      defaultValue: 'Review your order summary before proceeding to checkout.',
+                    })}
+                  </p>
+                  <div className="flex justify-between text-sm">
+                    <span>
+                      {t('subtotal', { defaultValue: 'Subtotal' })} ({totalItems}{' '}
+                      {totalItems === 1
+                        ? t('item', { defaultValue: 'item' })
+                        : t('items', { defaultValue: 'items' })})
+                    </span>
+                    <span>{formatCartPrice(cartTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>{t('shipping', { defaultValue: 'Shipping' })}</span>
+                    <span className="text-green-600">
+                      {t('free', { defaultValue: 'Free' })}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-medium">
+                    <span>{t('total', { defaultValue: 'Total' })}</span>
+                    <span>{formatCartPrice(cartTotal)}</span>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => router.push(`/${locale}/store/checkout`)}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {t('proceedToCheckout', { defaultValue: 'Proceed to Checkout' })}
+                  </Button>
+                </div>
+
+                {/* Promo Codes */}
+                <div className="border-t border-border/60 pt-4 space-y-3">
+                  <h2 className="text-base font-semibold flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    {t('promoCodes', { defaultValue: 'Promo Codes' })}
+                  </h2>
+                  {appliedPromo ? (
+                    <div className="flex items-center justify-between p-2 rounded-lg border border-green-200/80 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium">{appliedPromo}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAppliedPromo(null)}
+                      >
+                        {t('remove', { defaultValue: 'Remove' })}
+                      </Button>
                     </div>
-                    {/* Shipping row - currently always 'Free' */}
-                    <div className="flex justify-between text-sm">
-                      <span>{t('shipping', { defaultValue: 'Shipping' })}</span>
-                      <span className="text-green-600">
-                        {t('free', { defaultValue: 'Free' })}
-                      </span>
-                    </div>
-                    <Separator />
-                    {/* Total row */}
-                    <div className="flex justify-between font-medium">
-                      <span>{t('total', { defaultValue: 'Total' })}</span>
-                      <span>{formatCartPrice(cartTotal)}</span>
-                    </div>
-                    {/* Checkout button navigates to checkout page */}
-                    <Button
-                      className="w-full"
-                      onClick={() => router.push(`/${locale}/store/checkout`)}
-                    >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      {t('proceedToCheckout', { defaultValue: 'Proceed to Checkout' })}
-                    </Button>
-                  </CardContent>
-                </Card>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder={t('enterPromoCode', { defaultValue: 'Enter promo code' })}
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value)}
+                          className="flex-1"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleApplyPromo()
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={handleApplyPromo}
+                          disabled={!promoCode.trim()}
+                          aria-label={t('promoCodes', { defaultValue: 'Promo Codes' })}
+                        >
+                          <Percent className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {t('tryCode', { defaultValue: 'Try code: WELCOME10 for $5 off' })}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* Saved for Later */}
+                <div className="border-t border-border/60 pt-4 space-y-3">
+                  <h2 className="text-base font-semibold flex items-center gap-2">
+                    <Bookmark className="h-4 w-4" />
+                    {t('savedForLater', { defaultValue: 'Saved for Later' })}
+                  </h2>
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {t('noSavedItems', { defaultValue: 'No items saved for later' })}
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -230,7 +285,7 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
       </DavinciCenterPane>
 
       {/* MOBILE: Floating cart rail toggle; only mounted on client and when items exist */}
-      {mounted && cartItems.length > 0 && (
+      {mounted && totalItems > 0 && (
         <FloatingSidebarToggle
           isOpen={rightSidebarOpen}
           onToggle={setRightSidebarOpen}
@@ -241,10 +296,15 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
         </FloatingSidebarToggle>
       )}
 
-      {/* MOBILE: Persistent bottom bar with subtotal + checkout button; only on client + with items */}
-      {mounted && cartItems.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border">
-          <div className="container mx-auto px-4 py-4">
+      {/* MOBILE: Persistent bottom bar above mobile nav (bottom-nav ~4.25rem + safe area) */}
+      {mounted && totalItems > 0 && (
+        <div
+          className="lg:hidden fixed inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm"
+          style={{
+            bottom: 'calc(4.25rem + env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+          <div className="container mx-auto px-4 py-3 mb-[env(safe-area-inset-bottom,0px)]">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 {/* Mobile Cart summary (subtotal and total) */}

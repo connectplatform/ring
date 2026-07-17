@@ -1,7 +1,7 @@
 ---
 title: Data Validation
 description: Ring Platform input validation architecture — Zod schemas, route-boundary guards, webhook HMAC verification, and business data safety for founders and developers
-last_modified: "2026-06-29"
+last_modified: "2026-07-14"
 audience: both
 ---
 
@@ -169,12 +169,15 @@ const schema = z.preprocess(normalizeWebVitalsInput, webVitalsPayloadSchema)`}</
 When validation rules depend on field values (e.g., metadata requirements vary by conversation type), use `superRefine`:
 
 <Code language="typescript" title="Conditional metadata validation">{`const createConversationSchema = z.object({
-  type: z.enum(['direct', 'entity', 'opportunity', 'product']),
+  type: z.enum(['direct', 'entity', 'opportunity', 'product', 'group']),
   participantIds: z.array(z.string()).min(1),
   metadata: z.object({
     entityId: z.string().optional(),
     opportunityId: z.string().optional(),
     productId: z.string().optional(),
+    /** Optional subtype (e.g. generative_gallery); open string today — see /docs/features/messaging */
+    kind: z.string().optional(),
+    hiddenFromInbox: z.boolean().optional(),
   }).optional(),
 }).passthrough().superRefine((data, ctx) => {
   if (data.type !== 'direct' && !data.metadata) {

@@ -1,0 +1,23 @@
+{
+  "title": "Contactos del proyecto",
+  "description": "Tus contactos Ring en este proyecto — envía mensajes o tokens a personas que conoces.",
+  "savedContacts": "Contactos guardados",
+  "searchToAdd": "Busca por nombre de usuario o nombre para añadir un contacto",
+  "addContact": "Añadir contacto",
+  "addContactTitle": "Añadir contacto Ring",
+  "noContacts": "Aún no hay contactos",
+  "noContactsHint": "Busca usuarios Ring y añádelos a la libreta de direcciones del proyecto.",
+  "noSearchResults": "Ningún contacto coincide con tu búsqueda",
+  "searchPlaceholder": "Buscar en tus contactos…",
+  "message": "Mensaje",
+  "send": "Enviar",
+  "favorite": "Favorito",
+  "unfavorite": "Quitar de favoritos",
+  "remove": "Eliminar",
+  "added": "Contacto añadido",
+  "removed": "Contacto eliminado",
+  "favoriteUpdated": "Favorito actualizado",
+  "loadError": "No se pudieron cargar los contactos",
+  "addError": "No se pudo añadir el contacto",
+  "removeError": "No se pudo eliminar el contacto"
+}

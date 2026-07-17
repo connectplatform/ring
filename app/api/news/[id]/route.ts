@@ -11,6 +11,7 @@ import { auth } from '@/auth';
 import { isSuperadmin } from '@/features/auth/user-role';
 import { canEditNewsArticle, canDeleteNewsArticle, canSetNewsVisibility } from '@/features/news/lib/news-permissions';
 import { FieldValue } from 'firebase-admin/firestore';
+import { mapNewsDocument } from '@/lib/news/map-news-document';
 
 /**
  * GET /api/news/[id]
@@ -75,7 +76,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: article,
+      data: mapNewsDocument({ id: articleId, ...article }),
     });
 
   } catch (error) {
@@ -149,6 +150,7 @@ export async function PUT(
     if (formData.category !== undefined) updateData.category = formData.category;
     if (formData.tags !== undefined) updateData.tags = formData.tags;
     if (formData.featuredImage !== undefined) updateData.featuredImage = formData.featuredImage;
+    if (formData.featuredImageAsset !== undefined) updateData.featuredImageAsset = formData.featuredImageAsset;
     if (formData.gallery !== undefined) updateData.gallery = formData.gallery;
     if (formData.seo !== undefined) updateData.seo = formData.seo;
     if (formData.featured !== undefined) updateData.featured = formData.featured;

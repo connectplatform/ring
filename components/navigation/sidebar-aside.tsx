@@ -4,11 +4,7 @@ import React, { useState, useEffect, useCallback, forwardRef } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import {
-  Users,
-  Briefcase,
-  Store,
   Wallet,
-  FileText,
   Heart,
   Copy,
   Check,
@@ -17,28 +13,20 @@ import {
   Zap,
   Rocket,
   Calculator,
-  BarChart3,
-  Shield,
-  Share2,
   Map,
-  Package,
-  DollarSign,
-  ShoppingBag,
-  Settings,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { isPlatformAdmin } from '@/features/auth/user-role'
+import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import packageInfo from '@/package.json'
 import { toast } from '@/hooks/use-toast'
-import { useVendorStatus } from '@/hooks/use-vendor-status'
 import type { Locale } from '@/i18n/shared'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { TunnelIndicatorCompact } from './tunnel-indicator'
-import { useAdminNavMenu } from '@/features/admin/use-admin-nav-menu'
+import { AdminSupermenuToggle } from './admin-supermenu'
 
 interface NavigationItem {
   href: string
@@ -63,14 +51,14 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const pathname = usePathname()
     const locale = useLocale() as Locale
     const { data: session } = useSession()
-    const { asideGroups: adminNavGroups } = useAdminNavMenu(session?.user?.role, locale)
     const tEntities = useTranslations('modules.entities')
     const tOpp = useTranslations('modules.opportunities')
     const tStore = useTranslations('modules.store')
     const tNav = useTranslations('navigation')
     const [mounted, setMounted] = useState(false)
     const [copied, setCopied] = useState(false)
-    const { hasVendor: hasVendorStore } = useVendorStatus()
+    const showAdminToggle = hasMemberPrivileges(session?.user?.role)
+
     useEffect(() => {
       setMounted(true)
     }, [])
@@ -93,11 +81,6 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
 
     const navigationItems: NavigationItem[] = [
       {
-        href: ROUTES.HOME(locale),
-        label: tNav('mainNav.home'),
-        railMirrored: true,
-      },
-      {
         href: ROUTES.ENTITIES(locale),
         label: tEntities('title'),
         badge: 'Hot',
@@ -119,58 +102,55 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
         label: tNav('sidebar.documentation'),
         railMirrored: true,
       },
-      {
-        href: ROUTES.REFCODES(locale),
-        label: tNav('refcodes'),
-        requiresAuth: true,
-        icon: <Share2 className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
       { divider: 'divider-concepts', href: '#', label: '', icon: null },
       {
         href: `/${locale}/docs/customization/token-economics`,
         label: tNav('sidebar.ringEconomy'),
-        icon: <Coins className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Coins className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
       {
         href: `/${locale}/about-publisher`,
         label: tNav('sidebar.appPublisher'),
-        icon: <Heart className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Heart className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
       {
         href: `/${locale}/global-impact`,
         label: tNav('sidebar.globalImpact'),
-        icon: <Globe className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Globe className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
       {
         href: `/${locale}/ai-web3`,
         label: tNav('sidebar.aiMeetsWeb3'),
-        icon: <Zap className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Zap className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
       { divider: 'divider-docs', href: '#', label: '', icon: null },
       {
         href: `/${locale}/docs/getting-started`,
         label: tNav('sidebar.quickStart'),
-        icon: <Rocket className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Rocket className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
       {
         href: `/${locale}/calculator`,
         label: tNav('sidebar.deploymentCalculator'),
-        icon: <Calculator className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Calculator className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
       {
         href: `/${locale}/roadmap`,
         label: tNav('sidebar.roadmap'),
-        icon: <Map className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
+        icon: <Map className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },
     ]
 
     const isActive = (href: string) => {
       if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-      return pathname.startsWith(href)
+      if (href === ROUTES.DOCS(locale)) {
+        return pathname === href || pathname === `${href}/`
+      }
+      return pathname === href || pathname.startsWith(`${href}/`)
     }
 
     const dividerLabels: Record<string, string> = {
-      'divider-concepts': 'Platform Concepts',
+      'divider-concepts': tNav('sidebar.concepts', { default: 'Platform Concepts' }),
       'divider-docs': tNav('sidebar.getStarted'),
     }
 
@@ -192,63 +172,6 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
           {showIdentityAside && <SidebarIdentityPanel variant="aside" className="mb-2" />}
 
           <nav className="flex-1 space-y-0 px-0">
-            {session?.user &&
-              mounted &&
-              isPlatformAdmin(session.user.role) &&
-              adminNavGroups.length > 0 && (
-                <div className="mb-3 px-2 space-y-3">
-                  <p className="text-[11px] text-[var(--color-contrast-low)] mb-1.5 pl-2 uppercase tracking-wide">
-                    {tNav('sidebar.admin')}
-                  </p>
-                  {adminNavGroups.map((group) => (
-                    <div key={group.id} className="space-y-0.5">
-                      <p className="text-[10px] text-[var(--color-contrast-low)] mb-1 pl-2 uppercase tracking-wide">
-                        {group.title}
-                      </p>
-                      {group.items.map(({ hrefPath, label, icon: Icon, id }) => (
-                        <Link
-                          key={id}
-                          href={toAppHref(hrefPath)}
-                          data-current={isActive(hrefPath) ? '' : undefined}
-                          className="sidebar-nav-item flex items-center gap-2 h-8 data-current:bg-foreground/8 hover:bg-foreground/5 rounded-lg px-4 text-xs"
-                        >
-                          <Icon className="size-3.5 shrink-0" />
-                          <span>{label}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            {session?.user && mounted && hasVendorStore && (
-              <div className="mb-3 px-2">
-                <p className="text-[11px] text-[var(--color-contrast-low)] mb-1.5 pl-2 uppercase tracking-wide">
-                  {tNav('sidebar.vendor')}
-                </p>
-                <div className="space-y-0.5">
-                  {[
-                    { href: ROUTES.VENDOR_DASHBOARD(locale), label: tNav('sidebar.vendorDashboard'), icon: BarChart3 },
-                    { href: ROUTES.VENDOR_PRODUCTS(locale), label: tNav('sidebar.vendorProducts'), icon: Package },
-                    { href: ROUTES.VENDOR_ORDERS(locale), label: tNav('sidebar.vendorOrders'), icon: ShoppingBag },
-                    { href: ROUTES.VENDOR_STOCK(locale), label: tNav('sidebar.vendorStock'), icon: Package },
-                    { href: ROUTES.VENDOR_EARNINGS(locale), label: tNav('sidebar.vendorEarnings'), icon: DollarSign },
-                    { href: ROUTES.VENDOR_SETTINGS(locale), label: tNav('sidebar.vendorSettings'), icon: Settings },
-                  ].map(({ href, label, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={toAppHref(href)}
-                      data-current={isActive(href) ? '' : undefined}
-                      className="flex items-center gap-2 h-8 data-current:bg-foreground/8 hover:bg-foreground/5 rounded-lg px-4 text-xs"
-                    >
-                      <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
-                      <span>{label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {navigationItems
               .filter((item) => !item.requiresAuth || session?.user)
               .map((item, index) => {
@@ -267,24 +190,35 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                 }
                 const active = isActive(item.href)
                 const mirrored = Boolean(item.railMirrored)
+                const isDocs = item.href === ROUTES.DOCS(locale)
                 return (
-                  <Link
-                    key={item.href}
-                    href={toAppHref(item.href)}
-                    data-current={active ? '' : undefined}
-                    className={cn(
-                      'sidebar-nav-item flex items-center gap-2 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
-                      mirrored ? 'h-10 min-h-10 px-2' : 'h-8 px-4',
+                  <React.Fragment key={item.href}>
+                    <Link
+                      href={toAppHref(item.href)}
+                      data-current={active ? '' : undefined}
+                      className={cn(
+                        'sidebar-nav-item flex items-center gap-2 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
+                        'h-10 min-h-10 px-2',
+                      )}
+                    >
+                      {!mirrored && item.icon && (
+                        <span className="flex w-5 shrink-0 items-center justify-center text-[var(--color-contrast-medium)]">
+                          {item.icon}
+                        </span>
+                      )}
+                      <span className={cn('flex-1 truncate', mirrored && 'pl-0.5')}>{item.label}</span>
+                      {item.badge && (
+                        <Badge variant="secondary" className="ml-auto h-5 px-1.5 py-0 text-[10px]">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </Link>
+                    {isDocs && mounted && showAdminToggle && (
+                      <div className="px-0 py-0.5">
+                        <AdminSupermenuToggle />
+                      </div>
                     )}
-                  >
-                    {!mirrored && item.icon}
-                    <span className={cn('flex-1 truncate', mirrored && 'pl-0.5')}>{item.label}</span>
-                    {item.badge && (
-                      <Badge variant="secondary" className="ml-auto h-5 px-1.5 py-0 text-[10px]">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </Link>
+                  </React.Fragment>
                 )
               })}
           </nav>

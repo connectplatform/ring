@@ -1,0 +1,76 @@
+{
+  "listingTitle": "Pools públicos",
+  "listingDescription": "Dale like y aporta {token} para poner en cola futuras funciones de este clon.",
+  "detailBack": "Todos los pools",
+  "listingEmpty": "Aún no hay pools públicos. Dale like y aporta en los widgets del backlog de docs para iniciar el primero.",
+  "fundingSummary": "{pledged} / {goal} {token}",
+  "admin": {
+    "list": {
+      "title": "Pools públicos (DAO)",
+      "description": "Crea, edita y gestiona pools de futuras funciones — puertas de cola, estado de entrega y enlaces públicos.",
+      "createPool": "Crear pool",
+      "totalPools": "Pools totales",
+      "queuedInProgress": "En cola / en progreso",
+      "completed": "Completados",
+      "allPools": "Todos los pools",
+      "allPoolsDescription": "Los cambios de estado se propagan a los widgets de docs y",
+      "empty": "Aún no hay pools — créalo manualmente o impórtalo desde los widgets del backlog de docs.",
+      "tableTitle": "Título",
+      "tableKind": "Tipo",
+      "tableLikes": "Likes",
+      "tableFunding": "Financiación",
+      "tableStatus": "Estado",
+      "tableActions": "Acciones",
+      "edit": "Editar",
+      "view": "Ver",
+      "statusUpdated": "Estado del pool actualizado",
+      "updateFailed": "Error al actualizar",
+      "deleteConfirm": "¿Eliminar el pool \"{title}\"? Se eliminarán señales y aportaciones.",
+      "deleted": "Pool eliminado",
+      "deleteFailed": "Error al eliminar"
+    },
+    "form": {
+      "titleLabel": "Título",
+      "descriptionLabel": "Descripción",
+      "poolSlugOptional": "Slug del pool (opcional)",
+      "poolSlugPlaceholder": "manual:my-feature — se genera del título si está vacío",
+      "poolSlugReadonly": "Slug del pool",
+      "kindLabel": "Tipo",
+      "goalHoursLabel": "Horas objetivo",
+      "fundingModeLabel": "Modo de financiación",
+      "statusLabel": "Estado",
+      "docPathLabel": "Ruta del doc (opcional)",
+      "docPathPlaceholder": "en/architecture/data-model",
+      "labelsLabel": "Etiquetas (separadas por comas)",
+      "labelsPlaceholder": "platform, wallet",
+      "likesCount": "Likes: {count}",
+      "pledgedSummary": "Comprometido: {pledged} / {goal} {token}",
+      "saving": "Guardando…",
+      "createPool": "Crear pool",
+      "saveChanges": "Guardar cambios",
+      "cancel": "Cancelar",
+      "saveFailed": "Error al guardar"
+    },
+    "create": {
+      "title": "Crear pool público",
+      "description": "Pool manual — aparece en /dao y puede incrustar el widget de futura función en cualquier lugar."
+    },
+    "edit": {
+      "title": "Editar pool público"
+    },
+    "kind": {
+      "future_feature": "Función futura"
+    },
+    "fundingMode": {
+      "donation": "Donación",
+      "escrow": "Depósito en garantía"
+    },
+    "status": {
+      "open": "Abierto",
+      "queued": "En cola",
+      "in_progress": "En progreso",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
+    }
+  }
+}

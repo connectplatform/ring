@@ -1,7 +1,7 @@
 ---
 title: Wallet & Credit System
 description: Custodial native-token wallets, fiat credit ledger, gasless Solana transfers, Token Desk credit↔token conversion, and PIN-wrapped encryption on Ring Platform
-last_modified: "2026-07-11"
+last_modified: "2026-07-14"
 audience: both
 ---
 
@@ -43,7 +43,7 @@ Four separate money paths — do not conflate them:
     Balance hero showing credit balance + native-token balances per chain. Desk widget for converting credits ↔ native tokens.
   </Card>
   <Card title="Top-up — /wallet/topup" href="/docs/features/wallet">
-    Add credits via native-token transfer (tx-hash verify) or live WayForPay card / Apple Pay / Google Pay (`wallet_topup` via PaymentConductor).
+    Add credits via native-token transfer (tx-hash verify) or live Card / PayPal (`CreditAddFsModal` → PaymentConductor `wallet_topup`). Card uses env processor (WayForPay or Stripe); PayPal tab sends `processor=paypal`.
   </Card>
   <Card title="Send tokens — /wallet/send" href="/docs/features/wallet">
     Gasless transfers to contacts — treasury sponsors transaction fees. Pick recipient from contacts or enter address.
@@ -68,7 +68,11 @@ Four separate money paths — do not conflate them:
 - **First login** — wallet auto-provisioned; credit balance initialized at 0.
 - **Check balance** — wallet page shows credit balance + native-token balance per chain.
 - **Send tokens to a contact** — pick recipient from contacts, enter amount, confirm. Gas sponsored by treasury.
-- **Top up credits** — native-token transfer (tx hash verify) **or** WayForPay card redirect via `initiateCreditTopupPayment` (amount 25–2000; webhook credits balance).
+- **Top up credits** — native-token transfer (tx hash verify) **or** Add Credit modal (`CreditAddFsModal`): **Card** | **PayPal** tabs → `WalletConductor.initiateTopUp` → PaymentConductor (amount 25–2000). Browser follows `redirect` via `followCheckoutResult`. Balance updates after webhook **Approved** / capture — not when the browser returns to `/wallet`.
+
+<Callout type="tip">
+  Switching a clone’s card rail to Stripe: set `PAYMENT_WALLET_TOPUP_PROCESSOR=stripe` (or `PAYMENT_DEFAULT_PROCESSOR=stripe`). The Card tab stays the same — it does not hardcode WayForPay.
+</Callout>
 - **Set a wallet PIN** — profile/security page; 4-digit PIN activates v2 PIN-wrapped encryption for all existing wallets.
 - **Authorize a withdrawal** — enter PIN; server validates against the stored encryption envelope; single-use access token issued.
 - **Convert credits to tokens** — use the Desk widget: choose buy/sell direction, get a quote, execute at oracle rate.
@@ -344,7 +348,16 @@ See `lib/wallet/encrypt-wallet-secret.ts` for the v2 envelope format cryptograph
 
 ### Card credit top-up (live) vs native-token rail
 
-`initiateCreditTopupPayment` → `PaymentConductor.createCheckout({ purpose: 'wallet_topup' })` → `wayforpay.processor.ts` (`createWalletTopupWayForPay`) or Stripe → webhook `handlers/wallet-topup.ts` / `wallet-topup-stripe.ts` → `creditBalanceService.addFiatUsd` (1:1 fiat points). Amount gate: 25–2000. Card top-up credits the **fiat ledger only** — it never mints on-chain RING. Entry UI: `/wallet/topup` card tab (live) and `CreditAddFsModal`.
+`WalletConductor.initiateTopUp` / `initiateCreditTopupPayment` → `PaymentConductor.createCheckout({ purpose: 'wallet_topup' })` → processor from env or form `processor` → `normalizeCheckoutResult` → UI `followCheckoutResult` (`lib/payments/checkout-redirect.ts`).
+
+| Tab (`CreditAddFsModal`) | Form | Processor |
+|--------------------------|------|-----------|
+| **Card** | No `processor` field | `PAYMENT_WALLET_TOPUP_PROCESSOR` / `PAYMENT_DEFAULT_PROCESSOR` (WayForPay HPP `form_post` or Stripe `navigate`) |
+| **PayPal** | `processor=paypal` | PayPal Orders v2 approve URL (`navigate`) when credentials configured |
+
+Webhook → `handlers/wallet-topup.ts` / `wallet-topup-stripe.ts` / `wallet-topup-paypal.ts` → `creditBalanceService.addFiatUsd` (1:1 fiat points). Amount gate: 25–2000. Card top-up credits the **fiat ledger only** — it never mints on-chain RING. Entry UI: `/wallet/topup` and `features/wallet/components/credit-add-fs-modal.tsx`.
+
+Deep HPP / returnUrl vs serviceUrl: [WayForPay](/docs/features/wayforpay-integration) · [PaymentConductor architecture](/docs/architecture/payment-conductor).
 
 To spend native RING directly, use the store `native_token` rail (`POST /api/store/payments/token`) — a distinct path from top-up. See [PaymentConductor](/docs/features/payment-conductor).
 
@@ -360,7 +373,7 @@ Distinct from PaymentConductor card top-up. Verifies an on-chain transfer to tre
 |--------|---------|
 | `ensureNativeWallet(userOverride)` | Provision native + enabled-chain wallets; returns `{ ok, native, wallets }` (OAuth / override-safe; no session required) |
 | `ensureFunded(minCredits)` | Session-gated: provision via `ensureNativeWallet`, assert minimum credit balance |
-| `initiateTopUp` | Card → credit points (`wallet_topup`) |
+| `initiateTopUp` | Card / PayPal → credit points (`wallet_topup`); returns Conductor `redirect` |
 | `initiateNativeOnramp` | Confidential+ card/PayPal → treasury native (`native_token_onramp`; gated by `isNativeTokenOnrampEnabled`) |
 | `quoteDesk` / `executeDesk` | Credit points → native RING (subscriber+; Solana desk) |
 | `getNativeBalance` | Custodial native balance |

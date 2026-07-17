@@ -1,7 +1,7 @@
 ---
 title: Email AI-CRM architecture
 description: IMAP poll, EmailProcessor orchestration, jsonb-collection persistence via db(), SMTP outbound, cron and webhook ingest
-last_modified: "2026-07-07"
+last_modified: "2026-07-17"
 audience: both
 ---
 
@@ -47,9 +47,9 @@ audience: both
         Notify[EmailNotificationService]
     end
 
-    subgraph Admin["Admin"]
+    subgraph Admin["Admin CRM"]
         API["/api/admin/email/*"]
-        UI["admin/email-* pages"]
+        UI["/admin/crm/* pages"]
     end
 
     Cron --> IMAP
@@ -83,7 +83,7 @@ audience: both
 |-------|----------------|
 | **Ingest** | Cron polls IMAP for UNSEEN mail, or a signed webhook pushes parsed payloads |
 | **Process** | Security scan → AI classification → CRM contact/thread upsert → draft queue |
-| **Review** | Admins open `/admin/email-inbox` and `/admin/email-drafts` to approve or edit replies |
+| **Review** | Admins open `/admin/crm/inbox` and `/admin/crm/drafts` to approve or edit replies |
 | **Send** | Approved drafts go out via SMTP with proper threading headers |
 | **Track** | Tasks and API cost roll up in admin analytics |
 
@@ -180,6 +180,7 @@ Factory: `getEmailContactService()` / `getEmailTaskService()` / `getEmailDraftSe
 
 <Cards>
   <Card title="Email AI-CRM feature guide" href="/docs/features/email-ai-crm" description="Operator setup, env vars, and business rules." />
+  <Card title="Owner Project Lab" href="/docs/features/owner-project-lab" description="Buyer My Projects, order_lab room, CRM orders desk." />
   <Card title="Email AI-CRM API" href="/docs/api/email-ai-crm" description="Admin routes, cron actions, webhook contract." />
   <Card title="Backend modes and databases" href="/docs/architecture/backend-modes-and-databases" description="How DB_BACKEND_MODE selects the db() adapter." />
 </Cards>

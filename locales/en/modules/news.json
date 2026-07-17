@@ -38,5 +38,47 @@
   "authorBio": "Content creator and contributor to Ring Platform news and updates.",
   "joined": "Joined",
   "articles": "articles",
-  "allCategories": "All Categories"
+  "allCategories": "All Categories",
+  "view": "View",
+  "edit": "Edit",
+  "revise": {
+    "button": "Revise",
+    "pageTitle": "Propose revision",
+    "memberFallback": "Member",
+    "editingLead": "Editing {title}. Your changes are saved as a pending revision for the author — the live article is not changed until they accept.",
+    "placeholder": "Revise the article… Type / for commands",
+    "submit": "Submit as pending revision",
+    "cancel": "Cancel",
+    "successReturning": "Revision submitted. Returning to article…",
+    "errorEmpty": "Content cannot be empty",
+    "errorSubmit": "Failed to submit revision",
+    "errorNetwork": "Network error submitting revision",
+    "errorUnauthorized": "Please sign in to propose a revision",
+    "errorForbidden": "You do not have permission to propose revisions",
+    "errorNotFound": "Article not found",
+    "errorNotPublished": "Only published articles accept revisions"
+  },
+  "amendments": {
+    "pageTitle": "Proposed amendments",
+    "previewTitle": "Amendment preview",
+    "badge": "Proposed amendments: {count}",
+    "pendingCount": "{count} pending",
+    "backToMyNews": "Back to My News",
+    "empty": "No pending amendments.",
+    "revisions": "Revisions",
+    "fromAuthor": "From {name}",
+    "accept": "Accept",
+    "reject": "Reject",
+    "errorResolve": "Failed to resolve",
+    "errorNetwork": "Network error",
+    "noDiff": "No textual differences detected."
+  },
+  "editor": {
+    "placeholder": "Write your article… Type / for commands",
+    "slashHint": "Type / for commands",
+    "autoSaveEnabled": "Auto-save enabled",
+    "autoSavedAt": "Auto-saved at {time}",
+    "saving": "Saving…",
+    "tipTapHint": "TipTap — type / for slash commands, paste URLs to embed, or insert Mood Player."
+  }
 }

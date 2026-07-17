@@ -1,0 +1,97 @@
+{
+  "title": "Tokenomics – economía RING",
+  "description": "Distribución de RING, beneficios y función económica dentro de la plataforma Ring, incluido Connect.Software y otras implementaciones de Ring.",
+  "badge": "Tokenómica",
+  "hero": {
+    "title": "Tokenomía de RING",
+    "subtitle": "El token RING admite transacciones, funciones de inteligencia artificial y gobernanza comunitaria; las tarifas y límites específicos dependen de su instancia de Ring."
+  },
+  "overview": {
+    "whatIsRing": {
+      "title": "¿Qué es el ANILLO?",
+      "description": "RING es el token de utilidad nativo de la plataforma Ring para micropagos, uso priorizado de IA y votación. Los detalles técnicos siguen la respectiva red y el despliegue del contrato."
+    },
+    "utility": {
+      "title": "Utilidad de token",
+      "description": "RING puede desbloquear funciones premium, incentivar el contenido y la actividad del mercado, y mapear los procesos de toma de decisiones de la comunidad."
+    }
+  },
+  "distribution": {
+    "title": "Distribución (esquema)",
+    "community": {
+      "title": "piscina comunitaria",
+      "description": "Recompensas por uso activo, referencias y contribuciones de alta calidad."
+    },
+    "liquidity": {
+      "title": "Fondo de liquidez",
+      "description": "Liquidez DEX e incentivos de creación de mercado."
+    },
+    "development": {
+      "title": "Fondo de Desarrollo",
+      "description": "Mayor desarrollo de la plataforma, la seguridad y la infraestructura."
+    },
+    "team": {
+      "title": "Equipo y asesor",
+      "description": "Acciones restringidas para contribuyentes principales (generalmente concesión de derechos por varios años)"
+    }
+  },
+  "usage": {
+    "title": "Insertar ANILLO",
+    "listing": {
+      "title": "Entradas de oportunidad",
+      "description": "Publicar servicios, proyectos y licitaciones en la plataforma.",
+      "cost": "p.ej. B. 0,1–1,0 RING por entrada (dependiente de la instancia)"
+    },
+    "aiFeatures": {
+      "title": "Funciones de IA",
+      "description": "Funciones premium de coincidencia, análisis y asistente",
+      "cost": "p.ej. B. 0,01–0,1 RING por solicitud (dependiente de la instancia)"
+    },
+    "store": {
+      "title": "Transacciones de la tienda",
+      "description": "Bienes, servicios y complementos digitales en el mercado",
+      "cost": "Depende del valor del artículo y la ruta de pago."
+    },
+    "premium": {
+      "title": "Membresía premium",
+      "description": "Funciones avanzadas y soporte prioritario",
+      "cost": "Ejemplo: 10 RING por mes (configurable)"
+    }
+  },
+  "economics": {
+    "title": "Modelo económico",
+    "inflation": {
+      "title": "Inflación limitada",
+      "description": "Los rangos objetivo (por ejemplo, 2-5% anual) pueden respaldar a los tenedores y el desarrollo a largo plazo, dependiendo en última instancia de la gobernanza."
+    },
+    "circulation": {
+      "title": "circulación",
+      "description": "Suministro dinámico dependiendo de la actividad de la plataforma y las tarifas cobradas."
+    },
+    "stability": {
+      "title": "Instrumentos de estabilidad",
+      "description": "La estabilización algorítmica, las reservas y la votación se pueden combinar, lo que no sustituye al asesoramiento financiero."
+    }
+  },
+  "gettingStarted": {
+    "title": "Empezando con RING",
+    "step1": {
+      "title": "Crear una cuenta",
+      "description": "Cuenta de Ring/Connect.Software, p. B. a través de Google One Tap u otros proveedores configurados"
+    },
+    "step2": {
+      "title": "Obtener ANILLO",
+      "description": "Compre en intercambios admitidos o gane participando en la economía circular respectiva"
+    },
+    "step3": {
+      "title": "Usar plataforma",
+      "description": "Utilice RING para IA, almacenamiento y gobernanza premium, siempre bajo los términos y condiciones de su instancia"
+    }
+  },
+  "cta": {
+    "title": "Descubra la economía RING",
+    "subtitle": "Entrada en incentivos descentralizados y coordinación colectiva en anillo",
+    "getRing": "Compra un ANILLO",
+    "learnMore": "Más información"
+  }
+}

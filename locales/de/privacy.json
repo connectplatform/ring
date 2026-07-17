@@ -1,0 +1,34 @@
+{
+  "privacyPolicyText": {
+    "title": "Datenschutzerklärung",
+    "lastUpdated": "Stand: {date}",
+    "introduction": {
+      "title": "Einleitung",
+      "content": "Diese Datenschutzerklärung beschreibt, wie Connect.Software (auf Basis der Ring Platform) personenbezogene Daten erhebt, nutzt und schützt."
+    },
+    "dataCollection": {
+      "title": "Welche Daten wir erheben",
+      "content": "Wir erheben Informationen, die Sie uns aktiv mitteilen, z. B. bei der Registrierung, der Profilpflege oder wenn Sie uns kontaktieren.",
+      "item1": "Kontodaten (Name, E-Mail, Profilangaben)",
+      "item2": "Nutzungsdaten und Interaktionen mit der Plattform",
+      "item3": "Kommunikationsdaten, wenn Sie uns schreiben",
+      "item4": "Technische Daten wie IP-Adresse und Browserinformationen"
+    },
+    "dataUsage": {
+      "title": "Wofür wir Ihre Daten nutzen",
+      "content": "Wir verwenden diese Daten, um unsere Dienste bereitzustellen, zu pflegen und zu verbessern, mit Ihnen zu kommunizieren und die Sicherheit der Plattform zu gewährleisten."
+    },
+    "dataSecurity": {
+      "title": "Datensicherheit",
+      "content": "Wir setzen angemessene technische und organisatorische Maßnahmen ein, um Ihre personenbezogenen Daten vor unbefugtem Zugriff, Veränderung, Offenlegung oder Zerstörung zu schützen."
+    },
+    "userRights": {
+      "title": "Ihre Rechte",
+      "content": "Sie haben das Recht auf Auskunft, Berichtigung oder Löschung Ihrer personenbezogenen Daten. Sie können bestimmten Kommunikations- und Analyseprozessen widersprechen bzw. diese einschränken, soweit gesetzlich vorgesehen."
+    },
+    "contactUsPrivacy": {
+      "title": "Kontakt Datenschutz",
+      "content": "Bei Fragen zu dieser Datenschutzerklärung erreichen Sie uns unter privacy@connect.software"
+    }
+  }
+}

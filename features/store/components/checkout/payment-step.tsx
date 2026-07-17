@@ -4,11 +4,9 @@ import React from 'react'
 import { useTranslations } from 'next-intl'
 import { CreditCard, Wallet, Coins, Smartphone } from 'lucide-react'
 import { CompactSecurityBadges } from './security-badges'
+import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 
-export type PaymentMethod = 'wayforpay' | 'crypto' | 'stripe' | 'credit' | 'token'
-
-/** @deprecated Use 'credit' */
-export type LegacyPaymentMethod = PaymentMethod | 'ring'
+export type PaymentMethod = 'wayforpay' | 'card' | 'crypto' | 'stripe' | 'credit' | 'token' | 'paypal'
 
 interface PaymentOption {
   id: PaymentMethod
@@ -26,12 +24,15 @@ interface PaymentStepProps {
 
 export function PaymentStep({ method, setMethod }: PaymentStepProps) {
   const t = useTranslations('modules.store.checkout')
+  const nativeSymbol = getClientNativeTokenSymbol()
 
   const paymentOptions: PaymentOption[] = [
     {
-      id: 'wayforpay',
-      name: t('cardPayment'),
-      description: t('cardPaymentDescription'),
+      id: 'card',
+      name: t('cardPayment', { default: 'Card' }),
+      description: t('cardPaymentDescription', {
+        default: 'Pay by card (WayForPay or Stripe via PaymentConductor)',
+      }),
       icon: <CreditCard className="h-5 w-5" />,
       enabled: true,
       badges: ['Visa', 'Mastercard', 'Apple Pay', 'Google Pay'],
@@ -40,21 +41,31 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
       id: 'credit',
       name: t('creditBalance', { default: 'Credit balance' }),
       description: t('creditBalanceDescription', {
-        default: 'Pay with your account credit balance (fiat)',
+        default: 'Pay with account credit units (points)',
       }),
       icon: <Coins className="h-5 w-5" />,
       enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_CREDIT !== 'false',
-      badges: ['USD', 'UAH'],
+      badges: ['points'],
     },
     {
       id: 'token',
       name: t('nativeToken', { default: 'Native token' }),
       description: t('nativeTokenDescription', {
-        default: 'On-chain payment — coming soon',
+        default: 'Pay with on-chain native token',
       }),
       icon: <Wallet className="h-5 w-5" />,
-      enabled: false,
-      badges: ['RING'],
+      enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN === 'true',
+      badges: [nativeSymbol],
+    },
+    {
+      id: 'paypal',
+      name: t('paypalPayment', { default: 'PayPal' }),
+      description: t('paypalPaymentDescription', {
+        default: 'Pay with PayPal (international)',
+      }),
+      icon: <Smartphone className="h-5 w-5" />,
+      enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL === 'true',
+      badges: ['PayPal'],
     },
     {
       id: 'crypto',
@@ -62,7 +73,7 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
       description: t('cryptoPaymentDescription'),
       icon: <Wallet className="h-5 w-5" />,
       enabled: false,
-      badges: ['DAAR', 'DAARION'],
+      badges: [nativeSymbol],
     },
     {
       id: 'stripe',

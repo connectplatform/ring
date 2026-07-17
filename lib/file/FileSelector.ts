@@ -16,7 +16,7 @@ export class FileSelector {
   private backends = new Map<FileBackendType, IFileService>();
   private defaultBackend: FileBackendType;
 
-  constructor(defaultBackend: FileBackendType = StorageProvider.VERCEL_BLOB) {
+  constructor(defaultBackend: FileBackendType = StorageProvider.RING_FILEBASE) {
     this.defaultBackend = defaultBackend;
     this.initializeBackends();
   }
@@ -75,16 +75,16 @@ export class FileSelector {
 }
 
 export function getStorageBackendFromEnvironment(): FileBackendType {
-  // SSOT: env override → ring-config storage.provider → local_storage (dev) / vercel_blob (prod)
+  // SSOT: env override → ring-config storage.provider → ring_filebase
   const provider = getStorageProvider();
 
   if (!Object.values(StorageProvider).includes(provider as StorageProvider)) {
-    return StorageProvider.LOCAL_STORAGE;
+    return StorageProvider.RING_FILEBASE;
   }
 
-  // LocalStorageSelector intentionally ignores firebase path until first-party support is implemented.
+  // FileSelector has no Firebase adapter yet — fall back to RingFileBase (not local disk).
   if (provider === StorageProvider.FIREBASE_STORAGE) {
-    return StorageProvider.LOCAL_STORAGE;
+    return StorageProvider.RING_FILEBASE;
   }
 
   return provider as FileBackendType;

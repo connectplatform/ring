@@ -1,0 +1,45 @@
+{
+  "termsOfServiceText": {
+    "title": "Condiciones de uso",
+    "lastUpdated": "Estado: {date}",
+    "introduction": {
+      "title": "Introducción",
+      "content": "Bienvenido a Connect.Software. Al utilizar nuestro servicio, usted acepta estos términos."
+    },
+    "userAgreement": {
+      "title": "Acuerdo de usuario",
+      "content": "Al acceder y utilizar Connect.Software, usted acepta estar sujeto a estos términos y condiciones."
+    },
+    "accountResponsibilities": {
+      "title": "Obligaciones de tu cuenta",
+      "content": "Como usuario de Connect.Software, usted es responsable de:",
+      "item1": "La confidencialidad de sus datos de acceso",
+      "item2": "La exactitud y actualidad de su información.",
+      "item3": "Cumplimiento de todas las leyes y regulaciones aplicables a usted"
+    },
+    "contentGuidelines": {
+      "title": "Pautas de contenido",
+      "content": "Todo el contenido de la Plataforma debe cumplir con nuestras Normas comunitarias y no violar ninguna ley ni derechos de terceros."
+    },
+    "intellectualProperty": {
+      "title": "Propiedad intelectual",
+      "content": "El contenido y los materiales de la Plataforma pueden estar protegidos por derechos de propiedad intelectual. Usted conserva la propiedad de su propio contenido; Usted nos otorga los derechos de uso necesarios para operar la plataforma en el marco de las respectivas condiciones del producto."
+    },
+    "limitationOfLiability": {
+      "title": "Limitación de responsabilidad",
+      "content": "En la máxima medida permitida por la ley, Connect.Software no será responsable de ningún daño indirecto, incidental, especial, consecuente o punitivo que surja de su uso o esté relacionado con él."
+    },
+    "termination": {
+      "title": "Terminación y suspensión",
+      "content": "Nos reservamos el derecho de bloquear o cancelar cuentas por violaciones de estos Términos o por otras razones objetivamente justificadas."
+    },
+    "changes": {
+      "title": "Cambios a los términos",
+      "content": "Podemos actualizar estos Términos de uso. Comunicaremos los cambios materiales a través de la Plataforma o por otros medios apropiados."
+    },
+    "contact": {
+      "title": "Contacto Legal",
+      "content": "Dirija cualquier pregunta sobre estos Términos de uso a legal@connect.software"
+    }
+  }
+}

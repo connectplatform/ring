@@ -1,4 +1,5 @@
 import type { CreateCheckoutContext, CreateCheckoutResult } from '@/lib/payments/conductor/types'
+import { navigateCheckoutRedirect } from '@/lib/payments/conductor/types'
 import { buildOrderReference } from '@/lib/payments/order-reference'
 import { getWebhookUrl } from '@/lib/payments/payment.config'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
@@ -59,15 +60,18 @@ export async function createStripeCheckout(ctx: CreateCheckoutContext): Promise<
         entityId: ctx.entityId,
         userId: ctx.userId,
         articleId: ctx.articleId ?? '',
+        projectOrderId: ctx.projectOrderId ?? ctx.orderId ?? '',
         orderReference,
       },
     })
 
     await paymentTransactionService.markRedirected(orderReference)
 
+    const paymentUrl = session.url ?? undefined
     return {
       success: true,
-      paymentUrl: session.url ?? undefined,
+      paymentUrl,
+      redirect: paymentUrl ? navigateCheckoutRedirect(paymentUrl) : undefined,
       orderReference,
     }
   } catch (e: unknown) {
@@ -88,6 +92,8 @@ function productNameForPurpose(ctx: CreateCheckoutContext): string {
       return 'Wallet credit top-up'
     case 'native_token_onramp':
       return 'Native token card onramp'
+    case 'project_order':
+      return 'Ring project order deposit'
     default:
       return 'Ring payment'
   }

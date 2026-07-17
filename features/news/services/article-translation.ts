@@ -6,6 +6,10 @@ import { translitSlug } from '@/lib/news/translit-slug'
 import { createNewsArticleForAuthor } from '@/features/news/services/news-service'
 import type { MainPageStatus, NewsFormData, NewsCategory } from '@/features/news/types'
 import { logger } from '@/lib/logger'
+import {
+  coerceMediaImageAsset,
+  coerceMediaImageAssetList,
+} from '@/lib/file/media-asset'
 
 const TRANSLATION_SCHEMA = {
   name: 'news_article_translation',
@@ -116,9 +120,13 @@ export async function generateArticleTranslations(
         excerpt: translated.excerpt.slice(0, 300),
         category: (source.category as NewsCategory) || 'other',
         tags: translated.tags,
-        featuredImage: source.featuredImage as string | undefined,
+        featuredImage: (source.featuredImage as string | undefined)
+          || coerceMediaImageAsset(source.featuredImageAsset)?.url,
+        featuredImageAsset:
+          coerceMediaImageAsset(source.featuredImageAsset) ||
+          coerceMediaImageAsset(source.featuredImage),
         audioUrl: source.audioUrl as string | undefined,
-        gallery: Array.isArray(source.gallery) ? (source.gallery as string[]) : [],
+        gallery: coerceMediaImageAssetList(source.gallery),
         status: (source.status as NewsFormData['status']) || 'published',
         visibility: (source.visibility as NewsFormData['visibility']) || 'site-wide',
         featured: Boolean(source.featured),

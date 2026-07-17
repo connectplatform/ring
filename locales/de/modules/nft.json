@@ -1,0 +1,184 @@
+{
+  "marketplace": {
+    "title": "NFT-Marktplatz",
+    "subtitle": "Digitale Assets auf dem dezentralen Marktplatz der Ring Platform entdecken, handeln und sammeln – auch von Connect.Software-Instanzen aus erreichbar."
+  },
+  "collections": {
+    "title": "NFT-Kollektionen",
+    "subtitle": "Kuratierte Kollektionen verifizierter Creatorinnen",
+    "browseCollections": "Kollektionen durchsuchen",
+    "trendingCollections": "Trend-Kollektionen",
+    "featuredCreators": "Vorgestellte Creator",
+    "allCollections": "Alle Kollektionen",
+    "stats": {
+      "floorPrice": "Floor-Preis",
+      "totalVolume": "Gesamtvolumen",
+      "items": "Objekte",
+      "owners": "Inhaberinnen"
+    },
+    "filters": {
+      "category": "Kategorie",
+      "blockchain": "Blockchain",
+      "verified": "Nur verifiziert",
+      "sortBy": "Sortieren nach"
+    },
+    "empty": "Keine Kollektionen gefunden",
+    "comingSoon": "NFT-Kollektionen folgen. Der Marktplatz wird verifizierte Creator und kuratierte digitale Kunst bieten."
+  },
+  "collection": {
+    "title": "Kollektion",
+    "subtitle": "Details, Statistiken und verfügbare NFTs",
+    "about": "Über die Kollektion",
+    "creator": "Creator",
+    "items": "Objekte",
+    "activity": "Aktivität",
+    "listings": "Listings",
+    "offers": "Gebote",
+    "stats": {
+      "totalItems": "Objekte gesamt",
+      "owners": "Inhaberinnen",
+      "floorPrice": "Floor-Preis",
+      "volumeTraded": "Handelsvolumen",
+      "listed": "Gelistet"
+    },
+    "tabs": {
+      "items": "Objekte",
+      "activity": "Aktivität",
+      "analytics": "Analysen"
+    },
+    "comingSoon": "Kollektionsdetails folgen"
+  },
+  "search": {
+    "title": "NFTs suchen",
+    "subtitle": "Digitale Assets über alle Kollektionen hinweg finden",
+    "placeholder": "Suche nach Name, Kollektion oder Creator",
+    "advancedFilters": "Erweiterte Filter",
+    "filters": {
+      "priceRange": "Preisspanne",
+      "attributes": "Attribute",
+      "blockchain": "Blockchain",
+      "collection": "Kollektion",
+      "status": "Status"
+    },
+    "status": {
+      "all": "Alle",
+      "listed": "Gelistet",
+      "onAuction": "In Auktion",
+      "hasOffers": "Mit Geboten"
+    },
+    "sortBy": {
+      "recentlyListed": "Zuletzt gelistet",
+      "priceLowToHigh": "Preis aufsteigend",
+      "priceHighToLow": "Preis absteigend",
+      "mostViewed": "Meist angesehen",
+      "endingSoon": "Endet bald"
+    },
+    "results": "{{count}} Treffer",
+    "noResults": "Keine passenden NFTs",
+    "comingSoon": "NFT-Suche folgt – über Kollektionen, Attribute und Creator hinweg."
+  },
+  "item": {
+    "title": "NFT-Details",
+    "subtitle": "Details, Handelsverlauf und Gebote",
+    "details": "Details",
+    "properties": "Eigenschaften",
+    "about": "Über",
+    "chain": "Chain",
+    "contract": "Vertrag",
+    "tokenId": "Token-ID",
+    "tokenStandard": "Token-Standard",
+    "owner": "Inhaberin",
+    "creator": "Creator",
+    "actions": {
+      "buyNow": "Jetzt kaufen",
+      "makeOffer": "Gebot abgeben",
+      "list": "Zum Verkauf einstellen",
+      "cancel": "Listing beenden",
+      "transfer": "Transferieren"
+    },
+    "pricing": {
+      "currentPrice": "Aktueller Preis",
+      "lastSale": "Letzter Verkauf",
+      "floorPrice": "Floor-Preis",
+      "topOffer": "Höchstes Gebot"
+    },
+    "tabs": {
+      "overview": "Überblick",
+      "properties": "Eigenschaften",
+      "history": "Historie",
+      "offers": "Gebote"
+    },
+    "history": {
+      "minted": "Gemintet",
+      "listed": "Gelistet",
+      "sold": "Verkauft",
+      "transferred": "Transferiert",
+      "offer": "Gebot",
+      "bid": "Gebot"
+    },
+    "comingSoon": "NFT-Details folgen"
+  },
+  "wallet": {
+    "connect": "Wallet verbinden",
+    "disconnect": "Trennen",
+    "wrongNetwork": "Falsches Netzwerk",
+    "switchNetwork": "Wechseln zu {{network}}",
+    "notOwner": "Sie besitzen dieses NFT nicht",
+    "notConnected": "Bitte Wallet verbinden, um mit NFTs zu interagieren"
+  },
+  "status": {
+    "draft": "Entwurf",
+    "active": "Aktiv",
+    "sold": "Verkauft",
+    "cancelled": "Storniert",
+    "expired": "Abgelaufen"
+  },
+  "messages": {
+    "listingCreated": "NFT erfolgreich gelistet",
+    "listingCancelled": "Listing beendet",
+    "purchaseComplete": "Kauf abgeschlossen – NFT in Ihr Wallet transferiert",
+    "offerSubmitted": "Gebot übermittelt",
+    "transactionPending": "Transaktion wird bestätigt …",
+    "transactionFailed": "Transaktion fehlgeschlagen. Bitte erneut versuchen.",
+    "walletRequired": "Bitte Wallet verbinden",
+    "insufficientFunds": "Unzureichendes Guthaben für diese Transaktion"
+  },
+  "imageEditor": {
+    "title": "NFT-Art generieren",
+    "description": "Beschreiben Sie Ihr NFT im Detail. Variationen durchwischen und das gewählte Bild verwenden.",
+    "emptyTitle": "Beschreiben Sie Ihr NFT im Detail",
+    "emptyBody": "Motiv, Stil, Farben, Stimmung und Komposition. Vier Variationen erzeugen, vergleichen und die beste als Cover nutzen.",
+    "useThisImage": "Dieses Bild verwenden",
+    "generating": "4 Vorschau-Variationen werden erzeugt…",
+    "historyEmpty": "Ihre Generierungs-Prompts erscheinen hier mit Zeitstempeln.",
+    "openEditor": "Bildeditor öffnen",
+    "uploadTab": "Hochladen",
+    "generateTab": "Generieren",
+    "uploadJpgPng": "JPG- und PNG-Medien hochladen",
+    "select": "Auswählen",
+    "primaryHint": "Primärmedium — als NFT-Thumbnail verwendet.",
+    "artReadyTitle": "NFT-Art bereit",
+    "artReadyBody": "Ihre ImageConductor-Vorschauen sind bereit zur Prüfung."
+  },
+  "title": "NFT Marketplace",
+  "createListing": "NFT-Listing erstellen",
+  "createListingDescription": "Ihr NFT zum Verkauf auf dem Marktplatz listen",
+  "progressSteps": {
+    "nftDetails": "NFT-Details",
+    "pricing": "Preisgestaltung",
+    "list": "Listen"
+  },
+  "contractAddress": "NFT-Contract-Adresse",
+  "tokenId": "Token ID",
+  "standard": "Standard",
+  "chainId": "Chain ID",
+  "priceAmount": "Preisbetrag",
+  "currency": "Währung",
+  "native": "NATIVE",
+  "daar": "DAAR",
+  "daarion": "DAARION",
+  "creatingListing": "Listing wird erstellt…",
+  "createNftListing": "NFT-Listing erstellen",
+  "listingCreated": "Listing erstellt und aktiviert.",
+  "failedToCreateListing": "Listing konnte nicht erstellt werden"
+}

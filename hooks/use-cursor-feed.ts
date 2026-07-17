@@ -156,22 +156,37 @@ export function useCursorFeed<T extends { id: string }>({
     needsInitialFetchRef.current = initialItems.length === 0
   }, [filterFingerprint, initialCursor, initialItems, locale, moduleId])
 
+  // Refs keep loadPage/reload identities stable across item/cursor updates so
+  // consumers (e.g. CreditHistoryProvider syncing on balance refresh) do not loop.
+  const itemsRef = useRef(items)
+  const cursorRef = useRef(cursor)
+  const hasMoreRef = useRef(hasMore)
+  const enabledRef = useRef(enabled)
+  const fetchPageRef = useRef(fetchPage)
+  const onItemsAddedRef = useRef(onItemsAdded)
+  itemsRef.current = items
+  cursorRef.current = cursor
+  hasMoreRef.current = hasMore
+  enabledRef.current = enabled
+  fetchPageRef.current = fetchPage
+  onItemsAddedRef.current = onItemsAdded
+
   const loadPage = useCallback(
     async (reset: boolean) => {
-      if (!enabled || inFlightRef.current) return
-      if (!reset && (!hasMore || !cursor)) return
+      if (!enabledRef.current || inFlightRef.current) return
+      if (!reset && (!hasMoreRef.current || !cursorRef.current)) return
 
       inFlightRef.current = true
       setLoading(true)
       setError(null)
 
-      const requestCursor = reset ? null : cursor
+      const requestCursor = reset ? null : cursorRef.current
 
       try {
-        const page = await fetchPage(requestCursor)
+        const page = await fetchPageRef.current(requestCursor)
         const fetched = page.items ?? []
 
-        const base = reset ? [] : items
+        const base = reset ? [] : itemsRef.current
         const { merged, added } = mergeUniqueById(base, fetched)
 
         const nextCursor = reset
@@ -192,7 +207,7 @@ export function useCursorFeed<T extends { id: string }>({
         setHasMore(nextHasMore)
 
         if (added.length > 0) {
-          onItemsAdded?.(added)
+          onItemsAddedRef.current?.(added)
         }
 
         persistSession(merged, nextCursor, nextHasMore, getScrollY())
@@ -206,17 +221,7 @@ export function useCursorFeed<T extends { id: string }>({
         inFlightRef.current = false
       }
     },
-    [
-      cursor,
-      enabled,
-      fetchPage,
-      getScrollY,
-      hasMore,
-      items,
-      moduleId,
-      onItemsAdded,
-      persistSession,
-    ],
+    [getScrollY, moduleId, persistSession],
   )
 
   const reload = useCallback(async () => {
@@ -226,13 +231,18 @@ export function useCursorFeed<T extends { id: string }>({
     await loadPage(true)
   }, [loadPage, locale, moduleId])
 
+  const initialItemsRef = useRef(initialItems)
+  const initialCursorRef = useRef(initialCursor)
+  initialItemsRef.current = initialItems
+  initialCursorRef.current = initialCursor
+
   const reset = useCallback(() => {
     clearFeedSession(moduleId, locale)
-    setItems(initialItems)
-    setCursor(initialCursor)
-    setHasMore(Boolean(initialCursor))
+    setItems(initialItemsRef.current)
+    setCursor(initialCursorRef.current)
+    setHasMore(Boolean(initialCursorRef.current))
     setError(null)
-  }, [initialCursor, initialItems, locale, moduleId])
+  }, [locale, moduleId])
 
   // First page when feed is empty (store, filter reset, no saved session)
   useEffect(() => {

@@ -1,178 +1,256 @@
 import 'server-only'
 
 /**
- * Airdrop Service — User-Credit-Balance Airdrops ONLY
- * 
- * This module implements the business logic for awarding USD credit points to users
- * for completing specific actions on the platform. All configuration for
- * triggers and their properties is managed through ring-config.json and is validated via Zod schema
- * in @/lib/zod/credit-reward-schemas.ts.
- * 
- * Rewards may be triggered by actions such as:
- * - adminKYCVerified: User is verified by admin KYC
- * - userSetUniqueUsername: User sets a unique username
- * - profileCompleted: User completes profile
- * - eventParticipation: User joins a platform event
- * 
- * NOTE: On-chain/native token airdrops are out of scope for this phase; see section at bottom.
+ * Reward Credit Service — user credit-balance awards for platform actions.
+ *
+ * SSOT config: ring-config.json → credit.rewards
+ * Ledger: creditBalanceService.addCredits(..., 'reward_credit_add')
+ * Audit: credit_add_events
+ *
+ * Future: native token airdrops are out of scope (separate service if needed).
  */
 
-import { RewardCreditAddEventRuleSchema } from '@/lib/zod/credit-reward-schemas'
-
-// Import necessary database operations for the reward credit add event
+import {
+  RewardCreditAddEventRuleSchema,
+  type RewardCreditAddEventTrigger,
+  type RewardCreditAddEventRule,
+} from '@/lib/zod/credit-reward-schemas'
 import {
   findRewardCreditAddEventByIdempotencyKey,
   createRewardCreditAddEvent,
   updateRewardCreditAddEventStatus,
+  sumCompletedRewardPointsForUtcDay,
+  listCompletedRewardEventsForUser,
 } from '@/lib/wallet/reward-credit-event-db'
-
-// Import the credit balance service (handles actual user credit balance updates)
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
-// Import config snapshot function for reading up-to-date config values
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import {
+  getRewardCreditRules,
+  getRewardMinRole,
+  getRewardMultiplierForRole,
+  getRewardDailyEarnCap,
+} from '@/lib/ring-config-chain'
+import { getFiatCreditAccountingRate } from '@/lib/payments/credit-currency'
+import { computeRewardFinalAmount } from '@/lib/wallet/reward-credit-math'
+import {
+  ROLE_LEVEL,
+  parseUserRolesArray,
+  resolvePersistedUserRole,
+  type UserRolesArray,
+} from '@/features/auth/user-role'
+import { db } from '@/lib/database'
 
-// Import all relevant types and Zod schemas for reward event config
-import type {
-  RewardCreditAddEventTrigger, 
-  RewardCreditAddEventRule,
-} from '@/lib/zod/credit-reward-schemas'
-import { z } from 'zod'
-
-/**
- * Locate and validate the rule config for a given trigger (action key).
- * Returns parsed rule config or undefined if not found or invalid.
- * 
- * @param trigger - The action enum key (RewardCreditAddEventTrigger)
- * @returns - Parsed config object, or undefined if not present/valid
- */
+export { computeRewardFinalAmount } from '@/lib/wallet/reward-credit-math'
 
 export function ruleForTrigger(
-  trigger: RewardCreditAddEventTrigger
+  trigger: RewardCreditAddEventTrigger,
 ): RewardCreditAddEventRule | undefined {
-  // Obtain latest system config snapshot
-  const config = getSystemConfigSnapshot() as {
-    credits?: { rewards?: { events?: Record<string, unknown> } }
-    credit?: { creditAddEvents?: Record<string, unknown> }
+  const eventRules = getRewardCreditRules()
+  if (!(trigger in eventRules)) {
+    return undefined
   }
-  // SSOT paths (both accepted during rename): credits.rewards.events | credit.creditAddEvents
-  const eventRules =
-    config.credits?.rewards?.events ??
-    config.credit?.creditAddEvents ??
-    {}
-
-  // Direct key lookup: `eventRules` is a map { [triggerKey]: RuleConfig }
-  if (trigger in eventRules) {
-    // Validate and parse via schema, guarantee shape
-    try {
-      // We want a single rule schema, not map
-      return RewardCreditAddEventRuleSchema.parse(eventRules[trigger])
-    } catch (error) {
-      console.error(`Error parsing reward event rule for trigger ${trigger}:`, error instanceof Error ? error.message : String(error))
-      return undefined
-    }
-  } else {
-    console.error(`No reward event rule found for trigger ${trigger}`)
+  try {
+    return RewardCreditAddEventRuleSchema.parse(eventRules[trigger])
+  } catch (error) {
+    console.error(
+      `Error parsing reward event rule for trigger ${trigger}:`,
+      error instanceof Error ? error.message : String(error),
+    )
     return undefined
   }
 }
 
+function utcDayKey(d = new Date()): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function buildIdempotencyKey(params: {
+  trigger: string
+  userId: string
+  mode: string
+  objectType?: string
+  objectId?: string
+}): string | null {
+  let key: string
+  if (params.mode === 'once_per_object') {
+    if (!params.objectType || !params.objectId) return null
+    key = `credit_add_event:${params.trigger}:${params.userId}:${params.objectType}:${params.objectId}`
+  } else {
+    key = `credit_add_event:${params.trigger}:${params.userId}`
+  }
+  if (key.length > 200) return null
+  return key
+}
+
+function meetsMinRole(userRole: UserRolesArray, minRoleRaw: string): boolean {
+  const minRole = parseUserRolesArray(minRoleRaw) ?? resolvePersistedUserRole(minRoleRaw)
+  return ROLE_LEVEL[userRole] >= ROLE_LEVEL[minRole]
+}
+
+async function resolveUserContext(userId: string): Promise<{
+  role: UserRolesArray
+  username: string | null
+  isVerified: boolean
+}> {
+  const result = await db().findDocById<Record<string, unknown>>('users', userId)
+  const data = result.success ? result.data : null
+  const role = resolvePersistedUserRole(data?.role)
+  const username =
+    (typeof data?.username === 'string' && data.username.trim()) ||
+    null
+  const isVerified = Boolean(data?.isVerified ?? data?.is_verified)
+  return { role, username, isVerified }
+}
+
+export type EnqueueRewardResult = {
+  status: 'skipped' | 'completed' | 'existing' | 'failed'
+  jobId?: string
+  amount?: string
+  reason?: string
+}
+
 /**
- * Attempts to enqueue and execute a reward airdrop for a user-action event.
- * Ensures the rules from credit-reward-schemas are followed.
- * 
- * 1. Look up rule config for trigger.
- * 2. Enforce gating fields (enabled, requireUsername, requireVerified).
- * 3. Check for idempotency (prior completed event for this user+trigger).
- * 4. Create new pending event if none exists; apply credit amount.
- * 5. On success/failure, update status and return.
- * 
- * @param params - { userId, trigger, username, isVerified }
- * @returns     - Status, job id and awarded amount.
+ * Award credit points for a user action (idempotent, role-gated, capped).
  */
 export async function enqueueRewardCreditAddEvent(params: {
   userId: string
   trigger: RewardCreditAddEventTrigger
   username?: string | null
   isVerified?: boolean
-}): Promise<{
-  status: 'skipped' | 'completed' | 'existing'
-  jobId?: string
-  amount?: string
-}> {
-  // Load the rule definition for the trigger (validate struct)
-  const ruleConfig = ruleForTrigger(params.trigger) as z.infer<typeof RewardCreditAddEventRuleSchema>
+  userRole?: string | null
+  objectType?: string
+  objectId?: string
+}): Promise<EnqueueRewardResult> {
+  const ruleConfig = ruleForTrigger(params.trigger)
   if (!ruleConfig) {
-    return { status: 'skipped' }
+    return { status: 'skipped', reason: 'no_rule' }
   }
-
-  // Gating: disabled rules never award
   if (ruleConfig.enabled === false) {
-    return { status: 'skipped' }
+    return { status: 'skipped', reason: 'disabled' }
   }
 
-  // Gating: requireUsername/requireVerified (with null coalescence fallback)
-  if (
-    (ruleConfig.requireUsername && !params.username) ||
-    (ruleConfig.requireVerified && !params.isVerified)
-  ) {
-    return { status: 'skipped' }
+  const ctx = await resolveUserContext(params.userId)
+  const userRole =
+    parseUserRolesArray(params.userRole) ??
+    ctx.role
+  const username = params.username !== undefined ? params.username : ctx.username
+  const isVerified =
+    params.isVerified !== undefined ? params.isVerified : ctx.isVerified
+
+  const minRole = getRewardMinRole()
+  if (!meetsMinRole(userRole, minRole)) {
+    return { status: 'skipped', reason: 'min_role' }
   }
 
-  // Compute idempotency key: unique for trigger+user
-  const idempotencyKey = `credit_add_event:${params.trigger}:${params.userId}`
+  if (ruleConfig.requireUsername && !username) {
+    return { status: 'skipped', reason: 'require_username' }
+  }
+  if (ruleConfig.requireVerified && !isVerified) {
+    return { status: 'skipped', reason: 'require_verified' }
+  }
 
-  // Check if previously completed event for this (idempotent)
+  const mode = ruleConfig.idempotencyMode ?? 'once_per_user'
+  if (mode === 'once_per_object' && (!params.objectType || !params.objectId)) {
+    return { status: 'skipped', reason: 'missing_object' }
+  }
+
+  const idempotencyKey = buildIdempotencyKey({
+    trigger: params.trigger,
+    userId: params.userId,
+    mode,
+    objectType: params.objectType,
+    objectId: params.objectId,
+  })
+  if (!idempotencyKey) {
+    return { status: 'skipped', reason: 'idempotency_key_invalid' }
+  }
+
   const existing = await findRewardCreditAddEventByIdempotencyKey(idempotencyKey)
   if (existing && existing.status === 'completed') {
     return { status: 'existing', jobId: existing.id, amount: existing.amount }
   }
 
-  // Generate job id`
-  const id = crypto.randomUUID()
-  // Always use reward amount as string
-  const amount = String(ruleConfig.amount)
+  const base = Number(ruleConfig.amount)
+  if (!Number.isFinite(base) || base <= 0) {
+    return { status: 'skipped', reason: 'invalid_amount' }
+  }
+  const multiplier = getRewardMultiplierForRole(userRole)
+  const final = computeRewardFinalAmount(base, multiplier)
 
-  // Create new DB event as "pending"
-  const job = await createRewardCreditAddEvent({
-    id,
-    idempotency_key: idempotencyKey,
-    user_id: params.userId,
-    trigger: params.trigger as RewardCreditAddEventTrigger, // new: use "trigger", not "rule"
-    rule: ruleConfig as z.infer<typeof RewardCreditAddEventRuleSchema>,
-    amount,
-    description: ruleConfig.amount ?? `Reward credit add event: ${params.trigger}`,
-    metadata: {
+  const day = utcDayKey()
+  const earnedToday = await sumCompletedRewardPointsForUtcDay(params.userId, day)
+  const dailyCap = getRewardDailyEarnCap(userRole)
+  const remaining = dailyCap - earnedToday
+  if (!(remaining >= final)) {
+    // Do NOT write idempotency_key row — that would permanently block the award.
+    return {
+      status: 'skipped',
+      amount: String(final),
+      reason: 'daily_cap',
+    }
+  }
+
+  const id = crypto.randomUUID()
+  const amount = String(final)
+  const metadata = {
+    trigger: params.trigger,
+    rewardCreditAddEventId: id,
+    base_amount: base,
+    multiplier,
+    final_amount: final,
+    user_role: userRole,
+    object_type: params.objectType,
+    object_id: params.objectId,
+  }
+
+  let jobId = id
+  try {
+    const job = await createRewardCreditAddEvent({
+      id,
+      idempotency_key: idempotencyKey,
+      user_id: params.userId,
       trigger: params.trigger,
-      rewardCreditAddEventId: id,
-    },
-    status: 'pending',  
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  })
+      rule: ruleConfig,
+      amount,
+      description: `Reward ${params.trigger}: ${amount}`,
+      metadata,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    jobId = job.id || id
+  } catch (error) {
+    const code = (error as Error & { code?: string }).code
+    if (code === 'IDEMPOTENCY_CONFLICT') {
+      const again = await findRewardCreditAddEventByIdempotencyKey(idempotencyKey)
+      return {
+        status: 'existing',
+        jobId: again?.id,
+        amount: again?.amount,
+        reason: 'idempotency_conflict',
+      }
+    }
+    throw error
+  }
 
   try {
-    // Actually credit the user
+    const fiatRate = getFiatCreditAccountingRate()
     const result = await creditBalanceService.addCredits(
       params.userId,
       {
         amount,
-        description:
-          ruleConfig.amount ??
-          `Reward credit add event: ${params.trigger}`,
-        metadata: {
-          trigger: params.trigger,
-          rewardCreditAddEventId: id,
-        },
+        description: `Reward ${params.trigger}: ${amount}`,
+        metadata,
       },
       'reward_credit_add',
-      '1', // USD (fiat) credits always 1:1 here
+      fiatRate,
     )
 
-    // Mark as completed, attach transaction info
-    await updateRewardCreditAddEventStatus(job.id!, 'completed', {
+    await updateRewardCreditAddEventStatus(jobId, 'completed', {
       transaction_id: result.transaction.id,
       description: `Reward credit add event completed: ${params.trigger}`,
       completed_at: new Date().toISOString(),
+      metadata,
+      amount,
     })
 
     try {
@@ -184,77 +262,57 @@ export async function enqueueRewardCreditAddEvent(params: {
         payload: {
           trigger: params.trigger,
           amount,
-          rewardCreditAddEventId: id,
+          base_amount: base,
+          multiplier,
+          final_amount: final,
+          user_role: userRole,
+          rewardCreditAddEventId: jobId,
           transactionId: result.transaction.id,
+          object_type: params.objectType,
+          object_id: params.objectId,
         },
       })
     } catch {
       // non-blocking audit
     }
 
-    return { status: 'completed', jobId: id, amount }
+    return { status: 'completed', jobId, amount }
   } catch (error) {
-    // On failure
     const message = error instanceof Error ? error.message : 'Reward credit add event failed'
-    await updateRewardCreditAddEventStatus(job.id!, 'failed', {
+    await updateRewardCreditAddEventStatus(jobId, 'failed', {
       failure_reason: message,
+      metadata: { ...metadata, skip_reason: undefined },
     })
-    return { status: 'skipped', jobId: id, amount }
+    return { status: 'failed', jobId, amount, reason: message }
   }
 }
 
-/**
- * Returns an aggregate summary of airdrop rewards received by the user.
- * 
- * Structure:
- * {
- *    totalReceived: string,       // Total sum of reward-credits granted to user (all triggers)
- *    byTrigger: {
- *      [triggerKey]: {
- *        count: number,           // Number of airdrops for that trigger
- *        total: string            // Total amount for that trigger
- *      }
- *    }
- * }
- * 
- * @param userId
- * @returns reward summary object
- */
 export async function getUserRewardCreditAddEventSummary(userId: string): Promise<{
   totalReceived: string
   byTrigger: Record<string, { count: number; total: string }>
 }> {
-  // MOCK CODE, TODO: Query reward_credit_add_events DB/collection for user's reward history
-  // TODO: Implement the following steps:
-  //   1. Fetch all events for userId with status 'completed'
-  //   2. Aggregate reward amount per trigger type (rule)
-  //   3. Return total and grouped summary
-  //   4. Use native Next.js 16 server-side cache to memoize queries for hot users (if needed)
+  const events = await listCompletedRewardEventsForUser(userId)
+  let total = 0
+  const byTrigger: Record<string, { count: number; total: number }> = {}
+
+  for (const ev of events) {
+    const meta = (ev.metadata || {}) as Record<string, unknown>
+    const amt = Number(meta.final_amount ?? ev.amount ?? 0)
+    if (!Number.isFinite(amt)) continue
+    total += amt
+    const key = String(ev.trigger)
+    if (!byTrigger[key]) byTrigger[key] = { count: 0, total: 0 }
+    byTrigger[key].count += 1
+    byTrigger[key].total += amt
+  }
+
   return {
-    totalReceived: '0',
-    byTrigger: {},
+    totalReceived: String(total),
+    byTrigger: Object.fromEntries(
+      Object.entries(byTrigger).map(([k, v]) => [
+        k,
+        { count: v.count, total: String(v.total) },
+      ]),
+    ),
   }
 }
-
-// ============================================================================
-// TBD: On-Chain Native Token Airdrops (Phase 2)
-// ============================================================================
-//
-// The following on-chain airdrop functionality was REMOVED from this service
-// in favor of user-credit-balance airdrops only.
-//
-// Original implementation (TBD Phase 2):
-// - Used executeAirdropTransfer() for Solana native token transfers
-// - Had separate airdrop_jobs collection with chain_signature field
-// - Required native wallet, compliance screening, etc.
-//
-// To re-enable on-chain airdrops in Phase 2:
-// 1. Add 'native_token_airdrops' section to ring-config.json
-// 2. Create new service: lib/wallet/native-token-airdrop-service.ts
-// 3. Update ring-config-types.ts to include native token airdrop rules
-// 4. Re-implement with gasless treasury-sponsored transfers
-// 5. Add separate collection: native_token_airdrop_jobs
-//
-// SSOT: user-credit-balance airdrops are the ONLY supported airdrop type
-// for Phase 1. Native token airdrops are deferred to Phase 2.
-// ============================================================================

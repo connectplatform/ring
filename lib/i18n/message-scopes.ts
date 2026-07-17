@@ -54,7 +54,9 @@ export type LocaleFileId =
   | 'modSettings'
   | 'modMembership'
   | 'modNft'
+  | 'modGenerativeMedia'
   | 'modNews'
+  | 'modMoodPlayer'
   | 'modNotifications'
   | 'modRefcodes'
   | 'modDao'
@@ -77,6 +79,10 @@ const PUBLIC_HOME: LocaleFileId[] = [
   'modProfile',
   'modSettings',
   'modWallet',
+  // Admin supermenu mounts in global chrome (sidebar / bottom nav) for member+;
+  // keep admin + news label SSOT available on every route scope that extends PUBLIC_HOME.
+  'modAdmin',
+  'modNews',
 ]
 
 const PUBLIC_CONTENT: LocaleFileId[] = [
@@ -94,11 +100,12 @@ const PUBLIC_CONTENT: LocaleFileId[] = [
   'contact',
   'docs',
   'modDao',
+  'modMoodPlayer',
 ]
 
 const PUBLIC_STORE_EXTRA: LocaleFileId[] = ['vendor']
 
-const PUBLIC_NEWS_EXTRA: LocaleFileId[] = ['modNews']
+const PUBLIC_NEWS_EXTRA: LocaleFileId[] = ['modNews', 'modMoodPlayer']
 
 const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'modProfile',
@@ -109,7 +116,10 @@ const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'modMessenger',
   'modContacts',
   'modNft',
+  'modGenerativeMedia',
+  'modMoodPlayer',
   'modNotifications',
+  'modNews',
   'vendor',
   'editor',
   'meetups',
@@ -162,7 +172,9 @@ const ALL_FILES: LocaleFileId[] = [
   'modSettings',
   'modMembership',
   'modNft',
+  'modGenerativeMedia',
   'modNews',
+  'modMoodPlayer',
   'modNotifications',
   'modRefcodes',
   'modDao',
@@ -211,7 +223,7 @@ export function resolveMessageScope(pathname: string): MessageScope {
   if (normalized.startsWith('/intro')) return 'presentation'
   if (normalized.startsWith('/settings')) return 'authenticated'
   if (
-    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications|my-news)(\/|$)/.test(
+    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications|my-news|my-jobs|my-orders)(\/|$)/.test(
       normalized,
     ) ||
     normalized.startsWith('/membership/success') ||

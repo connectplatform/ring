@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { getWalletActivityFeed } from '@/features/wallet/services/wallet-activity-feed'
+import {
+  getWalletActivityFeed,
+  type WalletActivityFeedFilter,
+} from '@/features/wallet/services/wallet-activity-feed'
 import { queryInt, queryString } from '@/lib/server/request'
+
+const ALLOWED_FILTERS: WalletActivityFeedFilter[] = [
+  'all',
+  'credit',
+  'chain',
+  'incoming',
+  'outgoing',
+  'requests',
+]
 
 export async function GET(request: NextRequest) {
   await connection()
@@ -11,11 +23,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const filter = (queryString(request, 'filter') ?? 'all') as 'all' | 'credit' | 'chain'
+  const filter = (queryString(request, 'filter') ?? 'all') as WalletActivityFeedFilter
   const limit = queryInt(request, 'limit', 50) ?? 50
   const walletAddress = queryString(request, 'walletAddress')
 
-  if (!['all', 'credit', 'chain'].includes(filter)) {
+  if (!ALLOWED_FILTERS.includes(filter)) {
     return NextResponse.json({ error: 'Invalid filter' }, { status: 400 })
   }
 

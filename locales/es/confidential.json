@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "metadata": {
+      "title": "Entidades confidenciales | Connect.Software"
+    },
+    "metaDescription": {
+      "description": "Directorio restringido de organizaciones para miembros Confidential de Connect.Software—contexto de MCP, skillsets y marketplace de routers. Solo con sesión; no indexado."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Entidades confidenciales — Connect.Software",
+      "mainEntityDescription": "Registros sensibles de socios e inquilinos para operadores de confianza en el workspace y la pila de marketplace de Connect.Software."
+    },
+    "wrapper": {
+      "loading": "Cargando entidades confidenciales…",
+      "permissionDenied": "No tienes permiso para ver esta página."
+    }
+  },
+  "opportunities": {
+    "metadata": {
+      "title": "Oportunidades confidenciales | Connect.Software"
+    },
+    "metaDescription": {
+      "description": "Listados privados y señales de partnership para miembros Confidential de Connect.Software—alineados con el marketplace MCP, integraciones e despliegues on-prem o en la nube."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Oportunidades confidenciales — Connect.Software",
+      "mainEntityDescription": "Pipeline de oportunidades tier Confidential: partners de implementación, pilotos enterprise y flujos restringidos de proveedor o cliente tras autenticación."
+    },
+    "wrapper": {
+      "loading": "Cargando oportunidades confidenciales…",
+      "permissionDenied": "No tienes permiso para ver esta página."
+    }
+  }
+}

@@ -20,6 +20,7 @@
 import { auth } from '@/auth'
 import { localizedRedirect } from '@/lib/i18n-server-redirect'
 import { file } from '@/lib/file'
+import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { db } from '@/lib/database'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { createVendorProfile } from '@/features/store/services/vendor-lifecycle'
@@ -27,6 +28,41 @@ import { buildMainStoreListingPatch, flattenProductDocumentForWrite, resolveVend
 import { normalizePriceToUah, type StoreCurrency } from '@/lib/zod/store-product'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale } from '@/i18n/shared'
+import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
+import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
+import { getVendorProfile } from '@/features/store/services/vendor-profile'
+import type { VendorProfile } from '@/features/store/types/vendor'
+import type {
+  FreeShippingMode,
+  ProductPromotion,
+  VendorStorePromotions,
+} from '@/features/store/types/promotions'
+
+function parseProductPromotionsFromForm(formData: FormData): ProductPromotion[] {
+  const raw = (formData.get('promotionsJson') as string)?.trim()
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as ProductPromotion[]
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((p) => p && typeof p === 'object' && p.type && p.id)
+      .map((p) => ({
+        id: String(p.id),
+        type: p.type,
+        enabled: Boolean(p.enabled),
+        label: p.label ? String(p.label) : undefined,
+        buyQty: typeof p.buyQty === 'number' ? p.buyQty : p.type === 'bogo' ? 2 : undefined,
+        getQty: typeof p.getQty === 'number' ? p.getQty : p.type === 'bogo' ? 1 : undefined,
+        percentOff: typeof p.percentOff === 'number' ? p.percentOff : undefined,
+        amountOff: typeof p.amountOff === 'number' ? p.amountOff : undefined,
+        currency: p.currency ? String(p.currency) : undefined,
+        startsAt: p.startsAt ? String(p.startsAt) : undefined,
+        endsAt: p.endsAt ? String(p.endsAt) : undefined,
+      }))
+  } catch {
+    return []
+  }
+}
 
 // ============================================================================
 // VENDOR ONBOARDING
@@ -108,7 +144,9 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       // Upload using our file abstraction layer
       const result = await file().upload(`vendors/${tempEntityId}/logo.${ext}`, logoFile, {
         access: 'public',
-        addRandomSuffix: false
+        addRandomSuffix: false,
+        contentType: logoFile.type || undefined,
+        ...ringbaseDerivativeUploadOptions('vendor:logo', logoFile.type, 'public'),
       })
       
       if (!result.success) {
@@ -312,35 +350,6 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       return { error: 'Description must be less than 200 characters' }
     }
 
-    // Handle photo uploads (Vercel Blob)
-    const photoFiles: File[] = []
-    let photoIndex = 0
-    while (formData.has(`photo-${photoIndex}`)) {
-      const file = formData.get(`photo-${photoIndex}`) as File
-      if (file && file.size > 0) {
-        photoFiles.push(file)
-      }
-      photoIndex++
-    }
-
-    if (photoFiles.length === 0) {
-      return { error: 'At least one photo is required' }
-    }
-    if (photoFiles.length > 5) {
-      return { error: 'Maximum 5 photos allowed' }
-    }
-
-    // Validate photos
-    for (const photo of photoFiles) {
-      if (photo.size > 5 * 1024 * 1024) {
-        return { error: 'Photo size must be less than 5MB' }
-      }
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
-      if (!allowedTypes.includes(photo.type)) {
-        return { error: 'Photos must be JPG, PNG, or WebP' }
-      }
-    }
-
     // Handle video upload (optional)
     let videoUrl: string | null = null
     const videoFile = formData.get('video') as File | null
@@ -358,20 +367,55 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     // Create product ID
     const productId = `product_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 
-    // Upload photos using our file abstraction layer
-    const photoUrls = await Promise.all(
-      photoFiles.map(async (photo, index) => {
-        const ext = photo.name.split('.').pop() || 'webp'
-        const result = await file().upload(`products/${productId}/photo-${index}.${ext}`, photo, {
-          access: 'public',
-          addRandomSuffix: false
-        })
-        if (!result.success) {
-          throw new Error(result.error || `Failed to upload photo ${index}`)
+    // Prefer GenerativeMediaField pre-uploaded URLs (SSOT); fall back to legacy File photo-*
+    const resolved = resolveProductImagesFromForm(formData)
+    let photoUrls = resolved.photoUrls
+    const generativeGallery = resolved.gallery
+
+    if (photoUrls.length === 0) {
+      const photoFiles: File[] = []
+      let photoIndex = 0
+      while (formData.has(`photo-${photoIndex}`)) {
+        const photoFile = formData.get(`photo-${photoIndex}`) as File
+        if (photoFile && photoFile.size > 0) {
+          photoFiles.push(photoFile)
         }
-        return result.url
-      })
-    )
+        photoIndex++
+      }
+      if (photoFiles.length === 0) {
+        return { error: 'At least one photo is required' }
+      }
+      if (photoFiles.length > 5) {
+        return { error: 'Maximum 5 photos allowed' }
+      }
+      for (const photo of photoFiles) {
+        if (photo.size > 5 * 1024 * 1024) {
+          return { error: 'Photo size must be less than 5MB' }
+        }
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+        if (!allowedTypes.includes(photo.type)) {
+          return { error: 'Photos must be JPG, PNG, or WebP' }
+        }
+      }
+      photoUrls = await Promise.all(
+        photoFiles.map(async (photo, index) => {
+          const ext = photo.name.split('.').pop() || 'webp'
+          const result = await file().upload(`products/${productId}/photo-${index}.${ext}`, photo, {
+            access: 'public',
+            addRandomSuffix: false,
+            contentType: photo.type || undefined,
+            ...ringbaseDerivativeUploadOptions('vendor:product-media', photo.type, 'public'),
+          })
+          if (!result.success) {
+            throw new Error(result.error || `Failed to upload photo ${index}`)
+          }
+          return result.url
+        })
+      )
+    }
+    if (photoUrls.length > 5) {
+      return { error: 'Maximum 5 photos allowed' }
+    }
 
     // Upload video if provided
     if (videoFile && videoFile.size > 0) {
@@ -488,6 +532,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       commissionRate: (vendorEntity as any).commission || 20,
       daarPrice: calculatedDaarPrice,
       videoUrl,
+      ...(generativeGallery ? { generativeGallery } : {}),
       activeInVendorStore: activeInMyStore,
       slug: `${(vendorEntity as any).storeSlug ?? vendorEntity.id}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       longDescription: '',
@@ -510,6 +555,10 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     }
     if (productAudience) {
       productData.productAudience = productAudience
+    }
+    const productPromotions = parseProductPromotionsFromForm(formData)
+    if (productPromotions.length > 0) {
+      productData.promotions = productPromotions
     }
 
     // Create product in database
@@ -607,28 +656,37 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       return { error: 'Stock must be a non-negative number' }
     }
 
-    // Handle new photo uploads (if any)
-    let photoUrls = existingProduct.images || []
+    // Prefer GenerativeMediaField gallery URLs; fall back to legacy new-photo-* files
+    const resolved = resolveProductImagesFromForm(
+      formData,
+      Array.isArray(existingProduct.images) ? existingProduct.images : [],
+    )
+    let photoUrls = resolved.photoUrls
+    const generativeGallery = resolved.gallery
+
     const newPhotoFiles: File[] = []
     let newPhotoIndex = 0
-    
     while (formData.has(`new-photo-${newPhotoIndex}`)) {
-      const file = formData.get(`new-photo-${newPhotoIndex}`) as File
-      if (file && file.size > 0) {
-        newPhotoFiles.push(file)
+      const photoFile = formData.get(`new-photo-${newPhotoIndex}`) as File
+      if (photoFile && photoFile.size > 0) {
+        newPhotoFiles.push(photoFile)
       }
       newPhotoIndex++
     }
 
-    // Upload new photos
-    if (newPhotoFiles.length > 0) {
+    if (newPhotoFiles.length > 0 && !generativeGallery) {
       const newUrls = await Promise.all(
         newPhotoFiles.map(async (photo, index) => {
           const ext = photo.name.split('.').pop() || 'webp'
           const result = await file().upload(
             `products/${productId}/photo-${Date.now()}-${index}.${ext}`,
             photo,
-            { access: 'public', addRandomSuffix: false }
+            {
+              access: 'public',
+              addRandomSuffix: false,
+              contentType: photo.type || undefined,
+              ...ringbaseDerivativeUploadOptions('vendor:product-media', photo.type, 'public'),
+            },
           )
           if (!result.success) {
             throw new Error(result.error || `Failed to upload new photo ${index}`)
@@ -639,14 +697,13 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       photoUrls = [...photoUrls, ...newUrls]
     }
 
-    // Handle photo deletions (if specified)
-    const deletedPhotos = formData.get('deletedPhotos') as string
-    if (deletedPhotos) {
-      const deletedUrls = JSON.parse(deletedPhotos)
-      photoUrls = photoUrls.filter((url: string) => !deletedUrls.includes(url))
-      
-      // Delete using our file abstraction layer
-      await Promise.all(deletedUrls.map((url: string) => file().delete(url).catch(e => console.error('Delete failed:', e))))
+    if (!generativeGallery) {
+      const deletedPhotos = formData.get('deletedPhotos') as string
+      if (deletedPhotos) {
+        const deletedUrls = JSON.parse(deletedPhotos)
+        photoUrls = photoUrls.filter((url: string) => !deletedUrls.includes(url))
+        await Promise.all(deletedUrls.map((url: string) => file().delete(url).catch(e => console.error('Delete failed:', e))))
+      }
     }
 
     if (photoUrls.length === 0) {
@@ -755,12 +812,14 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       status: activeInMyStore ? 'active' : 'inactive',
       daarPrice: recalculatedDaarPrice,
       videoUrl,
+      ...(generativeGallery ? { generativeGallery } : {}),
       activeInVendorStore: activeInMyStore,
       agriculturalData,
       certifications,
       sustainabilityMetrics,
       freshness,
       tokenEconomy,
+      promotions: parseProductPromotionsFromForm(formData),
       ...listingPatch,
       ...(referralCommissionRaw === ''
         ? { referralCommission: undefined }
@@ -1215,4 +1274,119 @@ export async function listProductCustomFields(params: {
   } catch {
     return []
   }
+}
+
+// ============================================================================
+// VENDOR PROMOTIONS (checkout special offer)
+// ============================================================================
+
+/**
+ * Toggle checkout special-offer popup for the authenticated vendor's store.
+ * Legacy boolean API — also syncs freeShipping.mode when enabling (always) / disabling (off).
+ */
+export async function setVendorCheckoutSpecialOffer(
+  enabled: boolean,
+): Promise<{ success: boolean; error?: string; enabled?: boolean }> {
+  return setVendorStorePromotions({
+    checkoutSpecialOfferEnabled: Boolean(enabled),
+    freeShipping: {
+      mode: enabled ? 'always' : 'off',
+    },
+  })
+}
+
+/**
+ * Persist vendor storefront promotions (DB JSONB on vendor_profiles).
+ * Prefer this over the legacy boolean toggle when setting conditional free shipping.
+ */
+export async function setVendorStorePromotions(
+  patch: VendorStorePromotions,
+): Promise<{ success: boolean; error?: string; promotions?: VendorStorePromotions }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    const vendorEntity = await getVendorEntity(session.user.id)
+    if (!vendorEntity?.id) {
+      return { success: false, error: 'Vendor store not found' }
+    }
+    const profileId = `vendor_${vendorEntity.id}`
+    const existing = await db().findDocById<VendorProfile & Record<string, unknown>>(
+      STORE_COLLECTIONS.vendorProfiles,
+      profileId,
+    )
+    if (!existing.success || !existing.data) {
+      return { success: false, error: 'Vendor profile not found' }
+    }
+
+    const prev = (existing.data.promotions || {}) as VendorStorePromotions
+    const nextFree = patch.freeShipping
+      ? {
+          ...(prev.freeShipping || {}),
+          ...patch.freeShipping,
+          mode: (patch.freeShipping.mode || prev.freeShipping?.mode || 'off') as FreeShippingMode,
+        }
+      : prev.freeShipping
+
+    const promotions: VendorStorePromotions = {
+      ...prev,
+      ...patch,
+      freeShipping: nextFree,
+      checkoutSpecialOfferEnabled:
+        patch.checkoutSpecialOfferEnabled !== undefined
+          ? Boolean(patch.checkoutSpecialOfferEnabled)
+          : nextFree?.mode === 'always' || nextFree?.mode === 'conditional'
+            ? true
+            : prev.checkoutSpecialOfferEnabled,
+    }
+
+    await db().updateDoc(STORE_COLLECTIONS.vendorProfiles, profileId, {
+      promotions,
+      updatedAt: new Date().toISOString(),
+    })
+    return { success: true, promotions, enabled: Boolean(promotions.checkoutSpecialOfferEnabled) } as {
+      success: boolean
+      error?: string
+      promotions?: VendorStorePromotions
+      enabled?: boolean
+    }
+  } catch (error) {
+    console.error('setVendorStorePromotions failed:', error)
+    return { success: false, error: 'Failed to update promotions' }
+  }
+}
+
+/**
+ * True when any listed cart seller has checkout special offer enabled
+ * (modal gate and/or free-shipping mode always/conditional).
+ * Owner refs may be entity IDs (`ownerEntityId`) or user IDs (`productOwner` /
+ * `vendorId`) — same resolution path as store payment routes.
+ */
+export async function isCheckoutSpecialOfferEnabledForVendors(
+  ownerRefs: string[],
+): Promise<boolean> {
+  const refs = [...new Set(ownerRefs.map((id) => id.trim()).filter(Boolean))]
+  if (refs.length === 0) return false
+
+  for (const ref of refs) {
+    try {
+      const asEntityId = ref.replace(/^vendor_/, '')
+      let profile = await getVendorProfile(asEntityId)
+      if (!profile) {
+        const vendorEntity = await getVendorEntity(ref)
+        if (vendorEntity?.id) {
+          profile = await getVendorProfile(vendorEntity.id)
+        }
+      }
+      const promo = profile?.promotions
+      if (!promo) continue
+      if (promo.checkoutSpecialOfferEnabled) return true
+      const mode = promo.freeShipping?.mode
+      if (mode === 'always' || mode === 'conditional') return true
+    } catch {
+      /* continue */
+    }
+  }
+  return false
 }

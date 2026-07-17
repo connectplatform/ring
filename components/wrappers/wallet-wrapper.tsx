@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import WalletActionsRail from '@/components/wallet/wallet-actions-rail'
 import { CreditHistoryProvider } from '@/components/providers/credit-history-provider'
 import { WalletListProvider } from '@/components/providers/wallet-list-provider'
@@ -34,7 +35,7 @@ export default function WalletWrapper({ children, locale }: WalletWrapperProps) 
             onToggle={setRightSidebarOpen}
             rightRail={rightRail}
           >
-            {children}
+            <DavinciCenterPane contentClassName="space-y-6">{children}</DavinciCenterPane>
           </RingRightRailLayout>
         </CreditHistoryProvider>
       </WalletActivityProvider>

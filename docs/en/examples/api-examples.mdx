@@ -39,11 +39,27 @@ curl -s -X DELETE "http://localhost:3000/api/entities/ENTITY_ID" \\
 ## Opportunities
 
 <Code language="bash" title="terminal">
-{`curl -s "http://localhost:3000/api/opportunities?limit=10" \\
-  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
+{`# List
+curl -s "http://localhost:3000/api/opportunities?limit=10" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"
+
+# Create
+curl -s -X POST "http://localhost:3000/api/opportunities" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "title":"Example offer",
+    "briefDescription":"Short pitch",
+    "organizationId":"ENTITY_ID",
+    "category":"technology",
+    "location":"Remote",
+    "visibility":"public",
+    "type":"offer",
+    "contactInfo":{"linkedEntity":"ENTITY_ID","contactAccount":"USER_ID"}
+  }'`}
 </Code>
 
-Create and update opportunities in the app UI use **Server Actions** (`app/_actions/opportunities.ts`), not `POST /api/opportunities`.
+UI forms may still use the **`createOpportunity` Server Action** (`app/_actions/opportunities.ts`); updates prefer Server Actions or `PUT`/`PATCH /api/opportunities/{id}`.
 
 ## Conversations
 

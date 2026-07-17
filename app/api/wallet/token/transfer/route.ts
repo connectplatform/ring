@@ -12,6 +12,8 @@ const TransferSchema = z.object({
   amount: z.string().min(1),
   contactUserId: z.string().uuid().optional(),
   ringContactId: z.string().optional(),
+  contactDisplayName: z.string().max(120).optional(),
+  contactUsername: z.string().max(64).optional(),
   notes: z.string().max(500).optional(),
 })
 
@@ -44,7 +46,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { toAddress, amount, contactUserId, ringContactId, notes } = parsed.data
+    const { toAddress, amount, contactUserId, ringContactId, notes, contactDisplayName, contactUsername } =
+      parsed.data
     if (!isValidRecipientAddress(toAddress)) {
       return NextResponse.json({ error: 'Invalid recipient address' }, { status: 400 })
     }
@@ -56,6 +59,8 @@ export async function POST(request: NextRequest) {
       notes,
       contactUserId,
       ringContactId,
+      contactDisplayName,
+      contactUsername,
     })
 
     if (!result.success) {

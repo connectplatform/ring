@@ -5,16 +5,14 @@
 // ===================
 
 // Import core React hooks and features
-import React, { useState, useEffect, use } from 'react'
-// TODO: Codemod: Migrate all async/side-effectful state that can prefill UI (user preferences, etc) to React 19's `use()` 
-// TODO: Switch local UI state to new native form state API (React 19) instead of manual useState reducers where possible
-// TODO: Consider using `useOptimistic()` for snappier save/setting update feedback (e.g., shipping/payment toggles)
+import React, { useState, useEffect } from 'react'
+// Preferences load via useEffect — do NOT call use() inside try/catch or with uncached promises.
 
 // Feature, UI, and model imports
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRolesArray } from '@/features/auth/user-role'
-import { useOptionalStoreCurrency, useStoreCurrency } from '@/features/store/currency-context'
+import { useStoreCurrency } from '@/features/store/currency-context'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddressManager } from './address-manager'
 import ShippingMethodSelector from './shipping-method-selector'
@@ -86,9 +84,12 @@ export function PrebillingPage({
   // Auth state, user details, and visitor role
   const { user, role, isAuthenticated } = useAuth()
 
-  // Currency conversion, formats, current visible currency
-  const { convertPrice, formatPrice: formatCurrencyPrice } = useOptionalStoreCurrency()
-  const currency = useStoreCurrency()
+  // Currency conversion, formats, current visible currency (provider required on checkout)
+  const {
+    convertPrice,
+    formatPrice: formatCurrencyPrice,
+    currency: activeCurrency,
+  } = useStoreCurrency()
 
   // ==========================================
   // UI/Form State (User, Address, Preferences)
@@ -108,7 +109,7 @@ export function PrebillingPage({
   const [shippingLocation, setShippingLocation] = useState<NovaPostLocation | null>(null) // NovaPost office branch
 
   // Payment state for user's choices (method, addresses)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wayforpay')     // Default payment method
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')     // Default: Card (PaymentConductor)
   const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true) // Billing = shipping
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<UserAddress | null>(null) // Separate billing if needed
 
@@ -118,22 +119,28 @@ export function PrebillingPage({
 
   // For async UI/submit
   const [isLoading, setIsLoading] = useState(false)                                  // Spinner during async calls
+  const [userPreferences, setUserPreferences] = useState<
+    Awaited<ReturnType<typeof getUserStorePreferences>> | null
+  >(null)
 
-  // ========== Load User Preferences with use() hook ==========
-
-  // TODO: Use `use()` everywhere suitable to load async data for hydrated React 19 context. Here, fetch preferences if user is known
-
-  let userPreferences: Awaited<ReturnType<typeof getUserStorePreferences>> | undefined = undefined
-  // Only run this when in browser and user is fully known
-  if (typeof window !== "undefined" && isAuthenticated && user?.id) {
-    try {
-      // Attempt to hydrate client with user store preferences from server
-      userPreferences = use(getUserStorePreferences())
-    } catch (e) {
-      // Swallow errors for UX; backend fetch fail should not break UI
-      userPreferences = undefined
+  // Load preferences after auth — never use() with an uncached server-action promise in try/catch.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setUserPreferences(null)
+      return
     }
-  }
+    let cancelled = false
+    void getUserStorePreferences()
+      .then((prefs) => {
+        if (!cancelled) setUserPreferences(prefs)
+      })
+      .catch(() => {
+        if (!cancelled) setUserPreferences(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id])
 
   // ======================
   // Autofill user info and preferences on auth or pref change
@@ -155,16 +162,22 @@ export function PrebillingPage({
         if (userPreferences.preferredShippingMethod) {
           setShippingMethod(userPreferences.preferredShippingMethod)
         }
-        // Set stored payment method, convert 'ring' legacy to 'credit'
+        // Heal legacy prefs: 'ring' → Credit Balance; wayforpay display alias → card
         if (userPreferences.preferredPaymentMethod) {
           const m = userPreferences.preferredPaymentMethod as string
-          setPaymentMethod(m === 'ring' ? 'credit' : (m as PaymentMethod))
+          const normalized =
+            m === 'ring' ? 'credit' : m === 'wayforpay' ? 'card' : (m as PaymentMethod)
+          setPaymentMethod(normalized)
+          if (m === 'ring' && user?.id) {
+            updatePaymentPreference('credit').catch((error) => {
+              console.error('Failed to heal legacy payment preference', error)
+            })
+          }
         }
         // Load "save payment method" pref, default to false if unset
         setSavePaymentMethod(userPreferences.savePaymentMethods ?? false)
       }
     }
-    // Only rerun if the "sources of truth" change (user or preferences)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, userPreferences])
 
@@ -198,7 +211,9 @@ export function PrebillingPage({
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setPaymentMethod(method)
     if (user?.id) {
-      updatePaymentPreference(method).catch(error => {
+      const persist =
+        method === 'card' ? 'card' : method === 'wayforpay' ? 'wayforpay' : method
+      updatePaymentPreference(persist).catch(error => {
         console.error('Failed to update payment preference:', error)
       })
     }
@@ -543,16 +558,16 @@ export function PrebillingPage({
                             convertPrice(
                               displayPrice,
                               item.product.currency as StoreCurrency,
-                              currency.currency
+                              activeCurrency
                             ),
-                            currency.currency
+                            activeCurrency
                           )}
                         </div>
                       </div>
                       <div className="font-medium ml-4">
                         {formatCurrencyPrice(
-                          convertPrice(itemTotal, item.product.currency as StoreCurrency, currency.currency),
-                          currency.currency
+                          convertPrice(itemTotal, item.product.currency as StoreCurrency, activeCurrency),
+                          activeCurrency
                         )}
                       </div>
                     </div>
@@ -571,7 +586,7 @@ export function PrebillingPage({
                 // Compute subtotal from prop (current currency)
                 let subtotal = 0
                 if (typeof cartTotal === 'object' && cartTotal !== null) {
-                  subtotal = cartTotal[currency.currency as StoreCurrency] ?? 0
+                  subtotal = cartTotal[activeCurrency as StoreCurrency] ?? 0
                 } else {
                   subtotal = typeof cartTotal === 'number' ? cartTotal : 0
                 }
@@ -597,10 +612,10 @@ export function PrebillingPage({
                         {formatCurrencyPrice(
                           convertPrice(
                             subtotal,
-                            currency.currency, 
-                            currency.currency
+                            activeCurrency, 
+                            activeCurrency
                           ),
-                          currency.currency,
+                          activeCurrency,
                         )}
                       </span>
                     </div>
@@ -612,10 +627,10 @@ export function PrebillingPage({
                           : formatCurrencyPrice(
                               convertPrice(
                                 shippingCost,
-                                currency.currency, 
-                                currency.currency
+                                activeCurrency, 
+                                activeCurrency
                               ),
-                              currency.currency,
+                              activeCurrency,
                             )}
                         {/* TODO: Use dynamic shipping price lookup here */}
                       </span>
@@ -627,10 +642,10 @@ export function PrebillingPage({
                         {formatCurrencyPrice(
                           convertPrice(
                             grandTotal,
-                            currency.currency, 
-                            currency.currency
+                            activeCurrency, 
+                            activeCurrency
                           ),
-                          currency.currency,
+                          activeCurrency,
                         )}
                       </span>
                     </div>

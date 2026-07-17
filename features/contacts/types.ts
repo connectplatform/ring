@@ -10,6 +10,11 @@ export interface RingContact {
   username?: string | null
   photoURL?: string | null
   walletAddress?: string | null
+  /**
+   * Live (or snapshotted) KYC/admin verification badge from the contact user.
+   * Prefer enriching from `users.isVerified` at list/read time so badges stay current.
+   */
+  isVerified?: boolean
   notes?: string
   isFavorite?: boolean
   addedAt: string

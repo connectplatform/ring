@@ -1,863 +1,168 @@
 ---
 title: Messaging API
-description: REST conversations API with Tunnel Protocol realtime (alpha)
-last_modified: "2026-06-14"
+description: Verified conversations REST under /api/conversations — channel types, metadata.kind, inbox hide, Tunnel fan-out
+last_modified: "2026-07-14"
+audience: both
 ---
-
 
 # Messaging API
 
-Ring Platform messaging combines **REST routes under `/api/conversations`** with **Tunnel Protocol** for live message and typing events.
+Ring Platform messaging combines **REST routes under `/api/conversations`** with **Tunnel Protocol** for live message and typing events. Conceptual SSOT for channel vs subtype: [Real-Time Messaging](/docs/features/messaging).
 
-<Callout type="info" title="Real-time architecture">
-Chat events use **Tunnel Protocol** — server `publishToChannel` on `conversation:${id}`, client `useTunnel().subscribe()`. On k8s/self-hosted, **native WSS** (`/api/tunnel/ws`) is primary; Vercel uses SSE → long-polling. Supabase Realtime is optional when configured.
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Older drafts invented a `channel` conversation type and fabricated SQL — this page matches verified routes and `features/chat/types`.
 </Callout>
 
-## 🏗️ System Architecture
+## Conversation.type (verified)
 
-### Message Flow Architecture
+Create and filter use this closed channel enum only:
 
-```
-User Action → API Endpoint → Database Storage → Real-time Broadcast → UI Update
-                                      ↓
-                            File Upload (if attachment) → CDN Storage
-```
+`direct` | `entity` | `opportunity` | `product` | `group`
 
-### Transport layer
+| Field | Role |
+|-------|------|
+| `type` | Channel / routing |
+| `metadata.kind` | Optional subtype (e.g. `generative_gallery`) — open `string` today |
+| `metadata.hiddenFromInbox` | Hide from Messages list when `true` |
 
-- **Native WebSocket** — primary when `RING_DEPLOY_TARGET` is `k8s` or `self-hosted` (`/api/tunnel/ws` on custom `server.ts`)
-- **SSE** — primary on Vercel (`RING_DEPLOY_TARGET=vercel`) and WSS fallback
-- **Long-polling** — fallback via `/api/tunnel/poll`
-- **Supabase Realtime** — optional when env credentials are set
-- **HTTP REST** — CRUD; realtime fan-out through TunnelHub after writes
+Do **not** send `type: 'channel'` or `type: 'generative'`. Tool editors reuse `product` + kind + hide flags — see [Generative Gallery](/docs/features/generative-media).
 
-### Storage
+`GET /api/conversations` ultimately lists via `ConversationService.getConversations`, which skips `isHiddenToolConversation` rows (hidden tool chats never pollute the inbox).
 
-- **Messages**: PostgreSQL with JSONB metadata
-- **Files**: CDN or blob storage where configured
-- **Realtime broker**: in-process TunnelHub (`lib/tunnel/hub/`)
+<Audience for="founder">
 
-## 📋 API Endpoints Reference
+## What operators get
+
+- Members chat in context of deals, entities, and products without leaving your Ring.
+- Generative media history stays in hidden tool threads so Messages stays for people and product agents.
+- Live updates use Tunnel Protocol (WebSocket on k8s; SSE/poll on Vercel).
+
+<Cards>
+  <Card title="Real-Time Messaging" href="/docs/features/messaging">
+    Channel vs kind taxonomy and inbox hygiene.
+  </Card>
+  <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
+    WSS / SSE / poll transports.
+  </Card>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Hidden `genmedia:` product-tool chats.
+  </Card>
+</Cards>
+
+</Audience>
+
+<Audience for="developer">
+
+## Transport
+
+- Server: `publishToChannel('conversation:' + id, …)` after writes (`lib/tunnel/publisher`)
+- Client: **`useTunnelChannel`** (`hooks/use-tunnel-channel.ts`) — not raw `useTunnel().subscribe()` in effects
+- **k8s / self-hosted:** native WSS `/api/tunnel/ws` primary
+- **Vercel:** SSE + long-poll `/api/tunnel/poll`
+- Optional Supabase Realtime when configured
+
+## Verified routes
+
+| Method | Path | Role |
+|--------|------|------|
+| GET | `/api/conversations` | List conversations (filters; tool chats excluded) |
+| POST | `/api/conversations` | Create conversation |
+| GET | `/api/conversations/[id]` | Conversation detail |
+| PUT | `/api/conversations/[id]` | Update conversation |
+| DELETE | `/api/conversations/[id]` | Delete / leave (see route) |
+| GET, POST | `/api/conversations/[id]/messages` | List / send messages |
+| POST, GET | `/api/conversations/[id]/typing` | Typing signal |
+| POST, GET | `/api/conversations/[id]/read` | Mark / read state |
+| POST | `/api/conversations/upload` | Attachment upload |
+| POST | `/api/conversations/[id]/call-invite` | WebRTC invite (direct only) |
+| POST | `/api/conversations/[id]/call-event` | Call signaling event |
 
 ### `GET /api/conversations`
 
-List user conversations with advanced filtering and pagination.
+Query params accepted by the route include `type` (cast to the verified enum above), plus other filter keys wired to `ConversationFilters` / pagination. Prefer reading `app/api/conversations/route.ts` for the exact query map — do not assume legacy `status=channel` samples.
 
-#### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `page` | number | No | Page number (default: 1) |
-| `limit` | number | No | Items per page (default: 20, max: 50) |
-| `type` | string | No | Filter by type: `direct`, `group`, `channel` |
-| `status` | string | No | Filter by status: `active`, `archived`, `muted` |
-| `before` | string | No | ISO date string - conversations updated before this date |
-| `search` | string | No | Search conversations by participant names or messages |
-
-#### Example Request
-
-<Code language="bash" title="curl -X GET "http://localhost:3000/api/conversations?page=1&limit=10&type=direct&status=active" \">
-{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"conversations": [
-    {
-      "id": "conv_123456",
-      "type": "direct",
-      "participants": [
-        {
-          "userId": "user_789",
-          "name": "John Doe",
-          "avatar": "https://...",
-          "role": "member",
-          "lastSeen": "2025-10-16T12:30:00Z"
-        }
-      ],
-      "title": null,
-      "description": null,
-      "lastMessage": {
-        "id": "msg_999999",
-        "content": "Hey, how's the project going?",
-        "senderId": "user_789",
-        "timestamp": "2025-10-16T12:30:00Z",
-        "type": "text"
-      },
-      "unreadCount": 2,
-      "updatedAt": "2025-10-16T12:30:00Z",
-      "createdAt": "2025-10-15T09:00:00Z",
-      "settings": {
-        "muted": false,
-        "pinned": false,
-        "notifications": true
-      }
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 25,
-    "totalPages": 3,
-    "hasNext": true,
-    "hasPrev": false
-  }
-}`}
-</Code>
+List results omit conversations where `isHiddenToolConversation` is true (`hiddenFromInbox`, `kind === 'generative_gallery'`, or legacy `genmedia:` / `imggen:` prefixes on `productId` / `subject`).
 
 ### `POST /api/conversations`
 
-Create a new conversation (direct message or group chat).
+Zod create schema (`app/api/conversations/route.ts`):
 
-#### Request Body for Direct Message
+- `type` — required enum: `direct` | `entity` | `opportunity` | `product` | `group`
+- `participantIds` — non-empty string array
+- `metadata` — optional object; **required** when `type !== 'direct'`
+- Domain rules: `entityId` for entity, `opportunityId` for opportunity, `productId` for product, `groupName` (min length) for group
+- Optional tool fields on metadata: `kind`, `hiddenFromInbox`, `subject`, `vendorId`, …
 
-<Code language="json" title="{">
-{`"type": "direct",
-  "participantIds": ["user_456"],
-  "initialMessage": {
-    "content": "Hi! I'd like to discuss the opportunity.",
-    "type": "text"
-  }
-}`}
-</Code>
-
-#### Request Body for Group Conversation
-
-<Code language="json" title="{">
-{`"type": "group",
-  "title": "Project Alpha Team",
-  "description": "Discussion about Project Alpha development",
-  "participantIds": ["user_456", "user_789", "user_101"],
-  "settings": {
-    "isPrivate": true,
-    "allowInvites": true,
-    "moderationEnabled": false
-  }
-}`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"conversation": {
-    "id": "conv_123457",
-    "type": "direct",
-    "participants": [
-      {
-        "userId": "user_123",
-        "name": "Current User",
-        "role": "admin"
-      },
-      {
-        "userId": "user_456",
-        "name": "Jane Smith",
-        "role": "member"
-      }
-    ],
-    "title": null,
-    "createdAt": "2025-10-16T12:35:00Z",
-    "settings": {
-      "muted": false,
-      "pinned": false,
-      "notifications": true
-    }
+<Code language="typescript" title="Create product tool chat (pattern)">{`{
+  type: 'product',
+  participantIds: [userId],
+  metadata: {
+    productId: 'genmedia:nft:draft:nft-create:mint-asset',
+    productName: 'Generative media editor',
+    subject: 'genmedia:nft:draft:nft-create:mint-asset',
+    kind: 'generative_gallery',
+    hiddenFromInbox: true,
   },
-  "initialMessage": {
-    "id": "msg_100000",
-    "conversationId": "conv_123457",
-    "senderId": "user_123",
-    "content": "Hi! I'd like to discuss the opportunity.",
-    "type": "text",
-    "timestamp": "2025-10-16T12:35:00Z",
-    "status": "sent"
-  }
 }`}
 </Code>
 
-### `GET /api/conversations/{id}/messages`
-
-Retrieve messages from a specific conversation with pagination.
-
-#### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `page` | number | No | Page number (default: 1) |
-| `limit` | number | No | Messages per page (default: 50, max: 100) |
-| `before` | string | No | ISO date string - messages before this timestamp |
-| `after` | string | No | ISO date string - messages after this timestamp |
-| `type` | string | No | Filter by message type: `text`, `file`, `image`, `system` |
-
-#### Example Request
-
-<Code language="bash" title="curl -X GET "http://localhost:3000/api/conversations/conv_123456/messages?page=1&limit=25" \">
-{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"messages": [
-    {
-      "id": "msg_100001",
-      "conversationId": "conv_123456",
-      "senderId": "user_456",
-      "content": "Thanks for reaching out! The project is going well.",
-      "type": "text",
-      "timestamp": "2025-10-16T12:36:00Z",
-      "status": "delivered",
-      "readBy": ["user_123"],
-      "reactions": [],
-      "replyTo": null,
-      "edited": false,
-      "attachments": []
-    },
-    {
-      "id": "msg_100002",
-      "conversationId": "conv_123456",
-      "senderId": "user_123",
-      "content": "Great! Can you share the latest requirements document?",
-      "type": "text",
-      "timestamp": "2025-10-16T12:37:00Z",
-      "status": "sent",
-      "readBy": [],
-      "reactions": [],
-      "replyTo": null,
-      "edited": false,
-      "attachments": []
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 25,
-    "total": 47,
-    "totalPages": 2,
-    "hasNext": true,
-    "hasPrev": false
-  },
-  "conversation": {
-    "id": "conv_123456",
-    "type": "direct",
-    "participants": ["user_123", "user_456"]
-  }
-}`}
-</Code>
-
-### `POST /api/conversations/{id}/messages`
-
-Send a new message to a conversation.
-
-#### Request Body for Text Message
-
-<Code language="json" title="{">
-{`"content": "Here's the document you requested.",
-  "type": "text",
-  "replyTo": null
-}`}
-</Code>
-
-#### Request Body with File Attachment
-
-<Code language="json" title="{">
-{`"content": "Please review this document",
-  "type": "text",
-  "attachments": [
-    {
-      "name": "requirements.pdf",
-      "type": "application/pdf",
-      "size": 2048576,
-      "url": "https://cdn.example.com/files/requirements.pdf"
-    }
-  ]
-}`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"message": {
-    "id": "msg_100003",
-    "conversationId": "conv_123456",
-    "senderId": "user_123",
-    "content": "Please review this document",
-    "type": "text",
-    "timestamp": "2025-10-16T12:38:00Z",
-    "status": "sent",
-    "readBy": [],
-    "reactions": [],
-    "replyTo": null,
-    "edited": false,
-    "attachments": [
-      {
-        "id": "att_123456",
-        "name": "requirements.pdf",
-        "type": "application/pdf",
-        "size": 2048576,
-        "url": "https://cdn.example.com/files/requirements.pdf",
-        "thumbnailUrl": null
-      }
-    ]
-  },
-  "delivered": true,
-  "realTimeSent": true
-}`}
-</Code>
-
-### `PUT /api/messages/{id}`
-
-Update/edit a message content (only by sender, within time limit).
-
-#### Request Body
-
-<Code language="json" title="{">
-{`"content": "Please review this updated document",
-  "attachments": []
-}`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"message": {
-    "id": "msg_100003",
-    "content": "Please review this updated document",
-    "edited": true,
-    "editedAt": "2025-10-16T12:39:00Z"
-  }
-}`}
-</Code>
-
-### `DELETE /api/messages/{id}`
-
-Delete a message (soft delete, only by sender or admin).
-
-#### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `hard` | boolean | No | Hard delete (admin only, default: false) |
-
-#### Example Request
-
-<Code language="bash" title="curl -X DELETE "http://localhost:3000/api/messages/msg_100003" \">
-{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"deleted": true,
-  "messageId": "msg_100003",
-  "deletedBy": "user_123",
-  "deletedAt": "2025-10-16T12:40:00Z"
-}`}
-</Code>
-
-### `POST /api/conversations/{id}/typing`
-
-Send typing indicator to conversation participants.
-
-#### Request Body
-
-<Code language="json" title="{">
-{`"isTyping": true
-}`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"sent": true,
-  "expiresAt": "2025-10-16T12:40:05Z"
-}`}
-</Code>
-
-### `PUT /api/messages/{id}/read`
-
-Mark messages as read in a conversation.
-
-#### Request Body
-
-<Code language="json" title="{">
-{`"messageIds": ["msg_100001", "msg_100002"]
-}`}
-</Code>
-
-#### Response
-
-<Code language="json" title="{">
-{`"markedRead": 2,
-  "readAt": "2025-10-16T12:41:00Z"
-}`}
-</Code>
-
-## Real-time messaging
-
-### Server
-
-`features/chat/services/message-service.ts` persists messages to PostgreSQL, then fans out on the conversation channel:
-
-```typescript
-await publishToChannel(`conversation:${conversationId}`, 'message:new', message)
-```
-
-Typing updates use the same channel with event `typing:update`.
-
-### Client
-
-Subscribe with `useTunnel()` from a component inside `TunnelProvider`:
-
-```typescript
-const { subscribe, isConnected } = useTunnel()
-
-useEffect(() => {
-  if (!isConnected) return
-  return subscribe(`conversation:${conversationId}`, (message) => {
-    if (message.event === 'message:new') addMessage(message.payload)
-  })
-}, [conversationId, isConnected, subscribe])
-```
-
-See [Tunnel protocol](/en/docs/features/tunnel-protocol) and [Messaging feature](/en/docs/features/messaging).
-
-## 📎 File Attachments
-
-### Supported File Types
-
-| Category | Types | Max Size | Features |
-|----------|-------|----------|----------|
-| **Documents** | PDF, DOC, DOCX, TXT, MD | 10MB | Preview, download |
-| **Images** | JPG, PNG, GIF, WebP, SVG | 5MB | Thumbnail, inline preview |
-| **Videos** | MP4, WebM, MOV | 50MB | Video player, thumbnail |
-| **Audio** | MP3, WAV, M4A | 20MB | Audio player |
-| **Archives** | ZIP, RAR, 7Z | 100MB | Download only |
-
-### File Upload Process
-
-// Client-side file upload
-
-<Code language="typescript" title="TypeScript">
-{`const uploadFile = async (file: File): Promise<Attachment> => {
-  // 1. Get upload URL
-  const { uploadUrl, attachment } = await fetch('/api/upload', {
-    method: 'POST',
-    body: JSON.stringify({
-      filename: file.name,
-      contentType: file.type,
-      size: file.size
-    })
-  }).then(r => r.json())
-
-  // 2. Upload to CDN
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    body: file,
-    headers: {
-      'Content-Type': file.type
-    }
-  })
-
-  return attachment
-}
-
-// Usage in message
-const handleSendMessage = async (content: string, files: File[]) => {
-  const attachments = await Promise.all(files.map(uploadFile))
-  
-  await fetch(`/api/conversations/${conversationId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({
-      content,
-      type: 'text',
-      attachments
-    })
-  })
-}`}
-</Code>
-
-### Attachment Object Structure
-
-<Code language="json" title="{">
-{`"id": "att_123456",
-  "name": "requirements.pdf",
-  "originalName": "Project Requirements v2.pdf",
-  "type": "application/pdf",
-  "size": 2048576,
-  "url": "https://cdn.ring-platform.org/files/att_123456.pdf",
-  "thumbnailUrl": "https://cdn.ring-platform.org/thumbnails/att_123456.jpg",
-  "metadata": {
-    "width": null,
-    "height": null,
-    "duration": null,
-    "pages": 12
-  },
-  "uploadedBy": "user_123",
-  "uploadedAt": "2025-10-16T12:38:00Z",
-  "expiresAt": null
-}`}
-</Code>
-
-## 💬 Message Types
-
-### Text Messages
-
-Standard text communication with rich formatting support.
-
-<Code language="json" title="{">
-{`"type": "text",
-  "content": "Hey @john, can you review the [requirements](https://docs.example.com) document?",
-  "metadata": {
-    "mentions": ["user_456"],
-    "links": ["https://docs.example.com"],
-    "formatting": "markdown"
-  }
-}`}
-</Code>
-
-### File Attachments
-
-Messages containing file uploads.
-
-<Code language="json" title="{">
-{`"type": "file",
-  "content": "Here's the updated design file",
-  "attachments": [
-    {
-      "id": "att_123457",
-      "name": "design.fig",
-      "type": "application/figma",
-      "size": 15728640,
-      "url": "https://cdn.example.com/files/design.fig"
-    }
-  ]
-}`}
-</Code>
-
-### System Messages
-
-Automated messages for conversation events.
-
-<Code language="json" title="{">
-{`"type": "system",
-  "content": "john.doe joined the conversation",
-  "metadata": {
-    "event": "participant_joined",
-    "participantId": "user_456",
-    "participantName": "John Doe"
-  }
-}`}
-</Code>
-
-### Reply Messages
-
-Messages that reply to other messages.
-
-<Code language="json" title="{">
-{`"type": "text",
-  "content": "I agree with this approach",
-  "replyTo": "msg_100001",
-  "metadata": {
-    "replyPreview": "The proposed solution looks good..."
-  }
-}`}
-</Code>
-
-## 🔧 Implementation Examples
-
-### React Messaging Component
-
-// components/MessagingInterface.tsx
-
-<Code language="typescript" title="TypeScript">
-{`import { useState, useEffect, useRef } from 'react'
-import { useTunnel } from '@/hooks/use-tunnel'
-
-interface Message {
-  id: string
-  content: string
-  senderId: string
-  timestamp: string
-  type: string
-}
-
-export function MessagingInterface({ conversationId }: { conversationId: string }) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState('')
-  const { subscribe, isConnected } = useTunnel()
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    fetchMessages()
-  }, [conversationId])
-
-  useEffect(() => {
-    if (!isConnected) return
-    return subscribe(\`conversation:\${conversationId}\`, (message) => {
-      if (message.event === 'message:new') {
-        setMessages(prev => [...prev, message.payload as Message])
-        scrollToBottom()
-      }
-    })
-  }, [conversationId, isConnected, subscribe])
-
-  const fetchMessages = async () => {
-    const response = await fetch(\`/api/conversations/\${conversationId}/messages\`)
-    const data = await response.json()
-    setMessages(data.messages)
-    scrollToBottom()
-  }
-
-  const sendMessage = async () => {
-    if (!newMessage.trim()) return
-    await fetch(\`/api/conversations/\${conversationId}/messages\`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: newMessage, type: 'text' })
-    })
-    setNewMessage('')
-  }
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  return (
-    <div className="messaging-interface">
-      <div className="messages-container">
-        {messages.map(message => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      <div className="message-input">
-        <input
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="Type a message..."
-        />
-        <button onClick={sendMessage}>Send</button>
-      </div>
-    </div>
-  )
-}`}
-</Code>
-
-### Conversation List Component
-
-// components/ConversationList.tsx
-
-<Code language="typescript" title="TypeScript">
-{`import { useConversations } from '@/hooks/useConversations'
-
-export function ConversationList() {
-  const { conversations, loading, error } = useConversations()
-
-  if (loading) return <div>Loading conversations...</div>
-  if (error) return <div>Error loading conversations</div>
-
-  return (
-    <div className="conversation-list">
-      {conversations.map(conversation => (
-        <div key={conversation.id} className="conversation-item">
-          <div className="conversation-avatar">
-            {/* Avatar logic */}
-          </div>
-          
-          <div className="conversation-info">
-            <div className="conversation-title">
-              {conversation.title || conversation.participants.map(p => p.name).join(', ')}
-            </div>
-            
-            <div className="last-message">
-              {conversation.lastMessage?.content || 'No messages yet'}
-            </div>
-          </div>
-          
-          {conversation.unreadCount > 0 && (
-            <div className="unread-badge">
-              {conversation.unreadCount}
-            </div>
-          )}
-          
-          <div className="conversation-time">
-            {new Date(conversation.updatedAt).toLocaleTimeString()}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}`}
-</Code>
-
-## 🚨 Error Handling
-
-### Common Error Responses
-
-// Conversation Not Found
-
-<Code language="json" title="configuration">
-{`{
-  "error": "NotFoundError",
-  "message": "Conversation not found",
-  "conversationId": "conv_123456",
-  "statusCode": 404
-}
-
-// Access Denied
-{
-  "error": "ForbiddenError",
-  "message": "You are not a participant in this conversation",
-  "statusCode": 403
-}
-
-// Message Too Long
-{
-  "error": "ValidationError",
-  "message": "Message content exceeds maximum length of 10000 characters",
-  "maxLength": 10000,
-  "statusCode": 400
-}
-
-// File Upload Error
-{
-  "error": "UploadError",
-  "message": "File size exceeds limit of 10MB",
-  "maxSize": "10MB",
-  "statusCode": 413
-}`}
-</Code>
-
-## 🔒 Security Considerations
-
-### Authentication
-- All messaging endpoints require valid session authentication
-- Tunnel connections authenticate via `/api/tunnel/token` JWT (WSS auth frame or SSE cookie)
-- File uploads require additional ownership verification
-
-### Rate Limiting
-- Message sending: 30 messages/minute per user
-- File uploads: 10 files/hour per user
-- Tunnel connections: managed by `TransportManager` with automatic fallback
-
-### Content Security
-- Message content is sanitized to prevent XSS attacks
-- File uploads are scanned for malware and viruses
-- URLs in messages are validated and can be blocked
-
-### Privacy
-- End-to-end encryption available for sensitive conversations
-- Message deletion removes content from all participants
-- Read receipts can be disabled per conversation
-
-## 📊 Monitoring & Analytics
-
-### Message Metrics
-
-// Track messaging events
-
-<Code language="typescript" title="TypeScript">
-{`import { trackEvent } from '@/lib/analytics'
-import { useTunnel } from '@/hooks/use-tunnel'
-
-function MessagingAnalytics({ conversationId }: { conversationId: string }) {
-  const { subscribe } = useTunnel()
-
-  useEffect(() => {
-    return subscribe(\`conversation:\${conversationId}\`, (message) => {
-      trackEvent('message_sent', {
-        messageType: message.payload?.type,
-        hasAttachments: Boolean(message.payload?.attachments?.length),
-        deliveryMethod: 'tunnel'
-      })
-    })
-  }, [conversationId, subscribe])
-}`}
-</Code>
-
-### Performance Monitoring
-
-// Monitor message delivery times
-
-<Code language="typescript" title="TypeScript">
-{`const sendTime = Date.now()
-
-// REST POST persists; server publishToChannel fans out via TunnelHub
-trackEvent('message_delivery_time', {
-  deliveryTime: Date.now() - sendTime,
-  transport: 'tunnel'
-})`}
-</Code>
-
-## 🎛️ Configuration
-
-### Environment Variables
-
-Messaging Configuration Tunnel deploy target File Storage
-
-<Code language="bash" title="terminal">
-{`MESSAGING_RATE_LIMIT=30
-MESSAGING_FILE_SIZE_LIMIT=10485760
-MESSAGING_RETENTION_DAYS=365
-
-RING_DEPLOY_TARGET=k8s
-NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
-# NEXT_PUBLIC_TUNNEL_WS_URL=wss://your-host/api/tunnel/ws
-
-FILE_STORAGE_PROVIDER=cloudflare_r2
-FILE_STORAGE_BUCKET=messaging-files
-FILE_CDN_URL=https://cdn.ring-platform.org`}
-</Code>
-
-### Database Schema
-
-<Code language="sql" title="-- Conversations table">
-{`CREATE TABLE conversations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  type VARCHAR(20) NOT NULL, -- direct, group, channel
-  title VARCHAR(255),
-  description TEXT,
-  created_by UUID REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  settings JSONB DEFAULT '{}'
-);
-
--- Conversation participants
-CREATE TABLE conversation_participants (
-  conversation_id UUID REFERENCES conversations(id),
-  user_id UUID REFERENCES users(id),
-  role VARCHAR(20) DEFAULT 'member', -- admin, member
-  joined_at TIMESTAMP DEFAULT NOW(),
-  last_seen_at TIMESTAMP,
-  settings JSONB DEFAULT '{}',
-  PRIMARY KEY (conversation_id, user_id)
-);
-
--- Messages table
-CREATE TABLE messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID REFERENCES conversations(id),
-  sender_id UUID REFERENCES users(id),
-  content TEXT,
-  type VARCHAR(20) DEFAULT 'text',
-  metadata JSONB DEFAULT '{}',
-  reply_to UUID REFERENCES messages(id),
-  edited BOOLEAN DEFAULT FALSE,
-  edited_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Message read status
-CREATE TABLE message_reads (
-  message_id UUID REFERENCES messages(id),
-  user_id UUID REFERENCES users(id),
-  read_at TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (message_id, user_id)
-);`}
-</Code>
-
----
-
-*Ring Platform's messaging system delivers enterprise-grade real-time communication with comprehensive file sharing, cross-platform compatibility, and advanced privacy controls.*
+### Messages
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/conversations/[id]/messages` | Cursor pagination: `limit`, `cursor`, `direction` |
+| POST | `/api/conversations/[id]/messages` | Body: content + optional `type`, attachments, message `metadata` |
+
+Message `type` values in chat types: `text` | `image` | `file` | `system` | `payment_request`. Message `metadata.kind` (e.g. `payment_request`, `gallery_upload`) is a **different** namespace from conversation `metadata.kind`.
+
+### Modules
+
+| Path | Role |
+|------|------|
+| `features/chat/types/index.ts` | `Conversation`, `CreateConversationRequest`, `ConversationFilters` |
+| `features/chat/services/conversation-service.ts` | List/create + `isHiddenToolConversation` |
+| `features/chat/services/message-service.ts` | Messages |
+| `app/api/conversations/**` | HTTP surface |
+| `hooks/use-tunnel-channel.ts` | Client subscribe SSOT |
+
+</Audience>
+
+## Related
+
+<Cards>
+  <Card title="Real-Time Messaging" href="/docs/features/messaging">
+    Feature taxonomy and operator scenarios.
+  </Card>
+  <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
+    Transport SSOT.
+  </Card>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Hidden product-tool chats.
+  </Card>
+  <Card title="WebRTC Calls" href="/docs/features/webrtc-calls">
+    Direct-chat call invite routes.
+  </Card>
+  <Card title="Architecture — Real-time" href="/docs/architecture/real-time">
+    Broader realtime topology.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — Messaging API docs / types">
+
+<FutureFeatureWidget
+  name="Typed ConversationKind / MessageMetaKind unions"
+  description="Close conversation metadata.kind and message metadata kinds as TypeScript unions; prefer hiddenFromInbox over prefix heuristics. Same backlog as features/messaging."
+  implementationCost={32}
+  labels={['messaging', 'api', 'types']}
+  poolSlug="messaging-conversation-kind-unions"
+/>
+
+<FutureFeatureWidget
+  name="OpenAPI / exhaustive REST samples"
+  description="Legacy messaging API drafts shipped invented pagination fields, SQL schemas, and channel types. A generated OpenAPI (or hand-maintained samples) should be derived only from app/api/conversations/** route handlers — not restored fiction."
+  implementationCost={48}
+  labels={['api', 'docs', 'openapi']}
+  poolSlug="messaging-api-openapi-from-routes"
+/>
+
+</FutureFeatureBacklog>

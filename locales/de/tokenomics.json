@@ -1,0 +1,97 @@
+{
+  "title": "Tokenomics – RING-Ökonomie",
+  "description": "RING-Verteilung, Nutzen und wirtschaftliche Rolle innerhalb der Ring Platform – einschließlich Connect.Software und weiterer Ring-Deployments.",
+  "badge": "Tokenomics",
+  "hero": {
+    "title": "RING-Tokenomics",
+    "subtitle": "Der RING-Token unterstützt Transaktionen, KI-Funktionen und Community-Governance – konkrete Gebühren und Limits hängen von Ihrer Ring-Instanz ab."
+  },
+  "overview": {
+    "whatIsRing": {
+      "title": "Was ist RING?",
+      "description": "RING ist der native Utility-Token der Ring Platform für Mikrozahlungen, priorisierte KI-Nutzung und Abstimmungen. Technische Details folgen dem jeweiligen Netz- und Vertrags-Deployment."
+    },
+    "utility": {
+      "title": "Token-Nutzen",
+      "description": "RING kann Premium-Funktionen freischalten, Anreize für Inhalte und Marktplatzaktivität tragen und Entscheidungsprozesse der Community abbilden."
+    }
+  },
+  "distribution": {
+    "title": "Verteilung (schematisch)",
+    "community": {
+      "title": "Community-Pool",
+      "description": "Belohnungen für aktive Nutzung, Referrals und qualitativ wertvolle Beiträge"
+    },
+    "liquidity": {
+      "title": "Liquiditätspool",
+      "description": "DEX-Liquidität und Anreize für Market Making"
+    },
+    "development": {
+      "title": "Entwicklungsfonds",
+      "description": "Weiterentwicklung der Plattform, Sicherheit und Infrastruktur"
+    },
+    "team": {
+      "title": "Team & Advisor",
+      "description": "Gebundene Anteile für Kernbeitragende (typischerweise mehrjähriges Vesting)"
+    }
+  },
+  "usage": {
+    "title": "RING einsetzen",
+    "listing": {
+      "title": "Opportunity-Einträge",
+      "description": "Dienste, Projekte und Ausschreibungen auf der Plattform veröffentlichen",
+      "cost": "z. B. 0,1–1,0 RING pro Eintrag (instanzabhängig)"
+    },
+    "aiFeatures": {
+      "title": "KI-Funktionen",
+      "description": "Premium-Matching, Analysen und Assistentenfunktionen",
+      "cost": "z. B. 0,01–0,1 RING pro Anfrage (instanzabhängig)"
+    },
+    "store": {
+      "title": "Store-Transaktionen",
+      "description": "Digitale Güter, Dienste und Add-ons im Marktplatz",
+      "cost": "Abhängig vom Artikelwert und der Zahlungsroute"
+    },
+    "premium": {
+      "title": "Premium-Mitgliedschaft",
+      "description": "Erweiterte Funktionen und bevorzugter Support",
+      "cost": "Beispiel: 10 RING pro Monat (konfigurierbar)"
+    }
+  },
+  "economics": {
+    "title": "Wirtschaftsmodell",
+    "inflation": {
+      "title": "Begrenzte Inflation",
+      "description": "Zielbänder (z. B. 2–5 % p. a.) können Langfrist-Holder und Entwicklung unterstützen – final je Governance."
+    },
+    "circulation": {
+      "title": "Umlauf",
+      "description": "Dynamische Versorgung abhängig von Plattformaktivität und eingezogenen Gebühren"
+    },
+    "stability": {
+      "title": "Stabilitätsinstrumente",
+      "description": "Algorithmische Stabilisierung, Reserven und Abstimmungen können kombiniert werden – kein Ersatz für Finanzberatung."
+    }
+  },
+  "gettingStarted": {
+    "title": "Erste Schritte mit RING",
+    "step1": {
+      "title": "Konto anlegen",
+      "description": "Ring-/Connect.Software-Konto z. B. über Google One Tap oder weitere konfigurierte Provider"
+    },
+    "step2": {
+      "title": "RING beschaffen",
+      "description": "Kauf an unterstützten Börsen oder Verdienst durch Teilnahme an der jeweiligen Ring-Ökonomie"
+    },
+    "step3": {
+      "title": "Plattform nutzen",
+      "description": "RING für Premium-KI, Store und Governance einsetzen – immer unter den AGB Ihrer Instanz"
+    }
+  },
+  "cta": {
+    "title": "RING-Ökonomie entdecken",
+    "subtitle": "Einstieg in dezentrale Anreize und kollektive Koordination auf Ring-Basis",
+    "getRing": "RING erwerben",
+    "learnMore": "Mehr erfahren"
+  }
+}

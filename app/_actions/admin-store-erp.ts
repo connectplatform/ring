@@ -24,6 +24,8 @@ import {
   adminStoreProductDelistSchema,
   parseStoreProductFormData,
 } from '@/lib/zod'
+import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
+import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 
 // Interface for a row of product referral rate details
 export interface ProductReferralRateRow {
@@ -318,7 +320,8 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
     // Key: generate product ID (with timestamp/random for uniqueness)
     const productId = `product_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
     // Upload and aggregate product photo URLs
-    const photoUrls = await uploadProductPhotosFromForm(formData, productId)
+    const uploadedPhotos = await uploadProductPhotosFromForm(formData, productId)
+    const photoUrls = uploadedPhotos.photoUrls
     if (photoUrls.length === 0) {
       return { error: 'At least one photo is required' }
     }
@@ -338,6 +341,9 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
       currency: fields.currency,
       category: fields.category,
       images: photoUrls,
+      ...(uploadedPhotos.generativeGallery
+        ? { generativeGallery: uploadedPhotos.generativeGallery }
+        : {}),
       stock_quantity: fields.stock,
       stock: fields.stock,
       status: fields.activeInMyStore ? 'active' : 'inactive',
@@ -402,11 +408,12 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
     })
 
     // Upload images (new or updated)
-    const photoUrls = await uploadProductPhotosFromForm(
+    const uploadedPhotos = await uploadProductPhotosFromForm(
       formData,
       productId,
       existingResult.data,
     )
+    const photoUrls = uploadedPhotos.photoUrls
     if (photoUrls.length === 0) {
       return { error: 'At least one photo is required' }
     }
@@ -420,6 +427,9 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
       currency: fields.currency,
       category: fields.category,
       images: photoUrls,
+      ...(uploadedPhotos.generativeGallery
+        ? { generativeGallery: uploadedPhotos.generativeGallery }
+        : {}),
       stock_quantity: fields.stock,
       stock: fields.stock,
       status: fields.activeInMyStore ? 'active' : 'inactive',
@@ -452,16 +462,22 @@ async function uploadProductPhotosFromForm(
   formData: FormData,
   productId: string,
   existing?: Record<string, unknown>,
-): Promise<string[]> {
+): Promise<{ photoUrls: string[]; generativeGallery: ReturnType<typeof resolveProductImagesFromForm>['gallery'] }> {
   const { file } = await import('@/lib/file')
-  let photoUrls = Array.isArray(existing?.images)
+  const existingUrls = Array.isArray(existing?.images)
     ? [...(existing.images as string[])]
     : []
+
+  const resolved = resolveProductImagesFromForm(formData, existingUrls)
+  if (resolved.photoUrls.length > 0 && resolved.gallery) {
+    return { photoUrls: resolved.photoUrls, generativeGallery: resolved.gallery }
+  }
+
+  let photoUrls = resolved.photoUrls.length > 0 ? resolved.photoUrls : existingUrls
 
   // Find new files explicitly attached (iterate new-* and photo-*)
   const newPhotoFiles: File[] = []
   let newPhotoIndex = 0
-  // Scan for fields named new-photo-<i>
   while (formData.has(`new-photo-${newPhotoIndex}`)) {
     const f = formData.get(`new-photo-${newPhotoIndex}`) as File
     if (f?.size > 0) newPhotoFiles.push(f)
@@ -469,23 +485,25 @@ async function uploadProductPhotosFromForm(
   }
 
   let photoIndex = 0
-  // Scan for fields named photo-<i>
   while (formData.has(`photo-${photoIndex}`)) {
     const f = formData.get(`photo-${photoIndex}`) as File
     if (f?.size > 0) newPhotoFiles.push(f)
     photoIndex++
   }
 
-  // Batch upload files if there are any new ones
   if (newPhotoFiles.length > 0) {
-    // TODO: Consider offloading to server actions or background tasks if slow (React 19/Next 16)
     const uploaded = await Promise.all(
       newPhotoFiles.map(async (photo, index) => {
         const ext = photo.name.split('.').pop() || 'webp'
         const result = await file().upload(
           `products/${productId}/photo-${Date.now()}-${index}.${ext}`,
           photo,
-          { access: 'public', addRandomSuffix: false },
+          {
+            access: 'public',
+            addRandomSuffix: false,
+            contentType: photo.type || undefined,
+            ...ringbaseDerivativeUploadOptions('vendor:product-media', photo.type, 'public'),
+          },
         )
         if (!result.success) throw new Error(result.error || 'Photo upload failed')
         return result.url
@@ -494,14 +512,22 @@ async function uploadProductPhotosFromForm(
     photoUrls = [...photoUrls, ...uploaded]
   }
 
-  // Handle deletions: filter out urls that were marked as removed
   const deletedPhotos = formData.get('deletedPhotos') as string | null
-  if (deletedPhotos) {
-    const deletedUrls = JSON.parse(deletedPhotos) as string[]
-    photoUrls = photoUrls.filter((url) => !deletedUrls.includes(url))
+  if (deletedPhotos && !resolved.gallery) {
+    try {
+      const deleted = JSON.parse(deletedPhotos) as string[]
+      if (Array.isArray(deleted)) {
+        photoUrls = photoUrls.filter((url) => !deleted.includes(url))
+        await Promise.all(
+          deleted.map((url) => file().delete(url).catch((e) => console.error('Delete failed:', e))),
+        )
+      }
+    } catch {
+      // ignore
+    }
   }
 
-  return photoUrls
+  return { photoUrls, generativeGallery: resolved.gallery }
 }
 
 // Add to current stock for vendor product (call from vendor portal)

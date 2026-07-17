@@ -83,7 +83,25 @@
     "faq": "Часті запитання",
     "fastDelivery": "Швидка доставка",
     "expressShipping": "Експрес-доставка доступна для термінових замовлень",
-    "urgent": "Терміново"
+    "urgent": "Терміново",
+    "store": "Магазин",
+    "clearCart": "Очистити кошик",
+    "clearCartDescription": "Це видалить усі товари з вашого кошика",
+    "checkoutGuide": "Посібник з оформлення",
+    "discount": "Знижка",
+    "remove": "Видалити",
+    "noSavedItems": "Немає товарів, збережених на потім",
+    "quickNavigation": "Швидка навігація",
+    "cartOverview": "Огляд кошика",
+    "estimatedDelivery": "Орієнтовна доставка",
+    "cartStats": "Статистика кошика",
+    "totalItems": "Усього товарів",
+    "totalValue": "Загальна вартість",
+    "potentialSavings": "Можлива економія",
+    "recommendedProducts": "Рекомендовані товари",
+    "youMightLike": "Вам також може сподобатися",
+    "addToCart": "Додати в кошик",
+    "viewDetails": "Детальніше"
   },
   "product": {
     "loading": "Завантаження…",
@@ -157,6 +175,39 @@
     "learn": "Курси та навчання",
     "community": "Спільноти та мережі",
     "saas-assets": "SaaS-активи для бізнесу"
+  },
+  "vendorAttribution": {
+    "fastResponse": "Швидка відповідь",
+    "fulfillmentRate": "{rate}% виконаних замовлень",
+    "vendorTypes": {
+      "farm": "Незалежний продавець",
+      "food-producer": "Продуктова студія",
+      "farmers-market": "Продавець маркетплейсу",
+      "artisan": "Магазин творця",
+      "cooperative": "Колективний продавець"
+    },
+    "trustTiers": {
+      "PREMIUM": {
+        "label": "Преміум-продавець",
+        "description": "1+ рік, рейтинг 4.8+, продажі $50K+"
+      },
+      "TRUSTED": {
+        "label": "Надійний продавець",
+        "description": "6+ місяців, рейтинг 4.7+, продажі $10K+"
+      },
+      "VERIFIED": {
+        "label": "Верифікований продавець",
+        "description": "90+ днів, рейтинг 4.5+, продажі $1K+"
+      },
+      "BASIC": {
+        "label": "Базовий продавець",
+        "description": "30+ днів активності, позитивні відгуки"
+      },
+      "NEW": {
+        "label": "Новий продавець",
+        "description": "Нещодавно приєднався до маркетплейсу"
+      }
+    }
   },
   "checkout": {
     "title": "Оформлення замовлення",
@@ -316,7 +367,15 @@
         "tryAgain": "Спробувати ще раз",
         "checkStatus": "Перевірити статус замовлення"
       }
-    }
+    },
+    "creditBalance": "Кредитний баланс",
+    "creditBalanceDescription": "Оплата кредитними одиницями (балами)",
+    "nativeToken": "Нативний токен",
+    "nativeTokenDescription": "Оплата ончейн нативним токеном",
+    "paypalPayment": "PayPal",
+    "paypalPaymentDescription": "Оплата через PayPal (міжнародна)",
+    "paymentMethodNotAvailable": "Цей спосіб оплати поки недоступний."
   },
-  "loading": "Завантаження продуктів…"
+  "loading": "Завантаження продуктів…",
+  "shareEarnHint": "Запрошуйте інших і отримуйте реферальні винагороди"
 }

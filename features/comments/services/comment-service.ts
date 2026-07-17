@@ -125,6 +125,19 @@ export async function createComment(formData: CommentFormData): Promise<CreateCo
       updated_at: new Date(),
     })
 
+    void import('@/lib/wallet/reward-credit-service')
+      .then(({ enqueueRewardCreditAddEvent }) =>
+        enqueueRewardCreditAddEvent({
+          userId: session.user.id,
+          trigger: 'commentCreated',
+          username: (session.user as { username?: string | null }).username ?? null,
+          userRole: session.user.role,
+          objectType: 'comment',
+          objectId: commentId,
+        }),
+      )
+      .catch(() => undefined)
+
     return {
       success: true,
       data: mapCommentRow(commentId, {

@@ -1,0 +1,118 @@
+{
+  "title": "Benachrichtigungen",
+  "metadata": {
+    "title": "Benachrichtigungen"
+  },
+  "metaDescription": {
+    "description": "Benachrichtigungen auf Ring Platform ansehen und verwalten"
+  },
+  "status": {
+    "topic": "Thema",
+    "notificationId": "Benachrichtigungs-ID",
+    "subscriptionId": "Abonnement-ID",
+    "deviceRegistered": "Gerät registriert",
+    "failureReason": "Fehlergrund",
+    "denialReason": "Ablehnungsgrund",
+    "cancellationReason": "Stornierungsgrund",
+    "needHelp": "Hilfe nötig? Kontaktieren Sie unser Support-Team",
+    "actions": {
+      "manageNotifications": "Benachrichtigungen verwalten",
+      "manageSubscriptions": "Abonnements verwalten",
+      "viewNotifications": "Benachrichtigungen ansehen",
+      "viewAllNotifications": "Alle Benachrichtigungen",
+      "backToApp": "Zurück zur App",
+      "retryPermission": "Berechtigung erneut versuchen",
+      "retrySubscription": "Abonnement erneut versuchen",
+      "retrySending": "Senden erneut versuchen",
+      "resubscribe": "Erneut abonnieren",
+      "getHelp": "Hilfe holen",
+      "viewSupportedBrowsers": "Unterstützte Browser ansehen",
+      "checkSettings": "Einstellungen prüfen",
+      "checkStatus": "Status prüfen",
+      "contactSupport": "Support kontaktieren"
+    },
+    "permission": {
+      "granted": {
+        "title": "Benachrichtigungen aktiviert!",
+        "description": "Sie erhalten jetzt Push-Benachrichtigungen von Ring Platform. Einstellungen können jederzeit geändert werden."
+      },
+      "denied": {
+        "title": "Benachrichtigungen blockiert",
+        "description": "Push-Benachrichtigungen sind für diese Seite blockiert. Aktivieren Sie sie in den Browser-Einstellungen oder über das Berechtigungssymbol in der Adressleiste."
+      },
+      "pending": {
+        "title": "Berechtigung erforderlich",
+        "description": "Erlauben Sie Benachrichtigungen, um wichtige Updates und Nachrichten von Ring Platform zu erhalten.",
+        "waiting": "Warte auf Ihre Erlaubnis…"
+      },
+      "unsupported": {
+        "title": "Benachrichtigungen nicht unterstützt",
+        "description": "Ihr Browser oder Gerät unterstützt keine Push-Benachrichtigungen. Bitte nutzen Sie einen modernen Browser.",
+        "browserInfo": "Unterstützte Browser: Chrome, Firefox, Safari und Edge auf Desktop und Mobil."
+      }
+    },
+    "subscribe": {
+      "subscribed": {
+        "title": "Erfolgreich abonniert!",
+        "description": "Sie sind jetzt für Benachrichtigungen abonniert und erhalten relevante Updates.",
+        "activeSubscription": "Ihr Abonnement ist aktiv und Benachrichtigungen sind aktiviert."
+      },
+      "unsubscribed": {
+        "title": "Abonnement gekündigt",
+        "description": "Sie wurden von Benachrichtigungen abgemeldet. Sie können jederzeit erneut abonnieren."
+      },
+      "failed": {
+        "title": "Abonnement fehlgeschlagen",
+        "description": "Abonnement aufgrund eines technischen Problems nicht möglich. Bitte erneut versuchen oder Support kontaktieren."
+      },
+      "pending": {
+        "title": "Abonnement wird verarbeitet",
+        "description": "Ihre Abonnementanfrage wird verarbeitet. Das sollte kurz dauern."
+      }
+    },
+    "send": {
+      "sent": {
+        "title": "Benachrichtigung gesendet",
+        "description": "Ihre Benachrichtigung wurde erfolgreich an alle Abonnenten gesendet."
+      },
+      "delivered": {
+        "title": "Benachrichtigung zugestellt!",
+        "description": "Ihre Benachrichtigung wurde an das Gerät des Empfängers zugestellt.",
+        "deliveryConfirmed": "Zustellung vom Benachrichtigungsdienst bestätigt."
+      },
+      "failed": {
+        "title": "Senden fehlgeschlagen",
+        "description": "Benachrichtigung konnte aufgrund eines technischen Problems nicht gesendet werden. Bitte erneut versuchen."
+      },
+      "pending": {
+        "title": "Benachrichtigung wird gesendet",
+        "description": "Ihre Benachrichtigung wird gesendet. Das kann einen Moment dauern."
+      }
+    },
+    "deliver": {
+      "delivered": {
+        "title": "Nachricht zugestellt",
+        "description": "Ihre Nachricht wurde erfolgreich an den Empfänger zugestellt.",
+        "deliveryConfirmed": "Die Nachricht wurde auf dem Gerät des Empfängers zugestellt."
+      },
+      "read": {
+        "title": "Nachricht gelesen",
+        "description": "Ihre Nachricht wurde vom Empfänger gelesen."
+      },
+      "failed": {
+        "title": "Zustellung fehlgeschlagen",
+        "description": "Ihre Nachricht konnte nicht zugestellt werden. Möglicherweise Geräte- oder Verbindungsprobleme."
+      },
+      "cancelled": {
+        "title": "Zustellung abgebrochen",
+        "description": "Die Nachrichtenzustellung wurde abgebrochen, bevor sie den Empfänger erreichte."
+      }
+    }
+  },
+  "pushPrompt": {
+    "title": "Push-Benachrichtigungen aktivieren",
+    "description": "Erhalten Sie Echtzeit-Updates zu Kollaborationen, Kommentaren und Publikationsstatus.",
+    "enable": "Aktivieren",
+    "notNow": "Nicht jetzt"
+  }
+}

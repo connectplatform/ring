@@ -39,10 +39,25 @@ export interface CreateSubscriptionInput {
 export interface CreateSubscriptionResult {
   success: boolean
   subscriptionId?: string
-  /** Gateway-specific reference (stripe_subscription_id, wayforpay_rec_token, etc.). */
+  /** Gateway-specific reference (stripe_subscription_id, wayforpay_rec_token, paypal_subscription_id, etc.). */
   gatewayReference?: string
-  /** Redirect URL for external checkout (Stripe/WayForPay hosted page). */
+  /**
+   * Initial ledger status. Use `pending` for redirect flows (PayPal Subscriptions)
+   * that activate on webhook — skips MEMBER role upgrade until active.
+   */
+  ledgerStatus?: 'pending' | 'active'
+  /** Conductor-shaped browser handoff (preferred). */
+  redirect?: {
+    mode: 'navigate' | 'form_post'
+    url: string
+    fields?: Record<string, string | string[]>
+  }
+  /**
+   * @deprecated Prefer redirect.url — Redirect URL for external checkout.
+   */
   redirectUrl?: string
+  /** @deprecated Prefer redirect.fields */
+  paymentFields?: Record<string, string | string[]>
   /** On-chain transaction signature. */
   txSignature?: string
   error?: string

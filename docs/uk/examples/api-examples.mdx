@@ -38,11 +38,6 @@ curl -X POST https://ring.ck.ua/api/entities/create \
 curl -X GET https://ring.ck.ua/api/entities \
   -H "Authorization: Bearer YOUR_TOKEN"
 
-curl -X POST https://ring.ck.ua/api/opportunities/create \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Розробка веб-додатку", "type": "request", "budget": 5000, "deadline": "2025-12-31"}'
-
 curl -X GET "https://ring.ck.ua/api/opportunities?type=request&category=development" \
   -H "Authorization: Bearer YOUR_TOKEN"`}
 </Code>

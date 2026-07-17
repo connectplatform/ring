@@ -1,0 +1,45 @@
+{
+  "sidebar": {
+    "title": "Dokumentation",
+    "navigation": {
+      "title": "Dokumentation"
+    },
+    "quickAccess": {
+      "title": "Schnellzugriff"
+    }
+  },
+  "article": {
+    "back": "Zurück",
+    "docsRoot": "Docs",
+    "lastModified": "Aktualisiert {date}",
+    "listenMinutes": "{minutes} Min. Anhören",
+    "playNarration": "Narration abspielen",
+    "watchVideo": "Video ansehen",
+    "narrationComingSoon": "Doc-Audio-Narration steht auf der Roadmap (AudioConductor-Integration).",
+    "videoComingSoon": "Doc-Video-Walkthroughs stehen auf der Roadmap.",
+    "narrationReady": "Narration ist bereit — Player unten nutzen.",
+    "narrationCached": "Gecachte Narration für diese Artikelversion wird abgespielt.",
+    "narrationFailed": "Narration konnte nicht erzeugt werden. TTS-Konfiguration prüfen.",
+    "videoReady": "Walkthrough-Video ist bereit — Player unten nutzen.",
+    "videoFailed": "Walkthrough-Video konnte nicht erzeugt werden.",
+    "videoMemberRequired": "Als Member anmelden, um Doc-Walkthrough-Videos zu erzeugen."
+  },
+  "notFound": {
+    "badge": "Dokumentation",
+    "title": "Diese Docs-Seite wurde nicht gefunden",
+    "description": "Die geöffnete URL ist nicht in der Ring-Platform-Dokumentationsbibliothek. Sie wurde möglicherweise verschoben, umbenannt oder existierte nie.",
+    "unknownSection": "Der Abschnitt „{section}“ gehört nicht zu unserem Docs-Baum — wir haben das zur Prüfung protokolliert.",
+    "backToDocs": "Zurück zur Docs-Startseite",
+    "browseSection": "Diesen Abschnitt durchsuchen",
+    "popularInSection": "Beliebt in {section}",
+    "popularDocs": "Hier starten",
+    "readArticle": "Artikel lesen"
+  },
+  "comingSoon": {
+    "title": "Dokumentation in Vorbereitung",
+    "description": "Die Connect.Software-Dokumentation wird derzeit erstellt. Bitte schauen Sie bald wieder vorbei!"
+  },
+  "mobile": {
+    "message": "Bitte öffnen Sie diese Seite auf einem Desktop-Gerät für die vollständige Dokumentationsansicht."
+  }
+}

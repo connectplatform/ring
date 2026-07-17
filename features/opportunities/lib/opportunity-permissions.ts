@@ -24,6 +24,7 @@ export type OpportunityCreateType =
   | 'cv'
   | 'offer'
   | 'ring_customization'
+  | 'program'
   | string // allows for extensibility on opportunity types
 
 // Sets for fast type lookup
@@ -37,6 +38,7 @@ const MEMBER_OFFER_TYPES = new Set([
   'resource',
   'event',
   'ring_customization',
+  'program', // institution program / investment
 ])
 const SUBSCRIBER_TYPES = new Set(['cv']) // Types available to subscribers and higher
 

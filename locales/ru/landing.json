@@ -1,39 +1,39 @@
 {
-  "title": "Welcome to Ring",
-  "subtitle": "Connect with the Cherkasy tech community",
+  "title": "Добро пожаловать в Ring",
+  "subtitle": "Общайтесь с технологическим сообществом Черкасс",
   "hero": {
-    "title": "Join the Ring Community",
-    "subtitle": "Connect, collaborate, and grow with innovators in Cherkasy region",
-    "cta": "Get Started",
-    "learnMore": "Learn More"
+    "title": "Присоединяйтесь к сообществу Ring",
+    "subtitle": "Общайтесь, сотрудничайте и развивайтесь вместе с новаторами Черкасской области",
+    "cta": "Начать",
+    "learnMore": "Узнать больше"
   },
   "features": {
-    "title": "Why Choose Ring",
+    "title": "Почему Ring",
     "networking": {
-      "title": "Networking",
-      "description": "Connect with local tech professionals and entrepreneurs"
+      "title": "Нетворкинг",
+      "description": "Общайтесь с местными технологическими специалистами и предпринимателями"
     },
     "opportunities": {
-      "title": "Opportunities",
-      "description": "Discover jobs, partnerships, and collaboration opportunities"
+      "title": "Возможности",
+      "description": "Находите работу, партнёрства и возможности для сотрудничества"
     },
     "resources": {
-      "title": "Resources",
-      "description": "Access tools, knowledge, and support for your projects"
+      "title": "Ресурсы",
+      "description": "Получите доступ к инструментам, знаниям и поддержке для ваших проектов"
     },
     "community": {
-      "title": "Community",
-      "description": "Join a vibrant community of tech enthusiasts"
+      "title": "Сообщество",
+      "description": "Присоединяйтесь к активному сообществу технологических энтузиастов"
     }
   },
   "sections": {
     "about": {
-      "title": "About Ring",
-      "content": "Ring is a community platform designed to foster innovation and collaboration in the Cherkasy region of Ukraine."
+      "title": "О Ring",
+      "content": "Ring — это платформа сообщества, созданная для развития инноваций и сотрудничества в Черкасской области Украины."
     },
     "join": {
-      "title": "Join Our Community",
-      "content": "Ready to connect with the local tech ecosystem? Sign up today and start building meaningful connections."
+      "title": "Присоединяйтесь к нашему сообществу",
+      "content": "Готовы наладить связи с местной технологической экосистемой? Зарегистрируйтесь сегодня и начните строить значимые связи."
     }
   }
 }

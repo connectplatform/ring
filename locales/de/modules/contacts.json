@@ -1,0 +1,23 @@
+{
+  "title": "Projektkontakte",
+  "description": "Ihre Ring-Kontakte in diesem Projekt — schreiben Sie Nachrichten oder senden Sie Token an Personen, die Sie kennen.",
+  "savedContacts": "Gespeicherte Kontakte",
+  "searchToAdd": "Nach Benutzername oder Name suchen, um einen Kontakt hinzuzufügen",
+  "addContact": "Kontakt hinzufügen",
+  "addContactTitle": "Ring-Kontakt hinzufügen",
+  "noContacts": "Noch keine Kontakte",
+  "noContactsHint": "Suchen Sie Ring-Benutzer und fügen Sie sie Ihrem Projekt-Adressbuch hinzu.",
+  "noSearchResults": "Keine Kontakte entsprechen Ihrer Suche",
+  "searchPlaceholder": "Kontakte durchsuchen…",
+  "message": "Nachricht",
+  "send": "Senden",
+  "favorite": "Favorit",
+  "unfavorite": "Favorit entfernen",
+  "remove": "Entfernen",
+  "added": "Kontakt hinzugefügt",
+  "removed": "Kontakt entfernt",
+  "favoriteUpdated": "Favorit aktualisiert",
+  "loadError": "Kontakte konnten nicht geladen werden",
+  "addError": "Kontakt konnte nicht hinzugefügt werden",
+  "removeError": "Kontakt konnte nicht entfernt werden"
+}

@@ -1,11 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 import { usePathname, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from "framer-motion"
-import { useTranslations } from "next-intl"
-import { useTheme } from "next-themes"
+import { useLocale, useTranslations } from "next-intl"
 import type { Opportunity } from "@/types"
 import Link from "next/link"
 import { Calendar, MapPin, Tag, Building, Lock, DollarSign, Clock } from "lucide-react"
@@ -14,10 +13,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { hasConfidentialAccess } from '@/features/auth/user-role'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
-import { useInView } from "@/hooks/use-intersection-observer"
 import { formatBudget, truncateDescription, formatTimestampOrFieldValue } from "@/lib/utils"
 import { useAppContext } from "@/contexts/app-context"
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
 
 /**
  * Props for the ConfidentialOpportunities component
@@ -43,65 +44,79 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
   initialError,
   lastVisible: initialLastVisible,
   limit,
-  page,
   sort,
   filter,
 }) => {
   const t = useTranslations('modules.opportunities')
-  const { theme } = useTheme()
+  const locale = useLocale()
   const { data: session, status } = useSession()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { opportunities, setOpportunities, error, setError } = useAppContext()
-  const [loading, setLoading] = useState(false)
-  const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
-  const { ref, inView } = useInView()
+  const { setOpportunities, error, setError } = useAppContext()
 
-  // Initialize opportunities and error state from props
-  useEffect(() => {
-    setOpportunities(initialOpportunities)
-    setError(initialError)
-  }, [initialOpportunities, initialError, setOpportunities, setError])
+  const filterFingerprint = useMemo(
+    () => buildFilterFingerprint('confidential-opportunities', { sort, filter }),
+    [sort, filter],
+  )
 
-  /**
-   * Fetches more confidential opportunities when the user scrolls to the bottom of the list
-   */
-  const fetchMoreOpportunities = useCallback(async () => {
-    if (!session || !hasConfidentialAccess(session.user?.role)) {
-      return
-    }
+  const canFetch =
+    status === 'authenticated' &&
+    Boolean(session) &&
+    hasConfidentialAccess(session?.user?.role)
 
-    if (loading || !lastVisible) return
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const params = new URLSearchParams({
+        limit: String(limit),
+        sort,
+        filter,
+      })
+      if (cursor) params.set('startAfter', cursor)
 
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch(
-        `/api/confidential/opportunities?limit=${limit}&startAfter=${lastVisible}&sort=${sort}&filter=${filter}`,
-      )
+      const response = await fetch(`/api/confidential/opportunities?${params.toString()}`, {
+        cache: 'no-store',
+      })
       if (!response.ok) {
-        throw new Error("Failed to fetch confidential opportunities")
+        throw new Error('Failed to fetch confidential opportunities')
       }
       const data = await response.json()
-      setOpportunities((prevOpportunities: Opportunity[]) => [...prevOpportunities, ...data.opportunities])
-      setLastVisible(data.lastVisible)
-    } catch (error) {
-      console.error("Error fetching confidential opportunities:", error)
-      setError(t("errorFetchingConfidentialOpportunities"))
-    } finally {
-      setLoading(false)
-    }
-  }, [session, lastVisible, limit, sort, filter, loading, t, setOpportunities, setError])
+      return normalizePaginatedResponse<Opportunity>(
+        {
+          opportunities: data.opportunities,
+          items: data.opportunities,
+          lastVisible: data.lastVisible,
+          cursor: data.cursor ?? data.lastVisible,
+          hasMore: data.hasMore,
+        },
+        limit,
+      )
+    },
+    [filter, limit, sort],
+  )
 
-  // Trigger fetchMoreOpportunities when the user scrolls to the bottom
+  const {
+    items,
+    loading,
+    hasMore,
+    error: feedError,
+    sentinelRef,
+  } = useCursorFeed<Opportunity>({
+    moduleId: 'confidential-opportunities',
+    locale,
+    limit,
+    filterFingerprint,
+    initialItems: initialOpportunities,
+    initialCursor: initialLastVisible,
+    enabled: canFetch,
+    fetchPage,
+  })
+
   useEffect(() => {
-    if (inView) {
-      fetchMoreOpportunities()
-    }
-  }, [inView, fetchMoreOpportunities])
+    setOpportunities(items)
+    setError(feedError || initialError)
+  }, [items, feedError, initialError, setOpportunities, setError])
 
-  if (status === "loading" || loading) {
+  if (status === "loading") {
     return <LoadingMessage message={t("loadingMessage")} />
   }
 
@@ -177,7 +192,7 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
     )
   }
 
-  if (error) {
+  if (error && items.length === 0) {
     return <ErrorMessage message={error} />
   }
 
@@ -188,14 +203,11 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
           <PageTitle title={t("ConfidentialOpportunitiesTitle")} />
           <AddOpportunityButton />
         </div>
-        <OpportunityGrid opportunities={opportunities} />
-        {lastVisible && (
-          <div ref={ref} className="mt-8 text-center">
-            <Button onClick={() => fetchMoreOpportunities()} disabled={loading}>
-              {loading ? t("loadingMore") : t("loadMore")}
-            </Button>
-          </div>
+        <OpportunityGrid opportunities={items} />
+        {loading && (
+          <div className="mt-6 text-center text-sm text-muted-foreground">{t("loadingMore")}</div>
         )}
+        {hasMore && <div ref={sentinelRef} className="mt-8 h-10" aria-hidden />}
       </div>
     </div>
   )

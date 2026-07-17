@@ -4,11 +4,11 @@ import { db } from '@/lib/database'
 import { getEvents } from '@/lib/events/event-log.server'
 import type { PaymentPurpose } from '@/lib/payments/conductor/types'
 
-export type AdminActivityFilter = 'all' | 'new_user' | 'verification' | 'payments'
+export type AdminActivityFilter = 'all' | 'new_user' | 'verification' | 'payments' | 'rewards'
 
 export interface AdminActivityItem {
   id: string
-  category: 'new_user' | 'verification' | 'payments' | 'other'
+  category: 'new_user' | 'verification' | 'payments' | 'rewards' | 'other'
   type: string
   message: string
   userId?: string
@@ -21,8 +21,8 @@ const VERIFICATION_TYPES = new Set([
   'user_verified',
   'user_unverified',
   'admin_manual_verification',
-  'reward_credit_add',
 ])
+const REWARD_TYPES = new Set(['reward_credit_add'])
 const PAYMENT_TYPES = new Set([
   'payment_paid',
   'wallet_topup_paid',
@@ -34,6 +34,7 @@ const PAYMENT_TYPES = new Set([
 function categorize(type: string): AdminActivityItem['category'] {
   if (NEW_USER_TYPES.has(type)) return 'new_user'
   if (VERIFICATION_TYPES.has(type)) return 'verification'
+  if (REWARD_TYPES.has(type)) return 'rewards'
   if (PAYMENT_TYPES.has(type) || type.startsWith('payment_') || type.includes('topup')) {
     return 'payments'
   }
@@ -152,7 +153,7 @@ async function loadRewardCreditsAsActivity(limit: number): Promise<AdminActivity
     const created = row.created_at ? new Date(String(row.created_at)).getTime() : Date.now()
     return {
       id: `reward_${String(row.id ?? `${userId}_${trigger}`)}`,
-      category: 'verification' as const,
+      category: 'rewards' as const,
       type: 'reward_credit_add',
       message: `Reward points (${trigger}) · ${status}${userId ? `: ${userId.slice(0, 8)}…` : ''}`,
       userId,
@@ -183,6 +184,8 @@ export async function getAdminRecentActivity(opts?: {
             ? [...VERIFICATION_TYPES]
             : filter === 'payments'
               ? [...PAYMENT_TYPES]
+              : filter === 'rewards'
+                ? [...REWARD_TYPES]
               : undefined,
     }).catch(() => []),
     filter === 'all' || filter === 'new_user'
@@ -191,7 +194,7 @@ export async function getAdminRecentActivity(opts?: {
     filter === 'all' || filter === 'payments'
       ? loadRecentPaymentsAsActivity(20)
       : Promise.resolve([]),
-    filter === 'all' || filter === 'verification'
+    filter === 'all' || filter === 'rewards'
       ? loadRewardCreditsAsActivity(20)
       : Promise.resolve([]),
   ])

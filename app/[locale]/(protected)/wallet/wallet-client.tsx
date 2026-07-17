@@ -1,9 +1,25 @@
 'use client'
 
+/**
+ * /wallet page client — SSOT wealth surface for Ring.
+ *
+ * LEGACY RELOCATION (2026-07-16, profile wallet tab deprecated):
+ * - features/wallet/components/wallet-section.tsx (@deprecated)
+ *   Was embedded profile wallet (credits + subscription + stub limits + CTAs).
+ *   Replaced here by WalletBalanceHero + contexts below.
+ * - features/wallet/components/profile-account-token-widgets.tsx (@deprecated)
+ *   Was subscription + stub monthlyLimits tiles on profile wallet tab.
+ *   Subscription status still available via useCreditBalanceContext().subscription;
+ *   stub limits must stay hidden until real spend policy exists.
+ *
+ * Prefer composing WalletBalanceHero / CreditBalanceItemWidget /
+ * NativeWalletListItem / WalletTransactionFeed — do not remount the orphans.
+ */
+
 import React, { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, AlertTriangle, Loader2 } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useCreditHistoryContext } from '@/components/providers/credit-history-provider'
 import { useWalletListContext } from '@/components/providers/wallet-list-provider'
@@ -11,8 +27,8 @@ import { useWalletActivityContext } from '@/components/providers/wallet-activity
 import { toast } from '@/hooks/use-toast'
 import WalletTransactionFeed from '@/features/wallet/components/wallet-transaction-feed'
 import { WalletBalanceHero } from '@/features/wallet/components/wallet-balance-hero'
-import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import type { Locale } from '@/i18n/shared'
+import { cn } from '@/lib/utils'
 
 // TODO: Review useState usage for React 19 – consider useOptimistic/useActionState for actions/mutations.
 // TODO: When React 19 is adopted, consider using useEffectEvent for stable async handlers
@@ -59,10 +75,8 @@ export default function WalletPageClient({
   const isRefreshing = isCreditRefreshing || isWalletsRefreshing
   
   // Get currently selected scope/filter and setter from context
-  const { scope, setScope, refresh: refreshActivity } = useWalletActivityContext()
-
-  // Compute whether user has low balance (below 1)
-  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
+  const { scope, setScope, refresh: refreshActivity, isLoading: isActivityLoading } =
+    useWalletActivityContext()
 
   // Handler for copying wallet address to clipboard
   // TODO: For React 19, consider using stable event handlers with useEffectEvent/useCallback as appropriate
@@ -116,9 +130,9 @@ export default function WalletPageClient({
     )
   }
 
-  // Render main wallet UI inside DaVinci center pane (matches /opportunities layout)
+  // Render main wallet UI; WalletWrapper owns DavinciCenterPane
   return (
-    <DavinciCenterPane contentClassName="space-y-6">
+    <div className="space-y-6">
       <WalletBalanceHero
         locale={locale}
         creditAmount={tokenBalance?.amount ?? '0'}
@@ -129,7 +143,6 @@ export default function WalletPageClient({
         onSelectScope={setScope}
         copiedAddress={copiedAddress}
         onCopyAddress={(address) => void handleCopyAddress(address)}
-        hasLowBalance={hasLowBalance}
         isRefreshing={isRefreshing || walletsLoading}
         onRefresh={() => void handleRefreshAll()}
       />
@@ -143,12 +156,26 @@ export default function WalletPageClient({
             <TrendingUp className="h-4 w-4 text-[var(--davinci-beam)]" />
             {t('transactionHistory')}
           </h2>
-          {isHistoryRefreshing && (
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0 rounded-xl border border-[color-mix(in_oklch,var(--davinci-beam)_22%,transparent)]"
+            onClick={() => void handleRefreshAll()}
+            disabled={isRefreshing || isHistoryRefreshing || isActivityLoading}
+            aria-label={t('refresh')}
+            title={t('autoRefreshEvery')}
+          >
+            <RefreshCw
+              className={cn(
+                'h-4 w-4 text-[var(--davinci-beam)]',
+                (isRefreshing || isHistoryRefreshing || isActivityLoading) && 'animate-spin',
+              )}
+            />
+          </Button>
         </div>
-        <WalletTransactionFeed locale={locale} hideHeading hideFilterTabs />
+        <WalletTransactionFeed locale={locale} hideHeading historyTabs />
       </section>
-    </DavinciCenterPane>
+    </div>
   )
 }

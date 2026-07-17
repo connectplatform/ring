@@ -20,21 +20,37 @@ interface WalletTransactionFeedProps {
   hideHeading?: boolean
   /** When true, filter tabs are hidden (scope driven by wallet hero rows). */
   hideFilterTabs?: boolean
+  /** Wallet page: All | Incoming | Outgoing | Requests */
+  historyTabs?: boolean
 }
 
 function activityToCreditRow(row: WalletActivityRow, userId = ''): CreditTransaction {
   const fiatCurrency = getClientCreditFiatCurrency()
+  const signedAmount =
+    row.direction === 'out' && !row.amount.startsWith('-') ? `-${row.amount}` : row.amount
   return {
     id: row.id,
     user_id: userId,
     type: row.kind as CreditTransaction['type'],
-    amount: row.amount,
+    amount: signedAmount,
     usd_equivalent: row.source === 'credit' ? row.amount : row.amount,
     usd_rate: '1',
     balance_after: row.amount,
     description: row.description ?? row.kind,
     timestamp: new Date(row.createdAt).getTime(),
-    metadata: { ...row.metadata, currency: row.currency, fiatCurrency },
+    metadata: {
+      ...row.metadata,
+      currency: row.currency,
+      fiatCurrency,
+      creditUnit:
+        typeof row.metadata?.creditUnit === 'string'
+          ? row.metadata.creditUnit
+          : row.source === 'credit'
+            ? row.currency
+            : undefined,
+      direction: row.direction,
+      source: row.source,
+    },
   }
 }
 
@@ -45,6 +61,7 @@ export default function WalletTransactionFeed({
   id = 'wallet-transactions',
   hideHeading = false,
   hideFilterTabs = false,
+  historyTabs = false,
 }: WalletTransactionFeedProps) {
   const t = useTranslations('modules.wallet')
   const credit = useCreditHistoryContext()
@@ -65,9 +82,17 @@ export default function WalletTransactionFeed({
       ? t('activityCredit')
       : activity.scope.type === 'chain'
         ? t('activityChain')
+      : activity.scope.type === 'incoming'
+        ? t('activityIncoming')
+      : activity.scope.type === 'outgoing'
+        ? t('activityOutgoing')
+      : activity.scope.type === 'requests'
+        ? t('activityRequests')
       : activity.scope.type === 'wallet'
         ? `${activity.scope.address.slice(0, 8)}…`
         : t('activityAll')
+
+  const historyTabKeys = ['all', 'incoming', 'outgoing', 'requests'] as const
 
   return (
     <div id={id} className="space-y-3">
@@ -75,7 +100,43 @@ export default function WalletTransactionFeed({
         {!hideHeading && (
           <h2 className="text-lg font-semibold">{t('transactionHistory')}</h2>
         )}
-        {!hideFilterTabs && (
+        {historyTabs ? (
+          <div className="flex flex-wrap gap-1 rounded-lg border border-border/60 p-0.5">
+            {historyTabKeys.map((key) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={
+                  (key === 'all' && activity.scope.type === 'all') ||
+                  activity.scope.type === key
+                    ? 'default'
+                    : 'ghost'
+                }
+                className="h-7 px-2 text-xs"
+                onClick={() =>
+                  activity.setScope(
+                    key === 'all'
+                      ? { type: 'all' }
+                      : key === 'incoming'
+                        ? { type: 'incoming' }
+                        : key === 'outgoing'
+                          ? { type: 'outgoing' }
+                          : { type: 'requests' },
+                  )
+                }
+              >
+                {key === 'all'
+                  ? t('activityAll')
+                  : key === 'incoming'
+                    ? t('activityIncoming')
+                    : key === 'outgoing'
+                      ? t('activityOutgoing')
+                      : t('activityRequests')}
+              </Button>
+            ))}
+          </div>
+        ) : !hideFilterTabs ? (
           <div className="flex gap-1 rounded-lg border border-border/60 p-0.5">
             {(['all', 'credit', 'chain'] as const).map((key) => (
               <Button
@@ -102,8 +163,7 @@ export default function WalletTransactionFeed({
               </Button>
             ))}
           </div>
-        )}
-        {hideFilterTabs && (
+        ) : (
           <span className="text-xs text-muted-foreground">
             {t('showingFor', { wallet: scopeLabel })}
           </span>

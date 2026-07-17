@@ -20,6 +20,8 @@ import type {
   SidebarStatConfig,
   SupportedCurrencies,
   SupportedCrypto,
+  WebpDerivativeConfig,
+  WebpDerivativeProvider,
 } from '@/lib/ring-config-types'
 
 export type {
@@ -37,6 +39,9 @@ export type {
   SidebarCommunityLinkConfig,
   SidebarStatConfig,
   SidebarStatValueKey,
+  StorageConfig,
+  WebpDerivativeConfig,
+  WebpDerivativeProvider,
 } from '@/lib/ring-config-types'
 
 export type {
@@ -145,19 +150,77 @@ export const getSystemConfigSnapshot = cache(function getSystemConfigSnapshot():
 });
 
 /**
- * Accessor: Returns product fields presets config or null.
+ * Accessor: Returns product fields presets map or null.
+ * Supports:
+ * - productFieldsPresets.{name} (platform shape)
+ * - productFields.presets.{name} (legacy nested)
  */
 export const getProductFieldsPresets = cache((): Record<string, { storeCategories?: string[] }> | null => {
-  const config = getSystemConfigSnapshot()
-  return (config as unknown as { productFields?: { presets?: Record<string, { storeCategories?: string[] }> } }).productFields?.presets ?? null
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const top = config.productFieldsPresets as Record<string, { storeCategories?: string[] }> | undefined
+  if (top && typeof top === 'object' && Object.keys(top).length > 0) return top
+  const nested = (config.productFields as { presets?: Record<string, { storeCategories?: string[] }> } | undefined)
+    ?.presets
+  if (nested && typeof nested === 'object' && Object.keys(nested).length > 0) return nested
+  return null
 })
 
 /**
  * Accessor: Returns the active product fields preset name (singular).
+ * Supports greenfood `productFields.preset = "agricultural"` and platform presets maps.
  */
 export const getProductFieldsPreset = cache((): string => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const singular = (config.productFields as { preset?: string } | undefined)?.preset
+  if (typeof singular === 'string' && singular.trim()) return singular.trim()
   const presets = getProductFieldsPresets()
   return presets ? Object.keys(presets)[0] ?? 'platform' : 'platform'
+})
+
+/**
+ * Accessor: Active entities vertical preset (`entities.preset`).
+ * Selects Tier-2 catalog under features/entities/presets/<name>.ts
+ * (clone overlays may add custom `<name>.ts` + registry lines — build merge wins).
+ * Default: fall back to productFields.preset name, then "platform".
+ */
+export const getEntitiesPreset = cache((): string => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const singular = (config.entities as { preset?: string } | undefined)?.preset
+  if (typeof singular === 'string' && singular.trim()) return singular.trim()
+  return getProductFieldsPreset() || 'platform'
+})
+
+/**
+ * Accessor: Active home landing preset (`home.preset`).
+ * Selects Tier-2 landing under components/pages/home-presets/<name>.tsx
+ * Default: "platform". MVM e-commerce clones (GreenFood-style): "mvm-landing".
+ */
+export const getHomePreset = cache((): string => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const singular = (config.home as { preset?: string } | undefined)?.preset
+  if (typeof singular === 'string' && singular.trim()) return singular.trim()
+  return 'platform'
+})
+
+/**
+ * Accessor: Active product badges preset (`productBadges.preset`).
+ * Default: "platform".
+ */
+export const getProductBadgesPreset = cache((): string => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const singular = (config.productBadges as { preset?: string } | undefined)?.preset
+  if (typeof singular === 'string' && singular.trim()) return singular.trim()
+  return getProductFieldsPreset() || 'platform'
+})
+
+/**
+ * Accessor: productBadgesPresets map (ring-config Tier-1 badge lists per vertical).
+ */
+export const getProductBadgesPresets = cache((): Record<string, { productBadges?: string[] }> | null => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const top = config.productBadgesPresets as Record<string, { productBadges?: string[] }> | undefined
+  if (top && typeof top === 'object' && Object.keys(top).length > 0) return top
+  return null
 })
 
 /**
@@ -644,3 +707,56 @@ export const getCreditUnitToDefaultCurrencyRate = cache((): number => {
 export function getCreditUnitToDefaultCurrencyRateString(): string {
   return String(getCreditUnitToDefaultCurrencyRate())
 }
+
+const DEFAULT_WEBP_MAX_EDGE = 1600
+const DEFAULT_WEBP_QUALITY = 82
+
+export type ResolvedWebpDerivativeConfig = {
+  provider: WebpDerivativeProvider
+  maxEdge: number
+  quality: number
+}
+
+/**
+ * Persistent WebP sibling strategy SSOT.
+ * Precedence: IMAGE_WEBP_DISABLED → ring-config.storage.webpDerivative → default provider `off`.
+ * Default `off` ensures sharp is never imported unless ops explicitly selects `sharp`.
+ */
+export const getWebpDerivativeConfig = cache((): ResolvedWebpDerivativeConfig => {
+  const disabled =
+    process.env.IMAGE_WEBP_DISABLED === '1' ||
+    process.env.IMAGE_WEBP_DISABLED === 'true'
+
+  const raw = getSystemConfigSnapshot().storage?.webpDerivative as
+    | WebpDerivativeConfig
+    | undefined
+
+  const envEdge = Number.parseInt(process.env.IMAGE_WEBP_MAX_EDGE || '', 10)
+  const envQuality = Number.parseInt(process.env.IMAGE_WEBP_QUALITY || '', 10)
+
+  const maxEdge =
+    (Number.isFinite(envEdge) && envEdge > 0
+      ? envEdge
+      : typeof raw?.maxEdge === 'number' && raw.maxEdge > 0
+        ? raw.maxEdge
+        : DEFAULT_WEBP_MAX_EDGE) || DEFAULT_WEBP_MAX_EDGE
+
+  const quality =
+    (Number.isFinite(envQuality) && envQuality > 0
+      ? envQuality
+      : typeof raw?.quality === 'number' && raw.quality > 0
+        ? raw.quality
+        : DEFAULT_WEBP_QUALITY) || DEFAULT_WEBP_QUALITY
+
+  if (disabled) {
+    return { provider: 'off', maxEdge, quality }
+  }
+
+  const providerRaw = raw?.provider
+  const provider: WebpDerivativeProvider =
+    providerRaw === 'sharp' || providerRaw === 'ringbase' || providerRaw === 'off'
+      ? providerRaw
+      : 'off'
+
+  return { provider, maxEdge, quality }
+})

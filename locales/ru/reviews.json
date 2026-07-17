@@ -1,0 +1,146 @@
+{
+  "title": "Отзывы",
+  "writeReview": "Написать отзыв",
+  "editReview": "Редактировать отзыв",
+  "deleteReview": "Удалить отзыв",
+  "noReviews": "Пока нет отзывов",
+  "beFirstToReview": "Станьте первым, кто оставит отзыв об этом месте!",
+  "allReviews": "Все отзывы",
+  "myReviews": "Мои отзывы",
+
+  "rating": {
+    "title": "Оценка",
+    "overall": "Общая оценка",
+    "cleanliness": "Чистота",
+    "petFriendliness": "Отношение к питомцам",
+    "service": "Обслуживание",
+    "value": "Соотношение цены и качества",
+    "atmosphere": "Атмосфера",
+    "facilities": "Удобства"
+  },
+
+  "fields": {
+    "rating": "Ваша оценка",
+    "title": "Заголовок отзыва",
+    "comment": "Ваш отзыв",
+    "photos": "Фотографии",
+    "visitDate": "Дата посещения",
+    "wouldRecommend": "Порекомендуете это место?",
+    "petsWithYou": "Питомцы с вами",
+    "verified": "Подтверждённое посещение"
+  },
+
+  "filters": {
+    "title": "Фильтр отзывов",
+    "allRatings": "Все оценки",
+    "fiveStars": "5 звёзд",
+    "fourStars": "4 звезды",
+    "threeStars": "3 звезды",
+    "twoStars": "2 звезды",
+    "oneStar": "1 звезда",
+    "verified": "Только подтверждённые",
+    "withPhotos": "С фотографиями",
+    "sortBy": "Сортировка",
+    "sortOptions": {
+      "newest": "Сначала новые",
+      "oldest": "Сначала старые",
+      "highestRating": "Высокая оценка",
+      "lowestRating": "Низкая оценка",
+      "mostHelpful": "Самые полезные"
+    }
+  },
+
+  "helpful": {
+    "wasHelpful": "Был ли этот отзыв полезен?",
+    "yes": "Да",
+    "no": "Нет",
+    "helpfulCount": "{{count}} человек считают отзыв полезным",
+    "thankYou": "Спасибо за вашу оценку!"
+  },
+
+  "response": {
+    "title": "Ответ заведения",
+    "respondToReview": "Ответить на отзыв",
+    "editResponse": "Редактировать ответ",
+    "deleteResponse": "Удалить ответ",
+    "businessResponse": "Ответ от заведения",
+    "respondedOn": "Ответ от {{date}}"
+  },
+
+  "verification": {
+    "verified": "Подтверждённое посещение",
+    "notVerified": "Не подтверждено",
+    "verificationRequired": "Требуется подтверждение посещения",
+    "checkInToVerify": "Отметьтесь в этом месте, чтобы подтвердить посещение",
+    "verifiedBadge": "✓ Подтверждённое посещение"
+  },
+
+  "trust": {
+    "title": "Рейтинг доверия",
+    "trustScore": "Рейтинг доверия: {{score}}/100",
+    "breakdown": "Состав рейтинга",
+    "sales": "История продаж (30%)",
+    "rating": "Оценки клиентов (25%)",
+    "disputes": "Разрешение споров (20%)",
+    "delivery": "Качество доставки (15%)",
+    "tenure": "Срок работы аккаунта (10%)",
+    "calculation": "Как это рассчитывается?"
+  },
+
+  "actions": {
+    "saveReview": "Сохранить отзыв",
+    "updateReview": "Обновить отзыв",
+    "cancelEdit": "Отмена",
+    "deleteReviewConfirm": "Вы уверены, что хотите удалить этот отзыв?",
+    "reportReview": "Пожаловаться на отзыв",
+    "shareReview": "Поделиться отзывом",
+    "markHelpful": "Отметить как полезный",
+    "uploadPhoto": "Загрузить фото",
+    "removePhoto": "Удалить фото"
+  },
+
+  "validation": {
+    "ratingRequired": "Выберите оценку",
+    "commentRequired": "Напишите текст отзыва",
+    "commentTooShort": "Отзыв должен содержать не менее 10 символов",
+    "commentTooLong": "Отзыв должен содержать менее 1000 символов",
+    "titleRequired": "Укажите заголовок отзыва",
+    "photosLimit": "Можно загрузить не более 5 фотографий к отзыву"
+  },
+
+  "success": {
+    "created": "Отзыв отправлен! Спасибо за вашу оценку.",
+    "updated": "Отзыв успешно обновлён!",
+    "deleted": "Отзыв удалён",
+    "helpfulMarked": "Спасибо за вашу оценку!",
+    "photoUploaded": "Фото успешно загружено",
+    "reported": "Отзыв отправлен на проверку. Мы рассмотрим его."
+  },
+
+  "errors": {
+    "loadFailed": "Не удалось загрузить отзывы",
+    "saveFailed": "Не удалось сохранить отзыв",
+    "deleteFailed": "Не удалось удалить отзыв",
+    "uploadFailed": "Не удалось загрузить фото",
+    "alreadyReviewed": "Вы уже оставляли отзыв об этом месте. Вы можете отредактировать существующий отзыв.",
+    "mustVisit": "Чтобы оставить отзыв, нужно посетить это место"
+  },
+
+  "stats": {
+    "totalReviews": "{{count}} отзывов",
+    "averageRating": "Средняя оценка: {{rating}}",
+    "distribution": "Распределение оценок",
+    "verifiedPercentage": "{{percent}}% подтверждённых посещений",
+    "wouldRecommend": "{{percent}}% рекомендуют"
+  },
+
+  "guidelines": {
+    "title": "Правила написания отзывов",
+    "beHonest": "Будьте честны и объективны",
+    "beRespectful": "Будьте уважительны и конструктивны",
+    "beSpecific": "Приводите конкретные детали",
+    "noHateSpeech": "Без оскорблений и ненормативной лексики",
+    "relevantContent": "Пишите только о данном месте",
+    "noSpam": "Без спама и рекламы"
+  }
+}

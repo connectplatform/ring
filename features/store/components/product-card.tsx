@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
 import type { StoreProduct } from '@/features/store'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
+import { pickGalleryDisplayUrl } from '@/features/generative-media/types'
 import { useStore } from '@/features/store/context'
-import { useStoreCurrency, type StoreCurrency } from '@/features/store/currency-context'
+import { useStoreCurrency, resolveStorePriceCurrency, type StoreCurrency } from '@/features/store/currency-context'
 import type { Locale } from '@/i18n/shared'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
@@ -44,7 +45,7 @@ export function ProductCard({
     defaultCurrency,
   } = useStoreCurrency()
 
-  const fromCurrency = (product.currency || defaultCurrency) as StoreCurrency
+  const fromCurrency = resolveStorePriceCurrency(product.currency || defaultCurrency)
   const priceAmount = Number(product.price)
   const primaryPrice = formatPrice(
     convertPrice(priceAmount, fromCurrency, currency),
@@ -226,6 +227,21 @@ export function ProductCard({
     return desc.length > 160 ? desc.slice(0, 160) + '...' : desc
   }
 
+  // Prefer generativeGallery card/thumb when present; else first images[] URL
+  const galleryItems = product.generativeGallery?.items
+  const primaryGalleryItem =
+    galleryItems?.find((i) => i.isPrimary && i.enabled) ||
+    galleryItems?.find((i) => i.enabled) ||
+    galleryItems?.[0]
+  const cardImageSrc = primaryGalleryItem
+    ? pickGalleryDisplayUrl(primaryGalleryItem, 'card') ||
+      pickGalleryDisplayUrl(primaryGalleryItem, 'thumb') ||
+      primaryGalleryItem.webpUrl ||
+      primaryGalleryItem.originalUrl
+    : Array.isArray(product.images) && product.images.length > 0
+      ? product.images[0]
+      : ''
+
   // TODO: Use next/image's <Image /> for auto lazy loading and better webperf. Example available in Next.js docs.
   // Can replace <img> below with:
   // <Image src={product.images[0]} alt={product.name} fill className="..." />
@@ -237,11 +253,11 @@ export function ProductCard({
         href={`${ROUTES.STORE(locale.toLowerCase() as Locale)}/${product.id}`}
         className="block relative aspect-square overflow-hidden"
       >
-        {Array.isArray(product.images) && product.images.length > 0 ? (
+        {cardImageSrc ? (
           // TODO: Replace with <Image /> as described above.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.images[0]}
+            src={cardImageSrc}
             alt={product.name}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />

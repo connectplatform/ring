@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useActionState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,8 @@ import {
   AlertTriangle,
   Loader2,
   Apple,
-  Smartphone
+  Smartphone,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
@@ -30,9 +32,18 @@ import {
   type CreditTopupFormState,
 } from '@/app/_actions/wallet'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { getClientCreditFiatCurrency, getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import { useWalletListContext } from '@/components/providers/wallet-list-provider'
+import {
+  getClientCreditFiatCurrency,
+  getClientCreditUnitLabel,
+  getClientNativeTokenSymbol,
+} from '@/lib/ring-config-client'
+import { followCheckoutResult } from '@/lib/payments/checkout-redirect'
 import { canUseNativeTokenOnrampClient } from '@/lib/payments/confidential-token-onramp-client'
 import { useAuth } from '@/hooks/use-auth'
+import NativeWalletListItem from '@/features/wallet/components/native-wallet-list-item'
+import DeskWidget from '@/features/wallet/components/desk-widget'
+import { toast } from '@/hooks/use-toast'
 
 interface WalletTopUpClientProps {
   locale: Locale
@@ -41,10 +52,18 @@ interface WalletTopUpClientProps {
 
 export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpClientProps) {
   const t = useTranslations('modules.wallet')
+  const router = useRouter()
   const { role } = useAuth()
   const showOnramp = canUseNativeTokenOnrampClient(role)
   const nativeSymbol = getClientNativeTokenSymbol()
-  const { refresh: refreshCreditBalance } = useCreditBalanceContext()
+  const creditUnit = getClientCreditUnitLabel()
+  const { balance: creditBalance, refresh: refreshCreditBalance } = useCreditBalanceContext()
+  const {
+    wallets,
+    isLoading: walletsLoading,
+    refresh: refreshWallets,
+  } = useWalletListContext()
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
 
   // React 19 useTransition for non-blocking tab and payment method changes
   const [isPending, startTransition] = useTransition()
@@ -75,7 +94,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
     null
   )
 
-  const [activeTab, setActiveTab] = useState<string>('ring')
+  const [activeTab, setActiveTab] = useState<string>('credit_desk')
   
   // RING Token state
   const [ringAmount, setRingAmount] = useState('')
@@ -95,12 +114,42 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
     FormData
   >(initiateNativeTokenOnrampPayment, null)
 
-  useEffect(() => {
-    const url = fiatState?.paymentUrl || onrampState?.paymentUrl
-    if (url) {
-      window.location.href = url
+  const tabCols = showOnramp ? 'grid-cols-5' : 'grid-cols-3'
+
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address)
+      setCopiedAddress(address)
+      toast({
+        title: t('addressCopied'),
+        description: t('addressCopiedDescription'),
+      })
+      setTimeout(() => setCopiedAddress(null), 2000)
+    } catch {
+      toast({ title: t('copyFailed'), variant: 'destructive' })
     }
-  }, [fiatState?.paymentUrl, onrampState?.paymentUrl])
+  }
+
+  useEffect(() => {
+    const state =
+      fiatState?.redirect || fiatState?.paymentUrl || fiatState?.paymentFields
+        ? fiatState
+        : onrampState
+    if (state?.redirect || state?.paymentUrl || state?.paymentFields) {
+      followCheckoutResult({
+        redirect: state.redirect,
+        paymentUrl: state.paymentUrl,
+        paymentFields: state.paymentFields,
+      })
+    }
+  }, [
+    fiatState?.redirect,
+    fiatState?.paymentUrl,
+    fiatState?.paymentFields,
+    onrampState?.redirect,
+    onrampState?.paymentUrl,
+    onrampState?.paymentFields,
+  ])
 
   const handleRingTopUp = async (formData: FormData) => {
     // Validate before submitting
@@ -131,8 +180,32 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
         </p>
       </div>
 
+      <div className="mb-8 space-y-2">
+        <p className="text-sm font-medium text-muted-foreground">{t('yourWallets')}</p>
+        {walletsLoading ? (
+          <p className="text-sm text-muted-foreground">{t('loadingWallets')}</p>
+        ) : wallets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('noWallets')}</p>
+        ) : (
+          wallets.map((wallet) => (
+            <NativeWalletListItem
+              key={wallet.address}
+              wallet={wallet}
+              copied={copiedAddress === wallet.address}
+              primaryLabel={t('primary')}
+              onCopy={() => void handleCopyAddress(wallet.address)}
+              onSelect={() => router.push(`/${locale}/wallet`)}
+            />
+          ))
+        )}
+      </div>
+
       <Tabs value={activeTab} onValueChange={(value) => startTransition(() => setActiveTab(value))} className="w-full">
-        <TabsList className={`mb-8 grid w-full ${showOnramp ? 'grid-cols-4' : 'grid-cols-2'}`}>
+        <TabsList className={`mb-8 grid w-full ${tabCols}`}>
+          <TabsTrigger value="credit_desk" className="flex items-center gap-2">
+            <ArrowLeftRight className="h-4 w-4" />
+            {t('topupTabs.creditDesk', { creditUnit })}
+          </TabsTrigger>
           <TabsTrigger value="ring" className="flex items-center gap-2">
             <Coins className="h-4 w-4" />
             Chain proof
@@ -152,6 +225,31 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
             </>
           )}
         </TabsList>
+
+        <TabsContent value="credit_desk" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowLeftRight className="h-5 w-5 text-primary" />
+                {t('deskTitle')}
+              </CardTitle>
+              <CardDescription>
+                {t('deskBuyHint', { token: nativeSymbol })}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DeskWidget
+                creditBalancePoints={creditBalance?.amount ?? '0'}
+                variant="embedded"
+                onSuccess={() => {
+                  void refreshCreditBalance()
+                  void refreshWallets()
+                }}
+                onPurchaseCredit={() => startTransition(() => setActiveTab('wayforpay'))}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* RING Token Transfer Tab */}
         <TabsContent value="ring" className="space-y-6">
@@ -315,12 +413,18 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" />
-                  {t('topup.methods.fiat.name', { defaultValue: 'Card payment' })}
+                  {t('topup.methods.fiat.name', {
+                    creditUnit,
+                    token: nativeSymbol,
+                    defaultValue: 'Card payment',
+                  })}
                 </CardTitle>
                 <CardDescription>
                   {t('topup.methods.fiat.description', {
+                    creditUnit,
+                    token: nativeSymbol,
                     defaultValue:
-                      'Purchase account credit points (1:1 with paid fiat). Convert to native RING later via Token Desk on /wallet.',
+                      'Purchase account credit ({creditUnit}). Convert to {token} later via Token Desk.',
                   })}
                 </CardDescription>
               </CardHeader>

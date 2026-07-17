@@ -2,7 +2,9 @@ import type {
   CreateCheckoutContext,
   CreateCheckoutResult,
   PaymentProcessorId,
+  WebhookHandleResult,
 } from '@/lib/payments/conductor/types'
+import { normalizeCheckoutResult } from '@/lib/payments/conductor/types'
 import { getPaymentProvider } from '@/lib/payments/payment.config'
 import { createWayForPayCheckout } from '@/lib/payments/processors/wayforpay.processor'
 import { createStripeCheckout } from '@/lib/payments/processors/stripe.processor'
@@ -12,8 +14,8 @@ import { createPayPalCheckout } from '@/lib/payments/processors/paypal.processor
 import {
   dispatchWayForPayWebhook,
   dispatchStripeWebhook,
+  dispatchPayPalWebhook,
 } from '@/lib/payments/conductor/webhook-dispatcher'
-import type { WebhookHandleResult } from '@/lib/payments/conductor/types'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { assertNativeTokenOnrampAllowed } from '@/lib/payments/confidential-token-onramp'
 
@@ -36,29 +38,48 @@ export const PaymentConductor = {
 
     const processor = resolveProcessor(ctx)
 
+    let result: CreateCheckoutResult
     switch (processor) {
       case 'internal-credit':
-        return createInternalCreditCheckout(ctx)
+        result = await createInternalCreditCheckout(ctx)
+        break
       case 'native-token':
-        return createNativeTokenCheckout(ctx)
+        result = await createNativeTokenCheckout(ctx)
+        break
       case 'paypal':
-        return createPayPalCheckout(ctx)
+        result = await createPayPalCheckout(ctx)
+        break
       case 'stripe':
-        return createStripeCheckout(ctx)
+        result = await createStripeCheckout(ctx)
+        break
       case 'wayforpay':
       default:
-        return createWayForPayCheckout(ctx)
+        result = await createWayForPayCheckout(ctx)
+        break
     }
+
+    return normalizeCheckoutResult(result)
   },
 
   async handleWebhook(
-    provider: 'wayforpay' | 'stripe',
+    provider: 'wayforpay' | 'stripe' | 'paypal',
     request: Request
   ): Promise<WebhookHandleResult> {
     if (provider === 'stripe') {
       const rawBody = await request.text()
       const signature = request.headers.get('stripe-signature') ?? ''
       return dispatchStripeWebhook(rawBody, signature)
+    }
+
+    if (provider === 'paypal') {
+      const rawBody = await request.text()
+      return dispatchPayPalWebhook(rawBody, {
+        transmissionId: request.headers.get('paypal-transmission-id') ?? '',
+        transmissionTime: request.headers.get('paypal-transmission-time') ?? '',
+        transmissionSig: request.headers.get('paypal-transmission-sig') ?? '',
+        certUrl: request.headers.get('paypal-cert-url') ?? '',
+        authAlgo: request.headers.get('paypal-auth-algo') ?? 'SHA256withRSA',
+      })
     }
 
     const payload = (await request.json()) as Record<string, unknown>

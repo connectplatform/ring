@@ -14,7 +14,7 @@ const conversationService = new ConversationService()
 //   - type='direct' → metadata optional
 // ---------------------------------------------------------------------------
 const createConversationSchema = z.object({
-  type: z.enum(['direct', 'entity', 'opportunity', 'product', 'group']),
+  type: z.enum(['direct', 'entity', 'opportunity', 'product', 'group', 'order_lab']),
   participantIds: z.array(z.string()).min(1, 'participantIds must be a non-empty array'),
   metadata: z.object({
     entityId: z.string().optional(),
@@ -28,6 +28,9 @@ const createConversationSchema = z.object({
     subject: z.string().optional(),
     vendorId: z.string().optional(),
     groupName: z.string().optional(),
+    kind: z.string().optional(),
+    hiddenFromInbox: z.boolean().optional(),
+    orderId: z.string().optional(),
   }).optional(),
 }).passthrough().superRefine((data, ctx) => {
   if (data.type !== 'direct' && !data.metadata) {
@@ -49,6 +52,13 @@ const createConversationSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: 'opportunityId is required for opportunity conversations',
       path: ['metadata', 'opportunityId'],
+    })
+  }
+  if (data.type === 'order_lab' && data.metadata && !data.metadata.orderId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'orderId is required for order_lab conversations',
+      path: ['metadata', 'orderId'],
     })
   }
   if (data.type === 'group') {
@@ -109,8 +119,8 @@ export async function GET(request: NextRequest) {
         switch (key) {
           case 'type':
             // Only include supported conversation types
-            if (['direct', 'entity', 'opportunity', 'product'].includes(queryParams[key])) {
-              filters.type = queryParams[key] as 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
+            if (['direct', 'entity', 'opportunity', 'product', 'group', 'order_lab'].includes(queryParams[key])) {
+              filters.type = queryParams[key] as ConversationFilters['type']
             }
             break;
           case 'isActive':
@@ -233,6 +243,16 @@ export async function POST(request: NextRequest) {
         error: 'Invalid JSON in request body',
         context: { timestamp: requestContext.timestamp }
       }, { status: 400 })
+    }
+
+    // order_lab rooms are SSOT via Order Lab bootstrap (buyer+integrator+Reggie + metadata lock).
+    // Public create would allow a first writer to mint a broken room without Reggie/hiddenFromInbox.
+    if (requestData.type === 'order_lab') {
+      return NextResponse.json({
+        error:
+          'order_lab conversations must be created via Order Lab chat bootstrap (GET /api/my-jobs/[id]/chat)',
+        context: { timestamp: requestContext.timestamp },
+      }, { status: 403 })
     }
 
     // Ensure current user is included; creatorUserId makes them admin regardless of array order

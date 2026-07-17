@@ -46,6 +46,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'subscriptions',
       'payment-conductor',
       'payments',
+      'wayforpay-integration',
       'wallet',
       'wallet-conductor',
       'affiliate-enablement',
@@ -53,6 +54,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'nft-market',
       'nft-gates',
       'staking',
+      'owner-project-lab',
       // Grow the network
       'entities',
       'opportunities',
@@ -70,6 +72,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'tunnel-protocol',
       'video-conductor',
       'media-conductor',
+      'generative-media',
       // Trust & brand
       'authentication',
       'security',
@@ -111,14 +114,17 @@ export const AUDIENCE_CURATED_DOCS = {
       'performance',
       'backup',
     ],
-    // High-level only — no backend/api/cli/development/mcp for founders
+    // High-level only — no backend/api/cli for founders (ring-mcp is the exception: dual-audience AI ops)
     architecture: [
       'data-model',
       'security',
       'real-time',
       'discovery-mutation-sync',
       'payment-conductor',
+      'wallet-conductor',
     ],
+    // AI remote ops — dual-audience manuals founders need for clone control
+    development: ['ring-mcp'],
   },
 
   // ---------------------------------------------------------------
@@ -144,6 +150,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'discovery-mutation-sync',
       'proxy-and-intl',
       'payment-conductor',
+      'wallet-conductor',
       'refcodes',
       'news-kingdom',
       'email-ai-crm',
@@ -173,6 +180,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'nft-market',
       'nft-gates',
       'staking',
+      'owner-project-lab',
       'tunnel-protocol',
       'messaging',
       'webrtc-calls',
@@ -194,6 +202,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'doc-system',
       'video-conductor',
       'media-conductor',
+      'generative-media',
       'mobile-experience',
       'performance',
       'inventory',

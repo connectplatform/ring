@@ -89,14 +89,16 @@ export default function PaymentMethodSelector({
 
           const data = await response.json()
 
-          if (data.success && data.paymentUrl) {
-            // Notify parent component if callback provided
-            if (onPaymentInitiated) {
+          if (data.success && (data.redirect || data.paymentUrl || data.paymentFields)) {
+            if (onPaymentInitiated && data.paymentUrl) {
               onPaymentInitiated(data.paymentUrl)
             }
-            
-            // Redirect to WayForPay payment page
-            window.location.href = data.paymentUrl
+            const { followCheckoutResult } = await import('@/lib/payments/checkout-redirect')
+            followCheckoutResult({
+              redirect: data.redirect,
+              paymentUrl: data.paymentUrl,
+              paymentFields: data.paymentFields,
+            })
           } else {
             throw new Error(data.error || 'Failed to get payment URL')
           }

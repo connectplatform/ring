@@ -1,0 +1,133 @@
+{
+  "title": "Bewertungen",
+  "writeReview": "Bewertung schreiben",
+  "editReview": "Bewertung bearbeiten",
+  "deleteReview": "Bewertung löschen",
+  "noReviews": "Noch keine Bewertungen",
+  "beFirstToReview": "Schreiben Sie die erste Bewertung für diesen Ort!",
+  "allReviews": "Alle Bewertungen",
+  "myReviews": "Meine Bewertungen",
+  "rating": {
+    "title": "Bewertung",
+    "overall": "Gesamtnote",
+    "cleanliness": "Sauberkeit",
+    "petFriendliness": "Tierfreundlichkeit",
+    "service": "Service",
+    "value": "Preis-Leistung",
+    "atmosphere": "Atmosphäre",
+    "facilities": "Ausstattung"
+  },
+  "fields": {
+    "rating": "Ihre Note",
+    "title": "Titel der Bewertung",
+    "comment": "Ihr Text",
+    "photos": "Fotos",
+    "visitDate": "Besuchsdatum",
+    "wouldRecommend": "Würden Sie diesen Ort weiterempfehlen?",
+    "petsWithYou": "Begleitende Tiere",
+    "verified": "Verifizierter Besuch"
+  },
+  "filters": {
+    "title": "Bewertungen filtern",
+    "allRatings": "Alle Sterne",
+    "fiveStars": "5 Sterne",
+    "fourStars": "4 Sterne",
+    "threeStars": "3 Sterne",
+    "twoStars": "2 Sterne",
+    "oneStar": "1 Stern",
+    "verified": "Nur verifizierte Besuche",
+    "withPhotos": "Mit Fotos",
+    "sortBy": "Sortieren nach",
+    "sortOptions": {
+      "newest": "Neueste zuerst",
+      "oldest": "Älteste zuerst",
+      "highestRating": "Höchste Note",
+      "lowestRating": "Niedrigste Note",
+      "mostHelpful": "Am hilfreichsten"
+    }
+  },
+  "helpful": {
+    "wasHelpful": "War diese Bewertung hilfreich?",
+    "yes": "Ja",
+    "no": "Nein",
+    "helpfulCount": "{{count}} Personen fanden das hilfreich",
+    "thankYou": "Vielen Dank für Ihr Feedback!"
+  },
+  "response": {
+    "title": "Antwort des Anbieters",
+    "respondToReview": "Auf Bewertung antworten",
+    "editResponse": "Antwort bearbeiten",
+    "deleteResponse": "Antwort löschen",
+    "businessResponse": "Antwort des Unternehmens",
+    "respondedOn": "Geantwortet am {{date}}"
+  },
+  "verification": {
+    "verified": "Verifizierter Besuch",
+    "notVerified": "Nicht verifiziert",
+    "verificationRequired": "Besuchsverifizierung erforderlich",
+    "checkInToVerify": "Check-in am Ort, um den Besuch zu verifizieren",
+    "verifiedBadge": "✓ Verifizierter Besuch"
+  },
+  "trust": {
+    "title": "Vertrauenswert",
+    "trustScore": "Vertrauenswert: {{score}}/100",
+    "breakdown": "Aufschlüsselung",
+    "sales": "Verkaufshistorie (30 %)",
+    "rating": "Kundenbewertungen (25 %)",
+    "disputes": "Streitbeilegung (20 %)",
+    "delivery": "Lieferleistung (15 %)",
+    "tenure": "Kontostandzeit (10 %)",
+    "calculation": "Wie wird das berechnet?"
+  },
+  "actions": {
+    "saveReview": "Bewertung speichern",
+    "updateReview": "Bewertung aktualisieren",
+    "cancelEdit": "Abbrechen",
+    "deleteReviewConfirm": "Diese Bewertung wirklich löschen?",
+    "reportReview": "Bewertung melden",
+    "shareReview": "Bewertung teilen",
+    "markHelpful": "Als hilfreich markieren",
+    "uploadPhoto": "Foto hochladen",
+    "removePhoto": "Foto entfernen"
+  },
+  "validation": {
+    "ratingRequired": "Bitte eine Note wählen",
+    "commentRequired": "Bitte einen Bewertungstext eingeben",
+    "commentTooShort": "Mindestens 10 Zeichen",
+    "commentTooLong": "Höchstens 1000 Zeichen",
+    "titleRequired": "Titel ist erforderlich",
+    "photosLimit": "Maximal 5 Fotos pro Bewertung"
+  },
+  "success": {
+    "created": "Bewertung gesendet. Vielen Dank!",
+    "updated": "Bewertung aktualisiert.",
+    "deleted": "Bewertung gelöscht",
+    "helpfulMarked": "Danke für Ihr Feedback!",
+    "photoUploaded": "Foto hochgeladen",
+    "reported": "Bewertung gemeldet. Wir prüfen das."
+  },
+  "errors": {
+    "loadFailed": "Bewertungen konnten nicht geladen werden",
+    "saveFailed": "Bewertung konnte nicht gespeichert werden",
+    "deleteFailed": "Bewertung konnte nicht gelöscht werden",
+    "uploadFailed": "Foto-Upload fehlgeschlagen",
+    "alreadyReviewed": "Sie haben diesen Ort bereits bewertet. Sie können Ihre Bewertung bearbeiten.",
+    "mustVisit": "Besuch am Ort ist erforderlich, bevor Sie bewerten können"
+  },
+  "stats": {
+    "totalReviews": "{{count}} Bewertungen",
+    "averageRating": "Ø {{rating}}",
+    "distribution": "Verteilung der Noten",
+    "verifiedPercentage": "{{percent}} % verifizierte Besuche",
+    "wouldRecommend": "{{percent}} % würden weiterempfehlen"
+  },
+  "guidelines": {
+    "title": "Richtlinien",
+    "beHonest": "Ehrlich und fair bleiben",
+    "beRespectful": "Respektvoll und konstruktiv formulieren",
+    "beSpecific": "Konkrete Details nennen",
+    "noHateSpeech": "Keine Hassrede oder Beleidigungen",
+    "relevantContent": "Inhalt soll zum Ort passen",
+    "noSpam": "Kein Spam oder reine Werbung"
+  }
+}

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { getSiteBaseUrl } from '@/lib/ring-config-core'
-import React, { Suspense } from 'react'
+import React from 'react'
 import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
 import AddOpportunityForm from '@/features/opportunities/components/add-opportunity'
@@ -167,7 +167,8 @@ export default async function AddOpportunityPage(props: PageProps) {
   }
 
   // Validate if the type requires member role and user lacks it
-  const memberOnlyTypes = new Set(['offer', 'ring_customization']);
+  // Prefer in-pane upgrade from picker; fail-closed redirect for direct URL abuse.
+  const memberOnlyTypes = new Set(['offer', 'ring_customization', 'program']);
   if (typeof type === 'string' && memberOnlyTypes.has(type) && !hasMemberPrivileges(userRole)) {
     logger.info('AddOpportunityPage: User lacks permission for member-only type', { userRole, type });
     redirect(ROUTES.MEMBERSHIP(validLocale) + `?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(validLocale) + `?type=${type}`)}`);
@@ -183,23 +184,26 @@ export default async function AddOpportunityPage(props: PageProps) {
   const t = await getTranslations('modules.opportunities')
 
   try {
-    // ===== USER MIGRATION LOGIC / ONBOARDING DOC ENSURANCE =====
-    // STUB: Run migration check for user document.
-    // TODO: Replace with Next.js 16 server actions or async cache for idempotent doc enforcements.
+    // ===== USER MIGRATION (non-blocking) =====
+    // TODO: Move ensureUserDocument to a one-shot after() / onboarding action so
+    // soft navigations to ?type=* do not await migration on every RSC render.
     try {
-      // Dynamically import legacy user migration service.
-      const { userMigrationService } = await import('@/features/auth/services/user-migration');
-      // Verifies presence of user doc.
-      const userExists = await userMigrationService.userDocumentExists(session.user.id);
-      if (!userExists) {
-        logger.warn('AddOpportunityPage: User document missing, initializing');
-        // STUB: This ensures user doc exists; migrate to idempotent server action.
-        await userMigrationService.ensureUserDocument(session.user as any);
-        logger.info('AddOpportunityPage: User document created successfully');
-      }
-    } catch (migrationError) {
-      // Logging does not disrupt user flow
-      logger.error('AddOpportunityPage: Failed to check/create user document:', migrationError);
+      const { after } = await import('next/server')
+      const userId = session.user.id
+      const userSnapshot = session.user
+      after(async () => {
+        try {
+          const { userMigrationService } = await import('@/features/auth/services/user-migration')
+          const userExists = await userMigrationService.userDocumentExists(userId)
+          if (!userExists) {
+            await userMigrationService.ensureUserDocument(userSnapshot as never)
+          }
+        } catch (migrationError) {
+          logger.error('AddOpportunityPage: background user migration failed:', migrationError)
+        }
+      })
+    } catch (migrationScheduleError) {
+      logger.error('AddOpportunityPage: could not schedule user migration:', migrationScheduleError)
     }
 
     // ===== BRANCH: IF NO TYPE, SHOW OPPORTUNITY TYPE PICKER =====
@@ -229,7 +233,7 @@ export default async function AddOpportunityPage(props: PageProps) {
             "mainEntity": {
               "@type": "WebPageElement",
               "name": "Opportunity Submission Form",
-              "description": "Form for posting job opportunities, collaboration requests, and partnership opportunities"
+              "description": "Form for posting opportunities on the Ring platform"
             },
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -265,17 +269,8 @@ export default async function AddOpportunityPage(props: PageProps) {
 
       {/* TODO: Move <title> tag to <Head /> level for React19-native metadata aggregation. */}
       <OpportunityFormWrapper locale={validLocale} opportunityType={type}>
-        {/* Suspense boundary for async React components/forms */}
-        <Suspense
-          fallback={
-            <div className="flex min-h-[40vh] items-center justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--davinci-beam)] border-t-transparent" />
-            </div>
-          }
-        >
-          {/* Main Add Opportunity Form. Could be split into Server and Client side as demand grows. */}
-          <AddOpportunityForm opportunityType={type} />
-        </Suspense>
+        {/* Client form — no Suspense wrapper (avoids full-pane spinner flash on soft nav). */}
+        <AddOpportunityForm opportunityType={type} />
       </OpportunityFormWrapper>
     </>
   );

@@ -1,25 +1,27 @@
 'use client'
 
-import React, { useCallback, useEffect } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { useOptimistic, useActionState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
-import { useInView } from '@/hooks/use-intersection-observer'
-import { 
-  MessageCircle, 
-  Heart, 
-  Reply, 
-  MoreHorizontal, 
-  Flag, 
-  Edit, 
+import {
+  MessageCircle,
+  Heart,
+  Reply,
+  MoreHorizontal,
+  Flag,
+  Edit,
   Trash2,
   Loader2,
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  User
 } from 'lucide-react'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 
 import { Comment, CommentTargetType } from '@/features/comments/types'
 import { Button } from '@/components/ui/button'
@@ -81,29 +83,74 @@ export default function CommentList({
   className = ''
 }: CommentListProps) {
   const t = useTranslations('comments')
+  const locale = useLocale()
   const { data: session } = useSession()
-  const { ref, inView } = useInView()
 
-  // Optimistic state for comments
+  const filterFingerprint = useMemo(
+    () => buildFilterFingerprint('comments', { targetId, targetType }),
+    [targetId, targetType],
+  )
+
+  const initialCursor = useMemo(() => {
+    const { nextCursor } = computePaginationCursor(initialComments, limit, (c) => c.id)
+    return nextCursor
+  }, [initialComments, limit])
+
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const params = new URLSearchParams({
+        targetId,
+        targetType,
+        limit: String(limit),
+      })
+      if (cursor) params.set('startAfter', cursor)
+
+      const response = await fetch(`/api/comments?${params.toString()}`, { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error('Failed to load comments')
+      }
+      const data = await response.json()
+      return normalizePaginatedResponse<Comment>(
+        {
+          items: data.items,
+          data: data.data,
+          cursor: data.cursor,
+          hasMore: data.hasMore,
+        },
+        limit,
+      )
+    },
+    [limit, targetId, targetType],
+  )
+
+  const {
+    items: feedItems,
+    loading,
+    hasMore,
+    error: feedError,
+    sentinelRef,
+  } = useCursorFeed<Comment>({
+    moduleId: 'comments',
+    locale,
+    limit,
+    filterFingerprint,
+    initialItems: initialComments,
+    initialCursor,
+    fetchPage,
+    restoreScroll: false,
+  })
+
   const [optimisticComments, addOptimisticComment] = useOptimistic<
     CommentWithReplies[],
     CommentWithReplies
-  >(
-    buildCommentTree(initialComments),
-    (currentComments, newComment) => {
-      if (newComment.parentId) {
-        // Add as reply to existing comment
-        return addReplyToTree(currentComments, newComment)
-      } else {
-        // Add as top-level comment
-        return [{ ...newComment, isOptimistic: true }, ...currentComments]
-      }
+  >(buildCommentTree(feedItems), (currentComments, newComment) => {
+    if (newComment.parentId) {
+      return addReplyToTree(currentComments, newComment)
     }
-  )
+    return [{ ...newComment, isOptimistic: true }, ...currentComments]
+  })
 
-  // Local state
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(initialError)
+  const error = feedError || initialError
   const [expandedComments, setExpandedComments] = React.useState<Set<string>>(new Set())
   const [replyingTo, setReplyingTo] = React.useState<string | null>(null)
 
@@ -269,47 +316,6 @@ export default function CommentList({
     likeAction(formData)
   }
 
-  // Load more comments (infinite scroll)
-  const loadMoreComments = useCallback(async () => {
-    if (loading) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch(
-        `/api/comments?targetId=${targetId}&targetType=${targetType}&limit=${limit}&offset=${optimisticComments.length}`
-      )
-
-      if (!response.ok) {
-        throw new Error('Failed to load comments')
-      }
-
-      const data = await response.json()
-      const newComments = buildCommentTree(data.comments)
-      
-      // Add new comments without affecting optimistic ones
-      newComments.forEach(comment => {
-        if (!optimisticComments.some(existing => existing.id === comment.id)) {
-          addOptimisticComment(comment)
-        }
-      })
-
-    } catch (error) {
-      console.error('Error loading comments:', error)
-      setError(t('errorLoadingComments'))
-    } finally {
-      setLoading(false)
-    }
-  }, [loading, targetId, targetType, limit, optimisticComments, t, addOptimisticComment])
-
-  // Trigger infinite scroll
-  useEffect(() => {
-    if (inView && !loading) {
-      loadMoreComments()
-    }
-  }, [inView, loadMoreComments, loading])
-
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Header */}
@@ -384,10 +390,7 @@ export default function CommentList({
           </div>
         )}
 
-        {/* Infinite Scroll Trigger */}
-        {!loading && optimisticComments.length >= limit && (
-          <div ref={ref} className="h-10" />
-        )}
+        {hasMore && <div ref={sentinelRef} className="h-10" aria-hidden />}
       </div>
     </div>
   )

@@ -143,6 +143,23 @@
     "walletRequired": "Please connect your wallet to continue",
     "insufficientFunds": "Insufficient funds for this transaction"
   },
+  "imageEditor": {
+    "title": "Generate NFT art",
+    "description": "Describe your NFT in full detail. Swipe variations, then use the selected image.",
+    "emptyTitle": "Describe your NFT in full detail",
+    "emptyBody": "Subject, style, colors, mood, and composition. Generate four variations, swipe to compare, then use the best one as cover art.",
+    "useThisImage": "Use this image",
+    "generating": "Generating 4 preview variations…",
+    "historyEmpty": "Your generation prompts will appear here with time-ago stamps.",
+    "openEditor": "Open image editor",
+    "uploadTab": "Upload",
+    "generateTab": "Generate",
+    "uploadJpgPng": "Upload JPG and PNG media",
+    "select": "Select",
+    "primaryHint": "Primary media — used as NFT thumbnail.",
+    "artReadyTitle": "NFT art ready",
+    "artReadyBody": "Your ImageConductor previews are ready to review."
+  },
   "title": "NFT Marketplace",
   "createListing": "Create NFT Listing",
   "createListingDescription": "List your NFT for sale on the marketplace",

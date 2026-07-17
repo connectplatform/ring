@@ -1,0 +1,22 @@
+{
+  "title": "Mood Player",
+  "playlists": "Mood playlists",
+  "newPlaylist": "New playlist",
+  "editPlaylist": "Edit playlist",
+  "songs": "Songs",
+  "moods": "Moods",
+  "addSong": "Add song",
+  "addMood": "Add mood",
+  "upload": "Upload",
+  "generate": "Generate",
+  "importUrlSoon": "Import URL (soon)",
+  "save": "Save playlist",
+  "shiftMood": "Mood",
+  "lyrics": "Lyrics",
+  "original": "Original",
+  "noSongs": "This playlist has no playable songs yet.",
+  "noPlaylists": "No playlists yet. Create one to start healing through music.",
+  "embedHint": "Embed with <ring-mood-player playlist=\"…\">",
+  "publicSongsTitle": "{name} — Songs",
+  "publicSongsSubtitle": "Same lyrics, shifting moods. Use Next/Previous for songs and Mood to change arrangement."
+}

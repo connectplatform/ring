@@ -1,0 +1,531 @@
+{
+  "title": "Organizaciones",
+  "subtitle": "Organizaciones del ecosistema Connect.Software y Ring",
+  "browseEntities": "Explorar entidades",
+  "myEntities": "Mis organizaciones",
+  "entitiesTitle": "Directorio de organizaciones",
+  "confidentialEntitiesTitle": "Organizaciones confidenciales",
+  "loadingMessage": "Las organizaciones se están cargando...",
+  "wrapper": {
+    "loginRequired": "Inicia sesión para ver esta página.",
+    "preparingDirectory": "Preparando el directorio de entidades",
+    "loadingDirectory": "Cargando el directorio de entidades"
+  },
+  "visitWebsite": "Visitar sitio web",
+  "foundedIn": "Fundado {year}",
+  "employees": "{count} empleados",
+  "tags": "Etiquetas",
+  "certifications": "Certificaciones",
+  "viewDetails": "Mostrar detalles",
+  "membersOnly": "Sólo para miembros",
+  "showingentities": "{start}–{end} de {total}",
+  "previous": "Atrás",
+  "next": "Más",
+  "filters": {
+    "title": "Filtros",
+    "subtitle": "Afina por tipo de entidad, ubicación y más",
+    "search": {
+      "label": "Buscar organizaciones",
+      "placeholder": "Nombre, industria o ubicación..."
+    },
+    "sections": {
+      "types": "Tipos de organización",
+      "location": "Ubicación",
+      "companySize": "Tamaño de la empresa",
+      "foundedYear": "año de fundación",
+      "verification": "verificación"
+    },
+    "location": {
+      "placeholder": "Introduce la ubicación..."
+    },
+    "companySize": {
+      "min": "Mín",
+      "max": "Máx"
+    },
+    "foundedYear": {
+      "from": "De",
+      "to": "Hasta"
+    },
+    "verification": {
+      "anyStatus": "Cualquier",
+      "verified": "Verificado",
+      "pending": "Pendiente",
+      "unverified": "No verificado"
+    },
+    "apply": "Aplicar filtros"
+  },
+  "clearFilters": "Limpiar filtros",
+  "addMyEntity": "Agregar organización",
+  "addMyEntityDescription": "Crear y gestionar una organización. Se requiere membresía para una funcionalidad completa.",
+  "upgradeToBeMember": "convertirse en miembro",
+  "memberBenefits": "Beneficios de la membresía",
+  "createEntities": "Crear y gestionar organizaciones.",
+  "postOpportunities": "Publicar oportunidades de negocio",
+  "accessMemberContent": "Usar contenido para miembros",
+  "upgradeDescription": "Actualice a Miembro para crear organizaciones y para todas las funciones de la plataforma.",
+  "cancel": "Cancelar",
+  "requestUpgrade": "Solicitar una actualización",
+  "introTitle": "Descubra organizaciones",
+  "introDescription": "Empresas, start-ups e instituciones del ecosistema. Inicie sesión para obtener perfiles completos y detalles de contacto.",
+  "list": {
+    "title": "Todas las organizaciones"
+  },
+  "upgradeToMemberToCreateEntities": "Hazte miembro para crear organizaciones",
+  "subscriberUpgradeMessage": "Como suscriptor puedes ver organizaciones; Se requiere membresía para crear.",
+  "backToEntities": "Volver a organizaciones",
+  "details": "Detalles",
+  "contact": "contacto",
+  "about": "Sobre nosotros",
+  "services": "Servicios",
+  "contactUs": "contacto",
+  "chat": "Chat",
+  "externalWebsite": "Sitio web externo",
+  "externalWebsiteWarning": "Sales de la plataforma. Verifique la autenticidad de la página de destino.",
+  "continueToWebsite": "al sitio web",
+  "contactEntity": "Organización de contacto",
+  "chatWith": "Chatea con",
+  "myEntitiesDescription": "Organizaciones y perfiles que posees, stores que operas y entidades de las que eres miembro.",
+  "myEntitiesTabAll": "Propias",
+  "myEntitiesTabStore": "Stores",
+  "myEntitiesTabMember": "Miembro de",
+  "confirmDeleteEntity": "¿Eliminar permanentemente «{name}»?",
+  "deleteEntity": "Eliminar",
+  "editEntity": "Editar",
+  "saveChanges": "Guardar cambios",
+  "deleteEntityTitle": "Eliminar entidad",
+  "deleteEntityDescription": "Esto elimina permanentemente «{name}» de Ring.",
+  "deleteConfirmCheckbox": "Entiendo que esto no se puede deshacer",
+  "deleting": "Eliminando…",
+  "reportEntity": "Reportar",
+  "reportEntityTitle": "Reportar entidad",
+  "reportEntityDescription": "Marca contenido ilegal o dañino. Los reportes van a la cola de moderación del matcher.",
+  "reportCategory": "Categoría",
+  "reportIllegal": "Contenido ilegal",
+  "reportHarassment": "Acoso",
+  "reportMisleading": "Engañoso",
+  "reportSpam": "Spam",
+  "reportOther": "Otro",
+  "reportReason": "Detalles",
+  "reportReasonPlaceholder": "Describe por qué esta entidad incumple las reglas de la plataforma…",
+  "submitReport": "Enviar reporte",
+  "reportSuccess": "Reporte enviado. Gracias.",
+  "reportSuccessBlocked": "Reporte enviado. Esta entidad se eliminó del descubrimiento.",
+  "blockEntity": "Bloquear",
+  "blockSuccess": "Entidad oculta de tus resultados de búsqueda.",
+  "viewEntity": "Ver",
+  "storeActive": "Store",
+  "viewAll": "Ver todo",
+  "searchEntities": "Buscar organizaciones...",
+  "noEntities": "No se encontraron organizaciones",
+  "noEntitiesDescription": "Ajuste los filtros o busque nuevamente más tarde.",
+  "createFirstEntity": "Agregar organización",
+  "industryType": "Industria",
+  "location": "Ubicación",
+  "locationPlaceholder": "Introduce la ubicación...",
+  "employeeCount": "empleados",
+  "min": "Mín",
+  "max": "Máx",
+  "foundedYear": "año de fundación",
+  "from": "De",
+  "to": "Hasta",
+  "verificationStatus": "Estado de verificación",
+  "selectVerification": "Elige estado",
+  "membershipTier": "Nivel de membresía",
+  "selectTier": "Seleccionar nivel",
+  "hasCertifications": "Con certificaciones",
+  "hasPartnerships": "Con asociaciones",
+  "showingResults": "{count} visitas",
+  "companySize": "Tamaño de la empresa",
+  "types": {
+    "technologySoftware": "Tecnología y software",
+    "technologySoftwareDesc": "Empresas de software, SaaS, IA, cloud, ciberseguridad y productos digitales",
+    "manufacturingIndustry": "Manufactura e industria",
+    "manufacturingIndustryDesc": "Producción, automatización industrial y organizaciones de supply chain",
+    "financialServices": "Servicios financieros",
+    "financialServicesDesc": "Banca, fintech, seguros, inversión y asesoría financiera",
+    "healthcareMedical": "Salud y medicina",
+    "healthcareMedicalDesc": "Hospitales, clínicas, medtech y proveedores de servicios de salud",
+    "educationTraining": "Educación y formación",
+    "educationTrainingDesc": "Universidades, escuelas, edtech y proveedores de formación profesional",
+    "realEstateConstruction": "Inmobiliaria y construcción",
+    "realEstateConstructionDesc": "Promotores, contratistas, arquitectura y gestión inmobiliaria",
+    "retailEcommerce": "Retail y e-commerce",
+    "retailEcommerceDesc": "Marcas retail, marketplaces y comercio omnicanal",
+    "professionalServices": "Servicios profesionales",
+    "professionalServicesDesc": "Contabilidad, RR. HH., diseño, ingeniería y firmas B2B",
+    "mediaEntertainment": "Medios y entretenimiento",
+    "mediaEntertainmentDesc": "Estudios, publishers, streaming, gaming y medios creativos",
+    "transportationLogistics": "Transporte y logística",
+    "transportationLogisticsDesc": "Flete, movilidad, almacenes y entrega de última milla",
+    "energyUtilities": "Energía y utilities",
+    "energyUtilitiesDesc": "Energía, renovables, utilities e infraestructura energética",
+    "agricultureFood": "Agricultura y alimentación",
+    "agricultureFoodDesc": "Granjas, productores de alimentos, agtech y cadenas agroalimentarias",
+    "governmentPublicSector": "Gobierno y sector público",
+    "governmentPublicSectorDesc": "Agencias públicas, municipios y programas gubernamentales",
+    "nonProfitNgo": "Sin ánimo de lucro y ONG",
+    "nonProfitNgoDesc": "Caridades, fundaciones y organizaciones de la sociedad civil",
+    "researchDevelopment": "Investigación y desarrollo",
+    "researchDevelopmentDesc": "Laboratorios, centros de innovación e institutos de I+D",
+    "consultingAdvisory": "Consultoría y advisory",
+    "consultingAdvisoryDesc": "Consultoría de gestión y asesoría estratégica",
+    "legalServices": "Servicios legales",
+    "legalServicesDesc": "Despachos, compliance y proveedores de legal tech",
+    "marketingAdvertising": "Marketing y publicidad",
+    "marketingAdvertisingDesc": "Agencias, martech y especialistas en crecimiento de marca",
+    "hospitalityTourism": "Hostelería y turismo",
+    "hospitalityTourismDesc": "Hoteles, viajes, venues y operadores de experiencias",
+    "sportsRecreation": "Deportes y recreación",
+    "sportsRecreationDesc": "Clubes, ligas, fitness y negocios recreativos",
+    "artsCulture": "Arte y cultura",
+    "artsCultureDesc": "Museos, galerías, instituciones culturales y artistas",
+    "environmentalServices": "Servicios ambientales",
+    "environmentalServicesDesc": "Sostenibilidad, remediación y consultoría ambiental",
+    "telecommunications": "Telecomunicaciones",
+    "telecommunicationsDesc": "Telcos, ISPs e infraestructura de conectividad",
+    "aerospaceDefense": "Aeroespacial y defensa",
+    "aerospaceDefenseDesc": "Aviación, espacio, contratistas de defensa y tech de doble uso",
+    "pharmaceuticals": "Farmacéuticas",
+    "pharmaceuticalsDesc": "Desarrollo de fármacos, fabricación farma y vendors de life science",
+    "other": "Misceláneas",
+    "otherDesc": "Consulting, services, and other organizations",
+    "yoga_teacher": "Instructor de yoga",
+    "nutritionist": "Nutricionista",
+    "wellness_coach": "Coach de wellness",
+    "fitness_trainer": "Entrenador de fitness",
+    "mindfulness_instructor": "Instructor de mindfulness",
+    "mental_health_specialist": "Especialista en salud mental",
+    "massage_therapist": "Masajista terapéutico",
+    "physiotherapist": "Fisioterapeuta",
+    "nutrition_shop": "Tienda de nutrición",
+    "herbalist": "Herbolario",
+    "essential_oil_store": "Tienda de aceites esenciales",
+    "soap_maker": "Fabricante de jabón",
+    "natural_skincare": "Cuidado natural de la piel",
+    "honey_producer": "Productor de miel",
+    "beekeeping_collective": "Colectivo apícola",
+    "organic_farm": "Granja orgánica",
+    "local_farmers_market": "Mercado local de agricultores",
+    "vegetable_grower": "Productor de verduras",
+    "fermented_food_maker": "Productor de fermentados",
+    "cold_press_oils": "Aceites prensados en frío",
+    "herbal_tea_maker": "Productor de té de hierbas",
+    "plant_based_cook": "Cocinero plant-based",
+    "health_cafe": "Café saludable",
+    "wellness_clinic": "Clínica de wellness",
+    "yoga_teacherDesc": "Profesores de yoga certificados con clases, talleres y sesiones privadas.",
+    "nutritionistDesc": "Expertos en nutrición con planes personalizados y programas de wellness.",
+    "wellness_coachDesc": "Coaches que apoyan hábitos saludables y transformación del estilo de vida.",
+    "fitness_trainerDesc": "Entrenadores certificados para workouts, planes de movimiento y recovery.",
+    "mindfulness_instructorDesc": "Instructores de meditación y coaching de mindfulness.",
+    "mental_health_specialistDesc": "Profesionales que apoyan el bienestar emocional y la resiliencia mental.",
+    "massage_therapistDesc": "Terapeutas de masaje y bodywork.",
+    "physiotherapistDesc": "Clínicos que ayudan con movimiento, rehabilitación y dolor.",
+    "nutrition_shopDesc": "Tiendas con productos y suplementos centrados en nutrición.",
+    "herbalistDesc": "Especialistas en remedios herbales y botánicos.",
+    "essential_oil_storeDesc": "Comerciantes de aceites esenciales terapéuticos y blends.",
+    "soap_makerDesc": "Artesanos de jabón natural y cuidado corporal.",
+    "natural_skincareDesc": "Marcas de cuidado natural de la piel y rutinas clean beauty.",
+    "honey_producerDesc": "Productores de miel cruda, productos de miel y cultivos amigables con polinizadores.",
+    "beekeeping_collectiveDesc": "Productores y cooperativas apícolas de miel natural.",
+    "organic_farmDesc": "Granjas orgánicas certificadas y productores regenerativos.",
+    "local_farmers_marketDesc": "Operadores de mercado que conectan productores locales y compradores.",
+    "vegetable_growerDesc": "Productores de verduras frescas y suministro local.",
+    "fermented_food_makerDesc": "Productores de bebidas fermentadas y alimentos probióticos.",
+    "cold_press_oilsDesc": "Artesanos de aceites prensados en frío y concentrados nutricionales naturales.",
+    "herbal_tea_makerDesc": "Creadores de tés de hierbas e infusiones de wellness.",
+    "plant_based_cookDesc": "Cocineros con planes de comidas y recetas plant-based.",
+    "health_cafeDesc": "Cafés comunitarios con comidas equilibradas e hidratación.",
+    "wellness_clinicDesc": "Clínicas y centros de wellness con servicios de salud de apoyo."
+  },
+  "verification": {
+    "requirements": "Requisitos",
+    "benefits": "Ventajas",
+    "verificationProgress": "Progreso de la verificación",
+    "complete": "Completo",
+    "target": "Meta",
+    "official": "Usar información oficial",
+    "officialDesc": "Solo envía información de entidades que representas oficialmente",
+    "accurate": "Mantén la información actualizada",
+    "accurateDesc": "Actualiza el contacto y los detalles cuando cambien",
+    "completeDesc": "Rellena todos los campos para mejor visibilidad y credibilidad",
+    "unique": "Una entidad por envío",
+    "uniqueDesc": "Crea envíos separados para entidades distintas"
+  },
+  "status": {
+    "entityName": "Nombre de la organización",
+    "entityId": "ID de organización",
+    "reviewId": "ID de revisión",
+    "rejectionReason": "Motivo del rechazo",
+    "needHelp": "¿Necesitar ayuda? Contactar con soporte",
+    "overview": "Descripción general",
+    "opportunities": "Opportunities",
+    "products": "Ofertas",
+    "analytics": "Analytics",
+    "contact": "contacto",
+    "openOpportunities": "Oportunidades abiertas",
+    "opportunitiesSubtitle": "{count} Oportunidades disponibles",
+    "teamMembers": "equipo",
+    "averageRating": "Calificación promedio",
+    "totalSales": "Ventas totales",
+    "trustScore": "Puntuación de confianza",
+    "profileViews": "Vistas de perfil",
+    "active": "Activo",
+    "noOpportunities": "Sin oportunidades",
+    "noOpportunitiesDescription": "No hay oportunidades abiertas en este momento.",
+    "contactEntity": "Organización de contacto",
+    "productsSubtitle": "{count} Ofertas disponibles",
+    "storeActive": "Tienda activa",
+    "noProducts": "Sin ofertas",
+    "noProductsDescription": "Actualmente no hay anuncios en la tienda.",
+    "storeNotActivated": "Tienda aún no activada",
+    "viewProduct": "Ver oferta",
+    "analyticsDescription": "Métricas y compromiso",
+    "last30Days": "últimos 30 días",
+    "inquiries": "Consultas",
+    "thisMonth": "este mes",
+    "engagement": "Engagement",
+    "responseRate": "Tasa de respuesta",
+    "performanceChart": "Tabla de rendimiento",
+    "chartPlaceholder": "Diagrama interactivo",
+    "contactDescription": "hacer contacto",
+    "quickMessage": "mensaje corto",
+    "quickMessageDescription": "Envía un mensaje directo para iniciar una conversación.",
+    "startChat": "Iniciar chat",
+    "contactForm": "Formulario de contacto",
+    "contactFormDescription": "Consulta detallada con datos de contacto.",
+    "sendInquiry": "Enviar solicitud",
+    "visitWebsiteDescription": "Más información en el sitio web",
+    "openWebsite": "Abrir sitio web",
+    "noWebsite": "Sin sitio web",
+    "contactInfo": "Detalles de contacto",
+    "phone": "teléfono",
+    "email": "correo electrónico",
+    "recentActivity": "Última actividad",
+    "profileUpdated": "Perfil actualizado",
+    "entityCreated": "Organización creada",
+    "verified": "Verificado",
+    "inquiryForm": "Consulta directa",
+    "inquiryType": "Tipo de solicitud",
+    "generalInquiry": "Consulta general",
+    "partnership": "asociación",
+    "collaboration": "cooperación",
+    "support": "Apoyo",
+    "message": "Noticias",
+    "inquiryPlaceholder": "Describa su solicitud...",
+    "actions": {
+      "viewEntity": "Ver organización",
+      "backToEntities": "Volver a organizaciones",
+      "continueEditing": "Continuar editando",
+      "createNew": "Nueva organización",
+      "contactSupport": "Contactar con soporte",
+      "reviseEntity": "Revisar la organización",
+      "checkStatus": "comprobar estado",
+      "viewScheduled": "Ver los planificados",
+      "manageEntity": "Administrar organización",
+      "resubmit": "Reenviar"
+    },
+    "create": {
+      "draft": {
+        "title": "Borrador guardado",
+        "description": "Su organización se ha guardado como borrador y se puede editar más antes de enviarla.",
+        "instruction": "Complete los campos obligatorios y envíelo para revisión cuando todo esté listo."
+      },
+      "pending_review": {
+        "title": "Bajo examen",
+        "description": "La organización está a la espera de moderación. Le notificaremos al finalizar."
+      },
+      "published": {
+        "title": "Publicado",
+        "description": "La organización está viva y visible para otros usuarios."
+      },
+      "failed": {
+        "title": "La instalación falló",
+        "description": "Por motivos técnicos no se pudo guardar. Inténtelo de nuevo o comuníquese con el soporte."
+      },
+      "rejected": {
+        "title": "Rechazado",
+        "description": "La presentación fue rechazada en la revisión. Por favor implemente los comentarios."
+      }
+    },
+    "verify": {
+      "pending": {
+        "title": "Pendiente de verificación",
+        "description": "Su verificación ha sido enviada. El equipo revisa los documentos."
+      },
+      "under_review": {
+        "title": "Verificación bajo revisión",
+        "description": "Los documentos se comprueban, normalmente en unos pocos días laborables.",
+        "reviewing": "Se están revisando los documentos..."
+      },
+      "verified": {
+        "title": "Organización verificada",
+        "description": "Verificación exitosa: la insignia y las funciones avanzadas están activas."
+      },
+      "rejected": {
+        "title": "Verificación rechazada",
+        "description": "Pruebas insuficientes o inválidas. Por favor verifique los requisitos y vuelva a enviarlo."
+      },
+      "expired": {
+        "title": "Verificación caducada",
+        "description": "Envíe evidencia actualizada para mantener el estado verificado."
+      }
+    },
+    "approve": {
+      "pending": {
+        "title": "Lanzamiento pendiente",
+        "description": "Auditoría administrativa según estándares de la plataforma."
+      },
+      "approved": {
+        "title": "Liberado",
+        "description": "La organización está en pleno funcionamiento."
+      },
+      "rejected": {
+        "title": "Liberación rechazada",
+        "description": "Autorización administrativa no concedida. Por favor aclare los comentarios."
+      },
+      "needs_revision": {
+        "title": "Revisión necesaria",
+        "description": "Implemente los cambios solicitados antes del lanzamiento."
+      }
+    },
+    "publish": {
+      "scheduled": {
+        "title": "Publicación prevista",
+        "description": "La organización se hace visible a la hora especificada.",
+        "scheduleInfo": "Publicación automática según programación."
+      },
+      "published": {
+        "title": "Vivir",
+        "description": "La organización es visible en el directorio y la búsqueda."
+      },
+      "failed": {
+        "title": "Error al publicar",
+        "description": "Error de publicación. Inténtelo de nuevo o comuníquese con el soporte."
+      },
+      "unpublished": {
+        "title": "Retirado",
+        "description": "Ya no es visible públicamente. Restaurar es posible en cualquier momento en el tablero."
+      },
+      "archived": {
+        "title": "Archivado",
+        "description": "La organización ha sido archivada y está inactiva, se puede restaurar si es necesario."
+      }
+    }
+  },
+  "fields": {
+    "name": "Nombre de la entidad",
+    "description": "Descripción",
+    "website": "Sitio web",
+    "logo": "Logo",
+    "tags": "Etiquetas"
+  },
+  "fieldTips": {
+    "name": "Usa el nombre oficial de tu empresa u organización",
+    "description": "Describe what your organization does, your mission, and unique value",
+    "website": "URL oficial del sitio para credibilidad y contacto",
+    "logo": "Un logo de calidad ayuda a reconocer tu marca",
+    "tags": "Añade palabras clave relevantes para mejor descubrimiento"
+  },
+  "fieldGuide": "Guía de campos",
+  "fieldGuideDescription": "Consejos para rellenar cada campo correctamente",
+  "required": "Obligatorio",
+  "entityTypes": "Tipos de entidad",
+  "chooseTypeDescription": "Selecciona la categoría que mejor describe tu organización",
+  "verificationTips": "Consejos de verificación",
+  "verificationDescription": "Asegura que tu envío de entidad cumple nuestros estándares",
+  "visibilityOptions": "Opciones de visibilidad",
+  "visibility": {
+    "public": "Público",
+    "publicDesc": "Visible para todos los usuarios de Ring Platform",
+    "members": "Solo members",
+    "membersDesc": "Visible solo para members verificados"
+  },
+  "help": "Ayuda y documentación",
+  "entityHelpDescription": "Obtén ayuda para crear y gestionar el perfil de tu entidad.",
+  "creatingEntities": "Crear entidades",
+  "bestPractices": "Buenas prácticas",
+  "verificationGuide": "Guía de verificación",
+  "name": "Nombre",
+  "type": "Tipo",
+  "selectType": "Seleccionar tipo…",
+  "shortDescription": "Descripción corta",
+  "fullDescription": "Descripción completa",
+  "website": "Sitio web",
+  "contactEmail": "Correo de contacto",
+  "logo": "Logo",
+  "addTag": "Añadir etiqueta…",
+  "add": "Añadir",
+  "entity": {
+    "visibility": "Visibilidad"
+  },
+  "selectVisibility": "Seleccionar visibilidad…",
+  "public": "Público",
+  "markAsConfidential": "Marcar como confidencial",
+  "saving": "Guardando…",
+  "save": "Guardar entidad",
+  "loading": "Cargando…",
+  "redirecting": "Redirigiendo…",
+  "error": "Error",
+  "breadcrumb": {
+    "home": "Inicio",
+    "entities": "Entidades",
+    "addEntity": "Añadir entidad"
+  },
+  "addEntity": {
+    "title": "Únase como editor – Connect.Software",
+    "description": "Registre una organización para publicar conjuntos de habilidades, servidores MCP, enrutadores y paquetes en Connect.Software.",
+    "formTitle": "Formulario de envío de entidad",
+    "formDescription": "Añade una nueva organización al directorio del ecosistema Ring",
+    "onboarding": {
+      "title": "Registra tu organización",
+      "lead": "Una entidad Ring es el estudio público de tu empresa — precisa en el detalle, visible para los partners adecuados. Recorre las tres secciones siguientes; puedes refinar el showcase después de publicar.",
+      "step1": "Identidad — nombre oficial, tipo de industria y misión en lenguaje claro",
+      "step2": "Presencia — dónde operas, cómo contactarte y tu marca",
+      "step3": "Descubrimiento — etiquetas, visibilidad y confidencialidad opcional para círculos de confianza"
+    },
+    "form": {
+      "sectionIdentity": "Identidad",
+      "sectionPresence": "Presencia",
+      "sectionDiscovery": "Descubrimiento"
+    },
+    "rail": {
+      "whatIsEntity": {
+        "title": "¿Qué es una entidad?",
+        "description": "Una entidad es el perfil vivo de tu organización en Ring Platform — no solo una fila de directorio. Impulsa tu página showcase, visibilidad del equipo, insignia de verificación y enlaces a oportunidades, mensajería y funciones opcionales de store.",
+        "connectNote": "Los clones impulsados por Ring (p. ej. Connect.Software) comparten el mismo modelo de entidad. Ring Platform expone la taxonomía completa de 26 industrias e integraciones del ecosistema; los clones marketplace pueden simplificar el formulario a un conjunto de tipos menor."
+      },
+      "unlocks": {
+        "title": "Lo que desbloqueas",
+        "showcase": {
+          "title": "Página showcase",
+          "description": "Perfil multiparte con analytics, productos y opciones de contacto"
+        },
+        "opportunities": {
+          "title": "Opportunities",
+          "description": "Publica y recibe oportunidades de negocio vinculadas a tu entidad"
+        },
+        "store": {
+          "title": "Store de vendor",
+          "description": "Activa un store desde tu entidad cuando estés listo para vender"
+        },
+        "messaging": {
+          "title": "Mensajería directa",
+          "description": "Los members pueden consultar y chatear con owners de entidades verificadas"
+        }
+      },
+      "industryTypes": {
+        "title": "Tipos de industria",
+        "subtitle": "26 categorías especializadas para descubrimiento y filtrado",
+        "moreInForm": "Todos los tipos de industria están en el campo Tipo — elige el más cercano."
+      },
+      "fieldTips": {
+        "shortDescription": "Una frase concisa para tarjetas y resultados de búsqueda (obligatorio)",
+        "location": "Ciudad y país ayudan a encontrarte en el mapa y en los filtros",
+        "contactEmail": "Contacto público para consultas; puede diferir del correo de login",
+        "visibility": "Los perfiles públicos aparecen en la búsqueda; solo members limita el descubrimiento a members verificados"
+      },
+      "confidentialNote": "Marca como confidencial solo para visibilidad de partners de confianza (rol confidential). La mayoría de organizaciones deberían permanecer públicas."
+    }
+  }
+}

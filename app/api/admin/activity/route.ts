@@ -12,10 +12,10 @@ function canManageUsers(session: Session | null) {
   return !!session?.user && isPlatformAdmin(session.user.role)
 }
 
-const FILTERS = new Set<AdminActivityFilter>(['all', 'new_user', 'verification', 'payments'])
+const FILTERS = new Set<AdminActivityFilter>(['all', 'new_user', 'verification', 'payments', 'rewards'])
 
 /**
- * GET /api/admin/activity?filter=all|new_user|verification|payments&limit=30
+ * GET /api/admin/activity?filter=all|new_user|verification|payments|rewards&limit=30
  */
 export async function GET(request: NextRequest) {
   await connection()

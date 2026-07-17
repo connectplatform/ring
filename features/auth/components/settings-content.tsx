@@ -220,7 +220,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
     router.push('/settings' as any, { locale: newLocale as any, scroll: false })
   }
 
-  // Loading state
+  // Loading state — wait through Auth.js hydrate (SSR session should make this brief)
   if (status === 'loading' || isPending) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -229,7 +229,8 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
     )
   }
 
-  // Unauthenticated state
+  // Soft unauthenticated UI only — never auto-push LOGIN (Phase F).
+  // TODO: Switch to useProtectedSession() once settings is always under (protected).
   if (status === 'unauthenticated') {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">

@@ -1,0 +1,119 @@
+{
+  "actions": {
+    "add": "Hinzufügen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "submit": "Absenden",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "sort": "Sortieren",
+    "close": "Schließen",
+    "continue": "Weiter",
+    "retry": "Erneut versuchen",
+    "download": "Herunterladen",
+    "upload": "Hochladen",
+    "share": "Teilen",
+    "remove": "Entfernen",
+    "back": "Zurück",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "signUp": "Registrieren"
+  },
+  "status": {
+    "loading": "Laden …",
+    "saving": "Speichern …",
+    "success": "Erfolg",
+    "error": "Fehler"
+  },
+  "loading": "Laden …",
+  "labels": {
+    "name": "Name",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "address": "Adresse",
+    "title": "Titel",
+    "category": "Kategorie",
+    "tags": "Tags",
+    "language": "Sprache",
+    "theme": "Design",
+    "profile": "Profil",
+    "settings": "Einstellungen",
+    "privacy": "Datenschutz",
+    "terms": "AGB",
+    "userMenu": "Benutzermenü",
+    "homeLink": "Start",
+    "toggleTheme": "Design wechseln",
+    "toggleMenu": "Menü umschalten",
+    "popular": "Beliebt"
+  },
+  "footer": {
+    "aboutUs": "Über uns",
+    "aboutUsDescription": "Connect.Software: wissenschaftliches Schreiben, Zitationen und Teamarbeit auf Basis der Ring Platform.",
+    "quickLinks": "Schnelllinks",
+    "entities": "Organisationen",
+    "opportunities": "Opportunities",
+    "contacts": "Kontakt",
+    "documentation": "Dokumentation",
+    "privacyPolicy": "Datenschutz",
+    "termsOfService": "Nutzungsbedingungen",
+    "addressFull": "195 Shevhenko Blvd, Cherkasy, Ukraine",
+    "emailFull": "contact@connect.software",
+    "phoneFull": "+38 097 532 8801",
+    "followUs": "Folgen Sie uns",
+    "toggleTheme": "Design wechseln",
+    "copyright": "© {year} Connect.Software"
+  },
+  "messages": {
+    "welcome": "Willkommen, {name}!"
+  },
+  "activeFilters": {
+    "verification": "Verifizierung",
+    "verificationStatus": "Verifizierungsstatus",
+    "verified": "Verifiziert",
+    "unverified": "Nicht verifiziert",
+    "pending": "Verifizierung ausstehend"
+  },
+  "membership": {
+    "title": "Mitgliedschaft",
+    "benefits": {
+      "priority": "Hervorgehobene Listung und Sichtbarkeit",
+      "ai": "Erweiterte KI-Matching-Algorithmen",
+      "badge": "Verifiziertes Badge und Vertrauenssignale",
+      "analytics": "Umfassende Analysen und Einblicke",
+      "collaboration": "Erweiterte Kollaborationswerkzeuge",
+      "support": "Premium-Kundensupport"
+    }
+  },
+  "ring_customization_upsell": {
+    "title": "Ring-Anpassung gewünscht?",
+    "description": "Werden Sie Mitglied, um Ihr Ring-Plattform-Projekt einzustellen und Expertinnen für Integrationen und Marktplatz zu finden.",
+    "button": "Mitglied werden",
+    "benefits": {
+      "post_project": "Ring-Anpassungsprojekt veröffentlichen",
+      "find_developers": "Kontakt zu Ring-Expertinnen aufnehmen",
+      "ai_matching": "KI ordnet Ihr Projekt passenden Spezialistinnen zu",
+      "verified_badge": "Badge „verifizierte Projektinhaberin“",
+      "priority_listing": "Priorität in der Projektübersicht",
+      "developer_pool": "Zugang zum Ring-Entwicklernetzwerk"
+    }
+  },
+  "contact": {
+    "copyToClipboard": "In die Zwischenablage kopieren",
+    "copied": "Kopiert",
+    "whatsapp": "(WhatsApp)",
+    "lisbonPortugal": "(Lissabon, Portugal)"
+  },
+  "metadata": {
+    "unauthorized": "Nicht autorisiert | Connect.Software"
+  },
+  "metaDescription": {
+    "unauthorized": "Zugriff verweigert — Sie haben keine Berechtigung, diese Seite anzuzeigen."
+  },
+  "unauthorized": {
+    "title": "Nicht autorisierter Zugriff",
+    "message": "Sie haben keine Berechtigung, diese Seite anzuzeigen.",
+    "returnHome": "Zur Startseite"
+  }
+}

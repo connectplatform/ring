@@ -1,0 +1,153 @@
+{
+  "upgrade_to_member": "Zum Member upgraden",
+  "hero": {
+    "title": "Vollen Plattformzugang freischalten",
+    "subtitle": "Entities erstellen, Opportunities veröffentlichen und sich mit Fachleuten weltweit vernetzen"
+  },
+  "benefits": {
+    "entity_management": {
+      "title": "Entity-Verwaltung",
+      "description": "Organisation oder Services erstellen, verwalten und präsentieren"
+    },
+    "advanced_networking": {
+      "title": "Erweitertes Networking",
+      "description": "Mit Branchenprofis und potenziellen Partnern vernetzen"
+    },
+    "priority_support": {
+      "title": "Priority Support",
+      "description": "Schnellere Antworten und persönliche Unterstützung"
+    },
+    "premium_features": {
+      "title": "Premium-Funktionen",
+      "description": "Exklusive Tools und erweiterte Plattformfunktionen nutzen"
+    },
+    "enhanced_visibility": {
+      "title": "Höhere Sichtbarkeit",
+      "description": "Von potenziellen Partnern und Kunden entdeckt werden"
+    },
+    "verified_profile": {
+      "title": "Verifiziertes Profil",
+      "description": "Vertrauen mit einem verifizierten Member-Badge aufbauen"
+    }
+  },
+  "comparison": {
+    "title": "Was Sie erhalten",
+    "feature": "Funktion",
+    "subscriber": "Subscriber",
+    "member": "Member"
+  },
+  "features": {
+    "browse_entities": "Entities durchsuchen",
+    "view_opportunities": "Opportunities ansehen",
+    "basic_messaging": "Basis-Messaging",
+    "create_entities": "Entities erstellen",
+    "manage_entities": "Entities verwalten",
+    "confidential_access": "Zugriff auf vertrauliche Inhalte",
+    "priority_support": "Priority Support",
+    "view_entities": "Öffentliche Entities ansehen",
+    "post_opportunities": "Opportunities veröffentlichen",
+    "advanced_analytics": "Erweiterte Analytics",
+    "priority_search": "Priorität in Suchergebnissen",
+    "custom_branding": "Eigenes Branding"
+  },
+  "cta": {
+    "title": "Bereit zum Upgrade?",
+    "subtitle": "Schließen Sie sich Fachleuten an, die ihr Business mit Ring Platform ausbauen"
+  },
+  "pricing": {
+    "amount": "₴299",
+    "period": "UAH",
+    "features_included": "Alle Member-Funktionen inklusive"
+  },
+  "sidebar": {
+    "member_benefits": "Member-Vorteile",
+    "member_benefits_desc": "Entity-Erstellung, Opportunity-Posts und verifizierten Profilstatus freischalten.",
+    "pricing_title": "Upgrade-Preis",
+    "pay_either": "Mit Account-Credit, Wallet-RING oder Karte zahlen",
+    "or_ring": "oder {amount} RING-Token on-chain",
+    "payment_options": "Zahlungsoptionen",
+    "payment_options_desc": "Account-Credit für sofortiges Upgrade aufladen, on-chain mit RING zahlen oder per Karte über WayForPay.",
+    "help_title": "Hilfe nötig?",
+    "help_desc": "Lesen Sie den Membership-Upgrade-Guide zu Zahlungsmethoden, Webhooks und Rollenänderungen.",
+    "view_payment_guide": "Zahlungsguide ansehen"
+  },
+  "modal": {
+    "title": "Zum Member upgraden",
+    "description": "Member-Status ist erforderlich, um Entities zu erstellen und Premium-Funktionen freizuschalten.",
+    "upgrade_required": "Member-Status erforderlich",
+    "benefits_title": "Das erhalten Sie:",
+    "benefits": {
+      "entity_creation": "Entities erstellen und verwalten",
+      "entity_management": "Vollständige Entity-Verwaltungstools",
+      "premium_access": "Zugriff auf Premium-Funktionen"
+    },
+    "upgrade_now": "Jetzt upgraden",
+    "learn_more": "Mehr erfahren"
+  },
+  "payment": {
+    "title": "Zahlung abschließen",
+    "placeholder": "WayForPay-Integration folgt in Phase 3. Dies ist vorerst ein Platzhalter.",
+    "membership_fee": "Einmalige Membership-Upgrade-Gebühr",
+    "proceed": "Zur Zahlung (demnächst)",
+    "cancel": "Abbrechen",
+    "native_tokens": "Native Tokens",
+    "fiat": "Fiat-Währung",
+    "recommended": "Empfohlen",
+    "cost": "Kosten",
+    "your_balance": "Ihr Guthaben",
+    "on_chain_balance": "On-chain-Guthaben",
+    "credit": {
+      "title": "Mit Account-Credit zahlen ({currency})",
+      "sufficient": "Ausreichendes Credit-Guthaben",
+      "instant": "Sofortiges Upgrade aus dem Fiat-Credit-Guthaben",
+      "insufficient": "Unzureichendes Credit-Guthaben",
+      "need_more": "Sie benötigen noch {amount} {currency} Account-Credit für das Upgrade",
+      "pay_now": "Mit Credit zahlen",
+      "top_up": "Credit-Guthaben aufladen"
+    },
+    "wallet_native_token": {
+      "title": "Mit {native_token}-Token zahlen",
+      "insufficient": "Unzureichendes on-chain RING. Über den RingSales-Desk kaufen (demnächst) oder Account-Credit nutzen.",
+      "pay_now": "Mit Wallet-RING zahlen"
+    },
+    "ring": {
+      "title": "Mit Account-Credit zahlen",
+      "sufficient": "Ausreichendes Guthaben",
+      "instant": "Sofortiges Upgrade ohne Transaktionsgebühren",
+      "insufficient": "Unzureichendes Credit-Guthaben",
+      "need_more": "Sie benötigen noch {amount} Account-Credit für das Upgrade",
+      "pay_now": "Mit Credit zahlen",
+      "top_up": "Credit-Guthaben aufladen"
+    },
+    "fiat_details": {
+      "placeholder": "Per Karte über WayForPay zahlen oder Account-Credit / on-chain RING nutzen.",
+      "proceed": "Zur Kartenzahlung"
+    },
+    "paypal": {
+      "dao_hint": "Helfen Sie, PayPal freizuschalten: 100 Likes sammeln oder 10 Native Tokens beitragen."
+    }
+  },
+  "page": {
+    "title": "Zum Member upgraden",
+    "subtitle": "Schöpfen Sie das volle Potenzial von Ring Platform aus. Entities erstellen, Opportunities posten und Ihr professionelles Netzwerk erweitern.",
+    "success_title": "Anfrage erfolgreich übermittelt!",
+    "success_description": "Wir prüfen Ihre Anfrage und benachrichtigen Sie innerhalb von 24–48 Stunden.",
+    "pending_title": "Upgrade-Anfrage ausstehend",
+    "pending_description": "Sie haben bereits am {date} eine Upgrade-Anfrage gestellt. Status: {status}",
+    "comparison_title": "Funktionsvergleich",
+    "comparison_subtitle": "Sehen Sie, was Sie als Member freischalten",
+    "current_plan": "(Aktuell)",
+    "cta_title": "Bereit zum Upgrade?",
+    "cta_subtitle": "Schließen Sie sich Hunderten von Fachleuten an, die Ring Platform bereits für ihr Business nutzen",
+    "upgrade_now": "Jetzt upgraden",
+    "back_to_profile": "Zurück zum Profil",
+    "upgrade_notice": "Upgrade-Anfragen werden in der Regel innerhalb von 24–48 Stunden geprüft",
+    "faq_title": "Häufig gestellte Fragen",
+    "faq_time_question": "Wie lange dauert der Upgrade-Prozess?",
+    "faq_time_answer": "Die meisten Upgrade-Anfragen werden innerhalb von 24–48 Stunden geprüft. Sie erhalten eine E-Mail, sobald Ihre Anfrage bearbeitet wurde.",
+    "faq_info_question": "Welche Angaben brauche ich?",
+    "faq_info_answer": "Wir fragen nach grundlegenden Infos zu Ihrer Organisation, Ihrer Rolle und dem Grund für das Upgrade. LinkedIn-Profil oder Portfolio-Links können die Prüfung beschleunigen.",
+    "faq_downgrade_question": "Kann ich später downgraden?",
+    "faq_downgrade_answer": "Ja, Sie können jederzeit über die Profileinstellungen eine Änderung des Kontotyps beantragen. Ein Downgrade kann den Zugriff auf bestimmte Funktionen einschränken."
+  }
+}

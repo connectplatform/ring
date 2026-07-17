@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/database'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 import type {
   PublicPool,
   PublicPoolContribution,
@@ -270,8 +271,9 @@ export async function deletePoolById(poolId: string): Promise<void> {
 /** Query public pool rows for the install scope (`clone_id` column). */
 export async function queryPublicPools(
   scopeId: string,
-  options?: { status?: PublicPool['status']; limit?: number },
-): Promise<PoolRow[]> {
+  options?: { status?: PublicPool['status']; limit?: number; startAfter?: string },
+): Promise<{ pools: PoolRow[]; cursor: string | null; hasMore: boolean }> {
+const limit = options?.limit ?? 100
   const filters: Array<{ field: string; operator: string; value: unknown }> = [
     { field: 'clone_id', operator: '==', value: scopeId },
   ]
@@ -280,18 +282,30 @@ export async function queryPublicPools(
     filters.push({ field: 'status', operator: '==', value: options.status })
   }
 
+  if (options?.startAfter) {
+    const cursorDoc = await db().findDocById(PUBLIC_POOL_COLLECTIONS.pools, options.startAfter)
+    if (cursorDoc.success && cursorDoc.data) {
+      const likeCount = (cursorDoc.data as { like_count?: number }).like_count
+      if (typeof likeCount === 'number') {
+        filters.push({ field: 'like_count', operator: '<', value: likeCount })
+      }
+    }
+  }
+
   const result = await db().queryDocs<PoolRow>({
     collection: PUBLIC_POOL_COLLECTIONS.pools,
     filters,
     orderBy: [{ field: 'like_count', direction: 'desc' }],
-    pagination: { limit: options?.limit ?? 100 },
+    pagination: { limit },
   })
 
   if (!result.success || !result.data) {
-    return []
+    return { pools: [], cursor: null, hasMore: false }
   }
 
-  return result.data
+  const pools = result.data
+  const { nextCursor, hasMore } = computePaginationCursor(pools, limit, (p) => p.id)
+  return { pools, cursor: nextCursor, hasMore }
 }
 
 export type { PoolRow as PublicPoolRow, ContributionRow as PublicPoolContributionRow }

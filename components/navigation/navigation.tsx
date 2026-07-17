@@ -19,7 +19,8 @@ import {
   Copy,
   Check,
   Plus,
-  FileText
+  FileText,
+  FlaskConical,
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import UnifiedLoginComponent from '@/features/auth/components/unified-login-component'
@@ -74,6 +75,7 @@ const DesktopSidebar = dynamic(() => import('@/components/navigation/desktop-sid
  */
 export default function Navigation() {
   const tCommon = useTranslations('common')
+  const tNav = useTranslations('navigation')
   const tEntities = useTranslations('modules.entities')
   const tOpp = useTranslations('modules.opportunities')
   const tStore = useTranslations('modules.store')
@@ -157,6 +159,16 @@ export default function Navigation() {
       href: ROUTES.STORE_ORDERS(locale),
       label: 'My Orders',
       icon: <ShoppingBag className="h-4 w-4" />
+    },
+    {
+      href: ROUTES.MY_ORDERS(locale),
+      label: tNav('myProjectOrders'),
+      icon: <FlaskConical className="h-4 w-4" />
+    },
+    {
+      href: ROUTES.MY_JOBS(locale),
+      label: tNav('myJobs'),
+      icon: <Briefcase className="h-4 w-4" />
     },
     {
       href: ROUTES.MEMBERSHIP(locale),

@@ -83,7 +83,18 @@ function buildStats(pool: PublicPoolDoc, userHasLiked: boolean): PublicPoolStats
 export async function listPublicPools(options?: {
   status?: PublicPool['status']
   limit?: number
+  startAfter?: string
 }): Promise<PublicPoolDoc[]> {
+  const { cloneId } = getPublicPoolConfig()
+  const page = await queryPublicPools(cloneId, options)
+  return page.pools
+}
+
+export async function listPublicPoolsPage(options?: {
+  status?: PublicPool['status']
+  limit?: number
+  startAfter?: string
+}): Promise<{ pools: PublicPoolDoc[]; cursor: string | null; hasMore: boolean }> {
   const { cloneId } = getPublicPoolConfig()
   return queryPublicPools(cloneId, options)
 }

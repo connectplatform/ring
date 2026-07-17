@@ -1,0 +1,21 @@
+{
+  "title": "Buscar",
+  "placeholder": "Buscar …",
+  "searchButton": "Buscar",
+  "clearButton": "Vacío",
+  "noResults": "Sin hits",
+  "results": "Resultados",
+  "loading": "La búsqueda continúa...",
+  "error": "Ocurrió un error al buscar",
+  "suggestions": "Sugerencias",
+  "recentSearches": "Búsquedas recientes",
+  "popularSearches": "Búsquedas populares",
+  "searchHistory": "Historial de búsqueda",
+  "clearHistory": "Borrar historial",
+  "searchFilters": "Filtro de búsqueda",
+  "advancedSearch": "Búsqueda avanzada",
+  "searchIn": "Buscar en",
+  "allCategories": "Todas las categorias",
+  "searchResults": "Resultados de búsqueda para “{query}”",
+  "totalResults": "{count} resultados encontrados"
+}

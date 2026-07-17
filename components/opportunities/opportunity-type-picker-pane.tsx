@@ -8,7 +8,7 @@ interface OpportunityTypePickerPaneProps {
   locale: Locale
 }
 
-/** Center-pane type selection before the opportunity form (desktop + mobile). */
+/** Center-pane type selection before the opportunity form (desktop + mobile deep link). */
 export function OpportunityTypePickerPane({ userRole, locale }: OpportunityTypePickerPaneProps) {
   return (
     <OpportunityTypeSelectorClient

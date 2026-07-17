@@ -130,6 +130,14 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
                 targetUserName={user.name || user.username}
                 locale={validLocale}
               />
+              <Button asChild variant="outline" size="sm">
+                <Link href={ROUTES.PUBLIC_PROFILE_SONGS(profileUsername, validLocale)}>Songs</Link>
+              </Button>
+              {isOwner ? (
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={ROUTES.PROFILE_PLAYER_PLAYLISTS(validLocale)}>Manage playlists</Link>
+                </Button>
+              ) : null}
             </div>
             {/* Show @username handle */}
             {user.username && <p className="text-muted-foreground">@{user.username}</p>}

@@ -29,12 +29,17 @@
 // TODO: Abstract modals and buttons for accessibility and reduced re-renders.
 // TODO: Use Suspense boundaries for currency and locale loading for better UX in Next.js 16.
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react' // useCallback for stable event handlers (React 18+, useEvent in React 19).
+import React, { useState, useEffect, useCallback } from 'react' // useCallback for stable event handlers (React 18+, useEvent in React 19).
 import Link from 'next/link'
 import Image from 'next/image'
 import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
-import { useOptionalStoreCurrency } from '@/features/store/currency-context'
+import {
+  useStoreCurrency,
+  resolveStorePriceCurrency,
+  DEFAULT_CURRENCY,
+} from '@/features/store/currency-context'
+import { applyProductPromotionToLine } from '@/features/store/types/promotions'
 import type { Locale } from '@/i18n/shared'
 import { useTranslations } from 'next-intl'
 import { ShoppingCart, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react'
@@ -47,8 +52,12 @@ export default function CartClient({ locale }: { locale: Locale }) {
   // Cart state & actions from global store context.
   const { cartItems, removeFromCart, updateQuantity, clearCart, totalItems } = useStore()
 
-  // Currency converter from context, and detected store currency code (optional).
-  const { convertPrice: convertStoreCurrencyPrice, currency: optionalStoreCurrency } = useOptionalStoreCurrency()
+  // Currency converter from context (amount, from, to) — never pass locale as a currency code.
+  const {
+    convertPrice: convertStoreCurrencyPrice,
+    currency: displayCurrency,
+    formatPrice,
+  } = useStoreCurrency()
 
   // UI states for confirmation modals, animations, mount guard.
   const [clearing, setClearing] = useState(false)                  // Used to show spinner and disable modal UI when clearing cart.
@@ -65,6 +74,10 @@ export default function CartClient({ locale }: { locale: Locale }) {
   const tCart = useTranslations('modules.store.cart')
   const tProduct = useTranslations('modules.store.product')
   const tCommon = useTranslations('common.actions')
+
+  // SSR + first client paint must match: defer localStorage cart until after mount.
+  const visibleItems = mounted ? cartItems : []
+  const visibleTotalItems = mounted ? totalItems : 0
 
   // Remove one item from cart, triggering fade-out. Waits for animation before state update.
   // TODO: use useOptimistic (React 19) for less delay and more robust optimistic UI.
@@ -85,81 +98,34 @@ export default function CartClient({ locale }: { locale: Locale }) {
     setShowClearModal(false)
   }, [clearCart])
 
-  // Memoize calculation of total cart price, applying currency conversion if needed.
-  // TODO: Offload to server if app supports server components, or pre-calculate in context for perf.
-  const cartTotal = useMemo(() => {
-    return cartItems.reduce((sum, item) => {
-      // Item price in UAH: use final if available (includes selected options/variants), else product base price.
-      const priceUAH = item.finalPrice ?? parseFloat(item.product.price)
-      // Try to convert to chosen store currency; fallback to UAH if conversion fails.
-      const convertedPrice = convertStoreCurrencyPrice(priceUAH, optionalStoreCurrency, locale) || priceUAH
-      return sum + (convertedPrice * item.quantity)
-    }, 0)
-  }, [cartItems, convertStoreCurrencyPrice, optionalStoreCurrency, locale])
-
-  // Determine the user's locale string for formatting, using browser if available (more natural grouping, eg 1 000,00).
-  const localeString = typeof window !== "undefined" && window.navigator?.language
-    ? window.navigator.language
-    : locale.replace('_', '-')
-  // Which currency do we format as? Explicit from context, else fallback to UAH.
-  const selectedCurrency = optionalStoreCurrency || 'UAH'
-
-  // Format currency safely for display. Fallback to simple formatted string if Intl fails.
   function robustFormatPrice(amount: number) {
-    try {
-      return new Intl.NumberFormat(localeString, {
-        style: 'currency',
-        currency: selectedCurrency,
-        maximumFractionDigits: 2
-      }).format(amount)
-    } catch {
-      // fallback to basic formatting if Intl fails (rare, but possible in custom locales)
-      return `${amount.toFixed(2)} ${selectedCurrency}`
-    }
+    return formatPrice(amount, displayCurrency)
   }
 
-  // --- Render Begins ---
   return (
-    <div className="min-h-screen bg-background">
-      {/* Cart header: sticky, with cart icon, heading, count and clear button */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* Cart icon indicator */}
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <ShoppingCart className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold">{tCart('title')}</h1>
-                {/* Show item count only after hydration for SSR safety */}
-                {mounted && cartItems.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {totalItems} {totalItems === 1 ? tCart('item') : tCart('items')}
-                  </p>
-                )}
-              </div>
-            </div>
-            {/* Show "Clear cart" action button only if cart has items, after mount */}
-            {mounted && cartItems.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowClearModal(true)}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {tCart('clear')}
-              </Button>
-            )}
-          </div>
+    <div className="space-y-4">
+      {/* Toolbar: item count + clear — title lives in CartWrapper (DaVinci flush, no duplicate). */}
+      {visibleItems.length > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {visibleTotalItems} {visibleTotalItems === 1 ? tCart('item') : tCart('items')}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowClearModal(true)}
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {tCart('clear')}
+          </Button>
         </div>
-      </div>
+      )}
 
       {/* Cart Contents: show either "Empty" state or populated cart */}
-      {cartItems.length === 0 ? (
+      {visibleItems.length === 0 ? (
         // --- EMPTY CART: large icon, empty message, back-to-store CTA
-        <div className="container mx-auto px-4 py-16">
+        <div className="py-12">
           <div className="max-w-md mx-auto text-center">
             <div className="h-32 w-32 mx-auto mb-6 rounded-full bg-muted/50 flex items-center justify-center">
               <ShoppingBag className="h-16 w-16 text-muted-foreground/50" />
@@ -178,33 +144,38 @@ export default function CartClient({ locale }: { locale: Locale }) {
           </div>
         </div>
       ) : (
-        // --- POPULATED CART: Render each item row ---
-        <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8">
-          <div className="space-y-4">
+        // --- POPULATED CART: Render each item row (DaVinci: no card bg) ---
+        <div className="pb-28 lg:pb-0">
+          <div className="space-y-3">
             {/* 
               TODO: Extract into <CartItem /> (memoized/React.memo, or server/rsc CartItem if moving to server components).
               For React 19/Next 16: migrate this map to use memoized components or canonical server-side item renders. 
             */}
-            {cartItems.map((item) => {
+            {visibleItems.map((item) => {
               // Core per-item logic:
               // - Determine price fields and show price breakdown if necessary.
               // - Animate on remove (removingId), and support variant badges.
               // - Disable decrement below 1.
               // - Show remove and quantity controls.
-              const priceUAH = item.finalPrice ?? parseFloat(item.product.price) // Effective price in UAH
-              const basePriceUAH = parseFloat(item.product.price)                // Base price in UAH
-              const displayPrice = convertStoreCurrencyPrice(priceUAH, optionalStoreCurrency, locale) // Current-currency, from context
-              const displayBasePrice = convertStoreCurrencyPrice(basePriceUAH, optionalStoreCurrency, locale)
-              const itemTotal = displayPrice * item.quantity                     // Total for this cart row
+              const rawPrice = item.finalPrice ?? parseFloat(item.product.price)
+              const basePrice = parseFloat(item.product.price)
+              const from = resolveStorePriceCurrency(item.product.currency || DEFAULT_CURRENCY)
+              const displayPrice = convertStoreCurrencyPrice(rawPrice, from, displayCurrency)
+              const displayBasePrice = convertStoreCurrencyPrice(basePrice, from, displayCurrency)
+              const { lineTotal: itemTotal, applied: appliedPromo } = applyProductPromotionToLine(
+                displayPrice,
+                item.quantity,
+                item.product.promotions,
+              )
               const hasVariants = Boolean(item.selectedVariants && Object.keys(item.selectedVariants).length)
-              const hasPriceModifier = Boolean(item.finalPrice && item.finalPrice !== basePriceUAH)
+              const hasPriceModifier = Boolean(item.finalPrice && item.finalPrice !== basePrice)
               const isRemoving = removingId === item.product.id
 
               return (
                 <div
                   key={item.product.id}
                   className={cn(
-                    "bg-card border rounded-xl p-6 transition-all duration-300",
+                    "border-b border-border/60 py-4 transition-all duration-300 last:border-b-0",
                     isRemoving && "opacity-0 scale-95" // Animates out on remove
                   )}
                 >
@@ -318,6 +289,9 @@ export default function CartClient({ locale }: { locale: Locale }) {
                           <div className="text-xl font-bold">
                             {robustFormatPrice(itemTotal)}
                           </div>
+                          {appliedPromo?.label ? (
+                            <p className="text-xs text-green-600 mt-1">{appliedPromo.label}</p>
+                          ) : null}
                         </div>
                       </div>
                     </div>

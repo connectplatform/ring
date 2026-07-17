@@ -1,16 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, ArrowLeftRight } from 'lucide-react'
+import { Slider } from '@/components/ui/slider'
+import { Loader2, ArrowLeftRight, CreditCard } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { DavinciGlassPanel } from '@/lib/ui/davinci'
 import {
   getClientCreditUnitLabel,
   getClientNativeTokenSymbol,
+  getClientSiteName,
   previewNativeTokenFromCreditPoints,
 } from '@/lib/ring-config-client'
 import { formatCreditPoints, parseCreditPoints } from '@/lib/wallet/format-credit-points'
@@ -50,9 +52,14 @@ export default function DeskWidget({
   const deskAllowed = canUseTokenDeskClient(role ?? UserRolesArray.visitor)
   const nativeSymbol = getClientNativeTokenSymbol()
   const creditUnit = getClientCreditUnitLabel()
+  const projectName = getClientSiteName()
   const availablePoints = formatCreditPoints(creditBalancePoints)
+  const availableNum = parseCreditPoints(availablePoints)
+  const hasCredit = availableNum > 0
 
-  const [amount, setAmount] = useState(() => formatCreditPoints(initialAmount))
+  const [amount, setAmount] = useState(() =>
+    hasCredit ? formatCreditPoints(initialAmount) : '',
+  )
   const [quote, setQuote] = useState<DeskQuote | null>(null)
   const [loading, setLoading] = useState(false)
   const [executing, setExecuting] = useState(false)
@@ -60,10 +67,18 @@ export default function DeskWidget({
   const quoteRequestId = useRef(0)
 
   useEffect(() => {
-    setAmount(formatCreditPoints(initialAmount))
+    if (!hasCredit) {
+      setAmount('')
+      setQuote(null)
+      setInsufficientCredit(false)
+      return
+    }
+    const next = formatCreditPoints(initialAmount)
+    const nextNum = parseCreditPoints(next)
+    setAmount(nextNum > 0 && nextNum <= availableNum ? next : availablePoints)
     setQuote(null)
     setInsufficientCredit(false)
-  }, [initialAmount])
+  }, [initialAmount, hasCredit, availableNum, availablePoints])
 
   const fetchQuote = useCallback(
     async (nextAmount: string) => {
@@ -107,12 +122,12 @@ export default function DeskWidget({
   )
 
   useEffect(() => {
-    if (!autoQuote) return
+    if (!autoQuote || !hasCredit) return
     const timer = window.setTimeout(() => {
       void fetchQuote(amount)
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [amount, autoQuote, fetchQuote])
+  }, [amount, autoQuote, fetchQuote, hasCredit])
 
   const executeQuote = useCallback(async () => {
     if (!quote) return
@@ -159,17 +174,28 @@ export default function DeskWidget({
   }, [amount, availablePoints, nativeSymbol, onSuccess, quote, t])
 
   const handleBuyAmountChange = (value: string) => {
-    setAmount(value.replace(/[^\d]/g, ''))
+    const digits = value.replace(/[^\d]/g, '')
+    setAmount(digits)
     setInsufficientCredit(false)
   }
 
-  const handleUseAllPoints = () => {
-    if (availablePoints === '0') return
+  const handleUseMax = () => {
+    if (!hasCredit) return
     setAmount(availablePoints)
     setInsufficientCredit(false)
   }
 
+  const handleSliderChange = (values: number[]) => {
+    const next = Math.max(0, Math.min(availableNum, Math.round(values[0] ?? 0)))
+    setAmount(next > 0 ? String(next) : '')
+    setInsufficientCredit(false)
+  }
+
   const buyPoints = parseCreditPoints(amount)
+  const sliderValue = useMemo(
+    () => Math.max(0, Math.min(availableNum, buyPoints)),
+    [availableNum, buyPoints],
+  )
   const localPreview =
     buyPoints > 0
       ? previewNativeTokenFromCreditPoints(buyPoints, quote ? parseFloat(quote.rate) : undefined)
@@ -196,6 +222,36 @@ export default function DeskWidget({
     )
   }
 
+  if (!hasCredit) {
+    const empty = (
+      <div className="space-y-4 py-2 text-center">
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t('deskNoCreditTitle')}</p>
+          <p className="text-sm text-muted-foreground">
+            {t('deskNoCreditHint', { project: projectName, unit: creditUnit })}
+          </p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('deskNoCreditOr')}</p>
+        </div>
+        {onPurchaseCredit ? (
+          <Button type="button" className="w-full gap-2" onClick={onPurchaseCredit}>
+            <CreditCard className="h-4 w-4" />
+            {t('deskBuyCreditUnit', { unit: creditUnit })}
+          </Button>
+        ) : null}
+      </div>
+    )
+    if (variant === 'embedded') return empty
+    return (
+      <DavinciGlassPanel
+        title={t('deskTitle')}
+        icon={<ArrowLeftRight className="h-3.5 w-3.5" />}
+        beamDuration="10s"
+      >
+        {empty}
+      </DavinciGlassPanel>
+    )
+  }
+
   const body = (
     <>
       {variant === 'embedded' && (
@@ -209,29 +265,29 @@ export default function DeskWidget({
 
       <div className="space-y-3">
         <Label htmlFor="desk-buy-amount">{t('deskBuyAmountLabel')}</Label>
-        <div className="relative">
+        <div className="flex items-center gap-2">
           <Input
             id="desk-buy-amount"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            min="1"
-            step="1"
             placeholder="100"
             value={amount}
             onChange={(e) => handleBuyAmountChange(e.target.value)}
-            className="pr-[5.5rem]"
+            className="w-[6.5rem] shrink-0 tabular-nums"
+            aria-label={t('deskBuyAmountLabel')}
           />
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-2 text-xs"
-            disabled={availablePoints === '0'}
-            onClick={handleUseAllPoints}
+            className="h-9 shrink-0 px-2.5 text-xs"
+            disabled={!hasCredit}
+            onClick={handleUseMax}
           >
-            {t('deskUseAllPoints', { unit: creditUnit })}
+            {t('deskMax')}
           </Button>
+          <span className="text-sm text-muted-foreground">{creditUnit}</span>
         </div>
         <p className="text-xs text-muted-foreground">
           {t('deskBuyHint', {
@@ -277,6 +333,24 @@ export default function DeskWidget({
         </div>
       )}
 
+      <div className="mt-4 space-y-2">
+        <Slider
+          min={0}
+          max={Math.max(availableNum, 1)}
+          step={1}
+          value={[sliderValue]}
+          onValueChange={handleSliderChange}
+          disabled={!hasCredit}
+          aria-label={t('deskBuyAmountLabel')}
+        />
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>0</span>
+          <span>
+            {availablePoints} {creditUnit}
+          </span>
+        </div>
+      </div>
+
       <div className="mt-4 flex flex-wrap gap-2">
         {!autoQuote && (
           <Button variant="outline" onClick={() => void fetchQuote(amount)} disabled={loading || !amount}>
@@ -295,7 +369,8 @@ export default function DeskWidget({
           <p className="text-sm text-destructive">{t('deskInsufficientCredit')}</p>
           {onPurchaseCredit && (
             <Button type="button" variant="outline" size="sm" onClick={onPurchaseCredit}>
-              {t('deskPurchaseCreditCertificate')}
+              <CreditCard className="mr-1.5 h-3.5 w-3.5" />
+              {t('deskBuyCreditUnit', { unit: creditUnit })}
             </Button>
           )}
         </div>

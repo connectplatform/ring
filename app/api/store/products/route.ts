@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     const inStockParam = url.searchParams.get('inStock')
     const inStock = inStockParam === 'true' ? true : inStockParam === 'false' ? false : null
     const sortBy = url.searchParams.get('sortBy') || 'name-asc' // Format: "name-asc", "price-desc", etc
-    const currency = (url.searchParams.get('currency') || '') as '' | 'DAAR' | 'DAARION'
+    const currency = (url.searchParams.get('currency') || '').toUpperCase()
     const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '24', 10) || 24, 1), 100)
     const afterId = url.searchParams.get('afterId') || ''
 

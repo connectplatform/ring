@@ -627,7 +627,8 @@ export class CreditBalanceService {
    * Publishes a credit balance change to the user's live channel, so UI can re-render without poll.
    *
    * TODO: After Next.js 16, switch to Edge PubSub proxy for lowest-latency, cost-effective real-time UX.
-   * // STUB: hardcoded/mock limits; real per-user/account limits should be loaded/calculated.
+   * // STUB: hardcoded/mock limits — DO NOT render in UI until real spend policy exists.
+   * // Consumers: WalletBalanceHero / profile Balances card omit limits intentionally.
    */
   private async publishBalanceUpdate(userId: string, balance: UserCreditBalance): Promise<void> {
     try {

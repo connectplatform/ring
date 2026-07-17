@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { MessageBubble } from './message-bubble'
 import { TypingIndicator } from './typing-indicator'
 import { MessageComposer } from './message-composer'
@@ -11,7 +11,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Loader2, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
+import type { WalletInfo } from '@/features/wallet/services/list-wallets'
+import WalletRequestFsModal from '@/features/wallet/components/wallet-request-fs-modal'
 
 interface MessageThreadProps {
   conversationId: string
@@ -34,9 +37,12 @@ export function MessageThread({
   onMessageReactionAction
 }: MessageThreadProps) {
   const t = useTranslations('modules.messenger')
+  const locale = useLocale() as Locale
   const [replyTo, setReplyTo] = useState<Message | undefined>()
   const [isNearBottom, setIsNearBottom] = useState(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [requestOpen, setRequestOpen] = useState(false)
+  const [requestWallet, setRequestWallet] = useState<WalletInfo | null>(null)
   
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -53,6 +59,40 @@ export function MessageThread({
     loadMore, 
     sendMessage
   } = useMessages(conversationId)
+
+  const peer = useMemo(() => {
+    if (!conversation || conversation.type !== 'direct') return null
+    const other =
+      conversation.participants.find((p) => p.userId !== userId) ||
+      (conversation.metadata.directUserId
+        ? { userId: conversation.metadata.directUserId, displayName: conversation.metadata.directUserName }
+        : null)
+    if (!other?.userId) return null
+    return {
+      contactUserId: other.userId,
+      displayName:
+        ('displayName' in other && other.displayName) ||
+        conversation.metadata.directUserName ||
+        other.userId,
+      photoURL: 'avatarUrl' in other ? other.avatarUrl : undefined,
+      isVerified: false,
+    }
+  }, [conversation, userId])
+
+  const openRequestPayment = useCallback(async () => {
+    if (!peer) return
+    try {
+      const res = await fetch('/api/wallet/list', { cache: 'no-store' })
+      const data = (await res.json()) as { wallets?: WalletInfo[] }
+      const wallets = data.wallets ?? []
+      const wallet = wallets.find((w) => w.isPrimary) ?? wallets[0]
+      if (!wallet) return
+      setRequestWallet(wallet)
+      setRequestOpen(true)
+    } catch {
+      // ignore — button is best-effort
+    }
+  }, [peer])
 
   // Auto-scroll to bottom for new messages
   const scrollToBottom = useCallback((smooth = true) => {
@@ -246,6 +286,7 @@ export function MessageThread({
           key={conversationId}
           conversationId={conversationId}
           onSendMessageAction={handleSendMessage}
+          onRequestPaymentAction={peer ? () => void openRequestPayment() : undefined}
           replyTo={replyTo}
           onCancelReplyAction={handleCancelReply}
           placeholder={
@@ -257,6 +298,19 @@ export function MessageThread({
           }
         />
       </div>
+
+      {requestWallet && peer && (
+        <WalletRequestFsModal
+          open={requestOpen}
+          onOpenChange={(open) => {
+            setRequestOpen(open)
+            if (!open) setRequestWallet(null)
+          }}
+          locale={locale}
+          wallet={requestWallet}
+          initialRecipient={peer}
+        />
+      )}
     </div>
   )
 } 

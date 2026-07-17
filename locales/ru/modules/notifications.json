@@ -7,111 +7,111 @@
     "description": "Просматривайте и управляйте уведомлениями на Ring Platform"
   },
   "status": {
-    "topic": "Topic",
-    "notificationId": "Notification ID",
-    "subscriptionId": "Subscription ID",
-    "deviceRegistered": "Device Registered",
-    "failureReason": "Failure Reason",
-    "denialReason": "Denial Reason",
-    "cancellationReason": "Cancellation Reason",
-    "needHelp": "Need help? Contact our support team",
+    "topic": "Тема",
+    "notificationId": "ID уведомления",
+    "subscriptionId": "ID подписки",
+    "deviceRegistered": "Устройство зарегистрировано",
+    "failureReason": "Причина сбоя",
+    "denialReason": "Причина отказа",
+    "cancellationReason": "Причина отмены",
+    "needHelp": "Нужна помощь? Обратитесь в нашу службу поддержки",
     "actions": {
-      "manageNotifications": "Manage Notifications",
-      "manageSubscriptions": "Manage Subscriptions",
-      "viewNotifications": "View Notifications",
-      "viewAllNotifications": "View All Notifications",
-      "backToApp": "Back to App",
-      "retryPermission": "Retry Permission",
-      "retrySubscription": "Retry Subscription",
-      "retrySending": "Retry Sending",
-      "resubscribe": "Resubscribe",
-      "getHelp": "Get Help",
-      "viewSupportedBrowsers": "View Supported Browsers",
-      "checkSettings": "Check Settings",
-      "checkStatus": "Check Status",
-      "contactSupport": "Contact Support"
+      "manageNotifications": "Управлять уведомлениями",
+      "manageSubscriptions": "Управлять подписками",
+      "viewNotifications": "Просмотреть уведомления",
+      "viewAllNotifications": "Просмотреть все уведомления",
+      "backToApp": "Назад в приложение",
+      "retryPermission": "Повторить запрос разрешения",
+      "retrySubscription": "Повторить подписку",
+      "retrySending": "Повторить отправку",
+      "resubscribe": "Подписаться снова",
+      "getHelp": "Получить помощь",
+      "viewSupportedBrowsers": "Просмотреть поддерживаемые браузеры",
+      "checkSettings": "Проверить настройки",
+      "checkStatus": "Проверить статус",
+      "contactSupport": "Связаться с поддержкой"
     },
     "permission": {
       "granted": {
-        "title": "Notifications Enabled!",
-        "description": "You will now receive push notifications from Ring Platform. You can manage your notification preferences anytime."
+        "title": "Уведомления включены!",
+        "description": "Теперь вы будете получать push-уведомления от Ring Platform. Вы можете управлять настройками уведомлений в любое время."
       },
       "denied": {
-        "title": "Notifications Blocked",
-        "description": "Push notifications have been blocked for this site. To enable them, please check your browser settings or click the permission icon in your address bar."
+        "title": "Уведомления блокированы",
+        "description": "Push-уведомления заблокированы для этого сайта. Чтобы включить их, проверьте настройки браузера или нажмите на значок разрешений в адресной строке."
       },
       "pending": {
-        "title": "Permission Required",
-        "description": "Please allow notifications to receive important updates and messages from Ring Platform.",
-        "waiting": "Waiting for your permission..."
+        "title": "Требуется разрешение",
+        "description": "Пожалуйста, разрешите уведомления, чтобы получать важные обновления и сообщения от Ring Platform.",
+        "waiting": "Ожидание вашего разрешения..."
       },
       "unsupported": {
-        "title": "Notifications Not Supported",
-        "description": "Your browser or device doesn't support push notifications. Please use a modern browser for the best experience.",
-        "browserInfo": "Supported browsers include Chrome, Firefox, Safari, and Edge on desktop and mobile."
+        "title": "Уведомления не поддерживаются",
+        "description": "Ваш браузер или устройство не поддерживает push-уведомления. Используйте современный браузер для лучшего опыта.",
+        "browserInfo": "Поддерживаемые браузеры включают Chrome, Firefox, Safari и Edge на компьютере и мобильных устройствах."
       }
     },
     "subscribe": {
       "subscribed": {
-        "title": "Successfully Subscribed!",
-        "description": "You are now subscribed to notifications and will receive relevant updates.",
-        "activeSubscription": "Your subscription is active and notifications are enabled."
+        "title": "Успешно подписаны!",
+        "description": "Теперь вы подписаны на уведомления и будете получать соответствующие обновления.",
+        "activeSubscription": "Ваша подписка активна, уведомления включены."
       },
       "unsubscribed": {
-        "title": "Subscription Cancelled",
-        "description": "You have been unsubscribed from notifications. You can resubscribe anytime if you change your mind."
+        "title": "Подписка отменена",
+        "description": "Вы отписались от уведомлений. Вы можете подписаться снова в любое время, если измените решение."
       },
       "failed": {
-        "title": "Subscription Failed",
-        "description": "We couldn't subscribe you to notifications due to a technical issue. Please try again or contact support."
+        "title": "Ошибка подписки",
+        "description": "Не удалось подписать вас на уведомления из-за технической проблемы. Попробуйте ещё раз или обратитесь в поддержку."
       },
       "pending": {
-        "title": "Subscription Processing",
-        "description": "Your subscription request is being processed. This should complete shortly."
+        "title": "Обработка подписки",
+        "description": "Ваш запрос на подписку обрабатывается. Это должно завершиться в ближайшее время."
       }
     },
     "send": {
       "sent": {
-        "title": "Notification Sent",
-        "description": "Your notification has been successfully sent to all subscribers."
+        "title": "Уведомление отправлено",
+        "description": "Ваше уведомление успешно отправлено всем подписчикам."
       },
       "delivered": {
-        "title": "Notification Delivered!",
-        "description": "Your notification has been delivered to the recipient's device.",
-        "deliveryConfirmed": "Delivery confirmed by the notification service."
+        "title": "Уведомление доставлено!",
+        "description": "Ваше уведомление доставлено на устройство получателя.",
+        "deliveryConfirmed": "Доставка подтверждена службой уведомлений."
       },
       "failed": {
-        "title": "Send Failed",
-        "description": "We couldn't send your notification due to a technical issue. Please try again."
+        "title": "Ошибка отправки",
+        "description": "Не удалось отправить ваше уведомление из-за технической проблемы. Попробуйте ещё раз."
       },
       "pending": {
-        "title": "Sending Notification",
-        "description": "Your notification is being sent. This may take a few moments."
+        "title": "Отправка уведомления",
+        "description": "Ваше уведомление отправляется. Это может занять несколько секунд."
       }
     },
     "deliver": {
       "delivered": {
-        "title": "Message Delivered",
-        "description": "Your message has been successfully delivered to the recipient.",
-        "deliveryConfirmed": "The message was delivered to the recipient's device."
+        "title": "Сообщение доставлено",
+        "description": "Ваше сообщение успешно доставлено получателю.",
+        "deliveryConfirmed": "Сообщение доставлено на устройство получателя."
       },
       "read": {
-        "title": "Message Read",
-        "description": "Your message has been read by the recipient."
+        "title": "Сообщение прочитано",
+        "description": "Ваше сообщение прочитано получателем."
       },
       "failed": {
-        "title": "Delivery Failed",
-        "description": "Your message couldn't be delivered. This may be due to device settings or connectivity issues."
+        "title": "Ошибка доставки",
+        "description": "Ваше сообщение не удалось доставить. Это может быть связано с настройками устройства или проблемами связи."
       },
       "cancelled": {
-        "title": "Delivery Cancelled",
-        "description": "Message delivery was cancelled before reaching the recipient."
+        "title": "Доставка отменена",
+        "description": "Доставка сообщения была отменена до того, как оно достигло получателя."
       }
     }
   },
   "pushPrompt": {
     "title": "Включить push-уведомления",
-    "description": "Получайте обновления в реальном времени о коллаборациях, комментариях и статусе публикаций.",
+    "description": "Получайте обновления в реальном времени о совместной работе, комментариях и статусе публикаций.",
     "enable": "Включить",
     "notNow": "Не сейчас"
   }

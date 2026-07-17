@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
-type Currency = 'RING' | 'DAAR' | 'DAARION' | 'UAH' | 'USD' | 'EUR'
+type Currency = 'RING' | 'DAAR' | 'DAARION' | 'UAH' | 'USD' | 'EUR' | (string & {})
 
 export interface SpecialOffer {
   id: string

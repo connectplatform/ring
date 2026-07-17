@@ -42,6 +42,9 @@ export function buildOrderReference(
     case 'native_token_onramp':
       if (!payload.userId) throw new Error('userId required for native_token_onramp')
       return `tokenonramp_${payload.userId}_${ts}`
+    case 'project_order':
+      if (!payload.orderId) throw new Error('orderId required for project_order')
+      return `project_${payload.orderId}_${ts}`
     default:
       throw new Error(`Unsupported purpose for order reference: ${purpose}`)
   }
@@ -105,6 +108,16 @@ export function parseOrderReference(orderReference: string): ParsedOrderReferenc
       entityId: tokenOnrampMatch[1],
       userId: tokenOnrampMatch[1],
       timestamp: Number(tokenOnrampMatch[2]),
+    }
+  }
+
+  // project_{fullOrderId}_{timestamp} — order ids contain underscores (po_ts_rand)
+  const projectMatch = orderReference.match(/^project_(.+)_(\d+)$/)
+  if (projectMatch) {
+    return {
+      purpose: 'project_order',
+      entityId: projectMatch[1],
+      timestamp: Number(projectMatch[2]),
     }
   }
 

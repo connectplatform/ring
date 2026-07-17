@@ -25,6 +25,10 @@ import FloatingButtons from '@/components/store/floating-buttons'
 import type { StoreProduct } from '@/features/store/types'
 import type { ProductReviewView } from '@/features/store/services/product-reviews'
 import type { RailProductCard } from '@/features/store/services/product-details-rail'
+import {
+  pickGalleryDisplayUrl,
+  type GenerativeGalleryValue,
+} from '@/features/generative-media/types'
 
 function calcRatingDistribution(reviews: { rating: number }[]): number[] {
   const stars = [0, 0, 0, 0, 0]
@@ -84,13 +88,37 @@ export default function ProductDetailsClient({
 
   const variants = product.variants && product.variants.length > 0 ? product.variants : []
 
+  const galleryMeta: GenerativeGalleryValue | undefined =
+    product.generativeGallery ||
+    (product as { data?: { generativeGallery?: GenerativeGalleryValue } }).data
+      ?.generativeGallery
+
   const productImages =
     !product.images || product.images.length === 0
       ? [{ url: '/placeholder-product.png', alt: product.name || 'Product' }]
-      : product.images.map((url: string, index: number) => ({
-          url,
-          alt: `${product.name}${index > 0 ? ` - View ${index + 1}` : ''}`,
-        }))
+      : product.images.map((url: string, index: number) => {
+          const meta = galleryMeta?.items?.find((i) => i.originalUrl === url)
+          const thumb =
+            (meta && pickGalleryDisplayUrl(meta, 'thumb')) ||
+            meta?.derivatives?.thumb ||
+            meta?.webpUrl ||
+            url
+          const mobile =
+            (meta && pickGalleryDisplayUrl(meta, 'mobile')) ||
+            meta?.derivatives?.mobile ||
+            meta?.webpUrl ||
+            url
+          const lightbox =
+            (meta && pickGalleryDisplayUrl(meta, 'lightbox')) ||
+            meta?.originalUrl ||
+            url
+          return {
+            url: mobile,
+            originalUrl: lightbox,
+            thumbnail: thumb,
+            alt: `${product.name}${index > 0 ? ` - View ${index + 1}` : ''}`,
+          }
+        })
 
   const handleAddToCart = useCallback(
     async (quantity: number) => {

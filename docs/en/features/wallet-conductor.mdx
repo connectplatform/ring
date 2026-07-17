@@ -1,7 +1,7 @@
 ---
 title: WalletConductor
 description: SSOT facade for custodial native-token wallets, fiat credit ledger, Token Desk, card top-up, confidential native onramp, and NFT market buys — money counterpart to PaymentConductor
-last_modified: "2026-07-12"
+last_modified: "2026-07-14"
 audience: both
 ---
 
@@ -232,17 +232,22 @@ Custodial native send is `transferNative`. External SupportedCrypto (POL/USDT) s
 
 <Mermaid title="initiateTopUp → wallet_topup">
 {`sequenceDiagram
-  participant UI as Wallet UI / action
+  participant UI as CreditAddFsModal
   participant WC as WalletConductor
   participant PC as PaymentConductor
-  participant WH as wallet-topup webhook
+  participant PSP as WayForPay_or_Stripe_or_PayPal
+  participant WH as wallet_topup_webhook
   participant CBS as creditBalanceService
-  UI->>WC: initiateTopUp(formData)
+  UI->>WC: initiateTopUp formData
   WC->>PC: createCheckout purpose=wallet_topup
-  PC-->>UI: paymentUrl
-  Note over WH,CBS: After PSP success
-  WH->>CBS: addFiatUsd (fiat points)`}
+  PC-->>UI: redirect navigate_or_form_post
+  UI->>PSP: followCheckoutResult
+  Note over UI,PSP: returnUrl browser UX only
+  PSP->>WH: webhook Approved_or_capture
+  WH->>CBS: addFiatUsd fiat points`}
 </Mermaid>
+
+Card tab omits `processor` (env SSOT). PayPal tab sets `processor=paypal`. Client: `lib/payments/checkout-redirect.ts`.
 
 ### Sequence — ad-hoc credit spend
 
@@ -273,6 +278,12 @@ Custodial native send is `transferNative`. External SupportedCrypto (POL/USDT) s
 ## Related documentation
 
 <Cards>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Credit-first generative billing via `spendCredits` + `generative_usage` ledger.
+  </Card>
+  <Card title="WalletConductor architecture" href="/docs/architecture/wallet-conductor">
+    Adapters, route map, sequences, env SSOT.
+  </Card>
   <Card title="Wallet feature" href="/docs/features/wallet">
     Product architecture and member flows.
   </Card>
@@ -281,9 +292,6 @@ Custodial native send is `transferNative`. External SupportedCrypto (POL/USDT) s
   </Card>
   <Card title="PaymentConductor" href="/docs/features/payment-conductor">
     PSP rails used by top-up and onramp.
-  </Card>
-  <Card title="VideoConductor" href="/docs/features/video-conductor">
-    Same conductor pattern for generative video.
   </Card>
 </Cards>
 

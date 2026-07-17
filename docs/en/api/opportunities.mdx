@@ -27,23 +27,28 @@ The Ring Platform opportunity system supports a unique dual-nature approach:
 ### `GET /api/opportunities`
 List opportunities with role-aware pagination (`limit`, `startAfter`).
 
+### `POST /api/opportunities`
+Create an opportunity. JSON body validated by `createOpportunityBodySchema`, then `features/opportunities/services/create-opportunity`. Returns `{ opportunity }` with **201**.
+
+Required fields: `title`, `briefDescription`, `organizationId`, `category`, `location`, `visibility`, `contactInfo.linkedEntity`, `contactInfo.contactAccount`.
+
 ### `GET /api/opportunities/{id}`
 Get opportunity details by ID.
 
 ### `GET /api/opportunities/search`
 Search opportunities (query parameters per route implementation).
 
-### `PATCH /api/opportunities/update`
-Update opportunity (route present; prefer Server Actions for UI flows in alpha).
+### `PUT /api/opportunities/{id}` / `PATCH /api/opportunities/{id}`
+Update opportunity by ID (canonical HTTP path). Prefer Server Actions for UI flows in alpha.
 
-### `DELETE /api/opportunities/delete/{id}`
+### `DELETE /api/opportunities/{id}`
 Delete opportunity.
 
 ### `POST /api/opportunities/upload`
 Upload opportunity attachments.
 
 <Callout type="info" title="Create flow">
-**Creating** opportunities uses the **`createOpportunity` Server Action** (`app/_actions/opportunities.ts`) from the add-opportunity UI — there is no `POST /api/opportunities` list-create route in alpha.
+**REST create** is `POST /api/opportunities` (shared schema with MCP). The add-opportunity UI may still use the **`createOpportunity` Server Action** (`app/_actions/opportunities.ts`) for FormData; both call the same service.
 </Callout>
 
 ## Data model
@@ -163,7 +168,7 @@ const data = await response.json()`}
 
 ### Opportunity Management
 - **Create**: Server Action from add-opportunity UI (`createOpportunity`)
-- **Update/Delete**: Server Actions or `PATCH /api/opportunities/update`, `DELETE /api/opportunities/delete/{id}`
+- **Update/Delete**: Server Actions or `PUT|PATCH /api/opportunities/{id}`, `DELETE /api/opportunities/{id}`
 - **Apply**: In-app flows (no dedicated `/apply` REST route in alpha)
 
 ## Advanced Features

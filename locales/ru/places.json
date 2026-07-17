@@ -1,0 +1,227 @@
+{
+  "title": "Места для питомцев",
+  "searchPlaces": "Поиск мест",
+  "nearbyPlaces": "Места рядом",
+  "addPlace": "Добавить место",
+  "editPlace": "Редактировать место",
+  "deletePlace": "Удалить место",
+  "noPlaces": "Места не найдены",
+  "discoverPlaces": "Откройте для себя места, где рады питомцам!",
+
+  "types": {
+    "restaurant": "Ресторан",
+    "cafe": "Кафе",
+    "park": "Парк",
+    "hotel": "Отель",
+    "vet_clinic": "Ветеринарная клиника",
+    "pet_store": "Зоомагазин",
+    "grooming": "Груминг-салон",
+    "training": "Центр дрессировки",
+    "daycare": "Зоогостиница",
+    "dog_park": "Площадка для собак",
+    "beach": "Пляж",
+    "hiking_trail": "Пеший маршрут",
+    "other": "Другое"
+  },
+
+  "priceRanges": {
+    "$": "Бюджетный",
+    "$$": "Средний",
+    "$$$": "Дорогой",
+    "$$$$": "Премиум"
+  },
+
+  "amenities": {
+    "title": "Удобства",
+    "water_bowls": "Миски с водой",
+    "pet_menu": "Меню для питомцев",
+    "waste_bags": "Пакеты для уборки",
+    "leash_required": "Поводок обязателен",
+    "off_leash_area": "Зона без поводка",
+    "pet_grooming": "Груминг для питомцев",
+    "pet_parking": "Парковка для питомцев",
+    "outdoor_seating": "Летняя веранда",
+    "shade": "Затенённые зоны",
+    "pet_playground": "Площадка для питомцев"
+  },
+
+  "petPolicy": {
+    "title": "Правила для питомцев",
+    "allowsDogs": "Собаки разрешены",
+    "allowsCats": "Кошки разрешены",
+    "allowsSmallPets": "Мелкие питомцы разрешены",
+    "sizeLimit": "Максимальный размер",
+    "indoorAllowed": "Доступ в помещение",
+    "outdoorAllowed": "Доступ на улицу",
+    "leashRequired": "Поводок обязателен",
+    "sizeLimits": {
+      "small": "Только мелкие питомцы",
+      "medium": "До среднего размера",
+      "large": "До крупного размера",
+      "any": "Любой размер"
+    }
+  },
+
+  "fields": {
+    "name": "Название места",
+    "placeType": "Тип",
+    "description": "Описание",
+    "address": "Адрес",
+    "addressLine1": "Улица, дом",
+    "addressLine2": "Квартира, офис и т.д.",
+    "city": "Город",
+    "state": "Область/регион",
+    "postalCode": "Почтовый индекс",
+    "country": "Страна",
+    "phone": "Телефон",
+    "email": "Электронная почта",
+    "website": "Сайт",
+    "workingHours": "Часы работы",
+    "entryFee": "Входная плата",
+    "currency": "Валюта",
+    "priceRange": "Ценовой диапазон",
+    "photos": "Фотографии",
+    "primaryPhoto": "Главное фото",
+    "coverPhoto": "Обложка",
+    "isVerified": "Проверено",
+    "isActive": "Активно",
+    "visibleOnMap": "Видно на карте"
+  },
+
+  "workingHours": {
+    "title": "Часы работы",
+    "monday": "Понедельник",
+    "tuesday": "Вторник",
+    "wednesday": "Среда",
+    "thursday": "Четверг",
+    "friday": "Пятница",
+    "saturday": "Суббота",
+    "sunday": "Воскресенье",
+    "open": "Открытие",
+    "close": "Закрытие",
+    "closed": "Закрыто",
+    "24hours": "Круглосуточно",
+    "allWeek": "Вся неделя"
+  },
+
+  "subscription": {
+    "title": "Статус подписки",
+    "active": "Активна",
+    "inactive": "Неактивна",
+    "gracePeriod": "Льготный период",
+    "suspended": "Приостановлена",
+    "manageSubscription": "Управление подпиской",
+    "renewSubscription": "Продлить подписку",
+    "upgradeSubscription": "Улучшить тариф",
+    "subscriptionRequired": "Для отображения на карте нужна активная подписка"
+  },
+
+  "vendor": {
+    "title": "Статус продавца",
+    "isVendor": "Работает как продавец",
+    "becomeVendor": "Стать продавцом",
+    "vendorTier": "Уровень продавца",
+    "trustScore": "Рейтинг доверия",
+    "tiers": {
+      "NEW": "Новый",
+      "BASIC": "Базовый",
+      "VERIFIED": "Проверенный",
+      "TRUSTED": "Надёжный",
+      "PREMIUM": "Премиум"
+    }
+  },
+
+  "map": {
+    "title": "Карта",
+    "listView": "Список",
+    "nearMe": "Рядом со мной",
+    "searchRadius": "Радиус поиска",
+    "getDirections": "Маршрут",
+    "currentLocation": "Текущее местоположение",
+    "distance": "Расстояние",
+    "showOnMap": "Показать на карте"
+  },
+
+  "search": {
+    "placeholder": "Поиск по названию, типу или адресу...",
+    "filterByType": "Фильтр по типу",
+    "filterByAmenities": "Фильтр по удобствам",
+    "filterByPetPolicy": "Фильтр по правилам для питомцев",
+    "radius": "Радиус",
+    "withinKm": "в радиусе {{km}} км",
+    "sortBy": "Сортировка",
+    "sortOptions": {
+      "distance": "По расстоянию",
+      "rating": "По рейтингу",
+      "newest": "Сначала новые",
+      "popular": "Популярные"
+    }
+  },
+
+  "profile": {
+    "title": "Профиль места",
+    "viewProfile": "Просмотреть профиль",
+    "editProfile": "Редактировать профиль",
+    "shareProfile": "Поделиться профилем",
+    "reportPlace": "Пожаловаться на место",
+    "claimPlace": "Заявить права на место",
+    "stats": "Статистика",
+    "totalVisits": "Всего посещений",
+    "totalReviews": "Всего отзывов",
+    "averageRating": "Средний рейтинг"
+  },
+
+  "actions": {
+    "savePlace": "Сохранить место",
+    "updatePlace": "Обновить место",
+    "cancelEdit": "Отмена",
+    "deletePlaceConfirm": "Вы уверены, что хотите удалить это место?",
+    "uploadPhoto": "Загрузить фото",
+    "setAsPrimary": "Сделать главным фото",
+    "setCover": "Сделать обложкой",
+    "removePhoto": "Удалить фото",
+    "addToFavorites": "В избранное",
+    "removeFromFavorites": "Убрать из избранного",
+    "checkIn": "Отметиться",
+    "writeReview": "Написать отзыв"
+  },
+
+  "validation": {
+    "nameRequired": "Укажите название места",
+    "typeRequired": "Укажите тип места",
+    "addressRequired": "Укажите адрес",
+    "locationRequired": "Укажите координаты места",
+    "phoneInvalid": "Некорректный номер телефона",
+    "emailInvalid": "Некорректный адрес электронной почты",
+    "websiteInvalid": "Некорректный URL сайта",
+    "photosLimit": "Можно загрузить не более 20 фотографий"
+  },
+
+  "success": {
+    "created": "Место успешно создано!",
+    "updated": "Место успешно обновлено!",
+    "deleted": "Место удалено",
+    "photoUploaded": "Фото успешно загружено",
+    "photoRemoved": "Фото удалено",
+    "addedToFavorites": "Добавлено в избранное",
+    "removedFromFavorites": "Удалено из избранного",
+    "checkedIn": "Вы успешно отметились!"
+  },
+
+  "errors": {
+    "loadFailed": "Не удалось загрузить места",
+    "saveFailed": "Не удалось сохранить место",
+    "deleteFailed": "Не удалось удалить место",
+    "uploadFailed": "Не удалось загрузить фото",
+    "locationAccessDenied": "Доступ к геолокации запрещён. Включите службы определения местоположения.",
+    "geolocationNotSupported": "Ваш браузер не поддерживает геолокацию"
+  },
+
+  "nearby": {
+    "title": "Места рядом",
+    "searching": "Ищем места рядом...",
+    "foundPlaces": "Найдено {{count}} мест в радиусе {{km}} км",
+    "noPlacesFound": "Рядом нет подходящих мест. Попробуйте увеличить радиус поиска.",
+    "locationPermission": "Разрешите доступ к геолокации, чтобы найти места рядом"
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "title": "Reseñas",
+  "writeReview": "Escribe una reseña",
+  "editReview": "Editar reseña",
+  "deleteReview": "Eliminar reseña",
+  "noReviews": "Aún no hay reseñas",
+  "beFirstToReview": "¡Sé el primero en escribir una reseña sobre este lugar!",
+  "allReviews": "Todas las reseñas",
+  "myReviews": "Mis reseñas",
+  "rating": {
+    "title": "Evaluación",
+    "overall": "Calificación general",
+    "cleanliness": "limpieza",
+    "petFriendliness": "Amabilidad de los animales",
+    "service": "servicio",
+    "value": "Precio-rendimiento",
+    "atmosphere": "atmósfera",
+    "facilities": "equipo"
+  },
+  "fields": {
+    "rating": "tu nota",
+    "title": "Título de la reseña",
+    "comment": "tu texto",
+    "photos": "Fotos",
+    "visitDate": "fecha de visita",
+    "wouldRecommend": "¿Recomendarías este lugar?",
+    "petsWithYou": "Animales de compañía",
+    "verified": "Visita verificada"
+  },
+  "filters": {
+    "title": "Filtrar reseñas",
+    "allRatings": "todas las estrellas",
+    "fiveStars": "5 estrellas",
+    "fourStars": "4 estrellas",
+    "threeStars": "3 estrellas",
+    "twoStars": "2 estrellas",
+    "oneStar": "1 estrella",
+    "verified": "Sólo visitas verificadas",
+    "withPhotos": "Con fotos",
+    "sortBy": "Ordenar por",
+    "sortOptions": {
+      "newest": "Lo más nuevo primero",
+      "oldest": "El más viejo primero",
+      "highestRating": "Grado más alto",
+      "lowestRating": "Grado más bajo",
+      "mostHelpful": "Más útil"
+    }
+  },
+  "helpful": {
+    "wasHelpful": "¿Fue útil esta reseña?",
+    "yes": "Sí",
+    "no": "No",
+    "helpfulCount": "A {{count}} personas les resultó útil",
+    "thankYou": "¡Gracias por tus comentarios!"
+  },
+  "response": {
+    "title": "Respuesta del proveedor",
+    "respondToReview": "Responder a la reseña",
+    "editResponse": "Editar respuesta",
+    "deleteResponse": "Eliminar respuesta",
+    "businessResponse": "Respuesta de la empresa",
+    "respondedOn": "Respondido el {{date}}"
+  },
+  "verification": {
+    "verified": "Visita verificada",
+    "notVerified": "No verificado",
+    "verificationRequired": "Se requiere verificación de visita",
+    "checkInToVerify": "Regístrese en el lugar para verificar la visita.",
+    "verifiedBadge": "✓ Visita verificada"
+  },
+  "trust": {
+    "title": "vale la pena confiar",
+    "trustScore": "Puntuación de confianza: {{score}}/100",
+    "breakdown": "descomponer",
+    "sales": "Historial de ventas (30%)",
+    "rating": "Comentarios de clientes (25%)",
+    "disputes": "Resolución de disputas (20%)",
+    "delivery": "Rendimiento de entrega (15%)",
+    "tenure": "Vida de la cuenta (10%)",
+    "calculation": "¿Cómo se calcula esto?"
+  },
+  "actions": {
+    "saveReview": "Guardar reseña",
+    "updateReview": "Actualizar calificación",
+    "cancelEdit": "Cancelar",
+    "deleteReviewConfirm": "¿Realmente eliminar esta reseña?",
+    "reportReview": "Revisión del informe",
+    "shareReview": "Compartir reseña",
+    "markHelpful": "Marcar como útil",
+    "uploadPhoto": "Subir foto",
+    "removePhoto": "Quitar foto"
+  },
+  "validation": {
+    "ratingRequired": "Por favor elige un grado",
+    "commentRequired": "Por favor ingresa un texto de revisión",
+    "commentTooShort": "Al menos 10 caracteres",
+    "commentTooLong": "Máximo 1000 caracteres",
+    "titleRequired": "Se requiere título",
+    "photosLimit": "Máximo 5 fotos por reseña"
+  },
+  "success": {
+    "created": "Revisión enviada. ¡Gracias!",
+    "updated": "Calificación actualizada.",
+    "deleted": "Revisión eliminada",
+    "helpfulMarked": "¡Gracias por tus comentarios!",
+    "photoUploaded": "Foto subida",
+    "reported": "Revisión informada. Lo estamos comprobando."
+  },
+  "errors": {
+    "loadFailed": "No se pudieron cargar las reseñas",
+    "saveFailed": "No se pudo guardar la calificación",
+    "deleteFailed": "No se pudo eliminar la reseña",
+    "uploadFailed": "Error al subir la foto",
+    "alreadyReviewed": "Ya has calificado este lugar. Puedes editar tu reseña.",
+    "mustVisit": "Se requiere una visita al sitio antes de poder evaluar"
+  },
+  "stats": {
+    "totalReviews": "{{count}} Reseñas",
+    "averageRating": "Ø{{rating}}",
+    "distribution": "Distribución de calificaciones",
+    "verifiedPercentage": "{{percent}} % de visitas verificadas",
+    "wouldRecommend": "{{percent}} % lo recomendaría"
+  },
+  "guidelines": {
+    "title": "Pautas",
+    "beHonest": "Sea honesto y justo",
+    "beRespectful": "Formular de forma respetuosa y constructiva.",
+    "beSpecific": "Dar detalles específicos",
+    "noHateSpeech": "Sin discursos de odio ni insultos.",
+    "relevantContent": "El contenido debe ajustarse a la ubicación.",
+    "noSpam": "Sin spam ni publicidad pura"
+  }
+}

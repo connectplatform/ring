@@ -31,6 +31,8 @@ type RingContactRow = {
   photoURL?: string | null
   wallet_address?: string | null
   walletAddress?: string | null
+  is_verified?: boolean
+  isVerified?: boolean
   notes?: string
   is_favorite?: boolean
   isFavorite?: boolean
@@ -45,8 +47,17 @@ type UserProfileRow = {
   name?: string | null
   username?: string | null
   photoURL?: string | null
+  isVerified?: boolean
+  is_verified?: boolean
   role?: UserRolesArray
   wallets?: Wallet[]
+}
+
+function readUserIsVerified(row: {
+  isVerified?: boolean
+  is_verified?: boolean
+} | null | undefined): boolean {
+  return Boolean(row?.isVerified ?? row?.is_verified ?? false)
 }
 
 /**
@@ -68,6 +79,7 @@ function mapRingContactRow(row: RingContactRow & { id: string }): RingContact {
     username: row.username ?? null,
     photoURL: row.photoURL ?? row.photo_url ?? null,
     walletAddress: row.walletAddress ?? row.wallet_address ?? null,
+    isVerified: readUserIsVerified(row),
     notes: row.notes,
     isFavorite: row.isFavorite ?? row.is_favorite ?? false,
     addedAt: row.addedAt ?? row.added_at ?? new Date().toISOString(), // fallback to now if missing
@@ -93,6 +105,7 @@ function toRingContactDbRow(
     username?: string | null
     photoURL?: string | null
     walletAddress?: string | null
+    isVerified?: boolean
     notes?: string
     isFavorite?: boolean
     addedAt?: string
@@ -108,6 +121,7 @@ function toRingContactDbRow(
     username: fields.username ?? null,
     photo_url: fields.photoURL ?? null,
     wallet_address: fields.walletAddress ?? null,
+    is_verified: Boolean(fields.isVerified),
     notes: fields.notes,
     is_favorite: fields.isFavorite ?? false,
     added_at: fields.addedAt ?? new Date().toISOString(),
@@ -138,6 +152,65 @@ export class RingContactsServiceImpl {
   }
 
   /**
+   * Overlay live user profile fields onto contacts (verification, photo, name, wallet).
+   * One `in` query instead of N findDocById — used by /contacts, ContactPicker, wallet Send/Request.
+   */
+  private async enrichFromLiveUsers(contacts: RingContact[]): Promise<RingContact[]> {
+    if (contacts.length === 0) return contacts
+    const ids = [...new Set(contacts.map((c) => c.contactUserId).filter(Boolean))]
+    const byId = new Map<string, UserProfileRow & { id: string }>()
+
+    if (ids.length > 0) {
+      const result = await db().queryDocs<UserProfileRow & { id: string }>({
+        collection: 'users',
+        filters: [{ field: 'id', operator: 'in', value: ids }],
+        pagination: { limit: ids.length },
+      })
+      if (result.success && result.data) {
+        for (const row of result.data) {
+          byId.set(row.id, row)
+        }
+      }
+    }
+
+    // Fallback individual reads for any ids the `in` query missed (adapter edge cases)
+    await Promise.all(
+      ids
+        .filter((id) => !byId.has(id))
+        .map(async (id) => {
+          try {
+            const result = await db().findDocById<UserProfileRow>('users', id)
+            if (result.success && result.data) {
+              byId.set(id, { ...result.data, id })
+            }
+          } catch {
+            // keep snapshot
+          }
+        }),
+    )
+
+    return contacts.map((c) => {
+      const profile = byId.get(c.contactUserId)
+      if (!profile) {
+        return { ...c, isVerified: Boolean(c.isVerified) }
+      }
+      const wallet = selectDefaultWallet(profile.wallets, getNativeChain())
+      const displayName =
+        (profile.name as string | undefined) ||
+        (profile.username as string | undefined) ||
+        c.displayName
+      return {
+        ...c,
+        displayName,
+        username: profile.username ?? c.username ?? null,
+        photoURL: profile.photoURL ?? c.photoURL ?? null,
+        walletAddress: wallet?.address ?? c.walletAddress ?? null,
+        isVerified: readUserIsVerified(profile),
+      }
+    })
+  }
+
+  /**
    * Fetch a contact by its id, ensures ownership and correct project.
    * @returns contact mapped as RingContact — or null if ownership/project fails.
    */
@@ -153,7 +226,8 @@ export class RingContactsServiceImpl {
     if (mapped.ownerUserId !== ownerUserId || mapped.projectSlug !== this.projectSlug) {
       return null
     }
-    return mapped
+    const [enriched] = await this.enrichFromLiveUsers([mapped])
+    return enriched
   }
 
   /**
@@ -209,6 +283,7 @@ export class RingContactsServiceImpl {
       username: profile.username ?? null,
       photoURL: profile.photoURL ?? null,
       walletAddress: wallet?.address ?? null,
+      isVerified: readUserIsVerified(profile),
       notes: notes ?? existingRow?.notes,
       lastUsed: new Date().toISOString(),
     }
@@ -227,7 +302,8 @@ export class RingContactsServiceImpl {
       if (!updateResult.success || !updateResult.data) {
         throw new Error(`Failed to update contact: ${updateResult.error?.message ?? 'unknown'}`)
       }
-      return mapRingContactRow(updateResult.data)
+      const [enriched] = await this.enrichFromLiveUsers([mapRingContactRow(updateResult.data)])
+      return enriched
     }
 
     // CREATE: Insert fresh contact document.
@@ -241,7 +317,8 @@ export class RingContactsServiceImpl {
     if (!createResult.success || !createResult.data) {
       throw new Error(`Failed to add contact: ${createResult.error?.message ?? 'unknown'}`)
     }
-    return mapRingContactRow(createResult.data)
+    const [enriched] = await this.enrichFromLiveUsers([mapRingContactRow(createResult.data)])
+    return enriched
   }
 
   /**
@@ -269,8 +346,8 @@ export class RingContactsServiceImpl {
     if (!result.success) {
       throw new Error(`Failed to list contacts: ${result.error?.message ?? 'unknown'}`)
     }
-    // Map result rows to domain shape
-    return result.data.map((row) => mapRingContactRow(row))
+    // Map result rows to domain shape, then overlay live verification badges
+    return this.enrichFromLiveUsers(result.data.map((row) => mapRingContactRow(row)))
   }
 
   /**
@@ -324,7 +401,8 @@ export class RingContactsServiceImpl {
       throw new Error(`Failed to update contact: ${updateResult.error?.message ?? 'unknown'}`)
     }
 
-    return mapRingContactRow(updateResult.data)
+    const [enriched] = await this.enrichFromLiveUsers([mapRingContactRow(updateResult.data)])
+    return enriched
   }
 
   /**

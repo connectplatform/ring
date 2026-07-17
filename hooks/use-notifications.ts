@@ -27,6 +27,8 @@ interface UseNotificationsOptions {
   types?: NotificationType[];
   autoRefresh?: boolean;
   refreshInterval?: number;
+  /** When false, skip list fetch (useCursorFeed owns the list). Default true. */
+  listEnabled?: boolean;
 }
 
 interface UseNotificationsReturn {
@@ -68,7 +70,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     unreadOnly = false,
     types,
     autoRefresh = false, // Disable auto-refresh by default
-    refreshInterval = 600000 // Increased to 10 minutes when enabled (was 5 minutes)
+    refreshInterval = 600000, // Increased to 10 minutes when enabled (was 5 minutes)
+    listEnabled = true,
   } = options;
 
   // State
@@ -496,11 +499,11 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   // Refresh all data
   const refresh = useCallback(async () => {
     await Promise.all([
-      fetchNotifications({ reset: true }),
+      ...(listEnabled ? [fetchNotifications({ reset: true })] : []),
       fetchStats(),
       fetchPreferences()
     ]);
-  }, [fetchNotifications, fetchStats, fetchPreferences]);
+  }, [fetchNotifications, fetchStats, fetchPreferences, listEnabled]);
 
   // Clear error
   const clearError = useCallback(() => {
@@ -509,7 +512,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
   // Auto-refresh setup
   useEffect(() => {
-    if (!autoRefresh || !session) return;
+    if (!autoRefresh || !session || !listEnabled) return;
 
     refreshIntervalRef.current = setInterval(() => {
       fetchNotifications({ reset: true });
@@ -520,7 +523,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [autoRefresh, session, refreshInterval, fetchNotifications]);
+  }, [autoRefresh, session, refreshInterval, fetchNotifications, listEnabled]);
 
   // Initial data fetch (with debounce to prevent multiple rapid calls)
   useEffect(() => {
@@ -532,6 +535,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       return () => clearTimeout(timeoutId);
     }
   }, [session?.user?.id]); // Use stable user ID instead of full session object
+  // Note: refresh identity intentionally omitted to avoid remount loops; listEnabled gated inside refresh.
 
   // Cleanup on unmount
   useEffect(() => {

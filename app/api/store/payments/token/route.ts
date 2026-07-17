@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
-import { isRailEnabled } from '@/lib/payments/payment.config'
+import { isRailEnabled, getDefaultStoreCurrencySymbol } from '@/lib/payments/payment.config'
 import { ReferralRewardService } from '@/features/refcodes/services/referral-reward-service'
 import { VendorSettlementService } from '@/features/store/services/vendor-settlement'
 import { ERPStockService } from '@/features/store/services/erp-stock-service'
@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
     const order = (await StoreOrdersService.getOrderById(body.orderId)) as {
       userId?: string
       total?: number
-      payment?: { status?: string }
+      currency?: string
+      payment?: { status?: string; currency?: string }
     } | null
 
     if (!order) {
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order already paid' }, { status: 400 })
     }
 
-    const currency = 'UAH'
+    const currency =
+      (order.currency || order.payment?.currency || getDefaultStoreCurrencySymbol()).toUpperCase()
     const result = await PaymentConductor.createCheckout({
       purpose: 'store_order',
       rail: 'native_token',

@@ -7,6 +7,11 @@ import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
 import { hasMemberPrivileges, resolvePersistedUserRole } from '@/features/auth/user-role'
 import type { NftOwnershipRecord } from '@/features/nft-gates/types'
 import type { NftMemberCollection } from '@/features/nft-market/types'
+import type { GenerativeGalleryValue } from '@/features/generative-media/types'
+import {
+  buildMetaplexMetadataJson,
+  uploadNftMetadataJson,
+} from '@/features/generative-media/nft-metadata'
 import {
   getMemberCollectionById,
   incrementMemberCollectionMintCount,
@@ -44,6 +49,7 @@ export async function mintMemberAsset(input: {
   description?: string
   imageUri?: string
   metadataUri?: string
+  gallery?: GenerativeGalleryValue
 }): Promise<{ success: boolean; ownership?: NftOwnershipRecord; error?: string }> {
   if (!isMemberCollectionsEnabled()) {
     return { success: false, error: 'Member collections are disabled' }
@@ -75,10 +81,39 @@ export async function mintMemberAsset(input: {
     return { success: false, error: 'Custodial Solana wallet is required before minting' }
   }
 
-  const metadataUri =
-    input.metadataUri?.trim() ||
-    input.imageUri?.trim() ||
-    `https://ring-platform.org/nft/member/${collection.id}/${randomUUID()}.json`
+  const imageUri = input.imageUri?.trim() || ''
+  let metadataUri = input.metadataUri?.trim() || ''
+  let showcase = undefined as NftOwnershipRecord['showcase']
+
+  if (!metadataUri) {
+    const built = buildMetaplexMetadataJson({
+      name,
+      symbol: collection.symbol,
+      description: input.description,
+      imageUri,
+      gallery: input.gallery,
+      collectionId: collection.id,
+    })
+    showcase = built.showcase
+    const uploaded = await uploadNftMetadataJson(
+      built.metadata,
+      `nft/member/${collection.id}/${randomUUID().slice(0, 10)}.json`,
+    )
+    if (!uploaded.success || !uploaded.metadataUri) {
+      return { success: false, error: uploaded.error || 'Failed to upload NFT metadata JSON' }
+    }
+    metadataUri = uploaded.metadataUri
+  } else if (input.gallery || imageUri) {
+    const built = buildMetaplexMetadataJson({
+      name,
+      symbol: collection.symbol,
+      description: input.description,
+      imageUri,
+      gallery: input.gallery,
+      collectionId: collection.id,
+    })
+    showcase = built.showcase
+  }
 
   let asset = `member_${collection.id.slice(0, 12)}_${randomUUID().slice(0, 12)}`
   let signature: string | undefined
@@ -96,6 +131,7 @@ export async function mintMemberAsset(input: {
       attributes: [
         { key: 'collectionId', value: collection.id },
         { key: 'symbol', value: collection.symbol },
+        { key: 'showcase', value: 'v1' },
       ],
     })
     if (!minted.success || !minted.asset) {
@@ -123,7 +159,8 @@ export async function mintMemberAsset(input: {
     purchaseId: `member_mint_${randomUUID()}`,
     signature,
     priceRing: 0,
-    imageUri: input.imageUri,
+    imageUri: imageUri || undefined,
+    showcase,
     createdAt,
   }
 

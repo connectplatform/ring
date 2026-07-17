@@ -27,6 +27,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import { AdminSidebarContent } from '@/components/layout/rails/admin-rail'
 import type { Locale } from '@/i18n/shared'
 import type { NewsStatsSummary } from '@/features/news/types'
@@ -36,6 +37,7 @@ import type { AdminPageContext } from '@/features/admin/admin-nav-config'
 export type ModulesAdminLabels = Partial<{
   dashboard: string
   users: string
+  rewards: string
   news: string
   dao: string
   analytics: string
@@ -53,6 +55,7 @@ export type ModulesAdminLabels = Partial<{
   emailContacts: string
   emailAnalytics: string
   emailTasks: string
+  crmOrders: string
   processes: string
   subscriptions: string
   web3: string
@@ -139,6 +142,8 @@ interface AdminWrapperProps {
   labels?: ModulesAdminLabels
   /** Optional news-specific statistics for the admin right rail when pageContext='news'. */
   newsStats?: NewsStatsSummary
+  /** When false, hide the right rail so the center pane fills available width (CRM tabs shell). */
+  showRightRail?: boolean
 }
 
 export default function AdminWrapper({
@@ -148,6 +153,7 @@ export default function AdminWrapper({
   translations,
   labels,
   newsStats,
+  showRightRail = true,
 }: AdminWrapperProps) {
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
@@ -159,17 +165,18 @@ export default function AdminWrapper({
   const closeRail = useCallback(() => setRightSidebarOpen(false), [])
 
   const rightRail = useMemo(
-    () => (
-      <AdminSidebarContent
-        locale={locale}
-        pageContext={pageContext}
-        translations={translations}
-        labels={labels}
-        newsStats={newsStats}
-        onNavigate={closeRail}
-      />
-    ),
-    [locale, pageContext, translations, labels, newsStats, closeRail],
+    () =>
+      showRightRail ? (
+        <AdminSidebarContent
+          locale={locale}
+          pageContext={pageContext}
+          translations={translations}
+          labels={labels}
+          newsStats={newsStats}
+          onNavigate={closeRail}
+        />
+      ) : null,
+    [locale, pageContext, translations, labels, newsStats, closeRail, showRightRail],
   )
 
   if (!mounted) {
@@ -179,11 +186,13 @@ export default function AdminWrapper({
   return (
     <RingRightRailLayout
       rightRail={rightRail}
+      showRightRail={showRightRail}
+      flushCenterPane
       contentClassName="pb-24 lg:pb-8"
       isOpen={rightSidebarOpen}
       onToggle={setRightSidebarOpen}
     >
-      {children}
+      <DavinciCenterPane contentClassName="space-y-6">{children}</DavinciCenterPane>
     </RingRightRailLayout>
   )
 }

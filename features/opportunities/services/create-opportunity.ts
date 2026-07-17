@@ -262,6 +262,22 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
       opportunityId: createdOpportunity.id,
       event: 'created',
     })
+
+    // Credit reward for requests (and first-class contribution quests)
+    const opportunityType = String(createdOpportunity.type || data.type || 'offer').toLowerCase()
+    if (opportunityType === 'request') {
+      void import('@/lib/wallet/reward-credit-service')
+        .then(({ enqueueRewardCreditAddEvent }) =>
+          enqueueRewardCreditAddEvent({
+            userId,
+            trigger: 'requestCreated',
+            userRole: typeof userRole === 'string' ? userRole : null,
+            objectType: 'opportunity',
+            objectId: createdOpportunity.id,
+          }),
+        )
+        .catch(() => undefined)
+    }
     
     // AI-Powered Opportunity Processing: Auto-fill and Matching
     try {

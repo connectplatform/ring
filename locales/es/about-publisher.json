@@ -1,0 +1,137 @@
+{
+  "title": "Sonoratek LLC — editor de Connect.Software",
+  "description": "Sonoratek LLC (Tempe, Arizona) publica Connect.Software, el marketplace de integraciones de IA en Ring Platform: servidores MCP, skillsets, routers y listados alineados con NODUS.",
+  "hero": {
+    "description": "Construimos el anillo durante la lucha de Ucrania por la independencia como nuestro regalo al mundo. Una plataforma gratuita, automodificable y orquestada por IA que permite a cualquier persona resolver necesidades colectivas."
+  },
+  "badges": {
+    "openSource": "Código abierto",
+    "aiPowered": "impulsado por IA",
+    "weaponOfPeace": "arma de paz"
+  },
+  "sections": {
+    "origin": {
+      "title": "Nuestra historia de origen",
+      "subtitle": "Cómo surgió Ring de la lucha de Ucrania por la libertad",
+      "stories": {
+        "crisis": {
+          "title": "Nacido en crisis",
+          "description": "En febrero de 2022, mientras Ucrania resistía la invasión, el equipo de Ringdom vio una oportunidad. Mientras el mundo observaba nuestra valentía, trabajamos incansablemente para crear algo que durara más que el conflicto. La plataforma Ring se convirtió en nuestra fortaleza digital — un arma de paz construida con código en lugar de armas."
+        },
+        "liberation": {
+          "title": "La tecnología como liberación.",
+          "description": "Creemos que las deficiencias tecnológicas son un arma de opresión. Las plataformas centralizadas extraen valor de las comunidades al tiempo que limitan su potencial. Ring rompe este ciclo brindando a las comunidades las herramientas para construir su propia economía, gobernada por sus propias reglas e impulsada por sus propios tokens."
+        },
+        "gratitude": {
+          "title": "Gratitud al mundo",
+          "description": "Su apoyo a la independencia de Ucrania nos dio el valor para soñar en grande. Ring es nuestro agradecimiento: una plataforma que democratiza el acceso a la tecnología en todo el mundo. Los agricultores ucranianos compiten ahora en pie de igualdad con las empresas emergentes de Silicon Valley. Los artesanos africanos acceden a la misma IA que los vendedores de Amazon."
+        }
+      }
+    },
+    "mission": {
+      "title": "Nuestra misión",
+      "subtitle": "Dando forma al futuro de la colaboración humana",
+      "cards": {
+        "unite": {
+          "title": "Unir a la humanidad",
+          "description": "La tecnología debería unir, no dividir. Ring permite la colaboración global al eliminar las barreras técnicas y económicas a la colaboración."
+        },
+        "democratize": {
+          "title": "democratizar la innovación",
+          "description": "Cualquiera, en cualquier lugar, puede implementar plataformas sofisticadas. Sin desarrolladores costosos, sin dependencia de proveedores, sin complejidad técnica."
+        },
+        "endDeficit": {
+          "title": "Acabar con el déficit tecnológico",
+          "description": "Nivelar el campo de juego global. Dar a cada comunidad las mismas ventajas tecnológicas actualmente reservadas a unos pocos privilegiados."
+        }
+      }
+    },
+    "impact": {
+      "title": "Impacto global",
+      "subtitle": "Operaciones de anillo en todo el mundo",
+      "stats": {
+        "deployments": "Implementaciones de anillo",
+        "value": "Valor añadido económico",
+        "benefiting": "La gente se beneficia",
+        "countries": "Países alcanzados"
+      },
+      "stories": {
+        "title": "Historias de éxito",
+        "story1": {
+          "name": "GreenFood Organic Food Marketplace",
+          "description": "Marketplace multi-vendor de alimentos orgánicos, con criptomoneda nativa DAAR y ERP de vendor sin almacén"
+        },
+        "story2": {
+          "name": "SubiWorx Auto Parts Marketplace",
+          "description": "Red independiente de entusiastas Subaru, con feed de oportunidades para builds custom, coches y piezas de segunda mano y chat"
+        },
+        "story3": {
+          "name": "Pet Friend App",
+          "description": "App pet-friendly para encontrar y compartir lugares, eventos y promociones, con chat sobre mapas pet-friendly"
+        }
+      },
+      "democratization": {
+        "title": "democratización de la tecnología",
+        "description": "Ring no sólo brinda a las comunidades tecnología, sino también soberanía tecnológica. La capacidad de evolucionar sus plataformas en función de sus propias necesidades y no de los planes de la empresa."
+      }
+    },
+    "future": {
+      "title": "Visión de futuro",
+      "description": "Imagínese preguntarle a su plataforma Ring: \"Agregue un sistema de certificado verificado por blockchain para cursos educativos\" y observe cómo la plataforma genera el módulo de forma autónoma, implementa contratos inteligentes, actualiza la interfaz de usuario y se prueba a sí misma. Sin desarrolladores en el medio. Hablan directamente con su plataforma.",
+      "features": {
+        "autonomous": {
+          "title": "Evolución autónoma de la IA",
+          "description": "Plataformas que escriben su propio código basado en requisitos de lenguaje natural"
+        },
+        "learning": {
+          "title": "Aprendizaje multiplataforma",
+          "description": "Las instancias de anillo enseñan a otras instancias de anillo, acelerando el desarrollo global"
+        },
+        "adaptation": {
+          "title": "Ajuste en tiempo real",
+          "description": "Plataformas que evolucionan en tiempo real en función del comportamiento y las necesidades de los usuarios"
+        }
+      }
+    }
+  },
+  "thankYou": {
+    "title": "Gracias",
+    "subtitle": "A todos los que apoyaron la lucha de Ucrania por la libertad.",
+    "description": "La plataforma Ring es nuestra forma de agradecerle. Su apoyo no sólo nos dio la oportunidad de defender nuestra libertad, sino también de aportar algo duradero al mundo. Tecnología que une en lugar de dividir, que empodera en lugar de privar, que libera en lugar de controlar.",
+    "slogan": "Slava Ukraini! 🇺🇦",
+    "message": "Construido con amor por Ucrania y gratitud al mundo.\nPlataforma Ring: gratuita para siempre y para todos."
+  },
+  "founders": {
+    "contactTitle": "Fundador y publisher",
+    "contactSubtitle": "Ray Sorkin — arquitecto de ConnectPlatform, Sonoratek LLC, Ringdom"
+  },
+  "actions": {
+    "cloneRing": "Clonar anillo ahora",
+    "learnTokens": "Obtenga más información sobre los tokens RING",
+    "viewSource": "Ver código fuente"
+  },
+  "sidebar": {
+    "publisher_title": "Sonoratek LLC — publisher",
+    "publisher_desc": "Publisher legal de Ring Platform. Construido en Ucrania, libre para el mundo.",
+    "quick_actions": "Empezar",
+    "clone_hint": "install.sh → ring-config → primer despliegue",
+    "tokens_hint": "Token de utilidad RING y economía de membresía",
+    "source_hint": "connectplatform/ring en GitHub",
+    "help_title": "Documentación",
+    "help_desc": "Clona Ring, personaliza ring-config.json y despliega tu instancia white-label.",
+    "view_docs": "Abrir documentación",
+    "docs_hint": "Guías de arquitectura, módulos y despliegue",
+    "impact": {
+      "deployments": "Clones Ring activos y comunidades white-label",
+      "value": "Valor económico desbloqueado en los despliegues",
+      "benefiting": "Personas alcanzadas por plataformas impulsadas por Ring",
+      "countries": "Países con instancias Ring en vivo o piloto"
+    },
+    "flow": {
+      "step_install": "install.sh",
+      "step_config": "ring-config",
+      "step_deploy": "primer despliegue",
+      "quick_start": "Inicio rápido"
+    }
+  }
+}

@@ -9,6 +9,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -369,11 +370,12 @@ export default function EntityFormWrapper({ children, locale }: EntityFormWrappe
   return (
     <RingRightRailLayout
       rightRail={rightSidebarContent}
+      flushCenterPane
       isOpen={rightSidebarOpen}
       onToggle={setRightSidebarOpen}
       contentClassName="pb-24 lg:pb-8"
     >
-      {children}
+      <DavinciCenterPane>{children}</DavinciCenterPane>
     </RingRightRailLayout>
   )
 }

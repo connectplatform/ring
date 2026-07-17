@@ -27,7 +27,11 @@ import { ROUTES } from '@/constants/routes'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
-import { useDisplayPrice, useStoreCurrency } from '@/features/store/currency-context'
+import {
+  DEFAULT_CURRENCY,
+  useStoreCurrency,
+  resolveStorePriceCurrency,
+} from '@/features/store/currency-context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
@@ -388,7 +392,8 @@ function FavoritesWidget() {
                           </Link>
                           {p.price && (
                             <div className="text-xs text-muted-foreground mt-1">
-                              {typeof p.price === 'number' ? p.price.toFixed(2) : p.price} {p.currency || 'DAAR'}
+                              {typeof p.price === 'number' ? p.price.toFixed(2) : p.price}{' '}
+                            {p.currency || DEFAULT_CURRENCY}
                             </div>
                           )}
                         </div>
@@ -432,7 +437,7 @@ function FavoritesWidget() {
 function CartWidget() {
   const locale = useLocale() as Locale
   const store = useOptionalStore()
-  // STUB: 'formatPrice', 'convertPrice', 'currency' not directly used here, could be removed for performance.
+  const { currency, convertPrice, formatPrice, defaultCurrency } = useStoreCurrency()
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -457,9 +462,18 @@ function CartWidget() {
     }
   }, [])
 
-  // Precompute cart state
+  // Precompute cart state (hooks above — never call useDisplayPrice inside conditionals)
   const cartItems = store?.cartItems || []
   const totalItems = store?.totalItems || 0
+  const cartTotalLabel = useMemo(() => {
+    const total = cartItems.reduce((sum, item) => {
+      const priceDefaultCurrency =
+        item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price || '0')
+      const from = resolveStorePriceCurrency(item.product.currency || defaultCurrency)
+      return sum + convertPrice(priceDefaultCurrency, from, currency) * item.quantity
+    }, 0)
+    return formatPrice(total, currency)
+  }, [cartItems, convertPrice, currency, defaultCurrency, formatPrice])
 
   return (
     <div className="relative" ref={containerRef}>
@@ -507,11 +521,7 @@ function CartWidget() {
                   {/* Show total, navigation links */}
                   <div className="border-t border-border pt-3 mt-4">
                     <div className="text-sm font-medium mb-3">
-                      {tStore('cart.total')}: {useDisplayPrice(cartItems.reduce((sum, item) => {
-                        // Prefer finalPrice (discounted?), else parse original
-                        const priceDefaultCurrency = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price || '0')
-                        return sum + (priceDefaultCurrency * item.quantity)
-                      }, 0))}
+                      {tStore('cart.total')}: {cartTotalLabel}
                     </div>
                     <div className="flex gap-2">
                       <Link

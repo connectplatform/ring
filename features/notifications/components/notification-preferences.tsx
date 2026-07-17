@@ -68,7 +68,8 @@ const notificationTypeGroups = {
   'Wallet & Transactions': [
     NotificationType.WALLET_CREATED,
     NotificationType.WALLET_TRANSACTION,
-    NotificationType.WALLET_BALANCE_LOW
+    NotificationType.WALLET_BALANCE_LOW,
+    NotificationType.PAYMENT_REQUEST,
   ],
   'System': [
     NotificationType.SYSTEM_MAINTENANCE,
@@ -106,6 +107,7 @@ const typeLabels = {
   [NotificationType.WALLET_CREATED]: 'Wallet creation confirmations',
   [NotificationType.WALLET_TRANSACTION]: 'Transaction confirmations',
   [NotificationType.WALLET_BALANCE_LOW]: 'Low balance alerts',
+  [NotificationType.PAYMENT_REQUEST]: 'Native-token payment requests in chat',
   [NotificationType.SYSTEM_MAINTENANCE]: 'Maintenance notifications',
   [NotificationType.SYSTEM_UPDATE]: 'System updates and new features',
   [NotificationType.MESSAGE_RECEIVED]: 'New messages',

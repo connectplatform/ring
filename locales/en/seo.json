@@ -334,18 +334,18 @@
     "ogDescription": "Shipped capabilities, token economy plans, and documentation milestones for Ring clones."
   },
   "calculator": {
-    "title": "Ring Platform Deployment Calculator",
-    "description": "Calculate deployment time, costs, and get a customized roadmap for launching your Ring platform.",
+    "title": "Ring Project Calculator",
+    "description": "Estimate ringization cost, Ringdom hosting, niche packs, modules, and milestones for your Ring SuperApp.",
     "keywords": [
       "Ring Platform",
-      "calculator",
-      "platform setup",
-      "cost estimation",
-      "deployment",
+      "project calculator",
+      "ringization",
+      "niche packs",
+      "Ringdom hosting",
       "white-label"
     ],
-    "ogTitle": "Ring Deployment Calculator",
-    "ogDescription": "Estimate time, cost, and modules for your Ring-powered community or marketplace."
+    "ogTitle": "Ring Project Calculator",
+    "ogDescription": "Niche packs, modules, RingBase/CDN/mail/DNS — realistic one-time and monthly founder costs."
   },
   "contact": {
     "title": "Contact Ring Platform - Get in Touch",

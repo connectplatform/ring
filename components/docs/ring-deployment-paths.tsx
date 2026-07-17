@@ -86,12 +86,6 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
             href: 'http://localhost:3000',
           },
         ],
-        includes: [
-          'All 20+ modules, PostgreSQL-primary, Auth.js v5',
-          'React 19 + Next.js 16 + install.sh scaffolding',
-          'Default branding — customize anytime',
-          'Zero licensing cost, forever',
-        ],
         docLink: { href: '/docs/getting-started/installation', label: 'Full installation guide' },
       },
       {
@@ -102,11 +96,7 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
           'Non-developers describe their Ring vision in conversational LegioX chat on legiox.pro — production hosting ships on Ringdom, managed Ring SaaS on ringdom.org.',
         tone: 'indigo',
         settlementPreview: true,
-        ringdomBlurb:
-          'Ringdom is managed Ring hosting SaaS: LegioX-guided ringization, Kubernetes operations, and ongoing settlement support — the turn-key path when you want outcomes instead of DIY ops.',
-        ringdomCta: { href: 'https://ringdom.org/new', label: 'Start on Ringdom' },
         route: [],
-        docLink: { href: 'https://legiox.pro', label: 'LegioX.pro' },
       },
       {
         id: 'promptor',
@@ -173,12 +163,6 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
             href: 'http://localhost:3000',
           },
         ],
-        includes: [
-          'Усі 20+ модулів, PostgreSQL-primary, Auth.js v5',
-          'React 19 + Next.js 16 + install.sh',
-          'Стандартний брендинг — налаштуйте будь-коли',
-          'Нульова вартість ліцензії назавжди',
-        ],
         docLink: { href: '/docs/getting-started/installation', label: 'Повний посібник з установки' },
       },
       {
@@ -189,11 +173,7 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
           'Не-розробники описують бачення Ring у розмовному чаті LegioX.pro — production-хостинг на Ringdom, managed Ring SaaS на ringdom.org.',
         tone: 'indigo',
         settlementPreview: true,
-        ringdomBlurb:
-          'Ringdom — managed Ring hosting SaaS: ringization під керівництвом LegioX, Kubernetes-операції та супровід поселення — turn-key шлях, коли потрібен результат, а не археологія репозиторію.',
-        ringdomCta: { href: 'https://ringdom.org/new', label: 'Start on Ringdom' },
         route: [],
-        docLink: { href: 'https://legiox.pro', label: 'LegioX.pro' },
       },
       {
         id: 'promptor',
@@ -260,12 +240,6 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
             href: 'http://localhost:3000',
           },
         ],
-        includes: [
-          'Все 20+ модулей, PostgreSQL-primary, Auth.js v5',
-          'React 19 + Next.js 16 + install.sh',
-          'Брендинг по умолчанию — настройте когда угодно',
-          'Нулевая стоимость лицензии навсегда',
-        ],
         docLink: { href: '/docs/getting-started/installation', label: 'Полное руководство по установке' },
       },
       {
@@ -276,11 +250,7 @@ const copy: Record<DeploymentLocale, LocaleCopy> = {
           'Не-разработчики описывают видение Ring в чате LegioX.pro — production-хостинг на Ringdom, managed Ring SaaS на ringdom.org.',
         tone: 'indigo',
         settlementPreview: true,
-        ringdomBlurb:
-          'Ringdom — managed Ring hosting SaaS: ringization под руководством LegioX, Kubernetes-операции и сопровождение поселения — turn-key путь, когда нужен результат, а не археология репозитория.',
-        ringdomCta: { href: 'https://ringdom.org/new', label: 'Start on Ringdom' },
         route: [],
-        docLink: { href: 'https://legiox.pro', label: 'LegioX.pro' },
       },
       {
         id: 'promptor',

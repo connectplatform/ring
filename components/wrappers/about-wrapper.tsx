@@ -37,6 +37,7 @@ export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
         { blockType: 'about-help' },
       ]}
       rightRail={rightRail}
+      flushCenterPane
       contentClassName="pb-24 lg:pb-8"
       railWidth={300}
       isOpen={rightSidebarOpen}

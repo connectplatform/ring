@@ -4,9 +4,9 @@
  * SSOT resolution (mirrors db() BackendSelector pattern):
  *   1. NEXT_PUBLIC_STORAGE_PROVIDER / STORAGE_PROVIDER env (deployment override)
  *   2. ring-config.json `storage.provider`
- *   3. Default: local_storage in development, vercel_blob in production
+ *   3. Default: ring_filebase (RingFileBase / CDN write path)
  *
- * Backends: vercel_blob | local_storage | ring_filebase | firebase_storage
+ * Backends: ring_filebase | vercel_blob | local_storage | firebase_storage
  */
 
 import { cache } from 'react'
@@ -82,9 +82,9 @@ export function getStorageConfig(): StorageConfig {
     default:
       return {
         ...baseConfig,
-        provider: StorageProvider.VERCEL_BLOB,
-        uploadUrl: '/api/upload/blob',
-        publicUrl: process.env.NEXT_PUBLIC_VERCEL_BLOB_URL,
+        provider: StorageProvider.RING_FILEBASE,
+        uploadUrl: '/api/upload/ring-filebase',
+        publicUrl: process.env.RINGBASE_PUBLIC_URL || process.env.NEXT_PUBLIC_LOCAL_STORAGE_URL,
       }
   }
 }
@@ -133,7 +133,7 @@ function readRingConfigStorageProvider(): string | undefined {
 }
 
 /**
- * Resolve storage provider — env override → ring-config → environment default.
+ * Resolve storage provider — env override → ring-config → ring_filebase.
  * Cached per-request (React cache) like other ring-config accessors.
  */
 export const getStorageProvider = cache((): StorageProvider => {
@@ -145,12 +145,8 @@ export const getStorageProvider = cache((): StorageProvider => {
   const fromConfig = normalizeStorageProvider(readRingConfigStorageProvider())
   if (fromConfig) return fromConfig
 
-  // Local/dev: avoid Vercel Blob (Node 25 undici stream.isDisturbed) unless explicitly chosen
-  if (process.env.NODE_ENV !== 'production') {
-    return StorageProvider.LOCAL_STORAGE
-  }
-
-  return StorageProvider.VERCEL_BLOB
+  // Platform default: RingFileBase (public write API / in-cluster API + CDN)
+  return StorageProvider.RING_FILEBASE
 })
 
 /**

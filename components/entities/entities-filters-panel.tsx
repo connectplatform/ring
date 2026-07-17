@@ -60,7 +60,8 @@ interface EntitiesFiltersPanelProps {
 
 const ANY_VERIFICATION = '__any__'
 
-const FILTER_ENTITY_TYPE_IDS: EntityType[] = [
+/** Featured quick-filter ids for the platform vertical; other presets fall back to their catalog order. */
+const FEATURED_FILTER_TYPE_IDS: EntityType[] = [
   'technologySoftware',
   'financialServices',
   'healthcareMedical',
@@ -71,15 +72,20 @@ const FILTER_ENTITY_TYPE_IDS: EntityType[] = [
   'other',
 ]
 
-const entityTypes = FILTER_ENTITY_TYPE_IDS.map((id) => {
-  const config = entityTypeConfigs.find((c) => c.id === id)!
-  return {
+const featuredConfigs = FEATURED_FILTER_TYPE_IDS
+  .map((id) => entityTypeConfigs.find((c) => c.id === id))
+  .filter((c): c is (typeof entityTypeConfigs)[number] => Boolean(c))
+
+// Non-platform presets (agricultural, …) won't match the featured industry ids —
+// show the first entries of the active catalog instead.
+const entityTypes = (featuredConfigs.length > 0 ? featuredConfigs : entityTypeConfigs.slice(0, 8)).map(
+  (config) => ({
     id: config.id,
     icon: config.icon,
     color: config.bgColor,
     label: config.label,
-  }
-})
+  })
+)
 
 export default function EntitiesFiltersPanel({
   initialFilters,

@@ -89,6 +89,13 @@ export interface VendorProfile {
   updatedAt: string
   lastActiveAt?: string
   notes?: string
+
+  /**
+   * Storefront promotions (vendor dashboard → checkout UX).
+   * Persisted in vendor_profiles.data.promotions (DB JSONB) — not ring-config.
+   * @see features/store/types/promotions.ts
+   */
+  promotions?: import('./promotions').VendorStorePromotions
 }
 
 // Payment Methods Configuration

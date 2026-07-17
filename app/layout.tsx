@@ -10,6 +10,8 @@ import {
   AppShellStaticFallback,
 } from '@/components/providers/app-client-shell'
 import { getPublicInstanceConfig } from '@/lib/ring-config-core'
+import { auth } from '@/auth'
+import type { PublicInstanceConfig } from '@/components/common/whitelabel/instance-config-client'
 import {
   DEFAULT_LOCALE,
   getClientLocaleConfig,
@@ -131,7 +133,27 @@ const LEGACY_BROWSER_SCRIPT = `
 })();
 `
 
-export default async function RootLayout({
+/**
+ * Session hydrate must live *inside* `<Suspense>` — `auth()` calls
+ * `connection()` (uncached). Awaiting it in RootLayout outside Suspense
+ * triggers Next.js 16 Blocking Route on every page.
+ */
+async function AuthenticatedAppShell({
+  instanceConfig,
+  children,
+}: {
+  instanceConfig: PublicInstanceConfig
+  children: React.ReactNode
+}) {
+  const session = await auth()
+  return (
+    <AppClientShell instanceConfig={instanceConfig} session={session}>
+      {children}
+    </AppClientShell>
+  )
+}
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
@@ -177,9 +199,9 @@ export default async function RootLayout({
       </head>
       <body className="font-inter antialiased">
         <Suspense fallback={<AppShellStaticFallback />}>
-          <AppClientShell instanceConfig={instanceConfig}>
+          <AuthenticatedAppShell instanceConfig={instanceConfig}>
             {children}
-          </AppClientShell>
+          </AuthenticatedAppShell>
         </Suspense>
       </body>
     </html>

@@ -1,22 +1,18 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { useLocale, useTranslations } from 'next-intl'
+import { Link, toAppHref } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import {
-  Award,
-  MessageSquare,
-  Phone,
-  Send,
-  Shield,
   Edit2,
   Settings,
   LogOut,
   Wallet,
-  ExternalLink,
+  Share2,
 } from 'lucide-react'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 
 export interface ProfileMenuItem {
   id: string
@@ -24,23 +20,23 @@ export interface ProfileMenuItem {
   icon: LucideIcon
 }
 
+/**
+ * DEAD_PROPS_LEDGER (trimmed 2026-07-16 from ProfileNavRailProps):
+ * - profileCompletion: number — never rendered in this rail (was passed from
+ *   profile-content.calculateProfileCompletion). Reapply if rail gets a progress
+ *   meter; currently SSOT for quest progress is UserProgressWidget.
+ * - communicationsForm: { telegramUsername?, whatsappNumber? } — never read;
+ *   was likely intended for quick-status badges. Communications tab owns the form.
+ * - kycStatus: string — never read; verification tab + UserProgressWidget own KYC.
+ * - user: Record<string, unknown> — never read; identity lives in profile hero.
+ */
 interface ProfileNavRailProps {
   activeTab: string
   setActiveTab: (tab: string) => void
   profileMenuItems: ProfileMenuItem[]
-  profileCompletion: number
-  communicationsForm: {
-    telegramUsername?: string
-    whatsappNumber?: string
-  }
-  kycStatus: string
-  user: Record<string, unknown>
   onNavigate?: () => void
-  /** Edit Profile: trigger inline edit mode */
   onEditProfile?: () => void
-  /** Navigate to /settings page */
   onNavigateSettings?: () => void
-  /** Sign out */
   onSignOut?: () => void
 }
 
@@ -48,25 +44,14 @@ export default function ProfileNavRail({
   activeTab,
   setActiveTab,
   profileMenuItems,
-  profileCompletion,
-  communicationsForm,
-  kycStatus,
-  user,
   onNavigate,
   onEditProfile,
   onNavigateSettings,
   onSignOut,
 }: ProfileNavRailProps) {
   const t = useTranslations('modules.profile')
-
-  const phoneNumber = (user as { phoneNumber?: string | null }).phoneNumber
-
-  const potentialRing =
-    700 -
-    (communicationsForm.telegramUsername ? 50 : 0) -
-    (communicationsForm.whatsappNumber ? 50 : 0) -
-    (phoneNumber ? 100 : 0) -
-    (kycStatus === 'approved' ? 500 : 0)
+  const tNav = useTranslations('navigation')
+  const locale = useLocale() as Locale
 
   const handleSelect = (tabId: string) => {
     setActiveTab(tabId)
@@ -76,7 +61,6 @@ export default function ProfileNavRail({
 
   return (
     <div className="space-y-2">
-      {/* Profile Navigation Sections */}
       <div className="mb-4">
         <div className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('profileSections')}
@@ -100,10 +84,9 @@ export default function ProfileNavRail({
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="mb-4">
         <div className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Quick Actions
+          {t('quickActions')}
         </div>
         <div className="flex flex-col gap-2 px-3">
           <Button
@@ -128,19 +111,25 @@ export default function ProfileNavRail({
             }}
           >
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            {t('settings')}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
-            onClick={() => {
-              setActiveTab('wallet')
-              onNavigate?.()
-            }}
-          >
-            <Wallet className="mr-2 h-4 w-4" />
-            Wallet
+          <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+            <Link
+              href={toAppHref(ROUTES.WALLET(locale))}
+              onClick={() => onNavigate?.()}
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              {t('wallet')}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+            <Link
+              href={toAppHref(ROUTES.REFCODES(locale))}
+              onClick={() => onNavigate?.()}
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              {tNav('refcodes')}
+            </Link>
           </Button>
           <Button
             variant="destructive"

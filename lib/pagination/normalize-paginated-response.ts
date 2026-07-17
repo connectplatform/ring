@@ -10,18 +10,32 @@ export function normalizePaginatedResponse<T extends { id: string }>(
 ): PaginatedListResponse<T> {
   const items =
     data.items ??
+    data.data ??
     data.opportunities ??
     data.entities ??
+    data.pools ??
+    data.transactions ??
+    data.notifications ??
     []
 
-  if (typeof data.hasMore === 'boolean') {
+  const explicitHasMore =
+    typeof data.hasMore === 'boolean'
+      ? data.hasMore
+      : typeof data.has_more === 'boolean'
+        ? data.has_more
+        : undefined
+
+  if (typeof explicitHasMore === 'boolean') {
     const cursor =
-      data.cursor ?? data.lastVisible ?? (data.hasMore && items.length > 0 ? items[items.length - 1].id : null)
-    return { items, cursor: data.hasMore ? cursor : null, hasMore: data.hasMore }
+      data.cursor ??
+      data.next_cursor ??
+      data.lastVisible ??
+      (explicitHasMore && items.length > 0 ? items[items.length - 1].id : null)
+    return { items, cursor: explicitHasMore ? cursor : null, hasMore: explicitHasMore }
   }
 
   const { nextCursor, hasMore } = computePaginationCursor(items, limit, (item) => item.id)
-  const cursor = data.cursor ?? data.lastVisible ?? nextCursor
+  const cursor = data.cursor ?? data.next_cursor ?? data.lastVisible ?? nextCursor
 
   return {
     items,

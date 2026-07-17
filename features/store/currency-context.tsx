@@ -27,6 +27,30 @@ export const EXCHANGE_RATES: Record<string, number> = getExchangeRates()
 const FIAT_CURRENCIES: StoreCurrency[] = getSupportedCurrencies()
 
 /**
+ * Legacy GreenFood token codes that may linger in localStorage carts / seeded DB rows.
+ * Map to this clone's native token when no explicit exchange rate exists.
+ */
+const LEGACY_CLONE_TOKEN_ALIASES: Record<string, StoreCurrency> = {
+  DAAR: NATIVE_TOKEN_CURRENCY,
+  DAARION: NATIVE_TOKEN_CURRENCY,
+}
+
+/**
+ * Resolve a product/list currency code to one that exists in exchangeRates.
+ * Unknown / empty / legacy clone tokens → defaultCurrency (or native via alias).
+ */
+export function resolveStorePriceCurrency(
+  code?: string | null,
+): StoreCurrency {
+  const raw = (code || '').trim().toUpperCase()
+  if (!raw) return DEFAULT_CURRENCY
+  if (typeof EXCHANGE_RATES[raw] === 'number') return raw
+  const aliased = LEGACY_CLONE_TOKEN_ALIASES[raw]
+  if (aliased && typeof EXCHANGE_RATES[aliased] === 'number') return aliased
+  return DEFAULT_CURRENCY
+}
+
+/**
  * Currencies the rail may display: all supported fiats + native token.
  * Only codes with a numeric exchange rate are included.
  */
@@ -142,12 +166,9 @@ export function StoreCurrencyProvider({ children }: { children: React.ReactNode 
 
   const convertPrice = useCallback(
     (amount: number, from: StoreCurrency, to: StoreCurrency): number => {
-      const fromCode = (from || DEFAULT_CURRENCY).trim()
-      const toCode = (to || DEFAULT_CURRENCY).trim()
+      const fromCode = resolveStorePriceCurrency(from)
+      const toCode = resolveStorePriceCurrency(to)
 
-      if (!fromCode || !toCode) {
-        throw new Error(`[convertPrice] Invalid currency: from=${from}, to=${to}`)
-      }
       if (typeof amount !== 'number' || Number.isNaN(amount)) {
         throw new Error('[convertPrice] Amount must be a number')
       }
@@ -156,7 +177,11 @@ export function StoreCurrencyProvider({ children }: { children: React.ReactNode 
       const fromRate = EXCHANGE_RATES[fromCode]
       const toRate = EXCHANGE_RATES[toCode]
       if (typeof fromRate !== 'number' || typeof toRate !== 'number') {
-        throw new Error(`[convertPrice] Exchange rate missing: from=${fromCode}, to=${toCode}`)
+        // Should be unreachable after resolveStorePriceCurrency — soft-fail for cart safety.
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`[convertPrice] Exchange rate missing: from=${fromCode}, to=${toCode}`)
+        }
+        return amount
       }
 
       const baseAmount = amount / fromRate

@@ -1,12 +1,17 @@
 import { file as fileService } from '@/lib/file'
+import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { cookies, headers } from 'next/headers'
 
 /**
+ * @deprecated Prefer POST `/api/uploads` with `purpose=chat:attachment` and `conversationId`.
+ * This route remains for backward compatibility; new clients should use the unified upload endpoint
+ * which returns `fileId` + `derivatives` for chat image thumbs.
+ *
  * Handles POST requests for uploading files to conversations.
  * Adds strict validation, authentication, and detailed logging.
- * 
+ *
  * @param {NextRequest} request - The incoming request object from Next.js.
  * @returns {Promise<NextResponse>} - Response object containing the file details or error message.
  */
@@ -133,6 +138,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // STUB: If fileService().upload relies on a stub/mock, replace with actual storage backend integration.
     const result = await fileService().upload(uniqueFileName, file, {
       access: 'public',
+      contentType: file.type || undefined,
+      ...ringbaseDerivativeUploadOptions('chat:attachment', file.type, 'public'),
     })
     // STUB: Above returns shape: { success: boolean, url: string, ... }
     // TODO: Implement S3, GCS, or public storage upload and return accurate output shape in fileService.
@@ -179,7 +186,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       conversationId: conversationId || null,
       fileCategory,
       uploadedAt: result.uploadedAt,
-      uploadedBy: userId
+      uploadedBy: userId,
+      ...(result.fileId ? { fileId: result.fileId } : {}),
+      ...(result.derivatives ? { derivatives: result.derivatives } : {}),
     }
 
     // Respond success with JSON, disabling caching of output.

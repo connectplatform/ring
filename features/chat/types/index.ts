@@ -1,5 +1,7 @@
 // /features/chat/types/index.ts
 
+import type { MediaDerivatives } from '@/lib/file/interfaces/IFileService'
+
 // Legacy interface - keeping for backward compatibility
 export interface chat {
   id: string;
@@ -15,10 +17,19 @@ export interface chat {
 
 export type RingTimestamp = string | Date;
 
+/** SSOT conversation type union — include order_lab for CRM Order Lab. */
+export type ConversationType =
+  | 'direct'
+  | 'entity'
+  | 'opportunity'
+  | 'product'
+  | 'group'
+  | 'order_lab'
+
 // Enhanced conversation management types
 export interface Conversation {
   id: string
-  type: 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
+  type: ConversationType
   participants: ConversationParticipant[]
   lastMessage?: Message
   lastActivity: RingTimestamp
@@ -41,6 +52,11 @@ export interface Conversation {
     archivedBy?: string[]
     /** Mute notifications: user ids who muted this conversation */
     mutedBy?: string[]
+    /** Tool editors (generative gallery, etc.) — hide from main Messages inbox */
+    kind?: string
+    hiddenFromInbox?: boolean
+    /** CRM Order Lab — linked project order id */
+    orderId?: string
   }
   createdAt: RingTimestamp
   updatedAt: RingTimestamp
@@ -65,13 +81,31 @@ export interface Message {
   senderName: string
   senderAvatar?: string
   content: string
-  type: 'text' | 'image' | 'file' | 'system'
+  type: 'text' | 'image' | 'file' | 'system' | 'payment_request'
   status: 'sending' | 'sent' | 'delivered' | 'read'
   replyTo?: string
   attachments?: MessageAttachment[]
   timestamp: RingTimestamp
   editedAt?: RingTimestamp
   reactions?: MessageReaction[]
+  /** Structured payload (e.g. payment_request widget). */
+  metadata?: Record<string, unknown>
+}
+
+export interface PaymentRequestMetadata {
+  kind: 'payment_request'
+  amount: string
+  tokenSymbol: string
+  note?: string
+  requesterUserId: string
+  requesterWalletAddress: string
+  status: 'pending' | 'paid' | 'cancelled'
+  paidAt?: string
+  paidByUserId?: string
+  paidTxHash?: string
+  paidWalletTxId?: string
+  payNote?: string
+  cancelledAt?: string
 }
 
 export interface MessageAttachment {
@@ -81,6 +115,10 @@ export interface MessageAttachment {
   name: string
   size: number
   mimeType: string
+  /** RingBase UUID when uploaded via /api/uploads. */
+  fileId?: string
+  /** RingBase derivative ladder (gallery profile for chat images). */
+  derivatives?: MediaDerivatives
 }
 
 export interface MessageReaction {
@@ -98,7 +136,7 @@ export interface TypingIndicator {
 
 // Request/Response types for API
 export interface CreateConversationRequest {
-  type: 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
+  type: ConversationType
   participantIds: string[]
   /** When set, this user is always assigned admin (group creator). */
   creatorUserId?: string
@@ -114,23 +152,28 @@ export interface CreateConversationRequest {
     subject?: string
     vendorId?: string
     groupName?: string
+    kind?: string
+    hiddenFromInbox?: boolean
+    orderId?: string
   }
 }
 
 export interface SendMessageRequest {
   conversationId: string
   content: string
-  type?: 'text' | 'image' | 'file' | 'system'
+  type?: 'text' | 'image' | 'file' | 'system' | 'payment_request'
   replyTo?: string
   attachments?: Omit<MessageAttachment, 'id'>[]
+  metadata?: Record<string, unknown>
 }
 
 export interface ConversationFilters {
-  type?: 'direct' | 'entity' | 'opportunity' | 'product' | 'group'
+  type?: ConversationType
   isActive?: boolean
   entityId?: string
   opportunityId?: string
   productId?: string
+  orderId?: string
   lastActivity?: {
     from?: RingTimestamp
     to?: RingTimestamp

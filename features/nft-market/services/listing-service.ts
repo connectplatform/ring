@@ -164,6 +164,7 @@ export async function createListingDraft(data: any): Promise<ServiceResult<NftMa
         description,
         imageUri: input.imageUri ?? policy.ownership?.imageUri ?? collection.imageUri,
         metadataUri: input.metadataUri ?? policy.ownership?.metadataUri,
+        showcase: policy.ownership?.showcase,
         attributes: input.attributes,
         sellerUserId,
         sellerUsername,

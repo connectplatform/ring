@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import type { MediaImageAsset } from '@/lib/file/media-asset';
 
 // News visibility levels
 export type NewsVisibility = 'public' | 'subscriber' | 'member' | 'confidential' | 'blog-only' | 'site-wide';
@@ -59,8 +60,10 @@ export interface NewsArticle {
   category: NewsCategory;
   tags: string[];
   featuredImage?: string;
+  /** RingBase asset with optional derivatives ladder (SSOT: MediaImageAsset). */
+  featuredImageAsset?: MediaImageAsset;
   audioUrl?: string;
-  gallery?: string[];
+  gallery?: MediaImageAsset[];
   status: NewsStatus;
   visibility: NewsVisibility;
   featured: boolean;
@@ -159,8 +162,9 @@ export interface NewsFormData {
   category: NewsCategory;
   tags: string[];
   featuredImage?: string;
+  featuredImageAsset?: MediaImageAsset;
   audioUrl?: string;
-  gallery?: string[];
+  gallery?: MediaImageAsset[];
   status: NewsStatus;
   visibility: NewsVisibility;
   featured: boolean;

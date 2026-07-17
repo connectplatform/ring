@@ -133,7 +133,7 @@ export async function POST(
     }
 
     // Validate type if provided (must be one of known types)
-    const validTypes = ['text', 'image', 'file', 'system']
+    const validTypes = ['text', 'image', 'file', 'system', 'payment_request']
     if (messageData.type && !validTypes.includes(messageData.type)) {
       return NextResponse.json(
         { error: 'Invalid message type' },
@@ -147,7 +147,11 @@ export async function POST(
       content: messageData.content.trim(),
       type: messageData.type || 'text',
       replyTo: messageData.replyTo,
-      attachments: messageData.attachments
+      attachments: messageData.attachments,
+      metadata:
+        messageData.metadata && typeof messageData.metadata === 'object'
+          ? (messageData.metadata as Record<string, unknown>)
+          : undefined,
     }
 
     // Call message service to send (and persist) the message

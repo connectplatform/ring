@@ -1,0 +1,118 @@
+{
+  "title": "Notificaciones",
+  "metadata": {
+    "title": "Notificaciones"
+  },
+  "metaDescription": {
+    "description": "Ver y gestionar tus notificaciones en Ring Platform"
+  },
+  "status": {
+    "topic": "Tema",
+    "notificationId": "ID de notificación",
+    "subscriptionId": "ID de suscripción",
+    "deviceRegistered": "Dispositivo registrado",
+    "failureReason": "Motivo del fallo",
+    "denialReason": "Motivo del rechazo",
+    "cancellationReason": "Motivo de cancelación",
+    "needHelp": "¿Necesitas ayuda? Contacta con nuestro equipo de soporte",
+    "actions": {
+      "manageNotifications": "Gestionar notificaciones",
+      "manageSubscriptions": "Gestionar suscripciones",
+      "viewNotifications": "Ver notificaciones",
+      "viewAllNotifications": "Ver todas las notificaciones",
+      "backToApp": "Volver a la app",
+      "retryPermission": "Reintentar permiso",
+      "retrySubscription": "Reintentar suscripción",
+      "retrySending": "Reintentar envío",
+      "resubscribe": "Volver a suscribirse",
+      "getHelp": "Obtener ayuda",
+      "viewSupportedBrowsers": "Ver navegadores compatibles",
+      "checkSettings": "Comprobar ajustes",
+      "checkStatus": "Comprobar estado",
+      "contactSupport": "Contactar soporte"
+    },
+    "permission": {
+      "granted": {
+        "title": "¡Notificaciones activadas!",
+        "description": "Ahora recibirás notificaciones push de Ring Platform. Puedes gestionar tus preferencias en cualquier momento."
+      },
+      "denied": {
+        "title": "Notificaciones bloqueadas",
+        "description": "Las notificaciones push están bloqueadas para este sitio. Actívalas en los ajustes del navegador o haz clic en el icono de permisos de la barra de direcciones."
+      },
+      "pending": {
+        "title": "Permiso requerido",
+        "description": "Permite las notificaciones para recibir actualizaciones y mensajes importantes de Ring Platform.",
+        "waiting": "Esperando tu permiso…"
+      },
+      "unsupported": {
+        "title": "Notificaciones no compatibles",
+        "description": "Tu navegador o dispositivo no admite notificaciones push. Usa un navegador moderno para la mejor experiencia.",
+        "browserInfo": "Navegadores compatibles: Chrome, Firefox, Safari y Edge en escritorio y móvil."
+      }
+    },
+    "subscribe": {
+      "subscribed": {
+        "title": "¡Suscripción correcta!",
+        "description": "Ya estás suscrito a las notificaciones y recibirás actualizaciones relevantes.",
+        "activeSubscription": "Tu suscripción está activa y las notificaciones están habilitadas."
+      },
+      "unsubscribed": {
+        "title": "Suscripción cancelada",
+        "description": "Te has dado de baja de las notificaciones. Puedes volver a suscribirte cuando quieras."
+      },
+      "failed": {
+        "title": "Error de suscripción",
+        "description": "No pudimos suscribirte por un problema técnico. Inténtalo de nuevo o contacta con soporte."
+      },
+      "pending": {
+        "title": "Procesando suscripción",
+        "description": "Tu solicitud de suscripción se está procesando. Debería completarse en breve."
+      }
+    },
+    "send": {
+      "sent": {
+        "title": "Notificación enviada",
+        "description": "Tu notificación se ha enviado correctamente a todos los suscriptores."
+      },
+      "delivered": {
+        "title": "¡Notificación entregada!",
+        "description": "Tu notificación se ha entregado en el dispositivo del destinatario.",
+        "deliveryConfirmed": "Entrega confirmada por el servicio de notificaciones."
+      },
+      "failed": {
+        "title": "Error de envío",
+        "description": "No pudimos enviar tu notificación por un problema técnico. Inténtalo de nuevo."
+      },
+      "pending": {
+        "title": "Enviando notificación",
+        "description": "Tu notificación se está enviando. Puede tardar unos momentos."
+      }
+    },
+    "deliver": {
+      "delivered": {
+        "title": "Mensaje entregado",
+        "description": "Tu mensaje se ha entregado correctamente al destinatario.",
+        "deliveryConfirmed": "El mensaje se entregó en el dispositivo del destinatario."
+      },
+      "read": {
+        "title": "Mensaje leído",
+        "description": "Tu mensaje ha sido leído por el destinatario."
+      },
+      "failed": {
+        "title": "Error de entrega",
+        "description": "Tu mensaje no pudo entregarse. Puede deberse a ajustes del dispositivo o problemas de conectividad."
+      },
+      "cancelled": {
+        "title": "Entrega cancelada",
+        "description": "La entrega del mensaje se canceló antes de llegar al destinatario."
+      }
+    }
+  },
+  "pushPrompt": {
+    "title": "Activar notificaciones push",
+    "description": "Recibe actualizaciones en tiempo real sobre colaboraciones, comentarios y estado de publicación.",
+    "enable": "Activar",
+    "notNow": "Ahora no"
+  }
+}

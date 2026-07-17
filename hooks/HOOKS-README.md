@@ -99,9 +99,13 @@ function NotificationSettings() {
 |------|------|------------------|
 | `useCreditBalance` | `use-credit-balance.ts` | **`CreditBalanceProvider`** — use `useCreditBalanceContext()` in UI |
 | `useCreditHistory` | `use-credit-history.ts` | **`CreditHistoryProvider`** (wallet shell) — use `useCreditHistoryContext()` in UI |
-| `useWalletBalance` | `use-wallet-balance.ts` | Web3Provider tree |
-| `useTokenBalance` | `use-token-balance.ts` | on-chain reads |
+| `usePrimaryNativeBalance` | `use-primary-native-balance.ts` | Client SSOT for custodial primary native RING via `GET /api/wallet/list` (profile + mobile widget) |
+| `useTokenBalance` | `use-token-balance.ts` | **`@deprecated`** alias → `usePrimaryNativeBalance` (do not use in new code) |
 | `useWalletActions` | `use-wallet-actions.ts` | wallet mutations |
+
+> **Note:** There is no `useNativeTokenBalance` / `useWalletBalance` React hook in this tree.
+> Server on-chain reads use `getNativeTokenBalance` / `getNativeTokenBalanceForUser`;
+> UI credit balances use `useCreditBalanceContext()`.
 
 ---
 

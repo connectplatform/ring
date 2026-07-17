@@ -1,0 +1,22 @@
+{
+  "title": "Mood Player",
+  "playlists": "Плейлисти настрою",
+  "newPlaylist": "Новий плейлист",
+  "editPlaylist": "Редагувати плейлист",
+  "songs": "Пісні",
+  "moods": "Настрої",
+  "addSong": "Додати пісню",
+  "addMood": "Додати настрій",
+  "upload": "Завантажити",
+  "generate": "Згенерувати",
+  "importUrlSoon": "Імпорт URL (скоро)",
+  "save": "Зберегти плейлист",
+  "shiftMood": "Настрій",
+  "lyrics": "Текст",
+  "original": "Оригінал",
+  "noSongs": "У цьому плейлисті ще немає пісень.",
+  "noPlaylists": "Плейлистів ще немає. Створіть перший — і почніть зцілення музикою.",
+  "embedHint": "Вставте <ring-mood-player playlist=\"…\">",
+  "publicSongsTitle": "{name} — Пісні",
+  "publicSongsSubtitle": "Ті самі слова, різні настрої. Далі/Назад — пісні, Настрій — аранжування."
+}

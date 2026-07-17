@@ -15,11 +15,10 @@
  * Mode: 'create' | 'edit'
  */
 
-import React, { useState, useTransition } from 'react'
+import React, { useState } from 'react'
 import { useActionState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Upload, X, Loader2, Save, ArrowLeft, Link as LinkIcon, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -44,10 +43,17 @@ import { STORE_PRODUCT_CATEGORIES } from '@/lib/zod/store-product'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import NicheProductFieldsSection from '@/components/vendor/niche-product-fields-section'
+import { ProductPromotionsFields } from '@/components/vendor/product-promotions-fields'
 import ProductRepSelect from '@/components/store/product-rep-select'
+import { GenerativeMediaField } from '@/features/generative-media/components/generative-media-field'
+import {
+  galleryFromUrlList,
+  primaryGalleryUrl,
+  type GenerativeGalleryValue,
+} from '@/features/generative-media/types'
 import { useStoreCurrency } from '@/features/store/currency-context'
 import { displayPriceFromUah, getCurrencySymbol } from '@/lib/zod/store-product'
-import { getProductFieldsPresets } from '@/lib/ring-config-core'
+import { getProductFieldsPreset } from '@/lib/ring-config-core'
 import type { StoreCurrency } from '@/lib/zod/store-product'
 
 interface ProductFormProps {
@@ -61,7 +67,7 @@ interface ProductFormProps {
 }
 
 const PRODUCT_CATEGORIES = [...STORE_PRODUCT_CATEGORIES]
-const HAS_NICHE_PRODUCT_FIELDS = getProductFieldsPresets() !== null && Object.keys(getProductFieldsPresets() ?? {}).length > 0
+const HAS_NICHE_PRODUCT_FIELDS = getProductFieldsPreset() !== 'platform'
 
 export default function ProductForm({
   mode,
@@ -127,12 +133,15 @@ export default function ProductForm({
     }
   }, [state, variant, router, backHref])
 
-  // React 19 useTransition for non-blocking file upload handling
-  const [isFilePending, startFileTransition] = useTransition()
-
-  // Form state
-  const [photos, setPhotos] = useState<File[]>([])
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>(existingProduct?.images || [])
+  // Form state — generative gallery SSOT (Upload | Generate)
+  const [gallery, setGallery] = useState<GenerativeGalleryValue>(() => {
+    const fromDoc =
+      existingProduct?.generativeGallery || existingProduct?.data?.generativeGallery
+    if (fromDoc?.items?.length) return fromDoc as GenerativeGalleryValue
+    return galleryFromUrlList(
+      Array.isArray(existingProduct?.images) ? (existingProduct.images as string[]) : [],
+    )
+  })
   const [video, setVideo] = useState<File | null>(null)
   const [videoPreview, setVideoPreview] = useState<string | null>(existingProduct?.data?.videoUrl || null)
   const [activeInMyStore, setActiveInMyStore] = useState<boolean>(existingProduct?.status === 'active' || true)
@@ -151,47 +160,6 @@ export default function ProductForm({
       setPriceInput(String(displayPriceFromUah(Number(existingProduct.price), currency)))
     }
   }, [currency, existingProduct?.price])
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    
-    if (photos.length + files.length > 5) {
-      alert(tProducts('validation.photoCountExceeded'))
-      return
-    }
-    
-    // Validate each file
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(tProducts('validation.photoSizeExceeded'))
-        return
-      }
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        alert(tProducts('validation.photoInvalidType'))
-        return
-      }
-    }
-    
-    // Wrap file handling in useTransition for non-blocking UI updates
-    startFileTransition(() => {
-      // Add to photos array
-      setPhotos(prev => [...prev, ...files])
-
-      // Create previews
-      files.forEach(file => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setPhotoPreviews(prev => [...prev, reader.result as string])
-        }
-        reader.readAsDataURL(file)
-      })
-    })
-  }
-
-  const handleRemovePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index))
-    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
-  }
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -316,50 +284,33 @@ export default function ProductForm({
   function renderProductFields() {
     return (
       <>
-            {/* Photo Upload */}
+            {/* Generative gallery SSOT (Upload | Generate) */}
             <div className="space-y-2">
               <Label>{tForm('photo')} *</Label>
               <p className="text-xs text-muted-foreground">{tForm('photoHint')}</p>
-              
-              <div className="grid grid-cols-3 gap-4">
-                {photoPreviews.map((preview, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-border">
-                    <Image src={preview} alt={`Product ${index + 1}`} fill className="object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhoto(index)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    {index === 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-emerald-600 text-white text-xs py-1 text-center">
-                        {tForm('mainPhoto')}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {photos.length + photoPreviews.length < 5 && (
-                  <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-colors">
-                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                    <span className="text-xs text-muted-foreground">{tForm('addPhoto')}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                      disabled={isPending}
-                    />
-                  </label>
-                )}
-              </div>
-              
-              {/* Hidden inputs for form submission */}
-              {photos.map((photo, index) => (
-                <input key={index} type="hidden" name={`photo-${index}`} value="file-attached" />
-              ))}
+              <GenerativeMediaField
+                name="productPrimaryImage"
+                imagesFieldName="productImages"
+                scope="product"
+                fieldId="photos"
+                pageSlug="vendor-product"
+                purpose="product-image"
+                maxItems={5}
+                entityId={existingProduct?.id ? String(existingProduct.id) : undefined}
+                actionUrl={mode === 'edit' && existingProduct?.id
+                  ? (variant === 'admin'
+                    ? `/${locale}/admin/store/products/${existingProduct.id}/edit`
+                    : `/${locale}/vendor/products/${existingProduct.id}/edit`)
+                  : `/${locale}/vendor/products/new`}
+                context={{
+                  name: existingProduct?.name,
+                  category: selectedCategory || existingProduct?.category,
+                  description: existingProduct?.description,
+                  vendorName: vendorEntity?.name,
+                }}
+                value={gallery}
+                onChange={setGallery}
+              />
             </div>
 
             {/* Product Name */}
@@ -397,6 +348,18 @@ export default function ProductForm({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Per-product promotions (BOGO / % / amount) */}
+            <ProductPromotionsFields
+              initial={
+                Array.isArray(existingProduct?.promotions)
+                  ? existingProduct.promotions
+                  : Array.isArray(existingProduct?.data?.promotions)
+                    ? existingProduct.data.promotions
+                    : []
+              }
+              disabled={isPending}
+            />
 
             {/* Custom Product Fields (injected via sql migrations on deploy per ring-store-niche preset) */}
             {HAS_NICHE_PRODUCT_FIELDS && (
@@ -600,7 +563,7 @@ export default function ProductForm({
             <div className="flex items-center gap-4 pt-4">
               <Button
                 type="submit"
-                disabled={isPending || photoPreviews.length === 0}
+                disabled={isPending || !primaryGalleryUrl(gallery)}
                 className="flex-1 bg-gradient-to-r from-emerald-600 to-lime-600 hover:from-emerald-700 hover:to-lime-700"
               >
                 {isPending ? (

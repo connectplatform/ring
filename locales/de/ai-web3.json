@@ -1,0 +1,95 @@
+{
+  "title": "KI trifft Web3 – Ring & Connect.Software",
+  "description": "So verbindet die Ring Platform (und Produkte wie Connect.Software) KI-gestütztes Matching, RING-Token-Ökonomie und Web3-Governance: klar erklärbar, auditierbar und auf echte Kooperation ausgelegt.",
+  "badge": "KI + Web3",
+  "hero": {
+    "title": "KI und Web3 als gemeinsame Infrastruktur",
+    "subtitle": "Ring kombiniert moderne Web-Oberflächen mit Wallet- und Token-Schichten. KI schlägt passende Menschen und nächste Schritte vor; Smart Contracts und Ledger fassen Vereinbarungen und Abrechnungen zusammen – ohne Marketingversprechen statt Engineering."
+  },
+  "concept": {
+    "ai": {
+      "title": "KI-gestütztes Opportunity-Matching",
+      "description": "Der Matcher wertet Profile, Skills, Verlauf und Kontext mit mehreren Faktoren aus, um passende Teams oder Partnerinnen vorzuschlagen. Ziel ist weniger Streuverlust und mehr erklärbare Treffer – Kennzahlen wie „94 %“ sind Zielgrößen aus Produktmessungen, keine Garantie im Einzelfall."
+    },
+    "web3": {
+      "title": "RING als Nutzungs- und Governance-Layer",
+      "description": "RING-Token bündeln Mikrozahlungen, Zugang zu KI-Features und Abstimmungen. Verteilung und Gebührenlogik werden über Verträge und Community-Regeln transparent gehalten; genaue Parameter folgen der jeweils deployten Ring-Instanz."
+    }
+  },
+  "fusion": {
+    "title": "Wo beides zusammenwirkt",
+    "intelligence": {
+      "title": "Orchestrierte Zusammenarbeit",
+      "description": "Neue Opportunities können automatisch qualifizierte Profile benachrichtigen – mit kurzen, nachvollziehbaren Begründungen. So entstehen schneller Arbeitsgruppen für Software-, Forschungs- oder Integrationsprojekte."
+    },
+    "trust": {
+      "title": "Nachvollziehbare Leistungen",
+      "description": "On-Chain- oder verknüpfte Belege können Zahlungen, Liefernachweise und Reputation stützen. Smart Contracts automatisieren Freigaben, sobald definierte Meilensteine erfüllt sind."
+    },
+    "automation": {
+      "title": "Anreize ohne Dauerfeuer",
+      "description": "Belohnungen und Gebühren lassen sich an Nutzung, Qualität und Auslastung koppeln – damit Angebote für Marktplatz, Editor-Nutzung und Community-Services im Gleichgewicht bleiben."
+    }
+  },
+  "features": {
+    "title": "Bausteine der Ring-KI-Web3-Suite",
+    "smartMatching": {
+      "title": "Erklärbares Matching",
+      "description": "Profile, frühere Kooperationen und Erfolgsmetriken fließen in Vorschläge ein; das System soll aus Feedback lernen und weniger „leere“ Matches produzieren."
+    },
+    "decentralized": {
+      "title": "DAO- und Abstimmungsmuster",
+      "description": "Token-Inhaberinnen können über Parameter, Feature-Prioritäten und Gebühren abstimmen – je nach Governance-Design der jeweiligen Ring-Deployment."
+    },
+    "collective": {
+      "title": "Netzwerke kollektiver Intelligenz",
+      "description": "KI kann komplementäre Expertise über Standorte und Fachdisziplinen hinweg sichtbar machen und Lücken in Teams oder Publikationspipelines adressieren."
+    },
+    "adaptive": {
+      "title": "Kontinuierliche Verbesserung",
+      "description": "Modelle und Heuristiken werden aus Transaktionen, Tickets und erfolgreichen Projekten nachgescharft – immer im Rahmen von Datenschutz und Produktpolicies."
+    }
+  },
+  "architecture": {
+    "title": "Technische Einbettung",
+    "frontend": {
+      "title": "React & Next.js Oberfläche",
+      "description": "Server Components, Streaming und Echtzeitkanäle (u. a. ConnectPlatform-Tunnel) liefern schnelle UX; Wallet-Connect ergänzt klassische Auth."
+    },
+    "ai": {
+      "title": "Modulare KI-Pipeline",
+      "description": "Sprachmodelle für Text/Zusammenfassung, Scoring-Komponenten für Matching und Monitoring für Kosten/Qualität – betrieblich getrennt konfigurierbar."
+    },
+    "blockchain": {
+      "title": "Multi-Chain-fähige Schicht",
+      "description": "RING und Partner-Tokens können über mehrere Netze und Brücken laufen; Verträge kapseln Escrow, Staking und Abrechnungen."
+    },
+    "integration": {
+      "title": "Orchestrierung KI ↔ Kette",
+      "description": "Wenn ein Match oder ein Workflow „go“ erhält, können Verträge Zahlungsströme und Freigaben auslösen – menschliche Freigaben bleiben dort vorgesehen, wo Risiko es verlangt."
+    }
+  },
+  "future": {
+    "title": "Roadmap-Richtung",
+    "nearTerm": {
+      "title": "Phase 1: tiefere Modelle (2025)",
+      "item1": "Mehr Signalquellen pro Opportunity und bessere Erklärbarkeit der Scores",
+      "item2": "Sichere Anbindung weiterer DeFi- und Zahlungskorridore nach Bedarf der Ring-Kunden",
+      "item3": "Live-Anpassung von Schwellen und Benachrichtigungsfrequenz nach Nutzungsdaten"
+    },
+    "longTerm": {
+      "title": "Phase 2: stärker automatisierte Workflows (2026+)",
+      "item1": "Mehrstufige Projekt-Orchestrierung mit Eskalationspfaden und menschlicher Kontrolle",
+      "item2": "DAO-Strukturen mit KI-unterstützter Protokollierung und Prüfpfaden",
+      "item3": "Ökonomische Schleifen, die messbare Wertschöpfung für Communities priorisieren – ohne „Singularitäts“-Metapher"
+    }
+  },
+  "gettingStarted": {
+    "title": "Einstieg in KI + Web3 auf Ring",
+    "subtitle": "Von Connect.Software bis Marktplatz-Klone: dasselbe technische Rückgrat, andere Vertical-Konfiguration.",
+    "step1": "Profil pflegen und optional Web3-Wallet verbinden",
+    "step2": "Opportunity-Benachrichtigungen und Editor-/Store-Flows ausprobieren",
+    "step3": "An Governance teilnehmen und RING-Nutzung nach Instanz-Regeln planen",
+    "cta": "Jetzt loslegen"
+  }
+}

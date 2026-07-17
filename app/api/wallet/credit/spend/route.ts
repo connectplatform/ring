@@ -5,17 +5,18 @@ import { CreditSpendRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
 import {
   formatCreditAmount,
-  getCreditCurrencyCode,
+  getCreditUnitLabel,
   getFiatCreditAccountingRate,
 } from '@/lib/payments/credit-currency';
 
 /**
  * POST /api/wallet/credit/spend
- * Spend platform credit-balance points via WalletConductor.spendCredits.
+ * Spend platform credit-balance units via WalletConductor.spendCredits.
  * (Not PaymentConductor — that owns checkout/PSP rails; this is a direct ledger debit API.)
  *
- * Accounting rate = ring-config credit.unitToDefaultCurrency (fiat points → defaultCurrency).
- * Native-token oracle is desk-only — never used for fiat credit spend.
+ * Ledger units = credit.creditUnitLabel (default "points").
+ * Accounting rate = getFiatCreditAccountingRate() ← credit.unitToDefaultCurrency
+ *   (credit units → store.defaultCurrency). Never native-token oracle.
  *
  * Founders /docs/api tree documents POST only.
  */
@@ -51,22 +52,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate amount limits
+    // Validate amount limits (amounts are credit units / points)
     const amount = parseFloat(validatedRequest.amount);
-    const creditCurrency = getCreditCurrencyCode();
+    const creditUnit = getCreditUnitLabel();
     const maxSpendAmount = 1000;
     const minSpendAmount = 0.01;
 
     if (amount > maxSpendAmount) {
       return NextResponse.json(
-        { error: `Maximum spend amount is ${formatCreditAmount(maxSpendAmount, creditCurrency)} per transaction` },
+        { error: `Maximum spend amount is ${formatCreditAmount(maxSpendAmount, creditUnit)} per transaction` },
         { status: 400 }
       );
     }
 
     if (amount < minSpendAmount) {
       return NextResponse.json(
-        { error: `Minimum spend amount is ${formatCreditAmount(minSpendAmount, creditCurrency)}` },
+        { error: `Minimum spend amount is ${formatCreditAmount(minSpendAmount, creditUnit)}` },
         { status: 400 }
       );
     }
@@ -96,8 +97,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fiat points → defaultCurrency (SSOT). Not native-token oracle.
-    const usdRate = getFiatCreditAccountingRate()
+    // Credit units → store.defaultCurrency (SSOT). Not native-token oracle.
+    const creditUnitToDefaultCurrencyRate = getFiatCreditAccountingRate()
 
     // Determine transaction type based on metadata or order context
     let transactionType: 'purchase' | 'membership_fee' | 'payment' = 'purchase';
@@ -117,7 +118,8 @@ export async function POST(request: NextRequest) {
       referenceId: validatedRequest.reference_id,
       metadata: validatedRequest.metadata as Record<string, unknown> | undefined,
       type: transactionType,
-      usdRate,
+      // Param name `usdRate` is legacy; value is unitToDefaultCurrency rate string.
+      usdRate: creditUnitToDefaultCurrencyRate,
     })
 
     if (!result.success) {
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
       new_balance: result.newBalance,
       amount_spent: validatedRequest.amount,
       usd_equivalent: Math.abs(parseFloat(result.usdEquivalent || '0')).toString(),
-      message: `Successfully spent ${formatCreditAmount(validatedRequest.amount, creditCurrency)}`,
+      message: `Successfully spent ${formatCreditAmount(validatedRequest.amount, creditUnit)}`,
     });
 
   } catch (error) {

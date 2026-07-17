@@ -1,12 +1,12 @@
 ---
 title: Email AI-CRM developer guide
 description: Local .env.local setup, migrations, cron poll, SMTP smoke test, and production cron
-last_modified: "2026-06-10"
+last_modified: "2026-07-17"
 ---
 
 # Email AI-CRM developer guide
 
-Set up the Email AI-CRM module on a **local or self-hosted** Ring clone: configure `.env.local`, apply JSONB migrations when using Postgres, then verify ingest and draft send from the admin UI.
+Set up the Email AI-CRM module on a **local or self-hosted** Ring clone: configure `.env.local`, apply JSONB migrations when using Postgres, then verify ingest and draft send from the admin CRM UI (`/admin/crm/*`).
 
 ## 1. Local environment
 
@@ -79,8 +79,8 @@ curl -X POST "http://localhost:3000/api/webhooks/email/inbound" \
 
 1. Send a test message to your configured inbox (`IMAP_USER`).
 2. Run cron `poll` (or use the webhook example above).
-3. Open **Admin → Email Inbox** — thread should appear.
-4. Open **Email Drafts** — approve a draft, click send.
+3. Open **Admin → CRM Inbox** (`/admin/crm/inbox`) — thread should appear.
+4. Open **CRM Drafts** (`/admin/crm/drafts`) — approve a draft, click send.
 5. Confirm reply in the sender mailbox and an outbound row in `email_messages`.
 
 Only then set `EMAIL_AUTO_SEND_ENABLED=true`.
@@ -89,12 +89,15 @@ Only then set `EMAIL_AUTO_SEND_ENABLED=true`.
 
 | Page | URL | Expect |
 |------|-----|--------|
-| Inbox | `/{locale}/admin/email-inbox` | Live threads from API |
-| Thread | `/{locale}/admin/email-inbox/<threadId>` | Message timeline |
-| Drafts | `/{locale}/admin/email-drafts` | Approve / reject / send |
-| Contacts | `/{locale}/admin/email-contacts` | CRM from processor |
-| Analytics | `/{locale}/admin/email-analytics` | Cost from `email_api_usage` |
-| Tasks | `/{locale}/admin/email-tasks` | Auto-created follow-ups |
+| Inbox | `/{locale}/admin/crm/inbox` | Live threads from API |
+| Thread | `/{locale}/admin/crm/inbox/<threadId>` | Message timeline |
+| Drafts | `/{locale}/admin/crm/drafts` | Approve / reject / send |
+| Contacts | `/{locale}/admin/crm/contacts` | CRM from processor |
+| Analytics | `/{locale}/admin/crm/analytics` | Cost from `email_api_usage` |
+| Tasks | `/{locale}/admin/crm/tasks` | Auto-created follow-ups |
+| Orders | `/{locale}/admin/crm/orders` | Project orders desk (Owner Project Lab) |
+
+All seven CRM pages use `CrmAdminShell` (horizontal tabs; no right rail). APIs remain `/api/admin/email/*`.
 
 ## 6. Production cron
 

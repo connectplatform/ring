@@ -168,6 +168,7 @@ export async function generateNewsArticle(input: GenerateArticleInput): Promise<
     const translationGroupId = randomUUID()
 
     let featuredImage: string | undefined
+    let featuredImageAsset: NewsFormData['featuredImageAsset']
     const enableImage = input.enableImage !== false
     if (enableImage) {
       const imageResult = await ImageConductor.generate({
@@ -177,7 +178,12 @@ export async function generateNewsArticle(input: GenerateArticleInput): Promise<
         actorId: input.author.id,
       })
       if (imageResult.success && imageResult.images?.[0]?.url) {
-        featuredImage = imageResult.images[0].url
+        const img = imageResult.images[0]
+        featuredImage = img.url
+        featuredImageAsset = {
+          url: img.url,
+          ...(img.fileId ? { fileId: img.fileId } : {}),
+        }
       } else if (imageResult.error) {
         logger.warn('[article-generator] featured image failed', { error: imageResult.error })
       }
@@ -206,6 +212,7 @@ export async function generateNewsArticle(input: GenerateArticleInput): Promise<
       category,
       tags: Array.isArray(draft.tags) ? draft.tags.map(String).slice(0, 12) : [],
       featuredImage,
+      featuredImageAsset,
       audioUrl,
       gallery: [],
       status: 'draft',
@@ -215,7 +222,7 @@ export async function generateNewsArticle(input: GenerateArticleInput): Promise<
         metaTitle: draft.title.trim(),
         metaDescription: excerpt,
         keywords: Array.isArray(draft.tags) ? draft.tags.map(String) : [],
-        ogImage: featuredImage,
+        ogImage: featuredImageAsset?.derivatives?.og || featuredImage,
         twitterImage: featuredImage,
       },
       promoteToMainPage: true,

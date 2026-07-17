@@ -9,6 +9,22 @@ import {
   PaginationOptions,
 } from '@/features/chat/types';
 
+/** Generative gallery / tool-editor chats must not pollute Messages inbox. */
+export function isHiddenToolConversation(conversation: Conversation): boolean {
+  const meta = conversation.metadata
+  if (!meta) return false
+  if (meta.hiddenFromInbox === true) return true
+  if (meta.kind === 'generative_gallery') return true
+  const productId = meta.productId || ''
+  const subject = meta.subject || ''
+  return (
+    productId.startsWith('imggen:') ||
+    productId.startsWith('genmedia:') ||
+    subject.startsWith('imggen:') ||
+    subject.startsWith('genmedia:')
+  )
+}
+
 export class ConversationService {
   async findDirectConversation(userIdA: string, userIdB: string): Promise<Conversation | null> {
     const result = await db().queryDocs<Conversation>({
@@ -36,6 +52,24 @@ export class ConversationService {
         { field: 'type', operator: '==', value: 'product' },
         { field: 'participants', operator: 'jsonb-contains', value: [{ userId }] },
         { field: 'metadata', operator: 'jsonb-contains', value: { productId } },
+      ],
+      orderBy: [{ field: 'updated_at', direction: 'desc' }],
+      pagination: { limit: 1 },
+    });
+
+    if (!result.success || !result.data?.length) {
+      return null;
+    }
+
+    return result.data[0];
+  }
+
+  async findOrderLabConversation(orderId: string): Promise<Conversation | null> {
+    const result = await db().queryDocs<Conversation>({
+      collection: 'conversations',
+      filters: [
+        { field: 'type', operator: '==', value: 'order_lab' },
+        { field: 'metadata', operator: 'jsonb-contains', value: { orderId } },
       ],
       orderBy: [{ field: 'updated_at', direction: 'desc' }],
       pagination: { limit: 1 },
@@ -80,6 +114,13 @@ export class ConversationService {
         if (existing) {
           return existing;
         }
+      }
+    }
+
+    if (data.type === 'order_lab' && data.metadata?.orderId) {
+      const existing = await this.findOrderLabConversation(data.metadata.orderId);
+      if (existing) {
+        return existing;
       }
     }
 
@@ -199,6 +240,10 @@ export class ConversationService {
     for (const conversation of result.data) {
       // Soft-archived conversations stay out of the default inbox
       if (conversation.metadata?.archivedBy?.includes(userId)) {
+        continue;
+      }
+      // Generative gallery / tool-editor chats stay out of Messages inbox
+      if (isHiddenToolConversation(conversation)) {
         continue;
       }
       const unreadCount = await this.getUnreadCount(conversation.id, userId);

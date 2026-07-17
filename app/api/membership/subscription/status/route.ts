@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       actions: {
         can_create: !subscription && canUpgrade,
         can_renew: (subscription?.status === 'expired') || paymentOverdue,
-        can_cancel: subscription?.status === 'active',
+        can_cancel: subscription?.status === 'active' || subscription?.status === 'pending',
         can_modify: subscription?.status === 'active',
       },
       warnings: [] as any[],       // runtime popups: account at risk, etc.

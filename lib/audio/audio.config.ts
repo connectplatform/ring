@@ -2,7 +2,7 @@ import type { AudioProviderId } from '@/lib/audio/conductor/types'
 
 function normalizeProvider(raw?: string | null): AudioProviderId | null {
   const value = String(raw ?? '').trim().toLowerCase()
-  if (value === 'xai') return value
+  if (value === 'xai' || value === 'suno') return value
   return null
 }
 
@@ -21,6 +21,15 @@ export function isTtsEnabled(): boolean {
 
 export function getAudioStoragePrefix(): string {
   return (process.env.AUDIO_STORAGE_PREFIX?.trim() || 'generated/audio').replace(/\/$/, '')
+}
+
+export function getMoodMusicStoragePrefix(): string {
+  return (process.env.MOOD_MUSIC_STORAGE_PREFIX?.trim() || 'generated/mood-audio').replace(/\/$/, '')
+}
+
+export function isMoodMusicGenEnabled(): boolean {
+  if (process.env.MOOD_MUSIC_GEN_ENABLED === 'false') return false
+  return Boolean(process.env.SUNO_API_KEY?.trim())
 }
 
 export function getXaiTtsConfig(ctx: { voiceId?: string; language?: string }) {

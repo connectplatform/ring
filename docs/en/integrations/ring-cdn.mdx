@@ -1,7 +1,7 @@
 ---
 title: Ring CDN (RingFileBase edge)
-description: NGINX CDN edge for Ring clones — public /files paths, host-to-bucket mapping, and multi-zone delivery in front of MinIO
-last_modified: "2026-07-09"
+description: NGINX CDN edge for Ring clones — public /files paths (originals + {fileId}_v_* derivatives), host-to-bucket mapping, multi-zone delivery
+last_modified: "2026-07-15"
 audience: both
 ---
 
@@ -11,7 +11,7 @@ audience: both
   Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Uploads are documented under [RingFileBase](/docs/integrations/ring-filebase); this page covers **public delivery**.
 </Callout>
 
-**Ring CDN** is the read path for objects stored by RingFileBase: an NGINX edge (`ring-filebase-cdn`) that proxies `GET /files/<key>` to MinIO (or RGW) with caching headers. Browsers and crawlers never need MinIO credentials.
+**Ring CDN** is the read path for objects stored by RingFileBase: an NGINX edge (`ring-filebase-cdn`) that proxies `GET /files/<key>` to MinIO (or RGW) with caching headers. Browsers and crawlers never need MinIO credentials. Keys include originals (`/files/{uuid}`) and derivatives (`/files/{uuid}_v_thumb.webp`, `/files/{uuid}_v_video_frame_0_480.webp`, …) — same `{fileId}_v_*` scheme as [RingFileBase](/docs/integrations/ring-filebase).
 
 | Layer | Component | Namespace (typical) |
 |-------|-----------|---------------------|

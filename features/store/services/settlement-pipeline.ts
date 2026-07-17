@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY } from '@/features/store/currency-context'
+
 /**
  * Settlement pipeline — wires paid orders into the canonical `settlements` ledger.
  */
@@ -58,11 +60,8 @@ function buildVendorOrderFromSettlement(
 }
 
 function buildOrderForSettlement(order: StoreOrder): Order {
-  const currency = order.payment?.currency?.toUpperCase()
-  const totals: Order['totals'] = {}
-  if (currency === 'RING') totals.RING = order.total
-  else if (currency === 'DAARION') totals.DAARION = order.total
-  else totals.DAAR = order.total
+  const currency = (order.payment?.currency || DEFAULT_CURRENCY).toUpperCase()
+  const totals: Order['totals'] = { [currency]: order.total }
 
   return {
     id: order.id,

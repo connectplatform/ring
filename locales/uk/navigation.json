@@ -85,7 +85,7 @@
     "getStarted": "Розпочати",
     "documentation": "Документація",
     "quickStart": "Швидкий старт",
-    "deploymentCalculator": "Калькулятор розгортання",
+    "deploymentCalculator": "Калькулятор проєкту",
     "roadmap": "Дорожня карта",
     "findRingDeveloper": "Знайти Ring розробника",
     "signIn": "Увійти",
@@ -95,13 +95,14 @@
     "browseDirectory": "Перегляд каталогу екосистеми Ring",
     "findOpportunities": "Знайти Можливості",
     "jobsAndProjects": "Вакансії, гранти та проєкти налаштування Ring",
-    "admin": "АДМІН",
+    "admin": "Адмін",
     "adminDashboard": "Панель управління",
     "userManagement": "Керування користувачами",
     "analytics": "Аналітика",
     "security": "Безпека",
     "referralRewards": "Реферальні винагороди",
     "storeManagement": "Магазин і ERP",
+    "supermenuContent": "Контент і блог",
     "vendor": "ПРОДАВЕЦЬ",
     "vendorDashboard": "Панель",
     "vendorProducts": "Товари",
@@ -258,5 +259,7 @@
   "storeSettings": "Налаштування магазину",
   "membership": "Членство",
   "confidentialEntities": "Конфіденційні сутності",
-  "confidentialOpportunities": "Конфіденційні можливості"
+  "confidentialOpportunities": "Конфіденційні можливості",
+  "myJobs": "Мої роботи",
+  "myProjectOrders": "Мої проєкти"
 }

@@ -55,7 +55,7 @@ export default async function MembershipPage(props: MembershipPageProps) {
   const userRole = resolveSessionUserRole(user.role)
 
   if (hasMemberPrivileges(userRole)) {
-    redirect(ROUTES.PROFILE(locale))
+    redirect(ROUTES.MEMBERSHIP_MANAGE(locale))
   }
 
   return (

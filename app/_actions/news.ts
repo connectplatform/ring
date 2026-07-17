@@ -7,6 +7,18 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { NewsArticle, NewsCategory, NewsStatus, NewsVisibility, NewsSEO } from '@/features/news/types'
 import { isPlatformAdmin, assertKnownUserRole } from '@/features/auth/user-role'
+import {
+  canCreateNewsArticle,
+  canSetNewsVisibility,
+} from '@/features/news/lib/news-permissions'
+import { normalizeBlogHandle } from '@/lib/blog/blog-path'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
+import {
+  coerceMediaImageAsset,
+  coerceMediaImageAssetList,
+  pickImageSrc,
+} from '@/lib/file/media-asset'
 
 export interface ArticleFormState {
   success?: boolean
@@ -41,10 +53,10 @@ export async function saveArticle(
     const isAdmin = isPlatformAdmin(userRole)
 
     if (mode === 'create') {
-      // Only admins can create articles
-      if (!isAdmin) {
+      // Members+ / confidential / admins (see canCreateNewsArticle)
+      if (!canCreateNewsArticle(userRole)) {
         return {
-          error: 'Admin access required to create news articles'
+          error: 'Member access required to create news articles',
         }
       }
     } else if (mode === 'edit' && articleId) {
@@ -78,23 +90,53 @@ export async function saveArticle(
     const status = formData.get('status') as NewsStatus
     const visibility = formData.get('visibility') as NewsVisibility
     const featured = formData.get('featured') === 'true'
-    const featuredImage = formData.get('featuredImage') as string
+    const featuredImageRaw = (formData.get('featuredImage') as string) || ''
 
     // Parse tags as comma-separated string -> array
     const tagsString = formData.get('tags') as string
     const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
-    
-    // Parse gallery images as comma-separated array
-    const galleryString = formData.get('gallery') as string
-    const gallery = galleryString ? galleryString.split(',').filter(Boolean) : []
+
+    // Parse MediaImageAsset payloads (JSON preferred; coerce string/legacy too)
+    let featuredImageAsset = undefined as ReturnType<typeof coerceMediaImageAsset>
+    const featuredImageAssetField = formData.get('featuredImageAsset')
+    if (typeof featuredImageAssetField === 'string' && featuredImageAssetField.trim()) {
+      try {
+        featuredImageAsset = coerceMediaImageAsset(JSON.parse(featuredImageAssetField))
+      } catch {
+        featuredImageAsset = coerceMediaImageAsset(featuredImageAssetField)
+      }
+    }
+    if (!featuredImageAsset) {
+      featuredImageAsset = coerceMediaImageAsset(featuredImageRaw)
+    }
+
+    const featuredImage = featuredImageAsset?.url || featuredImageRaw || ''
+
+    let gallery = [] as ReturnType<typeof coerceMediaImageAssetList>
+    const galleryField = formData.get('gallery')
+    if (typeof galleryField === 'string' && galleryField.trim()) {
+      try {
+        gallery = coerceMediaImageAssetList(JSON.parse(galleryField))
+      } catch {
+        // Legacy comma-separated URL list
+        gallery = coerceMediaImageAssetList(
+          galleryField.split(',').map((u) => u.trim()).filter(Boolean),
+        )
+      }
+    }
+
+    const ogFromAsset = featuredImageAsset
+      ? pickImageSrc(featuredImageAsset, 'og')
+      : featuredImage
 
     // Parse SEO meta, fallback to main field values for defaults
+    const seoOgImageField = (formData.get('seoOgImage') as string) || ''
     const seo: NewsSEO = {
       metaTitle: formData.get('seoMetaTitle') as string || title,
       metaDescription: formData.get('seoMetaDescription') as string || excerpt,
       keywords: (formData.get('seoKeywords') as string || '').split(',').map(k => k.trim()).filter(Boolean),
       canonicalUrl: formData.get('seoCanonicalUrl') as string || '',
-      ogImage: formData.get('seoOgImage') as string || featuredImage,
+      ogImage: seoOgImageField || featuredImageAsset?.derivatives?.og || ogFromAsset || featuredImage,
       ogTitle: formData.get('seoOgTitle') as string || title,
       ogDescription: formData.get('seoOgDescription') as string || excerpt,
       twitterTitle: formData.get('seoTwitterTitle') as string || title,
@@ -124,6 +166,18 @@ export async function saveArticle(
       }
     }
 
+    // Enforce visibility by role (members cannot set site-wide / confidential casually)
+    if (!canSetNewsVisibility(userRole, visibility)) {
+      return { error: 'Your role cannot set this visibility level' }
+    }
+
+    // Non-admins cannot mark featured / site-wide featured placement
+    const resolvedFeatured = isAdmin ? featured : false
+
+    const username =
+      typeof session.user.username === 'string' ? session.user.username.trim() : ''
+    const blogUsername = username ? normalizeBlogHandle(username) : undefined
+
     // Construct payload for article creation or update
     const articleData = {
       title: title.trim(),
@@ -133,11 +187,13 @@ export async function saveArticle(
       category,
       tags,
       featuredImage: featuredImage || '',
+      featuredImageAsset: featuredImageAsset || undefined,
       gallery,
       status,
       visibility,
-      featured,
+      featured: resolvedFeatured,
       seo,
+      ...(mode === 'create' && blogUsername ? { blogUsername } : {}),
       // If creating, initialize counters and createdAt
       ...(mode === 'create' && {
         views: 0,
@@ -174,9 +230,13 @@ export async function saveArticle(
     })
 
     const savedArticle = result.data
+    void savedArticle
 
-    // Redirect to admin news list (handled by Next.js server redirect)
-    redirect(`/${locale}/admin/news`)
+    // Admins stay in admin news; member authors return to My News
+    const validLocale = (locale || 'en') as Locale
+    redirect(
+      isAdmin ? ROUTES.ADMIN_NEWS(validLocale) : ROUTES.MY_NEWS(validLocale),
+    )
 
   } catch (error: any) {
     // Properly rethrow Next.js redirect "errors" so Next handles them correctly

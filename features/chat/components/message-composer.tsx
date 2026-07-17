@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Paperclip, Image as ImageIcon, Smile, X, Loader2 } from 'lucide-react'
+import { Send, Paperclip, Image as ImageIcon, Smile, X, Loader2, Receipt } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
 import { useTyping } from '@/hooks/use-messaging'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { Message, SendMessageRequest } from '@/features/chat/types'
+import type { MediaDerivatives } from '@/lib/file/interfaces/IFileService'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 
@@ -15,6 +16,8 @@ interface MessageComposerProps {
   conversationId: string
   onMessageSentAction?: (message: Message) => void
   onSendMessageAction?: (content: string, options?: Partial<SendMessageRequest>) => Promise<Message | null>
+  /** Opens native-token payment request flow (direct chats). */
+  onRequestPaymentAction?: () => void
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -30,12 +33,15 @@ interface FileAttachment {
   uploading: boolean
   uploadProgress: number
   error?: string
+  fileId?: string
+  derivatives?: MediaDerivatives
 }
 
 export function MessageComposer({
   conversationId,
   onMessageSentAction,
   onSendMessageAction,
+  onRequestPaymentAction,
   placeholder = "Type a message...",
   disabled = false,
   className,
@@ -126,7 +132,9 @@ export function MessageComposer({
           name: att.file.name,
           mimeType: att.file.type,
           size: att.file.size,
-          type: att.type === 'image' ? 'image' : att.type === 'video' || att.type === 'audio' ? 'file' : 'document'
+          type: att.type === 'image' ? 'image' : att.type === 'video' || att.type === 'audio' ? 'file' : 'document',
+          ...(att.fileId ? { fileId: att.fileId } : {}),
+          ...(att.derivatives ? { derivatives: att.derivatives } : {}),
         }))
       }
 
@@ -183,7 +191,7 @@ export function MessageComposer({
       formData.append('conversationId', conversationId)
       formData.append('purpose', 'chat:attachment')
 
-      const response = await fetch('/api/conversations/upload', {
+      const response = await fetch('/api/uploads', {
         method: 'POST',
         body: formData
       })
@@ -197,7 +205,14 @@ export function MessageComposer({
       
       setAttachments(prev => prev.map(att => 
         att.id === attachment.id 
-          ? { ...att, uploading: false, uploadProgress: 100, url: data.url }
+          ? {
+              ...att,
+              uploading: false,
+              uploadProgress: 100,
+              url: data.url,
+              ...(typeof data.fileId === 'string' ? { fileId: data.fileId } : {}),
+              ...(data.derivatives ? { derivatives: data.derivatives } : {}),
+            }
           : att
       ))
 
@@ -412,6 +427,20 @@ export function MessageComposer({
             >
               <Paperclip className="h-6 w-6" />
             </Button>
+            {onRequestPaymentAction ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onRequestPaymentAction}
+                disabled={disabled || isLoading}
+                className="h-11 w-11 p-0"
+                aria-label="Request Payment"
+                title="Request Payment"
+              >
+                <Receipt className="h-6 w-6" />
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"

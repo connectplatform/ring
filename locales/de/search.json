@@ -1,0 +1,21 @@
+{
+  "title": "Suche",
+  "placeholder": "Suchen …",
+  "searchButton": "Suchen",
+  "clearButton": "Leeren",
+  "noResults": "Keine Treffer",
+  "results": "Ergebnisse",
+  "loading": "Suche läuft …",
+  "error": "Bei der Suche ist ein Fehler aufgetreten",
+  "suggestions": "Vorschläge",
+  "recentSearches": "Letzte Suchen",
+  "popularSearches": "Beliebte Suchen",
+  "searchHistory": "Suchverlauf",
+  "clearHistory": "Verlauf löschen",
+  "searchFilters": "Suchfilter",
+  "advancedSearch": "Erweiterte Suche",
+  "searchIn": "Suchen in",
+  "allCategories": "Alle Kategorien",
+  "searchResults": "Suchergebnisse für „{query}“",
+  "totalResults": "{count} Treffer gefunden"
+}

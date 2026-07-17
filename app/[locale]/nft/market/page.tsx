@@ -7,26 +7,8 @@ import {
   getNftMarketCollections,
   getNftMarketListings,
 } from '@/features/nft-market/services/listing-query'
-import {
-  NftMarketWrapper,
-  normalizeNftMarketSort,
-  type NftMarketFilters,
-} from '@/features/nft-market/components/nft-market-wrapper'
-
-function firstParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value
-}
-
-function parseFilters(searchParams: Record<string, string | string[] | undefined>): NftMarketFilters {
-  const laneRaw = firstParam(searchParams.lane)?.trim() || ''
-  return {
-    q: firstParam(searchParams.q)?.trim() || '',
-    collection: firstParam(searchParams.collection)?.trim() || '',
-    slug: firstParam(searchParams.slug)?.trim() || '',
-    lane: laneRaw === 'keys' || laneRaw === 'member' ? laneRaw : '',
-    sort: normalizeNftMarketSort(firstParam(searchParams.sort)),
-  }
-}
+import { NftMarketWrapper } from '@/features/nft-market/components/nft-market-wrapper'
+import { parseNftMarketSearchParams } from '@/features/nft-market/nft-market-filters'
 
 export async function generateMetadata({
   params,
@@ -63,7 +45,7 @@ export default async function NftMarketPage({
     : routing.defaultLocale
   setRequestLocale(locale)
 
-  const filters = parseFilters(sp)
+  const filters = parseNftMarketSearchParams(sp)
   const [initialPage, collections] = await Promise.all([
     getNftMarketListings({
       q: filters.q || undefined,

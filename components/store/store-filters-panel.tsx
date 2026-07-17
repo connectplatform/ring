@@ -16,7 +16,11 @@ import { ROUTES } from '@/constants/routes'
 import { STORE_VENDOR_CATEGORY_IDS } from '@/constants/store-vendor-categories'
 import type { Locale } from '@/i18n/shared'
 import { useOptionalStore } from '@/features/store/context'
-import { useOptionalStoreCurrency } from '@/features/store/currency-context'
+import {
+  DEFAULT_CURRENCY,
+  NATIVE_TOKEN_CURRENCY,
+  useOptionalStoreCurrency,
+} from '@/features/store/currency-context'
 import { getDefaultStorePriceBounds, PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
 import {
@@ -56,11 +60,8 @@ interface StoreFiltersPanelProps {
 // Categories imported from constants - extendable for new categories
 const productCategories = [...STORE_VENDOR_CATEGORY_IDS]
 
-// MOCK CODE, TODO: Replace currencies mock with fetched currencies from backend/currencies resource in the future.
-// Steps:
-// 1. Use API request/hook to get allowed/available currencies.
-// 2. Replace with fetched list of currency codes below.
-const currencies = ['USD', 'UAH', 'DAAR', 'DAARION']
+// SSOT: display currencies from StoreCurrencyProvider (ring-config), not clone hardcodes.
+const allowedCurrenciesFallback = [DEFAULT_CURRENCY, 'UAH', NATIVE_TOKEN_CURRENCY] as string[]
 
 // Props extended with persisted and catalog bounds state
 interface StoreFiltersPanelPropsWithPersisted extends StoreFiltersPanelProps {
@@ -86,9 +87,13 @@ export default function StoreFiltersPanel({
   const store = useOptionalStore()
   const totalItems = store?.totalItems || 0
 
-  // Get currency, fallback to 'UAH'
+  // Get currency from SSOT context
   const storeCurrencyContext = useOptionalStoreCurrency()
-  const displayCurrency = storeCurrencyContext?.currency || 'UAH'
+  const displayCurrency = storeCurrencyContext?.currency || DEFAULT_CURRENCY
+  const allowedCurrencies =
+    storeCurrencyContext?.displayCurrencies?.length
+      ? storeCurrencyContext.displayCurrencies
+      : allowedCurrenciesFallback
 
   // Default price bounds from env/store config
   const envDefaults = getDefaultStorePriceBounds()

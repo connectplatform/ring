@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import { NewsArticle } from '@/features/news/types'
 import { formatDistanceToNow } from 'date-fns'
+import { pickImageSrc } from '@/lib/file/media-asset'
 
 interface FeaturedCarouselProps {
   articles: NewsArticle[]
@@ -120,18 +121,28 @@ export function FeaturedCarousel({ articles, locale, translations }: FeaturedCar
             }`}
           >
             {/* Background Image */}
-            {article.featuredImage && (
+            {(() => {
+              const heroSrc = pickImageSrc(
+                article.featuredImageAsset || article.featuredImage,
+                'hero',
+              )
+              const blurDataUrl = article.featuredImageAsset?.derivatives?.blur
+              if (!heroSrc) return null
+              return (
               <div className="absolute inset-0">
                 <Image
-                  src={article.featuredImage}
+                  src={heroSrc}
                   alt={article.title}
                   fill
                   className="object-cover"
                   priority={index === 0}
+                  placeholder={blurDataUrl ? 'blur' : 'empty'}
+                  blurDataURL={blurDataUrl}
                 />
                 <div className="absolute inset-0 bg-black/40" />
               </div>
-            )}
+              )
+            })()}
 
             {/* Content Overlay */}
             <div className="relative h-full flex items-center">

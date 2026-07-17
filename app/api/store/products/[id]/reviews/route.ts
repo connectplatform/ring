@@ -98,5 +98,18 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to save review' }, { status: 500 })
   }
 
+  void import('@/lib/wallet/reward-credit-service')
+    .then(({ enqueueRewardCreditAddEvent }) =>
+      enqueueRewardCreditAddEvent({
+        userId: session.user.id,
+        trigger: 'reviewCreated',
+        username: (session.user as { username?: string | null }).username ?? null,
+        userRole: session.user.role,
+        objectType: 'review',
+        objectId: reviewId,
+      }),
+    )
+    .catch(() => undefined)
+
   return NextResponse.json({ success: true, reviewId, verifiedPurchase })
 }

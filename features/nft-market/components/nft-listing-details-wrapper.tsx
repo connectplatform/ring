@@ -264,9 +264,40 @@ export function NftListingDetailsWrapper({
         />
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+        <div className="space-y-4">
           <div className="relative aspect-square overflow-hidden rounded-3xl border bg-muted">
             <Image src={image} alt={listing.name} fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw" />
           </div>
+          {listing.showcase?.animationUrl ? (
+            <div className="overflow-hidden rounded-2xl border bg-card/70 p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Animation
+              </p>
+              <video
+                src={listing.showcase.animationUrl}
+                controls
+                playsInline
+                className="aspect-video w-full rounded-xl bg-black object-contain"
+              />
+            </div>
+          ) : null}
+          {listing.showcase?.ringShowcase?.media && listing.showcase.ringShowcase.media.length > 1 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {listing.showcase.ringShowcase.media
+                .filter((m) => m.enabled)
+                .map((m) => (
+                  <div key={m.id} className="relative aspect-square overflow-hidden rounded-lg border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={m.webpUrl || m.originalUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
+            </div>
+          ) : null}
+        </div>
 
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">

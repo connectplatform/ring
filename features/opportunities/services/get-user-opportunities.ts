@@ -11,6 +11,7 @@ import { auth } from '@/auth'
 import { OpportunityAuthError, OpportunityQueryError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { db } from '@/lib/database'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 import {
   type MyOpportunitiesView,
   type MyOpportunitiesCounts,
@@ -22,6 +23,31 @@ import {
 } from '@/features/opportunities/lib/opportunity-db-mapper'
 
 const MY_OPPORTUNITIES_FETCH_CAP = 200
+const MY_OPPORTUNITIES_PAGE_SIZE = 50
+
+function statusFiltersForView(
+  view: MyOpportunitiesView,
+): Array<{ field: string; operator: string; value: unknown }> {
+  switch (view) {
+    case 'archived':
+      return [{ field: 'status', operator: '==', value: 'archived' }]
+    case 'pending':
+      return [{ field: 'status', operator: '==', value: 'pending' }]
+    case 'active':
+      return [{ field: 'status', operator: '==', value: 'active' }]
+    case 'drafts':
+      return [{ field: 'status', operator: 'in', value: ['draft', 'closed', 'expired'] }]
+    case 'all':
+    default:
+      return [
+        {
+          field: 'status',
+          operator: 'in',
+          value: ['draft', 'pending', 'active', 'closed', 'expired'],
+        },
+      ]
+  }
+}
 
 const parseCountResult = (value: unknown): number => {
   if (typeof value === 'number') return value
@@ -33,27 +59,40 @@ const parseCountResult = (value: unknown): number => {
 }
 
 /**
- * Fetches all opportunities created by a user (capped for dashboard filtering).
+ * Fetches opportunities created by a user with real dateCreated cursor pagination.
  */
 export const getUserCreatedOpportunities = cache(async (
   userId: string,
   limit: number = MY_OPPORTUNITIES_FETCH_CAP,
   startAfter?: string,
+  view: MyOpportunitiesView = 'all',
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   try {
-    logger.info('Services: getUserCreatedOpportunities', { userId, limit, startAfter })
+    logger.info('Services: getUserCreatedOpportunities', { userId, limit, startAfter, view })
 
-    const dbQuery = {
-      collection: 'opportunities',
-      filters: [{ field: 'createdBy', operator: '=', value: userId }],
-      orderBy: [{ field: 'dateCreated', direction: 'desc' as const }],
-      pagination: {
-        limit,
-        offset: startAfter ? 1 : 0,
-      },
+    const filters: Array<{ field: string; operator: string; value: unknown }> = [
+      { field: 'createdBy', operator: '=', value: userId },
+      ...statusFiltersForView(view),
+    ]
+
+    if (startAfter) {
+      const cursorDoc = await db().findDocById('opportunities', startAfter)
+      if (cursorDoc.success && cursorDoc.data) {
+        const cursorDate =
+          (cursorDoc.data as { dateCreated?: string; date_created?: string }).dateCreated ??
+          (cursorDoc.data as { date_created?: string }).date_created
+        if (cursorDate) {
+          filters.push({ field: 'dateCreated', operator: '<', value: cursorDate })
+        }
+      }
     }
 
-    const queryResult = await db().queryDocs(dbQuery)
+    const queryResult = await db().queryDocs({
+      collection: 'opportunities',
+      filters,
+      orderBy: [{ field: 'dateCreated', direction: 'desc' as const }],
+      pagination: { limit },
+    })
 
     const opportunities: SerializedOpportunity[] = []
     if (queryResult.success && queryResult.data) {
@@ -62,8 +101,11 @@ export const getUserCreatedOpportunities = cache(async (
       }
     }
 
-    const lastVisible =
-      opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null
+    const { nextCursor: lastVisible } = computePaginationCursor(
+      opportunities,
+      limit,
+      (item) => item.id,
+    )
 
     return { opportunities, lastVisible }
   } catch (error) {
@@ -80,15 +122,19 @@ const getMyOpportunitySubmenuCounts = cache(async (userId: string): Promise<Oppo
   const postedFilter = { field: 'createdBy', operator: '=', value: userId }
   const expiredFilter = { field: 'expirationDate', operator: '<=', value: new Date() }
 
-  const [postedCountResult, expiredCountResult, created] = await Promise.all([
+  const [postedCountResult, expiredCountResult, created, archivedSample] = await Promise.all([
     db().countDocs('opportunities', [postedFilter]),
     db().countDocs('opportunities', [postedFilter, expiredFilter]),
-    getUserCreatedOpportunities(userId, MY_OPPORTUNITIES_FETCH_CAP),
+    getUserCreatedOpportunities(userId, MY_OPPORTUNITIES_FETCH_CAP, undefined, 'all'),
+    getUserCreatedOpportunities(userId, MY_OPPORTUNITIES_FETCH_CAP, undefined, 'archived'),
   ])
 
   const posted = postedCountResult.success ? parseCountResult(postedCountResult.data) : 0
   const expired = expiredCountResult.success ? parseCountResult(expiredCountResult.data) : 0
-  const lifecycle = computeMyOpportunitiesCounts(created.opportunities)
+  const lifecycle = computeMyOpportunitiesCounts([
+    ...created.opportunities,
+    ...archivedSample.opportunities,
+  ])
 
   return {
     all: lifecycle.all,
@@ -108,8 +154,8 @@ const getMyOpportunitySubmenuCounts = cache(async (userId: string): Promise<Oppo
  */
 export const getMyOpportunities = cache(async (
   view: MyOpportunitiesView = 'all',
-  limit: number = 50,
-  _startAfter?: string,
+  limit: number = MY_OPPORTUNITIES_PAGE_SIZE,
+  startAfter?: string,
 ): Promise<{
   opportunities: SerializedOpportunity[]
   lastVisible: string | null
@@ -128,17 +174,24 @@ export const getMyOpportunities = cache(async (
   const userId = session.user.id
 
   try {
-    const created = await getUserCreatedOpportunities(userId, MY_OPPORTUNITIES_FETCH_CAP)
-    const lifecycleCounts = computeMyOpportunitiesCounts(created.opportunities)
-    const filtered = created.opportunities.filter((opp) =>
-      matchesMyOpportunitiesView(opp.status, view),
-    )
-    const opportunities = filtered.slice(0, limit)
-    const counts = await getMyOpportunitySubmenuCounts(userId)
+    const [page, counts] = await Promise.all([
+      getUserCreatedOpportunities(userId, limit, startAfter, view),
+      getMyOpportunitySubmenuCounts(userId),
+    ])
+
+    const lifecycleCounts: MyOpportunitiesCounts = {
+      all: counts.all,
+      drafts: counts.drafts,
+      pending: counts.pending,
+      active: counts.active,
+      archived: counts.archived,
+    }
 
     return {
-      opportunities,
-      lastVisible: opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null,
+      opportunities: page.opportunities.filter((opp) =>
+        matchesMyOpportunitiesView(opp.status, view),
+      ),
+      lastVisible: page.lastVisible,
       counts,
       lifecycleCounts,
     }

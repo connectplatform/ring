@@ -75,7 +75,8 @@
       "storeSettings": "Store Settings",
       "updateInventory": "Update inventory",
       "viewAnalytics": "View analytics",
-      "settings": "Settings"
+      "settings": "Settings",
+      "title": "Quick Actions"
     },
     "boostSalesTitle": "Boost Your Sales",
     "boostSalesTips": {
@@ -155,6 +156,19 @@
       "comingSoon": "Coming soon",
       "description": "AI agent activation and DAARION staking will land here. Store operations (products, orders, stock, earnings) are available now from the vendor menu.",
       "todoNote": "Provisioning API and wallet staking remain planned — no mock activation."
+    },
+    "promotions": {
+      "label": "Promotions",
+      "checkoutOffer": "Checkout special offer",
+      "checkoutOfferHint": "Show free-shipping offer popup at checkout when policy is active",
+      "on": "On",
+      "off": "Off",
+      "saved": "Promotions updated",
+      "freeShippingHint": "Free shipping policy for your storefront",
+      "freeShipOff": "Free shipping: Off",
+      "freeShipAlways": "Always free",
+      "freeShipConditional": "Free over minimum order",
+      "minOrder": "Minimum order amount"
     }
   },
   "products": {
@@ -257,7 +271,20 @@
       "parameterValue": "Parameter value",
       "removeParameter": "Remove parameter",
       "productAudience": "Member-only product",
-      "productAudienceHint": "Only members and above can view this product in the main store. Public products are visible to all."
+      "productAudienceHint": "Only members and above can view this product in the main store. Public products are visible to all.",
+      "promotionsTitle": "Product promotions",
+      "promotionsHint": "Buy-two-get-one, percent off, or fixed amount off — applied at cart/checkout.",
+      "addPromotion": "Add promotion",
+      "noPromotions": "No promotions on this product.",
+      "promoBogo": "Buy X get Y free",
+      "promoPercent": "Percent off",
+      "promoAmount": "Amount off",
+      "promoLabel": "Label (optional)",
+      "buyQty": "Buy qty",
+      "getQty": "Get free",
+      "percentOff": "% off",
+      "amountOff": "Amount off / unit",
+      "removePromotion": "Remove promotion"
     },
     "validation": {
       "nameRequired": "Product name is required",

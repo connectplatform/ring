@@ -118,6 +118,7 @@ export async function getUsersByRole(
         photoURL:
           (row.photoURL as string | undefined) ||
           (row.image as string | undefined),
+        avatarThumb: (row.avatarThumb as string | undefined) || undefined,
         createdAt: row.createdAt as Date | undefined
       });
       // Assign lastVisible to the latest enumerated user's id—for pagination token

@@ -2,11 +2,11 @@
  * Ring Platform locale configuration — routing, preferences, SEO, client scripts.
  *
  * Deploy overrides:
- * - `NEXT_PUBLIC_SUPPORTED_LOCALES` — comma-separated (default: `en,uk,ru`)
+ * - `NEXT_PUBLIC_SUPPORTED_LOCALES` — comma-separated (default: `en,uk,ru,es,de`)
  * - `NEXT_PUBLIC_DEFAULT_LOCALE` — must appear in supported list (default: `en`)
  */
 
-export const FALLBACK_SUPPORTED_LOCALES = ['en', 'uk', 'ru'] as const
+export const FALLBACK_SUPPORTED_LOCALES = ['en', 'uk', 'ru', 'es', 'de'] as const
 export const FALLBACK_DEFAULT_LOCALE = 'en' as const
 
 export type Locale = (typeof FALLBACK_SUPPORTED_LOCALES)[number]
@@ -68,30 +68,40 @@ export const LOCALE_DISPLAY_LABELS: Readonly<Record<string, string>> = {
   en: 'EN',
   uk: 'UA',
   ru: 'RU',
+  es: 'ES',
+  de: 'DE',
 }
 
 export const LOCALE_NATIVE_TITLES: Readonly<Record<string, string>> = {
   en: 'English',
   uk: 'Українська',
   ru: 'Русский',
+  es: 'Español',
+  de: 'Deutsch',
 }
 
 export const INTL_DATE_LOCALE: Readonly<Record<string, string>> = {
   en: 'en-US',
   uk: 'uk-UA',
   ru: 'ru-RU',
+  es: 'es-ES',
+  de: 'de-DE',
 }
 
 export const OPEN_GRAPH_LOCALE: Readonly<Record<string, string>> = {
   en: 'en_US',
   uk: 'uk_UA',
   ru: 'ru_RU',
+  es: 'es_ES',
+  de: 'de_DE',
 }
 
 export const LOCALE_PAYMENT_DISPLAY: Readonly<Record<string, string>> = {
   en: 'EN',
   uk: 'UA',
   ru: 'RU',
+  es: 'ES',
+  de: 'DE',
 }
 
 export const LEGACY_BROWSER_GATE: Readonly<Record<string, LegacyBrowserGateCopy>> = {
@@ -124,6 +134,26 @@ export const LEGACY_BROWSER_GATE: Readonly<Record<string, LegacyBrowserGateCopy>
     firefox: 'Firefox 109+ (январь 2023)',
     downloadChrome: 'Скачать Chrome',
     downloadFirefox: 'Скачать Firefox',
+  },
+  es: {
+    title: 'Se requiere actualizar el navegador',
+    description: `${SITE_NAME} necesita un navegador moderno para ofrecerte la mejor experiencia.`,
+    minimumRequirements: 'Requisitos mínimos:',
+    chrome: 'Chrome/Edge 111+ (marzo 2023)',
+    safari: 'Safari 16.4+ (marzo 2023)',
+    firefox: 'Firefox 109+ (enero 2023)',
+    downloadChrome: 'Descargar Chrome',
+    downloadFirefox: 'Descargar Firefox',
+  },
+  de: {
+    title: 'Browser-Update erforderlich',
+    description: `${SITE_NAME} benötigt einen modernen Browser für die beste Nutzungserfahrung.`,
+    minimumRequirements: 'Mindestanforderungen:',
+    chrome: 'Chrome/Edge 111+ (März 2023)',
+    safari: 'Safari 16.4+ (März 2023)',
+    firefox: 'Firefox 109+ (Januar 2023)',
+    downloadChrome: 'Chrome herunterladen',
+    downloadFirefox: 'Firefox herunterladen',
   },
 }
 
@@ -223,6 +253,8 @@ const LOCALE_SELECT_FLAGS: Partial<Record<string, string>> = {
   en: '🇺🇸',
   uk: '🇺🇦',
   ru: '🇷🇺',
+  es: '🇪🇸',
+  de: '🇩🇪',
 }
 
 export function getLocaleSelectOptions(): Array<{ value: Locale; label: string }> {

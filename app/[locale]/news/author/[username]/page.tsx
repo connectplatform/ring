@@ -26,6 +26,7 @@ import { UserRolesArray } from '@/features/auth/user-role'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import { hasRoleAtLeast } from '@/features/auth/types'
+import { ROUTES } from '@/constants/routes'
 // (Removed unused imports: Image, db, mapNewsDocument, Badge, Card, CardContent, buildNewsVisibilityFilters)
 //      ^ TODO: Clean up unused imports for smaller bundles and improved clarity
 
@@ -86,7 +87,8 @@ export async function generateMetadata({
   const displayName = user.name ?? user.username ?? username;
 
   // Fetch translations for news module in current locale
-  const t = await getTranslations({ locale: validLocale, namespace: 'modules.news' });
+  // Canonical news namespace is top-level `news` (locales/.../modules/news.json)
+  const t = await getTranslations({ locale: validLocale, namespace: 'news' });
 
   // Build SEO and OpenGraph properties
   return {
@@ -129,7 +131,8 @@ export default async function NewsAuthorPage(
     : routing.defaultLocale;
 
   // -- Load translations for labels/UI --
-  const t = await getTranslations({ locale: validLocale, namespace: 'modules.news' });
+  // Canonical news namespace is top-level `news` (locales/.../modules/news.json)
+  const t = await getTranslations({ locale: validLocale, namespace: 'news' });
   
   // Fallback translation getter: always returns a string, even on missing translation keys.
   // TODO: If next-intl supports a clear fallback, replace try/catch pattern with official fallback mechanism for stricter i18n hygiene.
@@ -214,7 +217,7 @@ export default async function NewsAuthorPage(
     <RingRightRailLayout
       rightRailPurpose="generic"
       rightRailContent={[
-        { blockType: 'author-bio', i18nKey: 'modules.news.authorBio' },
+        { blockType: 'author-bio', i18nKey: 'news.authorBio' },
       ]}
       rightRail={authorBioSidebar}
       railWidth={320}
@@ -233,11 +236,10 @@ export default async function NewsAuthorPage(
               </p>
             </div>
             <Link
-              // Go back to news listing, using locale prefix if not default
-              href={`/${validLocale === routing.defaultLocale ? '' : validLocale}/news`}
+              href={ROUTES.NEWS(validLocale)}
               className="text-sm text-primary hover:underline"
             >
-              &larr; {tr('backToNews', 'Back to News')}
+              &larr; {t('backToNews')}
             </Link>
           </div>
         }

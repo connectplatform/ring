@@ -1,0 +1,95 @@
+{
+  "title": "La IA se encuentra con la Web3: Ring & Connect.Software",
+  "description": "Así es como la plataforma Ring (y productos como Connect.Software) combina la comparación respaldada por IA, la economía del token RING y la gobernanza Web3: claramente explicable, auditable y diseñada para una verdadera cooperación.",
+  "badge": "IA + Web3",
+  "hero": {
+    "title": "AI y Web3 como infraestructura común",
+    "subtitle": "Ring combina interfaces web modernas con capas de billetera y token. La IA sugiere personas adecuadas y próximos pasos; Los contratos y libros de contabilidad inteligentes resumen los acuerdos y acuerdos, sin promesas de marketing en lugar de ingeniería."
+  },
+  "concept": {
+    "ai": {
+      "title": "Coincidencia de oportunidades impulsada por IA",
+      "description": "El emparejador evalúa perfiles, habilidades, historia y contexto utilizando varios factores para sugerir equipos o socios adecuados. El objetivo es reducir el desperdicio y lograr más resultados explicables: cifras clave como \"94%\" son valores objetivo de las mediciones del producto, no una garantía en casos individuales."
+    },
+    "web3": {
+      "title": "RING como capa de uso y gobernanza",
+      "description": "Los tokens RING combinan micropagos, acceso a funciones de inteligencia artificial y votación. La lógica de distribución y tarifas se mantiene transparente a través de contratos y reglas comunitarias; Los parámetros exactos siguen la instancia del anillo desplegado."
+    }
+  },
+  "fusion": {
+    "title": "donde ambos trabajan juntos",
+    "intelligence": {
+      "title": "Colaboración orquestada",
+      "description": "Las nuevas oportunidades pueden notificarse automáticamente a los perfiles calificados, con motivos breves y comprensibles. Esto significa que se pueden crear más rápidamente grupos de trabajo para proyectos de software, investigación o integración."
+    },
+    "trust": {
+      "title": "Servicios integrales",
+      "description": "Los recibos en cadena o vinculados pueden respaldar pagos, pruebas de entrega y reputación. Los contratos inteligentes automatizan los lanzamientos tan pronto como se cumplen los hitos definidos."
+    },
+    "automation": {
+      "title": "Incentivos sin fuego constante",
+      "description": "Las recompensas y tarifas se pueden vincular al uso, la calidad y la utilización, de modo que las ofertas de mercado, el uso del editor y los servicios comunitarios permanezcan equilibrados."
+    }
+  },
+  "features": {
+    "title": "Componentes básicos de Ring AI Web3 Suite",
+    "smartMatching": {
+      "title": "Coincidencia explicable",
+      "description": "Se incorporan a las propuestas perfiles, colaboraciones previas y métricas de éxito; El sistema debería aprender de la retroalimentación y producir menos coincidencias \"vacías\"."
+    },
+    "decentralized": {
+      "title": "DAO y patrones de votación",
+      "description": "Los poseedores de tokens pueden votar sobre parámetros, prioridades de funciones y tarifas, según el diseño de gobernanza del respectivo despliegue del anillo."
+    },
+    "collective": {
+      "title": "Redes de inteligencia colectiva",
+      "description": "La IA puede hacer visible la experiencia complementaria en todas las ubicaciones y disciplinas y abordar las brechas en los equipos o en los canales de publicaciones."
+    },
+    "adaptive": {
+      "title": "Mejora continua",
+      "description": "A partir de transacciones, tickets y proyectos exitosos se perfeccionan modelos y heurísticas, siempre dentro del marco de la protección de datos y las políticas de producto."
+    }
+  },
+  "architecture": {
+    "title": "Incrustación técnica",
+    "frontend": {
+      "title": "Interfaz reaccionar y Next.js",
+      "description": "Los componentes del servidor, la transmisión y los canales en tiempo real (incluidos los túneles ConnectPlatform) ofrecen una experiencia de usuario rápida; Wallet-Connect complementa la autenticación clásica."
+    },
+    "ai": {
+      "title": "Canalización modular de IA",
+      "description": "Los modelos de lenguaje para texto/resúmenes, componentes de puntuación para emparejar y monitorear costos/calidad se pueden configurar por separado para fines operativos."
+    },
+    "blockchain": {
+      "title": "Capa habilitada para múltiples cadenas",
+      "description": "Los tokens RING y de socios pueden cruzar múltiples redes y puentes; Los contratos incluyen depósitos en garantía, apuestas y acuerdos."
+    },
+    "integration": {
+      "title": "Orquestación AI ↔ Cadena",
+      "description": "Cuando una coincidencia o un flujo de trabajo se pone en marcha, los contratos pueden desencadenar flujos de efectivo y aprobaciones; las aprobaciones humanas permanecen donde el riesgo lo requiere."
+    }
+  },
+  "future": {
+    "title": "Dirección de la hoja de ruta",
+    "nearTerm": {
+      "title": "Fase 1: modelos más profundos (2025)",
+      "item1": "Más fuentes de señales por oportunidad y mejor explicabilidad de las puntuaciones",
+      "item2": "Conexión segura de corredores de pago y DeFi adicionales según lo requieran los clientes de Ring",
+      "item3": "Ajuste en vivo de umbrales y frecuencia de notificación según los datos de uso."
+    },
+    "longTerm": {
+      "title": "Fase 2: flujos de trabajo más automatizados (2026+)",
+      "item1": "Orquestación de proyectos en varias etapas con rutas de escalada y control humano",
+      "item2": "Estructuras DAO con registros y pistas de auditoría impulsados ​​por IA",
+      "item3": "Bucles económicos que priorizan la creación de valor mensurable para las comunidades, sin la metáfora de la “singularidad”"
+    }
+  },
+  "gettingStarted": {
+    "title": "Primeros pasos con AI + Web3 en Ring",
+    "subtitle": "De Connect.Software a clones de mercado: misma columna vertebral técnica, diferente configuración vertical.",
+    "step1": "Mantener el perfil y, opcionalmente, conectar la billetera Web3",
+    "step2": "Pruebe alertas de oportunidades y flujos de editor/tienda",
+    "step3": "Participar en la gobernanza y planificar el uso de RING de acuerdo con las reglas de la instancia.",
+    "cta": "Empezar ahora"
+  }
+}

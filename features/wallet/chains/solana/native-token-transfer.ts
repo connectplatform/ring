@@ -84,12 +84,13 @@ export async function getNativeTokenBalance(walletAddress: string): Promise<stri
  * @param params - { senderWallet, toAddress, amount }
  *   senderWallet: Wallet - wallet to send from (must have chain = 'solana' and valid key)
  *   toAddress: string - public key recipient
- *   amount: string (raw, should be integer in token decimals! Validate/convert externally if needed)
+ *   amount: string — raw integer in token smallest units (convert UI via nativeTokenUiToRaw first)
  * @returns { txHash, fromAddress }
  */
 export async function transferNativeToken(params: {
   senderWallet: Wallet
   toAddress: string
+  /** Raw token amount as decimal integer string (not UI units). */
   amount: string
 }): Promise<{ txHash: string; fromAddress: string }> {
   // Get chain config, check if sponsored transfers are enabled for Solana.
@@ -123,24 +124,28 @@ export async function transferNativeToken(params: {
   const tx = new Transaction()
   tx.feePayer = feePayer.publicKey
 
-  // Add instruction to *create* the recipient's ATA *if it doesn't exist* (idempotent).
-  // This is necessary because otherwise the transfer would fail if the recipient does not already have an ATA for this mint.
+  // Only create ATA when missing — idempotent create still costs CU when present.
+  const recipientAtaInfo = await connection.getAccountInfo(recipientAta, 'confirmed')
+  if (!recipientAtaInfo) {
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        feePayer.publicKey,
+        recipientAta,
+        recipient,
+        mintAddress,
+      ),
+    )
+  }
+
   tx.add(
-    createAssociatedTokenAccountIdempotentInstruction(
-      feePayer.publicKey,
-      recipientAta,
-      recipient,
-      mintAddress
-    ),
-    // Add transfer instruction, safely checking decimals and mint.
     createTransferCheckedInstruction(
       senderAta,
       mintAddress,
       recipientAta,
       sender.publicKey,
-      Number(params.amount), // NOTE: amount should be in smallest unit (not UI string!). Validate externally!
-      decimals
-    )
+      BigInt(params.amount),
+      decimals,
+    ),
   )
 
   // Fetch latest blockhash and validity for transaction lifetime.

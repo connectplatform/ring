@@ -25,6 +25,13 @@ import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
 import { NotificationItem } from './notification-item';
 import { NotificationType, NotificationPriority } from '@/features/notifications/types';
 import { cn } from '@/lib/utils';
+import { useLocale } from 'next-intl';
+import { useCursorFeed } from '@/hooks/use-cursor-feed';
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint';
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response';
+import { apiClient, type ApiResponse } from '@/lib/api-client';
+import type { Notification, NotificationListResponse } from '@/features/notifications/types';
+import { useSession } from 'next-auth/react';
 
 interface NotificationListProps {
   className?: string;
@@ -42,25 +49,95 @@ export function NotificationList({ className }: NotificationListProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority'>('newest');
 
-  // Hooks
+  // Hooks — actions/stats from useNotifications; list pagination via useCursorFeed SSOT
+  const { data: session } = useSession();
+  const locale = useLocale();
   const {
-    notifications,
     unreadCount,
     totalCount,
-    loading,
-    refreshing,
     markingAllAsRead,
     error,
     markAsRead,
     markAllAsRead,
-    fetchMore,
-    hasMore,
-    refresh
+    refresh,
   } = useNotifications({
     unreadOnly: selectedFilter === 'unread',
     types: selectedFilter !== 'all' && selectedFilter !== 'unread' ? [selectedFilter] : undefined,
-    autoRefresh: false // Disable auto-refresh to prevent excessive polling
+    autoRefresh: false,
+    listEnabled: false,
   });
+
+  const typesParam =
+    selectedFilter !== 'all' && selectedFilter !== 'unread' ? [selectedFilter as NotificationType] : undefined;
+
+  const filterFingerprint = useMemo(
+    () =>
+      buildFilterFingerprint('notifications', {
+        unreadOnly: selectedFilter === 'unread',
+        types: typesParam?.join(',') || '',
+        search: searchQuery,
+        priority: selectedPriority,
+        sortBy,
+      }),
+    [selectedFilter, typesParam, searchQuery, selectedPriority, sortBy],
+  );
+
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const params = new URLSearchParams({ limit: '20' });
+      if (cursor) params.set('startAfter', cursor);
+      if (selectedFilter === 'unread') params.set('unreadOnly', 'true');
+      if (typesParam?.length) params.set('types', typesParam.join(','));
+
+      const response: ApiResponse<NotificationListResponse> = await apiClient.get(
+        `/api/notifications?${params.toString()}`,
+        { timeout: 8000, retries: 1 },
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to fetch notifications');
+      }
+
+      const data = response.data;
+      return normalizePaginatedResponse<Notification>(
+        {
+          notifications: data.notifications,
+          items: data.notifications,
+          lastVisible: data.lastVisible,
+          cursor: data.lastVisible,
+          hasMore: data.hasMore,
+        },
+        20,
+      );
+    },
+    [selectedFilter, typesParam],
+  );
+
+  const {
+    items: feedNotifications,
+    loading,
+    hasMore,
+    sentinelRef,
+    reload,
+  } = useCursorFeed<Notification>({
+    moduleId: 'notifications',
+    locale,
+    limit: 20,
+    filterFingerprint,
+    initialItems: [],
+    initialCursor: null,
+    enabled: Boolean(session?.user),
+    fetchPage,
+    restoreScroll: false,
+  });
+
+  // Prefer feed list; keep refresh wired to both
+  const notifications = feedNotifications;
+  const refreshing = loading && notifications.length > 0;
+  const refreshAll = useCallback(async () => {
+    await reload();
+    await refresh();
+  }, [reload, refresh]);
 
   // React 19 Enhanced Navigation
   const { navigateToSettings, isNavigating } = useNotificationNavigation();
@@ -210,7 +287,7 @@ export function NotificationList({ className }: NotificationListProps) {
         <div className="flex items-center space-x-3">
           {/* Refresh button */}
           <button
-            onClick={refresh}
+            onClick={refreshAll}
             disabled={refreshing}
             className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
             aria-label="Refresh notifications"
@@ -478,25 +555,13 @@ export function NotificationList({ className }: NotificationListProps) {
           </div>
         )}
 
-        {/* Load more */}
-        {hasMore && !loading && (
-          <div className="p-4 border-t border-gray-200">
-            <button
-              onClick={fetchMore}
-              disabled={refreshing}
-              className="w-full py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {refreshing ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Loading more...</span>
-                </div>
-              ) : (
-                'Load More Notifications'
-              )}
-            </button>
+        {/* Infinite scroll sentinel (useCursorFeed) */}
+        {loading && notifications.length > 0 && (
+          <div className="p-4 border-t border-gray-200 flex justify-center text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
           </div>
         )}
+        {hasMore && <div ref={sentinelRef} className="h-10" aria-hidden />}
       </div>
     </div>
   );

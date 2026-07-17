@@ -1,0 +1,86 @@
+{
+  "title": "Comparte y gana",
+  "explainer": "Comparte tu enlace personal. Cuando alguien haga su primera compra a través de él, ganas tokens del proyecto automáticamente — sin cuentas de wallet, solo comparte.",
+  "yourLinks": "Tus enlaces para compartir",
+  "noWallets": "Conecta una wallet para obtener tu enlace.",
+  "connectWallet": "Conectar wallet",
+  "copyLink": "Copiar enlace",
+  "copied": "¡Copiado!",
+  "share": "Compartir",
+  "shareTitle": "Únete a Ring Platform",
+  "shareText": "Mira esto — usa mi enlace para tu primera compra.",
+  "history": "Recompensas recientes",
+  "viewTx": "Ver transacción",
+  "loadError": "No se pudo cargar el panel de referidos. Inténtalo de nuevo en breve.",
+  "retry": "Reintentar",
+  "visitsTitle": "Visitas al enlace",
+  "linkVisits": "{count, plural, one {# visita} other {# visitas}}",
+  "linkVisitsToday": "{count, plural, one {# hoy} other {# hoy}}",
+  "stats": {
+    "earned": "Tokens ganados ({token})",
+    "minted": "Recompensas pagadas",
+    "pending": "Pendiente de aprobación",
+    "processing": "Mint en curso",
+    "visitsTotal": "Visitas totales",
+    "visitsToday": "Hoy",
+    "visits7d": "Últimos 7 días",
+    "visits28d": "Últimos 28 días"
+  },
+  "notifications": {
+    "minted": {
+      "title": "Recompensa de referido minteada",
+      "body": "Tu recompensa de referido de {amount} {token} ha sido minteada."
+    }
+  },
+  "status": {
+    "pending_approval": "Pendiente de aprobación",
+    "approved": "Aprobada",
+    "minting": "Minteando",
+    "minted": "Pagada",
+    "failed": "Fallida",
+    "rejected": "Rechazada"
+  },
+  "admin": {
+    "title": "Recompensas de referidos",
+    "description": "Revisa pagos de referidos etiquetados en fiat, mintea recompensas on-chain y monitoriza la salud del programa.",
+    "empty": "No hay recompensas pendientes de aprobación.",
+    "pendingTitle": "Pendiente de aprobación",
+    "failedTitle": "Mints fallidos",
+    "recentTitle": "Actividad reciente",
+    "recentEmpty": "Aún no hay recompensas de referidos.",
+    "order": "Pedido",
+    "refCode": "Código ref",
+    "amount": "Recompensa",
+    "referrer": "Wallet del referente",
+    "approve": "Aprobar y mintear",
+    "reject": "Rechazar",
+    "retryMint": "Reintentar mint",
+    "batchMint": "Mintear cola aprobada",
+    "viewTx": "Ver transacción",
+    "approveSuccess": "Recompensa aprobada y mint enviado.",
+    "approveFailed": "Falló la aprobación o el mint.",
+    "rejectSuccess": "Recompensa rechazada.",
+    "rejectFailed": "No se pudo rechazar la recompensa.",
+    "mintSuccess": "Transacción de mint enviada.",
+    "mintFailed": "Mint fallido — revisa el env del contrato y la wallet del operador.",
+    "batchMintSuccess": "Procesadas {processed} recompensas, {succeeded} minteadas.",
+    "stats": {
+      "codes": "Códigos activos",
+      "rewards": "Recompensas totales",
+      "pending": "Pendiente de aprobación",
+      "minted": "Minteadas",
+      "visitsTotal": "Visitas (total)",
+      "visitsToday": "Visitas hoy",
+      "visits7d": "Visitas (7 días)",
+      "visits28d": "Visitas (28 días)"
+    },
+    "status": {
+      "pending_approval": "Pendiente de aprobación",
+      "approved": "Aprobada",
+      "minting": "Minteando",
+      "minted": "Minteada",
+      "failed": "Fallida",
+      "rejected": "Rechazada"
+    }
+  }
+}

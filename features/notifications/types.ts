@@ -35,7 +35,8 @@ export enum NotificationType {
   WALLET_CREATED = 'wallet_created',
   WALLET_TRANSACTION = 'wallet_transaction',
   WALLET_BALANCE_LOW = 'wallet_balance_low',
-  
+  PAYMENT_REQUEST = 'payment_request',
+
   // System
   SYSTEM_MAINTENANCE = 'system_maintenance',
   SYSTEM_UPDATE = 'system_update',

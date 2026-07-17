@@ -875,7 +875,7 @@ export async function processMembershipFee(formData: FormData): Promise<WalletAc
  *
  * Mirrors `send-native-token(recipient($userID), note($messageID), amount($amountNativeToken))`.
  *
- * @param formData - toAddress, amount, notes, contactUserId, ringContactId
+ * @param formData - toAddress, amount, notes, contactUserId, ringContactId, contactDisplayName
  * @returns txHash, fromAddress, toAddress, amount, tokenSymbol, chain
  */
 export async function transferNativeTokens(formData: FormData): Promise<WalletActionResult & {
@@ -897,6 +897,8 @@ export async function transferNativeTokens(formData: FormData): Promise<WalletAc
     const notes = (formData.get('notes') as string) || undefined
     const contactUserId = (formData.get('contactUserId') as string) || undefined
     const ringContactId = (formData.get('ringContactId') as string) || undefined
+    const contactDisplayName = (formData.get('contactDisplayName') as string) || undefined
+    const contactUsername = (formData.get('contactUsername') as string) || undefined
 
     const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
     const result = await WalletConductor.transferNative({
@@ -906,6 +908,8 @@ export async function transferNativeTokens(formData: FormData): Promise<WalletAc
       notes,
       contactUserId,
       ringContactId,
+      contactDisplayName,
+      contactUsername,
     })
 
     if (!result.success) {
@@ -930,6 +934,407 @@ export async function transferNativeTokens(formData: FormData): Promise<WalletAc
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to transfer tokens',
+    }
+  }
+}
+
+/**
+ * Open (or create) a direct chat and post a native-token payment request widget.
+ */
+export async function sendNativeTokenPaymentRequest(input: {
+  toUserId: string
+  amount: string
+  note?: string
+  displayName?: string
+}): Promise<WalletActionResult & { conversationId?: string; messageId?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const amount = String(input.amount || '').trim()
+    const toUserId = String(input.toUserId || '').trim()
+    if (!toUserId || toUserId === session.user.id) {
+      return { success: false, error: 'Valid recipient is required' }
+    }
+    const parsed = parseFloat(amount)
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return { success: false, error: 'Enter a valid amount' }
+    }
+
+    const { getNativeWallet } = await import('@/lib/wallet/user-wallet-db')
+    const { getNativeChain, getNativeTokenSymbol } = await import('@/lib/ring-config-chain')
+    const wallet = await getNativeWallet(session.user.id, getNativeChain())
+    if (!wallet?.address) {
+      return { success: false, error: 'Your native wallet was not found' }
+    }
+
+    const tokenSymbol = getNativeTokenSymbol()
+    const { ConversationService } = await import('@/features/chat/services/conversation-service')
+    const { MessageService } = await import('@/features/chat/services/message-service')
+    const conversations = new ConversationService()
+    const messages = new MessageService()
+
+    let conversation = await conversations.findDirectConversation(session.user.id, toUserId)
+    if (!conversation) {
+      conversation = await conversations.createConversation({
+        type: 'direct',
+        participantIds: [session.user.id, toUserId],
+        creatorUserId: session.user.id,
+        metadata: {
+          directUserId: toUserId,
+          ...(input.displayName ? { directUserName: input.displayName } : {}),
+        },
+      })
+    }
+
+    const note = input.note?.trim()
+    const content = note
+      ? `Payment request: ${amount} ${tokenSymbol}\n${note}`
+      : `Payment request: ${amount} ${tokenSymbol}`
+
+    const message = await messages.sendMessage(
+      {
+        conversationId: conversation.id,
+        content,
+        type: 'payment_request',
+        metadata: {
+          kind: 'payment_request',
+          amount,
+          tokenSymbol,
+          note: note || undefined,
+          requesterUserId: session.user.id,
+          requesterWalletAddress: wallet.address,
+          status: 'pending',
+        },
+      },
+      session.user.id,
+      session.user.name || session.user.email || 'User',
+      session.user.image || undefined,
+    )
+
+    // Ledger: request visible in wallet history for both parties
+    const {
+      createWalletTransaction,
+      paymentRequestLedgerIds,
+    } = await import('@/lib/wallet/wallet-transaction-db')
+    const { sentId, receivedId } = paymentRequestLedgerIds(message.id)
+    const chain = getNativeChain()
+    const baseMeta = {
+      paymentRequestMessageId: message.id,
+      conversationId: conversation.id,
+      amount,
+      tokenSymbol,
+      note: note || null,
+      requesterUserId: session.user.id,
+      requesterWalletAddress: wallet.address,
+      counterpartyUserId: toUserId,
+    }
+    await Promise.all([
+      createWalletTransaction(
+        {
+          kind: 'payment_request_sent',
+          userId: session.user.id,
+          amount,
+          tokenSymbol,
+          chain,
+          toAddress: undefined,
+          fromAddress: wallet.address,
+          contactUserId: toUserId,
+          contactDisplayName: input.displayName ?? null,
+          notes: note || null,
+          status: 'pending',
+          metadata: { ...baseMeta, role: 'requester' },
+        },
+        sentId,
+      ),
+      createWalletTransaction(
+        {
+          kind: 'payment_request_received',
+          userId: toUserId,
+          amount,
+          tokenSymbol,
+          chain,
+          fromAddress: wallet.address,
+          contactUserId: session.user.id,
+          contactDisplayName: session.user.name || session.user.email || null,
+          notes: note || null,
+          status: 'pending',
+          metadata: { ...baseMeta, role: 'payer' },
+        },
+        receivedId,
+      ),
+    ])
+
+    return {
+      success: true,
+      message: 'Payment request sent',
+      conversationId: conversation.id,
+      messageId: message.id,
+    }
+  } catch (error) {
+    logger.error('sendNativeTokenPaymentRequest failed', { error })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send payment request',
+    }
+  }
+}
+
+/**
+ * Pay a pending payment_request message via WalletConductor (idempotent on messageId).
+ * PaymentConductor is NOT used — that rail is fiat/PSP only.
+ */
+export async function payNativeTokenPaymentRequest(input: {
+  messageId: string
+  /** Optional note stored on the on-chain send + metadata.payNote */
+  note?: string
+}): Promise<
+  WalletActionResult & {
+    txHash?: string
+    paidWalletTxId?: string
+    alreadyPaid?: boolean
+  }
+> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const messageId = String(input.messageId || '').trim()
+    if (!messageId) {
+      return { success: false, error: 'Message id is required' }
+    }
+
+    const { db } = await import('@/lib/database')
+    const { MessageService } = await import('@/features/chat/services/message-service')
+    const { WalletConductor } = await import('@/features/wallet/conductor/wallet-conductor')
+    const {
+      updateWalletTransaction,
+      paymentRequestLedgerIds,
+      getWalletTransactionById,
+    } = await import('@/lib/wallet/wallet-transaction-db')
+
+    const read = await db().readDoc<{
+      id: string
+      type?: string
+      senderId?: string
+      conversationId?: string
+      senderName?: string
+      metadata?: Record<string, unknown>
+    }>('messages', messageId)
+    if (!read.success || !read.data) {
+      return { success: false, error: 'Payment request not found' }
+    }
+
+    const msg = read.data
+    const meta = (msg.metadata || {}) as Record<string, unknown>
+    if (msg.type !== 'payment_request' && meta.kind !== 'payment_request') {
+      return { success: false, error: 'Not a payment request' }
+    }
+
+    const status = String(meta.status || 'pending')
+    const amount = String(meta.amount || '').trim()
+    const requesterUserId = String(meta.requesterUserId || msg.senderId || '')
+    const requesterWalletAddress = String(meta.requesterWalletAddress || '')
+    const tokenSymbol = String(meta.tokenSymbol || '')
+
+    if (!amount || !requesterUserId || !requesterWalletAddress) {
+      return { success: false, error: 'Invalid payment request metadata' }
+    }
+    if (requesterUserId === session.user.id) {
+      return { success: false, error: 'Cannot pay your own request' }
+    }
+
+    if (status === 'paid' && typeof meta.paidTxHash === 'string') {
+      return {
+        success: true,
+        alreadyPaid: true,
+        message: 'Already paid',
+        txHash: meta.paidTxHash,
+        paidWalletTxId:
+          typeof meta.paidWalletTxId === 'string' ? meta.paidWalletTxId : undefined,
+      }
+    }
+    if (status === 'cancelled') {
+      return { success: false, error: 'Payment request was cancelled' }
+    }
+    if (status !== 'pending') {
+      return { success: false, error: 'Payment request is not payable' }
+    }
+
+    // Belt: existing paid send linked to this message
+    const { receivedId, sentId } = paymentRequestLedgerIds(messageId)
+    const existingReceived = await getWalletTransactionById(session.user.id, receivedId)
+    if (existingReceived?.status === 'paid' && existingReceived.txHash) {
+      return {
+        success: true,
+        alreadyPaid: true,
+        message: 'Already paid',
+        txHash: existingReceived.txHash,
+        paidWalletTxId:
+          typeof existingReceived.metadata?.paidWalletTxId === 'string'
+            ? (existingReceived.metadata.paidWalletTxId as string)
+            : `native_token_send_${existingReceived.txHash.toLowerCase()}`,
+      }
+    }
+
+    const payNote = input.note?.trim() || undefined
+    const transfer = await WalletConductor.transferNative({
+      userId: session.user.id,
+      toAddress: requesterWalletAddress,
+      amount,
+      notes: payNote,
+      contactUserId: requesterUserId,
+      contactDisplayName: msg.senderName,
+    })
+
+    if (!transfer.success || !transfer.txHash) {
+      return { success: false, error: transfer.error || 'Transfer failed' }
+    }
+
+    const paidWalletTxId = `native_token_send_${transfer.txHash.toLowerCase()}`
+    const paidAt = new Date().toISOString()
+    const nextMeta = {
+      ...meta,
+      kind: 'payment_request',
+      amount,
+      tokenSymbol: tokenSymbol || transfer.tokenSymbol,
+      requesterUserId,
+      requesterWalletAddress,
+      status: 'paid',
+      paidAt,
+      paidByUserId: session.user.id,
+      paidTxHash: transfer.txHash,
+      paidWalletTxId,
+      ...(payNote ? { payNote } : {}),
+    }
+
+    const messages = new MessageService()
+    await messages.updateMessage(messageId, { metadata: nextMeta })
+
+    const ledgerPatch = {
+      status: 'paid' as const,
+      txHash: transfer.txHash,
+      metadata: {
+        ...(typeof existingReceived?.metadata === 'object' && existingReceived.metadata
+          ? existingReceived.metadata
+          : {}),
+        paymentRequestMessageId: messageId,
+        paidAt,
+        paidByUserId: session.user.id,
+        paidWalletTxId,
+        payNote: payNote || null,
+      },
+    }
+    await Promise.allSettled([
+      updateWalletTransaction(sentId, ledgerPatch),
+      updateWalletTransaction(receivedId, ledgerPatch),
+    ])
+
+    return {
+      success: true,
+      message: 'Payment sent',
+      txHash: transfer.txHash,
+      paidWalletTxId,
+    }
+  } catch (error) {
+    logger.error('payNativeTokenPaymentRequest failed', { error })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to pay payment request',
+    }
+  }
+}
+
+/**
+ * Requester cancels a pending payment_request (no TTL — eternal until cancel/pay).
+ */
+export async function cancelNativeTokenPaymentRequest(input: {
+  messageId: string
+}): Promise<WalletActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const messageId = String(input.messageId || '').trim()
+    if (!messageId) {
+      return { success: false, error: 'Message id is required' }
+    }
+
+    const { db } = await import('@/lib/database')
+    const { MessageService } = await import('@/features/chat/services/message-service')
+    const {
+      updateWalletTransaction,
+      paymentRequestLedgerIds,
+    } = await import('@/lib/wallet/wallet-transaction-db')
+
+    const read = await db().readDoc<{
+      id: string
+      type?: string
+      senderId?: string
+      metadata?: Record<string, unknown>
+    }>('messages', messageId)
+    if (!read.success || !read.data) {
+      return { success: false, error: 'Payment request not found' }
+    }
+
+    const msg = read.data
+    const meta = (msg.metadata || {}) as Record<string, unknown>
+    if (msg.type !== 'payment_request' && meta.kind !== 'payment_request') {
+      return { success: false, error: 'Not a payment request' }
+    }
+
+    const requesterUserId = String(meta.requesterUserId || msg.senderId || '')
+    if (requesterUserId !== session.user.id) {
+      return { success: false, error: 'Only the requester can cancel' }
+    }
+
+    const status = String(meta.status || 'pending')
+    if (status === 'cancelled') {
+      return { success: true, message: 'Already cancelled' }
+    }
+    if (status === 'paid') {
+      return { success: false, error: 'Cannot cancel a paid request' }
+    }
+    if (status !== 'pending') {
+      return { success: false, error: 'Payment request cannot be cancelled' }
+    }
+
+    const cancelledAt = new Date().toISOString()
+    const nextMeta = {
+      ...meta,
+      kind: 'payment_request',
+      status: 'cancelled',
+      cancelledAt,
+    }
+
+    const messages = new MessageService()
+    await messages.updateMessage(messageId, { metadata: nextMeta })
+
+    const { sentId, receivedId } = paymentRequestLedgerIds(messageId)
+    const ledgerPatch = {
+      status: 'cancelled' as const,
+      metadata: {
+        paymentRequestMessageId: messageId,
+        cancelledAt,
+      },
+    }
+    await Promise.allSettled([
+      updateWalletTransaction(sentId, ledgerPatch),
+      updateWalletTransaction(receivedId, ledgerPatch),
+    ])
+
+    return { success: true, message: 'Payment request cancelled' }
+  } catch (error) {
+    logger.error('cancelNativeTokenPaymentRequest failed', { error })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to cancel payment request',
     }
   }
 }
@@ -984,6 +1389,142 @@ export async function listWalletTransactions(options?: {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to list transactions',
+    }
+  }
+}
+
+/**
+ * Fetch a single wallet / credit transaction for the details fs-modal.
+ * Chain rows come from wallet_transactions (with on-chain snapshot + explorer URL).
+ * Credit rows come from the user's credit history.
+ */
+export async function getWalletTransactionDetails(params: {
+  detailId: string
+  detailSource: 'chain' | 'credit'
+}): Promise<
+  WalletActionResult & {
+    detail?: {
+      id: string
+      source: 'chain' | 'credit'
+      kind: string
+      amount: string
+      currency?: string
+      direction?: 'in' | 'out'
+      createdAt: string
+      description?: string | null
+      txHash?: string | null
+      fromAddress?: string | null
+      toAddress?: string | null
+      tokenSymbol?: string | null
+      chain?: string | null
+      status?: string | null
+      slot?: number | null
+      blockTime?: number | null
+      feeLamports?: number | null
+      amountRaw?: string | null
+      explorerUrl?: string | null
+      err?: string | null
+      contactDisplayName?: string | null
+      contactUsername?: string | null
+      deskOrderId?: string | null
+      onChainSnapshot?: Record<string, unknown> | null
+      metadata?: Record<string, unknown>
+    }
+  }
+> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const detailId = params.detailId?.trim()
+    if (!detailId) {
+      return { success: false, error: 'detailId is required' }
+    }
+
+    if (params.detailSource === 'chain') {
+      const { getWalletTransactionById } = await import('@/lib/wallet/wallet-transaction-db')
+      const { getNativeChainExplorerTxUrl } = await import(
+        '@/features/wallet/lib/on-chain-tx-details'
+      )
+      const { getNativeTokenSymbol, getNativeChain } = await import('@/lib/ring-config-chain')
+
+      let row = await getWalletTransactionById(session.user.id, detailId)
+      // Legacy ids may be stored as native_token_send_<hash> while UI passes hash only
+      if (!row && !detailId.startsWith('native_token_send_') && !detailId.startsWith('wtx_')) {
+        row = await getWalletTransactionById(
+          session.user.id,
+          `native_token_send_${detailId.toLowerCase()}`,
+        )
+      }
+      if (!row) {
+        return { success: false, error: 'Transaction not found' }
+      }
+
+      const chain = (row.chain as 'solana' | 'evm' | 'base' | undefined) ?? getNativeChain()
+      const explorerUrl =
+        row.explorerUrl ||
+        (row.txHash ? getNativeChainExplorerTxUrl(row.txHash, chain) : null)
+
+      return {
+        success: true,
+        detail: {
+          id: row.id,
+          source: 'chain',
+          kind: row.kind,
+          amount: row.amount ?? '0',
+          currency: row.tokenSymbol ?? getNativeTokenSymbol(),
+          createdAt: row.createdAt ?? new Date().toISOString(),
+          description: row.notes ?? null,
+          txHash: row.txHash ?? null,
+          fromAddress: row.fromAddress ?? null,
+          toAddress: row.toAddress ?? null,
+          tokenSymbol: row.tokenSymbol ?? getNativeTokenSymbol(),
+          chain: row.chain ?? chain,
+          status: row.status ?? null,
+          slot: row.slot ?? null,
+          blockTime: row.blockTime ?? null,
+          feeLamports: row.feeLamports ?? null,
+          amountRaw: row.amountRaw ?? null,
+          explorerUrl,
+          err: row.err ?? null,
+          contactDisplayName: row.contactDisplayName ?? null,
+          contactUsername: row.contactUsername ?? null,
+          deskOrderId: row.deskOrderId ?? null,
+          onChainSnapshot: row.onChainSnapshot ?? null,
+        },
+      }
+    }
+
+    const { creditBalanceService } = await import(
+      '@/features/wallet/services/credit-balance-service'
+    )
+    const history = await creditBalanceService.getCreditHistory(session.user.id, { limit: 100 })
+    const tx = history.transactions.find((t) => t.id === detailId)
+    if (!tx) {
+      return { success: false, error: 'Transaction not found' }
+    }
+
+    const { getClientCreditUnitLabel } = await import('@/lib/ring-config-client')
+    return {
+      success: true,
+      detail: {
+        id: tx.id,
+        source: 'credit',
+        kind: tx.type,
+        amount: tx.amount,
+        currency: getClientCreditUnitLabel(),
+        createdAt: new Date(tx.timestamp).toISOString(),
+        description: tx.description,
+        metadata: tx.metadata,
+      },
+    }
+  } catch (error) {
+    logger.error('getWalletTransactionDetails failed', { error })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load transaction details',
     }
   }
 }
@@ -1165,6 +1706,47 @@ export async function getRewardCreditAddEventSummary(): Promise<WalletActionResu
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get reward summary',
+    }
+  }
+}
+
+/**
+ * Quest board payload: live catalog amounts + earned-by-trigger status for the signed-in user.
+ */
+export async function getRewardQuestBoard(): Promise<WalletActionResult & {
+  unitLabel?: string
+  totalReceived?: string
+  byTrigger?: Record<string, { count: number; total: string }>
+  catalog?: Array<{
+    trigger: string
+    amount: number
+    enabled: boolean
+    idempotencyMode: string
+  }>
+}> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const { getUserRewardCreditAddEventSummary } = await import('@/lib/wallet/reward-credit-service')
+    const { getPublicRewardCatalog } = await import('@/lib/ring-config-chain')
+    const { getCreditUnitLabel } = await import('@/lib/payments/credit-currency')
+
+    const summary = await getUserRewardCreditAddEventSummary(session.user.id)
+    return {
+      success: true,
+      unitLabel: getCreditUnitLabel(),
+      totalReceived: summary.totalReceived,
+      byTrigger: summary.byTrigger,
+      catalog: getPublicRewardCatalog().filter((row) => row.enabled),
+    }
+  } catch (error) {
+    logger.error('getRewardQuestBoard failed', { error })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load reward quests',
     }
   }
 }
@@ -1371,7 +1953,15 @@ export interface CreditTopupFormState {
   success?: boolean
   error?: string
   message?: string
+  redirect?: {
+    mode: 'navigate' | 'form_post'
+    url: string
+    fields?: Record<string, string | string[]>
+  }
+  /** @deprecated Prefer redirect */
   paymentUrl?: string
+  /** @deprecated Prefer redirect.fields */
+  paymentFields?: Record<string, string | string[]>
 }
 
 /**

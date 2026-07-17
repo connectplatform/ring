@@ -207,6 +207,7 @@ export default function WalletSendFsModal({
       username: contact.username,
       photoURL: contact.photoURL,
       ringContactId: contact.id,
+      isVerified: contact.isVerified,
     })
   }
 
@@ -240,6 +241,8 @@ export default function WalletSendFsModal({
           amount,
           contactUserId: recipient.contactUserId,
           ringContactId: recipient.ringContactId,
+          contactDisplayName: recipient.displayName,
+          contactUsername: recipient.username ?? undefined,
         }),
       })
       const data = (await res.json()) as { error?: string }
@@ -345,6 +348,7 @@ export default function WalletSendFsModal({
                         photoURL={contact.photoURL}
                         address={contact.walletAddress}
                         isFavorite={contact.isFavorite}
+                        isVerified={Boolean(contact.isVerified)}
                         linkToProfile={false}
                         compact
                       />
@@ -398,6 +402,7 @@ export default function WalletSendFsModal({
                           photoURL={contact.photoURL}
                           address={contact.walletAddress}
                           isFavorite={contact.isFavorite}
+                          isVerified={Boolean(contact.isVerified)}
                           linkToProfile={false}
                           compact
                         />

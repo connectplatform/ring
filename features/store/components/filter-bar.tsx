@@ -1,9 +1,15 @@
 'use client'
 import React, { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
+import {
+  DEFAULT_CURRENCY,
+  NATIVE_TOKEN_CURRENCY,
+  useOptionalStoreCurrency,
+} from '@/features/store/currency-context'
 
 export type SortKey = 'name' | 'price'
 export type SortDir = 'asc' | 'desc'
+export type FilterCurrency = '' | string
 
 export function FilterBar({
   search,
@@ -17,14 +23,21 @@ export function FilterBar({
 }: {
   search: string
   setSearch: (v: string) => void
-  currency: '' | 'DAAR' | 'DAARION'
-  setCurrency: (v: '' | 'DAAR' | 'DAARION') => void
+  currency: FilterCurrency
+  setCurrency: (v: FilterCurrency) => void
   sortKey: SortKey
   setSortKey: (v: SortKey) => void
   sortDir: SortDir
   setSortDir: (v: SortDir) => void
 }) {
   const t = useTranslations('modules.store')
+  const storeCurrency = useOptionalStoreCurrency()
+  const currencyOptions = useMemo(() => {
+    const fromCtx = storeCurrency?.displayCurrencies
+    if (fromCtx && fromCtx.length > 0) return fromCtx
+    return [DEFAULT_CURRENCY, NATIVE_TOKEN_CURRENCY]
+  }, [storeCurrency?.displayCurrencies])
+
   const options = useMemo(() => ([
     { key: 'name', label: t('sortByName') },
     { key: 'price', label: t('sortByPrice') }
@@ -38,10 +51,15 @@ export function FilterBar({
         onChange={e => setSearch(e.target.value)}
         className="border rounded px-3 py-2 min-w-[220px]"
       />
-      <select value={currency} onChange={e => setCurrency(e.target.value as any)} className="border rounded px-3 py-2">
+      <select
+        value={currency}
+        onChange={e => setCurrency(e.target.value)}
+        className="border rounded px-3 py-2"
+      >
         <option value="">{t('allCurrencies')}</option>
-        <option value="DAAR">DAAR</option>
-        <option value="DAARION">DAARION</option>
+        {currencyOptions.map((code) => (
+          <option key={code} value={code}>{code}</option>
+        ))}
       </select>
       <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} className="border rounded px-3 py-2">
         {options.map(o => (<option key={o.key} value={o.key}>{o.label}</option>))}
@@ -53,5 +71,3 @@ export function FilterBar({
     </div>
   )
 }
-
-

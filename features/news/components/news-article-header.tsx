@@ -40,6 +40,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { pickImageSrc } from '@/lib/file/media-asset'
+import type { MediaImageAsset } from '@/lib/file/media-asset'
 
 // =============================================================================
 // TYPES
@@ -51,6 +53,7 @@ export interface NewsArticleHeaderProps {
     excerpt?: string
     category: string
     featuredImage?: string
+    featuredImageAsset?: MediaImageAsset
     authorName: string
     authorAvatar?: string
     publishedAt: Date
@@ -469,6 +472,13 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
   const isBookmarked = isBookmarkedProp ?? localBookmarked
   const { data: session } = useSession()
 
+  const heroSrc = pickImageSrc(
+    article.featuredImageAsset || article.featuredImage,
+    'hero',
+  )
+  const resolvedBlur =
+    blurDataUrl || article.featuredImageAsset?.derivatives?.blur
+
   const handleShare = useCallback(async () => {
     const shareData = {
       title: article.title,
@@ -534,7 +544,7 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
         className="relative"
       >
         {/* Featured Image Hero Section */}
-        {article.featuredImage && (
+        {heroSrc && (
           <div className="relative h-[55vh] md:h-[65vh] lg:h-[75vh] min-h-[320px] -mx-4 md:-mx-6 lg:-mx-0 overflow-visible rounded-none lg:rounded-2xl mb-8 max-lg:overflow-hidden">
             {/* Parallax Image */}
             <motion.div
@@ -548,13 +558,13 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
               )}
             >
               <Image
-                src={article.featuredImage}
+                src={heroSrc}
                 alt={article.title}
                 fill
                 className="object-cover"
                 priority
-                placeholder={blurDataUrl ? 'blur' : 'empty'}
-                blurDataURL={blurDataUrl}
+                placeholder={resolvedBlur ? 'blur' : 'empty'}
+                blurDataURL={resolvedBlur}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
               />
             </motion.div>
@@ -641,10 +651,10 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
         {/* Content Area */}
         <div className={cn(
           'relative z-10',
-          !article.featuredImage && 'pt-6'
+          !heroSrc && 'pt-6'
         )}>
           {/* Category Badge (if no image) */}
-          {!article.featuredImage && (
+          {!heroSrc && (
             <div className="mb-6">
               <CategoryBadge 
                 category={article.category} 
@@ -660,7 +670,7 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
               'text-3xl md:text-4xl lg:text-5xl font-bold',
               'leading-tight mb-6',
               'text-foreground',
-              article.featuredImage ? 'lg:hidden' : ''
+              heroSrc ? 'lg:hidden' : ''
             )}
           >
             {article.title}

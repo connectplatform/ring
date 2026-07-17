@@ -31,9 +31,8 @@ export async function generateMetadata({
     ? (localeParam as Locale)
     : routing.defaultLocale
   // Fetch translations for the determined locale/namespace
-  // TODO: Replace with Next.js app dir getTranslations API when stable
   const t = await getTranslations({ locale, namespace: 'modules.dao' })
-  // Get blockchain native token symbol (e.g., ETH, BTC)
+  // Get blockchain native token symbol (e.g., RING)
   const token = getNativeTokenSymbol()
 
   // Return translated metadata
@@ -63,10 +62,9 @@ export default async function DaoListingPage({
 
   // Fetch list of public DAOs/pools from backend
   // NOTE: Consider caching pools for performance, if pools are relatively static
-  const pools = await listPublicPools()
+  const pools = await listPublicPools({ limit: 24 })
 
   // Fetch translations for the current page/locale
-  // TODO: Replace with built-in Next.js getTranslations once supported in app dir
   const t = await getTranslations({ locale, namespace: 'modules.dao' })
   // Get blockchain native token symbol used in copy
   const token = getNativeTokenSymbol()

@@ -174,7 +174,13 @@ export function RingLegioxSettlementChatPreview({
   }, [isActive])
 
   const userTyping = useSequentialTypewriter(t.userPrompt, isActive, phase === 'composing')
-  const agentTyping = useSequentialTypewriter(t.agentReply, isActive, phase === 'agent', 14)
+  // Keep start true through `done` so the typewriter does not clear the streamed reply.
+  const agentTyping = useSequentialTypewriter(
+    t.agentReply,
+    isActive,
+    phase === 'agent' || phase === 'done',
+    14,
+  )
 
   useEffect(() => {
     if (!isActive) return
@@ -224,7 +230,9 @@ export function RingLegioxSettlementChatPreview({
   const showAgentText = phase === 'agent' || phase === 'done' || (reduced && isActive)
   const showCta = phase === 'done' || (reduced && isActive)
   const composerValue = phase === 'composing' && !reduced ? userTyping.value : ''
-  const agentText = reduced ? t.agentReply : agentTyping.value
+  // At animation end always show the full reply (typewriter clears if start flips off).
+  const agentText =
+    phase === 'done' || reduced ? t.agentReply : agentTyping.value
 
   return (
     <div

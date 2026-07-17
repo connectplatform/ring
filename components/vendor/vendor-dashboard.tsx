@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { 
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
 import {
   TrendingUp,
   TrendingDown,
@@ -30,6 +31,17 @@ import { formatCurrency } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { RecentOrders, type VendorRecentOrderRow } from '@/components/vendor/recent-orders'
+import { setVendorStorePromotions } from '@/app/_actions/vendor-actions'
+import { useToast } from '@/hooks/use-toast'
+import type { FreeShippingMode } from '@/features/store/types/promotions'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface VendorDashboardProps {
   vendor: VendorProfile
@@ -41,7 +53,21 @@ interface VendorDashboardProps {
 
 export function VendorDashboard({ vendor, entity, stats, locale, recentOrders = [] }: VendorDashboardProps) {
   const t = useTranslations('vendor.dashboard')
+  const { success: toastSuccess, error: toastError } = useToast()
   const [activeTab, setActiveTab] = useState('overview')
+  const [offerEnabled, setOfferEnabled] = useState(
+    Boolean(vendor.promotions?.checkoutSpecialOfferEnabled) ||
+      vendor.promotions?.freeShipping?.mode === 'always' ||
+      vendor.promotions?.freeShipping?.mode === 'conditional',
+  )
+  const [freeShipMode, setFreeShipMode] = useState<FreeShippingMode>(
+    vendor.promotions?.freeShipping?.mode ||
+      (vendor.promotions?.checkoutSpecialOfferEnabled ? 'always' : 'off'),
+  )
+  const [freeShipMin, setFreeShipMin] = useState<string>(
+    String(vendor.promotions?.freeShipping?.minOrderAmount ?? 50),
+  )
+  const [promoPending, startPromoTransition] = useTransition()
   const loc = locale as Locale
   
   // Calculate growth percentage
@@ -60,6 +86,40 @@ export function VendorDashboard({ vendor, entity, stats, locale, recentOrders = 
 
   const storeStatus = entity.storeStatus || 'open'
   const reviewsCount = vendor.performanceMetrics?.totalOrders ?? stats.totalOrders
+
+  const persistPromotions = (patch: {
+    mode?: FreeShippingMode
+    minOrderAmount?: number
+    offer?: boolean
+  }) => {
+    const mode = patch.mode ?? freeShipMode
+    const minOrderAmount =
+      patch.minOrderAmount ??
+      (parseFloat(freeShipMin) > 0 ? parseFloat(freeShipMin) : 50)
+    const offer =
+      patch.offer ?? (mode === 'always' || mode === 'conditional')
+    startPromoTransition(async () => {
+      const res = await setVendorStorePromotions({
+        checkoutSpecialOfferEnabled: offer,
+        freeShipping: {
+          mode,
+          minOrderAmount: mode === 'conditional' ? minOrderAmount : undefined,
+        },
+      })
+      if (!res.success) {
+        toastError({ title: res.error || 'Failed to update promotions' })
+        return
+      }
+      setOfferEnabled(Boolean(res.promotions?.checkoutSpecialOfferEnabled))
+      if (res.promotions?.freeShipping?.mode) {
+        setFreeShipMode(res.promotions.freeShipping.mode)
+      }
+      toastSuccess({
+        title: t('promotions.label'),
+        description: t('promotions.saved', { defaultValue: 'Promotions updated' }),
+      })
+    })
+  }
   
   return (
     <div className="space-y-6">
@@ -82,7 +142,7 @@ export function VendorDashboard({ vendor, entity, stats, locale, recentOrders = 
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-4 flex-wrap">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">{t('trustScore')}</p>
               <div className="flex items-center gap-2">
@@ -90,18 +150,92 @@ export function VendorDashboard({ vendor, entity, stats, locale, recentOrders = 
                 <span className="font-semibold">{vendor.trustScore}/100</span>
               </div>
             </div>
-            <div className="flex gap-2">
-              {vendor.complianceStatus?.taxDocumentsSubmitted ? (
-                <Badge variant="outline" className="text-green-600">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  {t('taxVerified')}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-yellow-600">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {t('taxPending')}
-                </Badge>
-              )}
+            <div className="flex flex-col items-end gap-3">
+              <div className="flex gap-2">
+                {vendor.complianceStatus?.taxDocumentsSubmitted ? (
+                  <Badge variant="outline" className="text-green-600">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    {t('taxVerified')}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-yellow-600">
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    {t('taxPending')}
+                  </Badge>
+                )}
+              </div>
+              {/* Promotions — free shipping modes + checkout special offer modal */}
+              <div className="flex flex-col items-end gap-2 rounded-md border border-border/60 px-3 py-2 min-w-[16rem]">
+                <div className="text-right w-full">
+                  <p className="text-sm font-medium">{t('promotions.label')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('promotions.freeShippingHint', {
+                      defaultValue: 'Free shipping policy for your storefront',
+                    })}
+                  </p>
+                </div>
+                <Select
+                  value={freeShipMode}
+                  disabled={promoPending}
+                  onValueChange={(v) => {
+                    const mode = v as FreeShippingMode
+                    setFreeShipMode(mode)
+                    setOfferEnabled(mode !== 'off')
+                    persistPromotions({ mode, offer: mode !== 'off' })
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">
+                      {t('promotions.freeShipOff', { defaultValue: 'Free shipping: Off' })}
+                    </SelectItem>
+                    <SelectItem value="always">
+                      {t('promotions.freeShipAlways', { defaultValue: 'Always free' })}
+                    </SelectItem>
+                    <SelectItem value="conditional">
+                      {t('promotions.freeShipConditional', {
+                        defaultValue: 'Free over minimum order',
+                      })}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {freeShipMode === 'conditional' && (
+                  <div className="flex items-center gap-2 w-full">
+                    <Input
+                      type="number"
+                      min={0}
+                      step="1"
+                      className="h-8"
+                      value={freeShipMin}
+                      disabled={promoPending}
+                      onChange={(e) => setFreeShipMin(e.target.value)}
+                      onBlur={() =>
+                        persistPromotions({
+                          mode: 'conditional',
+                          minOrderAmount: parseFloat(freeShipMin) || 50,
+                        })
+                      }
+                      aria-label={t('promotions.minOrder', { defaultValue: 'Minimum order' })}
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-2 w-full justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {t('promotions.checkoutOffer')}
+                  </span>
+                  <Switch
+                    checked={offerEnabled}
+                    disabled={promoPending || freeShipMode === 'off'}
+                    onCheckedChange={(next) => {
+                      setOfferEnabled(next)
+                      persistPromotions({ offer: next })
+                    }}
+                    aria-label={t('promotions.checkoutOffer')}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

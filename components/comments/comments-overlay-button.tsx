@@ -126,7 +126,7 @@ export function CommentsOverlayButton({
       </Button>
 
       {/* Overlay panel containing comments list and form */}
-      <RingCenterPaneOverlay open={open} ariaLabel="Comments">
+      <RingCenterPaneOverlay open={open} onClose={handleClose} ariaLabel="Comments">
         <div className="flex flex-col h-full">
           {/* Panel header */}
           <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">

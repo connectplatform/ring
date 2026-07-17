@@ -149,8 +149,17 @@ Next.js 16 App Router, React 19 Server Components, Auth.js v5, PostgreSQL-primar
 - **IMAP Poll + Webhook Ingest**: Cron-safe batch processing for serverless/k8s
 - **Security Pipeline**: 4-layer prompt-injection defense before LLM calls
 - **Draft Queue**: Approve, reject, or send via SMTP with thread continuity
-- **CRM + Tasks**: Contacts, follow-ups, and analytics in admin UI
+- **CRM + Tasks**: Contacts, follow-ups, and analytics under `/admin/crm/*`
 - **JSONB Persistence**: `email_*` collections aligned with platform row model
+
+### [Owner Project Lab](/docs/features/owner-project-lab)
+**Buyer My Projects + shared order_lab chat**
+
+**Business Value**: Paid calculator project orders get a buyer control panel and one Project room with integrator + Reggie
+
+- **My Projects**: `/my-orders` list and detail (read-only status, masked deploy summary)
+- **Shared room**: One `order_lab` conversation per order; admin private DMs stay separate
+- **CRM orders**: `/admin/crm/orders` under the same CRM shell as email inbox tabs
 
 ## 🎯 **Feature Integration & Ecosystem**
 

@@ -1,0 +1,21 @@
+{
+  "suspended": {
+    "title": "Konto gesperrt",
+    "description": "Ihr Konto wurde zur Prüfung gesperrt. Reichen Sie eine Wiederherstellungsanfrage für einen Video-Verifizierungsanruf mit unserem Team ein.",
+    "reasonLabel": "Grund",
+    "formIntro": "Geben Sie Kontaktdaten und Ihren bevorzugten Kanal für einen Video-Verifizierungsanruf mit dem Team an.",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "telegram": "Telegram-Benutzername",
+    "whatsapp": "WhatsApp-Nummer",
+    "videoChannel": "Bevorzugter Video-Verifizierungskanal",
+    "videoChannelHelp": "Das Team kann Sie über Telegram, WhatsApp, E-Mail+Zoom, E-Mail+Meet oder Skype erreichen.",
+    "message": "Erklären Sie Ihre Situation",
+    "messagePlaceholder": "Beschreiben Sie kurz, warum Ihr Konto wiederhergestellt werden sollte…",
+    "submit": "Wiederherstellungsanfrage senden",
+    "submitting": "Wird gesendet…",
+    "submitSuccess": "Anfrage eingereicht ({procedure}). Unser Team prüft sie in der Verifizierungswarteschlange.",
+    "submitError": "Wiederherstellungsanfrage konnte nicht gesendet werden",
+    "pendingReview": "Ihre Wiederherstellungsanfrage {procedure} wartet auf die Admin-Prüfung."
+  }
+}

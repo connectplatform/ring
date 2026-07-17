@@ -1,7 +1,7 @@
 ---
 title: Email AI-CRM
-description: AI-assisted inbox for public contact mailboxes — IMAP ingest, JSONB persistence via DatabaseService, draft review, tasks, and admin dashboards
-last_modified: "2026-07-07"
+description: AI-assisted inbox for public contact mailboxes — IMAP ingest, JSONB persistence via DatabaseService, draft review, tasks, and admin dashboards under /admin/crm
+last_modified: "2026-07-17"
 audience: both
 ---
 
@@ -12,7 +12,7 @@ audience: both
 </Callout>
 
 <Callout type="success" title="Executive summary">
-Ring ships an **AI-assisted email CRM** for public contact mailboxes (for example `info@example.com`). Inbound mail is classified, threaded, and answered with Claude drafts; platform admins review, approve, and send from the admin UI. Ingest is **IMAP cron poll** or an **inbound webhook**; persistence is PostgreSQL JSONB when migrations `009` + `010` are applied.
+Ring ships an **AI-assisted email CRM** for public contact mailboxes (for example `info@example.com`). Inbound mail is classified, threaded, and answered with Claude drafts; platform admins review, approve, and send from the admin UI under **`/admin/crm/*`**. Ingest is **IMAP cron poll** or an **inbound webhook**; persistence is PostgreSQL JSONB when migrations `009` + `010` are applied. HTTP APIs remain at **`/api/admin/email/*`**.
 </Callout>
 
 <Cards>
@@ -24,6 +24,9 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
   </Card>
   <Card title="Developer setup guide" href="/docs/examples/email-ai-crm">
     Local `.env.local`, migrations, SMTP smoke test, production cron.
+  </Card>
+  <Card title="Owner Project Lab" href="/docs/features/owner-project-lab">
+    Project orders + shared order_lab chat under the same CRM shell.
   </Card>
   <Card title="Environment variables" href="/docs/deployment/environment#email-ai-crm">
     Full EMAIL CRM block in `env.local.template`.
@@ -38,8 +41,9 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
 | **Processor** | `services/email/email-processor.ts` — parse, security, AI, CRM, drafts |
 | **Persistence** | `features/email-crm/lib/jsonb-collection.ts` → `db()` (`readDoc`, `upsertDoc`, `queryDocs`) on six JSONB collections |
 | **Outbound** | `services/email/smtp/email-sender.ts` (nodemailer) — replies with `In-Reply-To` / `References` |
-| **Admin UI** | `/admin/email-inbox`, drafts, contacts, analytics, tasks, thread detail |
-| **Admin API** | `/api/admin/email/*` — `auth()` + `isPlatformAdmin` on every route |
+| **Admin UI** | `/admin/crm/inbox`, drafts, contacts, analytics, tasks, thread detail — plus `/admin/crm/orders` (project orders) |
+| **Admin API** | `/api/admin/email/*` — `auth()` + `isPlatformAdmin` on every route (paths unchanged) |
+| **Shell** | `CrmAdminShell` — horizontal tabs, `showRightRail={false}`, pageContexts `crm-*` |
 
 <Mermaid title="Admin journey — ingest to reply">
 {`sequenceDiagram
@@ -47,7 +51,7 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
     participant C as Cron poll
     participant P as EmailProcessor
     participant DB as db() DatabaseService
-    participant A as Admin UI
+    participant A as Admin CRM UI
 
     M->>C: UNSEEN messages
     C->>P: pollInboundBatch
@@ -62,7 +66,7 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
 
 ## Why this matters for your clone
 
-Public contact inboxes (`info@`, `support@`, `hello@`) are where trust is won or lost. Email AI-CRM gives operators a single admin surface to triage inbound mail, review AI drafts before send, and track follow-up tasks — without hiring a full support desk on day one.
+Public contact inboxes (`info@`, `support@`, `hello@`) are where trust is won or lost. Email AI-CRM gives operators a single admin surface to triage inbound mail, review AI drafts before send, and track follow-up tasks — without hiring a full support desk on day one. Project orders share the same CRM tab bar — see [Owner Project Lab](/docs/features/owner-project-lab).
 
 <Cards>
   <Card title="Community support" description="Classify FAQs, route urgent mail, draft replies for admin approval." />
@@ -77,18 +81,23 @@ Public contact inboxes (`info@`, `support@`, `hello@`) are where trust is won or
 - **Cron poll in serverless** — production schedules `poll` every 1–5 minutes; `EMAIL_PROCESSOR_AUTOSTART` is for long-lived Node workers only.
 - **Admin-only** — all `/api/admin/email/*` routes require a platform admin session.
 
-### Admin pages
+### Admin pages (CRM shell)
 
 | Route | Purpose |
 |-------|---------|
-| `/admin/email-inbox` | Thread list (live API) |
-| `/admin/email-inbox/[id]` | Thread detail + messages |
-| `/admin/email-drafts` | Pending AI drafts — approve / reject / send |
-| `/admin/email-contacts` | CRM contacts registry |
-| `/admin/email-analytics` | Volume, intent/sentiment, API cost (from `email_api_usage`) |
-| `/admin/email-tasks` | Follow-ups and escalations |
+| `/admin/crm/inbox` | Thread list (live API) |
+| `/admin/crm/inbox/[id]` | Thread detail + messages |
+| `/admin/crm/drafts` | Pending AI drafts — approve / reject / send |
+| `/admin/crm/contacts` | CRM contacts registry |
+| `/admin/crm/analytics` | Volume, intent/sentiment, API cost (from `email_api_usage`) |
+| `/admin/crm/tasks` | Follow-ups and escalations |
+| `/admin/crm/orders` | Project / custom orders desk (see Owner Project Lab) |
 
-Navigation: **Admin → Email Inbox / Drafts / Tasks** (right-rail quick nav in `AdminWrapper`).
+Navigation: **Admin → CRM** horizontal tabs (Orders \| Inbox \| Drafts \| Contacts \| Tasks \| Analytics). Right rail is hidden for CRM pages (`showRightRail={false}`).
+
+<Callout type="warning" title="No redirects from /admin/email-*">
+Legacy `/admin/email-*` page URLs are a **clean break** — update bookmarks and docs to `/admin/crm/*`. `ADMIN_EMAIL_*` route constants alias to the CRM paths. APIs and cron ids are unchanged.
+</Callout>
 
 ### Operator setup
 
@@ -114,7 +123,7 @@ Trigger ingest: schedule `POST /api/cron/email-processor` with `{"action":"poll"
 
 <Step>
 
-Open **Admin → Email Inbox** and **Email Drafts**. Approve a draft and send. Confirm the reply in the sender mailbox before enabling auto-send.
+Open **Admin → CRM Inbox** and **Drafts**. Approve a draft and send. Confirm the reply in the sender mailbox before enabling auto-send.
 
 </Step>
 
@@ -146,6 +155,7 @@ Open **Admin → Email Inbox** and **Email Drafts**. Approve a draft and send. C
 | `features/email-crm/lib/jsonb-collection.ts` | `readDoc` / `upsertDoc` / `queryDocs` → `db()` |
 | `features/email-crm/repositories/` | JSONB repositories per collection |
 | `features/email-crm/services/` | Thread, message, API usage services |
+| `features/admin/crm/crm-admin-shell.tsx` | Shared CRM UI shell (`crm-*` pageContexts) |
 | `app/api/cron/email-processor/route.ts` | Cron: `poll`, `status`, `mark-overdue-tasks` |
 | `app/api/webhooks/email/inbound/route.ts` | HMAC-signed webhook ingest |
 
@@ -257,6 +267,9 @@ Optional analytics snapshot: `GET $BASE_URL/api/cron/email-analytics` with the s
   </Card>
   <Card title="Developer guide" href="/docs/examples/email-ai-crm">
     Step-by-step local setup and troubleshooting.
+  </Card>
+  <Card title="Owner Project Lab" href="/docs/features/owner-project-lab">
+    Buyer My Projects and CRM orders desk.
   </Card>
   <Card title="Database migrations" href="/docs/getting-started/migrations">
     Kingdom migration order and `run-migration.sh`.

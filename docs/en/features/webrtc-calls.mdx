@@ -156,10 +156,10 @@ Subscribe with **`useTunnelChannel`** — do not raw-subscribe in effects ([Tunn
 Install operator (pulls Gateway API + STUNner CRDs):
 
 <Code language="bash">
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+{`export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 helm repo add stunner https://l7mp.io/stunner && helm repo update
-helm upgrade --install stunner stunner/stunner \
-  --create-namespace --namespace=stunner-system --wait
+helm upgrade --install stunner stunner/stunner \\
+  --create-namespace --namespace=stunner-system --wait`}
 </Code>
 
 </Step>

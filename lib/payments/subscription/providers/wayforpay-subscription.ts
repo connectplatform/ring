@@ -167,21 +167,37 @@ export const wayforpaySubscriptionProvider: SubscriptionProviderModule = {
       apiForm.set('clientEmail', input.userEmail)
       apiForm.set('language', 'EN')
 
-      // 4. HPP Purchase redirect URL
-      const paymentUrl = `https://secure.wayforpay.com/pay?${apiForm.toString()}`
+      // 4. HPP Purchase — POST fields only (GET query → Bad Request)
+      const paymentFields: Record<string, string | string[]> = {}
+      apiForm.forEach((value, key) => {
+        const existing = paymentFields[key]
+        if (existing === undefined) {
+          paymentFields[key] = value
+        } else if (Array.isArray(existing)) {
+          existing.push(value)
+        } else {
+          paymentFields[key] = [existing, value]
+        }
+      })
+      const redirectUrl = 'https://secure.wayforpay.com/pay'
 
       logger.info('WayForPay subscription: Purchase HPP created with regularMode', {
         userId: input.userId,
         orderReference,
         regularMode,
         dateNext: getNextBillingDate(regularMode),
-        paymentUrl: paymentUrl.slice(0, 80) + '...',
       })
 
       return {
         success: true,
         gatewayReference: orderReference, // Will be replaced by recToken on first webhook
-        redirectUrl: paymentUrl,
+        redirect: {
+          mode: 'form_post',
+          url: redirectUrl,
+          fields: paymentFields,
+        },
+        redirectUrl,
+        paymentFields,
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'

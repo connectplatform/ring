@@ -33,6 +33,7 @@ export type SubscriptionProvider = z.infer<typeof subscriptionProviderSchema>
 // ---------------------------------------------------------------------------
 
 export const SUBSCRIPTION_STATUSES = [
+  'pending',
   'active',
   'expired',
   'cancelled',
@@ -75,6 +76,8 @@ export const subscriptionLedgerSchema = z.object({
   stripe_subscription_id: z.string().optional(),
   stripe_customer_id: z.string().optional(),
   wayforpay_rec_token: z.string().optional(),
+  /** PayPal Subscriptions v1 id (I-…). Not an Orders v2 order id. */
+  paypal_subscription_id: z.string().optional(),
   solana_tx_signature: z.string().optional(),
   nft_mint_address: z.string().optional(),
 
@@ -108,7 +111,7 @@ export const subscriptionLedgerFilterSchema = z.object({
   user_id: z.string().optional(),
   provider: subscriptionProviderSchema.optional(),
   status: subscriptionStatusSchema.optional(),
-  method: z.enum(['card', 'credit_balance', 'crypto', 'nft']).optional(),
+  method: z.enum(['card', 'credit_balance', 'crypto', 'nft', 'paypal']).optional(),
   due_before: z.number().int().optional(),   // next_payment_due < this
   due_after: z.number().int().optional(),     // next_payment_due > this
 })

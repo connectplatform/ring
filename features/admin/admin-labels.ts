@@ -30,6 +30,7 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
   return {
     dashboard: navLabel(t, 'dashboard'),
     users: navLabel(t, 'users'),
+    rewards: safeLabel(t, 'rewards'),
     news: navLabel(t, 'news'),
     dao: navLabel(t, 'dao'),
     analytics: navLabel(t, 'analytics'),
@@ -49,6 +50,7 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     emailContacts: safeLabel(t, 'emailContacts'),
     emailAnalytics: safeLabel(t, 'emailAnalytics'),
     emailTasks: safeLabel(t, 'emailTasks'),
+    crmOrders: safeLabel(t, 'crmOrders') ?? 'Custom orders',
     processes: navLabel(t, 'processes'),
     userManagement: safeLabel(t, 'userManagement'),
     quickNav: safeLabel(t, 'quickNav'),

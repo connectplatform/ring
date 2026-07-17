@@ -136,8 +136,16 @@ async function importLocaleFile(
         .catch(() => ({}))
     case 'modNft':
       return import(`@/locales/${targetLocale}/modules/nft.json`).then((m) => m.default).catch(() => ({}))
+    case 'modGenerativeMedia':
+      return import(`@/locales/${targetLocale}/modules/generativeMedia.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
     case 'modNews':
       return import(`@/locales/${targetLocale}/modules/news.json`).then((m) => m.default).catch(() => ({}))
+    case 'modMoodPlayer':
+      return import(`@/locales/${targetLocale}/modules/moodPlayer.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
     case 'modNotifications':
       return import(`@/locales/${targetLocale}/modules/notifications.json`)
         .then((m) => m.default)
@@ -264,6 +272,8 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modSettings) modules.settings = loaded.modSettings
   if (loaded.modMembership) modules.membership = loaded.modMembership
   if (loaded.modNft) modules.nft = loaded.modNft
+  if (loaded.modGenerativeMedia) modules.generativeMedia = loaded.modGenerativeMedia
+  if (loaded.modMoodPlayer) modules.moodPlayer = loaded.modMoodPlayer
   if (loaded.modNotifications) {
     messages.notifications = loaded.modNotifications
     modules.notifications = loaded.modNotifications
@@ -271,6 +281,8 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modRefcodes) modules.refcodes = loaded.modRefcodes
   if (loaded.modDao) modules.dao = loaded.modDao
   if (loaded.modAccount) modules.account = loaded.modAccount
+  // Alias so `getTranslations('modules.news')` resolves (canonical is top-level `news`)
+  if (loaded.modNews) modules.news = loaded.modNews
   if (Object.keys(modules).length > 0) messages.modules = modules
 
   return messages

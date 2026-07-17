@@ -23,7 +23,7 @@ const TILE_COLORS: Record<string, string> = {
   matcher: 'bg-indigo-500',
   store: 'bg-teal-500',
   refcodes: 'bg-pink-500',
-  'email-inbox': 'bg-cyan-500',
+  'crm-inbox': 'bg-cyan-500',
   settings: 'bg-slate-600',
   processes: 'bg-indigo-600',
   performance: 'bg-yellow-600',

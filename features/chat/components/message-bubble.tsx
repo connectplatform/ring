@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import PaymentRequestMessageWidget from '@/features/wallet/components/payment-request-message-widget'
 
 interface MessageBubbleProps {
   message: Message
@@ -164,8 +165,16 @@ export function MessageBubble({
           >
             {/* Message content */}
             <div className="pr-6">
-              {/* Text content */}
-              {message.content && (
+              {/* Payment request widget */}
+              {(message.type === 'payment_request' ||
+                message.metadata?.kind === 'payment_request') && (
+                <PaymentRequestMessageWidget message={message} isOwn={isOwn} />
+              )}
+
+              {/* Text content (skip when payment_request already rendered body) */}
+              {message.content &&
+                message.type !== 'payment_request' &&
+                message.metadata?.kind !== 'payment_request' && (
                 <div className="mb-2">
                   {message.content}
                 </div>
@@ -179,7 +188,7 @@ export function MessageBubble({
                       {attachment.type === 'image' && (
                         <div>
                           <Image 
-                            src={attachment.url} 
+                            src={attachment.derivatives?.thumb || attachment.url} 
                             alt={attachment.name || 'Shared image'} 
                             width={400}
                             height={300}

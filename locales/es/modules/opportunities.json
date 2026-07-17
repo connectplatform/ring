@@ -1,0 +1,731 @@
+{
+  "introTitle": "Descubra oportunidades",
+  "introDescription": "Empleos, asociaciones, financiación y colaboraciones de organizaciones del ecosistema Connect.Software y Ring. Regístrese, navegue y presente su solicitud.",
+  "loadingMessage": "Las oportunidades se están cargando...",
+  "loadingOpportunities": "Se carga el directorio con filtros y búsqueda.",
+  "loadingOpportunityDetails": "Se cargan los detalles y la información relacionada.",
+  "loadingMoreOpportunities": "Se están cargando más oportunidades...",
+  "loadingEntity": "La organización se está cargando...",
+  "privateUser": "perfil privado",
+  "opportunities": "Opportunities",
+  "opportunitiesDescription": "Descubra oportunidades en la comunidad Ring",
+  "opportunitiesSubtitle": "{count} Oportunidades disponibles",
+  "myOpportunities": "mis oportunidades",
+  "myOpportunitiesDescription": "Vea y administre sus propias oportunidades",
+  "myOpportunitiesSubtitle": "{count} Oportunidades disponibles",
+  "myOpportunitiesEmpty": "Aún no has publicado una oportunidad. Comience con la primera licitación.",
+  "myOpportunitiesCreate": "Crear oportunidad",
+  "myOpportunitiesCreateDescription": "Crea tu primera oportunidad",
+  "myOpportunitiesCreateButton": "Crear oportunidad",
+  "createOpportunity": "Crear oportunidad",
+  "viewAll": "Ver todo",
+  "allOpportunities": "Todas las oportunidades",
+  "savedOpportunities": "Guardado",
+  "appliedOpportunities": "Anunciado",
+  "postedOpportunities": "Publicado",
+  "all": "Todo",
+  "applied": "Anunciado",
+  "created": "Publicado",
+  "createdOpportunities": "Publicado",
+  "totalOpportunities": "Todas las oportunidades",
+  "createNew": "Nueva oportunidad",
+  "draftOpportunities": "Diseños",
+  "expiredOpportunities": "Venció",
+  "add": "Agregar",
+  "cancel": "Cancelar",
+  "tags": "Etiquetas",
+  "addOpportunity": "Agregar oportunidad",
+  "errorFetchingMoreOpportunities": "No se pudieron cargar oportunidades adicionales.",
+  "errorFetchingEntities": "No se pudieron cargar las organizaciones vinculadas.",
+  "viewDetails": "Mostrar detalles",
+  "upgradeToBeMember": "Actualizar membresía",
+  "upgradeToMemberToPostOpportunities": "Únase para publicar oportunidades",
+  "subscriberUpgradeMessage": "Como suscriptor puedes ver oportunidades; Se requiere estatus de membresía para publicar.",
+  "backToOpportunities": "Volver a Oportunidades",
+  "loading": "Carga …",
+  "organizationDetails": "Detalles de la organización",
+  "name": "Nombre",
+  "type": "tipo",
+  "opportunityDetails": "Detalles de la oportunidad",
+  "location": "Ubicación",
+  "expirationDate": "Fecha de caducidad",
+  "attachments": "Adjuntos",
+  "confidentialOpportunity": "Oportunidad confidencial",
+  "confidentialOpportunityDescription": "Esta oportunidad contiene información confidencial y sólo es visible para usuarios autorizados.",
+  "confidentialInformation": "Información confidencial",
+  "confidentialInformationDescription": "Detalles confidenciales adicionales están disponibles para los usuarios autorizados.",
+  "noPermission": "No tienes permiso para ver esta oportunidad.",
+  "noDataAvailable": "No hay datos para esta oportunidad.",
+  "confidential": "Confidencial",
+  "processing": "Se está procesando...",
+  "posting": "Se publicará...",
+  "posted": "Publicado",
+  "activeFilters": "Filtros activos",
+  "search": "Buscar",
+  "searchOpportunities": "Busque oportunidades...",
+  "category": "categoría",
+  "selectCategory": "Seleccionar categoría",
+  "allCategories": "Todas las categorias",
+  "technology": "tecnología",
+  "business": "Business",
+  "education": "Educación",
+  "healthcare": "Cuidado de la salud",
+  "selectType": "Seleccionar tipo",
+  "allTypes": "Todos los tipos",
+  "filters": {
+    "title": "Filtros",
+    "subtitle": "Afina por tipo de oportunidad, categoría y más",
+    "searchLabel": "Filtrar oportunidades",
+    "types": "Tipos",
+    "categories": "Categorías",
+    "location": "ubicación",
+    "priority": "prioridad",
+    "budget": "presupuesto",
+    "activeFilters": "Filtros activos",
+    "clearAll": "Borrar todo",
+    "sectionTypes": "Tipos de oportunidad",
+    "sectionCategories": "Categorías",
+    "sectionLocation": "Ubicación",
+    "sectionBudget": "Rango de presupuesto",
+    "locationPlaceholder": "Introduce ciudad o país",
+    "currency": "Moneda",
+    "min": "Mín",
+    "max": "Máx",
+    "anyPriority": "Cualquier prioridad",
+    "priorityUrgent": "Urgente",
+    "priorityNormal": "Normal",
+    "priorityLow": "Baja"
+  },
+  "sortBy": "Ordenar por",
+  "newest": "El último",
+  "oldest": "más antiguo",
+  "budget": "Presupuesto",
+  "deadline": "fecha límite",
+  "showingResults": "{count} visitas",
+  "noOpportunities": "No se encontraron oportunidades",
+  "noOpportunitiesDescription": "Ajuste los filtros o vuelva a consultar más tarde.",
+  "clearFilters": "Limpiar filtros",
+  "createFirstOpportunity": "Crear primera oportunidad",
+  "noCreatedOpportunities": "Aún no se han creado oportunidades",
+  "noAppliedOpportunities": "Aún no hay aplicaciones",
+  "applyToOpportunities": "Busque oportunidades y postule",
+  "getStartedWithOpportunities": "Crear o solicitar una oportunidad",
+  "browseOpportunities": "Explorar oportunidades",
+  "investment": "Inversión",
+  "sales": "Ventas",
+  "procurement": "Compras",
+  "quickActions": "Acciones rápidas",
+  "categories": "Categorías",
+  "helpResources": "Ayuda y recursos",
+  "opportunitiesHelp": "Aprende a encontrar y postularte a oportunidades con eficacia.",
+  "viewGuide": "Ver guía",
+  "yourActivity": "Tu actividad",
+  "saved": "Guardadas",
+  "views": "Vistas",
+  "pending": "Pendiente",
+  "pendingOpportunities": "Pendientes",
+  "active": "Activas",
+  "activeOpportunities": "Activas",
+  "draft": "Borrador",
+  "archived": "Archivadas",
+  "archivedOpportunities": "Archivadas",
+  "archiveView": "Mostrar oportunidades archivadas",
+  "deleteArchivedOnly": "Solo se pueden eliminar oportunidades archivadas. Archiva el anuncio primero.",
+  "confirmDeleteArchived": "¿Eliminar permanentemente la oportunidad archivada «{title}»?",
+  "deleteFailed": "Error al eliminar la oportunidad",
+  "noArchivedOpportunities": "No hay oportunidades archivadas",
+  "delete": "Eliminar",
+  "closed": "Cerrada",
+  "expired": "Caducada",
+  "unknown": "Desconocido",
+  "type_selector": {
+    "title": "¿Qué quieres crear?",
+    "subtitle": "Choose an opportunity type first — each opens a tailored form for that collaboration style.",
+    "examples": "Ejemplos",
+    "request": {
+      "title": "Consulta",
+      "description": "Buscar servicios, asesoramiento o cooperación de la comunidad.",
+      "examples": {
+        "freelancer": "Busco freelancers para mi proyecto",
+        "service": "Buscando servicios de consultoria",
+        "advice": "Evaluación profesional deseada"
+      },
+      "button": "Crear solicitud"
+    },
+    "offer": {
+      "title": "Oferta",
+      "description": "Publique la oportunidad de trabajo o proyecto oficial de su organización.",
+      "examples": {
+        "job": "Anuncio de empleo en nuestra empresa.",
+        "contract": "Puesto de contrato disponible",
+        "internship": "Prácticas"
+      },
+      "button": "Crear oferta",
+      "member_required": "Membresía requerida",
+      "upgrade_message": "Conviértase en miembro para publicar ofertas de su organización.",
+      "upgrade_button": "convertirse en miembro"
+    },
+    "partnership": {
+      "title": "asociación",
+      "description": "Buscar alianzas estratégicas y colaboraciones comerciales.",
+      "examples": {
+        "strategic": "Asociación corporativa estratégica",
+        "joint_venture": "Oportunidad de empresa conjunta",
+        "collaboration": "Colaboración entre industrias"
+      },
+      "button": "Crear asociación",
+      "upgrade_button": "convertirse en miembro"
+    },
+    "volunteer": {
+      "title": "Voluntariado",
+      "description": "Anuncie puestos de voluntariado para proyectos caritativos.",
+      "examples": {
+        "community": "Proyecto comunitario",
+        "nonprofit": "Ayuda para organización sin fines de lucro.",
+        "social": "Iniciativa de Impacto Social"
+      },
+      "button": "Oportunidad de voluntariado",
+      "upgrade_button": "convertirse en miembro"
+    },
+    "cv": {
+      "title": "CV del desarrollador",
+      "description": "Comparta perfil y habilidades para proyectos Ring/Connect.Software.",
+      "examples": {
+        "developer_cv": "Portafolio y experiencia",
+        "portfolio": "Proyectos y logros",
+        "skills": "Habilidades técnicas"
+      },
+      "button": "Compartir perfil",
+      "upgrade_button": "Se requiere registro"
+    },
+    "resource": {
+      "title": "recurso",
+      "description": "Compartir o solicitar recursos, herramientas o equipos.",
+      "examples": {
+        "equipment": "Compartir dispositivo",
+        "workspace": "Capacidad de oficina o laboratorio",
+        "tools": "Acceso a herramientas profesionales."
+      },
+      "button": "Crear recurso",
+      "upgrade_button": "convertirse en miembro"
+    },
+    "event": {
+      "title": "Evento",
+      "description": "Organiza eventos e invita a la comunidad.",
+      "examples": {
+        "conference": "Conferencia de la industria",
+        "workshop": "Taller de habilidades",
+        "networking": "Evento de networking"
+      },
+      "button": "Crear evento",
+      "upgrade_button": "convertirse en miembro"
+    },
+    "ring_customization": {
+      "title": "Ajuste del anillo",
+      "description": "Soporte con personalización e implementaciones de anillos.",
+      "examples": {
+        "platform_deployment": "Implementación completa de la plataforma",
+        "module_development": "Desarrollo de módulos individuales",
+        "branding": "Marca y tema",
+        "database_migration": "Migración de base de datos",
+        "localization": "Localización multilingüe",
+        "payment_integration": "Conexión de pago",
+        "smart_contracts": "Contratos inteligentes individuales",
+        "ai_customization": "Personalización del agente de IA",
+        "token_economics": "Diseño de economía de tokens",
+        "documentation": "Documentación y formación"
+      },
+      "button": "Crear proyecto de anillo",
+      "upgrade_button": "convertirse en miembro"
+    },
+    "project_order": {
+      "title": "Pedido de proyecto",
+      "description": "Fundadores: configura un build impulsado por Ring en la calculadora y realiza un pedido de proyecto personalizado.",
+      "examples": {
+        "platform_deployment": "Desplegar un Ring white-label",
+        "module_development": "Build de módulo personalizado",
+        "branding": "Paquete de marca y tema",
+        "ai_customization": "Personalización del AI matcher"
+      },
+      "button": "Abrir calculadora"
+    },
+    "vendor_listing": {
+      "title": "Producto o servicio",
+      "description": "Vendors: lista productos y servicios en tu storefront de member.",
+      "examples": {
+        "job": "Producto físico o digital",
+        "contract": "Servicio profesional",
+        "internship": "Oferta recurrente"
+      },
+      "button": "Añadir al store",
+      "upgrade_button": "Mejorar a Member",
+      "member_required": "Se requiere acceso Member",
+      "upgrade_message": "Mejora a Member para vender productos y servicios."
+    },
+    "program": {
+      "title": "Programa / inversión",
+      "description": "Instituciones: publica programas u oportunidades de inversión para revisión admin y seguimiento CRM.",
+      "examples": {
+        "strategic": "Programa accelerator",
+        "joint_venture": "Convocatoria de inversión",
+        "collaboration": "Partnership institucional"
+      },
+      "button": "Crear listado",
+      "upgrade_button": "Mejorar a Member"
+    }
+  },
+  "addRequest": "Crear solicitud",
+  "addRequestDescription": "Buscar servicios, asesoramiento o cooperación de la comunidad.",
+  "addOffer": "Crear oferta",
+  "addOfferDescription": "Publique la oportunidad oficial de su organización.",
+  "description": "Descripción",
+  "locationPlaceholder": "p.ej. B. Remoto, Berlín, Alemania",
+  "requirements": "Requisitos",
+  "title": "título",
+  "finance": "Finanzas",
+  "platform_deployment": "Implementación de plataforma",
+  "module_development": "Desarrollo de módulos",
+  "branding_customization": "Marca y personalización",
+  "database_migration": "Migración de base de datos",
+  "localization": "Localización",
+  "payment_integration": "Integración de pagos",
+  "smart_contracts": "Smart Contracts",
+  "ai_customization": "Personalización de la IA",
+  "token_economics": "Economía simbólica",
+  "documentation_training": "Documentación y formación",
+  "other": "Misceláneas",
+  "entity": "organización",
+  "selectEntity": "Elige organización",
+  "min": "Mín",
+  "max": "Máx",
+  "currency": "divisa",
+  "contactEmail": "Correo electrónico de contacto",
+  "requiredSkills": "Habilidades requeridas",
+  "addSkill": "Agregar habilidad",
+  "addTag": "Agregar etiqueta",
+  "markAsConfidential": "Marcar como confidencial",
+  "learnMoreaboutConfidential": "Más sobre oportunidades confidenciales",
+  "save": "Ahorrar",
+  "saving": "Ahorrar …",
+  "redirecting": "Reenviando...",
+  "applicationDeadline": "Fecha límite de solicitud",
+  "maxApplicants": "Máx. solicitantes femeninas",
+  "maxApplicantsPlaceholder": "Dejar en blanco para ilimitado",
+  "priority": "prioridad",
+  "selectPriority": "Elige prioridad",
+  "priorityLow": "Bajo",
+  "priorityNormal": "Normal",
+  "priorityUrgent": "Urgente",
+  "applicants": "solicitantes",
+  "partnership": "asociación",
+  "volunteer": "Voluntariado",
+  "resource": "recurso",
+  "event": "Evento",
+  "ring_customization": "Ajuste del anillo",
+  "request": "Solicitud de tecnología",
+  "offer": "Oferta tecnológica",
+  "mentorship": "CV del desarrollador",
+  "matchQuality": {
+    "factors": {
+      "skillMatch": "Skills",
+      "experienceMatch": "Experiencia",
+      "industryMatch": "Industria",
+      "locationMatch": "Ubicación",
+      "budgetMatch": "Presupuesto",
+      "availabilityMatch": "Disponibilidad",
+      "careerMatch": "Ajuste profesional",
+      "cultureMatch": "Ajuste cultural"
+    },
+    "detailedBreakdown": "Análisis del partido",
+    "explanation": "explicación de la IA",
+    "factorsBreakdown": "factores",
+    "scoringNote": "Evaluación basada en análisis de IA de perfil y requisitos.",
+    "matchScore": "Puntuación del partido",
+    "levels": {
+      "excellent": "Excelente",
+      "good": "Bien",
+      "fair": "Suficiente",
+      "poor": "Débil"
+    },
+    "clickForDetails": "Haga clic para obtener más detalles",
+    "confidence": {
+      "high": "Alta confiabilidad",
+      "medium": "Fiabilidad media",
+      "low": "Baja confiabilidad"
+    }
+  },
+  "enrichment": {
+    "title": "Enriquecimiento de la IA de la oportunidad",
+    "stats": {
+      "accepted": "Aceptado",
+      "modified": "Cambió",
+      "pending": "Pendiente"
+    },
+    "confidence": "Confianza",
+    "description": "La IA analizó su oportunidad y sugirió mejoras. Revise y aplique los cambios deseados.",
+    "fields": {
+      "suggestedTags": "Etiquetas sugeridas",
+      "estimatedBudget": "estimación de presupuesto",
+      "requiredSkills": "Habilidades requeridas",
+      "industryCategory": "Industria",
+      "locationPreference": "Preferencia de ubicación",
+      "experienceLevel": "Nivel de experiencia",
+      "urgency": "urgencia",
+      "estimatedDuration": "Duración estimada",
+      "companySize": "Tamaño de la empresa",
+      "workType": "modelo de trabajo"
+    },
+    "noValue": "No especificado",
+    "selectValue": "Elige valor",
+    "enterValue": "Introducir valor",
+    "options": {
+      "remote": "Remoto",
+      "hybrid": "Híbrido",
+      "onsite": "En el sitio",
+      "junior": "Junior",
+      "mid": "nivel medio",
+      "senior": "Senior",
+      "lead": "Lead",
+      "low": "Bajo",
+      "medium": "Medio",
+      "high": "Alto",
+      "startup": "Startup",
+      "scaleup": "Scale-up",
+      "enterprise": "Enterprise",
+      "fullTime": "tiempo completo",
+      "partTime": "Tiempo parcial",
+      "contract": "Contrato",
+      "freelance": "Freelance"
+    },
+    "modified": "Cambió",
+    "reject": "Rechazar todo",
+    "acceptSelected": "Adoptar a los seleccionados",
+    "advancedInfo": "Información avanzada",
+    "processingTime": "tiempo de procesamiento",
+    "suggestionsCount": "Sugerencias",
+    "aiModel": "modelo de IA",
+    "hideAdvanced": "Ocultar avanzado",
+    "showAdvanced": "Mostrar ampliado"
+  },
+  "status": {
+    "opportunityTitle": "Título de la oportunidad",
+    "applicationId": "ID de aplicación",
+    "submissionId": "ID de envío",
+    "reviewId": "ID de revisión",
+    "rejectionReason": "Motivo del rechazo",
+    "changesRequired": "Cambios requeridos",
+    "nextStep": "Siguiente paso",
+    "needHelp": "¿Necesitar ayuda? Contacta con nuestro equipo de soporte",
+    "actions": {
+      "viewOpportunity": "Ver oportunidad",
+      "viewApplication": "Ver solicitud",
+      "backToOpportunities": "Volver a Oportunidades",
+      "continue": "Continuar",
+      "continueEditing": "Continuar editando",
+      "createNew": "Crear nueva oportunidad",
+      "contactSupport": "Contactar con soporte",
+      "applyAgain": "Aplicar nuevamente",
+      "makeChanges": "hacer cambios",
+      "uploadDocuments": "Subir documentos",
+      "checkStatus": "comprobar estado",
+      "viewMyApplications": "Mis aplicaciones",
+      "viewScheduled": "Ver los planificados",
+      "manageOpportunity": "Administrar oportunidad"
+    },
+    "create": {
+      "draft": {
+        "title": "Borrador guardado",
+        "description": "Su oportunidad se ha guardado como borrador. Puede editarlo en cualquier momento antes de enviarlo para su revisión.",
+        "instruction": "Complete todos los campos obligatorios y envíe la oportunidad para su revisión cuando esté lista."
+      },
+      "pending_review": {
+        "title": "Oportunidad bajo revisión",
+        "description": "Su oportunidad ha sido enviada y está pendiente de moderación. Le notificaremos tan pronto como se complete la revisión."
+      },
+      "published": {
+        "title": "Oportunidad publicada",
+        "description": "Su oportunidad está activa y es visible para los posibles solicitantes en la plataforma."
+      },
+      "success": {
+        "title": "¡Oportunidad creada!",
+        "description": "Tu oportunidad se guardó correctamente. Puedes seguir gestionándola en Mis oportunidades."
+      },
+      "failed": {
+        "title": "La creación falló",
+        "description": "La oportunidad no se pudo crear por razones técnicas. Inténtelo de nuevo o comuníquese con el soporte."
+      },
+      "rejected": {
+        "title": "Oportunidad rechazada",
+        "description": "Su oportunidad fue rechazada en la revisión. Revise los comentarios y haga correcciones."
+      }
+    },
+    "update": {
+      "success": {
+        "title": "¡Cambios guardados!",
+        "description": "Tu oportunidad se actualizó correctamente. Sigue gestionándola en Mis oportunidades."
+      },
+      "failed": {
+        "title": "Error al actualizar",
+        "description": "No pudimos guardar los cambios. Inténtalo de nuevo o contacta con soporte."
+      }
+    },
+    "delete": {
+      "success": {
+        "title": "Oportunidad eliminada",
+        "description": "Tu oportunidad se eliminó de la plataforma."
+      },
+      "failed": {
+        "title": "Error al eliminar",
+        "description": "No pudimos eliminar esta oportunidad. Inténtalo de nuevo o contacta con soporte."
+      }
+    },
+    "apply": {
+      "submitted": {
+        "title": "Solicitud enviada",
+        "description": "Su solicitud ha sido enviada. El propietario de la oportunidad la está revisando y se comunicará con usted en breve."
+      },
+      "under_review": {
+        "title": "Solicitud bajo revisión",
+        "description": "Su solicitud está siendo examinada actualmente. Esto puede tardar unos días.",
+        "reviewing": "La solicitud está siendo revisada..."
+      },
+      "accepted": {
+        "title": "Solicitud aceptada",
+        "description": "Su solicitud ha sido aceptada. El propietario de la oportunidad se comunicará con usted para informarle los siguientes pasos."
+      },
+      "rejected": {
+        "title": "Aplicación no seleccionada",
+        "description": "Se seleccionó una solicitud diferente para esta oportunidad. Hay muchas otras oportunidades adecuadas en Connect.Software."
+      },
+      "pending_documents": {
+        "title": "Documentos requeridos",
+        "description": "Su solicitud está esperando documentos adicionales. Por favor cargue los documentos solicitados.",
+        "documentsNeeded": "Cargue los documentos solicitados para completar la solicitud."
+      }
+    },
+    "submit": {
+      "received": {
+        "title": "Envío recibido",
+        "description": "Su envío ha sido registrado. Recibirá actualizaciones sobre el estado del procesamiento."
+      },
+      "processing": {
+        "title": "El envío se está procesando.",
+        "description": "Su envío está siendo procesado: validación, revisión y preparación para la siguiente fase."
+      },
+      "approved": {
+        "title": "Envío aprobado",
+        "description": "Su envío ha sido aprobado y puede pasar a la siguiente fase de la oportunidad."
+      },
+      "requires_changes": {
+        "title": "Cambios necesarios",
+        "description": "Se requieren ajustes antes de la aprobación. Por favor implemente los comentarios."
+      },
+      "rejected": {
+        "title": "Envío rechazado",
+        "description": "La presentación fue rechazada. Revise los comentarios y vuelva a enviarlos con mejoras si es necesario."
+      }
+    },
+    "approve": {
+      "pending": {
+        "title": "Lanzamiento pendiente",
+        "description": "Su oportunidad está pendiente de aprobación administrativa: revisión adicional según los estándares de la plataforma."
+      },
+      "approved": {
+        "title": "Oportunidad liberada",
+        "description": "La aprobación administrativa está disponible; La oportunidad está completamente activa."
+      },
+      "rejected": {
+        "title": "Liberación rechazada",
+        "description": "No se concedió la autorización administrativa. Por favor revise los comentarios y aclare los puntos."
+      },
+      "needs_revision": {
+        "title": "Revisión necesaria",
+        "description": "Se requieren revisiones antes del lanzamiento. Por favor implemente los comentarios."
+      }
+    },
+    "publish": {
+      "scheduled": {
+        "title": "Publicación prevista",
+        "description": "La oportunidad está programada para su publicación posterior y luego se vuelve visible."
+      },
+      "published": {
+        "title": "Oportunidad en vivo",
+        "description": "La oportunidad está activa y es visible para los usuarios de la plataforma; Las aplicaciones son posibles."
+      },
+      "failed": {
+        "title": "Error al publicar",
+        "description": "Se produjo un error al publicar. Inténtelo de nuevo o comuníquese con el soporte."
+      },
+      "unpublished": {
+        "title": "Oportunidad retirada",
+        "description": "La oportunidad ya no es públicamente visible. Puede volver a publicar desde el panel en cualquier momento."
+      }
+    }
+  },
+  "progressSteps": {
+    "account": "Cuenta",
+    "opportunityDetails": "Detalles de la oportunidad",
+    "publish": "Publicar"
+  },
+  "creationTips": {
+    "requestType": "Request",
+    "requestTypeDescription": "Encuentra servicios, consejo o colaboración en la comunidad Ring. Disponible para todos los subscribers.",
+    "offerType": "Offer",
+    "offerTypeDescription": "Publica oportunidades oficiales de tu organización. Requiere estado Member o superior.",
+    "cvType": "CV de developer",
+    "cvTypeDescription": "Comparte tu perfil de developer y skills para conectar con oportunidades en la plataforma.",
+    "confidentialOpportunities": "Oportunidades confidenciales",
+    "confidentialOpportunitiesDescription": "Oportunidades privadas solo visibles para miembros Confidential. Requiere acceso especial."
+  },
+  "types": {
+    "request": {
+      "title": "Crear request",
+      "description": "Buscas servicios, consejo o colaboración de la comunidad."
+    },
+    "offer": {
+      "title": "Crear offer",
+      "description": "Publica una oportunidad oficial de tu organización."
+    },
+    "partnership": {
+      "title": "Crear partnership",
+      "description": "Busca partnerships estratégicas y colaboraciones de negocio."
+    },
+    "volunteer": {
+      "title": "Crear oportunidad de voluntariado",
+      "description": "Publica oportunidades de voluntariado para causas de la comunidad."
+    },
+    "mentorship": {
+      "title": "Crear mentorship",
+      "description": "Ofrece o busca oportunidades de mentorship."
+    },
+    "resource": {
+      "title": "Crear resource",
+      "description": "Comparte o solicita recursos, herramientas y equipamiento."
+    },
+    "event": {
+      "title": "Crear evento",
+      "description": "Organiza eventos e invita a la participación de la comunidad."
+    },
+    "ring_customization": {
+      "title": "Proyecto de personalización Ring",
+      "description": "Describe el alcance de un despliegue, módulo o branding de Ring Platform."
+    },
+    "program": {
+      "title": "Programa / inversión",
+      "description": "Oferta institucional para revisión de la comunidad y enrutado CRM."
+    }
+  },
+  "form": {
+    "optionalDetails": "Detalles opcionales",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "optional": "Opcional",
+    "editTitle": "Editar oportunidad",
+    "editDescription": "Actualiza los detalles del anuncio y guarda los cambios.",
+    "saveChanges": "Guardar cambios",
+    "descriptionPlaceholder": "Describe tu oportunidad en detalle…",
+    "requirementsPlaceholder": "Lista requisitos o cualificaciones específicas…",
+    "titlePlaceholders": {
+      "request": "¿Con qué necesitas ayuda?",
+      "offer": "Título del puesto o posición",
+      "partnership": "Título de la oportunidad de partnership",
+      "volunteer": "Título de la oportunidad de voluntariado",
+      "mentorship": "Título de la oportunidad de mentorship",
+      "resource": "Título de la oportunidad de resource",
+      "event": "Título del evento",
+      "ring_customization": "Título del proyecto de personalización"
+    },
+    "budgetLabels": {
+      "request": "Presupuesto",
+      "offer": "Compensación / presupuesto",
+      "partnership": "Marco de inversión",
+      "volunteer": "Dietas (opcional)",
+      "mentorship": "Compensación (opcional)",
+      "resource": "Valor / presupuesto",
+      "event": "Presupuesto del evento",
+      "ring_customization": "Presupuesto del proyecto"
+    },
+    "programSubtype": "Subtipo",
+    "selectProgramSubtype": "Programa o inversión",
+    "subtypeProgram": "Programa",
+    "subtypeInvestment": "Inversión",
+    "instrument": "Instrumento de financiación",
+    "eligibility": "Elegibilidad",
+    "applicationUrl": "URL de solicitud"
+  },
+  "formRail": {
+    "backToBrowse": "Volver al listado",
+    "checklistTitle": "Lista antes de publicar",
+    "guideTitle": "Guía de oportunidades",
+    "guideDescription": "Consejos para anuncios más claros y mejores matches.",
+    "docsOverview": "Resumen de oportunidades",
+    "docsMatching": "Matching y notificaciones",
+    "docsEntities": "Entidades y visibilidad",
+    "memberNoteTitle": "Nota para Member",
+    "memberNoteBody": "Los offers y algunos tipos requieren estado Member. Los requests están disponibles para subscribers.",
+    "memberBadge": "Member",
+    "visibilityTitle": "Visibilidad",
+    "request": {
+      "tipsTitle": "Consejos para requests",
+      "tip1Title": "Sé claro",
+      "tip1Body": "Describe qué necesitas, el plazo y el resultado deseado.",
+      "tip2Title": "Indica presupuesto",
+      "tip2Body": "Un presupuesto realista ayuda a que los proveedores respondan antes.",
+      "tip3Title": "Lista skills",
+      "tip3Body": "Nombra skills o herramientas necesarias para un matching más preciso.",
+      "visibilityBody": "Los requests son visibles para la comunidad salvo que se marquen como confidenciales.",
+      "check1": "El título describe la necesidad con claridad",
+      "check2": "La descripción incluye alcance y plazo",
+      "check3": "Presupuesto o compensación definidos",
+      "check4": "Ubicación o remoto indicado"
+    },
+    "offer": {
+      "tipsTitle": "Consejos para offers",
+      "tip1Title": "Organización primero",
+      "tip1Body": "Vincula la oportunidad a una entidad para que los candidatos confíen en el publisher.",
+      "tip2Title": "Rol preciso",
+      "tip2Body": "Nombra responsabilidades, seniority y expectativas con claridad.",
+      "tip3Title": "Compensación transparente",
+      "tip3Body": "Indica rango o modelo — mejora la calidad de las candidaturas.",
+      "check1": "Entidad vinculada",
+      "check2": "Requisitos y beneficios listados",
+      "check3": "Presupuesto / compensación definidos",
+      "check4": "Fecha de caducidad revisada"
+    },
+    "cv": {
+      "tipsTitle": "Consejos para CV de developer",
+      "tip1Title": "Destaca skills",
+      "tip1Body": "Lista stack, dominios y fortalezas que escanean los recruiters.",
+      "tip2Title": "Indica disponibilidad",
+      "tip2Body": "Remoto/híbrido y capacidad ayudan al matching.",
+      "tip3Title": "Enlaza portfolio",
+      "tip3Body": "GitHub, web o case studies aumentan la confianza.",
+      "check1": "El título resume tu rol",
+      "check2": "Skills y seniority definidos",
+      "check3": "Ubicación / remoto claros",
+      "check4": "Contacto o perfil enlazado"
+    },
+    "ring": {
+      "tipsTitle": "Consejos para personalización Ring",
+      "tip1Title": "Delimita el alcance",
+      "tip1Body": "Nombra módulos, branding, integraciones y objetivo de despliegue.",
+      "tip2Title": "Comparte restricciones",
+      "tip2Body": "Timeline, presupuesto y requisitos de hosting desde el principio.",
+      "tip3Title": "Define el outcome",
+      "tip3Body": "Describe el estado final deseado del despliegue del clon.",
+      "check1": "Alcance de personalización descrito",
+      "check2": "Módulos / funciones listados",
+      "check3": "Marco presupuestario definido",
+      "check4": "Timeline indicado"
+    },
+    "picker": {
+      "tipsTitle": "Elegir tipo",
+      "tip1Title": "Request vs Offer",
+      "tip1Body": "Los requests buscan ayuda; los offers vienen de organizaciones con estado Member.",
+      "tip2Title": "Tipos especiales",
+      "tip2Body": "Eventos, mentorship y Ring Customization tienen campos y consejos propios.",
+      "check1": "Tipo adecuado elegido",
+      "check2": "Requisitos de acceso entendidos"
+    }
+  }
+}

@@ -105,10 +105,9 @@ function AddEntityFormContent({ locale }: { locale: Locale } = { locale: DEFAULT
   }
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(locale))
-    }
-  }, [status, router, locale])
+    // Phase F: protected route — do NOT router.push(LOGIN). Layout SessionAuthGuard owns the gate.
+    // Soft UI only if hydrate somehow leaves us unauthenticated.
+  }, [status])
 
   if (status === 'loading') {
     return <div className="px-4 py-8 text-muted-foreground">{t('loading')}</div>

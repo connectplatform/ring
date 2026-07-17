@@ -6,6 +6,8 @@ export const UPLOAD_PURPOSES = [
   'entity:logo',
   'vendor:logo',
   'vendor:product-media',
+  'nft:media',
+  'mood:track',
   'refmagic:temp-docx',
   'verification:document',
 ] as const
@@ -46,6 +48,8 @@ export interface UnifiedUploadInput {
   tenantSlug?: string
 }
 
+import type { MediaDerivatives } from '@/lib/file/interfaces/IFileService'
+
 export interface NormalizedUploadResult {
   success: true
   purpose: UploadPurpose | string
@@ -57,6 +61,10 @@ export interface NormalizedUploadResult {
   uploadedAt: string
   provider: string
   objectKey: string
+  /** RingBase UUID when provider is ring_filebase. */
+  fileId?: string
+  /** RingBase ladder when requested and generated. */
+  derivatives?: MediaDerivatives
   scope?: UploadScopeMetadata
   fileType?: string
   fileCategory?: string

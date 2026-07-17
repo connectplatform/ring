@@ -11,10 +11,25 @@ import { handleWalletTopupWayForPayWebhook } from '@/lib/payments/conductor/hand
 import { handleWalletTopupStripeWebhook } from '@/lib/payments/conductor/handlers/wallet-topup-stripe'
 import { handleNativeTokenOnrampWayForPayWebhook } from '@/lib/payments/conductor/handlers/native-token-onramp'
 import { handleNativeTokenOnrampStripeWebhook } from '@/lib/payments/conductor/handlers/native-token-onramp-stripe'
+import {
+  handleProjectOrderWayForPayWebhook,
+  handleProjectOrderStripeWebhook,
+} from '@/lib/payments/conductor/handlers/project-order'
 import { verifyStripeWebhook } from '@/lib/payments/processors/stripe.processor'
 import { handleNewsStripeWebhook } from '@/lib/payments/conductor/handlers/news-promotion'
 import { handleMembershipStripeWebhook } from '@/lib/payments/conductor/handlers/membership-upgrade-stripe'
 import { handleStoreStripeWebhook } from '@/lib/payments/conductor/handlers/store-order-stripe'
+import { handleStorePayPalCapture } from '@/lib/payments/conductor/handlers/store-order-paypal'
+import { handleMembershipPayPalCapture } from '@/lib/payments/conductor/handlers/membership-upgrade-paypal'
+import { handleWalletTopupPayPalCapture } from '@/lib/payments/conductor/handlers/wallet-topup-paypal'
+import { handleNewsPayPalCapture } from '@/lib/payments/conductor/handlers/news-promotion-paypal'
+import {
+  handlePayPalSubscriptionActivated,
+  handlePayPalSubscriptionSaleCompleted,
+  handlePayPalSubscriptionTerminal,
+} from '@/lib/payments/conductor/handlers/membership-paypal-subscription'
+import { verifyPayPalWebhook } from '@/lib/payments/processors/paypal-client'
+import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { logger } from '@/lib/logger'
 import type { WebhookHandleResult, PaymentPurpose } from '@/lib/payments/conductor/types'
 import type { StoreWebhookPayload } from '@/lib/payments/wayforpay-store-service'
@@ -69,6 +84,11 @@ export async function dispatchWayForPayWebhook(
     return { success: processed, purpose: 'native_token_onramp' }
   }
 
+  if (parsed.purpose === 'project_order') {
+    const processed = await handleProjectOrderWayForPayWebhook(payload)
+    return { success: processed, purpose: 'project_order' }
+  }
+
   return { success: false, error: 'Unhandled purpose' }
 }
 
@@ -116,6 +136,11 @@ export async function dispatchStripeWebhook(
       return { success: processed, purpose: 'native_token_onramp' }
     }
 
+    case 'project_order': {
+      const processed = await handleProjectOrderStripeWebhook(event)
+      return { success: processed, purpose: 'project_order' }
+    }
+
     case 'news_promotion':
     default: {
       // Legacy: also handle checkout.session.completed without explicit purpose
@@ -133,4 +158,168 @@ export async function dispatchStripeWebhook(
     metadata,
   })
   return { success: true }
+}
+
+function extractPayPalOrderReference(event: Record<string, unknown>): string {
+  const resource = (event.resource ?? {}) as Record<string, unknown>
+  const customId = String(resource.custom_id ?? '')
+  if (customId) return customId
+
+  const purchaseUnits = resource.purchase_units as Array<Record<string, unknown>> | undefined
+  if (Array.isArray(purchaseUnits) && purchaseUnits[0]) {
+    const fromUnit = String(purchaseUnits[0].custom_id ?? '')
+    if (fromUnit) return fromUnit
+  }
+
+  const supplementary = resource.supplementary_data as Record<string, unknown> | undefined
+  const related = supplementary?.related_ids as Record<string, unknown> | undefined
+  return String(related?.order_id ?? resource.invoice_id ?? '')
+}
+
+function extractPayPalCaptureAmount(event: Record<string, unknown>): {
+  amount: number
+  currency: string
+} {
+  const resource = (event.resource ?? {}) as Record<string, unknown>
+  const amountObj = (resource.amount ?? {}) as Record<string, unknown>
+  const value = Number(amountObj.value ?? 0)
+  const currency = String(amountObj.currency_code ?? 'USD').toUpperCase()
+  return { amount: Number.isFinite(value) ? value : 0, currency }
+}
+
+/**
+ * Dispatch verified PayPal webhook events to purpose handlers.
+ * Prefer PAYMENT.CAPTURE.COMPLETED for Orders v2 fulfillment.
+ */
+export async function dispatchPayPalWebhook(
+  rawBody: string,
+  headers: {
+    transmissionId: string
+    transmissionTime: string
+    transmissionSig: string
+    certUrl: string
+    authAlgo: string
+  },
+): Promise<WebhookHandleResult> {
+  const verified = await verifyPayPalWebhook(rawBody, headers)
+  if (!verified) {
+    return { success: false, error: 'Invalid PayPal signature' }
+  }
+
+  let event: Record<string, unknown>
+  try {
+    event = JSON.parse(rawBody) as Record<string, unknown>
+  } catch {
+    return { success: false, error: 'Invalid PayPal JSON' }
+  }
+
+  const eventType = String(event.event_type ?? '')
+  logger.info('PayPal webhook received', { eventType })
+
+  // Subscriptions v1 lifecycle — dedicated handlers (resource shape ≠ Orders capture)
+  if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+    const ok = await handlePayPalSubscriptionActivated(event)
+    return { success: ok, purpose: 'membership_upgrade' }
+  }
+  if (eventType === 'PAYMENT.SALE.COMPLETED') {
+    const ok = await handlePayPalSubscriptionSaleCompleted(event)
+    return { success: ok, purpose: 'membership_upgrade' }
+  }
+  if (
+    eventType === 'BILLING.SUBSCRIPTION.CANCELLED' ||
+    eventType === 'BILLING.SUBSCRIPTION.SUSPENDED' ||
+    eventType === 'BILLING.SUBSCRIPTION.EXPIRED' ||
+    eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED'
+  ) {
+    const ok = await handlePayPalSubscriptionTerminal(event, eventType)
+    return { success: ok, purpose: 'membership_upgrade' }
+  }
+
+  if (
+    eventType !== 'PAYMENT.CAPTURE.COMPLETED' &&
+    eventType !== 'CHECKOUT.ORDER.APPROVED'
+  ) {
+    // Ack non-fulfillment events (DENIED/REFUNDED can be handled later)
+    return { success: true }
+  }
+
+  // CAPTURE.COMPLETED is the fulfillment source of truth for Orders v2
+  if (eventType === 'CHECKOUT.ORDER.APPROVED') {
+    return { success: true }
+  }
+
+  let orderReference = extractPayPalOrderReference(event)
+  if (!orderReference && eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+    // Some capture payloads nest custom_id under supplementary_data only — already tried
+    orderReference = String((event.resource as Record<string, unknown>)?.invoice_id ?? '')
+  }
+
+  if (!orderReference) {
+    logger.error('PayPal webhook: missing orderReference/custom_id', { eventType })
+    return { success: false, error: 'Missing orderReference' }
+  }
+
+  const tx = await paymentTransactionService.findByOrderReference(orderReference)
+  const purpose = (tx?.purpose ?? parsePurposeFromReference(orderReference)) as PaymentPurpose | undefined
+  const { amount, currency } = extractPayPalCaptureAmount(event)
+  const paidAmount =
+    amount > 0 ? amount : typeof tx?.amount_minor === 'number' ? tx.amount_minor / 100 : 0
+  const paidCurrency = currency || tx?.currency?.toUpperCase() || 'USD'
+
+  switch (purpose) {
+    case 'store_order': {
+      const orderId = String(tx?.entity_id ?? '')
+      const result = await handleStorePayPalCapture({
+        orderReference,
+        orderId,
+        amount: paidAmount,
+        currency: paidCurrency,
+        processorPayload: event,
+      })
+      return { success: result.success, purpose: 'store_order' }
+    }
+    case 'membership_upgrade': {
+      const processed = await handleMembershipPayPalCapture({
+        orderReference,
+        userId: String(tx?.user_id ?? ''),
+        userEmail: '',
+        amount: paidAmount,
+        currency: paidCurrency,
+        processorPayload: event,
+      })
+      return { success: processed, purpose: 'membership_upgrade' }
+    }
+    case 'wallet_topup': {
+      const processed = await handleWalletTopupPayPalCapture({
+        orderReference,
+        amount: paidAmount,
+        processorPayload: event,
+      })
+      return { success: processed, purpose: 'wallet_topup' }
+    }
+    case 'news_promotion': {
+      const processed = await handleNewsPayPalCapture({
+        orderReference,
+        processorPayload: event,
+      })
+      return { success: processed, purpose: 'news_promotion' }
+    }
+    default:
+      logger.warn('PayPal webhook: unhandled purpose', { purpose, orderReference, eventType })
+      return { success: true }
+  }
+}
+
+function parsePurposeFromReference(orderReference: string): PaymentPurpose | undefined {
+  if (orderReference.startsWith('store_')) return 'store_order'
+  if (orderReference.startsWith('membership_')) return 'membership_upgrade'
+  if (orderReference.startsWith('project_')) return 'project_order'
+  if (orderReference.startsWith('wallet_') || orderReference.startsWith('topup_') || orderReference.startsWith('wallettopup_')) {
+    return 'wallet_topup'
+  }
+  if (orderReference.startsWith('news-promo-') || orderReference.startsWith('news_')) {
+    return 'news_promotion'
+  }
+  if (orderReference.startsWith('tokenonramp_')) return 'native_token_onramp'
+  return undefined
 }

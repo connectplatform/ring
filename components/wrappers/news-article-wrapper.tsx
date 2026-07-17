@@ -82,7 +82,7 @@ export default function NewsArticleWrapper({
 }: NewsArticleWrapperProps) {
   const router = useRouter()
   const { data: session } = useSession()
-  const t = useTranslations('modules.news')
+  const t = useTranslations('news')
   const tCommon = useTranslations('common')
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)

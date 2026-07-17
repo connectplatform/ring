@@ -1,0 +1,33 @@
+{
+  "title": "Kontakt Ring Platform",
+  "getInTouch": "Kontakt aufnehmen",
+  "description": "Fragen zum Open-Source-Code, diesem Community-Deployment, Self-Hosting oder dem Aufbau auf Ring — schreiben Sie dem Team hinter ring-platform.org. Wir lesen jede Nachricht.",
+  "contactInformation": "Kontaktinformationen",
+  "phoneLabel": "Telefon",
+  "emailLabel": "E-Mail",
+  "faq": "Häufig gestellte Fragen",
+  "partners": "Unsere Partner",
+  "loadingForm": "Kontaktformular wird geladen…",
+  "faqWhatIs": "Was ist Ring Platform?",
+  "faqWhatIsAnswer": "Ring Platform ist ein Open-Source-, White-Label-Stack für professionelle Communities: verifizierte Organisationsprofile (Entities), gestufte Opportunities von öffentlichen Listings bis zu vertraulichen Räumen, ein Multi-Vendor-Store mit WayForPay und Wallet-Schienen, Echtzeit-Messenger, News und KI-gestütztes Opportunity-Matching — gebaut auf React 19, Next.js 16, Auth.js v5 und einer PostgreSQL-first Datenschicht. Von GitHub klonen, mit ring-config und Locales gestalten und auf eigener Infrastruktur deployen. ring-platform.org ist das Community-Portal für Contributoren und Self-Hoster; verwaltetes Hosting und Legiox-geführte Ringisierung leben bei Ringdom.",
+  "faqGetStarted": "Wie starte ich?",
+  "faqGetStartedAnswer": "Auf dieser Site: registrieren, Profil vervollständigen, dann Entities und Opportunities erkunden oder den Store öffnen. Als Entwickler: github.com/connectplatform/ring klonen, ring-config.template.json nach ring-config.json kopieren, install.sh ausführen und /docs/getting-started für einen lokalen Stack folgen. Planen Sie einen Produktions-Clone oder brauchen Architekturberatung? Schreiben Sie es im Formular — wir weisen Sie zur richtigen Doku oder dem richtigen Weg.",
+  "faqResponseTime": "Wie schnell antworten Sie?",
+  "faqResponseTimeAnswer": "Die meisten Nachrichten erhalten innerhalb von zwei Werktagen eine Antwort. Bei Konto-, Bestell- oder Wallet-Problemen die E-Mail in Ihrem Profil nutzen, damit wir Sie schnell verifizieren können. Sicherheits- oder Datenintegritätsmeldungen: „security“ in den Betreff — diese haben Priorität.",
+  "faqInquiries": "Wozu kann ich Sie kontaktieren?",
+  "faqInquiriesAnswer": "Nutzung dieses Deployments (Profile, Opportunities, Store, Membership, Benachrichtigungen); Bugs und Dokumentationslücken im OSS-Repo; Self-Hosting, DB_BACKEND_MODE und Customizing; Code- oder Übersetzungsbeiträge; Vendor-Onboarding auf diesem Marktplatz; Partnerschaften und Ringdom Settler / Enterprise-Hosting (wir leiten an ringdom.org weiter, wenn das passt).",
+  "sidebar": {
+    "platformInfo": "Plattform-Info",
+    "platformInfoDesc": "Die Referenz-Open-Source-Plattform für Community, Opportunities und Marktplatz — Dokumentation und lebendige Demo für Ring-Self-Hoster weltweit.",
+    "quickLinks": "Schnelllinks",
+    "docs": "Dokumentation",
+    "gettingStarted": "Erste Schritte",
+    "support": "Support",
+    "contact": "Kontakt",
+    "community": "Community",
+    "needHelp": "Hilfe nötig?",
+    "needHelpDesc": "Die meisten Antworten stehen in /docs. Für alles andere das Formular auf dieser Seite nutzen.",
+    "documentation": "Dokumentation →",
+    "contactSupport": "Support kontaktieren →"
+  }
+}

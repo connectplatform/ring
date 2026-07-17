@@ -159,6 +159,16 @@ function getFormConfig(type: string) {
       showMaxApplicants: false,
       showApplicationDeadline: false,
     },
+    // Institution program / investment (cloned from offer; CRM ingest on create)
+    program: {
+      requiresEntity: true,
+      showBudget: true,
+      showSkills: false,
+      showDeadline: true,
+      showPriority: true,
+      showMaxApplicants: false,
+      showApplicationDeadline: true,
+    },
   }
   return configs[type as keyof typeof configs] || configs.request
 }
@@ -219,7 +229,7 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
     initialOpportunity?.fullDescription || initialOpportunity?.briefDescription || ''
   const initialContactEmail = initialOpportunity?.contactInfo?.contactAccount || ''
 
-  // Load entities when component mounts
+  // Load entities when component mounts — user id only (avoid session object churn)
   React.useEffect(() => {
     const loadEntities = async () => {
       try {
@@ -233,17 +243,13 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
       }
     }
 
-    if (session?.user) {
-      loadEntities()
+    if (session?.user?.id) {
+      void loadEntities()
     }
-  }, [session])
+  }, [session?.user?.id])
 
-  // Use effect to handle redirect on client-side only
-  React.useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(locale))
-    }
-  }, [status, router, locale])
+  // Phase F / Part A: protected route — never router.push(LOGIN) on unauthenticated flash.
+  // SessionAuthGuard + SSR SessionProvider hydrate own the gate.
 
   const handleAddTag = () => {
     if (newTag && !tags.includes(newTag)) {
@@ -272,7 +278,7 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
   }
 
   if (status === 'unauthenticated') {
-    return <div>{t('redirecting', { defaultValue: 'Redirecting...' })}</div>
+    return <div>{t('redirecting', { defaultValue: 'Session required…' })}</div>
   }
 
   const typeConfig = getOpportunityFormTypePreset(currentType) ?? getOpportunityFormTypePreset('request')!
@@ -384,6 +390,51 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
                 </p>
               )}
             </div>
+
+            {currentType === 'program' && (
+              <>
+                <div>
+                  <Label htmlFor="programSubtype" className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-[var(--davinci-beam)]" />
+                    <span>{t('form.programSubtype', { defaultValue: 'Subtype' })} *</span>
+                  </Label>
+                  <Select name="programSubtype" required defaultValue="program">
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder={t('form.selectProgramSubtype', { defaultValue: 'Program or investment' })} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="program">{t('form.subtypeProgram', { defaultValue: 'Program' })}</SelectItem>
+                      <SelectItem value="investment">{t('form.subtypeInvestment', { defaultValue: 'Investment' })}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="instrument" className="flex items-center gap-2">
+                    <span>{t('form.instrument', { defaultValue: 'Instrument' })}</span>
+                  </Label>
+                  <Select name="instrument" defaultValue="other">
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="grant">Grant</SelectItem>
+                      <SelectItem value="equity">Equity</SelectItem>
+                      <SelectItem value="loan">Loan</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="eligibility">{t('form.eligibility', { defaultValue: 'Eligibility' })}</Label>
+                  <Input id="eligibility" name="eligibility" className="mt-2" placeholder="Who can apply…" />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="applicationUrl">{t('form.applicationUrl', { defaultValue: 'Application URL' })}</Label>
+                  <Input id="applicationUrl" name="applicationUrl" type="url" className="mt-2" placeholder="https://" />
+                </div>
+                <input type="hidden" name="geography" value="" />
+              </>
+            )}
           </div>
 
           <div>

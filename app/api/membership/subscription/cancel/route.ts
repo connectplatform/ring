@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (subscription.status !== 'active') {
+    if (subscription.status !== 'active' && subscription.status !== 'pending') {
       return NextResponse.json(
         {
           error: 'Cannot cancel inactive subscription',
@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
         break
       case 'nft_gate':
         gatewayReference = subscription.nft_mint_address
+        break
+      case 'paypal':
+        gatewayReference = subscription.paypal_subscription_id
         break
       default:
         // credit_balance and others don't need a gateway reference

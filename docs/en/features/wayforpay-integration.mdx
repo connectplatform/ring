@@ -1,7 +1,7 @@
 ---
 title: WayForPay Payment Integration
-description: Verified WayForPay env SSOT, PaymentConductor purposes, HMAC webhooks, regularApi password, and orderReference prefixes for Ring Platform
-last_modified: "2026-07-09"
+description: HPP form POST, returnUrl vs serviceUrl money truth, PaymentConductor handoff, HMAC webhooks, and wallet credit top-up for Ring Platform
+last_modified: "2026-07-16"
 audience: both
 ---
 
@@ -14,7 +14,11 @@ WayForPay is Ring's primary Ukrainian PSP for hosted card checkout (including Ap
 </Callout>
 
 <Callout type="success">
-  Env SSOT (2026-07-09): `WAYFORPAY_MERCHANT_ACCOUNT`, `WAYFORPAY_SECRET_KEY`, `WAYFORPAY_MERCHANT_PASSWORD`, `WAYFORPAY_DOMAIN`, `WAYFORPAY_API_URL`. There is **no** `WAYFORPAY_MERCHANT_ID`.
+  Env SSOT: `WAYFORPAY_MERCHANT_ACCOUNT`, `WAYFORPAY_SECRET_KEY`, `WAYFORPAY_MERCHANT_PASSWORD`, `WAYFORPAY_DOMAIN`, `WAYFORPAY_API_URL`. There is **no** `WAYFORPAY_MERCHANT_ID`.
+</Callout>
+
+<Callout type="warning">
+  **Money truth:** credit and order fulfillment happen only when WayForPay POSTs to **`serviceUrl`** with `transactionStatus === 'Approved'`. The browser **`returnUrl`** is UX only — not settlement.
 </Callout>
 
 ## What WayForPay covers in Ring
@@ -24,7 +28,7 @@ WayForPay is Ring's primary Ukrainian PSP for hosted card checkout (including Ap
 | `store_order` | `POST /api/store/payments/wayforpay` → `PaymentConductor.createCheckout` | `handlers/store-order.ts` |
 | `membership_upgrade` | `initiateMembershipPayment` (card) → `createCheckout` | `handlers/membership-upgrade.ts` |
 | `news_promotion` | News promotion submit | `handlers/news-promotion.ts` |
-| `wallet_topup` | `initiateCreditTopupPayment` → `createCheckout` | `handlers/wallet-topup.ts` → credit balance |
+| `wallet_topup` | `WalletConductor.initiateTopUp` / `initiateCreditTopupPayment` → `createCheckout` | `handlers/wallet-topup.ts` → `creditBalanceService.addFiatUsd` |
 
 Recurring membership management uses WayForPay **`regularApi`** (`lib/payments/subscription/wayforpay-regular-api.ts`) with **merchantAccount + merchantPassword** (not the secret key).
 
@@ -33,10 +37,10 @@ Recurring membership management uses WayForPay **`regularApi`** (`lib/payments/s
 ## Operator value
 
 - **Hosted checkout** — cards never touch Ring servers; PCI scope stays with WayForPay.
-- **One merchant cabinet** — register a single service URL for all purposes; Ring routes by `orderReference` prefix.
-- **Wallet top-up is live** — members can add fiat credits via card on `/wallet/topup` (not a TBD).
-- **Membership card path is live** — PaymentModal card tab uses PaymentConductor; PayPal tab is a FutureFeature pool only.
-- **Subscriptions** — `WAYFORPAY_MERCHANT_PASSWORD` unlocks STATUS / CHANGE / SUSPEND / RESUME / REMOVE via `regularApi`.
+- **No cabinet thank-you page required** — Ring sends `returnUrl` on every payment (e.g. back to `/wallet`). WayForPay’s own result page is used only if `returnUrl` is omitted.
+- **One public webhook** — register `https://YOUR_HOST/api/payments/wayforpay/webhook` so Approved payments can settle. Localhost cannot receive WayForPay callbacks (use a tunnel or staging for real credit tests).
+- **Wallet top-up is live** — Add Credit / `/wallet/topup` Card tab uses PaymentConductor (processor from env: WayForPay or Stripe). PayPal tab on Add Credit sends `processor=paypal` when PayPal is configured.
+- **Membership card path is live** — PaymentModal card tab uses PaymentConductor. Membership **PayPal** is live when `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true` (Subscriptions v1 via [SubscriptionConductor](/docs/features/subscriptions)) — separate from wallet credit PayPal.
 
 ### Credentials checklist
 
@@ -53,10 +57,18 @@ Templates: `env.local.template`, `docker.env.template`, `docker-compose.template
 ### Cabinet service URL
 
 ```text
-https://ring-platform.org/api/payments/wayforpay/webhook
+https://YOUR_HOST/api/payments/wayforpay/webhook
 ```
 
-Use your clone host in white-label deployments. Do **not** register legacy `/callback`, `/success`, or `/failure` paths.
+Use your clone host in white-label deployments. Do **not** register legacy `/callback`, `/success`, or `/failure` paths as the settlement endpoint.
+
+### After a member pays with card
+
+1. Browser returns to Ring (`returnUrl`) — they see the wallet/store page.
+2. WayForPay’s servers POST the result to your webhook.
+3. Only then is credit added or the order marked paid.
+
+If the member is back on `/wallet` but credit is missing, the webhook did not land (wrong host, localhost, or HMAC failure) — check `payment_transactions` and server logs.
 
 </Audience>
 
@@ -73,14 +85,47 @@ WAYFORPAY_API_URL=https://api.wayforpay.com/api
 # Optional store-specific overrides (fallback to WAYFORPAY_* above)
 # WAYFORPAY_STORE_MERCHANT_ACCOUNT=
 # WAYFORPAY_STORE_SECRET_KEY=
-# WAYFORPAY_STORE_DOMAIN=`}
+# WAYFORPAY_STORE_DOMAIN=
+
+# Card processor for wallet credit (default = PAYMENT_DEFAULT_PROCESSOR)
+# PAYMENT_WALLET_TOPUP_PROCESSOR=wayforpay   # or stripe
+# PAYMENT_DEFAULT_PROCESSOR=wayforpay`}
 </Code>
+
+## HPP contract — form POST only
+
+WayForPay Hosted Payment Page: `https://secure.wayforpay.com/pay`.
+
+| Rule | Detail |
+|------|--------|
+| Method | **HTML form POST** (`application/x-www-form-urlencoded`) |
+| GET query URLs | **Invalid** — WayForPay responds `Bad Request` / *This page requires only POST data* |
+| Ring builder | `lib/payments/wayforpay-hpp.ts` → `form_post` `CheckoutRedirect` |
+| Client handoff | `lib/payments/checkout-redirect.ts` → `followCheckoutResult` (unbranded; never import PSP-branded client helpers) |
+
+PaymentConductor returns `CreateCheckoutResult.redirect`:
+
+- WayForPay HPP → `{ mode: 'form_post', url, fields }`
+- Stripe Checkout / PayPal approve / WFP invoiceUrl → `{ mode: 'navigate', url }`
+
+`createCheckout` always runs `normalizeCheckoutResult` so processors may set either `redirect` or legacy `paymentUrl` / `paymentFields`.
+
+### returnUrl vs serviceUrl
+
+| Field | Who sets it | Role | Trust for money? |
+|-------|-------------|------|------------------|
+| `returnUrl` | Ring per request (`WalletConductor.initiateTopUp`, store/membership contexts) | Browser land-back after pay | **No** |
+| `serviceUrl` | Ring via `getWebhookUrl('wayforpay')` | Server POST from WayForPay | **Yes** — settlement |
+
+Wallet credit settlement: `handlers/wallet-topup.ts` requires `transactionStatus === 'Approved'`, then `markPaid` + `creditBalanceService.addFiatUsd`.
 
 ## Module map
 
 | Concern | Path |
 |---------|------|
 | Processor (all purposes) | `lib/payments/processors/wayforpay.processor.ts` |
+| HPP sign + fields | `lib/payments/wayforpay-hpp.ts`, `wayforpay-hpp-types.ts` |
+| Unbranded browser handoff | `lib/payments/checkout-redirect.ts` |
 | Signature verify | `lib/payments/processors/wayforpay-verify.ts` |
 | Store form helper | `lib/payments/wayforpay-store-service.ts` (`initiateStorePayment` — called from processor only) |
 | Webhook dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` |
@@ -95,25 +140,31 @@ WAYFORPAY_API_URL=https://api.wayforpay.com/api
 
 <Step>
 
-Caller invokes `PaymentConductor.createCheckout({ purpose, userId, amount, currency, ... })`.
+Caller invokes `PaymentConductor.createCheckout({ purpose, userId, amount, currency, returnUrl, ... })`. Conductor resolves processor (`metadata.processor` or `getPaymentProvider(purpose)`).
 
 </Step>
 
 <Step>
 
-`wayforpay.processor.ts` builds `orderReference` via `buildOrderReference`, writes `createPending` on `payment_transactions`, then returns a hosted payment URL.
+`wayforpay.processor.ts` builds `orderReference`, writes `createPending`, builds HPP fields (`returnUrl` + `serviceUrl`), returns `redirect: { mode: 'form_post', ... }`. Conductor runs `normalizeCheckoutResult`.
 
 </Step>
 
 <Step>
 
-User pays on WayForPay; cabinet POSTs to `/api/payments/wayforpay/webhook`.
+UI calls `followCheckoutResult` — hidden form POST to `secure.wayforpay.com/pay` (not `window.location` with a query string).
 
 </Step>
 
 <Step>
 
-`dispatchWayForPayWebhook` verifies HMAC, parses purpose from `orderReference`, marks paid, runs the purpose handler.
+User pays; browser may hit `returnUrl`. WayForPay POSTs to `/api/payments/wayforpay/webhook`.
+
+</Step>
+
+<Step>
+
+`dispatchWayForPayWebhook` verifies HMAC, parses purpose from `orderReference`, marks paid, runs the purpose handler (e.g. wallet credit).
 
 </Step>
 
@@ -130,26 +181,31 @@ User pays on WayForPay; cabinet POSTs to `/api/payments/wayforpay/webhook`.
 
 ### Wallet top-up
 
-<Code language="typescript" title="app/_actions/wallet.ts (shape)">
-{`await PaymentConductor.createCheckout({
+<Code language="typescript" title="WalletConductor.initiateTopUp → PaymentConductor">
+{`// Card tab: omit processor → PAYMENT_WALLET_TOPUP_PROCESSOR / PAYMENT_DEFAULT_PROCESSOR
+// PayPal tab: formData processor=paypal
+await PaymentConductor.createCheckout({
   purpose: 'wallet_topup',
   userId: session.user.id,
   amount, // 25–2000
   currency: getClientCreditFiatCurrency(),
-  returnUrl,
+  returnUrl, // e.g. /{locale}/wallet — UX only
   locale,
-  metadata: { source: 'credit_add_fs_modal' },
+  metadata: { source, ...(processor ? { processor } : {}) },
 })
-// Webhook → handleWalletTopupWayForPayWebhook → creditBalanceService.addFiatUsd`}
+// Result.redirect → followCheckoutResult
+// Webhook Approved → handleWalletTopupWayForPayWebhook → creditBalanceService.addFiatUsd`}
 </Code>
+
+UI: `features/wallet/components/credit-add-fs-modal.tsx` (Card | PayPal tabs) and `/wallet/topup`.
 
 ### Membership card
 
-`initiateMembershipPayment` with card / wayforpay / stripe → `createCheckout({ purpose: 'membership_upgrade' })`. UI: `components/membership/payment-modal.tsx` — native-token + card live; PayPal = `FutureFeatureWidget` (`poolSlug="membership-paypal"`).
+`initiateMembershipPayment` with card / wayforpay / stripe → `createCheckout({ purpose: 'membership_upgrade' })`. UI: `components/membership/payment-modal.tsx` — native-token + card live; PayPal tab when `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true` → `POST /api/membership/payment/paypal`.
 
 ### Store
 
-`POST /api/store/payments/wayforpay` → `PaymentConductor.createCheckout({ purpose: 'store_order' })`. No route-level bypass of the ledger.
+`POST /api/store/payments/wayforpay` → `PaymentConductor.createCheckout({ purpose: 'store_order' })`. No route-level bypass of the ledger. Client uses `followCheckoutResult` with conductor `redirect`.
 
 ### regularApi (subscriptions)
 
@@ -160,10 +216,12 @@ User pays on WayForPay; cabinet POSTs to `/api/payments/wayforpay/webhook`.
 - Generate and verify HMAC **server-side only** with `WAYFORPAY_SECRET_KEY`.
 - Never embed production secrets in MDX, client bundles, or git.
 - Idempotent ledger: duplicate Approved webhooks return success without double-crediting (`markPaid` / handler guards).
+- Never treat `returnUrl` query params as payment confirmation.
 
 ## Smoke / ops
 
 - Staging: migration `004` applied → store + membership card + wallet top-up → inspect `payment_transactions`.
+- Webhook must be **public HTTPS** — localhost `serviceUrl` will not settle credit.
 - Admin: `GET /api/admin/users/[id]/payments` (UI: `admin-user-detail-sheet.tsx` Payments tab).
 
 </Audience>
@@ -175,10 +233,13 @@ User pays on WayForPay; cabinet POSTs to `/api/payments/wayforpay/webhook`.
     Purposes and rails
   </Card>
   <Card title="Architecture" href="/docs/architecture/payment-conductor">
-    Dispatcher, types, ledger
+    CheckoutRedirect, dispatcher, ledger
   </Card>
   <Card title="Payment integration (ops)" href="/docs/customization/payment-integration">
     Cabinet URLs and checklist
+  </Card>
+  <Card title="Wallet" href="/docs/features/wallet">
+    Add Credit Card / PayPal
   </Card>
   <Card title="Subscriptions" href="/docs/features/subscriptions">
     SubscriptionConductor + WayForPay recurring
@@ -186,14 +247,6 @@ User pays on WayForPay; cabinet POSTs to `/api/payments/wayforpay/webhook`.
 </Cards>
 
 <FutureFeatureBacklog title="Backlog — WayForPay / alternate rails (TBD)">
-
-<FutureFeatureWidget
-  name="PayPal membership payments"
-  description="Alternate card rail for membership. Documented in PaymentModal as FutureFeatureWidget (poolSlug membership-paypal); WayForPay + Stripe + credit are live."
-  implementationCost={96}
-  labels={['payments', 'paypal', 'membership']}
-  poolSlug="membership-paypal"
-/>
 
 <FutureFeatureWidget
   name="Store-specific WayForPay merchant split"

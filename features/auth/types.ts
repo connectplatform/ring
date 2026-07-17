@@ -70,6 +70,8 @@ export interface GlobalUserIdentity {
   username?: string;
   role: UserRolesArray;
   photoURL?: string | null;
+  /** RingBase thumb derivative for Avatar UI (original stays on photoURL). */
+  avatarThumb?: string | null;
   authProvider: string;
   authProviderId: string;
   isVerified: boolean;

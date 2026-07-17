@@ -84,6 +84,7 @@ export class MessageService {
         timestamp: now,
         status: 'sent' as const,
         type: (data.type || 'text') as Message['type'],
+        ...(data.metadata ? { metadata: data.metadata } : {}),
       }
 
       // Save message to database (MUTATION - NO CACHE!)
@@ -512,28 +513,40 @@ export class MessageService {
             ? 'Sent an image'
             : message.type === 'file'
               ? 'Sent a file'
-              : message.content.slice(0, 140)
+              : message.type === 'payment_request'
+                ? message.content.slice(0, 140)
+                : message.content.slice(0, 140)
+
+      const notificationType =
+        message.type === 'payment_request'
+          ? NotificationType.PAYMENT_REQUEST
+          : NotificationType.MESSAGE_RECEIVED
 
       const title =
-        conversation.type === 'group'
-          ? conversation.metadata.groupName || 'Group chat'
-          : message.senderName || 'New message'
+        message.type === 'payment_request'
+          ? 'Payment request'
+          : conversation.type === 'group'
+            ? conversation.metadata.groupName || 'Group chat'
+            : message.senderName || 'New message'
 
       await Promise.allSettled(
         recipients.map((userId) =>
           createNotification({
             userId,
-            type: NotificationType.MESSAGE_RECEIVED,
+            type: notificationType,
             priority: NotificationPriority.NORMAL,
             title,
             body: preview,
-            actionText: 'Open chat',
+            actionText: message.type === 'payment_request' ? 'View request' : 'Open chat',
             actionUrl: `/messages?c=${encodeURIComponent(conversationId)}`,
             channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
             data: {
               conversationId,
               messageId: message.id,
               senderId,
+              ...(message.type === 'payment_request'
+                ? { kind: 'payment_request', metadata: message.metadata }
+                : {}),
             },
           } as never),
         ),
@@ -608,19 +621,25 @@ export class MessageService {
       if (!updateResult.success || !updateResult.data) {
         throw updateResult.error || new Error('Failed to update message');
       }
+
+      const updated = updateResult.data as Message
+      const conversationId = readResult.data.conversationId
       
-      // Trigger real-time update via Tunnel
+      // Conversation channel — clients listen for message:update
+      await publishToChannel(`conversation:${conversationId}`, 'message:update', updated)
+      // Per-message channel (legacy / focused subscribers)
       await publishToChannel(`message:${messageId}`, 'message:edited', {
         ...updates,
+        id: messageId,
         editedAt: Date.now()
       });
       
       // Revalidate conversation (React 19 pattern)
-      if (readResult.data.conversationId) {
-        revalidatePath(`/[locale]/chat/${readResult.data.conversationId}`);
+      if (conversationId) {
+        revalidatePath(`/[locale]/chat/${conversationId}`);
       }
       
-      return updateResult.data as Message;
+      return updated;
       
     } catch (error) {
       if (error instanceof ValidationError) {

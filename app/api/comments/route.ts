@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
 import { CommentFormData, CommentFilters } from '@/features/comments/types'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 
 type CommentRow = Record<string, unknown> & { id: string }
 
@@ -28,65 +29,81 @@ export async function GET(request: NextRequest) {
     // Extract search parameters from request URL
     const { searchParams } = new URL(request.url)
     
-    // Build filters object from search params, providing defaults
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 100)
+    const startAfter =
+      searchParams.get('startAfter') || searchParams.get('afterId') || undefined
+    const legacyOffset = parseInt(searchParams.get('offset') || '0', 10) || 0
+
     const filters: CommentFilters = {
       targetId: searchParams.get('targetId') || '',
-      targetType: searchParams.get('targetType') as CommentFilters['targetType'] || 'news',
+      targetType: (searchParams.get('targetType') as CommentFilters['targetType']) || 'news',
       parentId: searchParams.get('parentId') || undefined,
-      status: searchParams.get('status') as CommentFilters['status'] || 'active',
+      status: (searchParams.get('status') as CommentFilters['status']) || 'active',
       authorId: searchParams.get('authorId') || undefined,
-      limit: parseInt(searchParams.get('limit') || '10'),
-      offset: parseInt(searchParams.get('offset') || '0'),
-      sortBy: searchParams.get('sortBy') as CommentFilters['sortBy'] || 'createdAt',
-      sortOrder: searchParams.get('sortOrder') as CommentFilters['sortOrder'] || 'desc',
+      limit,
+      startAfter,
+      sortBy: (searchParams.get('sortBy') as CommentFilters['sortBy']) || 'createdAt',
+      sortOrder: (searchParams.get('sortOrder') as CommentFilters['sortOrder']) || 'desc',
     }
 
-    // Enforce required parameter
     if (!filters.targetId) {
       return NextResponse.json({ error: 'targetId is required' }, { status: 400 })
     }
 
-    // Prepare backend filters syntax
-    const filtersArray = [
-      { field: 'target_id', operator: '==' as const, value: filters.targetId },
-      { field: 'target_type', operator: '==' as const, value: filters.targetType },
-      { field: 'status', operator: '==' as const, value: filters.status }
+    const filtersArray: Array<{ field: string; operator: '==' | '<' | '>'; value: unknown }> = [
+      { field: 'target_id', operator: '==', value: filters.targetId },
+      { field: 'target_type', operator: '==', value: filters.targetType },
+      { field: 'status', operator: '==', value: filters.status },
     ]
 
-    // Filter either by parentId or for root comments (parent_id=null)
     if (filters.parentId) {
-      filtersArray.push({ field: 'parent_id', operator: '==' as const, value: filters.parentId })
+      filtersArray.push({ field: 'parent_id', operator: '==', value: filters.parentId })
     } else {
-      filtersArray.push({ field: 'parent_id', operator: '==' as const, value: null })
+      filtersArray.push({ field: 'parent_id', operator: '==', value: null })
     }
 
-    // Optionally filter by author
     if (filters.authorId) {
-      filtersArray.push({ field: 'author_id', operator: '==' as const, value: filters.authorId })
+      filtersArray.push({ field: 'author_id', operator: '==', value: filters.authorId })
     }
 
-    // Use sort info; NOTE: server side ignores sortBy (only sort on created_at)
-    const orderBy = [{
-      field: 'created_at',
-      direction: (filters.sortOrder === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc'
-    }]
-    // TODO: Allow sorting on all allowed columns (if Next16/React19 features allow)
+    const sortDesc = filters.sortOrder !== 'asc'
+    const orderBy = [
+      {
+        field: 'created_at',
+        direction: (sortDesc ? 'desc' : 'asc') as 'asc' | 'desc',
+      },
+    ]
 
-    // Prepare pagination arguments
-    const pagination = {
-      limit: filters.limit || 10,
-      offset: filters.offset || 0
+    if (startAfter) {
+      try {
+        const cursorDoc = await db().findDocById('comments', startAfter)
+        if (cursorDoc.success && cursorDoc.data) {
+          const cursorDate =
+            (cursorDoc.data as { created_at?: unknown; createdAt?: unknown }).created_at ??
+            (cursorDoc.data as { createdAt?: unknown }).createdAt
+          if (cursorDate) {
+            filtersArray.push({
+              field: 'created_at',
+              operator: sortDesc ? '<' : '>',
+              value: cursorDate,
+            })
+          }
+        }
+      } catch (cursorError) {
+        console.error('Comments pagination cursor resolve failed', cursorError)
+      }
     }
 
-    // Query the database for comments with provided filters, sorting, and pagination
     const queryResult = await db().queryDocs<CommentRow>({
       collection: 'comments',
       filters: filtersArray,
       orderBy,
-      pagination
+      pagination: {
+        limit,
+        ...(startAfter ? {} : legacyOffset > 0 ? { offset: legacyOffset } : {}),
+      },
     })
 
-    // Handle errors from DB query
     if (!queryResult.success) {
       if (queryResult.metadata?.operation === 'initialize') {
         return NextResponse.json({ success: false, error: 'Database initialization failed' }, { status: 500 })
@@ -94,22 +111,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to query comments' }, { status: 500 })
     }
 
-    // Format DB results for the response; convert snake_case to camelCase for client
-    const comments = queryResult.data.map((comment) => ({
+    const comments = (queryResult.data || []).map((comment) => ({
       ...comment,
+      id: comment.id,
       createdAt: comment.created_at,
       updatedAt: comment.updated_at,
       editedAt: comment.edited_at,
     }))
 
-    // Return comments, pagination info, and active filters
+    const { nextCursor, hasMore } = computePaginationCursor(comments, limit, (c) => c.id)
+
     return NextResponse.json({
       success: true,
+      items: comments,
       data: comments,
+      cursor: nextCursor,
+      hasMore,
       pagination: {
-        limit: filters.limit,
-        offset: filters.offset,
-        total: comments.length, // TODO: Implement accurate total count for pagination if DB supports it
+        limit,
+        cursor: nextCursor,
+        hasMore,
       },
       filters,
     })

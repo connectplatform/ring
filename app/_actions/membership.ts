@@ -317,6 +317,12 @@ export async function payWithNativeToken(formData: FormData): Promise<Membership
  */
 export async function payWithCard(formData: FormData): Promise<MembershipActionResult & {
   paymentUrl?: string
+  paymentFields?: Record<string, string | string[]>
+  redirect?: {
+    mode: 'navigate' | 'form_post'
+    url: string
+    fields?: Record<string, string | string[]>
+  }
   orderReference?: string
 }> {
   try {
@@ -392,6 +398,8 @@ export async function payWithCard(formData: FormData): Promise<MembershipActionR
       return {
         success: true,
         paymentUrl: result.redirectUrl,
+        paymentFields: result.paymentFields,
+        redirect: result.redirect,
         orderReference: result.subscriptionId,
       }
     }
@@ -606,14 +614,37 @@ export async function cancelSubscription(formData: FormData): Promise<Subscripti
     const subscription = await SubscriptionConductor.getSubscription(session.user.id)
     if (!subscription)
       return { success: false, error: 'No active subscription found' }
-    if (subscription.status !== 'active')
+    if (subscription.status !== 'active' && subscription.status !== 'pending')
       return { success: false, error: `Subscription is already ${subscription.status}` }
+
+    // Extract gateway reference (PayPal needs paypal_subscription_id / I-…)
+    let gatewayReference: string | undefined
+    switch (subscription.provider) {
+      case 'stripe':
+        gatewayReference = subscription.stripe_subscription_id
+        break
+      case 'wayforpay':
+        gatewayReference = subscription.wayforpay_rec_token
+        break
+      case 'native_token':
+        gatewayReference = subscription.solana_tx_signature
+        break
+      case 'nft_gate':
+        gatewayReference = subscription.nft_mint_address
+        break
+      case 'paypal':
+        gatewayReference = subscription.paypal_subscription_id
+        break
+      default:
+        gatewayReference = undefined
+    }
 
     // Cancel actual subscription atomically in SSOT
     // STUB: Reason param is NOT forwarded -- optionally log to audit!
     const result = await SubscriptionConductor.cancelSubscription(
       session.user.id,
       subscription.provider,
+      gatewayReference,
     )
 
     if (!result.success)

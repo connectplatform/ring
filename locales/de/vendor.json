@@ -1,0 +1,471 @@
+{
+  "title": "Publisher-Dashboard",
+  "becomeVendor": "Publisher werden",
+  "onboarding": {
+    "title": "Publisher-Store auf Connect.Software",
+    "subtitle": "Skillsets, Services und Integrationen im Connect-Marketplace listen — sichtbar für Teams, die Ring und ConnectPlatform nutzen.",
+    "success": "Willkommen! Ihr Publisher-Store wurde angelegt.",
+    "redirecting": "Weiterleitung zum Dashboard …",
+    "form": {
+      "storeSlug": "Store-URL (Slug)",
+      "storeUrlPrefix": "connect.software/store/vendors/",
+      "storeSlugHint": "URL-freundlicher Name (Kleinbuchstaben, Bindestriche), z. B. „acme-integrations“",
+      "storeSlugPlaceholder": "acme-integrations",
+      "storeName": "Store-Name",
+      "storeNameHint": "Anzeigename Ihres Teams oder Unternehmens",
+      "storeNamePlaceholder": "Acme Integrations GmbH",
+      "storeDescription": "Kurzbeschreibung",
+      "storeDescriptionHint": "Was Sie listen: MCP, Skillsets, Router, Bundles, Beratung (max. 500 Zeichen)",
+      "storeDescriptionPlaceholder": "Wir verbinden Ring-Deployments mit Observability, Auth und MCP-Servern …",
+      "categoriesSelected": "{count, plural, one {# Kategorie ausgewählt} other {# Kategorien ausgewählt}}",
+      "categoriesSelectHint": "Mindestens eine Kategorie wählen",
+      "storeCategories": "Schwerpunkte",
+      "storeCategoriesHint": "Alle passenden Kategorien auswählen",
+      "storeLogo": "Store-Logo",
+      "storeLogoHint": "Quadratisches Bild, empfohlen 512×512 (JPG, PNG, WebP, max. 5 MB)",
+      "uploadLogo": "Logo hochladen",
+      "changeLogo": "Logo ändern",
+      "removeLogo": "Logo entfernen",
+      "submit": "Publisher-Store anlegen",
+      "submitting": "Store wird erstellt …"
+    },
+    "categories": {
+      "organic-produce": "Runtime & Infrastruktur",
+      "honey-sweets": "APIs & Daten",
+      "essential-oils": "Security & Auth",
+      "dairy-eggs": "Multi-Tenant & Identität",
+      "meat-poultry": "DevOps & CI/CD",
+      "herbs-spices": "Observability & Qualität",
+      "grains-legumes": "Integration & ETL",
+      "baked-goods": "UI/UX & Designsysteme",
+      "preserves-pickles": "Speicher & Archive",
+      "beverages": "Echtzeit & Messaging",
+      "nuts-seeds": "MCP & Agenten-Tools",
+      "handmade-crafts": "Beratung & Custom Engineering"
+    },
+    "validation": {
+      "slugRequired": "Store-Slug ist erforderlich",
+      "slugInvalid": "Slug: nur Kleinbuchstaben, Ziffern und Bindestriche",
+      "slugTooShort": "Slug mindestens 3 Zeichen",
+      "slugTooLong": "Slug höchstens 50 Zeichen",
+      "nameRequired": "Store-Name ist erforderlich",
+      "nameTooShort": "Name mindestens 3 Zeichen",
+      "nameTooLong": "Name höchstens 100 Zeichen",
+      "descriptionRequired": "Beschreibung ist erforderlich",
+      "descriptionTooLong": "Beschreibung höchstens 500 Zeichen",
+      "categoriesRequired": "Mindestens eine Kategorie wählen",
+      "logoTooBig": "Logo-Datei max. 5 MB",
+      "logoInvalidType": "Logo: JPG, PNG oder WebP"
+    }
+  },
+  "dashboard": {
+    "title": "Publisher-Dashboard",
+    "welcome": "Willkommen zurück",
+    "overview": "Übersicht",
+    "analytics": "Analytics",
+    "settings": "Einstellungen",
+    "quickActionsTitle": "Schnellaktionen",
+    "quickActionsFab": "Schnellaktionen",
+    "quickActions": {
+      "manageProducts": "Produkte verwalten",
+      "addProduct": "Produkt hinzufügen",
+      "viewOrders": "Bestellungen ansehen",
+      "stockLevels": "Bestandsstände",
+      "earnings": "Einnahmen",
+      "storeSettings": "Store-Einstellungen",
+      "updateInventory": "Inventar aktualisieren",
+      "viewAnalytics": "Analytics ansehen",
+      "settings": "Einstellungen",
+      "title": "Schnellaktionen"
+    },
+    "boostSalesTitle": "Verkäufe steigern",
+    "boostSalesTips": {
+      "photos": "Hochwertige Produktfotos hinzufügen für 3× mehr Aufrufe",
+      "inventory": "Inventar täglich aktualisieren für besseres Ranking",
+      "quality": "Verifizierte Listings und klare Docs hervorheben für bessere Entdeckung"
+    },
+    "resourcesTitle": "Vendor-Ressourcen",
+    "resourcesDescription": "Erfahren Sie, wie Sie das Potenzial Ihres Stores maximieren",
+    "viewVendorGuide": "Vendor-Guide ansehen →",
+    "subtitle": "Store, Bestellungen und Auszahlungen verwalten",
+    "trustScore": "Trust-Score",
+    "taxVerified": "Steuer verifiziert",
+    "taxPending": "Steuer ausstehend",
+    "fromLastMonth": "gegenüber Vormonat",
+    "averageValue": "Ø Bestellung",
+    "available": "Verfügbar",
+    "trustLevel": {
+      "new": "Neu",
+      "basic": "Basic",
+      "verified": "Verifiziert",
+      "trusted": "Trusted",
+      "premium": "Premium"
+    },
+    "status": {
+      "open": "Offen",
+      "closed": "Geschlossen",
+      "suspended": "Gesperrt",
+      "pending": "Ausstehend"
+    },
+    "metrics": {
+      "totalSales": "Gesamtumsatz",
+      "totalOrders": "Bestellungen gesamt",
+      "satisfaction": "Zufriedenheit",
+      "pendingPayout": "Ausstehende Auszahlung"
+    },
+    "tabs": {
+      "overview": "Übersicht",
+      "products": "Produkte",
+      "orders": "Bestellungen",
+      "payouts": "Auszahlungen"
+    },
+    "performance": {
+      "title": "Performance",
+      "description": "Fulfillment- und Conversion-Gesundheit",
+      "fulfillmentRate": "Fulfillment-Rate",
+      "conversionRate": "Conversion-Rate",
+      "responseTime": "Retourenbearbeitungszeit"
+    },
+    "products": {
+      "title": "Produkte",
+      "active": "{count} aktiv",
+      "total": "{count} gesamt",
+      "outOfStock": "Nicht vorrätig",
+      "manage": "Produkte verwalten"
+    },
+    "orders": {
+      "recent": "Aktuelle Bestellungen",
+      "noRecent": "Noch keine aktuellen Bestellungen.",
+      "viewAll": "Alle Bestellungen ansehen"
+    },
+    "payouts": {
+      "summary": "Auszahlungsübersicht",
+      "totalPaid": "Gezahlte Provision",
+      "pending": "Ausstehende Auszahlungen",
+      "history": "Auszahlungshistorie"
+    },
+    "recentOrders": {
+      "title": "Aktuelle Bestellungen",
+      "description": "Neueste Kundenbestellungen aus Ihrem Store",
+      "viewAll": "Alle ansehen",
+      "empty": "Noch keine Bestellungen. Bewerben Sie Ihre Produkte!",
+      "unknownCustomer": "Kunde"
+    },
+    "dagi": {
+      "title": "DAGI Vendor Agent",
+      "comingSoon": "Demnächst",
+      "description": "KI-Agent-Aktivierung und DAARION-Staking folgen hier. Store-Betrieb (Produkte, Bestellungen, Bestand, Einnahmen) ist jetzt über das Vendor-Menü verfügbar.",
+      "todoNote": "Provisioning-API und Wallet-Staking sind geplant — keine Mock-Aktivierung."
+    },
+    "promotions": {
+      "label": "Aktionen",
+      "checkoutOffer": "Checkout-Sonderangebot",
+      "checkoutOfferHint": "Popup für kostenlosen Versand beim Checkout anzeigen, wenn die Policy aktiv ist",
+      "on": "An",
+      "off": "Aus",
+      "saved": "Aktionen aktualisiert",
+      "freeShippingHint": "Kostenloser-Versand-Policy für Ihren Storefront",
+      "freeShipOff": "Kostenloser Versand: Aus",
+      "freeShipAlways": "Immer kostenlos",
+      "freeShipConditional": "Kostenlos ab Mindestbestellwert",
+      "minOrder": "Mindestbestellwert"
+    }
+  },
+  "products": {
+    "title": "Meine Angebote",
+    "myProducts": "Meine Angebote",
+    "addProduct": "Angebot hinzufügen",
+    "editProduct": "Angebot bearbeiten",
+    "createSubtitle": "Neues Produkt zu Ihrem Store hinzufügen",
+    "editSubtitle": "Produktdetails aktualisieren",
+    "noProducts": "Noch keine Angebote",
+    "addFirstProduct": "Legen Sie Ihr erstes Listing an, um im Marketplace sichtbar zu werden",
+    "totalProducts": "{count} Angebote",
+    "activeProducts": "{count} aktiv",
+    "pendingProducts": "{count} in Prüfung",
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "pending": "Freigabe ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt"
+    },
+    "mainStore": {
+      "badge": "Haupt-Marketplace",
+      "submit": "Zur Prüfung einreichen",
+      "pending": "⏳ Admin-Prüfung",
+      "approved": "✓ Im Haupt-Marketplace gelistet",
+      "rejected": "❌ Nicht freigegeben",
+      "notSubmitted": "Noch nicht eingereicht"
+    },
+    "actions": {
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "delete": "Löschen",
+      "preview": "Vorschau",
+      "activate": "Aktivieren",
+      "deactivate": "Deaktivieren",
+      "viewInStore": "Im Store ansehen",
+      "viewInMainStore": "Im Haupt-Marketplace ansehen"
+    },
+    "filters": {
+      "all": "Alle Angebote",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "pendingApproval": "Freigabe ausstehend",
+      "approved": "Für Haupt-Marketplace freigegeben",
+      "rejected": "Abgelehnt",
+      "search": "Angebote suchen …",
+      "sortBy": "Sortieren nach",
+      "sortNewest": "Neueste zuerst",
+      "sortOldest": "Älteste zuerst",
+      "sortPriceAsc": "Preis aufsteigend",
+      "sortPriceDesc": "Preis absteigend",
+      "sortNameAsc": "Name A–Z",
+      "sortNameDesc": "Name Z–A"
+    },
+    "form": {
+      "productDetails": "Produktdetails",
+      "mainPhoto": "Hauptfoto",
+      "addPhoto": "Foto hinzufügen",
+      "photo": "Medien / Screenshots",
+      "photoHint": "1–5 Bilder. Das erste Bild ist das Hauptbild.",
+      "photoPlaceholder": "Bilder ziehen oder klicken zum Auswählen",
+      "video": "Video (optional)",
+      "videoHint": "Demo-Video (max. 50 MB, MP4/WebM)",
+      "name": "Titel des Angebots",
+      "nameHint": "Klarer, suchbarer Titel",
+      "namePlaceholder": "MCP-Server für Observability",
+      "category": "Kategorie",
+      "categoryHint": "Passendste Kategorie wählen",
+      "categoryPlaceholder": "Kategorie wählen …",
+      "priceLabel": "Preis ({currency})",
+      "priceUAH": "Preis (UAH)",
+      "priceHint": "Preis in Ukrainischer Hrywnja",
+      "pricePlaceholder": "100.00",
+      "stock": "Verfügbare Kapazität / Stückzahl",
+      "stockHint": "Verfügbare Einheiten oder Slots",
+      "stockPlaceholder": "50",
+      "daarPrice": "DAAR-Token-Preis (optional)",
+      "daarPriceHint": "Wird aus UAH abgeleitet, wenn leer",
+      "description": "Kurzbeschreibung",
+      "descriptionHint": "Kurztext (max. 200 Zeichen)",
+      "descriptionPlaceholder": "Was Käuferinnen bekommen: Umfang, SLAs, Lieferumfang …",
+      "activeInMyStore": "In meinem Store aktiv",
+      "activeInMyStoreHint": "Sichtbar im eigenen Publisher-Storefront",
+      "submitToMainStore": "Für Haupt-Marketplace einreichen",
+      "submitToMainStoreHint": "Zur Admin-Prüfung für den zentralen Katalog einreichen",
+      "submit": "Angebot anlegen",
+      "update": "Angebot aktualisieren",
+      "submitting": "Wird angelegt …",
+      "updating": "Wird gespeichert …",
+      "cancel": "Abbrechen",
+      "referralCommission": "Referral-Provision %",
+      "referralCommissionHint": "Optional. Leer lassen, um Händler- oder Plattformrate zu erben.",
+      "referralCommissionPlaceholder": "Erben ({percent}%)",
+      "rep": "Produktvertreter",
+      "repHint": "Optional. Ring-Nutzer per Username zuweisen, der dieses Produkt vertritt.",
+      "repPlaceholder": "Nach Username suchen…",
+      "addProductParameter": "Produktparameter hinzufügen",
+      "parameterName": "Parametername",
+      "parameterValue": "Parameterwert",
+      "removeParameter": "Parameter entfernen",
+      "productAudience": "Nur-Member-Produkt",
+      "productAudienceHint": "Nur Members und höher sehen dieses Produkt im Hauptstore. Öffentliche Produkte sind für alle sichtbar.",
+      "promotionsTitle": "Produktaktionen",
+      "promotionsHint": "Kauf-zwei-bekomm-eins, Prozent- oder Festbetragsrabatt — angewendet in Warenkorb/Checkout.",
+      "addPromotion": "Aktion hinzufügen",
+      "noPromotions": "Keine Aktionen für dieses Produkt.",
+      "promoBogo": "Kauf X, Y gratis",
+      "promoPercent": "Prozent Rabatt",
+      "promoAmount": "Betragsrabatt",
+      "promoLabel": "Label (optional)",
+      "buyQty": "Kaufmenge",
+      "getQty": "Gratis",
+      "percentOff": "% Rabatt",
+      "amountOff": "Betragsrabatt / Einheit",
+      "removePromotion": "Aktion entfernen"
+    },
+    "validation": {
+      "nameRequired": "Titel ist erforderlich",
+      "nameTooShort": "Titel mindestens 3 Zeichen",
+      "nameTooLong": "Titel höchstens 100 Zeichen",
+      "categoryRequired": "Kategorie wählen",
+      "priceRequired": "Preis ist erforderlich",
+      "priceInvalid": "Preis muss eine positive Zahl sein",
+      "stockRequired": "Kapazität/Stückzahl ist erforderlich",
+      "stockInvalid": "Wert muss ≥ 0 sein",
+      "photoRequired": "Mindestens ein Bild ist erforderlich",
+      "photoCountExceeded": "Höchstens 5 Bilder",
+      "photoSizeExceeded": "Bild max. 5 MB",
+      "photoInvalidType": "Bilder: JPG, PNG oder WebP",
+      "videoSizeExceeded": "Video max. 50 MB",
+      "videoInvalidType": "Video: MP4 oder WebM",
+      "descriptionTooLong": "Kurzbeschreibung max. 200 Zeichen"
+    },
+    "deleteConfirm": {
+      "title": "Angebot löschen",
+      "message": "„{name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "confirm": "Ja, löschen",
+      "cancel": "Abbrechen"
+    }
+  },
+  "storefront": {
+    "title": "Publisher-Store",
+    "followVendor": "Folgen",
+    "messageVendor": "Nachricht",
+    "memberSince": "Mitglied seit",
+    "totalSales": "Umsatz gesamt",
+    "rating": "Bewertung",
+    "responseTime": "Antwortzeit",
+    "poweredBy": "Betrieben mit",
+    "metadataTitle": "{name} - Ring Platform",
+    "metadataDescription": "Einkaufen bei {name} auf Ring Platform",
+    "tabs": {
+      "products": "Angebote",
+      "about": "Über uns",
+      "reviews": "Bewertungen",
+      "contact": "Kontakt"
+    },
+    "about": {
+      "story": "Unser Profil",
+      "location": "Standort",
+      "shipping": "Liefer- & Rollout-Regeln",
+      "returns": "Storno & Rückerstattung",
+      "businessHours": "Erreichbarkeit",
+      "certifications": "Zertifizierungen",
+      "sustainability": "Nachhaltigkeit & Governance"
+    },
+    "contact": {
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "sendMessage": "Nachricht senden"
+    }
+  },
+  "orders": {
+    "title": "Vendor-Bestellungen",
+    "description": "Bestellungen mit Ihren Produkten",
+    "empty": "Noch keine Bestellungen für Ihren Store.",
+    "orderId": "Bestellung",
+    "status": "Status",
+    "total": "Bestellsumme",
+    "netAmount": "Ihr Netto",
+    "date": "Datum"
+  },
+  "earnings": {
+    "title": "Einnahmen & Auszahlungen",
+    "description": "Ausstehende und abgeschlossene Vendor-Settlements",
+    "pending": "Ausstehende Auszahlung",
+    "history": "Auszahlungshistorie",
+    "amount": "Betrag",
+    "commission": "Provision",
+    "status": "Status",
+    "scheduled": "Datum",
+    "empty": "Noch keine Auszahlungsdatensätze.",
+    "simulatedBadge": "Simuliert"
+  },
+  "settings": {
+    "title": "Store-Einstellungen",
+    "description": "Händlerkonfiguration und Settlement-Präferenzen",
+    "readOnlyNote": "Auszahlungshäufigkeit und Provisionssätze werden durch Plattform-Policy gesteuert. Admin kontaktieren für Änderungen.",
+    "storefront": "Storefront",
+    "storeName": "Store-Name",
+    "entityId": "Entity-ID",
+    "settlement": "Settlement",
+    "frequency": "Auszahlungshäufigkeit",
+    "defaultFrequency": "Wöchentlich",
+    "holdPeriod": "Haltefrist",
+    "days": "Tage",
+    "platformCommission": "Plattformprovision",
+    "referralCommission": "Referral-Provision",
+    "referralSource": {
+      "product": "Produkt-Override",
+      "merchant": "Händlerkonfiguration",
+      "default": "Plattformstandard",
+      "env": "Umgebungsstandard"
+    },
+    "noMerchantConfig": "Händlerkonfiguration noch nicht provisioniert."
+  },
+  "stock": {
+    "title": "Inventar",
+    "description": "Bestandsstände Ihrer Produkte",
+    "empty": "Keine Produkte zum Tracken.",
+    "product": "Produkte",
+    "stock": "Bestand",
+    "restock": "Auffüllen",
+    "restocking": "Wird hinzugefügt…",
+    "quantity": "Menge"
+  },
+  "navbar": {
+    "myStore": "Mein Store",
+    "dashboard": "Dashboard",
+    "myProducts": "Meine Angebote",
+    "addProduct": "Angebot hinzufügen",
+    "orders": "Bestellungen",
+    "earnings": "Einnahmen",
+    "settings": "Einstellungen",
+    "stock": "Bestand",
+    "comingSoon": "Demnächst"
+  },
+  "notifications": {
+    "productCreated": "Angebot „{name}“ wurde angelegt",
+    "productUpdated": "Angebot „{name}“ wurde aktualisiert",
+    "productDeleted": "Angebot gelöscht",
+    "productSubmitted": "Angebot zur Prüfung für den Haupt-Marketplace eingereicht",
+    "vendorCreated": "Publisher-Store angelegt — willkommen bei Connect.Software",
+    "approvalPending": "Angebot wartet auf Admin-Prüfung",
+    "approvalApproved": "„{name}“ wurde für den Haupt-Marketplace freigegeben",
+    "approvalRejected": "„{name}“ wurde nicht freigegeben. Grund: {reason}"
+  },
+  "startWrapper": {
+    "setupProgress": "Einrichtungsfortschritt",
+    "storeDetails": "Store-Details",
+    "completeStoreInfo": "Vervollständigen Sie Profil und Logo für 100 %",
+    "whyChoosePlatform": "Warum Ring Platform?",
+    "benefits": {
+      "aiEnrichment": {
+        "title": "KI für Listings",
+        "description": "Kerninfos eingeben — Vorschläge für Beschreibung, Tags und passende Kategorien."
+      },
+      "automatedSettlements": {
+        "title": "Abrechnung im Fluss",
+        "description": "Bestellungen, Provisionen und Auszahlungen entlang der Marketplace-Pipeline."
+      },
+      "ringRewards": {
+        "title": "RING-Token-Rewards",
+        "description": "Community-Rewards und RING-Token für Qualitätslistings und verifizierte Verkäufe verdienen"
+      },
+      "trustTier": {
+        "title": "Vertrauen & Verifizierung",
+        "description": "Nachweise, Reviews und Admin-Freigaben steigern Sichtbarkeit und Conversion."
+      }
+    },
+    "nextSteps": {
+      "title": "Nächste Schritte",
+      "completeStore": "Store-Informationen vervollständigen",
+      "uploadLogo": "Logo hochladen",
+      "addFirstProduct": "Erstes Angebot anlegen"
+    },
+    "vendorGuide": {
+      "title": "Publisher-Leitfaden",
+      "description": "Store, Listings und Freigaben effizient verwalten",
+      "viewGuide": "Leitfaden ansehen →"
+    },
+    "progressBenefits": "Fortschritt & Vorteile"
+  },
+  "startPage": {
+    "title": "Publisher-Onboarding",
+    "subtitle": "Store einrichten und auf Connect.Software listen",
+    "progressSteps": {
+      "account": "Konto",
+      "storeSetup": "Store-Setup",
+      "launch": "Go-live"
+    },
+    "trustIndicators": {
+      "vendors": "50+ Vendors",
+      "activation": "Schnelle Aktivierung",
+      "security": "Sichere Plattform"
+    }
+  }
+}

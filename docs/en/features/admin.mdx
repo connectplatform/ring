@@ -1,7 +1,7 @@
 ---
 title: Admin console
 description: Role-aware three-pane admin navigation — section hubs in main menus, in-module submenus in the right rail, Security hub tabs, and shared SSOT config
-last_modified: "2026-07-10"
+last_modified: "2026-07-17"
 audience: both
 ---
 
@@ -11,7 +11,7 @@ audience: both
   Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. HTTP handlers for the same desks live in [Admin API](/docs/api/admin).
 </Callout>
 
-Ring’s **Admin console** (`/admin/*`) is a three-pane operator surface: left menus for **section hubs**, center for work, right rail for **in-module submenus** and related hubs. Navigation is role-filtered from one SSOT — platform admins (`admin` | `superadmin`) see community, trust, commerce, and email hubs; **superadmin** also sees Platform ops (settings, processes, performance, subscriptions, Web3).
+Ring’s **Admin console** (`/admin/*`) is a three-pane operator surface: left menus for **section hubs**, center for work, right rail for **in-module submenus** and related hubs. Navigation is role-filtered from one SSOT — platform admins (`admin` | `superadmin`) see community, trust, commerce, and CRM hubs; **superadmin** also sees Platform ops (settings, processes, performance, subscriptions, Web3).
 
 | Surface | What it shows | Source |
 |---------|---------------|--------|
@@ -20,6 +20,7 @@ Ring’s **Admin console** (`/admin/*`) is a three-pane operator surface: left m
 | Mobile bottom sheet | Same filtered hubs | `bottom-navigation.tsx` |
 | Right rail | Submenu → related hubs → optional news stats → help | `AdminWrapper` → `admin-rail.tsx` |
 | Dashboard tiles | Same hubs (minus Dashboard itself) | `admin-dashboard-tiles.ts` |
+| CRM shell | Full-width center + horizontal tabs (no right rail) | `CrmAdminShell` |
 
 <Audience for="founder">
 
@@ -32,7 +33,10 @@ Operators should not hunt three different menus. One config drives desktop, mobi
     Security center folds fraud desk and verification into `/admin/security?tab=…`.
   </Card>
   <Card title="Email AI-CRM" href="/docs/features/email-ai-crm">
-    Inbox, drafts, contacts, analytics, and tasks share the admin shell and email rail.
+    Inbox, drafts, contacts, analytics, and tasks under `/admin/crm/*` with `CrmAdminShell` tabs.
+  </Card>
+  <Card title="Owner Project Lab" href="/docs/features/owner-project-lab">
+    CRM orders desk, shared Project room, buyer My Projects.
   </Card>
   <Card title="Store & ERP" href="/docs/features/store">
     Store hub opens products; rail links orders, stock, commissions, and add product.
@@ -46,7 +50,7 @@ Operators should not hunt three different menus. One config drives desktop, mobi
 
 1. Open **Admin** from the icon rail → dashboard tiles for every hub you can access.
 2. Jump to **Security** for fraud / verification / events without separate top-level Fraud or Verification menu items.
-3. Use the **right rail** on News, Store, Email, Matcher, DAO, Web3, Users, or Moderation for in-module links (and related hubs).
+3. Use the **right rail** on News, Store, Matcher, DAO, Web3, Users, or Moderation for in-module links (and related hubs). **CRM** pages hide the right rail and use horizontal tabs instead.
 4. **Superadmin** only: Platform group — Settings, Processes, Performance, Subscriptions, Web3 (settings page is superadmin-gated).
 
 <Callout type="tip">
@@ -99,8 +103,9 @@ SSOT roles: `features/auth/user-role.ts` (`isPlatformAdmin`, `isSuperadmin`). La
 | Dashboard tiles | `features/admin/admin-dashboard-tiles.ts` |
 | Right rail UI | `components/layout/rails/admin-rail.tsx` |
 | Layout shell | `components/wrappers/admin-wrapper.tsx` → `RingRightRailLayout` |
-| Email shell | `features/admin/email/email-admin-shell.tsx` |
-| Routes | `constants/routes.ts` (`ADMIN_*`) |
+| Email shell (deprecated alias) | `features/admin/email/email-admin-shell.tsx` → `CrmAdminShell` |
+| CRM shell | `features/admin/crm/crm-admin-shell.tsx` |
+| Routes | `constants/routes.ts` (`ADMIN_*`, `ADMIN_CRM_*`; `ADMIN_EMAIL_*` aliases → `/admin/crm/*`) |
 | Locale copy | `locales/{en,uk,ru}/modules/admin.json` |
 
 ### Main menu groups (`ADMIN_NAV_GROUPS`)
@@ -111,7 +116,7 @@ SSOT roles: `features/auth/user-role.ts` (`isPlatformAdmin`, `isSuperadmin`). La
 | `community` | `navGroupCommunity` | Users, News, DAO, Moderation, Analytics | `admin` |
 | `trust` | `navGroupTrust` | Security, Matcher | `admin` |
 | `commerce` | `navGroupCommerce` | Store → products, Refcodes | `admin` |
-| `email` | `navGroupEmail` | Email inbox | `admin` |
+| `email` | `navGroupEmail` | CRM orders + inbox hubs | `admin` |
 | `platform` | `navGroupPlatformOps` | Settings, Processes, Performance, Subscriptions, Web3 | `superadmin` |
 
 Fraud desk and Verification are **not** main-menu items.
@@ -133,7 +138,7 @@ Active highlighting for query tabs uses `pathWithQuery` (`pathname` + `useSearch
 | `security` / legacy fraud-desk / verification | `security` | `?tab=overview\|fraud\|verification\|events` |
 | `matcher` | `matcher` | Analytics vs `?tab=moderation` |
 | `store` | `store` | Products, orders, stock, commissions, add |
-| `email-*` | `email` | Inbox, drafts, contacts, analytics, tasks |
+| `crm-*` | CRM (tabs, no rail) | Orders, inbox, drafts, contacts, analytics, tasks via `CrmAdminShell` |
 | `news` | `news` | Articles, categories, analytics, bulk |
 | `web3` | `web3` | Dashboard + Settings (settings link if superadmin) |
 | `users` | `users` | `?tab=` overview / users / verification / analytics |
@@ -152,9 +157,13 @@ Tabs SSOT: `features/admin/security/types/security-overview.ts` (`SECURITY_TABS`
 
 Rail Moderation → `/admin/matcher?tab=moderation`. Client `admin-matcher-client.tsx` reads `tab`; analytics sub-tabs (`performance`, `quality`, …) stay client-local when `tab` is absent.
 
-### Email pages
+### CRM pages
 
-All email CRM routes wrap with `EmailAdminShell` + correct `pageContext` (`email-inbox`, `email-drafts`, …) so the rail submenu works on mobile and desktop.
+All CRM routes wrap with `CrmAdminShell` + `pageContext` (`crm-orders`, `crm-inbox`, `crm-drafts`, `crm-contacts`, `crm-tasks`, `crm-analytics`). The shell sets `showRightRail={false}` and renders horizontal tabs: Orders \| Inbox \| Drafts \| Contacts \| Tasks \| Analytics. Email HTTP APIs stay at `/api/admin/email/*`. Project-order chat topology: [Owner Project Lab](/docs/features/owner-project-lab).
+
+<Callout type="warning" title="Clean break from /admin/email-*">
+There are **no redirects** from legacy `/admin/email-*` URLs. Use `/admin/crm/*`. `ADMIN_EMAIL_*` constants alias to CRM paths for code compatibility.
+</Callout>
 
 ### Web3 settings
 

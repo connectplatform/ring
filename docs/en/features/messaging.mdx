@@ -1,14 +1,14 @@
 ---
 title: Real-Time Messaging
-description: Conversations API plus Tunnel Protocol live events — deal chat without page reloads
-last_modified: "2026-07-10"
+description: Conversations REST + Tunnel Protocol — channel types, tool-chat subtypes, and live deal chat without page reloads
+last_modified: "2026-07-14"
 audience: both
 ---
 
 # Real-Time Messaging
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Legacy `messaging.md` claimed fabricated KPIs — this page matches verified routes under `app/api/conversations` and Tunnel Protocol.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. This article is the SSOT for **Conversation.type** (channel) vs **metadata.kind** (subtype) and inbox hygiene for tool chats.
 </Callout>
 
 Ring messaging combines **REST conversations** with **Tunnel Protocol** fan-out so members chat in context of opportunities, entities, and store deals without refreshing the page.
@@ -18,23 +18,71 @@ Ring messaging combines **REST conversations** with **Tunnel Protocol** fan-out 
 | REST | `app/api/conversations/**` |
 | Realtime | Tunnel channels `conversation:{id}` — see [Tunnel Protocol](/docs/features/tunnel-protocol) |
 | UI | `features/chat`, `features/messages` |
+| Types | `features/chat/types/index.ts` |
 | API reference | [Messaging API](/docs/api/messaging) |
+
+## Channel vs subtype (shared)
+
+Ring does **not** invent a new top-level conversation type for every feature. Two layers stay separate:
+
+| Field | Meaning | Example |
+|-------|---------|---------|
+| `Conversation.type` | **Channel / domain routing** — where the thread lives in the messaging system | `direct`, `entity`, `opportunity`, `product`, `group` |
+| `metadata.kind` | **Optional subtype** within that channel | `generative_gallery` |
+| `metadata.hiddenFromInbox` | **Inbox contract** — hide from Messages list | `true` for tool editors |
+
+Verified channel enum (TypeScript + create zod in `app/api/conversations/route.ts`):
+
+`direct` | `entity` | `opportunity` | `product` | `group`
+
+<Callout type="warning">
+  Do **not** add `type: 'generative'`. Generative Gallery reuses `type: 'product'` plus `kind: 'generative_gallery'` and `hiddenFromInbox: true`. Extending the channel enum for one feature breaks product lookup helpers and invents parallel plumbing.
+</Callout>
+
+<Mermaid>
+{`flowchart TB
+  subgraph channel [Conversation.type]
+    direct
+    entity
+    opportunity
+    product
+    group
+  end
+  subgraph subtype [metadata.kind]
+    generative_gallery
+  end
+  product --> generative_gallery
+  product --> storeAgent[Store product agent]
+  generative_gallery --> hide[hiddenFromInbox]
+  storeAgent --> inbox[Messages visible]
+  hide --> noInbox[Hidden from Messages]
+`}
+</Mermaid>
+
+Same `product` channel, different visibility:
+
+| Use | `type` | Metadata highlights | Messages inbox |
+|-----|--------|---------------------|----------------|
+| Store product agent (DAGI) | `product` | real `productId`, no tool `kind` | Visible |
+| Generative Gallery tool chat | `product` | `kind: 'generative_gallery'`, `hiddenFromInbox: true`, `productId`/`subject` = `genmedia:…` | Hidden |
+
+Conversation `metadata.kind` is **not** the same namespace as **message** `metadata.kind` (e.g. `payment_request`, `gallery_upload`, `ghost_write_result`).
 
 <Audience for="founder">
 
 ## Why messaging matters for your clone
 
-Instant conversation shortens the path from match → trust → deal. Members stay inside your Ring instead of dropping to email or third-party chat.
+Instant conversation shortens the path from match → trust → deal. Members stay inside your Ring instead of dropping to email or third-party chat. Tool editors (image generation history) stay out of the main inbox so operators are not flooded with system threads.
 
 <Cards>
   <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
     How live updates reach the browser (WSS / SSE / poll).
   </Card>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Upload \| Generate media — history in a hidden product-tool chat.
+  </Card>
   <Card title="WebRTC Calls & STUNner" href="/docs/features/webrtc-calls">
     1:1 audio/video in direct chats — ICE + TURN.
-  </Card>
-  <Card title="Opportunities" href="/docs/features/opportunities">
-    Matcher-driven deals that often continue in chat.
   </Card>
   <Card title="Messaging API" href="/docs/api/messaging">
     Integrator contracts for conversations and typing.
@@ -43,8 +91,9 @@ Instant conversation shortens the path from match → trust → deal. Members st
 
 ### Typical scenarios
 
-- Two matched professionals open a direct conversation from an opportunity.
-- A vendor answers a buyer question without leaving the storefront session.
+- Two matched professionals open a **direct** conversation from an opportunity — it appears in Messages.
+- A buyer asks a store **product agent** a question — that product chat stays visible in Messages.
+- A vendor or member generates NFT/product art in Generative Gallery — history lives in a **hidden** tool chat, not the inbox.
 - Typing indicators and read state keep negotiations moving on mobile PWA.
 
 </Audience>
@@ -66,12 +115,25 @@ Instant conversation shortens the path from match → trust → deal. Members st
 
 After writes, publish on Tunnel channel `conversation:{id}` via `publishToChannel` — clients subscribe with **`useTunnelChannel`** (not raw `useTunnel().subscribe()` in effects).
 
+Create body `type` must be one of: `direct` | `entity` | `opportunity` | `product` | `group` (`z.enum` in `app/api/conversations/route.ts`). Optional metadata includes `productId`, `groupName`, `kind`, `hiddenFromInbox`, and domain ids (`entityId`, `opportunityId`, …).
+
+### Inbox hide contract
+
+`ConversationService.getConversations` skips rows where `isHiddenToolConversation` is true (`features/chat/services/conversation-service.ts`):
+
+1. `metadata.hiddenFromInbox === true` (preferred long-term gate)
+2. `metadata.kind === 'generative_gallery'`
+3. Legacy: `productId` or `subject` starts with `genmedia:` or `imggen:`
+
 ### Modules
 
 | Path | Responsibility |
 |------|----------------|
-| `features/chat/` | Chat UI and services |
-| `features/messages/` | Message list components |
+| `features/chat/types/index.ts` | `Conversation`, `CreateConversationRequest`, filters |
+| `features/chat/services/conversation-service.ts` | CRUD + `isHiddenToolConversation` |
+| `features/chat/`, `features/messages/` | Chat UI |
+| `features/generative-media/service.ts` | Creates hidden `product` + `generative_gallery` chats |
+| `features/store/services/product-agent-service.ts` | Creates visible `product` agent chats |
 | `lib/tunnel/` | Hub, publisher, transports |
 | `hooks/use-tunnel-channel.ts` | Stable channel subscribe |
 
@@ -91,6 +153,12 @@ Full endpoint samples: [Messaging API](/docs/api/messaging). Architecture: [Real
   <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
     Subscribe SSOT and transports.
   </Card>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Product-channel tool chats + credit-billed generation.
+  </Card>
+  <Card title="Multi-Vendor Store" href="/docs/features/store">
+    Product agent chats share `type: product` but stay inbox-visible.
+  </Card>
   <Card title="WebRTC Calls & STUNner" href="/docs/features/webrtc-calls">
     Call UI, ICE route, STUNner TURN.
   </Card>
@@ -101,3 +169,15 @@ Full endpoint samples: [Messaging API](/docs/api/messaging). Architecture: [Real
     Reach members when the tab is closed.
   </Card>
 </Cards>
+
+<FutureFeatureBacklog title="Backlog — Messaging taxonomy">
+
+<FutureFeatureWidget
+  name="Typed ConversationKind / MessageMetaKind unions"
+  description="Today metadata.kind is an open string on conversations, and message metadata kinds (payment_request, gallery_upload, etc.) live in a separate namespace. Close both with dedicated TypeScript unions and prefer hiddenFromInbox as the primary inbox gate so new tool kinds do not need prefix heuristics (genmedia:/imggen:)."
+  implementationCost={32}
+  labels={['messaging', 'types', 'ssot', 'inbox']}
+  poolSlug="messaging-conversation-kind-unions"
+/>
+
+</FutureFeatureBacklog>

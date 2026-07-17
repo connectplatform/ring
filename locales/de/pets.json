@@ -1,0 +1,136 @@
+{
+  "title": "Meine Tiere",
+  "addPet": "Tier hinzufügen",
+  "editPet": "Tier bearbeiten",
+  "deletePet": "Tier löschen",
+  "noPets": "Noch keine Tiere",
+  "addYourFirstPet": "Legen Sie ein Profil an, um tierfreundliche Orte zu finden und andere Halterinnen zu treffen.",
+  "types": {
+    "dog": "Hund",
+    "cat": "Katze",
+    "bird": "Vogel",
+    "rabbit": "Kaninchen",
+    "hamster": "Hamster",
+    "guinea_pig": "Meerschweinchen",
+    "reptile": "Reptil",
+    "fish": "Fisch",
+    "horse": "Pferd",
+    "other": "Sonstiges"
+  },
+  "sizes": {
+    "tiny": "Winzig",
+    "small": "Klein",
+    "medium": "Mittel",
+    "large": "Groß",
+    "giant": "Sehr groß"
+  },
+  "genders": {
+    "male": "Männlich",
+    "female": "Weiblich",
+    "unknown": "Unbekannt"
+  },
+  "temperament": {
+    "title": "Temperament",
+    "calm": "Ruhig",
+    "playful": "Verspielt",
+    "shy": "Scheu",
+    "aggressive": "Aggressiv",
+    "social": "Sozial",
+    "energetic": "Energisch",
+    "lazy": "Gemächlich",
+    "anxious": "Ängstlich"
+  },
+  "fields": {
+    "name": "Name des Tieres",
+    "petType": "Art",
+    "breed": "Rasse",
+    "size": "Größe",
+    "weight": "Gewicht (kg)",
+    "color": "Farbe",
+    "age": "Alter",
+    "ageYears": "Jahre",
+    "ageMonths": "Monate",
+    "gender": "Geschlecht",
+    "bio": "Kurzbeschreibung",
+    "isNeutered": "Kastriert / sterilisiert",
+    "isVaccinated": "Geimpft",
+    "vaccinationDate": "Impfdatum",
+    "microchipId": "Chip-Nummer",
+    "energyLevel": "Energieniveau",
+    "friendlinessPeople": "Freundlichkeit zu Menschen",
+    "friendlinessPets": "Freundlichkeit zu anderen Tieren",
+    "trainability": "Trainierbarkeit",
+    "hasSpecialNeeds": "Besondere Bedürfnisse",
+    "specialNeeds": "Details zu besonderen Bedürfnissen",
+    "dietaryRestrictions": "Ernährungseinschränkungen",
+    "medications": "Medikamente",
+    "goodWithKids": "Verträglich mit Kindern",
+    "goodWithDogs": "Verträglich mit Hunden",
+    "goodWithCats": "Verträglich mit Katzen",
+    "goodInApartments": "Geeignet für Wohnungen",
+    "photos": "Fotos",
+    "primaryPhoto": "Hauptfoto",
+    "isActive": "Aktiv",
+    "isPublic": "Öffentliches Profil"
+  },
+  "levels": {
+    "veryLow": "Sehr niedrig",
+    "low": "Niedrig",
+    "medium": "Mittel",
+    "high": "Hoch",
+    "veryHigh": "Sehr hoch"
+  },
+  "compatibility": {
+    "title": "Kompatibilität",
+    "description": "Hilft uns, passende Treffen und Orte vorzuschlagen",
+    "goodWithKidsLabel": "Gut mit Kindern",
+    "goodWithDogsLabel": "Gut mit anderen Hunden",
+    "goodWithCatsLabel": "Gut mit Katzen",
+    "goodInApartmentsLabel": "Geeignet für Wohnungsleben"
+  },
+  "health": {
+    "title": "Gesundheit & Pflege",
+    "vaccinated": "Impfungen aktuell",
+    "neutered": "Kastriert / sterilisiert",
+    "microchipped": "Gechipt"
+  },
+  "profile": {
+    "title": "Tierprofil",
+    "viewProfile": "Profil anzeigen",
+    "editProfile": "Profil bearbeiten",
+    "shareProfile": "Profil teilen",
+    "visibility": "Sichtbarkeit",
+    "publicProfile": "Öffentlich (für alle sichtbar)",
+    "privateProfile": "Privat (nur für Sie)",
+    "stats": "Statistik"
+  },
+  "actions": {
+    "savePet": "Tier speichern",
+    "updatePet": "Tier aktualisieren",
+    "cancelEdit": "Abbrechen",
+    "deletePetConfirm": "Dieses Tierprofil wirklich löschen?",
+    "uploadPhoto": "Foto hochladen",
+    "setAsPrimary": "Als Hauptfoto setzen",
+    "removePhoto": "Foto entfernen"
+  },
+  "validation": {
+    "nameRequired": "Name des Tieres ist erforderlich",
+    "typeRequired": "Tierart ist erforderlich",
+    "ageInvalid": "Ungültiges Alter",
+    "weightInvalid": "Gewicht muss eine positive Zahl sein",
+    "photosLimit": "Maximal 10 Fotos erlaubt"
+  },
+  "success": {
+    "created": "Tierprofil angelegt.",
+    "updated": "Tierprofil aktualisiert.",
+    "deleted": "Tierprofil gelöscht",
+    "photoUploaded": "Foto hochgeladen",
+    "photoRemoved": "Foto entfernt"
+  },
+  "errors": {
+    "loadFailed": "Tierprofile konnten nicht geladen werden",
+    "saveFailed": "Tierprofil konnte nicht gespeichert werden",
+    "deleteFailed": "Tierprofil konnte nicht gelöscht werden",
+    "uploadFailed": "Foto-Upload fehlgeschlagen"
+  }
+}

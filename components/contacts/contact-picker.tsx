@@ -236,6 +236,7 @@ export default function ContactPicker({
                     photoURL={contact.photoURL}
                     address={contact.walletAddress}
                     isFavorite={contact.isFavorite}
+                    isVerified={Boolean(contact.isVerified)}
                     linkToProfile={false}
                     compact
                     actions={

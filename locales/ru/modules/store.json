@@ -3,6 +3,7 @@
   "store": "Магазин",
   "wishlist": "Список желаний",
   "orders": "Заказы",
+  "checkoutPage": "Оформление заказа",
   "checkout": {
     "title": "Оформление заказа",
     "continue": "Продолжить",
@@ -161,7 +162,14 @@
         "tryAgain": "Попробовать ещё раз",
         "checkStatus": "Проверить статус заказа"
       }
-    }
+    },
+    "creditBalance": "Кредитный баланс",
+    "creditBalanceDescription": "Оплата кредитными единицами (баллами)",
+    "nativeToken": "Нативный токен",
+    "nativeTokenDescription": "Оплата ончейн нативным токеном",
+    "paypalPayment": "PayPal",
+    "paypalPaymentDescription": "Оплата через PayPal (международная)",
+    "paymentMethodNotAvailable": "Этот способ оплаты пока недоступен."
   },
   "searchPlaceholder": "Искать продукты...",
   "allCurrencies": "Все валюты",
@@ -277,7 +285,11 @@
     "qualityGuaranteeDescription": "100% удовлетворение",
     "relatedProducts": "Похожие товары",
     "learnMore": "Узнать больше",
-    "youMightAlsoLike": "Вам также может понравиться"
+    "youMightAlsoLike": "Вам также может понравиться",
+    "orderSummaryDescription": "Проверьте итог заказа перед оформлением.",
+    "clearCart": "Очистить корзину",
+    "clearCartDescription": "Это удалит все товары из корзины",
+    "store": "Магазин"
   },
   "product": {
     "loading": "Загрузка…",
@@ -350,5 +362,39 @@
     "community": "Сообщества и сети",
     "saas-assets": "SaaS-активы для бизнеса"
   },
-  "loading": "Загрузка продуктов…"
+  "vendorAttribution": {
+    "fastResponse": "Быстрый ответ",
+    "fulfillmentRate": "{rate}% выполненных заказов",
+    "vendorTypes": {
+      "farm": "Независимый продавец",
+      "food-producer": "Продуктовая студия",
+      "farmers-market": "Продавец маркетплейса",
+      "artisan": "Магазин создателя",
+      "cooperative": "Коллективный продавец"
+    },
+    "trustTiers": {
+      "PREMIUM": {
+        "label": "Премиум-продавец",
+        "description": "1+ год, рейтинг 4.8+, продажи $50K+"
+      },
+      "TRUSTED": {
+        "label": "Надёжный продавец",
+        "description": "6+ месяцев, рейтинг 4.7+, продажи $10K+"
+      },
+      "VERIFIED": {
+        "label": "Верифицированный продавец",
+        "description": "90+ дней, рейтинг 4.5+, продажи $1K+"
+      },
+      "BASIC": {
+        "label": "Базовый продавец",
+        "description": "30+ дней активности, положительные отзывы"
+      },
+      "NEW": {
+        "label": "Новый продавец",
+        "description": "Недавно присоединился к маркетплейсу"
+      }
+    }
+  },
+  "loading": "Загрузка продуктов…",
+  "shareEarnHint": "Приглашайте других и получайте реферальные награды"
 }

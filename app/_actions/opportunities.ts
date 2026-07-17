@@ -61,9 +61,15 @@ export async function createOpportunity(
   const type = formData.get('type') as
     | 'offer' | 'request' | 'partnership' | 'volunteer'
     | 'mentorship' | 'resource' | 'event' | 'ring_customization'
+    | 'program' | 'cv'
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
+  const programSubtype = (formData.get('programSubtype') as string) || 'program'
+  const eligibility = (formData.get('eligibility') as string) || ''
+  const instrument = (formData.get('instrument') as string) || ''
+  const geography = (formData.get('geography') as string) || ''
+  const applicationUrl = (formData.get('applicationUrl') as string) || ''
 
   // Extract optional/numeric and auxiliary fields
   const budgetMin = formData.get('budgetMin') as string
@@ -88,13 +94,13 @@ export async function createOpportunity(
   }
 
   // Business logic: handle entity vs. individual opps
-  const requestTypes = ['request']
+  const requestTypes = ['request', 'cv']
   const organizationalTypes = [
     'offer', 'partnership', 'volunteer', 'mentorship',
-    'resource', 'event', 'ring_customization'
+    'resource', 'event', 'ring_customization', 'program',
   ]
   if (requestTypes.includes(type)) {
-    entityId = null // Requests are always from individuals
+    entityId = null as unknown as string // Requests/CVs are always from individuals
   } else if (organizationalTypes.includes(type)) {
     if (!hasRoleAtLeast(userRole, UserRolesArray.member)) {
       return { 
@@ -113,9 +119,12 @@ export async function createOpportunity(
   if (!title?.trim()) fieldErrors.title = 'Title is required'
   if (!category?.trim()) fieldErrors.category = 'Category is required'
   if (!description?.trim()) fieldErrors.description = 'Description is required'
-  // Mandatory organization for "offer" type
-  if (type === 'offer' && !entityId?.trim()) {
-    fieldErrors.entityId = 'Entity is required for offers'
+  // Mandatory organization for "offer" / "program" type
+  if ((type === 'offer' || type === 'program') && !entityId?.trim()) {
+    fieldErrors.entityId = 'Entity is required for this opportunity type'
+  }
+  if (type === 'program' && !['program', 'investment'].includes(programSubtype)) {
+    fieldErrors.programSubtype = 'Select program or investment'
   }
   // Basic email validation regex
   if (contactEmail && !/\S+@\S+\.\S+/.test(contactEmail)) {
@@ -187,6 +196,17 @@ export async function createOpportunity(
 
     // Build opportunity data object, enforcing server-side shape invariant.
     // TODO: Remove unused fields or split interfaces for drafts vs. published opps for stricter typing.
+    const programMeta =
+      type === 'program'
+        ? {
+            programSubtype,
+            eligibility: eligibility.trim() || undefined,
+            instrument: instrument.trim() || undefined,
+            geography: geography.trim() || undefined,
+            applicationUrl: applicationUrl.trim() || undefined,
+          }
+        : undefined
+
     const opportunityData = {
       type,
       title: title.trim(),
@@ -200,8 +220,10 @@ export async function createOpportunity(
       ...(applicationDeadlineTimestamp ? { applicationDeadline: applicationDeadlineTimestamp } : {}),
       status: (formData.get('intent') === 'draft' ? 'draft' : 'pending') as 'draft' | 'pending',
       category: category.trim(),
-      tags,
-      location: formData.get('location')?.toString().trim() || '',
+      tags: type === 'program'
+        ? [...tags, 'institution', programSubtype].filter(Boolean)
+        : tags,
+      location: formData.get('location')?.toString().trim() || geography.trim() || '',
       ...(budgetObj ? { budget: budgetObj } : {}), // Include budget only if parsed
       requiredSkills,
       requiredDocuments: [],
@@ -214,7 +236,8 @@ export async function createOpportunity(
         linkedEntity: requestTypes.includes(type) ? '' : entityId?.trim() || '',
         contactAccount: contactEmail?.trim() || session.user.email || ''
       },
-      isPrivate: requestTypes.includes(type) // Requests are private to originator
+      isPrivate: requestTypes.includes(type), // Requests are private to originator
+      ...(programMeta ? { metadata: programMeta } : {}),
     }
 
     // Import and call the actual opportunity creation service
@@ -231,6 +254,23 @@ export async function createOpportunity(
       type: newOpportunity.type,
       organizationId: newOpportunity.organizationId 
     })
+
+    // Institution programs → email-CRM lead + review task (non-blocking)
+    if (type === 'program') {
+      const { ingestProgramOpportunityToEmailCrm } = await import(
+        '@/features/opportunities/lib/program-crm-ingest'
+      )
+      await ingestProgramOpportunityToEmailCrm({
+        opportunityId: newOpportunity.id,
+        title: newOpportunity.title,
+        subtype: programSubtype,
+        submitterEmail: session.user.email,
+        submitterName: session.user.name,
+        submitterUserId: session.user.id,
+      })
+      // TODO: Admin CRM Orders page — new-order widget cards + built-in chat with
+      // custom-order client (not email) bound to project_orders / program opportunities.
+    }
     
     // Instead of calling redirect(), we supply a URL to the client, in line with React 19/Next.js 15+ recommendations.
     // TODO: Move notification/redirect logic fully to client components when upgrading to React Actions.

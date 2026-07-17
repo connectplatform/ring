@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/constants/routes'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { useOptionalStore } from '@/features/store/context'
+import { DEFAULT_CURRENCY } from '@/features/store/currency-context'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 
@@ -87,7 +88,7 @@ export function FavoritesMenu({ locale }: { locale: Locale }) {
                         </Link>
                         {p.price && (
                           <div className="text-xs text-muted-foreground mt-1">
-                            {typeof p.price === 'number' ? p.price.toFixed(2) : p.price} {p.currency || 'DAAR'}
+                            {typeof p.price === 'number' ? p.price.toFixed(2) : p.price} {p.currency || DEFAULT_CURRENCY}
                           </div>
                         )}
                       </div>

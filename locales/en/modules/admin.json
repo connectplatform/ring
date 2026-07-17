@@ -309,6 +309,7 @@
   "troubleshooting": "Troubleshooting",
   "dashboard": "Dashboard",
   "users": "Users",
+  "rewards": "Rewards",
   "news": "News",
   "dao": "Public pools",
   "analytics": "Analytics",
@@ -322,6 +323,7 @@
   "emailContacts": "Email Contacts",
   "emailAnalytics": "Email Analytics",
   "emailTasks": "Email Tasks",
+  "crmOrders": "Custom orders",
   "matcherModeration": {
     "tab": "Entity moderation",
     "title": "Reported entities",
@@ -682,6 +684,7 @@
   "activityFilterNewUser": "New User",
   "activityFilterVerification": "Verification",
   "activityFilterPayments": "Payments",
+  "activityFilterRewards": "Rewards",
   "activityEmpty": "Recent activity will appear as events are recorded",
   "activityLoadFailed": "Failed to load activity",
   "activityJustNow": "just now",
@@ -764,6 +767,10 @@
     "mint": "Mint",
     "burnTokens": "Burn tokens",
     "burn": "Burn"
+  },
+  "rewardMonitoring": {
+    "title": "Reward Monitoring",
+    "subtitle": "Monitor credit reward activity, mint volume, and delivery health."
   },
   "moderationTabReports": "User reports"
 }

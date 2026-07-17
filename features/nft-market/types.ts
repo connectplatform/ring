@@ -39,6 +39,23 @@ export interface NftMarketListing {
   description?: string
   imageUri?: string
   metadataUri?: string
+  /** Generative gallery / Metaplex animation extras */
+  showcase?: {
+    animationUrl?: string
+    files?: Array<{ uri: string; type: string }>
+    ringShowcase?: {
+      primaryImageUrl: string
+      media?: Array<{
+        id: string
+        originalUrl: string
+        webpUrl?: string
+        contentType: string
+        source: string
+        enabled: boolean
+        isPrimary: boolean
+      }>
+    }
+  }
   attributes?: NftListingAttribute[]
   sellerUserId: string
   sellerUsername?: string

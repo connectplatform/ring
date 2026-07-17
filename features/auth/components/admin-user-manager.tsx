@@ -263,10 +263,10 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                        {user.photoURL ? (
+                        {user.avatarThumb || user.photoURL ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={user.photoURL}
+                            src={user.avatarThumb || user.photoURL}
                             alt={user.name ?? 'User'}
                             className="h-8 w-8 rounded-full"
                           />

@@ -51,18 +51,18 @@ interface NicheProductFieldsSectionProps {
 /**
  * Renders the entry point for extended agricultural/niche product fields.
  * - Checks the current product fields preset from config
- * - Only renders AgriculturalProductFields if preset is 'platform'
+ * - Shows AgriculturalProductFields when preset is agricultural / non-platform niche
  */
 export default function NicheProductFieldsSection(props: NicheProductFieldsSectionProps) {
   // Use product field preset from config to determine whether to show this section.
-  // TODO: Consider moving this logic higher (parent page) or inside getServerSideProps for SSR optimization.
   const preset = getProductFieldsPreset()
 
-  if (preset !== 'platform') {
-    return null // Not on 'platform' preset, render nothing.
-  } else {
-    return <AgriculturalProductFields {...props} /> // Show extended fields.
+  // Platform-generic store: no agri niche block. Agricultural (and other niche) presets: show.
+  // greenfood ring-config uses productFields.preset = "agricultural" (excluded from propagate).
+  if (preset === 'platform' || !preset) {
+    return null
   }
+  return <AgriculturalProductFields {...props} />
 }
 
 /**

@@ -10,14 +10,18 @@ import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { deleteOpportunity } from '@/app/_actions/opportunities'
 import Link from 'next/link'
-import { Plus, Briefcase, Archive, Clock, FileText, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Briefcase, Archive, Clock, FileText, Loader2 } from 'lucide-react'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import OpportunitiesBrowseRail from '@/components/opportunities/opportunities-browse-rail'
+import { OpportunityFeedCard } from '@/features/opportunities/components/opportunity-feed-card'
 import {
   type MyOpportunitiesCounts,
   type MyOpportunitiesView,
@@ -42,6 +46,8 @@ export default function MyOpportunitiesWrapper({
   locale,
   initialOpportunities,
   initialError,
+  lastVisible: initialLastVisible,
+  initialLimit,
   initialView = 'all',
   lifecycleCounts,
 }: MyOpportunitiesWrapperProps) {
@@ -65,8 +71,62 @@ export default function MyOpportunitiesWrapper({
     setView(initialView)
   }, [initialView])
 
+  const filterFingerprint = useMemo(
+    () =>
+      buildFilterFingerprint('my-opportunities', {
+        view,
+        q: urlSearch,
+        types: urlTypesKey,
+        categories: urlCategoriesKey,
+      }),
+    [view, urlSearch, urlTypesKey, urlCategoriesKey],
+  )
+
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const params = new URLSearchParams({
+        limit: String(initialLimit || 50),
+        view,
+      })
+      if (cursor) params.set('startAfter', cursor)
+
+      const res = await fetch(`/api/opportunities/my?${params.toString()}`, { cache: 'no-store' })
+      if (!res.ok) {
+        throw new Error('Failed to load opportunities')
+      }
+      const data = await res.json()
+      return normalizePaginatedResponse<SerializedOpportunity>(
+        {
+          items: data.items,
+          opportunities: data.opportunities,
+          cursor: data.cursor,
+          lastVisible: data.lastVisible,
+          hasMore: data.hasMore,
+        },
+        initialLimit || 50,
+      )
+    },
+    [initialLimit, view],
+  )
+
+  const {
+    items: feedItems,
+    loading,
+    hasMore,
+    error: feedError,
+    sentinelRef,
+  } = useCursorFeed<SerializedOpportunity>({
+    moduleId: 'my-opportunities',
+    locale,
+    limit: initialLimit || 50,
+    filterFingerprint,
+    initialItems: initialOpportunities,
+    initialCursor: initialLastVisible,
+    fetchPage,
+  })
+
   const filteredOpportunities = useMemo(() => {
-    let filtered = [...initialOpportunities]
+    let filtered = [...feedItems]
     const urlTypes = urlTypesKey.split(',').filter(Boolean)
     const urlCategories = urlCategoriesKey.split(',').filter(Boolean)
 
@@ -89,7 +149,7 @@ export default function MyOpportunitiesWrapper({
     }
 
     return filtered
-  }, [initialOpportunities, urlSearch, urlTypesKey, urlCategoriesKey])
+  }, [feedItems, urlSearch, urlTypesKey, urlCategoriesKey])
 
   const routerRef = useRef(router)
   routerRef.current = router
@@ -109,11 +169,11 @@ export default function MyOpportunitiesWrapper({
 
   const handleTabChange = useCallback((value: string) => {
     pushView(value as MyOpportunitiesView)
-  }, [])
+  }, [pushView])
 
   const handleArchiveToggle = useCallback(() => {
     pushView(isArchiveViewRef.current ? 'all' : 'archived')
-  }, [])
+  }, [pushView])
 
   const handleDelete = async (opportunity: SerializedOpportunity) => {
     if (!canOwnerDeleteOpportunity(opportunity.status)) {
@@ -162,11 +222,6 @@ export default function MyOpportunitiesWrapper({
     if (status === 'archived') return t('archived', { defaultValue: 'Archived' })
     if (isDraftBucket(status)) return t('draft', { defaultValue: 'Draft' })
     return status
-  }
-
-  const getTypeColor = (type: string) => {
-    const requestTypes = ['request', 'ring_customization']
-    return requestTypes.includes(type) ? 'bg-blue-500 text-white' : 'bg-purple-500 text-white'
   }
 
   const countForTab = (tab: MyOpportunitiesView) => {
@@ -226,9 +281,9 @@ export default function MyOpportunitiesWrapper({
         </div>
       </div>
 
-      {initialError && (
+      {(feedError || initialError) && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-          <p>{initialError}</p>
+          <p>{feedError || initialError}</p>
         </div>
       )}
 
@@ -278,18 +333,18 @@ export default function MyOpportunitiesWrapper({
 
       <Tabs value={tabValue} className="mb-6">
         <TabsContent value={tabValue} className="mt-0">
-          {filteredOpportunities.length === 0 ? (
+          {filteredOpportunities.length === 0 && !loading ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Briefcase className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <h3 className="mb-2 text-lg font-medium">
                   {isArchiveView
                     ? t('noArchivedOpportunities', { defaultValue: 'No archived opportunities' })
-                    : initialOpportunities.length === 0
+                    : feedItems.length === 0
                       ? t('myOpportunitiesEmpty', { defaultValue: 'No opportunities yet' })
                       : t('noOpportunities')}
                 </h3>
-                {!isArchiveView && initialOpportunities.length === 0 && (
+                {!isArchiveView && feedItems.length === 0 && (
                   <Link href={ROUTES.ADD_OPPORTUNITY(locale)} className="mt-4 inline-block">
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
@@ -306,57 +361,24 @@ export default function MyOpportunitiesWrapper({
                   isOwner(opportunity) && canOwnerDeleteOpportunity(opportunity.status)
 
                 return (
-                  <Card key={opportunity.id} className="transition-shadow hover:shadow-md">
-                    <CardHeader>
-                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-xl">{opportunity.title}</CardTitle>
-                          <CardDescription className="mt-2">
-                            {opportunity.briefDescription}
-                          </CardDescription>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge className={getStatusColor(opportunity.status)}>
-                            {getStatusLabel(opportunity.status)}
-                          </Badge>
-                          <Badge className={getTypeColor(opportunity.type)}>
-                            {opportunity.type}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                          <span>{new Date(opportunity.dateCreated).toLocaleDateString(locale)}</span>
-                          <span>•</span>
-                          <span>{new Date(opportunity.expirationDate).toLocaleDateString(locale)}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          {!isArchiveView && (
-                            <Button size="sm" variant="outline" asChild>
-                              <Link href={ROUTES.OPPORTUNITY_EDIT(opportunity.id, locale)}>
-                                <Pencil className="mr-1 h-4 w-4" />
-                                {t('status.actions.continueEditing', { defaultValue: 'Edit' })}
-                              </Link>
-                            </Button>
-                          )}
-                          {showDelete && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(opportunity)}
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" />
-                              {t('delete', { defaultValue: 'Delete' })}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <OpportunityFeedCard
+                    key={opportunity.id}
+                    opportunity={opportunity}
+                    locale={locale}
+                    mode="owner"
+                    showDelete={showDelete}
+                    onDelete={handleDelete}
+                    statusLabel={getStatusLabel(opportunity.status)}
+                    statusClassName={getStatusColor(opportunity.status)}
+                  />
                 )
               })}
+              {loading && (
+                <div className="flex justify-center py-4 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              )}
+              {hasMore && <div ref={sentinelRef} className="h-10" aria-hidden />}
             </div>
           )}
         </TabsContent>

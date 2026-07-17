@@ -1,54 +1,59 @@
 {
-  "title": "Калькулятор Развертывания Платформы Ring",
-  "description": "Рассчитайте время развертывания, затраты и получите персонализированный план запуска вашей платформы Ring",
+  "title": "Калькулятор проекта Ring",
+  "description": "Оцените стоимость рингизации, хостинг Ringdom, нишевые пакеты, модули и вехи для вашего Ring SuperApp",
   "hero": {
-    "title": "Калькулятор Развертывания Платформы Ring",
-    "subtitle": "Оцените время развертывания, затраты и получите персонализированный план"
+    "title": "Калькулятор проекта Ring",
+    "subtitle": "Выберите нишевый пакет, включите модули и сервисы Ringdom — получите реалистичную разовую и ежемесячную оценку"
   },
-  "configuration": {
-    "title": "Конфигурация Платформы",
-    "description": "Расскажите о вашем проекте для получения точных оценок"
+  "sections": {
+    "niches": "Нишевый пакет",
+    "nichesHint": "Нажмите нишу SuperApp — модули пакета предвыбраны со скидкой",
+    "modules": "Модули",
+    "modulesHint": "Включайте или выключайте отдельные модули. Модули пакета сохраняют скидку",
+    "externals": "Сервисы Ringdom",
+    "externalsHint": "Опциональная ежемесячная инфраструктура: хранилище, CDN, почта, DNS",
+    "scale": "Ожидаемый масштаб",
+    "hosting": "Выберите хостинг",
+    "hostingHint": "Self-host на своей инфраструктуре или Ringdom — AI-управляемый хостинг с мгновенным CDN"
   },
-  "questions": {
-    "useCase": "Какое ваше назначение?",
-    "userScale": "Сколько пользователей изначально?",
-    "modules": "Какие модули вам нужны?",
-    "database": "База данных?",
-    "tokenEconomy": "Экономика токенов?",
-    "region": "Географический регион?"
-  },
-  "useCases": {
+  "niches": {
     "marketplace": {
-      "name": "Маркетплейс",
-      "description": "Покупка/продажа товаров и услуг"
+      "name": "Marketplace SuperApp",
+      "description": "Купля/продажа с сущностями и сообщениями"
     },
     "opportunities": {
-      "name": "Сеть Возможностей",
-      "description": "Работа и возможности проектов"
+      "name": "Сеть возможностей",
+      "description": "Вакансии, проекты, AI-матчинг"
     },
     "cooperative": {
-      "name": "Кооперативная Платформа",
-      "description": "Кооператив собственников-членов"
+      "name": "Нишевая соцсеть",
+      "description": "Сообщество с сообщениями, митапами и картой"
     },
-    "community": {
-      "name": "Платформа Сообщества",
-      "description": "Общее сотрудничество сообщества"
+    "news_media": {
+      "name": "Хаб новостей и медиа",
+      "description": "Издания, CRM-inbox, аналитика"
+    },
+    "multi_vendor": {
+      "name": "Мульти-вендорный магазин",
+      "description": "Магазин, ERP, реферальные коды"
+    },
+    "scientific": {
+      "name": "Научные публикации",
+      "description": "Соредактирование, AI-ассистент, сущности"
     },
     "enterprise": {
-      "name": "Корпоративная Сеть",
-      "description": "Внутренняя бизнес-сеть"
+      "name": "Корпоративный интранет",
+      "description": "Внутренняя сеть, CRM, возможности"
+    },
+    "digital_city": {
+      "name": "Цифровой город",
+      "description": "Карты, места, митапы, мессенджер, возможности, DAO"
     }
-  },
-  "userScales": {
-    "small": "Малый (10-100 пользователей)",
-    "medium": "Средний (100-1000 пользователей)",
-    "large": "Большой (1000-10000 пользователей)",
-    "enterprise": "Корпоративный (10000+ пользователей)"
   },
   "modules": {
     "auth": {
       "name": "Аутентификация",
-      "description": "Вход и регистрация пользователей"
+      "description": "Auth.js вход и роли"
     },
     "entities": {
       "name": "Сущности",
@@ -56,54 +61,293 @@
     },
     "opportunities": {
       "name": "Возможности",
-      "description": "Публикация и поиск работы/проектов"
+      "description": "Предложения, запросы, матчинг"
     },
     "messaging": {
-      "name": "Обмен Сообщениями",
+      "name": "Сообщения",
       "description": "Общение в реальном времени"
     },
     "store": {
       "name": "Магазин",
-      "description": "Рынок электронной коммерции"
+      "description": "E-commerce маркетплейс"
+    },
+    "news": {
+      "name": "Новости",
+      "description": "Редакционные публикации"
     },
     "wallet": {
-      "name": "Кошелек",
-      "description": "Управление токенами и платежами"
+      "name": "Кошелёк",
+      "description": "Кредиты и токены"
     },
     "nft": {
-      "name": "Рынок NFT",
-      "description": "Рынок NFT и торговля"
+      "name": "NFT Market",
+      "description": "Коллекции и торговля"
     },
     "staking": {
       "name": "Стейкинг",
-      "description": "Система стейкинга токенов"
+      "description": "Награды за стейкинг токенов"
+    },
+    "ai_matcher": {
+      "name": "AI Matcher",
+      "description": "Интеллектуальный матчинг"
     },
     "analytics": {
       "name": "Аналитика",
-      "description": "Аналитика пользователей и платформы"
+      "description": "Использование и рост"
     },
-    "api": {
-      "name": "API Доступ",
-      "description": "REST API для интеграций"
+    "erp": {
+      "name": "Vendor ERP",
+      "description": "Склад, заказы, расчёты"
+    },
+    "refcodes": {
+      "name": "Реферальные коды",
+      "description": "Поделиться и заработать"
+    },
+    "email_crm": {
+      "name": "Email CRM",
+      "description": "AI-ящик"
+    },
+    "map": {
+      "name": "Карты",
+      "description": "Интерактивная GIS-карта с PostGIS поиском рядом"
+    },
+    "places": {
+      "name": "Места",
+      "description": "Локации с геолокацией и CRUD"
+    },
+    "meetups": {
+      "name": "Митапы",
+      "description": "Локальные события и встречи сообщества"
+    },
+    "dao": {
+      "name": "DAO / Публичные пулы",
+      "description": "Сообщественные пулы финансирования будущих фич"
     }
+  },
+  "domains": {
+    "core": "Ядро",
+    "commerce": "Коммерция",
+    "community": "Сообщество",
+    "web3": "Web3",
+    "ai": "AI",
+    "admin": "Админ"
+  },
+  "externals": {
+    "ringbase": {
+      "name": "RingBase",
+      "description": "Object API для медиа"
+    },
+    "ringcdn": {
+      "name": "RingCDN",
+      "description": "Мгновенная edge-пропагация"
+    },
+    "mail": {
+      "name": "k8s-mail",
+      "description": "Почта платформы в K8s"
+    },
+    "dns": {
+      "name": "ringdomNS",
+      "description": "Управляемый DNS для клона"
+    }
+  },
+  "scales": {
+    "small": {
+      "name": "Малый",
+      "description": "10–100 пользователей"
+    },
+    "medium": {
+      "name": "Средний",
+      "description": "100–1000 пользователей"
+    },
+    "large": {
+      "name": "Крупный",
+      "description": "1000–10 000 пользователей"
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "10 000+ пользователей"
+    }
+  },
+  "branding": {
+    "title": "UI и брендинг",
+    "description": "Тема, логотипы, локали",
+    "badge": "{cost}, если включено"
+  },
+  "labels": {
+    "inPack": "В пакете · −30%",
+    "perMonth": "{cost}/мес",
+    "setupMeta": "Настройка: {hours} ч · {cost}/мес",
+    "regionCost": "{cost}/мес"
+  },
+  "calculating": "Расчёт...",
+  "calculate": "Зафиксировать оценку",
+  "results": {
+    "title": "Оценка",
+    "oneTime": "Разовая рингизация",
+    "monthly": "Ежемесячно Ringdom",
+    "packSavings": "Экономия пакета",
+    "packSavingsDetail": "Нишевый пакет экономит {savings} против a-la-carte ({alaCarte})",
+    "recommendedConfig": "Рекомендуемая конфигурация",
+    "timeline": "План на 4 недели",
+    "timelineDescription": "Реалистичный запуск от конфига до продакшена",
+    "complexity": "Сложность кастомизации",
+    "nextSteps": "Следующие шаги",
+    "hours": "Ориентировочные часы",
+    "ringTokens": "RNG",
+    "complexityLabel": "Сложность",
+    "niche": "Нишевый пакет",
+    "hosting": "Хостинг",
+    "features": "Модули",
+    "externals": "Сервисы Ringdom",
+    "rate": "Курс RNG",
+    "rateDetail": "{pointsPerToken} {creditUnit} = 1 {token} · 1 {creditUnit} = {unitRate} {currency}",
+    "selfHost": "Self-host (без платы Ringdom hosting)",
+    "ringdomHosting": "Ringdom AI-управляемый хостинг",
+    "complexityLevel": "Уровень сложности",
+    "complexityHint": {
+      "low": "Низкая сложность — достаточно брендинга и конфига",
+      "medium": "Средняя — рассмотрите кредиты Settler или помощь с кастомизацией",
+      "high": "Высокая — рекомендуется AI self-construct или возможность кастомизации"
+    },
+    "complexAlert": "Для сложных сборок станьте Settler или опубликуйте возможность ring customization."
+  },
+  "timelineTasks": {
+    "simple": {
+      "week1": [
+        "Клонировать Ring Platform",
+        "Применить нишевый пресет и брендинг"
+      ],
+      "week2": [
+        "Включить модули пакета",
+        "Подключить auth и entities"
+      ],
+      "week3": [
+        "Smoke-тесты основных потоков",
+        "Опциональные сервисы Ringdom"
+      ],
+      "week4": [
+        "Укрепление, чеклист запуска",
+        "Go live"
+      ]
+    },
+    "medium": {
+      "week1": [
+        "Старт Settler / проекта",
+        "Ringize конфиг и вертикальные пресеты"
+      ],
+      "week2": [
+        "Модули пакета + дополнительные",
+        "Платежи / matcher по необходимости"
+      ],
+      "week3": [
+        "RingBase / CDN / почта",
+        "QA локалей"
+      ],
+      "week4": [
+        "K8s deploy или cutover",
+        "Мониторинг и передача"
+      ]
+    },
+    "complex": {
+      "week1": [
+        "Архитектура + подтверждение ниши",
+        "План AI self-construct",
+        "Security baseline"
+      ],
+      "week2": [
+        "Core + commerce/community модули",
+        "Скоуп кастомных модулей"
+      ],
+      "week3": [
+        "Web3 / AI / ERP интеграции",
+        "Внешние сервисы Ringdom"
+      ],
+      "week4": [
+        "Нагрузочные и acceptance тесты",
+        "Продакшен-деплой",
+        "Обзор вех"
+      ]
+    }
+  },
+  "complexity": {
+    "simple": "Простая",
+    "medium": "Средняя",
+    "complex": "Сложная"
+  },
+  "timeline": {
+    "week1": "Неделя 1",
+    "week2": "Неделя 2",
+    "week3": "Неделя 3",
+    "week4": "Неделя 4"
+  },
+  "actions": {
+    "contact": "Связаться",
+    "becomeSettler": "Стать Settler",
+    "findDevelopers": "Найти кастомизаторов",
+    "startBuilding": "Начать строить",
+    "orderThisBuild": "Заказать этот билд"
+  },
+  "checkout": {
+    "payCard": "Оплатить картой",
+    "payCredit": "Оплатить кредитами"
+  },
+  "configuration": {
+    "title": "Конфигурация проекта",
+    "description": "Соберите оценку Ring SuperApp"
+  },
+  "questions": {
+    "useCase": "Нишевый пакет?",
+    "userScale": "Масштаб?",
+    "modules": "Модули?",
+    "database": "База данных?",
+    "tokenEconomy": "Токен-экономика?",
+    "region": "Регион?"
+  },
+  "useCases": {
+    "marketplace": {
+      "name": "Marketplace",
+      "description": "Купля/продажа товаров и услуг"
+    },
+    "opportunities": {
+      "name": "Сеть возможностей",
+      "description": "Вакансии и проекты"
+    },
+    "cooperative": {
+      "name": "Кооперативная платформа",
+      "description": "Кооператив участников"
+    },
+    "community": {
+      "name": "Платформа сообщества",
+      "description": "Общее сотрудничество"
+    },
+    "enterprise": {
+      "name": "Корпоративная сеть",
+      "description": "Внутренняя бизнес-сеть"
+    }
+  },
+  "userScales": {
+    "small": "Малый (10–100)",
+    "medium": "Средний (100–1000)",
+    "large": "Крупный (1000–10000)",
+    "enterprise": "Enterprise (10000+)"
   },
   "databases": {
     "firebase": {
       "name": "Firebase",
-      "description": "Самая простая настройка, автоматическое масштабирование"
+      "description": "Самая простая настройка"
     },
     "postgresql": {
       "name": "PostgreSQL",
-      "description": "Готовый к производству, полная мощность SQL"
+      "description": "Продакшен SQL"
     },
     "connect": {
       "name": "ConnectPlatform",
-      "description": "Включены корпоративные функции"
+      "description": "Enterprise-функции"
     }
   },
   "regions": {
     "global": {
-      "name": "Глобальный",
+      "name": "Глобально",
       "hosting": "Vercel/DigitalOcean"
     },
     "europe": {
@@ -119,71 +363,123 @@
       "hosting": "Хостинг в США"
     }
   },
-  "labels": {
-    "setupMeta": "Настройка: {hours} ч · {cost}/мес",
-    "regionCost": "{cost}/мес"
-  },
   "tokenEconomy": {
-    "label": "Да, включить экономику токенов RING для операций платформы",
-    "warning": "Реализация токенов добавляет сложности, но позволяет мощные экономические стимулы. Это включает смарт-контракты, стейкинг и управление."
+    "label": "Да, включить RING token economy",
+    "warning": "Токены добавляют сложность, но открывают экономические стимулы."
   },
-  "calculating": "Расчет...",
-  "calculate": "Рассчитать Развертывание",
-  "results": {
-    "title": "Результаты",
-    "recommendedConfig": "Рекомендуемая Конфигурация",
-    "timeline": "План Развертывания на 4 Недели",
-    "timelineDescription": "Рекомендуемый график запуска",
-    "complexity": "Сложность Настройки",
-    "nextSteps": "Следующие Шаги",
-    "hours": "Часы",
-    "monthly": "В месяц",
-    "ringTokens": "токены RING",
-    "complexityLabel": "Сложность",
-    "database": "База данных",
-    "hosting": "Хостинг",
-    "features": "Функции",
-    "complexityLevel": "Уровень сложности",
-    "complexityHint": {
-      "low": "Низкая сложность — сосредоточьтесь на брендинге и базовой конфигурации",
-      "medium": "Средняя сложность — стоит привлечь профессиональных разработчиков",
-      "high": "Высокая сложность — рекомендуем услуги кастомизации Ring"
+  "hosting": {
+    "self_host": {
+      "name": "Self-host",
+      "description": "Своя инфраструктура — вы запускаете клон; без платы Ringdom hosting"
     },
-    "complexAlert": "Для сложных развёртываний рекомендуем опубликовать возможность кастомизации, чтобы найти опытных разработчиков Ring."
-  },
-  "timelineTasks": {
-    "simple": {
-      "week1": ["Настройка платформы и базовая конфигурация"],
-      "week2": ["Реализация основных модулей"],
-      "week3": ["Тестирование и доработка"],
-      "week4": ["Развёртывание и запуск"]
-    },
-    "medium": {
-      "week1": ["Настройка платформы", "Конфигурация базы данных"],
-      "week2": ["Реализация основных модулей"],
-      "week3": ["Расширенные функции и тестирование"],
-      "week4": ["Развёртывание и мониторинг"]
-    },
-    "complex": {
-      "week1": ["Планирование архитектуры", "Настройка БД", "Конфигурация безопасности"],
-      "week2": ["Основные модули (Auth, Entities)", "Базовый AI-matching"],
-      "week3": ["Расширенные модули (Store, Wallet)", "Экономика токенов"],
-      "week4": ["Интеграционное тестирование", "Оптимизация производительности", "Продакшн-развёртывание"]
+    "ringdom": {
+      "name": "Ringdom",
+      "description": "AI-управляемый хостинг с мгновенным CDN на кластерах Ringdom"
     }
   },
-  "complexity": {
-    "simple": "Простой",
-    "medium": "Средний",
-    "complex": "Сложный"
+  "humanDev": {
+    "title": "Мне нужен живой разработчик",
+    "description": "Запрос интегратора из сети Ring",
+    "hint": "Запрос интегратора будет опубликован в нашей сети после активации заказа"
   },
-  "timeline": {
-    "week1": "Неделя 1",
-    "week2": "Неделя 2",
-    "week3": "Неделя 3",
-    "week4": "Неделя 4"
+  "displayUnit": {
+    "label": "Валюта отображения",
+    "active": "Показано {currency} (левая панель / мобильное меню)",
+    "railHint": "Переключайте RING ↔ USD в левой панели или мобильном меню"
   },
-  "actions": {
-    "startBuilding": "Начать Создание",
-    "findDevelopers": "Найти Разработчиков"
+  "order": {
+    "checkoutTitle": "Оплата заказа Ring-проекта",
+    "depositDue": "Депозит к оплате",
+    "successTitle": "Оплата получена",
+    "successBody": "Депозит на ringization записан. Статус: {paymentStatus} / работа {workStatus}.",
+    "backToCalculator": "Назад к калькулятору",
+    "browseCustomizationJobs": "Работы по кастомизации",
+    "myJobs": "Мои работы",
+    "myJobsTitle": "Мои работы",
+    "myJobsSubtitle": "Заказы ring_customization, назначенные вам как интегратору",
+    "myJobsEmpty": "Пока нет назначенных работ. Запросите доступные ring_customization возможности.",
+    "progressComplete": "{progress}% выполнено",
+    "viewOpportunity": "Открыть возможность",
+    "deskBadge": "Сертифицированный интегратор Ringdom",
+    "deskTitle": "Стол интегратора",
+    "deskSubtitle": "Рабочие заказы ring_customization, назначенные вам",
+    "filterAll": "Все",
+    "filterActive": "Активные",
+    "filterCompleted": "Завершённые",
+    "filterDisputed": "Спорные",
+    "kpiActive": "Активные",
+    "kpiCompleted": "Завершённые",
+    "kpiDisputed": "Спорные",
+    "findWork": "Найти работу",
+    "openJob": "Открыть",
+    "client": "Клиент",
+    "estHours": "Оценка {hours} ч",
+    "scopeBrief": "Бриф объёма",
+    "briefNiche": "Ниша",
+    "briefHosting": "Хостинг",
+    "briefComplexity": "Сложность",
+    "briefHours": "Ориентировочные часы",
+    "briefOneTime": "Разовая оценка",
+    "briefMonthly": "Ежемесячная оценка",
+    "showFullBrief": "Показать полный бриф",
+    "hideFullBrief": "Скрыть полный бриф",
+    "nextActions": "Следующие действия",
+    "progressLabel": "Прогресс {progress}%",
+    "startWork": "Начать работу",
+    "saveProgress": "Сохранить прогресс",
+    "markComplete": "Отметить выполненным",
+    "flagDispute": "Отметить спор",
+    "confirmDispute": "Отметить эту работу как спорную? Клиент будет уведомлён.",
+    "backToDesk": "Назад к столу",
+    "updatedAt": "Обновлено {date}",
+    "updateFailed": "Не удалось обновить",
+    "lab": {
+      "badge": "Order Lab",
+      "title": "Панель управления клоном Ring",
+      "subtitle": "Прогресс, env, деплой и двойной чат для этого оплаченного заказа",
+      "chatTitle": "Чат лаборатории",
+      "chatRailLabel": "Чат lab",
+      "tabCustomer": "Клиент",
+      "tabReggie": "Reggie",
+      "noCustomerChat": "Чат с клиентом недоступен",
+      "noReggieChat": "Чат с Reggie недоступен",
+      "envTitle": "Конфигурация env",
+      "saveEnv": "Сохранить env",
+      "envSaved": "Env сохранён (секреты зашифрованы).",
+      "cloneEssentials": "Основы клона",
+      "secret": "секрет",
+      "enterSecret": "Введите новое значение",
+      "deployTitle": "Статус деплоя",
+      "edge": "Edge",
+      "edgeUnavailable": "недоступен",
+      "edgeUnavailableHint": "Настройте RING_EDGE_*_API_URL и TOKEN для этого edge.",
+      "namespace": "Namespace",
+      "deploymentName": "Deployment",
+      "imageTag": "Image tag",
+      "saveDeployMeta": "Сохранить meta",
+      "deploy": "Deploy / Redeploy",
+      "refreshPods": "Обновить pods",
+      "viewLogs": "Логи",
+      "restartPod": "Restart",
+      "projectRoom": "Комната проекта",
+      "noProjectRoom": "Комната проекта недоступна",
+      "namespaceAdminLock": "Namespace и edge задаёт админ в CRM — попросите их, если поле пустое."
+    },
+    "buyerBadge": "Мои проекты",
+    "buyerTitle": "Мои заказы проектов",
+    "buyerSubtitle": "Статус ringization и чат с интегратором и Reggie",
+    "buyerEmpty": "Заказов пока нет. Начните с калькулятора.",
+    "openCalculator": "Открыть калькулятор",
+    "openLab": "Открыть проект",
+    "openMyOrder": "Мой проект",
+    "backToOrders": "Все проекты",
+    "orderStatus": "Статус заказа",
+    "projectStatus": "Статус проекта",
+    "openProject": "Открыть сайт",
+    "noDeployYet": "Деплоя ещё нет — интегратор опубликует клон здесь.",
+    "integratorLabel": "Интегратор",
+    "awaitingIntegrator": "Ожидается назначение интегратора",
+    "filterPaid": "Оплаченные",
+    "kpiPaid": "Оплаченные"
   }
 }

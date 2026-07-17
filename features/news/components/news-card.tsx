@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Eye, Heart, MessageCircle, Calendar, User } from 'lucide-react';
+import { pickImageSrc } from '@/lib/file/media-asset';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -37,16 +38,24 @@ export function NewsCard({
     'other': 'bg-gray-100 text-gray-800',
   };
 
+  const cardSrc = pickImageSrc(
+    article.featuredImageAsset || article.featuredImage,
+    'card',
+  );
+  const blurDataUrl = article.featuredImageAsset?.derivatives?.blur;
+
   return (
     <Card className={`group hover:shadow-lg transition-all duration-200 ${className}`}>
       <CardHeader className="p-0">
-        {article.featuredImage && (
+        {cardSrc ? (
           <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
             <Image
-              src={article.featuredImage}
+              src={cardSrc}
               alt={article.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-200"
+              placeholder={blurDataUrl ? 'blur' : 'empty'}
+              blurDataURL={blurDataUrl}
             />
             {article.featured && (
               <div className="absolute top-3 left-3">
@@ -56,7 +65,7 @@ export function NewsCard({
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </CardHeader>
 
       <CardContent className="p-6">

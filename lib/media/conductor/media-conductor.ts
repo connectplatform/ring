@@ -144,4 +144,41 @@ export const MediaConductor = {
 
     return { audioUrl, videoUrl, summary, errors }
   },
+
+  /**
+   * Mood Player track generation: Suno-compatible music → file() storage.
+   * Billing is owned by the caller (features/mood-player/billing).
+   */
+  async generateMoodTrack(input: {
+    lyrics: string
+    style: string
+    title: string
+    makeInstrumental?: boolean
+    actorId?: string
+    model?: string
+    negativeTags?: string
+  }): Promise<{
+    success: boolean
+    url?: string
+    fileId?: string
+    objectKey?: string
+    provider?: 'suno'
+    externalId?: string
+    error?: string
+  }> {
+    const result = await AudioConductor.generateMusic({
+      lyrics: input.lyrics,
+      style: input.style,
+      title: input.title,
+      makeInstrumental: input.makeInstrumental,
+      actorId: input.actorId,
+      model: input.model,
+      negativeTags: input.negativeTags,
+      provider: 'suno',
+    })
+    if (!result.success) {
+      logger.warn('[MediaConductor] generateMoodTrack failed', { error: result.error })
+    }
+    return result
+  },
 }

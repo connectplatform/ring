@@ -13,6 +13,12 @@ export const CURSOR_FEED_MODULE_IDS = [
   'reviews',
   'meetups',
   'contacts',
+  'my-orders',
+  'my-opportunities',
+  'confidential-opportunities',
+  'comments',
+  'wallet',
+  'notifications',
 ] as const
 
 export type CursorFeedModuleId = (typeof CURSOR_FEED_MODULE_IDS)[number]
@@ -28,11 +34,17 @@ export interface PaginatedListResponse<T> {
 /** Legacy API shapes during migration */
 export interface LegacyPaginatedPayload<T = unknown> {
   items?: T[]
+  data?: T[]
   opportunities?: T[]
   entities?: T[]
+  pools?: T[]
+  transactions?: T[]
+  notifications?: T[]
   cursor?: string | null
   lastVisible?: string | null
   hasMore?: boolean
+  has_more?: boolean
+  next_cursor?: string | null
 }
 
 export interface FeedSessionState<T> {

@@ -1,7 +1,7 @@
 ---
 title: Payment Gateway Integration
-description: Operator guide — PaymentConductor, WayForPay, Stripe, and internal credit for store, membership, news promotion, and wallet top-up
-last_modified: "2026-07-09"
+description: Operator guide — PaymentConductor, WayForPay, Stripe, PayPal, and internal credit for store, membership, news promotion, and wallet top-up
+last_modified: "2026-07-16"
 audience: both
 ---
 
@@ -55,7 +55,7 @@ audience: both
 | `news_promotion` | News Kingdom paid promotion | `conductor/handlers/news-promotion.ts` |
 | `wallet_topup` | Wallet credit top-up (card) | `conductor/handlers/wallet-topup.ts` |
 
-**Processors:** WayForPay (default), Stripe, internal credit. PayPal membership is **not** implemented (FutureFeature pool `membership-paypal`).
+**Processors:** WayForPay (default), Stripe, internal credit, native token, **PayPal** (Orders for store/wallet; Subscriptions v1 for recurring membership — see [SubscriptionConductor](/docs/features/subscriptions)).
 
 **Rails:** `merchant_redirect` · `internal_credit` (`PAYMENT_STORE_ALLOW_CREDIT`) · `native_token` (`PAYMENT_STORE_ALLOW_TOKEN`).
 
@@ -82,7 +82,12 @@ STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 PAYMENT_FIAT_CURRENCY=USD
 PAYMENT_STORE_ALLOW_CREDIT=true
-PAYMENT_STORE_ALLOW_TOKEN=false`}
+PAYMENT_STORE_ALLOW_TOKEN=false
+NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=false
+# PAYPAL_MODE=sandbox
+# PAYPAL_CLIENT_ID=
+# PAYPAL_CLIENT_SECRET=
+# PAYPAL_WEBHOOK_ID=`}
 </Code>
 
 <Callout type="warning">
@@ -97,6 +102,10 @@ Replace the host with your clone domain:
 |----------|-------------|
 | WayForPay | `https://ring-platform.org/api/payments/wayforpay/webhook` |
 | Stripe | `https://ring-platform.org/api/payments/stripe/webhook` |
+
+<Callout type="warning">
+  **Public HTTPS required.** WayForPay / Stripe cannot POST to `localhost`. Local card tests will open the PSP page, but **credit will not settle** until `serviceUrl` is reachable (tunnel or staging). Ring emits `returnUrl` per request — you do **not** need a static thank-you page in the WayForPay cabinet. See [WayForPay](/docs/features/wayforpay-integration).
+</Callout>
 
 <Callout type="error" title="Do not register">
   Legacy paths `/api/payments/wayforpay/callback`, `/success`, `/failure` — **not implemented**.
@@ -238,14 +247,6 @@ Dashboard → Webhooks → endpoint `https://<your-domain>/api/payments/stripe/w
 </Cards>
 
 <FutureFeatureBacklog title="Backlog — payment ops (TBD)">
-
-<FutureFeatureWidget
-  name="PayPal membership payments"
-  description="Operator-facing PayPal merchant setup for membership. UI tab exists; processor and cabinet checklist not shipped (poolSlug membership-paypal)."
-  implementationCost={96}
-  labels={['payments', 'paypal', 'ops']}
-  poolSlug="membership-paypal"
-/>
 
 <FutureFeatureWidget
   name="Stripe Connect marketplace payouts"

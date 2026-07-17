@@ -20,7 +20,9 @@ export type OpportunityType =
   | 'volunteer'               // 💚 Volunteer opportunities
   | 'mentorship'              // 🎓 Mentorship programs
   | 'resource'                // 🔧 Resource sharing
-  | 'event';                  // 📅 Events and workshops
+  | 'event'                   // 📅 Events and workshops
+  | 'cv'                      // Developer CV listings
+  | 'program'                 // Institution programs / investments → email-CRM
 export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential';
 export type OpportunityPriority = 'urgent' | 'normal' | 'low';
 

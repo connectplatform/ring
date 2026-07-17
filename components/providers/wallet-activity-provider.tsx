@@ -9,14 +9,20 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { WalletActivityRow } from '@/features/wallet/services/wallet-activity-feed'
+import type {
+  WalletActivityFeedFilter,
+  WalletActivityRow,
+} from '@/features/wallet/services/wallet-activity-feed'
 
-export type WalletActivityFilter = 'all' | 'credit' | 'chain'
+export type WalletActivityFilter = WalletActivityFeedFilter
 
 export type WalletActivityScope =
   | { type: 'all' }
   | { type: 'credit' }
   | { type: 'chain' }
+  | { type: 'incoming' }
+  | { type: 'outgoing' }
+  | { type: 'requests' }
   | { type: 'wallet'; address: string }
 
 export type WalletActivityContextValue = {
@@ -33,7 +39,12 @@ const WalletActivityContext = createContext<WalletActivityContextValue | null>(n
 
 function scopeToFilter(scope: WalletActivityScope): WalletActivityFilter {
   if (scope.type === 'credit') return 'credit'
-  if (scope.type === 'chain' || scope.type === 'wallet') return 'chain'
+  if (scope.type === 'chain') return 'chain'
+  if (scope.type === 'incoming') return 'incoming'
+  if (scope.type === 'outgoing') return 'outgoing'
+  if (scope.type === 'requests') return 'requests'
+  // Wallet scope needs chain txs for that address PLUS desk credit legs
+  if (scope.type === 'wallet') return 'all'
   return 'all'
 }
 

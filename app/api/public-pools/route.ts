@@ -4,7 +4,7 @@ import { queryString } from '@/lib/server/request'
 import {
   ensureFutureFeaturePool,
   getPoolStatsBySlug,
-  listPublicPools,
+  listPublicPoolsPage,
 } from '@/features/public-pools/services/public-pool-service'
 import { deriveFutureFeaturePoolSlug } from '@/lib/public-pools/pool-slug'
 import { z } from 'zod'
@@ -32,8 +32,23 @@ export async function GET(request: NextRequest) {
       | 'completed'
       | 'cancelled'
       | undefined
-    const pools = await listPublicPools(status ? { status } : undefined)
-    return NextResponse.json({ pools })
+    const limit = Math.min(
+      Math.max(parseInt(queryString(request, 'limit') || '24', 10) || 24, 1),
+      100,
+    )
+    const startAfter =
+      queryString(request, 'startAfter') || queryString(request, 'afterId') || undefined
+    const page = await listPublicPoolsPage({
+      ...(status ? { status } : {}),
+      limit,
+      startAfter,
+    })
+    return NextResponse.json({
+      pools: page.pools,
+      items: page.pools,
+      cursor: page.cursor,
+      hasMore: page.hasMore,
+    })
   }
 
   const stats = await getPoolStatsBySlug(slug, session?.user?.id)

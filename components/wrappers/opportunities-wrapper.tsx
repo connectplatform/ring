@@ -89,22 +89,32 @@ export default function OpportunitiesWrapper({
     )
   }
 
-  // If initialOpportunity is provided, render opportunity-details
+  // If initialOpportunity is provided, render opportunity-details inside DaVinci shell
   if (initialOpportunity) {
     return (
-      <OpportunitySuspenseBoundary
-        level="page"
-        showProgress={true}
-        description={t('loadingOpportunityDetails', { defaultValue: "Loading opportunity details and related information" })}
-        retryEnabled={true}
-        onRetry={retryReload}
+      <RingRightRailLayout
+        showRightRail
+        flushCenterPane
+        isOpen={rightSidebarOpen}
+        onToggle={setRightSidebarOpen}
+        rightRail={rightRail}
       >
-        <OpportunityDetails
-          initialOpportunity={initialOpportunity}
-          initialEntity={initialEntity || null}
-          initialError={initialError}
-        />
-      </OpportunitySuspenseBoundary>
+        <DavinciCenterPane>
+          <OpportunitySuspenseBoundary
+            level="page"
+            showProgress={true}
+            description={t('loadingOpportunityDetails', { defaultValue: "Loading opportunity details and related information" })}
+            retryEnabled={true}
+            onRetry={retryReload}
+          >
+            <OpportunityDetails
+              initialOpportunity={initialOpportunity}
+              initialEntity={initialEntity || null}
+              initialError={initialError}
+            />
+          </OpportunitySuspenseBoundary>
+        </DavinciCenterPane>
+      </RingRightRailLayout>
     )
   }
 

@@ -1,7 +1,7 @@
 ---
 title: For Developers
 description: Curated docTree for developers and integrators — bootstrap, architecture, APIs, payments cluster, deploy, and contribution layers
-last_modified: "2026-07-12"
+last_modified: "2026-07-17"
 audience: developer
 ---
 
@@ -45,6 +45,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 - [Discovery Mutation Sync](/docs/architecture/discovery-mutation-sync)
 - [Proxy and i18n](/docs/architecture/proxy-and-intl)
 - [PaymentConductor](/docs/architecture/payment-conductor)
+- [WalletConductor](/docs/architecture/wallet-conductor) — facade adapters, rates, `/api/wallet/*`
 - [Refcodes](/docs/architecture/refcodes)
 - [News Kingdom](/docs/architecture/news-kingdom)
 - [Email AI-CRM](/docs/architecture/email-ai-crm)
@@ -60,7 +61,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 - [Authentication](/docs/api/authentication)
 - [Entities](/docs/api/entities)
 - [Opportunities](/docs/api/opportunities)
-- [Messaging](/docs/api/messaging)
+- [Messaging](/docs/api/messaging) — verified `/api/conversations` types (`direct|entity|opportunity|product|group`); no `channel`
 - [Notifications](/docs/api/notifications)
 - [Wallet](/docs/api/wallet)
 - [Store](/docs/api/store) — PaymentConductor `store_order` (no fabricated cart REST)
@@ -87,6 +88,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 - [NFT Marketplace](/docs/features/nft-market) — ledger-dev RING settlement, KEYS listing policy, sale ledger
 - [Solana NFT Gates](/docs/features/nft-gates) — Metaplex Core + GateEscrow + stake-to-activate
 - [Staking](/docs/features/staking)
+- [Owner Project Lab](/docs/features/owner-project-lab) — `/my-orders`, `order_lab` room, `/admin/crm/orders`
 - Ops checklist: [Payment integration](/docs/customization/payment-integration)
 
 ---
@@ -96,25 +98,26 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 ### Realtime & communication
 
 - [Tunnel Protocol](/docs/features/tunnel-protocol)
-- [Messaging](/docs/features/messaging)
+- [Messaging](/docs/features/messaging) — `Conversation.type` vs `metadata.kind`; inbox hide for tool chats
 - [WebRTC Calls & STUNner](/docs/features/webrtc-calls)
 - [Push Notifications (FCM)](/docs/features/push-notifications-fcm)
 - [Notifications](/docs/features/notifications)
-- [Email AI-CRM](/docs/features/email-ai-crm)
+- [Email AI-CRM](/docs/features/email-ai-crm) — UI `/admin/crm/*`; APIs `/api/admin/email/*`
+- [Owner Project Lab](/docs/features/owner-project-lab) — buyer My Projects + shared `order_lab` + CRM order desk
 
 ### Identity, trust, content
 
 - [Authentication](/docs/features/authentication)
 - [Security](/docs/features/security)
-- [Admin console](/docs/features/admin) — `admin-nav-config` SSOT, AdminWrapper rail, Security/Matcher tabs
+- [Admin console](/docs/features/admin) — `admin-nav-config` SSOT, `CrmAdminShell` tabs, Security/Matcher tabs
 - [Manage via Telegram](/docs/features/manage-via-telegram) — admin bot RBAC + webhook
 - [Entities](/docs/features/entities)
 - [Opportunities](/docs/features/opportunities)
-- [News](/docs/features/news)
+- [News](/docs/features/news) — TipTap NewsEditor, pending-revision APIs, sanitizeNewsHtml
 - [Member Blog](/docs/features/member-blog)
 - [Public Profile](/docs/features/public-profile)
 - [Username Reservation](/docs/features/username-reservation)
-- [Scientific Editor](/docs/features/scientific-editor)
+- [Scientific Editor](/docs/features/scientific-editor) — publications TipTap JSON + versions (not news)
 - [Locale System](/docs/features/locale-system)
 - [Doc System](/docs/features/doc-system)
 
@@ -122,6 +125,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 
 - [VideoConductor](/docs/features/video-conductor)
 - [MediaConductor](/docs/features/media-conductor) — docs narration/walkthrough + `generated_docs_media` cache
+- [Generative Gallery](/docs/features/generative-media) — `features/generative-media/`, Ghost-write + ImageConductor, WebP, hidden `genmedia:` chats
 - [Mobile Experience](/docs/features/mobile-experience)
 - [Performance](/docs/features/performance)
 - [ERP](/docs/features/erp) — [Inventory](/docs/features/erp/inventory) · [Vendor management](/docs/features/erp/vendor-management) · [Commissions](/docs/features/erp/commissions)

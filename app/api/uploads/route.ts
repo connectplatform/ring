@@ -17,6 +17,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const conversationId = (formData.get('conversationId') as string | null) || undefined
     const opportunityId = (formData.get('opportunityId') as string | null) || undefined
     const procedureNumber = (formData.get('procedureNumber') as string | null) || undefined
+    const mediaIndex = (formData.get('mediaIndex') as string | null) || undefined
+    const fileCategory = (formData.get('fileCategory') as string | null) || undefined
+    const productId = (formData.get('productId') as string | null) || undefined
 
     if (!file) {
       return NextResponse.json(
@@ -34,6 +37,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           entityId: entityId || undefined,
           conversationId: conversationId || undefined,
           opportunityId: opportunityId || undefined,
+          mediaIndex: mediaIndex || undefined,
+          fileCategory: fileCategory || undefined,
+          productId: productId || undefined,
         },
       },
     })
@@ -55,6 +61,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       uploadedAt: result.uploadedAt,
       provider: result.provider,
       objectKey: result.objectKey,
+      fileId: result.fileId,
+      derivatives: result.derivatives,
       procedureNumber: procedureNumber || undefined,
       ...(isPrivate
         ? {}

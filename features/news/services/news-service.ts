@@ -26,6 +26,7 @@ import { logger } from '@/lib/logger'
 import { translitSlug } from '@/lib/news/translit-slug'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
 import { UserRolesArray } from '@/features/auth/user-role'
+import { normalizeBlogHandle } from '@/lib/blog/blog-path'
 
 // Interface for the result of creating a news article
 interface CreateNewsResult {
@@ -133,6 +134,7 @@ export async function createNewsArticleForAuthor(
       category: formData.category || 'other',
       tags: formData.tags || [],
       featuredImage: formData.featuredImage || null,
+      featuredImageAsset: formData.featuredImageAsset || null,
       audioUrl: formData.audioUrl || extras?.audioUrl || null,
       gallery: formData.gallery || [],
       status: formData.status || 'draft',
@@ -199,11 +201,21 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       }
     }
 
-    // Use user's ID or email as unique reference, fallback username if not provided
-    return createNewsArticleForAuthor(formData, {
-      id: session.user.id || session.user.email || '',
-      name: session.user.name || 'Unknown Author',
-    })
+    // Use user's ID or email as unique reference; stamp blogUsername for /[username]/[slug]
+    const username =
+      typeof session.user.username === 'string' ? session.user.username.trim() : ''
+    return createNewsArticleForAuthor(
+      {
+        ...formData,
+        blogUsername:
+          formData.blogUsername ||
+          (username ? normalizeBlogHandle(username) : undefined),
+      },
+      {
+        id: session.user.id || session.user.email || '',
+        name: session.user.name || 'Unknown Author',
+      },
+    )
   } catch (error) {
     logger.error('Error creating news article:', error)
     return {
@@ -293,6 +305,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       category: formData.category || 'other',
       tags: formData.tags || [],
       featuredImage: formData.featuredImage || null,
+      featuredImageAsset: formData.featuredImageAsset || null,
       gallery: formData.gallery || [],
       status: formData.status || 'draft',
       visibility: formData.visibility || 'public',
@@ -559,9 +572,9 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
       articles[0] || null
     )
 
-    // Build recent activity for the past 30 days by calendar day
+    // Build recent activity for the past 35 days (supports 4-week weekday comparison)
     const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 35)
 
     // Helper function to robustly parse date fields from document data
     const toDate = (value: NewsArticle['createdAt']): Date => {
@@ -687,5 +700,24 @@ export async function deleteNewsArticle(articleId: string): Promise<{
       success: false,
       error: 'Failed to delete article',
     }
+  }
+}
+
+/**
+ * Bump article.views after a successful public article render.
+ * RSC pages must call this (legacy GET /api/news/[id] is not on the read path).
+ */
+export async function recordArticlePageView(articleId: string): Promise<void> {
+  if (!articleId) return
+  try {
+    const current = await db().readDoc('news', articleId)
+    if (!current.success || !current.data) return
+    const views = Number((current.data as { views?: number }).views ?? 0)
+    await db().updateDoc('news', articleId, {
+      views: views + 1,
+      updatedAt: new Date(),
+    })
+  } catch (error) {
+    logger.warn('recordArticlePageView failed', { articleId, error })
   }
 }

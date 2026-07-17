@@ -1,17 +1,39 @@
 import type { NewsArticle, NewsCategoryInfo } from '@/features/news/types'
 import { getBrandName } from '@/lib/site-branding'
-import { normalizeVikkaNewsData } from '@/lib/news/vikka-field-normalize'
+import {
+  coerceMediaImageAsset,
+  coerceMediaImageAssetList,
+  type MediaImageAsset,
+} from '@/lib/file/media-asset'
 
-/** Normalize PostgreSQL JSONB row → NewsArticle for UI */
+function denormalizedFeatured(
+  featuredImageAsset: MediaImageAsset | undefined,
+  featuredImage: unknown,
+): string | undefined {
+  if (featuredImageAsset?.url) return featuredImageAsset.url
+  if (typeof featuredImage === 'string' && featuredImage.trim()) return featuredImage.trim()
+  return undefined
+}
+
+/**
+ * Normalize PostgreSQL JSONB row → NewsArticle for UI.
+ * CamelCase fields only — no snake_case / Vikka dual-compat alias reads.
+ * Image fields coerced to MediaImageAsset (SSOT).
+ */
 export function mapNewsDocument(
   row: { id: string; data?: Record<string, unknown> } & Record<string, unknown>,
-  options?: { locale?: string; vikkaCompat?: boolean }
+  options?: { locale?: string },
 ): NewsArticle {
-  let d = (row.data ?? row) as Record<string, unknown>
-  if (options?.vikkaCompat || process.env.NEXT_PUBLIC_NEWS_VIKKA_COMPAT === 'true') {
-    d = normalizeVikkaNewsData(d, options?.locale ?? String(d.locale ?? 'uk'))
-  }
+  const d = (row.data ?? row) as Record<string, unknown>
   const defaultAuthor = process.env.NEXT_PUBLIC_NEWS_DEFAULT_AUTHOR || getBrandName()
+
+  const featuredImageAsset =
+    coerceMediaImageAsset(d.featuredImageAsset) ||
+    coerceMediaImageAsset(d.featuredImage)
+  const galleryRaw = d.gallery
+  const galleryAssets = coerceMediaImageAssetList(galleryRaw)
+  const featuredImage = denormalizedFeatured(featuredImageAsset, d.featuredImage)
+
   return {
     id: row.id,
     title: String(d.title ?? ''),
@@ -22,9 +44,10 @@ export function mapNewsDocument(
     authorName: String(d.authorName ?? defaultAuthor),
     category: d.category as NewsArticle['category'],
     tags: Array.isArray(d.tags) ? (d.tags as string[]) : [],
-    featuredImage: d.featuredImage as string | undefined,
+    featuredImage,
+    featuredImageAsset,
     audioUrl: d.audioUrl as string | undefined,
-    gallery: d.gallery as string[] | undefined,
+    gallery: galleryAssets.length > 0 ? galleryAssets : undefined,
     status: d.status as NewsArticle['status'],
     visibility: d.visibility as NewsArticle['visibility'],
     featured: Boolean(d.featured),
@@ -35,7 +58,7 @@ export function mapNewsDocument(
     createdAt: d.createdAt as NewsArticle['createdAt'],
     updatedAt: d.updatedAt as NewsArticle['updatedAt'],
     seo: d.seo as NewsArticle['seo'],
-    locale: d.locale as string | undefined,
+    locale: (d.locale as string | undefined) ?? options?.locale,
     translationGroupId: d.translationGroupId as string | undefined,
     availableTranslations: d.availableTranslations as string[] | undefined,
     contentType: d.contentType as NewsArticle['contentType'],

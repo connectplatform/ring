@@ -59,6 +59,7 @@ export interface AdminSidebarContentProps {
 const DEFAULT_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   users: 'Users',
+  rewards: 'Rewards',
   news: 'News',
   dao: 'Public pools',
   analytics: 'Analytics',

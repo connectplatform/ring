@@ -1,0 +1,190 @@
+{
+  "title": "Подписка для бизнеса",
+  "manageSubscription": "Управление подпиской",
+  "upgradeSubscription": "Улучшить",
+  "cancelSubscription": "Отменить подписку",
+  "renewSubscription": "Продлить подписку",
+  "noSubscription": "Нет активной подписки",
+
+  "plans": {
+    "title": "Тарифные планы",
+    "basic": "Базовый тариф",
+    "premium": "Премиум тариф",
+    "enterprise": "Корпоративный тариф",
+    "selectPlan": "Выбрать тариф",
+    "currentPlan": "Текущий тариф",
+    "recommendedPlan": "Рекомендуем",
+    "mostPopular": "Самый популярный"
+  },
+
+  "pricing": {
+    "listingFee": "Разовый взнос за размещение",
+    "monthlySubscription": "Ежемесячная подписка",
+    "perMonth": "/мес.",
+    "perYear": "/год",
+    "billingPeriod": "Период оплаты",
+    "monthly": "Ежемесячно",
+    "yearly": "Ежегодно (экономия 20%)",
+    "savePercent": "Экономия {{percent}}%",
+    "total": "Итого",
+    "subtotal": "Промежуточный итог",
+    "tax": "Налог",
+    "discount": "Скидка"
+  },
+
+  "features": {
+    "title": "Возможности",
+    "mapVisibility": "Отображение на карте",
+    "unlimitedPhotos": "Неограниченное число фото",
+    "prioritySupport": "Приоритетная поддержка",
+    "analyticsAccess": "Доступ к аналитике",
+    "vendorAccount": "Аккаунт продавца",
+    "featuredListing": "Рекомендуемое размещение",
+    "customBranding": "Собственный брендинг",
+    "apiAccess": "Доступ к API",
+    "includedFeatures": "Включённые возможности",
+    "additionalFeatures": "Дополнительные возможности"
+  },
+
+  "status": {
+    "active": "Активна",
+    "inactive": "Неактивна",
+    "gracePeriod": "Льготный период",
+    "pastDue": "Просрочена",
+    "canceled": "Отменена",
+    "suspended": "Приостановлена",
+    "trial": "Пробный период",
+    "pending": "Ожидает оплаты"
+  },
+
+  "billing": {
+    "title": "Платёжная информация",
+    "paymentMethod": "Способ оплаты",
+    "addPaymentMethod": "Добавить способ оплаты",
+    "updatePaymentMethod": "Обновить способ оплаты",
+    "billingHistory": "История платежей",
+    "invoices": "Счета",
+    "nextBillingDate": "Следующее списание",
+    "lastPayment": "Последний платёж",
+    "cardEnding": "Карта с окончанием {{last4}}",
+    "expires": "Действует до {{date}}",
+    "downloadInvoice": "Скачать счёт"
+  },
+
+  "payment": {
+    "title": "Оплата",
+    "cardNumber": "Номер карты",
+    "expiryDate": "Срок действия",
+    "cvv": "CVV",
+    "cardholderName": "Имя держателя карты",
+    "billingAddress": "Платёжный адрес",
+    "payNow": "Оплатить сейчас",
+    "payWithCard": "Оплатить картой",
+    "payWithApplePay": "Оплатить через Apple Pay",
+    "payWithGooglePay": "Оплатить через Google Pay",
+    "securePayment": "Безопасная оплата",
+    "poweredByStripe": "Работает на Stripe"
+  },
+
+  "visibility": {
+    "title": "Видимость на карте",
+    "enabled": "Ваше место отображается на карте",
+    "disabled": "Ваше место скрыто с карты",
+    "requiresSubscription": "Для отображения на карте нужна активная подписка",
+    "gracePeriodWarning": "Оплата подписки не прошла. У вас есть {{days}} дн., чтобы обновить способ оплаты, иначе место будет скрыто.",
+    "suspendedWarning": "Ваше место сейчас скрыто. Продлите подписку, чтобы восстановить видимость."
+  },
+
+  "actions": {
+    "subscribe": "Оформить подписку",
+    "updatePlan": "Изменить тариф",
+    "cancelPlan": "Отменить тариф",
+    "reactivate": "Возобновить подписку",
+    "pauseSubscription": "Приостановить подписку",
+    "resumeSubscription": "Возобновить подписку",
+    "confirmCancellation": "Вы уверены, что хотите отменить подписку? Ваше место будет скрыто с карты.",
+    "confirmUpgrade": "Перейти на тариф {{plan}} за {{price}}/мес.?",
+    "confirmDowngrade": "Перейти на тариф {{plan}}? Некоторые возможности будут отключены."
+  },
+
+  "grace_period": {
+    "title": "Оплата не прошла — льготный период",
+    "description": "Оплата не прошла, но у вас есть {{days}} дн. льготного периода, чтобы обновить способ оплаты.",
+    "daysRemaining": "Осталось {{days}} дн.",
+    "updatePayment": "Обновить способ оплаты",
+    "contactSupport": "Связаться с поддержкой"
+  },
+
+  "cancellation": {
+    "title": "Отмена подписки",
+    "confirmTitle": "Вы уверены?",
+    "confirmMessage": "Подписка будет отменена, и ваше место будет скрыто с карты. Вы сможете возобновить подписку в любое время.",
+    "reasonTitle": "Помогите нам стать лучше (необязательно)",
+    "reasonPlaceholder": "Почему вы отменяете подписку?",
+    "reasons": {
+      "tooExpensive": "Слишком дорого",
+      "notEnoughCustomers": "Мало клиентов",
+      "technicalIssues": "Технические проблемы",
+      "seasonalBusiness": "Сезонный бизнес",
+      "movingLocation": "Переезд в другое место",
+      "other": "Другая причина"
+    },
+    "keepSubscription": "Сохранить подписку",
+    "confirmCancel": "Да, отменить подписку"
+  },
+
+  "renewal": {
+    "title": "Продление подписки",
+    "automaticRenewal": "Автопродление",
+    "enabled": "Включено",
+    "disabled": "Отключено",
+    "nextRenewalDate": "Следующее продление {{date}}",
+    "renewNow": "Продлить сейчас",
+    "enableAutoRenewal": "Включить автопродление",
+    "disableAutoRenewal": "Отключить автопродление"
+  },
+
+  "validation": {
+    "cardNumberInvalid": "Некорректный номер карты",
+    "expiryDateInvalid": "Некорректный срок действия",
+    "cvvInvalid": "Некорректный CVV",
+    "cardholderNameRequired": "Укажите имя держателя карты",
+    "paymentMethodRequired": "Укажите способ оплаты"
+  },
+
+  "success": {
+    "subscribed": "Подписка успешно активирована!",
+    "updated": "Подписка успешно обновлена!",
+    "canceled": "Подписка отменена",
+    "renewed": "Подписка успешно продлена!",
+    "paymentUpdated": "Способ оплаты успешно обновлён!",
+    "paymentReceived": "Платёж получен. Спасибо!"
+  },
+
+  "errors": {
+    "paymentFailed": "Оплата не прошла. Проверьте способ оплаты и попробуйте снова.",
+    "cardDeclined": "Карта отклонена. Используйте другой способ оплаты.",
+    "insufficientFunds": "Недостаточно средств. Используйте другой способ оплаты.",
+    "subscriptionFailed": "Не удалось активировать подписку. Попробуйте снова.",
+    "updateFailed": "Не удалось обновить подписку. Попробуйте снова.",
+    "cancelFailed": "Не удалось отменить подписку. Свяжитесь с поддержкой.",
+    "networkError": "Ошибка сети. Проверьте подключение и попробуйте снова."
+  },
+
+  "notifications": {
+    "paymentSuccess": "Оплата прошла успешно! Подписка активна.",
+    "paymentFailed": "Оплата не прошла. Обновите способ оплаты.",
+    "subscriptionExpiring": "Подписка истекает через {{days}} дн.",
+    "gracePeriodStarted": "Оплата не прошла. У вас есть {{days}} дн., чтобы обновить способ оплаты.",
+    "subscriptionCanceled": "Подписка отменена.",
+    "subscriptionReactivated": "Подписка возобновлена!"
+  },
+
+  "help": {
+    "title": "Нужна помощь?",
+    "contactSupport": "Связаться с поддержкой",
+    "viewFaq": "Частые вопросы",
+    "billingQuestions": "Вопросы по оплате",
+    "technicalSupport": "Техническая поддержка"
+  }
+}

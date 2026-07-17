@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
 import { ROUTES } from '@/constants/routes'
 import { getNftMarketCollections } from '@/features/nft-market/services/listing-query'
+import { NftPageShell } from '@/features/nft-market/components/nft-page-shell'
 
 // Empty params type for future extensibility
 type CollectionsParams = {}
@@ -48,8 +49,9 @@ export default async function CollectionsPage(props: LocalePageProps<Collections
   const collections = await getNftMarketCollections()
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8 space-y-3">
+    <NftPageShell locale={locale}>
+    <div className="space-y-8">
+      <div className="space-y-3">
         <RingBreadcrumbs
           items={[
             { label: 'NFT Exhibition', href: ROUTES.NFT_MARKET(locale) },
@@ -130,5 +132,6 @@ export default async function CollectionsPage(props: LocalePageProps<Collections
         </div>
       )}
     </div>
+    </NftPageShell>
   )
 }

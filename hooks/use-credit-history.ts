@@ -3,13 +3,21 @@
 /**
  * Owner hook for wallet credit transaction history (GET /api/wallet/credit/history).
  * UI consumers must use useCreditHistoryContext() from CreditHistoryProvider.
+ * Pagination SSOT: useCursorFeed (moduleId: wallet).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useLocale } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { apiClient, ApiClientError } from '@/lib/api-client'
 import type { CreditHistoryResponse, CreditTransaction } from '@/lib/zod/credit-schemas'
 import { logger } from '@/lib/logger'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
+
+/** Stable empty seed — inline `[]` recreates identity every render and churns reset(). */
+const EMPTY_CREDIT_TRANSACTIONS: CreditTransaction[] = []
 
 interface UseCreditHistoryOptions {
   limit?: number
@@ -27,109 +35,110 @@ interface UseCreditHistoryReturn {
   loadMore: () => Promise<void>
 }
 
-function normalizeNextCursor(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
 export function useCreditHistory({
   limit = 50,
   enabled = true,
 }: UseCreditHistoryOptions = {}): UseCreditHistoryReturn {
   const { data: session, status } = useSession()
-  const [transactions, setTransactions] = useState<CreditTransaction[]>([])
-  const [hasMore, setHasMore] = useState(false)
-  const [nextCursor, setNextCursor] = useState<string | undefined>()
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const initialFetchDone = useRef(false)
-  const requestIdRef = useRef(0)
+  const locale = useLocale()
+  const authenticated = status === 'authenticated' && Boolean(session?.user)
+  const feedEnabled = enabled && authenticated
 
-  const fetchHistory = useCallback(
-    async (opts: { afterId?: string; append?: boolean; isRefresh?: boolean }) => {
-      if (status !== 'authenticated' || !session?.user || !enabled) return
-
-      const requestId = ++requestIdRef.current
-
-      try {
-        if (opts.isRefresh) {
-          setIsRefreshing(true)
-        } else if (!opts.append) {
-          setIsLoading(true)
-        }
-        setError(null)
-
-        const safeLimit = Number.isFinite(limit) && limit >= 1 && limit <= 100 ? limit : 50
-        const params = new URLSearchParams({ limit: String(safeLimit) })
-        if (opts.afterId) params.set('after_id', opts.afterId)
-
-        const response = await apiClient.get<CreditHistoryResponse>(
-          `/api/wallet/credit/history?${params.toString()}`,
-          { timeout: 15000, retries: 0 },
-        )
-
-        if (requestId !== requestIdRef.current) return
-
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to fetch credit history')
-        }
-
-        const data = response.data
-        setTransactions((prev) =>
-          opts.append ? [...prev, ...data.transactions] : data.transactions,
-        )
-        setHasMore(Boolean(data.has_more))
-        setNextCursor(normalizeNextCursor(data.next_cursor))
-      } catch (err) {
-        if (requestId !== requestIdRef.current) return
-
-        const message =
-          err instanceof ApiClientError
-            ? err.message
-            : err instanceof Error
-              ? err.message
-              : 'Failed to fetch credit history'
-
-        setError(message)
-        logger.error('Credit history fetch failed', {
-          message,
-          statusCode: err instanceof ApiClientError ? err.statusCode : undefined,
-          endpoint: '/api/wallet/credit/history',
-        })
-      } finally {
-        if (requestId === requestIdRef.current) {
-          setIsLoading(false)
-          setIsRefreshing(false)
-        }
-      }
-    },
-    [enabled, limit, session?.user, status],
+  const filterFingerprint = useMemo(
+    () => buildFilterFingerprint('wallet', { scope: 'credit', limit }),
+    [limit],
   )
 
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const safeLimit = Number.isFinite(limit) && limit >= 1 && limit <= 100 ? limit : 50
+      const params = new URLSearchParams({ limit: String(safeLimit) })
+      if (cursor) params.set('after_id', cursor)
+
+      const response = await apiClient.get<CreditHistoryResponse>(
+        `/api/wallet/credit/history?${params.toString()}`,
+        { timeout: 15000, retries: 0 },
+      )
+
+      if (!response.success || !response.data) {
+        const message = response.error || 'Failed to fetch credit history'
+        logger.error('Credit history fetch failed', {
+          message,
+          endpoint: '/api/wallet/credit/history',
+        })
+        throw new Error(message)
+      }
+
+      const data = response.data
+      return normalizePaginatedResponse<CreditTransaction>(
+        {
+          transactions: data.transactions,
+          items: data.transactions,
+          has_more: data.has_more,
+          next_cursor: data.next_cursor,
+          cursor: data.next_cursor,
+        },
+        safeLimit,
+      )
+    },
+    [limit],
+  )
+
+  const {
+    items: transactions,
+    loading: isLoading,
+    hasMore,
+    error,
+    reload,
+    reset,
+  } = useCursorFeed<CreditTransaction>({
+    moduleId: 'wallet',
+    locale,
+    limit,
+    filterFingerprint,
+    initialItems: EMPTY_CREDIT_TRANSACTIONS,
+    initialCursor: null,
+    enabled: feedEnabled,
+    fetchPage,
+    restoreScroll: false,
+  })
+
   const refresh = useCallback(async () => {
-    await fetchHistory({ isRefresh: true })
-  }, [fetchHistory])
+    try {
+      await reload()
+    } catch (err) {
+      const message =
+        err instanceof ApiClientError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to fetch credit history'
+      logger.error('Credit history refresh failed', { message })
+    }
+  }, [reload])
 
   const loadMore = useCallback(async () => {
-    if (!hasMore || !nextCursor) return
-    await fetchHistory({ afterId: nextCursor, append: true })
-  }, [fetchHistory, hasMore, nextCursor])
+    // Sentinel-driven by useCursorFeed; keep API for callers that invoke loadMore
+    if (!hasMore) return
+  }, [hasMore])
 
+  // Clear feed only on true→false transition (logout / disable). Do not depend on
+  // reset identity — callers that pass a fresh initialItems[] would otherwise loop.
+  const wasFeedEnabled = useRef(feedEnabled)
   useEffect(() => {
-    if (status !== 'authenticated' || !session?.user || !enabled) return
-    if (initialFetchDone.current) return
-    initialFetchDone.current = true
-    void fetchHistory({}).catch(() => {
-      /* handled in fetchHistory — swallow to avoid global promise_rejection telemetry */
-    })
-  }, [enabled, fetchHistory, session?.user, status])
+    const previouslyEnabled = wasFeedEnabled.current
+    wasFeedEnabled.current = feedEnabled
+    if (previouslyEnabled && !feedEnabled) {
+      reset()
+    }
+  }, [feedEnabled, reset])
 
   return {
     transactions,
     hasMore,
-    nextCursor,
+    nextCursor: hasMore && transactions.length > 0 ? transactions[transactions.length - 1]?.id : undefined,
     isLoading,
-    isRefreshing,
+    isRefreshing: isLoading && transactions.length > 0,
     error,
     refresh,
     loadMore,

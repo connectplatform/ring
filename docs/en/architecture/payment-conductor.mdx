@@ -1,7 +1,7 @@
 ---
 title: PaymentConductor architecture
-description: Types, webhook dispatcher, order references, ledger, processors, wallet top-up, and API routes
-last_modified: "2026-07-10"
+description: CheckoutRedirect DTO, normalizeCheckoutResult, webhook dispatcher, processors, wallet top-up, and API routes
+last_modified: "2026-07-16"
 audience: both
 ---
 
@@ -23,7 +23,10 @@ PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL 
     Purposes and rails
   </Card>
   <Card title="Wallet top-up" href="/docs/features/wallet">
-    Live `wallet_topup` via WayForPay
+    Live `wallet_topup` via Card / PayPal
+  </Card>
+  <Card title="WayForPay HPP" href="/docs/features/wayforpay-integration">
+    form_post vs navigate; returnUrl vs serviceUrl
   </Card>
 </Cards>
 
@@ -31,9 +34,10 @@ PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL 
 
 ## Why this architecture matters
 
-- **Single ledger** — every card redirect and credit settlement writes `payment_transactions` before the PSP redirect returns.
-- **Idempotent callbacks** — duplicate WayForPay / Stripe webhooks do not double-fulfill; `order_reference` is unique.
-- **Purpose handlers** — store stock/settlement, membership role upgrade, news promotion activation, and wallet credit add are separate modules behind one dispatcher.
+- **Single ledger** — every card redirect and credit settlement writes `payment_transactions` before the PSP page opens.
+- **Idempotent callbacks** — duplicate WayForPay / Stripe / PayPal webhooks do not double-fulfill; `order_reference` is unique.
+- **Processor-agnostic UI** — the browser only follows a Conductor `redirect` object. Switching a clone to Stripe is an env flip (`PAYMENT_*_PROCESSOR=stripe`), not a new top-up screen.
+- **Webhook = money** — returning to the site after pay is not confirmation; Approved (or Stripe/PayPal capture) webhooks are.
 - **Admin audit** — Payments tab loads membership + wallet top-up rows for a user without scraping PSP dashboards.
 
 </Audience>
@@ -44,31 +48,66 @@ PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL 
 
 <Mermaid>
 {`sequenceDiagram
-    participant UI as Checkout / upgrade / top-up UI
-    participant API as App API / server action
+    participant UI as Checkout_or_topup_UI
+    participant API as App_API_or_server_action
     participant PC as PaymentConductor
-    participant PSP as WayForPay / Stripe
-    participant WH as webhook-dispatcher
+    participant PSP as WayForPay_Stripe_PayPal
+    participant WH as webhook_dispatcher
     participant DB as payment_transactions
 
-    UI->>API: create checkout (purpose, amount)
-    API->>PC: createCheckout(ctx)
-    PC->>DB: createPending (idempotent orderReference)
-    PC->>PSP: redirect URL or session
-    PSP-->>UI: hosted payment
-    PSP->>WH: POST webhook
-    WH->>WH: verify signature + parse orderReference
-    WH->>DB: mark paid / failed
-    WH->>WH: purpose handler (store / membership / news / wallet)`}
+    UI->>API: create checkout purpose amount
+    API->>PC: createCheckout ctx
+    PC->>DB: createPending orderReference
+    PC->>PC: normalizeCheckoutResult
+    PC-->>UI: redirect navigate_or_form_post
+    UI->>UI: followCheckoutResult
+    UI->>PSP: form_post or location navigate
+    Note over UI,PSP: returnUrl is browser UX only
+    PSP->>WH: POST webhook Approved_or_capture
+    WH->>WH: verify signature parse orderReference
+    WH->>DB: markPaid
+    WH->>WH: purpose handler store membership news wallet`}
 </Mermaid>
+
+## Browser handoff (`CheckoutRedirect`)
+
+Conductor-owned DTO on `CreateCheckoutResult` — clients must not import WayForPay-branded helpers.
+
+<Code language="typescript" title="lib/payments/conductor/types.ts">
+{`type CheckoutRedirectMode = 'navigate' | 'form_post'
+
+interface CheckoutRedirect {
+  mode: CheckoutRedirectMode
+  url: string
+  fields?: Record<string, string | string[]> // required for form_post
+}
+
+// CreateCheckoutResult.redirect preferred;
+// paymentUrl / paymentFields mirrored for legacy APIs (deprecated)`}
+</Code>
+
+| Mode | When | Client |
+|------|------|--------|
+| `form_post` | WayForPay HPP (`secure.wayforpay.com/pay`) | Hidden form POST via `followCheckoutRedirect` |
+| `navigate` | Stripe Checkout Session, PayPal approve URL, WFP invoiceUrl | `window.location.href` |
+
+Helpers:
+
+- `navigateCheckoutRedirect(url)` / `formPostCheckoutRedirect(url, fields)`
+- `normalizeCheckoutResult(result)` — always applied at the end of `PaymentConductor.createCheckout`
+- Browser: `lib/payments/checkout-redirect.ts` → `followCheckoutRedirect` / `followCheckoutResult`
+
+WayForPay HPP **rejects GET** query-string “payment URLs” (`Bad Request` / *This page requires only POST data*). Build fields in `lib/payments/wayforpay-hpp.ts`.
 
 ## Core modules
 
 | Module | Path | Responsibility |
 |--------|------|----------------|
-| Conductor | `lib/payments/conductor/payment-conductor.ts` | `createCheckout`, `handleWebhook`, transaction lookup |
+| Conductor | `lib/payments/conductor/payment-conductor.ts` | `createCheckout` (+ normalize), `handleWebhook`, transaction lookup |
+| Types | `lib/payments/conductor/types.ts` | Purposes, rails, `CheckoutRedirect`, `normalizeCheckoutResult` |
+| Client handoff | `lib/payments/checkout-redirect.ts` | Unbranded `followCheckoutResult` |
+| WFP HPP | `lib/payments/wayforpay-hpp.ts` | Sign + `form_post` fields |
 | Dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Verify PSP payloads; route to purpose handlers |
-| Types | `lib/payments/conductor/types.ts` | `PaymentPurpose`, `PaymentRail`, `PaymentProcessorId`, statuses |
 | Order references | `lib/payments/order-reference.ts` | Build / parse idempotent `orderReference` strings |
 | Ledger service | `lib/payments/payment-transaction-service.ts` | CRUD + `listByUserId` on `payment_transactions` |
 | Config | `lib/payments/payment.config.ts` | `getPaymentProvider`, `isRailEnabled`, webhook URL helpers |
@@ -80,27 +119,33 @@ PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL 
 | `store_order` | `conductor/handlers/store-order.ts` (+ Stripe: `store-order-stripe.ts`) |
 | `membership_upgrade` | `conductor/handlers/membership-upgrade.ts` (+ Stripe: `membership-upgrade-stripe.ts`) |
 | `news_promotion` | `conductor/handlers/news-promotion.ts` |
-| `wallet_topup` | `conductor/handlers/wallet-topup.ts` |
+| `wallet_topup` | `conductor/handlers/wallet-topup.ts` (+ Stripe / PayPal capture handlers) |
+| `native_token_onramp` | `conductor/handlers/native-token-onramp.ts` (+ Stripe: `native-token-onramp-stripe.ts`) |
 
 ### Processors
 
-| Processor | File | Rail |
-|-----------|------|------|
-| WayForPay | `processors/wayforpay.processor.ts` | `merchant_redirect` |
-| Stripe | `processors/stripe.processor.ts` | `merchant_redirect` |
-| Internal credit | `processors/internal-credit.processor.ts` | `internal_credit` |
-| Native token | `processors/native-token.processor.ts` | `native_token` |
-| PayPal (stub) | `processors/paypal.processor.ts` | `merchant_redirect` (Phase S8 — `PAYPAL_NOT_IMPLEMENTED`) |
+| Processor | File | Browser mode |
+|-----------|------|----------------|
+| WayForPay | `processors/wayforpay.processor.ts` | HPP `form_post` (or invoice `navigate`) |
+| Stripe | `processors/stripe.processor.ts` | `navigate` (Checkout Session URL) |
+| PayPal | `processors/paypal.processor.ts` | `navigate` (Orders v2 approve URL) |
+| Internal credit | `processors/internal-credit.processor.ts` | Sync settle (no redirect) |
+| Native token | `processors/native-token.processor.ts` | Sync settle (no redirect) |
 
-Signature verification: `processors/wayforpay-verify.ts`, Stripe verify inside `stripe.processor.ts`. `internal_credit` and `native_token` settle synchronously inside `createCheckout` (no external webhook).
+Processor resolution in `createCheckout`:
 
-Legacy helpers (`lib/payments/wayforpay-service.ts`, `wayforpay-store-service.ts`) remain for specialized store/membership form building; **new route entry points** go through the conductor. Store route `POST /api/store/payments/wayforpay` uses `PaymentConductor.createCheckout({ purpose: 'store_order' })` — `initiateStorePayment` is only called from inside the WayForPay processor.
+1. `rail === 'internal_credit'` / `'native_token'` → that processor  
+2. Else `metadata.processor` if `paypal` \| `stripe` \| `wayforpay`  
+3. Else `getPaymentProvider(purpose)` (`PAYMENT_*_PROCESSOR` / `PAYMENT_DEFAULT_PROCESSOR`)
+
+Legacy helpers (`wayforpay-service.ts`, `wayforpay-store-service.ts`) remain for specialized form building; **new route entry points** go through the conductor.
 
 ## Types
 
 <Code language="typescript" title="lib/payments/conductor/types.ts (summary)">
 {`type PaymentPurpose =
-  | 'store_order' | 'membership_upgrade' | 'news_promotion' | 'wallet_topup'
+  | 'store_order' | 'membership_upgrade' | 'news_promotion'
+  | 'wallet_topup' | 'native_token_onramp'
 
 type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
 type PaymentProcessorId =
@@ -111,7 +156,7 @@ type PaymentTransactionStatus =
   | 'failed' | 'cancelled' | 'refunded'`}
 </Code>
 
-`CreateCheckoutContext` carries `purpose`, optional `rail`, `userId`, `amount`, `currency`, `returnUrl`, and purpose-specific fields (`orderId`, `articleId`, `targetRole`, etc.).
+`CreateCheckoutContext` carries `purpose`, optional `rail`, `userId`, `amount`, `currency`, `returnUrl`, `metadata`, and purpose-specific fields (`orderId`, `articleId`, `targetRole`, etc.).
 
 ## Configuration surface
 
@@ -122,7 +167,7 @@ type PaymentTransactionStatus =
 - `getDefaultStoreCurrencySymbol()` — `PAYMENT_FIAT_CURRENCY` (default `USD`)
 - `getWebhookUrl(provider)` — `${site}/api/payments/${provider}/webhook`
 
-Env keys per purpose: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` | `stripe`).
+Env keys per purpose: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`, `PAYMENT_NATIVE_TOKEN_ONRAMP_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` | `stripe` | `paypal`).
 
 WayForPay env SSOT (no `WAYFORPAY_MERCHANT_ID`):
 
@@ -160,7 +205,7 @@ JSON `data` fields (via `payment-transaction-service.ts`): `purpose`, `processor
 
 <Step>
 
-**WayForPay** — `dispatchWayForPayWebhook`: parse `orderReference` → verify signature → purpose handler (`store_order`, `membership_upgrade`, `news_promotion`, `wallet_topup`).
+**WayForPay** — `dispatchWayForPayWebhook`: parse `orderReference` → verify signature → purpose handler. Wallet: `transactionStatus === 'Approved'` before `addFiatUsd`.
 
 </Step>
 
@@ -172,11 +217,19 @@ JSON `data` fields (via `payment-transaction-service.ts`): `purpose`, `processor
 
 <Step>
 
-**Canonical routes:** `app/api/payments/wayforpay/webhook/route.ts`, `app/api/payments/stripe/webhook/route.ts`.
+**PayPal** — `dispatchPayPalWebhook` with transmission headers → Orders capture by purpose **or** Subscriptions lifecycle (`BILLING.SUBSCRIPTION.*`, `PAYMENT.SALE.COMPLETED`) via `membership-paypal-subscription.ts`.
+
+</Step>
+
+<Step>
+
+**Canonical routes:** `app/api/payments/wayforpay/webhook/route.ts`, `app/api/payments/stripe/webhook/route.ts`, `app/api/payments/paypal/webhook/route.ts` (when enabled).
 
 </Step>
 
 </Steps>
+
+`serviceUrl` / Stripe endpoint must be **public HTTPS**. Localhost cannot receive PSP callbacks — use a tunnel or staging for settlement tests.
 
 ## API routes
 
@@ -187,9 +240,12 @@ JSON `data` fields (via `payment-transaction-service.ts`): `purpose`, `processor
 | `POST` | `/api/store/payments/wayforpay` | Store redirect via conductor (`store_order`) |
 | `POST` | `/api/store/payments/stripe` | Store Stripe Checkout via conductor |
 | `POST` | `/api/store/payments/token` | Store native-token rail (`PAYMENT_STORE_ALLOW_TOKEN=true`) |
+| `POST` | `/api/store/payments/paypal` | Store PayPal Orders v2 (`NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL`) |
+| `POST` | `/api/store/payments/card` | Store card alias → WayForPay |
 | `GET` | `/api/store/payments/[orderId]/status` | Poll status |
 | `POST` | `/api/store/payments/credit` | Internal credit |
-| `POST` | `/api/membership/payment/paypal` | PayPal stub via conductor (Phase S8) |
+| `POST` | `/api/membership/payment/paypal` | Membership PayPal via SubscriptionConductor (Subscriptions v1 / Orders) |
+| `POST` | `/api/payments/paypal/webhook` | PayPal Orders + Subscriptions webhooks |
 | `GET` | `/api/admin/users/[id]/payments` | Admin Payments tab |
 | `POST` | `/api/membership/payment/token` | RING membership |
 | `POST` | `/api/news/promotion/submit` | News promotion checkout |
@@ -201,18 +257,22 @@ Deprecated aliases (delegate to canonical webhook):
 
 ### Wallet top-up entry
 
-`initiateCreditTopupPayment` (`app/_actions/wallet.ts`) → `PaymentConductor.createCheckout({ purpose: 'wallet_topup' })` → `createWalletTopupWayForPay` in `wayforpay.processor.ts` → `handleWalletTopupWayForPayWebhook` credits via `creditBalanceService.addFiatUsd`.
+`WalletConductor.initiateTopUp` / `initiateCreditTopupPayment` → `PaymentConductor.createCheckout({ purpose: 'wallet_topup' })` → processor from env or `metadata.processor` → UI `followCheckoutResult(result.redirect)` → webhook credits via `creditBalanceService.addFiatUsd`. Amount gate: 25–2000. Card tab omits `processor` (env SSOT); PayPal tab sets `processor=paypal`.
 
 ### Membership card entry
 
-`initiateMembershipPayment` card path → `PaymentConductor.createCheckout({ purpose: 'membership_upgrade' })`. PaymentModal tabs: native-token, card (live); PayPal = `FutureFeatureWidget` (`poolSlug: membership-paypal`).
+`initiateMembershipPayment` card path → `PaymentConductor.createCheckout({ purpose: 'membership_upgrade' })`. PaymentModal tabs: native-token, card, PayPal (flag-gated). Recurring PayPal: [SubscriptionConductor](/docs/features/subscriptions). Manage UI: `/membership/manage`.
 
 ## PaymentConductor API
 
 <Code language="typescript" title="payment-conductor.ts">
 {`export const PaymentConductor = {
   createCheckout(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult>
-  handleWebhook(provider: 'wayforpay' | 'stripe', request: Request): Promise<WebhookHandleResult>
+  // always returns normalizeCheckoutResult(...)
+  handleWebhook(
+    provider: 'wayforpay' | 'stripe' | 'paypal',
+    request: Request,
+  ): Promise<WebhookHandleResult>
   getTransactionByReference(orderReference: string)
 }`}
 </Code>
@@ -220,16 +280,21 @@ Deprecated aliases (delegate to canonical webhook):
 ## Security notes
 
 - **Never** store raw card numbers — hosted PSP checkout only
-- WayForPay: HMAC / merchant signature verification per flow
+- WayForPay: HMAC / merchant signature verification per flow; HPP via form POST only
 - Stripe: `stripe-signature` + `STRIPE_WEBHOOK_SECRET`
+- PayPal: webhook transmission signature verification
 - `WAYFORPAY_MERCHANT_PASSWORD` for `regularApi` only — never expose to client
 - Internal credit routes require authenticated session + ownership checks
+- Do not trust `returnUrl` query params for fulfillment
 
 </Audience>
 
 ## Related
 
 <Cards>
+  <Card title="WalletConductor architecture" href="/docs/architecture/wallet-conductor">
+    Custodial native + credit facade (top-up / desk / spend)
+  </Card>
   <Card title="Payment integration" href="/docs/customization/payment-integration">
     Operator PSP setup
   </Card>
@@ -239,20 +304,9 @@ Deprecated aliases (delegate to canonical webhook):
   <Card title="Admin API" href="/docs/api/admin">
     User Payments tab endpoint
   </Card>
-  <Card title="Migrations" href="/docs/getting-started/migrations">
-    Migration 004 ledger
-  </Card>
 </Cards>
 
 <FutureFeatureBacklog title="Backlog — payment architecture (TBD)">
-
-<FutureFeatureWidget
-  name="PayPal live Orders API capture"
-  description="paypal.processor.ts and POST /api/membership/payment/paypal are wired through PaymentConductor + SubscriptionConductor but return PAYPAL_NOT_IMPLEMENTED (Phase S8). Remaining: live PayPal Orders API + webhook signature verify."
-  implementationCost={120}
-  labels={['payments', 'paypal', 'architecture']}
-  poolSlug="membership-paypal"
-/>
 
 <FutureFeatureWidget
   name="Stripe Connect marketplace payouts"

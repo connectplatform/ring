@@ -189,6 +189,16 @@ async function executeDeskBuy(
     await updateDeskOrderStatus(orderId, 'chain_submitted')
 
     const transfer = await transferTokenFromTreasury(wallet!.address, ringRaw)
+    const { fetchOnChainTransactionDetails } = await import(
+      '@/features/wallet/lib/on-chain-tx-details'
+    )
+    const { getNativeTokenAddress } = await import('@/lib/ring-config-chain')
+    const onChain = await fetchOnChainTransactionDetails({
+      txHash: transfer.txHash,
+      chain: 'solana',
+      amountRaw: ringRaw.toString(),
+      mint: getNativeTokenAddress() || null,
+    })
     const wtxId = await createWalletTransaction({
       kind: 'desk_buy',
       userId,
@@ -196,9 +206,18 @@ async function executeDeskBuy(
       fromAddress: transfer.fromAddress,
       toAddress: wallet!.address,
       amount: nativeTokenRawToUi(ringRaw, getNativeTokenDecimals() ?? 8),
+      amountRaw: ringRaw.toString(),
       tokenSymbol: getNativeTokenSymbol(),
       chain: 'solana',
+      mint: getNativeTokenAddress() || null,
       deskOrderId: orderId,
+      status: onChain.status,
+      slot: onChain.slot ?? null,
+      blockTime: onChain.blockTime ?? null,
+      feeLamports: onChain.feeLamports ?? null,
+      explorerUrl: onChain.explorerUrl,
+      err: onChain.err ?? null,
+      onChainSnapshot: onChain.onChainSnapshot ?? null,
     })
 
     await updateDeskOrderStatus(orderId, 'settled', {

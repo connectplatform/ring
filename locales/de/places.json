@@ -1,0 +1,211 @@
+{
+  "title": "Tierfreundliche Orte",
+  "searchPlaces": "Orte suchen",
+  "nearbyPlaces": "Orte in der Nähe",
+  "addPlace": "Ort hinzufügen",
+  "editPlace": "Ort bearbeiten",
+  "deletePlace": "Ort löschen",
+  "noPlaces": "Keine Orte gefunden",
+  "discoverPlaces": "Tierfreundliche Orte in Ihrer Umgebung entdecken!",
+  "types": {
+    "restaurant": "Restaurant",
+    "cafe": "Café",
+    "park": "Park",
+    "hotel": "Hotel",
+    "vet_clinic": "Tierarztpraxis",
+    "pet_store": "Zoohandlung",
+    "grooming": "Grooming-Salon",
+    "training": "Trainingszentrum",
+    "daycare": "Tagesbetreuung",
+    "dog_park": "Hundewiese",
+    "beach": "Strand",
+    "hiking_trail": "Wanderweg",
+    "other": "Sonstiges"
+  },
+  "priceRanges": {
+    "$": "Günstig",
+    "$$": "Mittel",
+    "$$$": "Teurer",
+    "$$$$": "Luxus"
+  },
+  "amenities": {
+    "title": "Ausstattung",
+    "water_bowls": "Wassernäpfe",
+    "pet_menu": "Speisekarte für Tiere",
+    "waste_bags": "Beutelspender",
+    "leash_required": "Leinenpflicht",
+    "off_leash_area": "Zone ohne Leine",
+    "pet_grooming": "Grooming",
+    "pet_parking": "Tier-Parkplatz",
+    "outdoor_seating": "Außenbereich",
+    "shade": "Schattige Plätze",
+    "pet_playground": "Tier-Spielplatz"
+  },
+  "petPolicy": {
+    "title": "Haustier-Regeln",
+    "allowsDogs": "Hunde erlaubt",
+    "allowsCats": "Katzen erlaubt",
+    "allowsSmallPets": "Kleintiere erlaubt",
+    "sizeLimit": "Maximalgröße",
+    "indoorAllowed": "Zutritt innen",
+    "outdoorAllowed": "Zutritt außen",
+    "leashRequired": "Leine erforderlich",
+    "sizeLimits": {
+      "small": "Nur kleine Tiere",
+      "medium": "Bis mittelgroß",
+      "large": "Bis groß",
+      "any": "Alle Größen willkommen"
+    }
+  },
+  "fields": {
+    "name": "Name des Ortes",
+    "placeType": "Typ",
+    "description": "Beschreibung",
+    "address": "Adresse",
+    "addressLine1": "Straße, Nr.",
+    "addressLine2": "Wohnung, Suite usw.",
+    "city": "Stadt",
+    "state": "Bundesland / Region",
+    "postalCode": "PLZ",
+    "country": "Land",
+    "phone": "Telefon",
+    "email": "E-Mail",
+    "website": "Webseite",
+    "workingHours": "Öffnungszeiten",
+    "entryFee": "Eintritt",
+    "currency": "Währung",
+    "priceRange": "Preisklasse",
+    "photos": "Fotos",
+    "primaryPhoto": "Hauptfoto",
+    "coverPhoto": "Titelbild",
+    "isVerified": "Verifiziert",
+    "isActive": "Aktiv",
+    "visibleOnMap": "Auf Karte sichtbar"
+  },
+  "workingHours": {
+    "title": "Öffnungszeiten",
+    "monday": "Montag",
+    "tuesday": "Dienstag",
+    "wednesday": "Mittwoch",
+    "thursday": "Donnerstag",
+    "friday": "Freitag",
+    "saturday": "Samstag",
+    "sunday": "Sonntag",
+    "open": "Geöffnet",
+    "close": "Schließt",
+    "closed": "Geschlossen",
+    "24hours": "24 Stunden geöffnet",
+    "allWeek": "Durchgehend"
+  },
+  "subscription": {
+    "title": "Abo-Status",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "gracePeriod": "Kulanzfrist",
+    "suspended": "Gesperrt",
+    "manageSubscription": "Abo verwalten",
+    "renewSubscription": "Abo verlängern",
+    "upgradeSubscription": "Plan upgraden",
+    "subscriptionRequired": "Aktives Abo nötig, um auf der Karte sichtbar zu sein"
+  },
+  "vendor": {
+    "title": "Händlerstatus",
+    "isVendor": "Als Verkäufer aktiv",
+    "becomeVendor": "Verkäufer werden",
+    "vendorTier": "Verkäufer-Stufe",
+    "trustScore": "Vertrauenswert",
+    "tiers": {
+      "NEW": "Neu",
+      "BASIC": "Basis",
+      "VERIFIED": "Verifiziert",
+      "TRUSTED": "Vertrauenswürdig",
+      "PREMIUM": "Premium"
+    }
+  },
+  "map": {
+    "title": "Kartenansicht",
+    "listView": "Listenansicht",
+    "nearMe": "In meiner Nähe",
+    "searchRadius": "Suchradius",
+    "getDirections": "Route",
+    "currentLocation": "Aktueller Standort",
+    "distance": "Entfernung",
+    "showOnMap": "Auf Karte zeigen"
+  },
+  "search": {
+    "placeholder": "Suche nach Name, Typ oder Ort …",
+    "filterByType": "Nach Typ filtern",
+    "filterByAmenities": "Nach Ausstattung filtern",
+    "filterByPetPolicy": "Nach Haustier-Regeln filtern",
+    "radius": "Radius",
+    "withinKm": "innerhalb von {{km}} km",
+    "sortBy": "Sortieren nach",
+    "sortOptions": {
+      "distance": "Entfernung",
+      "rating": "Bewertung",
+      "newest": "Neueste",
+      "popular": "Beliebteste"
+    }
+  },
+  "profile": {
+    "title": "Ortprofil",
+    "viewProfile": "Profil anzeigen",
+    "editProfile": "Profil bearbeiten",
+    "shareProfile": "Profil teilen",
+    "reportPlace": "Ort melden",
+    "claimPlace": "Ort beanspruchen",
+    "stats": "Statistik",
+    "totalVisits": "Besuche gesamt",
+    "totalReviews": "Bewertungen gesamt",
+    "averageRating": "Durchschnittsnote"
+  },
+  "actions": {
+    "savePlace": "Ort speichern",
+    "updatePlace": "Ort aktualisieren",
+    "cancelEdit": "Abbrechen",
+    "deletePlaceConfirm": "Diesen Ort wirklich löschen?",
+    "uploadPhoto": "Foto hochladen",
+    "setAsPrimary": "Als Hauptfoto",
+    "setCover": "Als Titelbild",
+    "removePhoto": "Foto entfernen",
+    "addToFavorites": "Zu Favoriten",
+    "removeFromFavorites": "Aus Favoriten entfernen",
+    "checkIn": "Einchecken",
+    "writeReview": "Bewertung schreiben"
+  },
+  "validation": {
+    "nameRequired": "Name des Ortes erforderlich",
+    "typeRequired": "Ortstyp erforderlich",
+    "addressRequired": "Adresse erforderlich",
+    "locationRequired": "Koordinaten erforderlich",
+    "phoneInvalid": "Ungültige Telefonnummer",
+    "emailInvalid": "Ungültige E-Mail",
+    "websiteInvalid": "Ungültige Webadresse",
+    "photosLimit": "Maximal 20 Fotos"
+  },
+  "success": {
+    "created": "Ort angelegt.",
+    "updated": "Ort aktualisiert.",
+    "deleted": "Ort gelöscht",
+    "photoUploaded": "Foto hochgeladen",
+    "photoRemoved": "Foto entfernt",
+    "addedToFavorites": "Zu Favoriten hinzugefügt",
+    "removedFromFavorites": "Aus Favoriten entfernt",
+    "checkedIn": "Check-in erfolgreich"
+  },
+  "errors": {
+    "loadFailed": "Orte konnten nicht geladen werden",
+    "saveFailed": "Ort konnte nicht gespeichert werden",
+    "deleteFailed": "Ort konnte nicht gelöscht werden",
+    "uploadFailed": "Foto-Upload fehlgeschlagen",
+    "locationAccessDenied": "Standortzugriff verweigert. Bitte Ortungsdienste aktivieren.",
+    "geolocationNotSupported": "Geolokalisierung wird von diesem Browser nicht unterstützt"
+  },
+  "nearby": {
+    "title": "Orte in der Nähe",
+    "searching": "Suche läuft …",
+    "foundPlaces": "{{count}} Orte innerhalb von {{km}} km",
+    "noPlacesFound": "Keine tierfreundlichen Orte in der Nähe. Suchradius vergrößern.",
+    "locationPermission": "Bitte Standortfreigabe erteilen, um Orte in der Nähe zu finden"
+  }
+}

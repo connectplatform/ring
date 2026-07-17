@@ -38,7 +38,10 @@ export interface CommentFilters {
   status?: 'active' | 'hidden' | 'deleted'
   authorId?: string
   limit?: number
+  /** @deprecated Prefer startAfter cursor */
   offset?: number
+  /** Cursor = last comment id from previous page */
+  startAfter?: string
   sortBy?: 'createdAt' | 'likes' | 'replies'
   sortOrder?: 'asc' | 'desc'
 }

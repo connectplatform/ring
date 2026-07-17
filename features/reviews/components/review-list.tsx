@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * @deprecated DEAD PATH / QUARANTINED (2026-07-12)
+ * Not imported by any live route. Store PDP uses components/store/product-reviews.tsx
+ * with server props. Do not wire useCursorFeed here until a real reviews list page ships.
+ * CursorFeedModuleId `reviews` remains deferred.
+ */
+
 import React, { useTransition, useCallback, useState } from 'react';
 import { Review, ReviewFilters, ReviewSort } from '@/types/reviews';
 import { ReviewCard } from './review-card';

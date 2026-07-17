@@ -208,6 +208,7 @@ export default function SendTokens({ locale, embedded = false, onTransactionComp
       fd.set('amount', amountSnapshot)
       if (contactUserId) fd.set('contactUserId', contactUserId)
       if (ringContactId) fd.set('ringContactId', ringContactId)
+      if (recipientLabel) fd.set('contactDisplayName', recipientLabel)
       if (formData.notes.trim()) fd.set('notes', formData.notes.trim())
 
       const data = await transferNativeTokens(fd)

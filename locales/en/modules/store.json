@@ -363,7 +363,15 @@
         "tryAgain": "Try Again",
         "checkStatus": "Check Order Status"
       }
-    }
+    },
+    "creditBalance": "Credit balance",
+    "creditBalanceDescription": "Pay with account credit units (points)",
+    "nativeToken": "Native token",
+    "nativeTokenDescription": "Pay with on-chain native token",
+    "paypalPayment": "PayPal",
+    "paypalPaymentDescription": "Pay with PayPal (international)",
+    "paymentMethodNotAvailable": "This payment method is not available yet."
   },
-  "loading": "Loading more products…"
+  "loading": "Loading more products…",
+  "shareEarnHint": "Invite others and earn referral rewards"
 }

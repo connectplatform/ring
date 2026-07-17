@@ -139,6 +139,21 @@ export async function approveMainPagePublication(
     actorId,
   })
 
+  // Reward user-authored stories only (skip AI/system drafts without authorId)
+  const authorId = String(data.authorId ?? data.author_id ?? '').trim()
+  if (authorId && authorId !== 'system' && authorId !== 'ai') {
+    void import('@/lib/wallet/reward-credit-service')
+      .then(({ enqueueRewardCreditAddEvent }) =>
+        enqueueRewardCreditAddEvent({
+          userId: authorId,
+          trigger: 'newsStoryApproved',
+          objectType: 'news',
+          objectId: articleId,
+        }),
+      )
+      .catch(() => undefined)
+  }
+
   void import('@/features/news/services/article-translation')
     .then(({ generateArticleTranslations }) => generateArticleTranslations(articleId, actorId))
     .catch((error) => {

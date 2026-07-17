@@ -1,42 +1,46 @@
 'use client'
 
+/**
+ * @deprecated (2026-07-16) — Orphaned when profile wallet tab was removed.
+ *
+ * Historical use: mounted on /profile wallet tab above WalletSection.
+ * Showed membership subscription status + monthly spend limits.
+ *
+ * Superseded on /wallet by WalletBalanceHero + credit context subscription
+ * fields on CreditBalanceItemWidget / membership rails — not this widget.
+ *
+ * Stub monthly limits (always "1000") must NOT be shown until real policy
+ * exists (credit-balance API + publishBalanceUpdate still emit stubs).
+ * This component now only surfaces subscription status if remounted.
+ */
+
 import { useTranslations } from 'next-intl'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { getClientCreditFiatCurrency } from '@/lib/ring-config-client'
 import { DavinciGlassStatBlock } from '@/lib/ui/davinci'
+import { Skeleton } from '@/components/ui/skeleton'
 
-/**
- * Profile widgets: membership subscription status + account spend limits.
- * Moved from /wallet — credits are fiat USD, limits shown in credit currency context.
- */
+/** @deprecated See file header — prefer /wallet WalletBalanceHero. */
 export default function ProfileAccountTokenWidgets() {
   const t = useTranslations('modules.wallet')
-  const { subscription, limits, isLoading } = useCreditBalanceContext()
-  const creditCurrency = getClientCreditFiatCurrency()
+  const { subscription, isLoading } = useCreditBalanceContext()
 
-  if (isLoading && !subscription && !limits) {
+  if (isLoading && !subscription) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
-        <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
+        <Skeleton className="h-24 rounded-xl" />
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
       <DavinciGlassStatBlock
         value={subscription?.active ? t('active') : t('inactive')}
         label={t('subscription')}
         hint={`${t('status')}: ${subscription?.active ? t('active') : t('inactive')}`}
         beamOnHover
       />
-      <DavinciGlassStatBlock
-        value={`${limits?.remaining_monthly_limit || '0'} ${creditCurrency}`}
-        label={t('monthlyLimits')}
-        hint={t('remaining')}
-        beamOnHover
-      />
+      {/* monthlyLimits tile removed — stub remaining_monthly_limit until spend policy SSOT */}
     </div>
   )
 }

@@ -184,7 +184,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      redirect: result.redirect,
       paymentUrl: result.paymentUrl,
+      paymentFields: result.paymentFields,
       wayforpayOrderId: result.orderReference,
       orderId: order.id
     })

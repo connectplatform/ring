@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 interface RingCenterPaneOverlayProps {
@@ -10,6 +10,8 @@ interface RingCenterPaneOverlayProps {
   children: ReactNode
   className?: string
   ariaLabel?: string
+  /** Escape / programmatic close — parent owns open state */
+  onClose?: () => void
 }
 
 /**
@@ -21,62 +23,82 @@ export function RingCenterPaneOverlay({
   children,
   className,
   ariaLabel,
+  onClose,
 }: RingCenterPaneOverlayProps) {
-  // Holds the DOM node to portal into
   const [panel, setPanel] = useState<HTMLElement | null>(null)
+  const previouslyFocused = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    // If overlay not open, clear panel reference
-    if (!open) {
-      setPanel(null)
-      return
-    }
-    // Find all content panels
+    if (!open) return
+
+    previouslyFocused.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+
     const panels = document.querySelectorAll('.ring-content-panel')
-    // Use the last content panel in case of nesting, else fallback to the app frame
     const target =
       panels.length > 0
         ? (panels[panels.length - 1] as HTMLElement)
         : (document.querySelector('.ring-app-frame') as HTMLElement | null)
     setPanel(target)
-    // TODO: Use React 19's useSyncExternalStore if panel DOM mutation subscriptions are a concern
+
+    return () => {
+      previouslyFocused.current?.focus?.()
+    }
   }, [open])
 
   useEffect(() => {
-    // When overlay is open, lock overflow in target panel to prevent background scroll
     if (!open || !panel) return
     const prevOverflow = panel.style.overflow
     panel.style.overflow = 'hidden'
-    // Restore overflow when unmounting or closing
     return () => {
       panel.style.overflow = prevOverflow
     }
-    // TODO: If React 19 supports layout effects with DOM, consider useInsertionEffect here for earlier style lock
   }, [open, panel])
 
-  // Don't render if not open or if portal target unavailable
-  if (!open || !panel) return null
+  useEffect(() => {
+    if (!open || !onClose) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!panel) return null
 
   return createPortal(
-    <motion.div
-      className={cn(
-        'absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[inherit]',
-        'davinci-panel-surface',
-        className,
-      )}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      // Accessibility props for dialog overlay
-      role="dialog"
-      aria-modal="true"
-      aria-label={ariaLabel}
-      data-modal="true"
-    >
-      {children}
-    </motion.div>,
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="ring-center-pane-overlay"
+          className={cn(
+            'absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[inherit]',
+            className,
+          )}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={ariaLabel}
+          data-modal="true"
+        >
+          <div
+            className="pointer-events-none absolute inset-0 bg-background/40 backdrop-blur-[2px]"
+            aria-hidden
+          />
+          <div
+            className={cn(
+              'relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden',
+              'davinci-panel-surface',
+            )}
+          >
+            {children}
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>,
     panel,
   )
-  // TODO: Use React 19's createPortal from 'react' instead of 'react-dom' once stable
 }

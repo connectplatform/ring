@@ -5,15 +5,22 @@ import ringConfig from '@/ring-config.json'
 import type { BaseChainConfig, EnabledChains, EvmChainConfig, SolanaChainConfig } from '@/lib/ring-config-chain'
 
 // =========================
-// Preset types for product UIs
+// Vertical presets (Tier-1 ring-config + Tier-2 features/*/presets)
 // =========================
 
-// Defines allowed string values for product fields preset
+/**
+ * Vertical preset id — selects typed catalogs under features/…/presets/{id}.ts
+ * Names registered in ENTITIES_PRESET_REGISTRY (and product field/badge maps).
+ */
+export type VerticalPresetId = 'platform' | 'agricultural'
+
+/** @deprecated Prefer VerticalPresetId for productFields.preset — this aliases store category strings historically. */
 export type ProductFieldsPreset = (typeof ringConfig.productFieldsPresets.platform.storeCategories)[number]
 
-// TODO: Consider extending for more flexible product taxonomies if scaling verticals.
+/** Store category string from productFieldsPresets.<vertical>.storeCategories */
+export type StoreCategoryId = ProductFieldsPreset
 
-// Defines allowed string values for product badges preset
+/** @deprecated Prefer VerticalPresetId for productBadges.preset — historically badge token strings. */
 export type ProductBadgesPreset = (typeof ringConfig.productBadgesPresets.platform.productBadges)[number]
 
 export type SupportedCurrencies = (typeof ringConfig.currencies)[number]['symbol'];
@@ -514,6 +521,28 @@ export type { NativeChain, SupportedChains, TokenDeskConfig } from './ring-confi
 
 
 // =========================
+// Storage / WebP derivative SSOT
+// =========================
+
+/** Backend for persistent WebP sibling generation (not Next.js image optimizer). */
+export type WebpDerivativeProvider = 'off' | 'sharp' | 'ringbase'
+
+export interface WebpDerivativeConfig {
+  /** Default `off` — sharp is never imported unless explicitly set to `sharp`. */
+  provider?: WebpDerivativeProvider
+  maxEdge?: number
+  quality?: number
+}
+
+export interface StorageConfig {
+  provider?: string
+  maxFileSize?: string
+  allowedMimeTypes?: string[]
+  note?: string
+  webpDerivative?: WebpDerivativeConfig
+}
+
+// =========================
 // Master (main SSOT) RingConfig interface
 // =========================
 
@@ -536,6 +565,15 @@ export interface RingConfig {
     email?: string              // Contact email
     partners?: Array<{ name: string; logo: string; url?: string }> // Partner logos/links
   }
+  /**
+   * Public /calculator feature shell (Tier B tool page).
+   * SSOT is top-level — do not nest under features.
+   */
+  calculator?: {
+    enabled?: boolean
+    /** Preset id under features/calculator/presets/{id}.ts (e.g. project, deployment) */
+    presetId?: string
+  }
   domains: {
     production?: string              // Main production domain (https)
     staging?: string                 // Staging/test domain
@@ -551,9 +589,6 @@ export interface RingConfig {
   features: Record<string, unknown> & {
     expertServicesMarketplace?: boolean   // Example feature flag (marketplace)
     roadmap?: {
-      enabled?: boolean
-    }
-    calculator?: {
       enabled?: boolean
     }
     news?: {
@@ -649,7 +684,8 @@ export interface RingConfig {
   }
   legal?: LegalConfig                  // Company legal/DMCA/disclosure metadata
   database?: Record<string, unknown>   // DB config (connection, engine, pub/sub) – schema left open for infra team
-  storage?: Record<string, unknown>    // Storage (object/file) config – infra specific
+  /** Object/file storage SSOT — provider + optional WebP sibling derive strategy. */
+  storage?: StorageConfig
   security?: Record<string, unknown>   // Platform security (auth, secrets, login policies)
   deployment?: DeploymentConfig        // Ops/config (see above)
   integrations?: Record<string, unknown> & {
@@ -661,6 +697,9 @@ export interface RingConfig {
   credits?: {
     rewards?: {
       events?: Record<RewardCreditAddEventTrigger, RewardCreditAddEventRule>
+      minRole?: string
+      multipliers?: Record<string, number>
+      dailyEarnCap?: Record<string, number>
     }
     unit?: string
     fiatUnit?: string
@@ -669,12 +708,20 @@ export interface RingConfig {
    * Fiat credit ledger SSOT (singular key used by ring-config.json).
    * Points are denominated in store.defaultCurrency; unitToDefaultCurrency is the
    * multiplier for ledger `usd_equivalent` / accounting (typically 1 = 1:1).
+   * Write-path for activity rewards: credit.rewards (events + multipliers + caps).
    */
   credit?: {
     creditUnitLabel?: string
     /** How many units of store.defaultCurrency one credit point equals (usually 1). */
     unitToDefaultCurrency?: number
+    /** @deprecated Prefer credit.rewards.events — kept for dual-read during migration. */
     creditAddEvents?: Record<string, unknown>
+    rewards?: {
+      minRole?: string
+      multipliers?: Record<string, number>
+      dailyEarnCap?: Record<string, number>
+      events?: Record<RewardCreditAddEventTrigger, RewardCreditAddEventRule>
+    }
     desk?: TokenDeskConfig & { pointsPerNativeToken?: number }
   }
   tokens?: {
@@ -710,12 +757,29 @@ export interface RingConfig {
   }
   supportedChains?: SupportedChains[]  // Active crypto/token currencies (e.g. ['RING'])
   supportedCurrencies?: SupportedCurrencies[]    // Active fiat currencies (e.g. ['USD', 'UAH'])
+  /**
+   * Entities vertical — selects features/entities/presets/{preset}.ts
+   * Tier-1 SSOT key; do not put full catalogs in ring-config.
+   */
+  entities?: {
+    preset?: VerticalPresetId | string
+  }
+  /** Home landing preset — selects components/pages/home-presets/{preset}.tsx (default "platform") */
+  home?: {
+    preset?: 'platform' | 'mvm-landing' | string
+  }
   productFields?: {
-    preset?: ProductFieldsPreset                   // See above string/preset type
+    /** Vertical id: platform | agricultural | … */
+    preset?: VerticalPresetId | string
   }
   productBadges?: {
-    preset?: ProductBadgesPreset
+    /** Vertical id: platform | agricultural | … */
+    preset?: VerticalPresetId | string
   }
+  /** Tier-1 maps: productFieldsPresets.<vertical>.storeCategories */
+  productFieldsPresets?: Record<string, { storeCategories?: string[] }>
+  /** Tier-1 maps: productBadgesPresets.<vertical>.productBadges */
+  productBadgesPresets?: Record<string, { productBadges?: string[] }>
   /** Clone install defaults for AI matcher + auto-approval (runtime: platform_settings.ai). */
   matcher?: RingMatcherConfig
   /** Future-feature public pool thresholds (docs backlog chip-ins / likes). */

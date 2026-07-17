@@ -1,29 +1,77 @@
+import type {
+  ProjectExternalId,
+  ProjectHostingId,
+  ProjectModuleId,
+  ProjectNicheId,
+  ProjectScaleId,
+} from './presets/project'
+import type { CalculatorRates } from './rates'
+
 export interface CalculatorInputs {
-  useCase: string
-  userScale: string
-  modules: string[]
-  database: string
-  tokenEconomy: boolean
-  region: string
+  niche: ProjectNicheId | ''
+  scale: ProjectScaleId | ''
+  modules: ProjectModuleId[]
+  externals: ProjectExternalId[]
+  hosting: ProjectHostingId | ''
+  branding: boolean
+  /** When true, integrator request is advertised on order activation. */
+  needHumanDev: boolean
 }
 
 export interface CalculatorResults {
+  /** Internal credit-point totals (SSOT for display conversion). */
+  oneTimePoints: number
+  monthlyPoints: number
+  alaCartePoints: number
+  packSavingsPoints: number
+  /** Fiat (store.defaultCurrency) mirrors for convenience. */
+  oneTimeFiat: number
+  monthlyFiat: number
+  alaCarteFiat: number
+  packSavingsFiat: number
+  /** Native token mirrors. */
+  oneTimeNative: number
+  monthlyNative: number
   estimatedHours: number
   complexity: 'simple' | 'medium' | 'complex'
-  recommendedConfig: {
-    database: string
-    hosting: string
-    features: string[]
-  }
-  ringTokenEstimate: number
-  hostingCostMonthly: number
   customizationComplexity: number
+  recommendedConfig: {
+    niche: string
+    hosting: string
+    modules: string[]
+    externals: string[]
+    needHumanDev: boolean
+  }
   timeline: {
     week1: string[]
     week2: string[]
     week3: string[]
     week4: string[]
   }
+  rates: CalculatorRates
+}
+
+export interface ProjectCalculationLabels {
+  nicheName: string
+  hostingLabel: string
+  moduleNames: Record<string, string>
+  externalNames: Record<string, string>
+}
+
+export interface ProjectCalculationContext {
+  labels: ProjectCalculationLabels
+  timelineTasks: Record<'simple' | 'medium' | 'complex', CalculatorResults['timeline']>
+  rates: CalculatorRates
+}
+
+/** @deprecated Legacy deployment calculator shapes — kept for preset/deployment.ts */
+export interface DeploymentCalculatorInputs {
+  useCase: string
+  userScale: string
+  modules: string[]
+  database: string
+  tokenEconomy: boolean
+  region: string
 }
 
 export interface CalculatorModuleDef {
@@ -60,4 +108,5 @@ export interface DeploymentCalculationContext {
   regions: CalculatorRegionDef[]
   userScales: CalculatorUserScaleDef[]
   timelineTasks: Record<'simple' | 'medium' | 'complex', CalculatorResults['timeline']>
+  rates: CalculatorRates
 }

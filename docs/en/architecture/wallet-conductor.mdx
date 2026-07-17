@@ -1,0 +1,279 @@
+---
+title: WalletConductor architecture
+description: Facade methods, thin adapters, credit vs native rates, PaymentConductor handoff, and verified /api/wallet routes — money counterpart to PaymentConductor architecture
+last_modified: "2026-07-14"
+audience: both
+---
+
+# WalletConductor architecture
+
+WalletConductor is Ring Platform's **server-only money facade** for custodial native-token wallets and the fiat credit ledger. Thin adapters call the conductor; PaymentConductor owns PSP checkout for `wallet_topup` and `native_token_onramp`. Browser handoff after top-up is Conductor `redirect` + `followCheckoutResult` — see [PaymentConductor architecture](/docs/architecture/payment-conductor).
+
+**Operator / product guide:** [WalletConductor](/docs/features/wallet-conductor) · [Wallet](/docs/features/wallet) · [PaymentConductor](/docs/architecture/payment-conductor)
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Feature overview (value + checklist): [WalletConductor](/docs/features/wallet-conductor). HTTP/action inventory: [Wallet API](/docs/api/wallet).
+</Callout>
+
+<Cards>
+  <Card title="Feature overview" href="/docs/features/wallet-conductor">
+    Capabilities, two-rate SSOT, operator checklist
+  </Card>
+  <Card title="PaymentConductor architecture" href="/docs/architecture/payment-conductor">
+    Ledger, webhooks, purpose handlers
+  </Card>
+  <Card title="Wallet API" href="/docs/api/wallet">
+    Actions and HTTP surface
+  </Card>
+</Cards>
+
+<Audience for="founder">
+
+## Why this architecture matters
+
+- **One money spine** — top-up, Token Desk, custodial send, ad-hoc credit spend, and NFT market buy share one facade instead of scattered PSP/ledger calls.
+- **Clear product split** — card top-up buys **credit points**; desk converts points ↔ **native**; confidential+ onramp buys treasury native without adding points.
+- **Safe operator knobs** — desk oracle (`ringPerUsd`) never rewrites store checkout or ad-hoc credit spend math (`credit.unitToDefaultCurrency`).
+- **Boundary by design** — store/membership checkout and external EVM `POST /api/wallet/transfer` stay outside WalletConductor so clones do not mix rails accidentally.
+
+</Audience>
+
+<Audience for="developer">
+
+## Request flow
+
+<Mermaid title="WalletConductor — adapter → facade → deps">
+{`flowchart LR
+  subgraph adapters["Thin adapters"]
+    SA["app/_actions/wallet.ts"]
+    API["/api/wallet/*"]
+    NFT["nft-market actions"]
+    AUTH["auth.ts OAuth"]
+  end
+
+  WC["WalletConductor\nfeatures/wallet/conductor"]
+
+  subgraph deps["Delegates"]
+    PC["PaymentConductor"]
+    CBS["creditBalanceService"]
+    DESK["desk-service"]
+    XFER["native-token-transfer-service"]
+    EW["ensure-wallet"]
+    SOL["SolanaMarketClient"]
+  end
+
+  SA --> WC
+  API --> WC
+  NFT --> WC
+  AUTH --> WC
+  WC --> PC
+  WC --> CBS
+  WC --> DESK
+  WC --> XFER
+  WC --> EW
+  WC --> SOL`}
+</Mermaid>
+
+## Core modules
+
+| Module | Path | Responsibility |
+|--------|------|----------------|
+| Facade | `features/wallet/conductor/wallet-conductor.ts` | All public orchestration methods |
+| Provision | `features/wallet/services/ensure-wallet.ts` | Atomic multi-chain wallet create (used by `ensureNativeWallet`) |
+| Credit ledger | `features/wallet/services/credit-balance-service.ts` | Fiat points add/spend |
+| Fiat rate | `lib/payments/credit-currency.ts` → `getFiatCreditAccountingRate` | `credit.unitToDefaultCurrency` SSOT |
+| Desk | `features/wallet/chains/solana/desk-service.ts` | Quote + execute (subscriber+) |
+| Desk oracle | `features/wallet/services/ring-token-oracle.ts` | `ringPerUsd` for desk only |
+| Custodial send | `features/wallet/chains/native-token-transfer-service.ts` | Gasless native transfer |
+| PSP checkout | `lib/payments/conductor/payment-conductor.ts` | `wallet_topup`, `native_token_onramp` |
+| Onramp gate | `lib/payments/confidential-token-onramp.ts` | `assertNativeTokenOnrampAllowed` |
+| Actions | `app/_actions/wallet.ts` | Session-facing wrappers |
+| NFT buy | `features/nft-market/services/solana-market-client.ts` | Market purchase settlement |
+
+### Facade API
+
+| Method | Auth / gates | Delegates to |
+|--------|--------------|--------------|
+| `initiateTopUp` | Session; amount 25–2000 | PaymentConductor `wallet_topup`; returns `redirect` |
+| `initiateNativeOnramp` | Session + confidential+ + onramp flag | PaymentConductor `native_token_onramp` |
+| `quoteDesk` / `executeDesk` | `assertTokenDeskSubscriberAccess` | desk-service + oracle |
+| `getNativeBalance` | Caller `userId` | native-token-transfer-service |
+| `transferNative` | Caller `userId` | transfer service + `wallet_transactions` |
+| `spendCredits` | Caller `userId` | creditBalanceService + fiat rate |
+| `ensureNativeWallet` | Caller supplies `id` (OAuth-safe) | ensure-wallet |
+| `ensureFunded` | Session | ensure + optional credit floor |
+| `purchaseNftListing` | Idempotency key | SolanaMarketClient |
+
+Also exported: `getWalletConductorNativeChain()` → `getNativeChain()`.
+
+<Code language="typescript" title="Import pattern">
+{`import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
+
+// OAuth / events — no session required
+await WalletConductor.ensureNativeWallet({ id: userId, role })
+
+// Prefer Server Actions from UI (app/_actions/wallet.ts)
+await WalletConductor.spendCredits({
+  userId,
+  amount: '10.00',
+  description: 'API debit',
+  // usdRate defaults to getFiatCreditAccountingRate()
+})`}
+</Code>
+
+## Two rates — do not mix
+
+| Rate | SSOT | Used by |
+|------|------|---------|
+| Fiat credit accounting | `credit.unitToDefaultCurrency` via `getFiatCreditAccountingRate()` | `spendCredits`, desk debit side, PaymentConductor `internal_credit` |
+| Token Desk oracle | `platform_settings.web3.oracle.ringPerUsd` | `quoteDesk` / `executeDesk` only |
+
+<Callout type="warning" title="Conductor boundary">
+**Not owned by WalletConductor:** store/membership checkout (`store_order`, `membership_upgrade`, `internal_credit` / `native_token` rails), SubscriptionConductor membership lifecycle, and external EVM `POST /api/wallet/transfer` (Polygon POL / SupportedCrypto). Prefer `/api/wallet/token/transfer` for platform native custodial sends.
+</Callout>
+
+## Thin adapters (verified)
+
+### Server Actions (`app/_actions/wallet.ts`)
+
+| Action | Conductor method |
+|--------|------------------|
+| `ensureUserWallets` | `ensureNativeWallet` |
+| `getNativeTokenBalanceAction` | `getNativeBalance` |
+| `spendCredits` | `spendCredits` |
+| `transferNativeTokens` | `transferNative` |
+| `executeDeskQuote` | `executeDesk` |
+| `initiateCreditTopupPayment` | `initiateTopUp` |
+| `initiateNativeTokenOnrampPayment` | `initiateNativeOnramp` |
+| `createPinAccessTokenAction` | `ensureNativeWallet` |
+
+Desk **quote** has no action wrapper — HTTP only (`POST /api/wallet/desk/quote`). NFT buy: `app/_actions/nft-market.ts` → `purchaseNftListing`. OAuth: `auth.ts` → `ensureNativeWallet`.
+
+### HTTP routes that call WalletConductor
+
+| Method | Path | Conductor method |
+|--------|------|------------------|
+| `POST` | `/api/wallet/desk/quote` | `quoteDesk` |
+| `POST` | `/api/wallet/desk/execute` | `executeDesk` |
+| `POST` | `/api/wallet/ensure` | `ensureNativeWallet` |
+| `GET` | `/api/wallet/token/balance` | `getNativeBalance` |
+| `POST` | `/api/wallet/token/transfer` | `transferNative` |
+| `POST` | `/api/wallet/credit/spend` | `spendCredits` (fiat rate SSOT) |
+
+### Explicitly outside the facade
+
+| Path / surface | Why |
+|----------------|-----|
+| `POST /api/wallet/transfer` | EVM SupportedCrypto path — not Solana custodial SSOT |
+| `POST /api/wallet/credit/topup` | Chain-proof credit add via `creditBalanceService` (not card top-up) |
+| `GET /api/wallet/credit/spend` | **410 deprecated** — use `getSpendSummary` / `GET /api/wallet/credit/history` |
+| Store / membership PaymentConductor purposes | Checkout rails, not wallet facade |
+
+## Sequence — card → credit points
+
+<Mermaid title="initiateTopUp → wallet_topup">
+{`sequenceDiagram
+  participant UI as CreditAddFsModal
+  participant WC as WalletConductor
+  participant PC as PaymentConductor
+  participant PSP as WayForPay_or_Stripe_or_PayPal
+  participant WH as wallet_topup_webhook
+  participant CBS as creditBalanceService
+  UI->>WC: initiateTopUp formData
+  WC->>PC: createCheckout purpose=wallet_topup
+  PC-->>UI: redirect navigate_or_form_post
+  UI->>PSP: followCheckoutResult
+  Note over UI,PSP: returnUrl browser UX only
+  PSP->>WH: webhook Approved_or_capture
+  WH->>CBS: addFiatUsd fiat points`}
+</Mermaid>
+
+See [PaymentConductor architecture](/docs/architecture/payment-conductor) for `CheckoutRedirect` and [WayForPay](/docs/features/wayforpay-integration) for HPP POST.
+
+## Sequence — ad-hoc credit spend
+
+<Mermaid title="spendCredits fiat SSOT">
+{`sequenceDiagram
+  participant API as POST /api/wallet/credit/spend
+  participant WC as WalletConductor.spendCredits
+  participant RATE as getFiatCreditAccountingRate
+  participant CBS as creditBalanceService
+  API->>WC: amount, description
+  WC->>RATE: unitToDefaultCurrency
+  WC->>CBS: spendCredits(..., usdRate)
+  CBS-->>API: newBalance, transactionId`}
+</Mermaid>
+
+## Environment & config (verified)
+
+| Key | Role |
+|-----|------|
+| `WALLET_ENCRYPTION_KEY` | Custodial key encryption |
+| `SOLANA_RPC_URL` / `SOLANA_TREASURY_PRIVATE_KEY` | Custodial Solana + gas sponsorship |
+| `CONFIDENTIAL_TOKEN_ONRAMP` / `NEXT_PUBLIC_CONFIDENTIAL_TOKEN_ONRAMP` / desk `nativeTokenOnramp` | Native card onramp gate (`isNativeTokenOnrampEnabled`) |
+| `credit.unitToDefaultCurrency` | Fiat ledger accounting multiplier |
+| `ORACLE_QUOTE_SECRET` / `RING_ORACLE_DEFAULT_RATE` | Desk quote HMAC + fallback |
+
+Server SSOT for onramp: `lib/ring-config-chain.ts` → `isNativeTokenOnrampEnabled()`. Runtime role gate: `assertNativeTokenOnrampAllowed` (confidential/admin/superadmin + flag).
+
+## Security notes
+
+- Custodial keys never leave the server; UI uses Server Actions / authenticated routes
+- Desk requires subscriber+; native onramp requires confidential+ and feature flag
+- Fiat spend must use `getFiatCreditAccountingRate()` — never feed desk `ringPerUsd` into credit ledger debits
+- Prefer `/api/wallet/token/*` — retired `/api/wallet/ring/*` aliases are removed
+
+</Audience>
+
+## Related
+
+<Cards>
+  <Card title="WalletConductor feature" href="/docs/features/wallet-conductor">
+    Dual-audience product guide
+  </Card>
+  <Card title="PaymentConductor architecture" href="/docs/architecture/payment-conductor">
+    PSP ledger and webhooks
+  </Card>
+  <Card title="Wallet feature" href="/docs/features/wallet">
+    Member-facing flows
+  </Card>
+  <Card title="Wallet API" href="/docs/api/wallet">
+    Actions and routes
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — WalletConductor architecture">
+
+<FutureFeatureWidget
+  name="Peer-to-peer credit transfers via WalletConductor"
+  description="Member-to-member fiat credit transfer orchestrated by the conductor — today transferCredits remains admin-oriented."
+  implementationCost={32}
+  labels={['wallet', 'credits', 'architecture']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Fold membership credit debit into conductor boundary"
+  description="Membership still calls creditBalanceService / SubscriptionConductor directly — intentional park until adapters reshape."
+  implementationCost={40}
+  labels={['wallet', 'membership', 'architecture']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="PayPal native_token_onramp live processor"
+  description="initiateNativeOnramp accepts processor=paypal, but PayPal rail still returns PAYPAL_NOT_IMPLEMENTED until PaymentConductor PayPal ships."
+  implementationCost={64}
+  labels={['wallet', 'paypal', 'onramp']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Unified multi-chain transfer facade"
+  description="transferNative covers platform native; external EVM SupportedCrypto stays on POST /api/wallet/transfer."
+  implementationCost={48}
+  labels={['wallet', 'evm', 'architecture']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

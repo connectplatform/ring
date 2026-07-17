@@ -58,22 +58,99 @@
   "credit": {
     "creditUnitLabel": "points",
     "unitToDefaultCurrency": 1,
-    "creditAddEvents": {
-      "adminVerify": {
-        "amount": "10",
-        "enabled": true,
-        "requireUsername": true
+    "rewards": {
+      "minRole": "subscriber",
+      "multipliers": {
+        "subscriber": 1,
+        "member": 1.5,
+        "confidential": 2,
+        "admin": 2,
+        "superadmin": 2
       },
-      "ringUsername": {
-        "amount": "10",
-        "enabled": true,
-        "requireVerified": true
+      "dailyEarnCap": {
+        "subscriber": 50,
+        "member": 100,
+        "confidential": 150,
+        "admin": 150,
+        "superadmin": 150
+      },
+      "events": {
+        "adminVerify": {
+          "amount": "50",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "ringUsername": {
+          "amount": "10",
+          "enabled": true,
+          "requireVerified": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedBio": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedLocation": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedWebsite": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedTelegram": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "addedWhatsapp": {
+          "amount": "10",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "profileCompleted": {
+          "amount": "25",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_user"
+        },
+        "newsStoryApproved": {
+          "amount": "30",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_object"
+        },
+        "commentCreated": {
+          "amount": "2",
+          "enabled": true,
+          "requireUsername": false,
+          "idempotencyMode": "once_per_object"
+        },
+        "reviewCreated": {
+          "amount": "5",
+          "enabled": true,
+          "requireUsername": false,
+          "idempotencyMode": "once_per_object"
+        },
+        "requestCreated": {
+          "amount": "15",
+          "enabled": true,
+          "requireUsername": true,
+          "idempotencyMode": "once_per_object"
+        }
       }
     },
     "desk": {
       "supplyPolicy": "treasury_transfer",
-      "sellTaxBps": 500,
-      "sellTaxDestination": "treasury_ata",
       "firstSettlerDiscountBps": 2000,
       "firstSettlerOneTime": true,
       "firstSettlerGates": [
@@ -139,8 +216,6 @@
       "membershipProgramId": "",
       "tokenDesk": {
         "supplyPolicy": "treasury_transfer",
-        "sellTaxBps": 500,
-        "sellTaxDestination": "treasury_ata",
         "firstSettlerDiscountBps": 2000,
         "firstSettlerOneTime": true,
         "firstSettlerGates": [
@@ -175,7 +250,7 @@
       "enabled": false,
       "chainId": 8453,
       "decimals": 8,
-      "note": "US L2 mirror — Phase 1.5"
+      "note": "US L2 mirror \u2014 Phase 1.5"
     }
   },
   "features": {
@@ -242,7 +317,7 @@
   },
   "calculator": {
     "enabled": true,
-    "presetId": "deployment"
+    "presetId": "project"
   },
   "roadmap": {
     "enabled": true
@@ -262,6 +337,17 @@
         "dao",
         "other"
       ]
+    },
+    "agricultural": {
+      "storeCategories": [
+        "organic-produce",
+        "honey-sweets",
+        "essential-oils",
+        "dairy-eggs",
+        "meat-poultry",
+        "herbs-spices",
+        "grains-legumes"
+      ]
     }
   },
   "productBadgesPresets": {
@@ -271,6 +357,17 @@
         "featured",
         "popular",
         "best-seller"
+      ]
+    },
+    "agricultural": {
+      "productBadges": [
+        "organic",
+        "local",
+        "regenerative",
+        "seasonal",
+        "fair-trade",
+        "new",
+        "featured"
       ]
     }
   },
@@ -301,7 +398,8 @@
           "grains-legumes"
         ]
       }
-    }
+    },
+    "preset": "platform"
   },
   "productBadges": {
     "preset": "platform"
@@ -374,12 +472,12 @@
         {
           "uri": "https://github.com/connectplatform",
           "name": "ConnectPlatform",
-          "desc": "ConnectPlatform binary broker and Open-source Ring ecosystem on GitHub — digitalization for interest groups and communities since 2013."
+          "desc": "ConnectPlatform binary broker and Open-source Ring ecosystem on GitHub \u2014 digitalization for interest groups and communities since 2013."
         },
         {
           "uri": "https://sonoratek.com",
           "name": "Sonoratek LLC",
-          "desc": "Legal publisher of Ring Platform — IT pathfinding, automation, and cloud services in Tempe, Arizona since 2015."
+          "desc": "Legal publisher of Ring Platform \u2014 IT pathfinding, automation, and cloud services in Tempe, Arizona since 2015."
         },
         {
           "uri": "https://ringdom.org",
@@ -400,7 +498,12 @@
       "application/pdf",
       "video/mp4"
     ],
-    "note": "SSOT for file(). ring_filebase via RINGBASE_API_URL. Env NEXT_PUBLIC_STORAGE_PROVIDER overrides."
+    "note": "SSOT for file(). ring_filebase via RINGBASE_API_URL. Env NEXT_PUBLIC_STORAGE_PROVIDER overrides.",
+    "webpDerivative": {
+      "provider": "off",
+      "maxEdge": 1600,
+      "quality": 82
+    }
   },
   "payment": {
     "cardPaymentProcessor": "wayforpay",
@@ -438,7 +541,7 @@
         "label": "Tokens"
       },
       "paypal": {
-        "enabled": false,
+        "enabled": true,
         "feePercent": 2.9,
         "feeFixedCents": 30,
         "currency": "USD"
@@ -563,6 +666,22 @@
     "maxMintsPerCollection": 50
   },
   "store": {
-    "defaultCurrency": "USD"
+    "defaultCurrency": "USD",
+    "promotions": {
+      "specialOfferModalEnabled": true,
+      "allowedProductPromotionTypes": [
+        "bogo",
+        "percent_off",
+        "amount_off"
+      ],
+      "defaultFreeShippingMode": "off",
+      "defaultFreeShippingMinOrderAmount": 50
+    }
+  },
+  "entities": {
+    "preset": "platform"
+  },
+  "home": {
+    "preset": "platform"
   }
 }

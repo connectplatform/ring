@@ -20,22 +20,21 @@ import {
   Building2,
   Bell,
   Settings,
-  LayoutDashboard,
-  FileBarChart,
-  Database,
   ChevronRight,
   Languages,
   Moon,
   Sun,
   LogIn,
+  CircleEllipsis,
 } from 'lucide-react'
 
 import { ROUTES } from '@/constants/routes'
-import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
+import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
 import { useAuth } from '@/hooks/use-auth'
-import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
-import { isPlatformAdmin } from '@/features/auth/user-role'
-import { useAdminNavMenu } from '@/features/admin/use-admin-nav-menu'
+import { UserRolesArray, hasMemberPrivileges } from '@/features/auth/user-role'
+import { useAdminSupermenu } from '@/features/admin/use-admin-supermenu'
+import { useVendorStatus } from '@/hooks/use-vendor-status'
+import { AdminSupermenuMobile } from '@/components/navigation/admin-supermenu'
 import type { Locale } from '@/i18n/shared'
 import { useRouter as useNextRouter } from 'next/navigation'
 import {
@@ -258,7 +257,6 @@ interface BottomNavFullscreenMenuProps {
   isOpen: boolean
   onClose: () => void
   menuItems: BottomNavMenuItem[]
-  adminMenuItems?: BottomNavMenuItem[]
   brandTitle?: string
   brandSubtitle?: string
 }
@@ -271,7 +269,6 @@ function BottomNavFullscreenMenu({
   isOpen,
   onClose,
   menuItems,
-  adminMenuItems = [],
   brandTitle,
   brandSubtitle,
 }: BottomNavFullscreenMenuProps) {
@@ -285,13 +282,8 @@ function BottomNavFullscreenMenu({
   const [animateIn, setAnimateIn] = useState(false)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
-  // Determine authentication & admin state
   const isLoggedIn = !!session?.user
-  const isAdmin = isPlatformAdmin(session?.user?.role)
-
-  // Accessibility: reacts to user's reduced motion settings
   useEffect(() => {
-    // Listen to 'prefers-reduced-motion'
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mq.matches)
     const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
@@ -299,7 +291,6 @@ function BottomNavFullscreenMenu({
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  // Animate overlay in/out with a delay unless user requests reduced motion
   useEffect(() => {
     if (isOpen) {
       const id = prefersReducedMotion ? 0 : window.setTimeout(() => setAnimateIn(true), 50)
@@ -308,18 +299,16 @@ function BottomNavFullscreenMenu({
     setAnimateIn(false)
   }, [isOpen, prefersReducedMotion])
 
-  // Listen to 'modal:close-all' events via eventBus for coordinated modals, emit open/close events
   useEffect(() => {
     if (!isOpen) return
     const unsubscribe = eventBus.on('modal:close-all', onClose)
-    eventBus.emit('modal:opened', { modalId: 'bottom-nav-fullscreen-menu', zIndex: 9000 })
+    eventBus.emit('modal:opened', { modalId: 'bottom-nav-fullscreen-menu', zIndex: 8990 })
     return () => {
       unsubscribe()
       eventBus.emit('modal:closed', { modalId: 'bottom-nav-fullscreen-menu' })
     }
   }, [isOpen, onClose])
 
-  // Switch app language locale
   const switchLocale = useCallback(
     (newLocale: Locale) => {
       persistRingLocalePreference(newLocale)
@@ -329,13 +318,11 @@ function BottomNavFullscreenMenu({
     [intlPathname, intlRouter, onClose]
   )
 
-  // When clicking an item, navigate and close menu
   const handleItemClick = (href: string) => {
     nextRouter.push(href)
     onClose()
   }
 
-  // Don't render if menu should be hidden
   if (!isOpen) return null
 
   const title = brandTitle ?? getBrandName()
@@ -343,12 +330,14 @@ function BottomNavFullscreenMenu({
 
   return (
     <div
-      className="fixed inset-0 z-[9000] md:hidden overflow-hidden"
+      className={cn(
+        'fixed inset-x-0 top-0 z-[8990] md:hidden overflow-hidden',
+        'bottom-[var(--mobile-bottom-nav-h,calc(3.5rem+env(safe-area-inset-bottom,0px)))]',
+      )}
       data-modal="true"
       role="dialog"
       aria-label={t('menu.title')}
     >
-      {/* Overlay gradients */}
       <div
         className={cn(
           'absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5 transition-opacity duration-300',
@@ -359,21 +348,21 @@ function BottomNavFullscreenMenu({
       {!prefersReducedMotion && (
         <>
           <div
-            className={cn('absolute w-64 h-64 rounded-full blur-3xl pointer-events-none', 
+            className={cn(
+              'absolute w-64 h-64 rounded-full blur-3xl pointer-events-none',
               'top-20 -left-20 bg-gradient-to-br from-primary/20 to-orange-500/20'
             )}
           />
           <div
-            className={cn('absolute w-64 h-64 rounded-full blur-3xl pointer-events-none', 
+            className={cn(
+              'absolute w-64 h-64 rounded-full blur-3xl pointer-events-none',
               'bottom-40 -right-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20'
             )}
           />
         </>
       )}
 
-      {/* Modal container with scrolling */}
-      <div className="relative h-full flex flex-col px-6 pt-8 pb-24 overflow-y-auto">
-        {/* Close menu button */}
+      <div className="relative h-full flex flex-col px-6 pt-8 pb-6 overflow-y-auto">
         <button
           type="button"
           onClick={onClose}
@@ -385,7 +374,6 @@ function BottomNavFullscreenMenu({
           </span>
         </button>
 
-        {/* Branding/title area */}
         <div
           className={cn(
             'text-center mb-8 transition-all duration-500',
@@ -399,7 +387,6 @@ function BottomNavFullscreenMenu({
           <p className="text-sm text-muted-foreground font-medium mt-1">{subtitle}</p>
         </div>
 
-        {/* Show guest auth section ONLY if not logged in */}
         {!isLoggedIn && (
           <BottomNavGuestAuth
             onClose={onClose}
@@ -411,60 +398,18 @@ function BottomNavFullscreenMenu({
           />
         )}
 
-        {/* Render admin section if privileged */}
-        {isAdmin && adminMenuItems.length > 0 && (
-          <div
-            className={cn(
-              'mb-4 transition-all duration-500',
-              animateIn ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0'
-            )}
-            style={{ transitionDelay: prefersReducedMotion ? '0ms' : '200ms' }}
-          >
-            <div className="grid grid-cols-2 gap-2">
-              {adminMenuItems.map((item, index) => {
-                const Icon = item.icon
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleItemClick(item.href)}
-                    className={cn(
-                      'p-3 rounded-xl bg-red-500/5 border border-red-500/20 hover:border-red-500/40',
-                      'hover:bg-red-500/10 transition-all duration-300 flex flex-col items-center gap-2',
-                      animateIn ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-                    )}
-                    style={{
-                      transitionDelay: prefersReducedMotion
-                        ? '0ms'
-                        : `${220 + index * 30}ms`,
-                    }}
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <Icon className="h-5 w-5 text-red-400" />
-                    </div>
-                    <span className="text-xs font-medium text-foreground">{item.title}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Main menu items */}
         <div className="flex-1 space-y-3">
           {menuItems.map((item, index) => {
             const Icon = item.icon
-            // Item fade-in delay, spacing out if admin tools also shown
-            const baseDelay = isAdmin && adminMenuItems.length ? 350 : 250
+            const baseDelay = 250
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleItemClick(item.href)}
                 className={cn(
-                  cn('w-full p-4 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300 group flex items-center gap-4 text-left'),
-                  animateIn ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0',
-                  'transition-all duration-300'
+                  'w-full p-4 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300 group flex items-center gap-4 text-left',
+                  animateIn ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0'
                 )}
                 style={{
                   transitionDelay: prefersReducedMotion
@@ -492,7 +437,6 @@ function BottomNavFullscreenMenu({
           })}
         </div>
 
-        {/* Language/Theme switching buttons on modal footer */}
         <div
           className={cn(
             'mt-auto pt-4 border-t border-white/10 transition-all duration-500',
@@ -501,7 +445,6 @@ function BottomNavFullscreenMenu({
           style={{ transitionDelay: prefersReducedMotion ? '0ms' : '500ms' }}
         >
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            {/* Switch to next locale in supported array */}
             <button
               type="button"
               onClick={() => switchLocale(nextLocaleInRoutingOrder(locale))}
@@ -540,11 +483,17 @@ export default function BottomNavigation() {
   const { data: session } = useSession()
   const t = useTranslations('navigation')
   const [showOpportunitySelector, setShowOpportunitySelector] = useState(false)
-  const [showFullscreenMenu, setShowFullscreenMenu] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false)
 
   const isLoggedIn = !!session?.user
-  const isAdmin = isPlatformAdmin(session?.user?.role)
-  const { mobileItems: adminMenuItems } = useAdminNavMenu(session?.user?.role, locale)
+  const isMemberPlus = hasMemberPrivileges(session?.user?.role)
+  const { hasVendor } = useVendorStatus()
+  const { hasContent: hasAdminSupermenu } = useAdminSupermenu(
+    session?.user?.role,
+    locale,
+    { hasVendor },
+  )
 
   /**
    * Determine if the given href matches the current route.
@@ -615,6 +564,15 @@ export default function BottomNavigation() {
         iconBg: 'bg-slate-500/20',
         iconColor: 'text-slate-400',
       },
+      {
+        id: 'docs',
+        title: t('docs'),
+        description: t('menu.docs.description'),
+        icon: FileText,
+        href: ROUTES.DOCS(locale),
+        iconBg: 'bg-cyan-500/20',
+        iconColor: 'text-cyan-400',
+      },
     ],
     [locale, t]
   )
@@ -658,8 +616,31 @@ export default function BottomNavigation() {
   // Select appropriate menu per user state
   const menuItems = isLoggedIn ? loggedInMenuItems : guestMenuItems
 
+  const openRingMenu = () => {
+    setShowOpportunitySelector(false)
+    setAdminMenuOpen(false)
+    setMenuOpen((v) => !v)
+  }
+
+  const openAdminMenu = () => {
+    setShowOpportunitySelector(false)
+    setMenuOpen(false)
+    setAdminMenuOpen((v) => !v)
+  }
+
+  const openAddOpportunity = useCallback(() => {
+    setMenuOpen(false)
+    setAdminMenuOpen(false)
+    setShowOpportunitySelector(true)
+  }, [])
+
+  const closeOpportunitySelector = useCallback(() => {
+    setShowOpportunitySelector(false)
+  }, [])
+
   /**
-   * Base navigation items for bottom nav (arrangement: opportunities, entities, docs, menu)
+   * Base navigation items: opportunities, entities, docs|admin, ring menu.
+   * Member+: Admin opens AdminSupermenuMobile; Ring opens platform-only fullscreen menu.
    */
   const navItems = [
     {
@@ -674,31 +655,49 @@ export default function BottomNavigation() {
       href: ROUTES.ENTITIES(locale),
       isActive: isActive(ROUTES.ENTITIES(locale)),
     },
-    {
-      icon: FileText,
-      label: t('docs'),
-      href: ROUTES.DOCS(locale),
-      isActive: isActive(ROUTES.DOCS(locale)),
-    },
+    isMemberPlus && hasAdminSupermenu
+      ? {
+          icon: CircleEllipsis,
+          label: t('admin.label'),
+          href: '#admin',
+          isActive: adminMenuOpen,
+          isButton: true,
+          onClick: openAdminMenu,
+        }
+      : {
+          icon: FileText,
+          label: t('docs'),
+          href: ROUTES.DOCS(locale),
+          isActive: isActive(ROUTES.DOCS(locale)),
+        },
     {
       icon: MoreHorizontal,
       label: t('menu.title', { default: 'Menu' }),
-      href: '#',
-      isActive: false,
+      href: '#menu',
+      isActive: menuOpen,
       isButton: true,
-      onClick: () => setShowFullscreenMenu(true),
+      onClick: openRingMenu,
     },
   ]
 
-  /**
-   * Closes all menu overlays (opportunity selector and fullscreen menu)
-   */
   const closeMenus = () => {
     setShowOpportunitySelector(false)
-    setShowFullscreenMenu(false)
+    setMenuOpen(false)
+    setAdminMenuOpen(false)
   }
 
-  // TODO: Consider replacing 'showOpportunitySelector' and 'showFullscreenMenu' with useTransition or useOptimistic for atomic state transitions on React 19.
+  // TODO: Consider replacing 'showOpportunitySelector' and 'menuOpen' with useTransition or useOptimistic for atomic state transitions on React 19.
+
+  const MOBILE_BOTTOM_NAV_H = 'calc(3.5rem + env(safe-area-inset-bottom, 0px))'
+
+  // Own --mobile-bottom-nav-h on :root so sibling overlays (Admin / Ring / Add) inherit it
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty('--mobile-bottom-nav-h', MOBILE_BOTTOM_NAV_H)
+    return () => {
+      root.style.removeProperty('--mobile-bottom-nav-h')
+    }
+  }, [])
 
   return (
     <>
@@ -719,10 +718,10 @@ export default function BottomNavigation() {
 
           {/* Render floating plus/center action button */}
           <div className="flex-1 flex justify-center">
-            <CenterAddButton onClick={() => setShowOpportunitySelector(true)} />
+            <CenterAddButton onClick={openAddOpportunity} />
           </div>
 
-          {/* Render remaining navigation items (e.g. docs & menu) */}
+          {/* Render remaining navigation items (e.g. docs|admin & menu) */}
           {navItems.slice(2).map((item) => (
             <NavItem
               key={item.href}
@@ -739,28 +738,30 @@ export default function BottomNavigation() {
         <div className="h-safe-area-inset-bottom bg-background/95" />
       </nav>
 
-      {/* Opportunity type selector/modal for center add */}
+      {/* Opportunity type picker — bottom-nav-aware mobile sheet */}
       {showOpportunitySelector && (
-        <OpportunityTypeSelector
-          onClose={() => setShowOpportunitySelector(false)}
+        <OpportunityTypeSelectorClient
+          layout="mobile-sheet"
+          onClose={closeOpportunitySelector}
           userRole={
-            assertKnownUserRole(
-              hasRole(UserRolesArray.member)
-                ? (UserRolesArray.member as UserRolesArray)
-                : (UserRolesArray.subscriber as UserRolesArray)
-            )
+            hasRole(UserRolesArray.member) ? 'member' : 'subscriber'
           }
           locale={locale}
         />
       )}
 
-      {/* Fullscreen overlay menu for complex menu navigation */}
+      {/* Ring (three-dots) platform-only fullscreen menu */}
       <BottomNavFullscreenMenu
-        isOpen={showFullscreenMenu}
-        onClose={() => setShowFullscreenMenu(false)}
+        isOpen={menuOpen}
+        onClose={() => setMenuOpen(false)}
         menuItems={menuItems}
-        adminMenuItems={isAdmin ? adminMenuItems : []}
         brandSubtitle={t('menu.subtitle', { default: 'Ring Platform' })}
+      />
+
+      {/* Admin supermenu mobile panel */}
+      <AdminSupermenuMobile
+        open={adminMenuOpen}
+        onClose={() => setAdminMenuOpen(false)}
       />
     </>
   )

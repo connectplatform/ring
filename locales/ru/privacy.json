@@ -1,34 +1,34 @@
 {
   "privacyPolicyText": {
-    "title": "Privacy Policy",
-    "lastUpdated": "Last updated: {date}",
+    "title": "Политика конфиденциальности",
+    "lastUpdated": "Последнее обновление: {date}",
     "introduction": {
-      "title": "Introduction",
-      "content": "This Privacy Policy describes how Ring Platform collects, uses, and protects your personal information."
+      "title": "Введение",
+      "content": "Настоящая Политика конфиденциальности описывает, как Ring Platform собирает, использует и защищает вашу личную информацию."
     },
     "dataCollection": {
-      "title": "Information We Collect",
-      "content": "We collect information you provide directly to us, such as when you create an account, update your profile, or communicate with us.",
-      "item1": "Account information (name, email, profile details)",
-      "item2": "Usage data and interaction with our platform",
-      "item3": "Communication data when you contact us",
-      "item4": "Technical data including IP address and browser information"
+      "title": "Информация, которую мы собираем",
+      "content": "Мы собираем информацию, которую вы предоставляете нам напрямую, например, при создании учётной записи, обновлении профиля или общении с нами.",
+      "item1": "Информация об учётной записи (имя, email, данные профиля)",
+      "item2": "Данные об использовании и взаимодействии с нашей платформой",
+      "item3": "Данные общения, когда вы связываетесь с нами",
+      "item4": "Технические данные, включая IP-адрес и информацию о браузере"
     },
     "dataUsage": {
-      "title": "How We Use Your Information",
-      "content": "We use the information we collect to provide, maintain, and improve our services, communicate with you, and ensure platform security."
+      "title": "Как мы используем вашу информацию",
+      "content": "Мы используем собранную информацию для предоставления, поддержки и улучшения наших услуг, общения с вами и обеспечения безопасности платформы."
     },
     "dataSecurity": {
-      "title": "Data Security",
-      "content": "We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction."
+      "title": "Безопасность данных",
+      "content": "Мы применяем соответствующие меры безопасности для защиты вашей личной информации от несанкционированного доступа, изменения, раскрытия или уничтожения."
     },
     "userRights": {
-      "title": "Your Rights",
-      "content": "You have the right to access, update, or delete your personal information. You can also opt out of certain communications and data collection."
+      "title": "Ваши права",
+      "content": "Вы имеете право на доступ, обновление или удаление своей личной информации. Вы также можете отказаться от определённых уведомлений и сбора данных."
     },
     "contactUsPrivacy": {
-      "title": "Contact Us",
-      "content": "If you have any questions about this Privacy Policy, please contact us at privacy@ring.ck.ua"
+      "title": "Свяжитесь с нами",
+      "content": "Если у вас есть вопросы об этой Политике конфиденциальности, свяжитесь с нами по адресу privacy@ring.ck.ua"
     }
   }
 }

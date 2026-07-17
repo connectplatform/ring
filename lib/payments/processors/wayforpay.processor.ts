@@ -1,10 +1,10 @@
-import crypto from 'crypto'
 import type { CreateCheckoutContext, CreateCheckoutResult } from '@/lib/payments/conductor/types'
 import { buildOrderReference } from '@/lib/payments/order-reference'
 import { getWebhookUrl } from '@/lib/payments/payment.config'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { getMembershipTierConfig, initiatePayment } from '@/lib/payments/wayforpay-service'
 import { initiateStorePayment } from '@/lib/payments/wayforpay-store-service'
+import { buildWayForPaySimpleHppFields } from '@/lib/payments/wayforpay-hpp'
 import { UserRolesArray } from '@/features/auth/user-role'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 
@@ -50,6 +50,9 @@ export async function createWayForPayCheckout(ctx: CreateCheckoutContext): Promi
   if (ctx.purpose === 'native_token_onramp') {
     return createNativeTokenOnrampWayForPay(ctx)
   }
+  if (ctx.purpose === 'project_order') {
+    return createProjectOrderWayForPay(ctx)
+  }
   // Return error if the purpose is not recognized
   return { success: false, error: `WayForPay does not support purpose: ${ctx.purpose}` }
 }
@@ -93,11 +96,13 @@ async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateC
     orderReference,
   })
 
-  if (result.success && result.paymentUrl) {
+  if (result.success && (result.paymentUrl || result.paymentFields || result.redirect)) {
     await paymentTransactionService.markRedirected(orderReference)
     return {
       success: true,
+      redirect: result.redirect,
       paymentUrl: result.paymentUrl,
+      paymentFields: result.paymentFields,
       orderReference,
     }
   }
@@ -164,22 +169,17 @@ async function createMembershipWayForPay(ctx: CreateCheckoutContext): Promise<Cr
  */
 async function createNewsWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
   const { merchant, secret, domain } = getWayForPayCredentials(false)
-  // Guard: Ensure credentials are available
   if (!merchant || !secret || !domain) {
     return { success: false, error: 'WayForPay not configured' }
   }
 
   const articleId = ctx.articleId ?? ctx.entityId
-  // Create a unique reference for this news promotion
   const orderReference = buildOrderReference('news_promotion', { articleId })
-  // Current Unix timestamp (seconds) for order date
   const orderDate = Math.floor(Date.now() / 1000)
   const amount = ctx.amount
   const currency = ctx.currency || 'UAH'
-  // Define standardized product name for news promotions
   const productName = `Main page promotion ${articleId}`
 
-  // Record the pending payment in DB
   await paymentTransactionService.createPending({
     purpose: 'news_promotion',
     processor: 'wayforpay',
@@ -192,42 +192,22 @@ async function createNewsWayForPay(ctx: CreateCheckoutContext): Promise<CreateCh
     currency,
   })
 
-  // Construct concatenation string according to WayForPay signature requirements
-  const signString = [
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
     merchant,
+    secret,
     domain,
     orderReference,
     orderDate,
     amount,
     currency,
     productName,
-    1,
-    amount,
-  ].join(';')
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
 
-  // Generate HMAC-MD5 signature for payment
-  const merchantSignature = crypto.createHmac('md5', secret).update(signString).digest('hex')
-
-  // Assemble the payment URL to redirect user
-  const paymentUrl =
-    `https://secure.wayforpay.com/pay?merchantAccount=${encodeURIComponent(merchant)}` +
-    `&merchantDomainName=${encodeURIComponent(domain)}` +
-    `&orderReference=${encodeURIComponent(orderReference)}` +
-    `&orderDate=${orderDate}` +
-    `&amount=${amount}` +
-    `&currency=${currency}` +
-    `&productName=${encodeURIComponent(productName)}` +
-    `&productCount=1` +
-    `&productPrice=${amount}` +
-    `&merchantSignature=${merchantSignature}` +
-    `&returnUrl=${encodeURIComponent(ctx.returnUrl)}` +
-    `&serviceUrl=${encodeURIComponent(getWebhookUrl('wayforpay'))}`
-
-  // Mark news order as redirected in transaction service
   await paymentTransactionService.markRedirected(orderReference)
-
-  // Return payment url and order reference to client
-  return { success: true, paymentUrl, orderReference }
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
 }
 
 /**
@@ -261,35 +241,22 @@ async function createWalletTopupWayForPay(ctx: CreateCheckoutContext): Promise<C
     currency,
   })
 
-  const signString = [
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
     merchant,
+    secret,
     domain,
     orderReference,
     orderDate,
     amount,
     currency,
     productName,
-    1,
-    amount,
-  ].join(';')
-  const merchantSignature = crypto.createHmac('md5', secret).update(signString).digest('hex')
-
-  const paymentUrl =
-    `https://secure.wayforpay.com/pay?merchantAccount=${encodeURIComponent(merchant)}` +
-    `&merchantDomainName=${encodeURIComponent(domain)}` +
-    `&orderReference=${encodeURIComponent(orderReference)}` +
-    `&orderDate=${orderDate}` +
-    `&amount=${amount}` +
-    `&currency=${currency}` +
-    `&productName=${encodeURIComponent(productName)}` +
-    `&productCount=1` +
-    `&productPrice=${amount}` +
-    `&merchantSignature=${merchantSignature}` +
-    `&returnUrl=${encodeURIComponent(ctx.returnUrl)}` +
-    `&serviceUrl=${encodeURIComponent(getWebhookUrl('wayforpay'))}`
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
 
   await paymentTransactionService.markRedirected(orderReference)
-  return { success: true, paymentUrl, orderReference }
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
 }
 
 /**
@@ -326,35 +293,76 @@ async function createNativeTokenOnrampWayForPay(
     currency,
   })
 
-  const signString = [
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
     merchant,
+    secret,
     domain,
     orderReference,
     orderDate,
     amount,
     currency,
     productName,
-    1,
-    amount,
-  ].join(';')
-  const merchantSignature = crypto.createHmac('md5', secret).update(signString).digest('hex')
-
-  const paymentUrl =
-    `https://secure.wayforpay.com/pay?merchantAccount=${encodeURIComponent(merchant)}` +
-    `&merchantDomainName=${encodeURIComponent(domain)}` +
-    `&orderReference=${encodeURIComponent(orderReference)}` +
-    `&orderDate=${orderDate}` +
-    `&amount=${amount}` +
-    `&currency=${currency}` +
-    `&productName=${encodeURIComponent(productName)}` +
-    `&productCount=1` +
-    `&productPrice=${amount}` +
-    `&merchantSignature=${merchantSignature}` +
-    `&returnUrl=${encodeURIComponent(ctx.returnUrl)}` +
-    `&serviceUrl=${encodeURIComponent(getWebhookUrl('wayforpay'))}`
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
 
   await paymentTransactionService.markRedirected(orderReference)
-  return { success: true, paymentUrl, orderReference }
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
+}
+
+/**
+ * WayForPay checkout for calculator / CRM project order deposits.
+ */
+async function createProjectOrderWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(true)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
+  const orderId = ctx.projectOrderId ?? ctx.orderId ?? ctx.entityId
+  if (!orderId) {
+    return { success: false, error: 'projectOrderId required' }
+  }
+
+  const amount = ctx.amount
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { success: false, error: 'Invalid project order amount' }
+  }
+
+  const currency = ctx.currency || 'USD'
+  const orderReference = buildOrderReference('project_order', { orderId })
+  const orderDate = Math.floor(Date.now() / 1000)
+  const productName = `Ring project order ${orderId}`
+
+  await paymentTransactionService.createPending({
+    purpose: 'project_order',
+    processor: 'wayforpay',
+    rail: 'merchant_redirect',
+    orderReference,
+    entityType: 'project_order',
+    entityId: orderId,
+    userId: ctx.userId,
+    amountMinor: Math.round(amount * 100),
+    currency,
+  })
+
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
+    merchant,
+    secret,
+    domain,
+    orderReference,
+    orderDate,
+    amount,
+    currency,
+    productName,
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
+
+  await paymentTransactionService.markRedirected(orderReference)
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
 }
 
 // Export the helper for membership tiers (used elsewhere)

@@ -69,7 +69,12 @@ export function applyUserRowToJwt(token: JWT, userData: UserRow): void {
   token.bio = userData.bio as string | undefined
   token.organization = userData.organization as string | undefined
   token.position = userData.position as string | undefined
-  token.photoURL = (userData.photoURL || userData.image) as string | undefined
+  // Prefer compact chrome avatar when present (matches /profile resolve order)
+  token.photoURL = (
+    (typeof userData.avatarThumb === 'string' && userData.avatarThumb) ||
+    userData.photoURL ||
+    userData.image
+  ) as string | undefined
 
   token.role = resolvePersistedUserRole(userData.role)
   

@@ -24,6 +24,7 @@ const PURPOSE_ENV: Record<PaymentPurpose, string> = {
   membership_upgrade: 'PAYMENT_MEMBERSHIP_PROCESSOR',
   wallet_topup: 'PAYMENT_WALLET_TOPUP_PROCESSOR',
   native_token_onramp: 'PAYMENT_NATIVE_TOKEN_ONRAMP_PROCESSOR',
+  project_order: 'PAYMENT_PROJECT_ORDER_PROCESSOR',
 }
 
 /** 
@@ -50,10 +51,12 @@ export function getProcessorForPurpose(purpose: PaymentPurpose): PaymentProcesso
  */
 export function getDefaultStoreCurrencySymbol(): StoreCurrency {
   const config = getSystemConfigSnapshot()
-  // NOTE: .store?.defaultCurrency.symbol is expected to be defined in SSOT
-  return config.store?.defaultCurrency
+  // NOTE: .store?.defaultCurrency is expected to be defined in SSOT
+  const raw =
+    config.store?.defaultCurrency
     ?? process.env.PAYMENT_FIAT_CURRENCY?.toUpperCase()
     ?? 'USD'
+  return raw as StoreCurrency
 }
 
 /**
@@ -144,7 +147,7 @@ export function getSiteUrl(): string {
  * 
  * @param provider - currently 'wayforpay' or 'stripe'
  */
-export function getWebhookUrl(provider: 'wayforpay' | 'stripe'): string {
+export function getWebhookUrl(provider: 'wayforpay' | 'stripe' | 'paypal'): string {
   // NOTE: Path is hard coded, consider registering route with Next.js app router for static safety
   return `${getSiteUrl()}/api/payments/${provider}/webhook`
 }

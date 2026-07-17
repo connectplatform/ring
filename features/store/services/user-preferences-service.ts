@@ -13,7 +13,7 @@ export interface StoreUserPreferences {
   id?: string
   userId: string
   preferredShippingMethod?: 'nova-post' | 'express' | 'standard' | 'pickup'
-  preferredPaymentMethod?: 'wayforpay' | 'crypto' | 'stripe' | 'credit' | 'token' | 'ring'
+  preferredPaymentMethod?: 'wayforpay' | 'card' | 'crypto' | 'stripe' | 'credit' | 'token' | 'paypal'
   lastUsedAddressId?: string
   defaultBillingAddressId?: string
   savePaymentMethods?: boolean
@@ -51,7 +51,18 @@ export const StoreUserPreferencesService = {
         return null
       }
 
-      return { id: 'checkout', userId, ...storePrefs } as StoreUserPreferences
+      const preferredRaw = (storePrefs as { preferredPaymentMethod?: string }).preferredPaymentMethod
+      const preferredPaymentMethod =
+        preferredRaw === 'ring'
+          ? 'credit'
+          : (preferredRaw as StoreUserPreferences['preferredPaymentMethod'])
+
+      return {
+        id: 'checkout',
+        userId,
+        ...storePrefs,
+        ...(preferredPaymentMethod ? { preferredPaymentMethod } : {}),
+      } as StoreUserPreferences
     } catch (error) {
       logger.error('StoreUserPreferencesService: Error getting preferences', { userId, error })
       return null
@@ -63,9 +74,16 @@ export const StoreUserPreferencesService = {
       const now = new Date().toISOString()
 
       const existing = await this.get(userId)
+      const inboundMethod = (preferences as { preferredPaymentMethod?: string }).preferredPaymentMethod
+      const healedPrefs: Partial<StoreUserPreferences> = {
+        ...preferences,
+        ...(inboundMethod === 'ring'
+          ? { preferredPaymentMethod: 'credit' as const }
+          : {}),
+      }
       const checkoutData = {
         ...existing,
-        ...preferences,
+        ...healedPrefs,
         updatedAt: now,
         ...(existing ? {} : { createdAt: now })
       }
@@ -100,8 +118,15 @@ export const StoreUserPreferencesService = {
     await this.upsert(userId, { preferredShippingMethod: method })
   },
 
-  async updatePaymentPreference(userId: string, method: StoreUserPreferences['preferredPaymentMethod']): Promise<void> {
-    await this.upsert(userId, { preferredPaymentMethod: method })
+  async updatePaymentPreference(
+    userId: string,
+    method: StoreUserPreferences['preferredPaymentMethod'] | string,
+  ): Promise<void> {
+    const canonical =
+      method === 'ring'
+        ? 'credit'
+        : (method as StoreUserPreferences['preferredPaymentMethod'])
+    await this.upsert(userId, { preferredPaymentMethod: canonical })
   },
 
   async updateLastUsedAddress(userId: string, addressId: string): Promise<void> {

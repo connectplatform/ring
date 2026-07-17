@@ -49,24 +49,24 @@
     "popular": "Популярное"
   },
   "footer": {
-    "aboutUs": "About Us",
-    "aboutUsDescription": "About our platform and services",
-    "quickLinks": "Quick Links",
-    "entities": "Entities",
-    "opportunities": "Opportunities",
-    "contacts": "Contact",
-    "documentation": "Documentation",
-    "privacyPolicy": "Privacy Policy",
-    "termsOfService": "Terms of Service",
-    "addressFull": "195 Shevhenko Blvd, Cherkasy, Ukraine",
+    "aboutUs": "О нас",
+    "aboutUsDescription": "О нашей платформе и услугах",
+    "quickLinks": "Быстрые ссылки",
+    "entities": "Организации",
+    "opportunities": "Возможности",
+    "contacts": "Контакты",
+    "documentation": "Документация",
+    "privacyPolicy": "Политика конфиденциальности",
+    "termsOfService": "Условия использования",
+    "addressFull": "бул. Шевченка, 195, Черкассы, Украина",
     "emailFull": "contact@ring.ck.ua",
     "phoneFull": "+38 097 532 8801",
-    "followUs": "Follow Us",
-    "toggleTheme": "Toggle theme",
+    "followUs": "Мы в соцсетях",
+    "toggleTheme": "Переключить тему",
     "copyright": "© {year} Ring"
   },
   "messages": {
-    "welcome": "Welcome, {name}!"
+    "welcome": "Добро пожаловать, {name}!"
   },
   "activeFilters": {
     "verification": "Верификация",

@@ -26,6 +26,26 @@ export interface NftOwnershipRecord {
   signature?: string
   priceRing: number
   imageUri?: string
+  /** Generative gallery / Metaplex animation_url extras for Ring showcase UI */
+  showcase?: {
+    animationUrl?: string
+    files?: Array<{ uri: string; type: string }>
+    ringShowcase?: {
+      primaryImageUrl: string
+      media?: Array<{
+        id: string
+        originalUrl: string
+        webpUrl?: string
+        contentType: string
+        source: string
+        enabled: boolean
+        isPrimary: boolean
+      }>
+      webglUrl?: string
+      svgUrl?: string
+      audioUrl?: string
+    }
+  }
   createdAt: string
   burnedAt?: string
 }

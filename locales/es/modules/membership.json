@@ -1,0 +1,153 @@
+{
+  "upgrade_to_member": "Mejorar a Member",
+  "hero": {
+    "title": "Desbloquea el acceso completo a la plataforma",
+    "subtitle": "Crea entidades, publica oportunidades y conecta con profesionales de todo el mundo"
+  },
+  "benefits": {
+    "entity_management": {
+      "title": "Gestión de entidades",
+      "description": "Crea, gestiona y muestra tu organización o servicios"
+    },
+    "advanced_networking": {
+      "title": "Networking avanzado",
+      "description": "Conecta con profesionales del sector y socios potenciales"
+    },
+    "priority_support": {
+      "title": "Soporte prioritario",
+      "description": "Respuestas más rápidas y asistencia dedicada"
+    },
+    "premium_features": {
+      "title": "Funciones premium",
+      "description": "Accede a herramientas exclusivas y funciones avanzadas de la plataforma"
+    },
+    "enhanced_visibility": {
+      "title": "Mayor visibilidad",
+      "description": "Sé descubierto por socios y clientes potenciales"
+    },
+    "verified_profile": {
+      "title": "Perfil verificado",
+      "description": "Genera confianza con una insignia de miembro verificado"
+    }
+  },
+  "comparison": {
+    "title": "Lo que obtendrás",
+    "feature": "Función",
+    "subscriber": "Subscriber",
+    "member": "Member"
+  },
+  "features": {
+    "browse_entities": "Explorar entidades",
+    "view_opportunities": "Ver oportunidades",
+    "basic_messaging": "Mensajería básica",
+    "create_entities": "Crear entidades",
+    "manage_entities": "Gestionar entidades",
+    "confidential_access": "Acceso a contenido confidencial",
+    "priority_support": "Soporte prioritario",
+    "view_entities": "Ver entidades públicas",
+    "post_opportunities": "Publicar oportunidades",
+    "advanced_analytics": "Analíticas avanzadas",
+    "priority_search": "Prioridad en resultados de búsqueda",
+    "custom_branding": "Marca personalizada"
+  },
+  "cta": {
+    "title": "¿Listo para mejorar?",
+    "subtitle": "Únete a profesionales que hacen crecer su negocio con Ring Platform"
+  },
+  "pricing": {
+    "amount": "₴299",
+    "period": "UAH",
+    "features_included": "Todas las funciones de miembro incluidas"
+  },
+  "sidebar": {
+    "member_benefits": "Beneficios de miembro",
+    "member_benefits_desc": "Desbloquea creación de entidades, publicación de oportunidades y estado de perfil verificado.",
+    "pricing_title": "Precio del upgrade",
+    "pay_either": "Paga con crédito de cuenta, RING de wallet o tarjeta",
+    "or_ring": "o {amount} tokens RING on-chain",
+    "payment_options": "Opciones de pago",
+    "payment_options_desc": "Recarga el crédito de cuenta para un upgrade instantáneo, paga con RING on-chain o usa tarjeta vía WayForPay.",
+    "help_title": "¿Necesitas ayuda?",
+    "help_desc": "Lee la guía de upgrade de membresía sobre métodos de pago, webhooks y cambios de rol.",
+    "view_payment_guide": "Ver guía de pago"
+  },
+  "modal": {
+    "title": "Mejorar a Member",
+    "description": "Necesitas el estado de miembro para crear entidades y desbloquear funciones premium.",
+    "upgrade_required": "Se requiere estado de Member",
+    "benefits_title": "Lo que obtendrás:",
+    "benefits": {
+      "entity_creation": "Crear y gestionar entidades",
+      "entity_management": "Herramientas completas de gestión de entidades",
+      "premium_access": "Acceso a funciones premium"
+    },
+    "upgrade_now": "Mejorar ahora",
+    "learn_more": "Más información"
+  },
+  "payment": {
+    "title": "Completar pago",
+    "placeholder": "La integración de WayForPay se implementará en la Fase 3. Por ahora, esto es un marcador de posición.",
+    "membership_fee": "Tarifa única de upgrade a miembro",
+    "proceed": "Ir al pago (próximamente)",
+    "cancel": "Cancelar",
+    "native_tokens": "Tokens nativos",
+    "fiat": "Moneda fiat",
+    "recommended": "Recomendado",
+    "cost": "Coste",
+    "your_balance": "Tu saldo",
+    "on_chain_balance": "Saldo on-chain",
+    "credit": {
+      "title": "Pagar con crédito de cuenta ({currency})",
+      "sufficient": "Saldo de crédito suficiente",
+      "instant": "Upgrade instantáneo desde el saldo de crédito fiat",
+      "insufficient": "Saldo de crédito insuficiente",
+      "need_more": "Necesitas {amount} {currency} más de crédito de cuenta para mejorar",
+      "pay_now": "Pagar con crédito",
+      "top_up": "Recargar saldo de crédito"
+    },
+    "wallet_native_token": {
+      "title": "Pagar con token {native_token}",
+      "insufficient": "RING on-chain insuficiente. Cómpralo en el desk RingSales (próximamente) o usa crédito de cuenta.",
+      "pay_now": "Pagar con RING de wallet"
+    },
+    "ring": {
+      "title": "Pagar con crédito de cuenta",
+      "sufficient": "Saldo suficiente",
+      "instant": "Upgrade instantáneo sin comisiones de transacción",
+      "insufficient": "Saldo de crédito insuficiente",
+      "need_more": "Necesitas {amount} más de crédito de cuenta para mejorar tu cuenta",
+      "pay_now": "Pagar con crédito",
+      "top_up": "Recargar saldo de crédito"
+    },
+    "fiat_details": {
+      "placeholder": "Paga con tarjeta vía WayForPay, o usa crédito de cuenta / RING on-chain.",
+      "proceed": "Ir al pago con tarjeta"
+    },
+    "paypal": {
+      "dao_hint": "Ayuda a desbloquear PayPal reuniendo 100 likes o aportando 10 tokens nativos."
+    }
+  },
+  "page": {
+    "title": "Mejorar a Member",
+    "subtitle": "Desbloquea todo el potencial de Ring Platform. Crea entidades, publica oportunidades y haz crecer tu red profesional.",
+    "success_title": "¡Solicitud enviada correctamente!",
+    "success_description": "Revisaremos tu solicitud y te avisaremos en 24–48 horas.",
+    "pending_title": "Solicitud de upgrade pendiente",
+    "pending_description": "Ya enviaste una solicitud de upgrade el {date}. Estado: {status}",
+    "comparison_title": "Comparación de funciones",
+    "comparison_subtitle": "Mira lo que desbloquearás como miembro",
+    "current_plan": "(Actual)",
+    "cta_title": "¿Listo para mejorar?",
+    "cta_subtitle": "Únete a cientos de profesionales que ya usan Ring Platform para hacer crecer su negocio",
+    "upgrade_now": "Mejorar ahora",
+    "back_to_profile": "Volver al perfil",
+    "upgrade_notice": "Las solicitudes de upgrade suelen revisarse en 24–48 horas",
+    "faq_title": "Preguntas frecuentes",
+    "faq_time_question": "¿Cuánto tarda el proceso de upgrade?",
+    "faq_time_answer": "La mayoría de las solicitudes se revisan en 24–48 horas. Recibirás un correo cuando se haya procesado tu solicitud.",
+    "faq_info_question": "¿Qué información debo proporcionar?",
+    "faq_info_answer": "Pediremos información básica sobre tu organización, tu rol y por qué quieres mejorar. Un perfil de LinkedIn o enlaces a tu portfolio pueden acelerar la revisión.",
+    "faq_downgrade_question": "¿Puedo bajar de categoría después?",
+    "faq_downgrade_answer": "Sí, puedes solicitar un cambio de tipo de cuenta en cualquier momento desde los ajustes del perfil. Ten en cuenta que bajar de categoría puede afectar al acceso a ciertas funciones."
+  }
+}

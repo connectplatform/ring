@@ -14,6 +14,7 @@ import {
 export type AdminPageContext =
   | 'dashboard'
   | 'users'
+  | 'rewards'
   | 'news'
   | 'dao'
   | 'analytics'
@@ -26,11 +27,12 @@ export type AdminPageContext =
   | 'verification'
   | 'store'
   | 'refcodes'
-  | 'email-inbox'
-  | 'email-drafts'
-  | 'email-contacts'
-  | 'email-analytics'
-  | 'email-tasks'
+  | 'crm-inbox'
+  | 'crm-drafts'
+  | 'crm-contacts'
+  | 'crm-analytics'
+  | 'crm-tasks'
+  | 'crm-orders'
   | 'processes'
   | 'subscriptions'
   | 'web3'
@@ -62,6 +64,7 @@ export type AdminNavIconKey =
 export type AdminNavLabelKey =
   | 'dashboard'
   | 'users'
+  | 'rewards'
   | 'news'
   | 'dao'
   | 'analytics'
@@ -108,6 +111,7 @@ export type AdminNavLabelKey =
   | 'emailContacts'
   | 'emailAnalytics'
   | 'emailTasks'
+  | 'crmOrders'
   | 'web3Settings'
   | 'web3Overview'
   | 'web3Nft'
@@ -203,6 +207,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         minRole: 'admin',
       },
       {
+        id: 'rewards',
+        labelKey: 'rewards',
+        icon: 'Coins',
+        href: ROUTES.ADMIN_REWARDS,
+        pageContext: 'rewards',
+        minRole: 'admin',
+      },
+      {
         id: 'news',
         labelKey: 'news',
         icon: 'FileText',
@@ -285,11 +297,19 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     titleKey: 'navGroupEmail',
     items: [
       {
-        id: 'email-inbox',
+        id: 'crm-orders',
+        labelKey: 'crmOrders',
+        icon: 'ShoppingBag',
+        href: ROUTES.ADMIN_CRM_ORDERS,
+        pageContext: 'crm-orders',
+        minRole: 'admin',
+      },
+      {
+        id: 'crm-inbox',
         labelKey: 'emailInbox',
         icon: 'Mail',
-        href: ROUTES.ADMIN_EMAIL_INBOX,
-        pageContext: 'email-inbox',
+        href: ROUTES.ADMIN_CRM_INBOX,
+        pageContext: 'crm-inbox',
         minRole: 'admin',
       },
     ],
@@ -353,11 +373,12 @@ export function resolveRailSection(pageContext: AdminPageContext): AdminRailSect
     case 'fraud-desk':
     case 'verification':
       return 'security'
-    case 'email-inbox':
-    case 'email-drafts':
-    case 'email-contacts':
-    case 'email-analytics':
-    case 'email-tasks':
+    case 'crm-inbox':
+    case 'crm-drafts':
+    case 'crm-contacts':
+    case 'crm-analytics':
+    case 'crm-tasks':
+    case 'crm-orders':
       return 'email'
     case 'dao':
       return 'dao'
@@ -498,39 +519,46 @@ export function getRailSubmenu(
     case 'email':
       return [
         {
+          id: 'crm-orders',
+          labelKey: 'crmOrders',
+          href: ROUTES.ADMIN_CRM_ORDERS,
+          icon: 'ShoppingBag',
+          isActive: (p) => p.includes('/admin/crm/orders'),
+        },
+        {
           id: 'inbox',
           labelKey: 'emailInbox',
-          href: ROUTES.ADMIN_EMAIL_INBOX,
+          href: ROUTES.ADMIN_CRM_INBOX,
           icon: 'Mail',
-          isActive: (p) => p.includes('/admin/email-inbox'),
+          isActive: (p) => p.includes('/admin/crm/inbox'),
         },
         {
           id: 'drafts',
           labelKey: 'emailDrafts',
-          href: ROUTES.ADMIN_EMAIL_DRAFTS,
+          href: ROUTES.ADMIN_CRM_DRAFTS,
           icon: 'FileText',
-          isActive: (p) => p.includes('/admin/email-drafts'),
+          isActive: (p) => p.includes('/admin/crm/drafts'),
         },
         {
           id: 'contacts',
           labelKey: 'emailContacts',
-          href: ROUTES.ADMIN_EMAIL_CONTACTS,
+          href: ROUTES.ADMIN_CRM_CONTACTS,
           icon: 'Users',
-          isActive: (p) => p.includes('/admin/email-contacts'),
+          isActive: (p) => p.includes('/admin/crm/contacts'),
         },
         {
           id: 'analytics',
           labelKey: 'emailAnalytics',
-          href: ROUTES.ADMIN_EMAIL_ANALYTICS,
+          href: ROUTES.ADMIN_CRM_ANALYTICS,
           icon: 'BarChart3',
-          isActive: (p) => p.includes('/admin/email-analytics'),
+          isActive: (p) => p.includes('/admin/crm/analytics'),
         },
         {
           id: 'tasks',
           labelKey: 'emailTasks',
-          href: ROUTES.ADMIN_EMAIL_TASKS,
+          href: ROUTES.ADMIN_CRM_TASKS,
           icon: 'ListTodo',
-          isActive: (p) => p.includes('/admin/email-tasks'),
+          isActive: (p) => p.includes('/admin/crm/tasks'),
         },
       ]
     case 'dao':
@@ -701,10 +729,12 @@ export function getRelatedHubs(
 
   switch (pageContext) {
     case 'dashboard':
-      return pick(['users', 'news', 'security', 'store', 'email-inbox'])
+      return pick(['users', 'news', 'security', 'store', 'crm-inbox'])
     case 'users':
       // Include current module so Related modules shows active context.
-      return pick(['users', 'security', 'moderation', 'analytics'])
+      return pick(['users', 'rewards', 'security', 'moderation', 'analytics'])
+    case 'rewards':
+      return pick(['users', 'refcodes', 'subscriptions', 'analytics'])
     case 'news':
       return pick(['store', 'dao', 'analytics', 'moderation'])
     case 'dao':
@@ -712,7 +742,7 @@ export function getRelatedHubs(
     case 'moderation':
       return pick(['news', 'security', 'matcher'])
     case 'analytics':
-      return pick(['matcher', 'performance', 'email-inbox'])
+      return pick(['matcher', 'performance', 'crm-inbox'])
     case 'security':
     case 'fraud-desk':
     case 'verification':
@@ -731,11 +761,12 @@ export function getRelatedHubs(
       return pick(['store', 'subscriptions'])
     case 'subscriptions':
       return pick(['store', 'refcodes'])
-    case 'email-inbox':
-    case 'email-drafts':
-    case 'email-contacts':
-    case 'email-analytics':
-    case 'email-tasks':
+    case 'crm-inbox':
+    case 'crm-drafts':
+    case 'crm-contacts':
+    case 'crm-analytics':
+    case 'crm-tasks':
+    case 'crm-orders':
       return pick(['users', 'analytics'])
     case 'web3':
       return pick(['dao', 'refcodes', 'settings'])

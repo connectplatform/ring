@@ -1,0 +1,21 @@
+{
+  "suspended": {
+    "title": "Cuenta suspendida",
+    "description": "Tu cuenta ha sido suspendida pendiente de revisión. Envía una solicitud de restauración para una videollamada de verificación con nuestro equipo.",
+    "reasonLabel": "Motivo",
+    "formIntro": "Indica tus datos de contacto y el canal preferido para una videollamada de verificación con el equipo.",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "telegram": "Usuario de Telegram",
+    "whatsapp": "Número de WhatsApp",
+    "videoChannel": "Canal preferido de verificación por vídeo",
+    "videoChannelHelp": "El equipo puede contactarte por Telegram, WhatsApp, Email+Zoom, Email+Meet o Skype.",
+    "message": "Explica tu situación",
+    "messagePlaceholder": "Describe brevemente por qué debería restaurarse tu cuenta…",
+    "submit": "Enviar solicitud de restauración",
+    "submitting": "Enviando…",
+    "submitSuccess": "Solicitud enviada ({procedure}). Nuestro equipo la revisará en la cola de verificación.",
+    "submitError": "No se pudo enviar la solicitud de restauración",
+    "pendingReview": "Tu solicitud de restauración {procedure} está pendiente de revisión por un administrador."
+  }
+}

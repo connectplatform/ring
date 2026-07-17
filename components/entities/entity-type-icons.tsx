@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useCallback } from 'react'
 import {
   Code,
   Factory,
@@ -27,11 +28,24 @@ import {
   Rocket,
   Pill,
   Package,
+  Leaf,
   LucideIcon,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { EntityType } from '@/features/entities/types'
+import { getEntityTypes } from '@/features/entities/presets'
 import { resolveEntityType } from '@/lib/entities/legacy-entity-type-map'
 import { cn } from '@/lib/utils'
+
+/**
+ * SSOT layering (Preset SSOT doctrine — see docs/en/customization/vertical-presets.mdx):
+ * - Type catalog (ids, fallback names/descriptions, emoji): features/entities/presets/<preset>.ts,
+ *   selected by ring-config `entities.preset` via getEntityTypes().
+ * - Copy (labels/descriptions): locales modules/entities.json `types.<id>` / `types.<id>Desc`
+ *   — use useEntityTypeLabel()/useEntityTypeDescription(); catalog name is English fallback only.
+ * - Visual skin (lucide icon + Tailwind colors): TYPE_VISUALS map below — design data, per-id.
+ * Do NOT hardcode label/description strings here.
+ */
 
 export interface EntityTypeConfig {
   id: EntityType
@@ -39,253 +53,109 @@ export interface EntityTypeConfig {
   color: string
   bgColor: string
   textColor: string
+  /** English fallback from preset catalog — render via useEntityTypeLabel() for i18n */
   label: string
+  /** English fallback from preset catalog — render via useEntityTypeDescription() for i18n */
   description: string
 }
 
-/** 26 professional industry categories — ring-platform.org community portal SSOT */
-export const entityTypeConfigs: EntityTypeConfig[] = [
-  {
-    id: 'technologySoftware',
-    icon: Code,
-    color: 'blue',
-    bgColor: 'bg-blue-600',
-    textColor: 'text-blue-700',
-    label: 'Technology & Software',
-    description: 'Software, SaaS, AI, cloud, cybersecurity, and digital product companies',
-  },
-  {
-    id: 'manufacturingIndustry',
-    icon: Factory,
-    color: 'amber',
-    bgColor: 'bg-amber-600',
-    textColor: 'text-amber-700',
-    label: 'Manufacturing & Industry',
-    description: 'Production, industrial automation, and supply-chain organizations',
-  },
-  {
-    id: 'financialServices',
-    icon: Landmark,
-    color: 'emerald',
-    bgColor: 'bg-emerald-600',
-    textColor: 'text-emerald-700',
-    label: 'Financial Services',
-    description: 'Banking, fintech, insurance, investment, and financial advisory',
-  },
-  {
-    id: 'healthcareMedical',
-    icon: HeartPulse,
-    color: 'rose',
-    bgColor: 'bg-rose-600',
-    textColor: 'text-rose-700',
-    label: 'Healthcare & Medical',
-    description: 'Hospitals, clinics, medtech, and health services providers',
-  },
-  {
-    id: 'educationTraining',
-    icon: GraduationCap,
-    color: 'indigo',
-    bgColor: 'bg-indigo-600',
-    textColor: 'text-indigo-700',
-    label: 'Education & Training',
-    description: 'Universities, schools, edtech, and professional training providers',
-  },
-  {
-    id: 'realEstateConstruction',
-    icon: Building2,
-    color: 'slate',
-    bgColor: 'bg-slate-600',
-    textColor: 'text-slate-700',
-    label: 'Real Estate & Construction',
-    description: 'Developers, contractors, architecture, and property management',
-  },
-  {
-    id: 'retailEcommerce',
-    icon: ShoppingCart,
-    color: 'orange',
-    bgColor: 'bg-orange-600',
-    textColor: 'text-orange-700',
-    label: 'Retail & E-commerce',
-    description: 'Retail brands, marketplaces, and omnichannel commerce',
-  },
-  {
-    id: 'professionalServices',
-    icon: Briefcase,
-    color: 'cyan',
-    bgColor: 'bg-cyan-600',
-    textColor: 'text-cyan-700',
-    label: 'Professional Services',
-    description: 'Accounting, HR, design, engineering, and B2B service firms',
-  },
-  {
-    id: 'mediaEntertainment',
-    icon: Clapperboard,
-    color: 'fuchsia',
-    bgColor: 'bg-fuchsia-600',
-    textColor: 'text-fuchsia-700',
-    label: 'Media & Entertainment',
-    description: 'Studios, publishers, streaming, gaming, and creative media',
-  },
-  {
-    id: 'transportationLogistics',
-    icon: Truck,
-    color: 'yellow',
-    bgColor: 'bg-yellow-600',
-    textColor: 'text-yellow-700',
-    label: 'Transportation & Logistics',
-    description: 'Freight, mobility, warehousing, and last-mile delivery',
-  },
-  {
-    id: 'energyUtilities',
-    icon: Zap,
-    color: 'lime',
-    bgColor: 'bg-lime-600',
-    textColor: 'text-lime-700',
-    label: 'Energy & Utilities',
-    description: 'Power, renewables, utilities, and energy infrastructure',
-  },
-  {
-    id: 'agricultureFood',
-    icon: Wheat,
-    color: 'green',
-    bgColor: 'bg-green-600',
-    textColor: 'text-green-700',
-    label: 'Agriculture & Food',
-    description: 'Farms, food producers, agtech, and agrifood supply chains',
-  },
-  {
-    id: 'governmentPublicSector',
-    icon: Building,
-    color: 'stone',
-    bgColor: 'bg-stone-600',
-    textColor: 'text-stone-700',
-    label: 'Government & Public Sector',
-    description: 'Public agencies, municipalities, and government programs',
-  },
-  {
-    id: 'nonProfitNgo',
-    icon: Heart,
-    color: 'pink',
-    bgColor: 'bg-pink-600',
-    textColor: 'text-pink-700',
-    label: 'Non-Profit & NGO',
-    description: 'Charities, foundations, and civil-society organizations',
-  },
-  {
-    id: 'researchDevelopment',
-    icon: FlaskConical,
-    color: 'violet',
-    bgColor: 'bg-violet-600',
-    textColor: 'text-violet-700',
-    label: 'Research & Development',
-    description: 'Labs, innovation centers, and R&D institutes',
-  },
-  {
-    id: 'consultingAdvisory',
-    icon: Users,
-    color: 'sky',
-    bgColor: 'bg-sky-600',
-    textColor: 'text-sky-700',
-    label: 'Consulting & Advisory',
-    description: 'Management consulting and strategic advisory practices',
-  },
-  {
-    id: 'legalServices',
-    icon: Scale,
-    color: 'neutral',
-    bgColor: 'bg-neutral-600',
-    textColor: 'text-neutral-700',
-    label: 'Legal Services',
-    description: 'Law firms, compliance, and legal technology providers',
-  },
-  {
-    id: 'marketingAdvertising',
-    icon: Megaphone,
-    color: 'purple',
-    bgColor: 'bg-purple-600',
-    textColor: 'text-purple-700',
-    label: 'Marketing & Advertising',
-    description: 'Agencies, mar-tech, and brand growth specialists',
-  },
-  {
-    id: 'hospitalityTourism',
-    icon: Plane,
-    color: 'teal',
-    bgColor: 'bg-teal-600',
-    textColor: 'text-teal-700',
-    label: 'Hospitality & Tourism',
-    description: 'Hotels, travel, venues, and experience operators',
-  },
-  {
-    id: 'sportsRecreation',
-    icon: Trophy,
-    color: 'amber',
-    bgColor: 'bg-amber-500',
-    textColor: 'text-amber-600',
-    label: 'Sports & Recreation',
-    description: 'Clubs, leagues, fitness, and recreation businesses',
-  },
-  {
-    id: 'artsCulture',
-    icon: Palette,
-    color: 'rose',
-    bgColor: 'bg-rose-500',
-    textColor: 'text-rose-600',
-    label: 'Arts & Culture',
-    description: 'Museums, galleries, cultural institutions, and artists',
-  },
-  {
-    id: 'environmentalServices',
-    icon: TreePine,
-    color: 'emerald',
-    bgColor: 'bg-emerald-500',
-    textColor: 'text-emerald-600',
-    label: 'Environmental Services',
-    description: 'Sustainability, remediation, and environmental consulting',
-  },
-  {
-    id: 'telecommunications',
-    icon: Radio,
-    color: 'blue',
-    bgColor: 'bg-blue-500',
-    textColor: 'text-blue-600',
-    label: 'Telecommunications',
-    description: 'Telcos, ISPs, and connectivity infrastructure providers',
-  },
-  {
-    id: 'aerospaceDefense',
-    icon: Rocket,
-    color: 'indigo',
-    bgColor: 'bg-indigo-500',
-    textColor: 'text-indigo-600',
-    label: 'Aerospace & Defense',
-    description: 'Aviation, space, defense contractors, and dual-use tech',
-  },
-  {
-    id: 'pharmaceuticals',
-    icon: Pill,
-    color: 'green',
-    bgColor: 'bg-green-500',
-    textColor: 'text-green-600',
-    label: 'Pharmaceuticals',
-    description: 'Drug development, pharma manufacturing, and life-science vendors',
-  },
-  {
-    id: 'other',
-    icon: Package,
-    color: 'gray',
-    bgColor: 'bg-gray-500',
-    textColor: 'text-gray-600',
-    label: 'Other',
-    description: 'Organizations that do not fit a single category above',
-  },
-]
+interface TypeVisual {
+  icon: LucideIcon
+  color: string
+  bgColor: string
+  textColor: string
+}
+
+/** Lucide + color skin per known type id (platform industries + shared fallbacks). */
+const TYPE_VISUALS: Record<string, TypeVisual> = {
+  technologySoftware: { icon: Code, color: 'blue', bgColor: 'bg-blue-600', textColor: 'text-blue-700' },
+  manufacturingIndustry: { icon: Factory, color: 'amber', bgColor: 'bg-amber-600', textColor: 'text-amber-700' },
+  financialServices: { icon: Landmark, color: 'emerald', bgColor: 'bg-emerald-600', textColor: 'text-emerald-700' },
+  healthcareMedical: { icon: HeartPulse, color: 'rose', bgColor: 'bg-rose-600', textColor: 'text-rose-700' },
+  educationTraining: { icon: GraduationCap, color: 'indigo', bgColor: 'bg-indigo-600', textColor: 'text-indigo-700' },
+  realEstateConstruction: { icon: Building2, color: 'slate', bgColor: 'bg-slate-600', textColor: 'text-slate-700' },
+  retailEcommerce: { icon: ShoppingCart, color: 'orange', bgColor: 'bg-orange-600', textColor: 'text-orange-700' },
+  professionalServices: { icon: Briefcase, color: 'cyan', bgColor: 'bg-cyan-600', textColor: 'text-cyan-700' },
+  mediaEntertainment: { icon: Clapperboard, color: 'fuchsia', bgColor: 'bg-fuchsia-600', textColor: 'text-fuchsia-700' },
+  transportationLogistics: { icon: Truck, color: 'yellow', bgColor: 'bg-yellow-600', textColor: 'text-yellow-700' },
+  energyUtilities: { icon: Zap, color: 'lime', bgColor: 'bg-lime-600', textColor: 'text-lime-700' },
+  agricultureFood: { icon: Wheat, color: 'green', bgColor: 'bg-green-600', textColor: 'text-green-700' },
+  governmentPublicSector: { icon: Building, color: 'stone', bgColor: 'bg-stone-600', textColor: 'text-stone-700' },
+  nonProfitNgo: { icon: Heart, color: 'pink', bgColor: 'bg-pink-600', textColor: 'text-pink-700' },
+  researchDevelopment: { icon: FlaskConical, color: 'violet', bgColor: 'bg-violet-600', textColor: 'text-violet-700' },
+  consultingAdvisory: { icon: Users, color: 'sky', bgColor: 'bg-sky-600', textColor: 'text-sky-700' },
+  legalServices: { icon: Scale, color: 'neutral', bgColor: 'bg-neutral-600', textColor: 'text-neutral-700' },
+  marketingAdvertising: { icon: Megaphone, color: 'purple', bgColor: 'bg-purple-600', textColor: 'text-purple-700' },
+  hospitalityTourism: { icon: Plane, color: 'teal', bgColor: 'bg-teal-600', textColor: 'text-teal-700' },
+  sportsRecreation: { icon: Trophy, color: 'amber', bgColor: 'bg-amber-500', textColor: 'text-amber-600' },
+  artsCulture: { icon: Palette, color: 'rose', bgColor: 'bg-rose-500', textColor: 'text-rose-600' },
+  environmentalServices: { icon: TreePine, color: 'emerald', bgColor: 'bg-emerald-500', textColor: 'text-emerald-600' },
+  telecommunications: { icon: Radio, color: 'blue', bgColor: 'bg-blue-500', textColor: 'text-blue-600' },
+  aerospaceDefense: { icon: Rocket, color: 'indigo', bgColor: 'bg-indigo-500', textColor: 'text-indigo-600' },
+  pharmaceuticals: { icon: Pill, color: 'green', bgColor: 'bg-green-500', textColor: 'text-green-600' },
+  other: { icon: Package, color: 'gray', bgColor: 'bg-gray-500', textColor: 'text-gray-600' },
+}
+
+/** Default skin for vertical-preset ids without a dedicated visual (e.g. agricultural catalog). */
+const DEFAULT_VISUAL: TypeVisual = {
+  icon: Leaf,
+  color: 'emerald',
+  bgColor: 'bg-emerald-600',
+  textColor: 'text-emerald-700',
+}
+
+const getVisual = (id: string): TypeVisual => TYPE_VISUALS[id] ?? DEFAULT_VISUAL
+
+/**
+ * Active vertical's entity type configs — catalog (ids/names) × visual skin.
+ * Derived from ring-config `entities.preset`; platform clones get the 26 industries,
+ * agricultural clones get the healthy-living catalog automatically.
+ */
+export const entityTypeConfigs: EntityTypeConfig[] = Object.values(getEntityTypes()).map((entry) => ({
+  id: entry.id as EntityType,
+  ...getVisual(entry.id),
+  label: entry.name,
+  description: entry.description ?? '',
+}))
+
+const FALLBACK_CONFIG: EntityTypeConfig = {
+  id: 'other',
+  ...TYPE_VISUALS.other,
+  label: 'Other',
+  description: 'Organizations that do not fit a single category above',
+}
 
 export const getEntityTypeConfig = (type: EntityType | string): EntityTypeConfig => {
+  // Raw id first (vertical preset ids like 'organic_farm'), then legacy-resolved industry id
+  const direct = entityTypeConfigs.find((config) => config.id === type)
+  if (direct) return direct
   const resolved = resolveEntityType(type)
-  return (
-    entityTypeConfigs.find((config) => config.id === resolved) ||
-    entityTypeConfigs.find((config) => config.id === 'other')!
+  return entityTypeConfigs.find((config) => config.id === resolved) ?? FALLBACK_CONFIG
+}
+
+/** i18n label for an entity type — locales `modules.entities.types.<id>`, catalog name fallback. */
+export function useEntityTypeLabel(): (type: EntityType | string) => string {
+  const t = useTranslations('modules.entities')
+  return useCallback(
+    (type: EntityType | string) => {
+      const config = getEntityTypeConfig(type)
+      const key = `types.${config.id}`
+      return t.has(key) ? t(key) : config.label
+    },
+    [t]
+  )
+}
+
+/** i18n description for an entity type — locales `modules.entities.types.<id>Desc` fallback. */
+export function useEntityTypeDescription(): (type: EntityType | string) => string {
+  const t = useTranslations('modules.entities')
+  return useCallback(
+    (type: EntityType | string) => {
+      const config = getEntityTypeConfig(type)
+      const key = `types.${config.id}Desc`
+      return t.has(key) ? t(key) : config.description
+    },
+    [t]
   )
 }
 
@@ -305,7 +175,9 @@ export const EntityTypeIcon: React.FC<EntityTypeIconProps> = ({
   className,
 }) => {
   const config = getEntityTypeConfig(type)
+  const getLabel = useEntityTypeLabel()
   const Icon = config.icon
+  const label = getLabel(type)
 
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -338,13 +210,13 @@ export const EntityTypeIcon: React.FC<EntityTypeIconProps> = ({
         <div className={containerClasses}>
           <Icon className={iconClasses} />
         </div>
-        <span className="text-sm font-medium">{config.label}</span>
+        <span className="text-sm font-medium">{label}</span>
       </div>
     )
   }
 
   return (
-    <div className={containerClasses} title={config.label}>
+    <div className={containerClasses} title={label}>
       <Icon className={iconClasses} />
     </div>
   )
@@ -362,6 +234,7 @@ export const EntityTypeBadge: React.FC<EntityTypeBadgeProps> = ({
   className,
 }) => {
   const config = getEntityTypeConfig(type)
+  const getLabel = useEntityTypeLabel()
   const Icon = config.icon
 
   const sizeClasses = {
@@ -386,7 +259,7 @@ export const EntityTypeBadge: React.FC<EntityTypeBadgeProps> = ({
       )}
     >
       <Icon className={iconSizeClasses[size]} />
-      <span>{config.label}</span>
+      <span>{getLabel(type)}</span>
     </div>
   )
 }
@@ -404,6 +277,9 @@ export const EntityTypeGrid: React.FC<EntityTypeGridProps> = ({
   maxHeight = 'max-h-64',
   columns = 3,
 }) => {
+  const getLabel = useEntityTypeLabel()
+  const getDescription = useEntityTypeDescription()
+
   return (
     <div
       className={cn(
@@ -437,14 +313,14 @@ export const EntityTypeGrid: React.FC<EntityTypeGridProps> = ({
               <Icon className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm truncate">{config.label}</div>
+              <div className="font-medium text-sm truncate">{getLabel(config.id)}</div>
               <div
                 className={cn(
                   'text-xs truncate',
                   isSelected ? 'text-white/80' : 'text-muted-foreground'
                 )}
               >
-                {config.description}
+                {getDescription(config.id)}
               </div>
             </div>
           </button>

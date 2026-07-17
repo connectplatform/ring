@@ -18,7 +18,7 @@
     "convertTo": "Convert to {token}",
     "convertHint": "≈ {amount} {token} at current rate",
     "addCredit": "Add Credit",
-    "deskModalTitle": "Token desk — {token}"
+    "deskModalTitle": "{token} token desk"
   },
   "subscription": "Subscription",
   "status": "Status",
@@ -33,13 +33,13 @@
   "deskTitle": "Ring Desk",
   "deskBuy": "Buy RING",
   "deskSell": "Sell RING",
-  "deskBuyAmountLabel": "Credit points to spend",
+  "deskBuyAmountLabel": "Credit to spend",
   "deskAvailableBalance": "Available: {amount} {unit}",
-  "deskUseAllPoints": "All {unit}",
+  "deskUseAllPoints": "Max",
   "deskQuoteLoading": "Updating quote…",
   "deskSellAmountLabel": "RING amount",
   "deskBuyHint": "Spend credit points to receive {token} on-chain at the live oracle rate.",
-  "deskSellHint": "Sell on-chain RING for USD platform credits (net of tax).",
+  "deskSellHint": "Sell on-chain RING for platform credits.",
   "deskGetQuote": "Get quote",
   "deskConfirm": "Confirm",
   "deskQuoteRing": "You receive",
@@ -107,13 +107,23 @@
         "description": "Transfer RING tokens directly from your wallet"
       },
       "card": {
-        "name": "Card"
+        "name": "Card",
+        "description": "Purchase account credit ({creditUnit}). Convert to {token} later via Token Desk."
+      },
+      "fiat": {
+        "name": "Card payment",
+        "description": "Purchase account credit ({creditUnit}). Convert to {token} later via Token Desk."
+      },
+      "paypal": {
+        "name": "PayPal",
+        "description": "Purchase account credit ({creditUnit}) with PayPal. Convert to {token} later via Token Desk."
       }
     },
     "error": {
       "invalid_amount": "Amount must be between 0.01 and 10000 RING"
     },
-    "proceed_card": "Proceed to Card Payment"
+    "proceed_card": "Proceed to Card Payment",
+    "proceed_paypal": "Proceed to PayPal"
   },
   "send": {
     "title": "Send RING",
@@ -155,8 +165,117 @@
     "sendFailed": "Failed to send RING. Please try again.",
     "recipientFallback": "recipient"
   },
+  "transactionKinds": {
+    "nativetoken_send": "{token} was sent",
+    "nativetoken_send_to": "{token} was sent to {contactName}",
+    "nativetoken_receive": "Received {token}",
+    "nativetoken_receive_from": "Received {token} from {contactName}",
+    "native_token_send": "{token} was sent",
+    "native_token_receive": "Received {token}",
+    "desk_buy": "Spent credit balance {creditUnit}",
+    "desk_buy_spend_credit": "Spent credit balance {creditUnit}",
+    "desk_sell": "Sold {token} at desk",
+    "desk_sell_credit": "Received credit balance {creditUnit}",
+    "desk_refund": "Desk refund ({creditUnit})",
+    "payment": "Payment",
+    "purchase": "Purchase",
+    "membership_fee": "Membership fee",
+    "top_up": "Credit top-up",
+    "topup": "Credit top-up",
+    "credit_topup": "Credit top-up",
+    "refund": "Refund",
+    "penalty": "Penalty",
+    "bonus": "Bonus",
+    "reward_credit_add": "Reward credit",
+    "reimbursement": "Reimbursement",
+    "payment_request_sent": "Payment request sent ({token})",
+    "payment_request_received": "Payment request received ({token})"
+  },
   "refreshingBalances": "Refreshing balances…",
   "balanceUpdated": "Balance updated just now",
   "balanceStale": "Balance may be outdated — tap Refresh",
-  "autoRefreshEvery": "Auto-refreshes every 60 seconds"
+  "autoRefreshEvery": "Auto-refreshes every 60 seconds",
+  "topupTabs": {
+    "creditDesk": "Credit {creditUnit}"
+  },
+  "transactionDetails": {
+    "title": "Transaction details",
+    "open": "Transaction details",
+    "loadFailed": "Could not load transaction details",
+    "kind": "Type",
+    "amount": "Amount",
+    "amountRaw": "Amount (raw)",
+    "createdAt": "Time",
+    "description": "Description",
+    "status": "Status",
+    "chain": "Chain",
+    "from": "From",
+    "to": "To",
+    "contact": "Contact",
+    "txHash": "Transaction hash",
+    "slot": "Slot",
+    "blockTime": "Block time",
+    "fee": "Network fee",
+    "deskOrder": "Desk order",
+    "error": "Error",
+    "viewOnExplorer": "View on block explorer"
+  },
+  "requestLabel": "Request",
+  "rechargeLabel": "Recharge",
+  "rechargeModalTitle": "Recharge {token}",
+  "rechargeModalHint": "Convert credit ({creditUnit}) to {token} for wallet {address}, or add credit with card.",
+  "paymentRequest": {
+    "title": "Payment request: {amount} {token}",
+    "payButton": "Pay {amount} {token}",
+    "sentHint": "Waiting for payment",
+    "paySuccess": "Sent {amount} {token}",
+    "payFailed": "Payment failed",
+    "missingWallet": "Requester wallet address missing",
+    "modalTitle": "Request {token}",
+    "pickContact": "Who should pay?",
+    "amountLabel": "Amount ({token})",
+    "noteLabel": "Note (optional)",
+    "notePlaceholder": "What is this for?",
+    "confirmTitle": "Confirm request",
+    "submit": "Send request",
+    "success": "Payment request sent",
+    "failed": "Could not send payment request",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "sendFailed": "Could not send payment request",
+    "sendSuccess": "Requested {amount} {token} from {name}",
+    "titleFlow": "Request {token}",
+    "confirmHint": "Ask {name} to pay {amount} {token}",
+    "confirmSend": "Send request",
+    "payConfirmTitle": "Pay {amount} {token}",
+    "payFromWallet": "From wallet",
+    "payBalance": "Available",
+    "payAmount": "Amount",
+    "payNoteLabel": "Note (optional)",
+    "payNotePlaceholder": "Add a note with your payment",
+    "payNoteDisplay": "Payment note: {note}",
+    "insufficientBalance": "Insufficient balance for this payment",
+    "alreadyPaid": "This request was already paid",
+    "noWalletToPay": "Create a native wallet to pay",
+    "cancelAction": "Cancel",
+    "cancelConfirmTitle": "Cancel payment request?",
+    "cancelConfirmBody": "The request will be marked cancelled for both of you.",
+    "cancelConfirmYes": "Yes",
+    "cancelConfirmNo": "No",
+    "cancelSuccess": "Payment request cancelled",
+    "cancelFailed": "Could not cancel payment request",
+    "viewTx": "View tx",
+    "chatAttachLabel": "Request Payment"
+  },
+  "activityIncoming": "Incoming",
+  "activityOutgoing": "Outgoing",
+  "activityRequests": "Requests",
+  "deskMax": "Max",
+  "deskNoCreditTitle": "No credit points",
+  "deskNoCreditHint": "Be active in {project} to earn credit {unit}",
+  "deskNoCreditOr": "or",
+  "deskBuyCreditUnit": "Buy {unit}"
 }

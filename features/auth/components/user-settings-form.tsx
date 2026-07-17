@@ -161,19 +161,13 @@ export default function UserSettingsForm() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // Handle unauthenticated users
-  React.useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(DEFAULT_LOCALE))
-    }
-  }, [status, router])
-
+  // Phase F: protected mount — wait on loading; never router.push(LOGIN).
   if (status === 'loading') {
     return <div className="text-center py-8">{t('loading') || 'Loading...'}</div>
   }
 
   if (status === 'unauthenticated') {
-    return <div className="text-center py-8">{t('redirecting') || 'Redirecting...'}</div>
+    return <div className="text-center py-8">{t('redirecting') || 'Session required…'}</div>
   }
 
   return (

@@ -13,7 +13,13 @@ export interface MembershipPaymentFormState {
   error?: string
   fieldErrors?: Record<string, string>
   redirectUrl?: string
+  redirect?: {
+    mode: 'navigate' | 'form_post'
+    url: string
+    fields?: Record<string, string | string[]>
+  }
   paymentUrl?: string
+  paymentFields?: Record<string, string | string[]>
 }
 
 /**
@@ -172,12 +178,14 @@ export async function initiateMembershipPayment(
         }
       }
 
-      if (result.paymentUrl) {
+      if (result.redirect || result.paymentUrl || result.paymentFields) {
         return {
           success: true,
           message: 'Payment initiated successfully. You will be redirected to the payment page.',
+          redirect: result.redirect,
           paymentUrl: result.paymentUrl,
-          redirectUrl: result.paymentUrl,
+          paymentFields: result.paymentFields,
+          redirectUrl: result.paymentUrl ?? result.redirect?.url,
         }
       }
 

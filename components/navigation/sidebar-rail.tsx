@@ -7,17 +7,15 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import {
-  Home,
   Users,
   Briefcase,
   Store,
   FileText,
-  Shield,
   Moon,
   Sun,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { isPlatformAdmin } from '@/features/auth/user-role'
+import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
@@ -28,6 +26,7 @@ import {
   persistRingLocalePreference,
 } from '@/lib/locale-pref'
 import { useStoreCurrency } from '@/features/store/currency-context'
+import { AdminSupermenuToggle } from './admin-supermenu'
 const railLinkClass =
   'sidebar-rail-link group relative flex justify-center items-center rounded-lg size-10 text-white hover:not-data-current:bg-white/10 data-current:bg-[#333333] data-current:inset-ring-1 data-current:inset-ring-white/3 data-current:bg-radial-[at_0%_0%] data-current:from-white/10 data-current:to-transparent'
 
@@ -94,16 +93,20 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
 
   const isActive = (href: string) => {
     if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-    return pathname.startsWith(href)
+    if (href === ROUTES.DOCS(locale)) {
+      return pathname === href || pathname === `${href}/`
+    }
+    return pathname === href || pathname.startsWith(`${href}/`)
   }
 
   const primaryItems = [
-    { href: ROUTES.HOME(locale), label: tNav('mainNav.home'), icon: <Home className="size-[18px]" strokeWidth={1.5} /> },
     { href: ROUTES.ENTITIES(locale), label: tEntities('title'), icon: <Users className="size-[18px]" strokeWidth={1.5} /> },
     { href: ROUTES.OPPORTUNITIES(locale), label: tOpp('opportunities'), icon: <Briefcase className="size-[18px]" strokeWidth={1.5} /> },
     { href: ROUTES.STORE(locale), label: tStore('title'), icon: <Store className="size-[18px]" strokeWidth={1.5} /> },
     { href: ROUTES.DOCS(locale), label: tNav('sidebar.documentation'), icon: <FileText className="size-[18px]" strokeWidth={1.5} /> },
   ]
+
+  const showAdminToggle = hasMemberPrivileges(session?.user?.role)
 
   return (
     <div
@@ -125,13 +128,10 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
               active={isActive(item.href)}
             />
           ))}
-          {session?.user && isPlatformAdmin(session.user.role) && (
-            <RailLink
-              href={ROUTES.ADMIN(locale)}
-              label={tNav('sidebar.admin')}
-              icon={<Shield className="size-[18px]" strokeWidth={1.5} />}
-              active={isActive(ROUTES.ADMIN(locale))}
-            />
+          {showAdminToggle && (
+            <li>
+              <AdminSupermenuToggle compact />
+            </li>
           )}
         </ul>
       </nav>

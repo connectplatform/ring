@@ -236,6 +236,7 @@ export default function RingContactList({ locale, embedded = false }: RingContac
                   photoURL={contact.photoURL}
                   address={contact.walletAddress}
                   isFavorite={contact.isFavorite}
+                  isVerified={Boolean(contact.isVerified)}
                   subtitle={contact.notes}
                   linkToProfile
                   actions={

@@ -1,0 +1,208 @@
+---
+title: Owner Project Lab
+description: Buyer My Projects (/my-orders), shared order_lab chat with integrator and Reggie, and admin CRM order desk under /admin/crm
+last_modified: "2026-07-17"
+audience: both
+---
+
+# Owner Project Lab
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Shared sections below apply to both audiences.
+</Callout>
+
+<Callout type="success" title="Executive summary">
+After a calculator **project order** is paid, the **buyer (owner)** opens **My Projects** at `/my-orders` — status, masked deploy summary, and one shared **Project room** chat with the integrator and Reggie. Integrators work the same room from `/my-jobs/[id]`. Admins manage orders and chat tabs under `/admin/crm/orders/[id]`. Email AI-CRM pages live under the same CRM shell at `/admin/crm/*` (APIs stay `/api/admin/email/*`).
+</Callout>
+
+| Role | Surface | What they can do |
+|------|---------|------------------|
+| **Buyer** | `/my-orders`, `/my-orders/[id]` | Read-only order + project status; Project room chat only — **no** env/deploy mutate |
+| **Integrator** | `/my-jobs/[id]` Order Lab | Same Project room; env + `imageTag`; namespace/edge/deploymentName are **admin-only** |
+| **Admin** | `/admin/crm/orders/[id]` | Three chat tabs + `AdminNamespaceEditor` (namespace / projectName / edge) |
+| **Reggie** | Poller on `order_lab` | Locked to conversation metadata namespace/project in the system prompt |
+
+<Mermaid title="Shared Project room per order">
+{`flowchart TD
+  buyer["/my-orders/[id]"] --> lab["order_lab room<br/>buyer + integrator + Reggie"]
+  integrator["/my-jobs/[id]"] --> lab
+  admin["/admin/crm/orders/[id]"] --> lab
+  admin --> dmI["Integrator DM"]
+  admin --> dmC["Client DM"]
+  reggie["Reggie poller"] --> lab`}
+</Mermaid>
+
+<Audience for="founder">
+
+## Why this matters for your clone
+
+Custom Ringization orders need a **buyer-facing control panel** that is not the integrator desk. Owners see progress and talk in one room; they never see cluster secrets. Admins keep private escalation DMs while the Project room stays the single source of project talk.
+
+<Cards>
+  <Card title="Pay → My Projects" description="Calculator success CTA opens /my-orders/[id] (ROUTES.MY_ORDER), not My Jobs." />
+  <Card title="One Project room" description="Buyer, integrator, and Reggie share one order_lab thread; Reggie stays locked to that namespace/project." />
+  <Card title="CRM under one shell" description="Orders, inbox, drafts, contacts, tasks, and analytics share horizontal CRM tabs at /admin/crm/*." />
+</Cards>
+
+### Operator checklist
+
+1. Buyer pays via calculator → lands on **My Projects** detail for that order.
+2. Nav label **My Projects** (`navigation.myProjectOrders`) lists paid/in-progress work.
+3. Detail shows payment/work status, progress, project URL / last deploy status (masked — no env secrets).
+4. Chat: single **Project room** tab — same room the integrator and Reggie use.
+5. Admin opens `/admin/crm/orders/[id]` for Reggie room | Integrator DM | Client DM, and sets namespace lock when ready.
+
+<Callout type="warning" title="Clean break — no redirects">
+Old `/admin/email-*` page URLs are **gone**. Bookmarks must use `/admin/crm/{inbox,drafts,contacts,tasks,analytics,orders}`. API paths remain `/api/admin/email/*`.
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## Buyer APIs and pages
+
+| Piece | Path |
+|-------|------|
+| List page | `app/[locale]/my-orders/page.tsx` → `MyOrdersListClient` |
+| Detail page | `app/[locale]/my-orders/[id]/page.tsx` → `BuyerOrderPanel` |
+| List API | `GET /api/my-orders` — `ProjectOrderService.listForUser` (session owner) |
+| Detail API | `GET /api/my-orders/[id]` — owner or platform admin; deployment summary **without** env secrets |
+| Routes | `ROUTES.MY_ORDERS`, `ROUTES.MY_ORDER(id)` in `constants/routes.ts` |
+| Success CTA | `app/[locale]/calculator/success/page.tsx` → `ROUTES.MY_ORDER(order.id)` |
+
+Detail response includes order + optional `{ edge, namespace, projectName, deploymentName, projectUrl, lastDeployAt, lastDeployStatus, lastError? }` and `edgeLabels` from `RING_EDGES`.
+
+## Lab auth and chat bootstrap
+
+| Piece | Path / contract |
+|-------|-----------------|
+| Auth | `features/crm/lab/lab-auth.ts` — roles `admin` \| `integrator` \| `buyer`; `allowBuyer` for chat/read surfaces |
+| Reject buyer mutate | Deploy/env/progress routes omit `allowBuyer` (403); explicit `role === 'buyer'` guards where `allowBuyer` is used |
+| Chat bootstrap | `GET /api/my-jobs/[id]/chat` with `allowBuyer: true` |
+| Shared payload | `labConversationId` (+ deprecated `orderLabConversationId`) for all roles |
+| Admin-only extras | `integratorDmId`, `clientDmId` (aliases include deprecated `customerConversationId`) |
+| Room service | `getOrCreateOrderLabConversation` + `syncOrderLabMetadata` in `order-lab-chat-service.ts` |
+
+`syncOrderLabMetadata` copies `namespace`, `deploymentName`, `edge`, `projectName`, `buyerUserId`, `integratorId` onto conversation metadata (`kind: order_lab`, `hiddenFromInbox: true`).
+
+### Role matrix (verified)
+
+| Action | Buyer | Integrator | Admin |
+|--------|-------|------------|-------|
+| Read order + masked deploy | yes | yes (My Jobs) | yes |
+| Project room chat | yes | yes | yes (joins room) |
+| Env / imageTag | no | yes | yes |
+| Namespace / edge / deploymentName / projectName | no | no | yes (`AdminNamespaceEditor` / admin deploy PATCH) |
+
+## Admin CRM UI
+
+| Piece | Path |
+|-------|------|
+| Chat tabs | `features/crm/lab/admin-crm-chat-tabs.tsx` — Reggie room \| Integrator DM \| Client DM |
+| Namespace editor | `features/crm/lab/admin-namespace-editor.tsx` |
+| CRM shell | `features/admin/crm/crm-admin-shell.tsx` — `showRightRail={false}`; tabs Orders \| Inbox \| Drafts \| Contacts \| Tasks \| Analytics |
+| pageContexts | `crm-orders`, `crm-inbox`, `crm-drafts`, `crm-contacts`, `crm-tasks`, `crm-analytics` |
+| Routes | `ADMIN_CRM_*` canonical; `ADMIN_EMAIL_*` aliases point at `/admin/crm/*` |
+| Re-export | `features/admin/email/email-admin-shell.tsx` → `CrmAdminShell` (deprecated alias) |
+
+Email admin **HTTP** APIs are unchanged — see [Email AI-CRM API](/docs/api/email-ai-crm). Cron `email-analytics` id unchanged.
+
+<Steps>
+
+<Step>
+
+### Trace buyer access
+
+Confirm session user owns the order for `GET /api/my-orders/[id]`. Buyers must not receive env maps — only the masked deployment summary fields above.
+
+</Step>
+
+<Step>
+
+### Bootstrap chat with allowBuyer
+
+Call `GET /api/my-jobs/[id]/chat`. Expect `labConversationId` and `role: 'buyer' | 'integrator' | 'admin'`. Wire UI to a single Project room (`LabThread` / order-lab rail pattern).
+
+</Step>
+
+<Step>
+
+### Keep Reggie locked
+
+After namespace/projectName changes, ensure `syncOrderLabMetadata` runs (chat bootstrap and deployment patch paths). Poller (`AI-REGGIE/scripts/reggie-order-lab-poller.mjs`) reads metadata and refuses other namespaces/projects.
+
+</Step>
+
+</Steps>
+
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="Email AI-CRM" href="/docs/features/email-ai-crm">
+    Inbox under /admin/crm/*; APIs still /api/admin/email/*.
+  </Card>
+  <Card title="Admin console" href="/docs/features/admin">
+    CrmAdminShell, pageContexts, and CRM tab bar.
+  </Card>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    project_order deposits that feed My Projects.
+  </Card>
+  <Card title="Messaging" href="/docs/features/messaging">
+    Conversation types and inbox hide for tool / lab rooms.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — Order Lab / project orders (not shipped)">
+
+<FutureFeatureWidget
+  name="Live edge tokens + TLS smoke"
+  description="Wire live RING_EDGE_* tokens and TLS flag; apply migration 036 on prod/staging; deploy → pods → logs → restart on one edge."
+  implementationCost={40}
+  labels={['order-lab', 'k8s']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="PIPELINES e2e for order_lab"
+  description="Pending PIPELINES rows for order_lab.chat.*, env.apply, deploy.rollout, pods.ops, and project_order credit/request/refund."
+  implementationCost={32}
+  labels={['pipelines', 'order-lab']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Stripe PaymentIntent refund on cancel"
+  description="Stripe cancel remains blocked until PI refund path ships."
+  implementationCost={24}
+  labels={['payments', 'project-order']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="GHCR image build from lab"
+  description="Namespace provisioning / GHCR image build from Order Lab — tag edit only today."
+  implementationCost={48}
+  labels={['order-lab', 'ci']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Integrator cert RBAC on deploy"
+  description="Dedicated integrator certification / RBAC gates on deploy actions beyond member check."
+  implementationCost={28}
+  labels={['rbac', 'order-lab']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Reggie autonomous code-apply"
+  description="Supervised code-apply loop — poller is plan-only by design today."
+  implementationCost={56}
+  labels={['reggie', 'order-lab']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

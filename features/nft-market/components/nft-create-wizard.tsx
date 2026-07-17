@@ -20,6 +20,7 @@ import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { NftMemberCollection } from '@/features/nft-market/types'
 import type { NftOwnershipRecord } from '@/features/nft-gates/types'
+import { GenerativeMediaField } from '@/features/generative-media/components/generative-media-field'
 
 function ActionAlert({ state }: { state: NftMemberActionState | null }) {
   if (!state) return null
@@ -98,10 +99,14 @@ export function NftCreateWizard({
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" name="description" rows={3} />
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="imageUri">Cover image URL</Label>
-              <Input id="imageUri" name="imageUri" type="url" placeholder="https://..." />
-            </div>
+            <GenerativeMediaField
+              name="imageUri"
+              scope="nft"
+              fieldId="collection-cover"
+              pageSlug="nft-create"
+              purpose="nft-member-collection-cover"
+              actionUrl="/nft/create"
+            />
             <Button type="submit" disabled={createPending} className="md:col-span-2">
               {createPending ? 'Creating...' : 'Create collection'}
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -148,14 +153,18 @@ export function NftCreateWizard({
                 <Label htmlFor="mint-name">Asset name</Label>
                 <Input id="mint-name" name="name" required maxLength={32} placeholder="Edition #1" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="mint-image">Image URL</Label>
-                <Input id="mint-image" name="imageUri" type="url" placeholder="https://..." />
-              </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="mint-description">Description</Label>
                 <Textarea id="mint-description" name="description" rows={2} />
               </div>
+              <GenerativeMediaField
+                name="imageUri"
+                scope="nft"
+                fieldId="mint-asset"
+                pageSlug="nft-create"
+                purpose="nft-member-mint-asset"
+                actionUrl="/nft/create"
+              />
               <Button type="submit" disabled={mintPending} className="md:col-span-2">
                 {mintPending ? 'Minting...' : 'Mint asset'}
               </Button>

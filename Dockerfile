@@ -181,6 +181,11 @@ ARG WAYFORPAY_MERCHANT_ACCOUNT
 # ARG WAYFORPAY_SECRET_KEY  # Runtime injection via K8s secrets
 ARG WAYFORPAY_DOMAIN
 
+# Store checkout public rails (inlined into client bundle at build)
+ARG NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN=false
+ARG NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=false
+# PAYPAL_CLIENT_SECRET / PAYPAL_WEBHOOK_ID — runtime Secret only (never ARG)
+
 # =============================================================================
 # ☁️ FILE STORAGE
 # =============================================================================
@@ -289,6 +294,8 @@ ENV DB_TRACING_ENABLED=${DB_TRACING_ENABLED}
 ENV WAYFORPAY_MERCHANT_ACCOUNT=${WAYFORPAY_MERCHANT_ACCOUNT}
 # ENV WAYFORPAY_SECRET_KEY=${WAYFORPAY_SECRET_KEY}  # Runtime injection via K8s secrets
 ENV WAYFORPAY_DOMAIN=${WAYFORPAY_DOMAIN}
+ENV NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN=${NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN}
+ENV NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=${NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL}
 
 # =============================================================================
 # ☁️ FILE STORAGE ENVIRONMENT VARIABLES

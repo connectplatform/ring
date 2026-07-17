@@ -19,35 +19,18 @@ import type { Locale } from '@/i18n/shared'
 import type {
   NftMarketCollection,
   NftMarketListing,
-  NftMarketListingFilters,
   PaginatedNftMarketListings,
 } from '@/features/nft-market/types'
+import {
+  normalizeNftMarketSort,
+  toFloatingNftMarketSort,
+  type NftMarketFilters,
+} from '@/features/nft-market/nft-market-filters'
 import { NftListingCard } from './nft-listing-card'
 
 const FloatingButtons = dynamic(() => import('@/components/store/floating-buttons'), { ssr: false })
 
 const PAGE_SIZE = 24
-
-export type NftMarketFilters = {
-  q: string
-  collection: string
-  slug: string
-  lane?: '' | 'keys' | 'member'
-  sort: NonNullable<NftMarketListingFilters['sort']>
-}
-
-export function normalizeNftMarketSort(sort?: string | null): NftMarketFilters['sort'] {
-  if (sort === 'oldest' || sort === 'price_asc' || sort === 'price_desc') return sort
-  if (sort === 'price-asc') return 'price_asc'
-  if (sort === 'price-desc') return 'price_desc'
-  return 'newest'
-}
-
-function toFloatingSort(sort: NftMarketFilters['sort']) {
-  if (sort === 'price_asc') return 'price-asc'
-  if (sort === 'price_desc') return 'price-desc'
-  return sort
-}
 
 function buildUrl(locale: Locale, filters: NftMarketFilters) {
   const params = new URLSearchParams()
@@ -331,7 +314,7 @@ export function NftMarketWrapper({
         <FloatingButtons
           locale={locale}
           showSort
-          currentSort={toFloatingSort(normalizedFilters.sort)}
+          currentSort={toFloatingNftMarketSort(normalizedFilters.sort)}
           onSortChange={handleSortChange}
         />
       </DavinciCenterPane>

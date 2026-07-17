@@ -64,6 +64,7 @@ export default function NotificationsWrapper({
       ]}
       viewOptions={{ overlayBottomPercent: 0 }}
       rightRail={rightRail}
+      flushCenterPane
       contentClassName="pb-24 lg:pb-8"
       railWidth={320}
       isOpen={rightSidebarOpen}

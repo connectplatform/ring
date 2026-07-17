@@ -37,33 +37,44 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useTranslations } from 'next-intl';
 import { saveArticle, publishArticle, ArticleFormState } from '@/app/_actions/news';
-import { RichTextEditor } from '@/features/news/components/editor/rich-text-editor';
+import { TipTapNewsEditor } from '@/features/news/components/editor/tiptap-news-editor';
 import { GenerateImageDialog } from '@/components/media/generate-image-dialog';
 import { GenerateArticleDialog } from '@/components/media/generate-article-dialog';
+import {
+  coerceMediaImageAsset,
+  type MediaImageAsset,
+} from '@/lib/file/media-asset';
 
 interface ArticleEditorProps {
   mode: 'create' | 'edit';
   article?: NewsArticle;
   locale: string;
+  /** Override back link (member flow → My News). */
+  backHref?: string;
+  /** Softens admin-only chrome for member authors. */
+  audience?: 'admin' | 'member';
 }
 
-interface FormData {
+interface ArticleEditorFormState {
   title: string;
   slug: string;
   content: string;
   excerpt: string;
   category: NewsCategory;
   tags: string[];
+  /** Denormalized preview URL (also submitted as featuredImage). */
   featuredImage: string;
-  gallery: string[];
+  featuredImageAsset?: MediaImageAsset;
+  gallery: MediaImageAsset[];
   status: NewsStatus;
   visibility: NewsVisibility;
   featured: boolean;
   seo: NewsSEO;
 }
 
-const initialFormData: FormData = {
+const initialFormData: ArticleEditorFormState = {
   title: '',
   slug: '',
   content: '',
@@ -71,6 +82,7 @@ const initialFormData: FormData = {
   category: 'other',
   tags: [],
   featuredImage: '',
+  featuredImageAsset: undefined,
   gallery: [],
   status: 'draft',
   visibility: 'public',
@@ -88,6 +100,53 @@ const initialFormData: FormData = {
     twitterImage: ''
   }
 };
+
+function assetFromUpload(result: {
+  url: string
+  fileId?: string
+  derivatives?: MediaImageAsset['derivatives']
+}): MediaImageAsset {
+  return {
+    url: result.url,
+    ...(result.fileId ? { fileId: result.fileId } : {}),
+    ...(result.derivatives ? { derivatives: result.derivatives } : {}),
+  }
+}
+
+function appendArticleFormFields(
+  form: FormData,
+  mode: 'create' | 'edit',
+  articleId: string | undefined,
+  locale: string,
+  state: ArticleEditorFormState,
+  status: NewsStatus,
+) {
+  form.append('mode', mode);
+  if (articleId) form.append('articleId', articleId);
+  form.append('locale', locale);
+  form.append('title', state.title);
+  form.append('slug', state.slug);
+  form.append('content', state.content);
+  form.append('excerpt', state.excerpt);
+  form.append('category', state.category);
+  form.append('status', status);
+  form.append('visibility', state.visibility);
+  form.append('featured', state.featured.toString());
+  form.append('featuredImage', state.featuredImage);
+  if (state.featuredImageAsset) {
+    form.append('featuredImageAsset', JSON.stringify(state.featuredImageAsset));
+  }
+  form.append('tags', state.tags.join(','));
+  form.append('gallery', JSON.stringify(state.gallery));
+
+  Object.entries(state.seo).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      form.append(`seo${key.charAt(0).toUpperCase() + key.slice(1)}`, value.join(','));
+    } else {
+      form.append(`seo${key.charAt(0).toUpperCase() + key.slice(1)}`, value || '');
+    }
+  });
+}
 
 const categories: { value: NewsCategory; label: string; color: string }[] = [
   { value: 'other', label: 'Other', color: '#6B7280' },
@@ -138,10 +197,20 @@ function SubmitButton({
   )
 }
 
-export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
+export function ArticleEditor({
+  mode,
+  article,
+  locale,
+  backHref,
+  audience = 'admin',
+}: ArticleEditorProps) {
   const router = useRouter();
   const { data: session } = useSession();
-  const [formData, setFormData] = useState<FormData>(
+  const tNews = useTranslations('news');
+  const initialAsset =
+    article?.featuredImageAsset ||
+    coerceMediaImageAsset(article?.featuredImage);
+  const [formData, setFormData] = useState<ArticleEditorFormState>(
     article ? {
       title: article.title,
       slug: article.slug,
@@ -149,7 +218,8 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
       excerpt: article.excerpt,
       category: article.category,
       tags: article.tags,
-      featuredImage: article.featuredImage || '',
+      featuredImage: initialAsset?.url || article.featuredImage || '',
+      featuredImageAsset: initialAsset,
       gallery: article.gallery || [],
       status: article.status,
       visibility: article.visibility,
@@ -165,70 +235,20 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
   const [generateArticleOpen, setGenerateArticleOpen] = useState(false);
 
   // React 19 useActionState for draft saving
-  const [draftState, draftAction] = useActionState<ArticleFormState | null, FormData>(
-    async (prevState: ArticleFormState | null, formData: FormData) => {
+  const [draftState, draftAction] = useActionState<ArticleFormState | null, ArticleEditorFormState>(
+    async (prevState: ArticleFormState | null, state: ArticleEditorFormState) => {
       const form = new FormData();
-      
-      // Add all form fields
-      form.append('mode', mode);
-      if (article?.id) form.append('articleId', article.id);
-      form.append('locale', locale);
-      form.append('title', formData.title);
-      form.append('slug', formData.slug);
-      form.append('content', formData.content);
-      form.append('excerpt', formData.excerpt);
-      form.append('category', formData.category);
-      form.append('status', 'draft');
-      form.append('visibility', formData.visibility);
-      form.append('featured', formData.featured.toString());
-      form.append('featuredImage', formData.featuredImage);
-      form.append('tags', formData.tags.join(','));
-      form.append('gallery', formData.gallery.join(','));
-      
-      // Add SEO fields
-      Object.entries(formData.seo).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          form.append(`seo${key.charAt(0).toUpperCase() + key.slice(1)}`, value.join(','));
-        } else {
-          form.append(`seo${key.charAt(0).toUpperCase() + key.slice(1)}`, value || '');
-        }
-      });
-
+      appendArticleFormFields(form, mode, article?.id, locale, state, 'draft');
       return saveArticle(prevState, form);
     },
     null
   );
 
   // React 19 useActionState for publishing
-  const [publishState, publishAction] = useActionState<ArticleFormState | null, FormData>(
-    async (prevState: ArticleFormState | null, formData: FormData) => {
+  const [publishState, publishAction] = useActionState<ArticleFormState | null, ArticleEditorFormState>(
+    async (prevState: ArticleFormState | null, state: ArticleEditorFormState) => {
       const form = new FormData();
-      
-      // Add all form fields
-      form.append('mode', mode);
-      if (article?.id) form.append('articleId', article.id);
-      form.append('locale', locale);
-      form.append('title', formData.title);
-      form.append('slug', formData.slug);
-      form.append('content', formData.content);
-      form.append('excerpt', formData.excerpt);
-      form.append('category', formData.category);
-      form.append('status', 'published');
-      form.append('visibility', formData.visibility);
-      form.append('featured', formData.featured.toString());
-      form.append('featuredImage', formData.featuredImage);
-      form.append('tags', formData.tags.join(','));
-      form.append('gallery', formData.gallery.join(','));
-      
-      // Add SEO fields
-      Object.entries(formData.seo).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          form.append(`seo${key.charAt(0).toUpperCase() + key.slice(1)}`, value.join(','));
-        } else {
-          form.append(`seo${key.charAt(0).toUpperCase() + key.slice(1)}`, value || '');
-        }
-      });
-
+      appendArticleFormFields(form, mode, article?.id, locale, state, 'published');
       return publishArticle(prevState, form);
     },
     null
@@ -274,7 +294,7 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
     }
   }, [formData.title, formData.excerpt]);
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
+  const handleInputChange = (field: keyof ArticleEditorFormState, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -304,12 +324,13 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
 
   const handleImageUpload = async (file: File, type: 'featured' | 'gallery') => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadForm = new FormData();
+      uploadForm.append('file', file);
+      uploadForm.append('purpose', type === 'featured' ? 'news-featured' : 'news-gallery');
       
       const response = await fetch('/api/entities/upload', {
         method: 'POST',
-        body: formData,
+        body: uploadForm,
       });
       
       if (!response.ok) {
@@ -322,25 +343,36 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
       if (!result.success || !result.url) {
         throw new Error(result.error || 'Upload returned no URL');
       }
+
+      const asset = assetFromUpload(result);
       
       if (type === 'featured') {
-        setFormData(prev => ({ ...prev, featuredImage: result.url }));
+        setFormData(prev => ({
+          ...prev,
+          featuredImage: asset.url,
+          featuredImageAsset: asset,
+        }));
       } else {
         setFormData(prev => ({
           ...prev,
-          gallery: [...prev.gallery, result.url]
+          gallery: [...prev.gallery, asset],
         }));
       }
     } catch (error) {
       console.error('Image upload error:', error);
       // Fallback: use object URL as placeholder so the UI remains usable
       const fallbackUrl = URL.createObjectURL(file);
+      const fallbackAsset: MediaImageAsset = { url: fallbackUrl };
       if (type === 'featured') {
-        setFormData(prev => ({ ...prev, featuredImage: fallbackUrl }));
+        setFormData(prev => ({
+          ...prev,
+          featuredImage: fallbackUrl,
+          featuredImageAsset: fallbackAsset,
+        }));
       } else {
         setFormData(prev => ({
           ...prev,
-          gallery: [...prev.gallery, fallbackUrl]
+          gallery: [...prev.gallery, fallbackAsset],
         }));
       }
     }
@@ -357,6 +389,10 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
     return categories.find(cat => cat.value === category)?.color || '#6B7280';
   };
 
+  const resolvedBackHref =
+    backHref ??
+    (audience === 'member' ? `/${locale}/my-news` : `/${locale}/admin/news`)
+
   // Get current state for error/success display
   const currentState = draftState || publishState;
 
@@ -365,11 +401,11 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <Link 
-          href={`/${locale}/admin/news`}
+          href={resolvedBackHref}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Articles
+          {audience === 'member' ? 'Back to My News' : 'Back to Articles'}
         </Link>
         
         <div className="flex items-center gap-2">
@@ -468,19 +504,16 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
                 </p>
               </div>
 
-              {/* Content */}
+              {/* Content — TipTap NewsEditor (slash /, embeds, mood player) */}
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                <RichTextEditor
+                <TipTapNewsEditor
                   content={formData.content}
                   onChange={(content) => handleInputChange('content', content)}
                   articleId={article?.id}
-                  placeholder="Write your article content here..."
-                  height={500}
+                  placeholder={tNews('editor.placeholder')}
                 />
-                <p className="text-sm text-gray-500">
-                  Rich text editor with auto-save. Images and media are supported.
-                </p>
+                <p className="text-sm text-gray-500">{tNews('editor.tipTapHint')}</p>
               </div>
             </CardContent>
           </Card>
@@ -761,9 +794,11 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
             defaultAspectRatio="16:9"
             title="Generate featured image"
             onImageReady={(url) => {
+              const asset: MediaImageAsset = { url };
               setFormData((prev) => ({
                 ...prev,
                 featuredImage: url,
+                featuredImageAsset: asset,
                 seo: { ...prev.seo, ogImage: url, twitterImage: url },
               }));
             }}
@@ -777,7 +812,7 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
             onImageReady={(url) => {
               setFormData((prev) => ({
                 ...prev,
-                gallery: [...prev.gallery, url],
+                gallery: [...prev.gallery, { url }],
               }));
             }}
           />
@@ -799,7 +834,13 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
                     variant="destructive"
                     size="sm"
                     className="absolute top-2 right-2"
-                    onClick={() => handleInputChange('featuredImage', '')}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        featuredImage: '',
+                        featuredImageAsset: undefined,
+                      }))
+                    }
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -835,9 +876,9 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 {formData.gallery.map((image, index) => (
-                  <div key={index} className="relative">
+                  <div key={image.fileId || image.url || index} className="relative">
                     <img 
-                      src={image} 
+                      src={image.url} 
                       alt={`Gallery ${index + 1}`} 
                       className="w-full h-20 object-cover rounded"
                     />

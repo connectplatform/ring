@@ -1,0 +1,174 @@
+{
+  "title": "Business-Abo",
+  "manageSubscription": "Abo verwalten",
+  "upgradeSubscription": "Upgrade",
+  "cancelSubscription": "Abo kündigen",
+  "renewSubscription": "Abo verlängern",
+  "noSubscription": "Kein aktives Abo",
+  "plans": {
+    "title": "Abo-Pläne",
+    "basic": "Basis",
+    "premium": "Premium",
+    "enterprise": "Enterprise",
+    "selectPlan": "Plan wählen",
+    "currentPlan": "Aktueller Plan",
+    "recommendedPlan": "Empfohlen",
+    "mostPopular": "Am beliebtesten"
+  },
+  "pricing": {
+    "listingFee": "Einmalige Listungsgebühr",
+    "monthlySubscription": "Monatsabo",
+    "perMonth": "/Monat",
+    "perYear": "/Jahr",
+    "billingPeriod": "Abrechnungszeitraum",
+    "monthly": "Monatlich",
+    "yearly": "Jährlich (20 % sparen)",
+    "savePercent": "{{percent}} % sparen",
+    "total": "Gesamt",
+    "subtotal": "Zwischensumme",
+    "tax": "Steuer",
+    "discount": "Rabatt"
+  },
+  "features": {
+    "title": "Leistungen",
+    "mapVisibility": "Sichtbarkeit auf der Karte",
+    "unlimitedPhotos": "Unbegrenzte Fotos",
+    "prioritySupport": "Prioritäts-Support",
+    "analyticsAccess": "Analytics-Zugang",
+    "vendorAccount": "Verkäuferkonto",
+    "featuredListing": "Hervorgehobene Listung",
+    "customBranding": "Eigenes Branding",
+    "apiAccess": "API-Zugang",
+    "includedFeatures": "Inklusive Leistungen",
+    "additionalFeatures": "Zusätzliche Leistungen"
+  },
+  "status": {
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "gracePeriod": "Kulanzfrist",
+    "pastDue": "Überfällig",
+    "canceled": "Gekündigt",
+    "suspended": "Gesperrt",
+    "trial": "Testphase",
+    "pending": "Zahlung ausstehend"
+  },
+  "billing": {
+    "title": "Rechnungsdaten",
+    "paymentMethod": "Zahlungsmittel",
+    "addPaymentMethod": "Zahlungsmittel hinzufügen",
+    "updatePaymentMethod": "Zahlungsmittel aktualisieren",
+    "billingHistory": "Rechnungshistorie",
+    "invoices": "Rechnungen",
+    "nextBillingDate": "Nächste Abbuchung",
+    "lastPayment": "Letzte Zahlung",
+    "cardEnding": "Karte endend auf {{last4}}",
+    "expires": "Gültig bis {{date}}",
+    "downloadInvoice": "Rechnung herunterladen"
+  },
+  "payment": {
+    "title": "Zahlung",
+    "cardNumber": "Kartennummer",
+    "expiryDate": "Ablaufdatum",
+    "cvv": "CVV",
+    "cardholderName": "Karteninhaberin",
+    "billingAddress": "Rechnungsadresse",
+    "payNow": "Jetzt zahlen",
+    "payWithCard": "Mit Karte zahlen",
+    "payWithApplePay": "Mit Apple Pay zahlen",
+    "payWithGooglePay": "Mit Google Pay zahlen",
+    "securePayment": "Sichere Zahlung",
+    "poweredByStripe": "Powered by Stripe"
+  },
+  "visibility": {
+    "title": "Kartensichtbarkeit",
+    "enabled": "Ihr Ort ist auf der Karte sichtbar",
+    "disabled": "Ihr Ort ist auf der Karte ausgeblendet",
+    "requiresSubscription": "Aktives Abo für Karten-Sichtbarkeit erforderlich",
+    "gracePeriodWarning": "Zahlung fehlgeschlagen. Sie haben {{days}} Tage Zeit, das Zahlungsmittel zu aktualisieren, bevor der Ort ausgeblendet wird.",
+    "suspendedWarning": "Ihr Ort ist derzeit ausgeblendet. Abo verlängern, um die Sichtbarkeit wiederherzustellen."
+  },
+  "actions": {
+    "subscribe": "Jetzt abonnieren",
+    "updatePlan": "Plan ändern",
+    "cancelPlan": "Plan kündigen",
+    "reactivate": "Abo reaktivieren",
+    "pauseSubscription": "Abo pausieren",
+    "resumeSubscription": "Abo fortsetzen",
+    "confirmCancellation": "Abo wirklich kündigen? Ihr Ort wird auf der Karte ausgeblendet.",
+    "confirmUpgrade": "Upgrade auf {{plan}} für {{price}}/Monat?",
+    "confirmDowngrade": "Downgrade auf {{plan}}? Einige Funktionen werden deaktiviert."
+  },
+  "grace_period": {
+    "title": "Zahlung fehlgeschlagen – Kulanzfrist",
+    "description": "Die Zahlung ist fehlgeschlagen. Sie haben {{days}} Tage Kulanz, um das Zahlungsmittel zu aktualisieren.",
+    "daysRemaining": "Noch {{days}} Tage",
+    "updatePayment": "Zahlungsmittel aktualisieren",
+    "contactSupport": "Support kontaktieren"
+  },
+  "cancellation": {
+    "title": "Abo kündigen",
+    "confirmTitle": "Wirklich kündigen?",
+    "confirmMessage": "Das Abo endet und Ihr Ort wird auf der Karte ausgeblendet. Sie können später reaktivieren.",
+    "reasonTitle": "Helfen Sie uns zu verbessern (optional)",
+    "reasonPlaceholder": "Warum kündigen Sie?",
+    "reasons": {
+      "tooExpensive": "Zu teuer",
+      "notEnoughCustomers": "Zu wenig Kundschaft",
+      "technicalIssues": "Technische Probleme",
+      "seasonalBusiness": "Saisonales Geschäft",
+      "movingLocation": "Standortwechsel",
+      "other": "Anderer Grund"
+    },
+    "keepSubscription": "Abo behalten",
+    "confirmCancel": "Ja, Abo kündigen"
+  },
+  "renewal": {
+    "title": "Abo verlängern",
+    "automaticRenewal": "Automatische Verlängerung",
+    "enabled": "Ein",
+    "disabled": "Aus",
+    "nextRenewalDate": "Nächste Verlängerung am {{date}}",
+    "renewNow": "Jetzt verlängern",
+    "enableAutoRenewal": "Auto-Verlängerung aktivieren",
+    "disableAutoRenewal": "Auto-Verlängerung deaktivieren"
+  },
+  "validation": {
+    "cardNumberInvalid": "Ungültige Kartennummer",
+    "expiryDateInvalid": "Ungültiges Ablaufdatum",
+    "cvvInvalid": "Ungültige CVV",
+    "cardholderNameRequired": "Name der Karteninhaberin erforderlich",
+    "paymentMethodRequired": "Zahlungsmittel erforderlich"
+  },
+  "success": {
+    "subscribed": "Abo aktiviert.",
+    "updated": "Abo aktualisiert.",
+    "canceled": "Abo gekündigt",
+    "renewed": "Abo verlängert.",
+    "paymentUpdated": "Zahlungsmittel aktualisiert.",
+    "paymentReceived": "Zahlung eingegangen. Vielen Dank!"
+  },
+  "errors": {
+    "paymentFailed": "Zahlung fehlgeschlagen. Zahlungsmittel prüfen.",
+    "cardDeclined": "Karte abgelehnt. Anderes Zahlungsmittel wählen.",
+    "insufficientFunds": "Unzureichendes Guthaben. Anderes Zahlungsmittel wählen.",
+    "subscriptionFailed": "Abo konnte nicht aktiviert werden.",
+    "updateFailed": "Abo konnte nicht aktualisiert werden.",
+    "cancelFailed": "Kündigung fehlgeschlagen. Bitte Support kontaktieren.",
+    "networkError": "Netzwerkfehler. Verbindung prüfen und erneut versuchen."
+  },
+  "notifications": {
+    "paymentSuccess": "Zahlung erfolgreich. Ihr Abo ist aktiv.",
+    "paymentFailed": "Zahlung fehlgeschlagen. Bitte Zahlungsmittel aktualisieren.",
+    "subscriptionExpiring": "Ihr Abo endet in {{days}} Tagen.",
+    "gracePeriodStarted": "Zahlung fehlgeschlagen. Sie haben {{days}} Tage zur Korrektur.",
+    "subscriptionCanceled": "Ihr Abo wurde gekündigt.",
+    "subscriptionReactivated": "Ihr Abo wurde reaktiviert."
+  },
+  "help": {
+    "title": "Brauchen Sie Hilfe?",
+    "contactSupport": "Support kontaktieren",
+    "viewFaq": "FAQ ansehen",
+    "billingQuestions": "Fragen zur Abrechnung",
+    "technicalSupport": "Technischer Support"
+  }
+}

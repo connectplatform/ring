@@ -1528,3 +1528,47 @@ CREATE INDEX IF NOT EXISTS idx_vt_token ON verification_tokens ((data->>'token')
 CREATE INDEX IF NOT EXISTS idx_vt_data_gin ON verification_tokens USING GIN (data);
 
 COMMENT ON TABLE verification_tokens IS 'Auth.js v5 email magic-link / OTP verification tokens. One-time use, deleted after consumption.';
+
+-- ----------------------------------------------------------------------------
+-- CRM Project Orders (calculator ringization deposits)
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS project_orders (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_orders_user_id ON project_orders ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_project_orders_payment_status ON project_orders ((data->>'paymentStatus'));
+CREATE INDEX IF NOT EXISTS idx_project_orders_work_status ON project_orders ((data->>'workStatus'));
+CREATE INDEX IF NOT EXISTS idx_project_orders_integrator_id ON project_orders ((data->>'integratorId'));
+CREATE INDEX IF NOT EXISTS idx_project_orders_opportunity_id ON project_orders ((data->>'opportunityId'));
+CREATE INDEX IF NOT EXISTS idx_project_orders_created_at ON project_orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_project_orders_data_gin ON project_orders USING GIN (data);
+
+COMMENT ON TABLE project_orders IS 'CRM custom orders from Ring Project Calculator — payment + work lifecycle';
+
+-- ----------------------------------------------------------------------------
+-- CRM Order Lab deployments (per-order env + edge deploy state)
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS project_deployments (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_project_deployments_order_id
+  ON project_deployments ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_project_deployments_edge
+  ON project_deployments ((data->>'edge'));
+CREATE INDEX IF NOT EXISTS idx_project_deployments_updated_at
+  ON project_deployments (updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_project_deployments_data_gin
+  ON project_deployments USING GIN (data);
+
+COMMENT ON TABLE project_deployments IS
+  'Order Lab per-order deploy config (edge, encrypted env, k8s names) for ring clone builds';

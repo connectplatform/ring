@@ -1,0 +1,20 @@
+{
+  "title": "filtrar",
+  "apply": "Aplicar filtros",
+  "clear": "eliminar todo",
+  "reset": "Reiniciar",
+  "search": "Buscar",
+  "sortBy": "Ordenar por",
+  "category": "categoría",
+  "tags": "etiquetas",
+  "location": "Ubicación",
+  "dateRange": "Rango de fechas",
+  "priceRange": "Gama de precios",
+  "status": "estado",
+  "type": "tipo",
+  "all": "Todo",
+  "none": "No",
+  "loading": "Cargando filtros...",
+  "noResults": "Sin hits",
+  "results": "{count} resultados encontrados"
+}

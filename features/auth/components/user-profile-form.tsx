@@ -303,22 +303,14 @@ export default function UserProfileForm() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // React.useEffect redirects when unauthenticated at runtime
-  // TODO: With Next 16, could consider middleware or route protection higher up for better DX
-  React.useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(DEFAULT_LOCALE))
-    }
-  }, [status, router])
-
-  // Render loading placeholder while auth session loads
+  // Phase F: protected mount — wait on loading; never router.push(LOGIN) / DEFAULT_LOCALE.
+  // TODO: Prefer useProtectedSession() once this form is fully under (protected) layout.
   if (status === 'loading') {
     return <div className="text-center py-8">{t('loading') || 'Loading...'}</div>
   }
 
-  // Render redirecting placeholder if user is unauthenticated
   if (status === 'unauthenticated') {
-    return <div className="text-center py-8">{t('redirecting') || 'Redirecting...'}</div>
+    return <div className="text-center py-8">{t('redirecting') || 'Session required…'}</div>
   }
 
   // Main profile card/form UI

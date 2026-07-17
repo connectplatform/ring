@@ -1,7 +1,7 @@
 ---
 title: Multi-Vendor Store
 description: Ring Platform's multi-vendor marketplace — vendor onboarding, product management, commission settlements, and audience-gated product visibility for member-restricted offerings
-last_modified: "2026-07-07"
+last_modified: "2026-07-14"
 audience: both
 ---
 
@@ -41,6 +41,10 @@ Every Entity in your Ring deployment can become a selling vendor — no external
 - **A Ring clone for a local business network:** every shop in the city becomes a verified Entity and lists inventory in the store; transactions settle automatically.
 - **A DAO marketplace:** member-gated products (courses, NFTs, service tiers) visible only to role-holders; public products serve as lead magnets.
 - **A hosting/provider clone:** agencies and dev studios list managed Ring hosting packages; platform operator earns commission on every subscription.
+
+<Callout type="tip">
+  Storefront **product agent** chats use `Conversation.type: 'product'` and stay visible in Messages. **Generative Gallery** tool chats reuse the same channel with `kind: 'generative_gallery'` and `hiddenFromInbox: true` so generation history does not clutter the inbox — see [Messaging](/docs/features/messaging) and [Generative Gallery](/docs/features/generative-media).
+</Callout>
 
 </Audience>
 
@@ -205,6 +209,12 @@ The `hasMemberPrivileges()` guard checks `role >= member` (member, confidential,
 ## Related documentation
 
 <Cards>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Upload \| Generate product images — shared field with NFT create; WebP strip + credit billing.
+  </Card>
+  <Card title="Real-Time Messaging" href="/docs/features/messaging">
+    Product agent chats vs hidden generative tool chats (`type` vs `kind`).
+  </Card>
   <Card title="Ring ERP" href="/docs/features/erp" icon="package">
     Inventory, stock management, warehouse operations, and vendor settlement pipelines.
   </Card>
