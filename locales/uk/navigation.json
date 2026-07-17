@@ -261,5 +261,13 @@
   "confidentialEntities": "Конфіденційні сутності",
   "confidentialOpportunities": "Конфіденційні можливості",
   "myJobs": "Мої роботи",
-  "myProjectOrders": "Мої проєкти"
+  "myProjectOrders": "Мої проєкти",
+  "changelog": {
+    "title": "Журнал змін",
+    "subtitle": "Нотатки релізів з CHANGELOG.md (v{version})",
+    "project": "Проєкт",
+    "publisher": "Видавець",
+    "reportErrors": "Повідомити про помилку",
+    "publisherPage": "Сторінка видавця"
+  }
 }

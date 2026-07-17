@@ -8,23 +8,33 @@ import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { Steps, Step } from '@/components/docs/steps'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
+import { cn } from '@/lib/utils'
+import {
+  DavinciGlassChip,
+  davinciBeamInnerSurface,
+  davinciCtaPrimary,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
+
+/** Horizontal inset for text/CTAs — bands stay edge-to-edge. */
+const INSET = 'px-4 sm:px-5 lg:px-6'
+const BAND_Y = 'py-12 sm:py-14 lg:py-16'
+
+const iconCircle =
+  'mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)]'
 
 type Props = {
   params: Promise<{ locale: string }>
 }
 
-// Generates dynamic metadata for SEO based on locale
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // Await the params prop, which is a Promise
-  const { locale: localeParam } = await params
+type Msg = Record<string, any>
 
-  // Determine the locale, falling back to default if not supported
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale: localeParam } = await params
   const locale = routing.locales.includes(localeParam as Locale)
     ? (localeParam as Locale)
     : routing.defaultLocale
-
-  setRequestLocale(locale) // Set locale for the request context
-
+  setRequestLocale(locale)
   return buildLocalizedMetadata({
     locale,
     path: 'token-economy',
@@ -32,319 +42,268 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   })
 }
 
-// TODO: React 19 supports the new useParams() in server components, which can simplify locale extraction and eliminate manual params Promise handling.
-
-// Main async component for the token economy page
 export default async function TokenEconomyPage({ params }: Props) {
-  await connection() // Initialize server connection/session if necessary
+  await connection()
 
-  // Await the params prop for dynamic routing props
   const { locale: localeParam } = await params
-
-  // If the locale is invalid (not in known locales), trigger a 404
   if (!routing.locales.includes(localeParam as Locale)) {
     notFound()
   }
   const locale = localeParam as Locale
+  setRequestLocale(locale)
 
-  setRequestLocale(locale) // Set the locale for all intl operations
-
-  // Load the i18n messages for the locale (tokenomics namespace/section)
   const messages = await buildMessages(locale)
-  const t = messages['tokenomics'] || {}
+  const t = (messages['tokenomics'] || {}) as Msg
 
-  // Start rendering the structured page
+  const layerKeys = [
+    { key: 'credit' as const, mark: '1' },
+    { key: 'native' as const, mark: '2' },
+    { key: 'rails' as const, mark: '3' },
+  ]
+
+  const deskKeys = [
+    { key: 'oracle' as const },
+    { key: 'firstSettler' as const },
+    { key: 'quotes' as const },
+  ]
+
+  const rewardKeys = [
+    { key: 'profile' as const },
+    { key: 'contribution' as const },
+    { key: 'caps' as const },
+  ]
+
+  const utilityKeys = [
+    { key: 'membership' as const },
+    { key: 'store' as const },
+    { key: 'send' as const },
+    { key: 'dao' as const },
+  ]
+
+  const nftKeys = [
+    { key: 'primary' as const },
+    { key: 'secondary' as const },
+    { key: 'why' as const },
+  ]
+
+  const principleKeys = [
+    { key: 'utilityFirst' as const },
+    { key: 'cloneBranding' as const },
+    { key: 'ownOracle' as const },
+  ]
+
   return (
     <AboutWrapper locale={locale}>
-      {/* Hero Section: Title, badge, and description about RING token */}
-      <div className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 rounded-full px-4 py-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-blue-500"></div>
-          <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-            {t.badge || 'Token Economy'}
-          </span>
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 via-blue-500 to-green-500 bg-clip-text text-transparent mb-6">
-          {t.hero?.title || 'The RING Token Ecosystem'}
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-          {t.hero?.subtitle || 'Discover how the RING token powers decentralized collaboration, incentivizes innovation, and creates sustainable economic models for digital communities.'}
-        </p>
-      </div>
-
-      {/* Token Overview: What is RING and its utility */}
-      <div className="grid md:grid-cols-2 gap-8 mb-16">
-        {/* RING definition card */}
-        <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mb-6">
-            <span className="text-3xl">💎</span>
-          </div>
-          <h3 className="text-2xl font-bold mb-4 text-card-foreground">
-            {t.overview?.whatIsRing?.title || 'What is RING?'}
-          </h3>
-          <p className="text-muted-foreground leading-relaxed">
-            {t.overview?.whatIsRing?.description || 'RING is the native utility token of the Ring Platform, designed to facilitate microtransactions, AI service access, and platform governance.'}
-          </p>
-        </div>
-
-        {/* Utility of the token card */}
-        <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center mb-6">
-            <span className="text-3xl">🔗</span>
-          </div>
-          <h3 className="text-2xl font-bold mb-4 text-card-foreground">
-            {t.overview?.utility?.title || 'Token Utility'}
-          </h3>
-          <p className="text-muted-foreground leading-relaxed">
-            {t.overview?.utility?.description || 'RING tokens enable premium features, content creation incentives, and community-driven decision making across the platform.'}
-          </p>
-        </div>
-      </div>
-
-      {/* Token Distribution Section: How tokens are allocated */}
-      <div className="bg-card rounded-2xl p-8 shadow-lg mb-16 border border-border">
-        <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          {t.distribution?.title || 'Token Distribution'}
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {/* Community Pool distribution */}
-          <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-            <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">40%</div>
-            <div className="text-sm font-medium text-card-foreground mb-1">
-              {t.distribution?.community?.title || 'Community Pool'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t.distribution?.community?.description || 'Rewards for platform participation'}
-            </div>
-          </div>
-          {/* Liquidity Pool distribution */}
-          <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">30%</div>
-            <div className="text-sm font-medium text-card-foreground mb-1">
-              {t.distribution?.liquidity?.title || 'Liquidity Pool'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t.distribution?.liquidity?.description || 'DEX liquidity incentives'}
-            </div>
-          </div>
-          {/* Development Fund distribution */}
-          <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-            <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">20%</div>
-            <div className="text-sm font-medium text-card-foreground mb-1">
-              {t.distribution?.development?.title || 'Development Fund'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t.distribution?.development?.description || 'Platform development'}
-            </div>
-          </div>
-          {/* Team & Advisors distribution */}
-          <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-            <div className="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">10%</div>
-            <div className="text-sm font-medium text-card-foreground mb-1">
-              {t.distribution?.team?.title || 'Team & Advisors'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t.distribution?.team?.description || '4-year vesting'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* How to Use RING section: Application of tokens */}
-      <div className="mb-16">
-        <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          {t.usage?.title || 'How to Use RING'}
-        </h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Listing an opportunity with RING */}
-          <div className="bg-card rounded-xl p-6 shadow-lg border">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">📝</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.usage?.listing?.title || 'Opportunity Listings'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {t.usage?.listing?.description || 'Post opportunities, services, and projects on the platform'}
-            </p>
-            <div className="text-sm font-medium text-purple-600 dark:text-purple-400">
-              {t.usage?.listing?.cost || '0.1-1.0 RING per listing'}
-            </div>
-          </div>
-          {/* Using AI features with RING */}
-          <div className="bg-card rounded-xl p-6 shadow-lg border">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">🤖</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.usage?.aiFeatures?.title || 'AI Features'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {t.usage?.aiFeatures?.description || 'Access premium AI-powered matching and analysis tools'}
-            </p>
-            <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
-              {t.usage?.aiFeatures?.cost || '0.01-0.1 RING per request'}
-            </div>
-          </div>
-          {/* Store transactions with RING */}
-          <div className="bg-card rounded-xl p-6 shadow-lg border">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-green-500 to-purple-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">🏪</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.usage?.store?.title || 'Store Transactions'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {t.usage?.store?.description || 'Purchase digital goods, services, and premium features'}
-            </p>
-            <div className="text-sm font-medium text-green-600 dark:text-green-400">
-              {t.usage?.store?.cost || 'Variable based on item value'}
-            </div>
-          </div>
-          {/* Premium membership usage */}
-          <div className="bg-card rounded-xl p-6 shadow-lg border">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">⭐</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.usage?.premium?.title || 'Premium Membership'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {t.usage?.premium?.description || 'Enhanced platform features and priority support'}
-            </p>
-            <div className="text-sm font-medium text-orange-600 dark:text-orange-400">
-              {t.usage?.premium?.cost || '10 RING per month'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Economic Model Section: Tokenomics model and features */}
-      <div className="bg-card rounded-2xl p-8 shadow-lg mb-16 border">
-        <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          {t.economics?.title || 'Economic Model'}
-        </h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Inflation model */}
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📈</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.economics?.inflation?.title || 'Controlled Inflation'}
-            </h3>
-            <p className="text-muted-foreground">
-              {t.economics?.inflation?.description || 'Annual inflation of 2-5% to reward long-term holders and fund development'}
+      <div className="w-full min-w-0">
+        <section className={cn('relative overflow-hidden text-center', BAND_Y)}>
+          <div
+            className="pointer-events-none absolute inset-0 bg-[color-mix(in_oklch,var(--davinci-beam)_8%,transparent)]"
+            aria-hidden
+          />
+          <div className={cn('relative mx-auto max-w-4xl space-y-6', INSET)}>
+            <DavinciGlassChip>{t.badge}</DavinciGlassChip>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+              {t.hero?.title}
+            </h1>
+            <p className="mx-auto max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+              {t.hero?.subtitle}
             </p>
           </div>
-          {/* Circulation model */}
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🔄</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.economics?.circulation?.title || 'Token Circulation'}
-            </h3>
-            <p className="text-muted-foreground">
-              {t.economics?.circulation?.description || 'Dynamic supply based on platform activity and community participation'}
-            </p>
-          </div>
-          {/* Stability model */}
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🛡️</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.economics?.stability?.title || 'Price Stability'}
-            </h3>
-            <p className="text-muted-foreground">
-              {t.economics?.stability?.description || 'Pegged value through algorithmic stabilization and community governance'}
-            </p>
-          </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Getting Started Section: 3-step onboarding with RING */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white mb-16">
-        <h2 className="text-3xl font-bold text-center mb-8">
-          {t.gettingStarted?.title || 'Getting Started with RING'}
-        </h2>
-        <Steps>
-          {/* Step 1: Account creation */}
-          <Step>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold">1</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  {t.gettingStarted?.step1?.title || 'Create Account'}
-                </h3>
-                <p className="opacity-90">
-                  {t.gettingStarted?.step1?.description || 'Sign up for a Ring Platform account using Google One Tap'}
-                </p>
-              </div>
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-8 text-center">
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.layers?.title}</h2>
+              <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+                {t.layers?.subtitle}
+              </p>
             </div>
-          </Step>
-          {/* Step 2: Acquire RING */}
-          <Step>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold">2</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  {t.gettingStarted?.step2?.title || 'Get RING Tokens'}
-                </h3>
-                <p className="opacity-90">
-                  {t.gettingStarted?.step2?.description || 'Purchase RING tokens through supported exchanges or earn through platform participation'}
-                </p>
-              </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {layerKeys.map(({ key, mark }) => (
+                <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4')}>
+                  <div className={iconCircle}>
+                    <span className="text-sm font-bold text-[var(--davinci-beam)]">{mark}</span>
+                  </div>
+                  <h3 className="mb-2 text-center text-base font-semibold sm:text-lg">
+                    {t.layers?.[key]?.title}
+                  </h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                    {t.layers?.[key]?.description}
+                  </p>
+                </div>
+              ))}
             </div>
-          </Step>
-          {/* Step 3: Participate using RING */}
-          <Step>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold">3</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  {t.gettingStarted?.step3?.title || 'Start Using Platform'}
-                </h3>
-                <p className="opacity-90">
-                  {t.gettingStarted?.step3?.description || 'Use RING tokens to access premium features and participate in the economy'}
-                </p>
-              </div>
-            </div>
-          </Step>
-        </Steps>
-      </div>
-
-      {/* Call to Action: Encourage joining the RING economy */}
-      <div className="text-center">
-        <div className="bg-card rounded-2xl p-8 shadow-lg border">
-          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            {t.cta?.title || 'Participate in the RING Economy'}
-          </h2>
-          <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-            {t.cta?.subtitle || 'Join the decentralized economy that rewards collaboration and innovation.'}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href={`/${locale}/wallet`}
-              className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-colors"
-            >
-              {t.cta?.getRing || 'Get RING Tokens'}
-            </a>
-            <a
-              href={`/${locale}/docs/token-economics`}
-              className="inline-flex items-center justify-center px-8 py-3 bg-card text-card-foreground font-semibold rounded-lg border hover:bg-muted transition-colors"
-            >
-              {t.cta?.learnMore || 'Learn More'}
-            </a>
           </div>
-        </div>
+        </section>
+
+        <section
+          className={cn(
+            BAND_Y,
+            'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+          )}
+        >
+          <div className={cn('mx-auto max-w-5xl', INSET)}>
+            <div className="mb-8 text-center">
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.desk?.title}</h2>
+              <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+                {t.desk?.subtitle}
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {deskKeys.map(({ key }) => (
+                <div key={key} className={cn(davinciGlassSurface, 'p-4')}>
+                  <h3 className="mb-2 text-base font-semibold">{t.desk?.[key]?.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t.desk?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-8 text-center">
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.rewards?.title}</h2>
+              <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+                {t.rewards?.subtitle}
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {rewardKeys.map(({ key }) => (
+                <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4')}>
+                  <h3 className="mb-2 text-base font-semibold">{t.rewards?.[key]?.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t.rewards?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={cn(
+            BAND_Y,
+            'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+          )}
+        >
+          <div className={cn('mx-auto max-w-5xl', INSET)}>
+            <h2 className="mb-8 text-center text-2xl font-bold sm:text-3xl">{t.utility?.title}</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {utilityKeys.map(({ key }) => (
+                <div key={key} className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="text-base font-semibold sm:text-lg">{t.utility?.[key]?.title}</h3>
+                    {t.utility?.[key]?.note ? (
+                      <span className="text-xs font-medium tabular-nums text-[var(--davinci-beam)]">
+                        {t.utility[key].note}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t.utility?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-8 text-center">
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.nftRwa?.title}</h2>
+              <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+                {t.nftRwa?.subtitle}
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {nftKeys.map(({ key }) => (
+                <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4')}>
+                  <h3 className="mb-2 text-base font-semibold">{t.nftRwa?.[key]?.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t.nftRwa?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={cn(
+            BAND_Y,
+            'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+          )}
+        >
+          <div className={cn('mx-auto max-w-5xl', INSET)}>
+            <h2 className="mb-8 text-center text-2xl font-bold sm:text-3xl">{t.principles?.title}</h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              {principleKeys.map(({ key }) => (
+                <div key={key} className={cn(davinciGlassSurface, 'p-4 text-center')}>
+                  <h3 className="mb-2 text-base font-semibold sm:text-lg">
+                    {t.principles?.[key]?.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{t.principles?.[key]?.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-3xl">
+            <div className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-6 sm:p-8')}>
+              <h2 className="mb-6 text-center text-2xl font-bold sm:text-3xl">
+                {t.gettingStarted?.title}
+              </h2>
+              <Steps>
+                {(['step1', 'step2', 'step3'] as const).map((key) => (
+                  <Step key={key}>
+                    <h3 className="text-base font-semibold sm:text-lg">
+                      {t.gettingStarted?.[key]?.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground sm:text-base">
+                      {t.gettingStarted?.[key]?.description}
+                    </p>
+                  </Step>
+                ))}
+              </Steps>
+            </div>
+          </div>
+        </section>
+
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.cta?.title}</h2>
+            <p className="mb-8 text-base leading-relaxed text-muted-foreground sm:text-lg">
+              {t.cta?.subtitle}
+            </p>
+            <div className="flex flex-col justify-center gap-3 sm:flex-row">
+              <a
+                href={`/${locale}/wallet`}
+                className={cn(
+                  davinciCtaPrimary,
+                  'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold sm:text-base',
+                )}
+              >
+                {t.cta?.getRing}
+              </a>
+              <a
+                href={`/${locale}/docs/customization/token-economics`}
+                className={cn(
+                  davinciGlassSurface,
+                  'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold sm:text-base',
+                )}
+              >
+                {t.cta?.learnMore}
+              </a>
+            </div>
+          </div>
+        </section>
       </div>
     </AboutWrapper>
   )

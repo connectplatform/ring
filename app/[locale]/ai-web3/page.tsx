@@ -7,9 +7,21 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
-import { Callout } from '@/components/docs/callout'
-import { Steps, Step } from '@/components/docs/steps'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
+import { cn } from '@/lib/utils'
+import {
+  DavinciGlassChip,
+  davinciBeamInnerSurface,
+  davinciCtaPrimary,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
+
+/** Horizontal inset for text/CTAs — bands themselves stay edge-to-edge. */
+const INSET = 'px-4 sm:px-5 lg:px-6'
+const BAND_Y = 'py-12 sm:py-14 lg:py-16'
+
+const iconCircle =
+  'mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)]'
 
 type Props = {
   params: Promise<{ locale: string }>
@@ -28,6 +40,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   })
 }
 
+type Msg = Record<string, any>
+
 export default async function AIWeb3Page({ params }: Props) {
   await connection()
 
@@ -39,317 +53,249 @@ export default async function AIWeb3Page({ params }: Props) {
   setRequestLocale(locale)
 
   const messages = await buildMessages(locale, 'public')
-  const t = getMessageSection(messages, 'ai-web3')
+  const t = getMessageSection(messages, 'ai-web3') as Msg
+
+  const flowItems = [
+    { key: 'rewards' as const, emoji: '◎' },
+    { key: 'sponsored' as const, emoji: '⟡' },
+    { key: 'desk' as const, emoji: '⇄' },
+  ]
+
+  const featureItems = [
+    { key: 'send' as const, emoji: '↗' },
+    { key: 'nftGate' as const, emoji: '⬡' },
+    { key: 'nftMarket' as const, emoji: '◫' },
+    { key: 'microDao' as const, emoji: '◎' },
+    { key: 'matching' as const, emoji: '◈' },
+  ]
+
+  const archItems = [
+    { key: 'walletConductor' as const, emoji: '1' },
+    { key: 'creditLedger' as const, emoji: '2' },
+    { key: 'solana' as const, emoji: '3' },
+    { key: 'integration' as const, emoji: '4' },
+  ]
+
+  const journeySteps = [
+    { key: 'step1' as const },
+    { key: 'step2' as const },
+    { key: 'step3' as const },
+  ]
 
   return (
     <AboutWrapper locale={locale}>
-        {/* Main Content */}
-        <div className="py-0">
-        
-        {/* Hero Section */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-100 to-purple-100 dark:from-cyan-900/30 dark:to-purple-900/30 rounded-full px-4 py-2 mb-6">
-              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500"></div>
-              <span className="text-sm font-medium text-cyan-700 dark:text-cyan-300">
-                {t.badge || 'AI + Web3'}
-              </span>
-            </div>
-
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-cyan-600 via-purple-500 to-blue-600 bg-clip-text text-transparent mb-6">
-              {t.hero?.title || 'AI Meets Web3: The Future of Collective Intelligence'}
+      <div className="w-full min-w-0">
+        {/* Hero */}
+        <section className={cn('relative overflow-hidden text-center', BAND_Y)}>
+          <div
+            className="pointer-events-none absolute inset-0 bg-[color-mix(in_oklch,var(--davinci-beam)_8%,transparent)]"
+            aria-hidden
+          />
+          <div className={cn('relative mx-auto max-w-4xl space-y-6', INSET)}>
+            <DavinciGlassChip>{t.badge}</DavinciGlassChip>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+              {t.hero?.title}
             </h1>
-
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              {t.hero?.subtitle || 'Ring Platform combines artificial intelligence with Web3 technologies to create decentralized, autonomous systems for collective problem-solving.'}
+            <p className="mx-auto max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
+              {t.hero?.subtitle}
             </p>
           </div>
+        </section>
 
-          {/* Core Concept */}
-          <div className="grid md:grid-cols-2 gap-12 mb-16">
-            <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mb-6">
-                <span className="text-3xl">🤖</span>
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-card-foreground">
-                {t.concept?.ai?.title || 'Artificial Intelligence'}
-              </h3>
-              <p className="text-muted-foreground leading-relaxed">
-                {t.concept?.ai?.description || 'Advanced machine learning algorithms that understand context, match opportunities with expertise, and facilitate collective problem-solving.'}
-              </p>
-            </div>
-
-            <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mb-6">
-                <span className="text-3xl">⛓️</span>
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-card-foreground">
-                {t.concept?.web3?.title || 'Web3 Technologies'}
-              </h3>
-              <p className="text-muted-foreground leading-relaxed">
-                {t.concept?.web3?.description || 'Decentralized blockchain networks, smart contracts, and token economies that ensure transparency, trust, and community ownership.'}
-              </p>
-            </div>
-          </div>
-
-          {/* The Fusion */}
-          <div className="bg-card rounded-2xl p-8 md:p-12 shadow-lg mb-16 border border-border">
-            <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-              {t.fusion?.title || 'The Perfect Fusion'}
-            </h2>
-
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-4 bg-gradient-to-r from-cyan-500 via-purple-500 to-blue-500 rounded-full px-6 py-3 text-white font-semibold">
-                <span className="text-2xl">🤖</span>
-                <span className="text-xl">+</span>
-                <span className="text-2xl">⛓️</span>
-                <span className="text-xl">=</span>
-                <span className="text-2xl">🚀</span>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white text-lg">🧠</span>
-                </div>
-                <h3 className="text-lg font-semibold mb-3 text-card-foreground">
-                  {t.fusion?.intelligence?.title || 'Collective Intelligence'}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {t.fusion?.intelligence?.description || 'AI algorithms amplify human intelligence by connecting the right people at the right time'}
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white text-lg">🔒</span>
-                </div>
-                <h3 className="text-lg font-semibold mb-3 text-card-foreground">
-                  {t.fusion?.trust?.title || 'Decentralized Trust'}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {t.fusion?.trust?.description || 'Blockchain ensures transparency and prevents manipulation of collaborative processes'}
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white text-lg">⚡</span>
-                </div>
-                <h3 className="text-lg font-semibold mb-3 text-card-foreground">
-                  {t.fusion?.automation?.title || 'Smart Automation'}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {t.fusion?.automation?.description || 'Intelligent systems handle complex matching and coordination tasks autonomously'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Ring's AI-Web3 Features */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-              {t.features?.title || 'Ring\'s AI-Web3 Features'}
-            </h2>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mb-4">
-                  <span className="text-white text-xl">🎯</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-                  {t.features?.smartMatching?.title || 'AI-Powered Matching'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {t.features?.smartMatching?.description || 'Machine learning algorithms match opportunities with the most qualified participants based on skills, experience, and past performance.'}
-                </p>
-              </div>
-
-              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mb-4">
-                  <span className="text-white text-xl">🔗</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-                  {t.features?.decentralized?.title || 'Decentralized Governance'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {t.features?.decentralized?.description || 'Community members vote on platform decisions using blockchain-based governance systems and token-weighted voting.'}
-                </p>
-              </div>
-
-              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center mb-4">
-                  <span className="text-white text-xl">🤝</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-                  {t.features?.collective?.title || 'Collective Intelligence'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {t.features?.collective?.description || 'AI facilitates the emergence of collective intelligence by connecting diverse perspectives and expertise in collaborative problem-solving.'}
-                </p>
-              </div>
-
-              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-green-500 to-cyan-500 flex items-center justify-center mb-4">
-                  <span className="text-white text-xl">🔄</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-                  {t.features?.adaptive?.title || 'Adaptive Learning'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {t.features?.adaptive?.description || 'The platform continuously learns from successful collaborations to improve future matching and coordination.'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Technical Architecture */}
-          <div className="bg-card rounded-2xl p-8 md:p-12 shadow-lg mb-16 border border-border">
-            <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-              {t.architecture?.title || 'Technical Architecture'}
-            </h2>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-                <div className="text-2xl mb-3">⚛️</div>
-                <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-                  {t.architecture?.frontend?.title || 'Frontend Layer'}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {t.architecture?.frontend?.description || 'React 19 + Next.js 15 interface providing seamless user experience'}
-                </p>
-              </div>
-
-              <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-                <div className="text-2xl mb-3">🎯</div>
-                <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-                  {t.architecture?.ai?.title || 'AI Layer'}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {t.architecture?.ai?.description || 'Machine learning algorithms for intelligent matching and coordination'}
-                </p>
-              </div>
-
-              <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
-                <div className="text-2xl mb-3">⛓️</div>
-                <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-                  {t.architecture?.blockchain?.title || 'Blockchain Layer'}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {t.architecture?.blockchain?.description || 'Web3 protocols ensuring decentralized trust and transparency'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 p-6 bg-muted/30 border border-border rounded-xl">
-              <h3 className="text-lg font-semibold mb-3 text-center text-card-foreground">
-                {t.architecture?.integration?.title || 'Integration Layer'}
-              </h3>
-              <p className="text-center text-muted-foreground">
-                {t.architecture?.integration?.description || 'Seamless communication between AI and blockchain components'}
-              </p>
-            </div>
-          </div>
-
-          {/* Future Vision */}
-          <div className="bg-gradient-to-r from-cyan-600 via-purple-500 to-blue-600 rounded-2xl p-8 md:p-12 text-white mb-16">
-            <h2 className="text-3xl font-bold text-center mb-8">
-              {t.future?.title || 'The Future'}
-            </h2>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-xl font-semibold mb-4">
-                  {t.future?.nearTerm?.title || 'Near-term Developments'}
-                </h3>
-                <ul className="space-y-2 opacity-90">
-                  <li className="flex items-start gap-3">
-                    <span className="text-cyan-300 mt-1">•</span>
-                    <span>{t.future?.nearTerm?.item1 || 'Enhanced AI matching algorithms'}</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-cyan-300 mt-1">•</span>
-                    <span>{t.future?.nearTerm?.item2 || 'Expanded Web3 integration'}</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-cyan-300 mt-1">•</span>
-                    <span>{t.future?.nearTerm?.item3 || 'Community governance features'}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold mb-4">
-                  {t.future?.longTerm?.title || 'Long-term Vision'}
-                </h3>
-                <ul className="space-y-2 opacity-90">
-                  <li className="flex items-start gap-3">
-                    <span className="text-purple-300 mt-1">•</span>
-                    <span>{t.future?.longTerm?.item1 || 'Fully autonomous coordination systems'}</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-purple-300 mt-1">•</span>
-                    <span>{t.future?.longTerm?.item2 || 'Global decentralized collaboration networks'}</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-purple-300 mt-1">•</span>
-                    <span>{t.future?.longTerm?.item3 || 'AI-driven social innovation platforms'}</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Getting Started */}
-          <div className="text-center">
-            <div className="bg-card rounded-2xl p-8 md:p-12 shadow-lg border border-border">
-              <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-                {t.gettingStarted?.title || 'Getting Started'}
-              </h2>
-              <p className="text-xl text-muted-foreground mb-8">
-                {t.gettingStarted?.subtitle || 'Join the future of decentralized collective intelligence'}
-              </p>
-
-              <Steps>
-                <Step>
-                  <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center">
-                      <span className="text-white font-bold">1</span>
-                    </div>
-                    <span className="font-medium">{t.gettingStarted?.step1 || 'Create your account'}</span>
+        {/* Pillars — AI + money stack */}
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-5xl">
+            <h2 className="mb-8 text-center text-2xl font-bold sm:text-3xl">{t.pillars?.title}</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {(
+                [
+                  { key: 'ai' as const, emoji: '◈' },
+                  { key: 'web3' as const, emoji: '◎' },
+                ] as const
+              ).map(({ key, emoji }) => (
+                <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4 sm:p-5')}>
+                  <div className={cn(iconCircle, 'mx-0')}>
+                    <span className="text-sm font-semibold text-[var(--davinci-beam)]" aria-hidden>
+                      {emoji}
+                    </span>
                   </div>
-                </Step>
+                  <h3 className="mb-2 text-lg font-semibold sm:text-xl">{t.pillars?.[key]?.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+                    {t.pillars?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                <Step>
-                  <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
-                      <span className="text-white font-bold">2</span>
-                    </div>
-                    <span className="font-medium">{t.gettingStarted?.step2 || 'Explore opportunities'}</span>
+        {/* Core money flows — full-bleed */}
+        <section
+          className={cn(
+            BAND_Y,
+            'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+          )}
+        >
+          <div className={cn('mx-auto max-w-5xl', INSET)}>
+            <div className="mb-8 text-center">
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.flows?.title}</h2>
+              <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+                {t.flows?.subtitle}
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {flowItems.map(({ key, emoji }) => (
+                <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4')}>
+                  <div className={iconCircle}>
+                    <span className="text-sm font-semibold text-[var(--davinci-beam)]" aria-hidden>
+                      {emoji}
+                    </span>
                   </div>
-                </Step>
+                  <h3 className="mb-2 text-center text-base font-semibold sm:text-lg">
+                    {t.flows?.[key]?.title}
+                  </h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                    {t.flows?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                <Step>
-                  <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center">
-                      <span className="text-white font-bold">3</span>
-                    </div>
-                    <span className="font-medium">{t.gettingStarted?.step3 || 'Start collaborating'}</span>
+        {/* Member actions */}
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-5xl">
+            <h2 className="mb-8 text-center text-2xl font-bold sm:text-3xl">{t.features?.title}</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {featureItems.map(({ key, emoji }) => (
+                <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4')}>
+                  <div className={cn(iconCircle, 'mx-0')}>
+                    <span className="text-sm font-semibold text-[var(--davinci-beam)]" aria-hidden>
+                      {emoji}
+                    </span>
                   </div>
-                </Step>
-              </Steps>
+                  <h3 className="mb-2 text-base font-semibold sm:text-lg">{t.features?.[key]?.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t.features?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+        {/* Architecture — full-bleed */}
+        <section
+          className={cn(
+            BAND_Y,
+            'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+          )}
+        >
+          <div className={cn('mx-auto max-w-5xl', INSET)}>
+            <h2 className="mb-8 text-center text-2xl font-bold sm:text-3xl">{t.architecture?.title}</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {archItems.map(({ key, emoji }) => (
+                <div key={key} className={cn(davinciGlassSurface, 'p-4')}>
+                  <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)] text-xs font-bold text-[var(--davinci-beam)]">
+                    {emoji}
+                  </div>
+                  <h3 className="mb-1.5 text-base font-semibold">{t.architecture?.[key]?.title}</h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                    {t.architecture?.[key]?.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Typical journey */}
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-8 text-center">
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.journey?.title}</h2>
+              <p className="text-base text-muted-foreground sm:text-lg">{t.journey?.subtitle}</p>
+            </div>
+            <ol className="space-y-4">
+              {journeySteps.map(({ key }, index) => (
+                <li key={key} className={cn(davinciGlassSurface, 'flex gap-4 p-4 sm:p-5')}>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)] text-sm font-bold text-[var(--davinci-beam)]">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="mb-1 text-base font-semibold sm:text-lg">{t.journey?.[key]?.title}</h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {t.journey?.[key]?.description}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className={cn(BAND_Y, INSET)}>
+          <div className="mx-auto max-w-3xl text-center">
+            <div className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-6 sm:p-8')}>
+              <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t.gettingStarted?.title}</h2>
+              <p className="mb-6 text-base text-muted-foreground sm:text-lg">
+                {t.gettingStarted?.subtitle}
+              </p>
+              <ul className="mx-auto mb-8 max-w-xl space-y-2 text-left text-sm text-muted-foreground">
+                {(['step1', 'step2', 'step3'] as const).map((key) => (
+                  <li key={key} className="flex items-start gap-2.5">
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--davinci-beam)]"
+                      aria-hidden
+                    />
+                    <span>{t.gettingStarted?.[key]}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
                 <a
-                  href={`/${locale}/docs/getting-started`}
-                  className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold rounded-lg hover:from-cyan-700 hover:to-purple-700 transition-colors"
+                  href={`/${locale}/wallet`}
+                  className={cn(
+                    davinciCtaPrimary,
+                    'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold sm:text-base',
+                  )}
                 >
-                  {t.gettingStarted?.cta || 'Begin Your Journey'}
+                  {t.gettingStarted?.ctaWallet}
+                </a>
+                <a
+                  href={`/${locale}/nft/market`}
+                  className={cn(
+                    davinciGlassSurface,
+                    'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold sm:text-base',
+                  )}
+                >
+                  {t.gettingStarted?.ctaNft}
+                </a>
+                <a
+                  href={`/${locale}/dao`}
+                  className={cn(
+                    davinciGlassSurface,
+                    'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold sm:text-base',
+                  )}
+                >
+                  {t.gettingStarted?.ctaDao || 'MicroDAO'}
+                </a>
+                <a
+                  href={`/${locale}/docs/features/wallet`}
+                  className={cn(
+                    davinciGlassSurface,
+                    'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold sm:text-base',
+                  )}
+                >
+                  {t.gettingStarted?.ctaDocs}
                 </a>
               </div>
             </div>
           </div>
-        </div>
+        </section>
+      </div>
     </AboutWrapper>
   )
 }

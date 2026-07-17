@@ -1,136 +1,141 @@
 {
-  "title": "Sonoratek LLC — editor de Connect.Software",
-  "description": "Sonoratek LLC (Tempe, Arizona) publica Connect.Software, el marketplace de integraciones de IA en Ring Platform: servidores MCP, skillsets, routers y listados alineados con NODUS.",
+  "title": "Sonoratek LLC — editor de Connect Platform y Ring",
+  "description": "Sonoratek LLC (Tempe, Arizona) publica Connect Platform — backend empresarial Erlang ASN.1/BERT en tiempo real — y Ring, el webOS open-source que corre en Connect, Firebase, Supabase, Vercel y k8s/Postgres.",
   "hero": {
-    "description": "Construimos el anillo durante la lucha de Ucrania por la independencia como nuestro regalo al mundo. Una plataforma gratuita, automodificable y orquestada por IA que permite a cualquier persona resolver necesidades colectivas."
+    "description": "Sonoratek LLC es el editor de Connect Platform y Ring. Connect aporta infraestructura Erlang comercial en tiempo real; Ring es el webOS open-source que pone software de clase empresarial al alcance de cada fundador del planeta."
   },
   "badges": {
     "openSource": "Código abierto",
-    "aiPowered": "impulsado por IA",
-    "weaponOfPeace": "arma de paz"
+    "aiPowered": "Orquestado por IA",
+    "weaponOfPeace": "webOS empresarial"
   },
   "sections": {
     "origin": {
-      "title": "Nuestra historia de origen",
-      "subtitle": "Cómo surgió Ring de la lucha de Ucrania por la libertad",
+      "title": "Quiénes somos",
+      "subtitle": "IT en Phoenix Valley desde 2013 — Connect para el cable, Ring para la superficie de producto",
       "stories": {
         "crisis": {
-          "title": "Nacido en crisis",
-          "description": "En febrero de 2022, mientras Ucrania resistía la invasión, el equipo de Ringdom vio una oportunidad. Mientras el mundo observaba nuestra valentía, trabajamos incansablemente para crear algo que durara más que el conflicto. La plataforma Ring se convirtió en nuestra fortaleza digital — un arma de paz construida con código en lugar de armas."
+          "title": "Connect Platform",
+          "description": "Connect Platform es el backend Erlang comercial de Sonoratek para cargas empresariales de alta disponibilidad. ASN.1/BERT en el cable, procesos OTP GenServer, pub/sub, snapshots duraderos y otros estándares comerciales — cuando la latencia tipo Firebase no basta."
         },
         "liberation": {
-          "title": "La tecnología como liberación.",
-          "description": "Creemos que las deficiencias tecnológicas son un arma de opresión. Las plataformas centralizadas extraen valor de las comunidades al tiempo que limitan su potencial. Ring rompe este ciclo brindando a las comunidades las herramientas para construir su propia economía, gobernada por sus propias reglas e impulsada por sus propios tokens."
+          "title": "Ring webOS",
+          "description": "Ring es el webOS open-source que corre en Connect, Firebase, Supabase, Vercel y k8s/Postgres. Un stack white-label — entities, opportunities, store, messaging, wallet, docs — para que los fundadores lancen productos de nicho sin reconstruir la plataforma."
         },
         "gratitude": {
-          "title": "Gratitud al mundo",
-          "description": "Su apoyo a la independencia de Ucrania nos dio el valor para soñar en grande. Ring es nuestro agradecimiento: una plataforma que democratiza el acceso a la tecnología en todo el mundo. Los agricultores ucranianos compiten ahora en pie de igualdad con las empresas emergentes de Silicon Valley. Los artesanos africanos acceden a la misma IA que los vendedores de Amazon."
+          "title": "Sonoratek LLC",
+          "description": "Con sede en Tempe / Phoenix Valley, Arizona (1127 E Curry Rd #6, Tempe, AZ 85281). Más de una década ayudando a empresas a automatizar, operar en la nube y publicar productos digitales. Publicamos Connect para realtime empresarial y Ring para software de clase enterprise para cada fundador."
         }
       }
     },
     "mission": {
       "title": "Nuestra misión",
-      "subtitle": "Dando forma al futuro de la colaboración humana",
+      "subtitle": "Software de clase empresarial para cada fundador",
+      "visionLabel": "Nuestra visión:",
+      "vision": "Connect sostiene la ruta realtime exigente; los clones Ring componen la superficie de producto — orquestados por IA, white-label y desplegables donde el fundador ya opera.",
       "cards": {
         "unite": {
-          "title": "Unir a la humanidad",
-          "description": "La tecnología debería unir, no dividir. Ring permite la colaboración global al eliminar las barreras técnicas y económicas a la colaboración."
+          "title": "Realtime que escala",
+          "description": "El stack Erlang OTP de Connect — GenServer, pub/sub, snapshots, ASN.1/BERT — mantiene alta concurrencia rápida y predecible."
         },
         "democratize": {
-          "title": "democratizar la innovación",
-          "description": "Cualquiera, en cualquier lugar, puede implementar plataformas sofisticadas. Sin desarrolladores costosos, sin dependencia de proveedores, sin complejidad técnica."
+          "title": "webOS para fundadores",
+          "description": "Ring empaqueta marketplace, comunidad, wallet y AI-matching como webOS open-source: clona, personaliza y alojo en Connect o nubes commodity."
         },
         "endDeficit": {
-          "title": "Acabar con el déficit tecnológico",
-          "description": "Nivelar el campo de juego global. Dar a cada comunidad las mismas ventajas tecnológicas actualmente reservadas a unos pocos privilegiados."
+          "title": "Sin impuesto al privilegio",
+          "description": "Los patrones enterprise no deben reservarse a presupuestos Fortune 500. Ring + Connect cierran la brecha entre la idea del fundador y calidad de producción."
         }
       }
     },
     "impact": {
-      "title": "Impacto global",
-      "subtitle": "Operaciones de anillo en todo el mundo",
+      "title": "Despliegues en el campo",
+      "subtitle": "Clones Ring sobre el stack editorial de Sonoratek",
       "stats": {
-        "deployments": "Implementaciones de anillo",
-        "value": "Valor añadido económico",
-        "benefiting": "La gente se beneficia",
+        "deployments": "Despliegues Ring",
+        "value": "Valor económico creado",
+        "benefiting": "Personas beneficiadas",
         "countries": "Países alcanzados"
       },
       "stories": {
         "title": "Historias de éxito",
         "story1": {
           "name": "GreenFood Organic Food Marketplace",
-          "description": "Marketplace multi-vendor de alimentos orgánicos, con criptomoneda nativa DAAR y ERP de vendor sin almacén"
+          "description": "Marketplace multi-vendor de alimentos orgánicos con criptomoneda nativa DAAR, ERP de vendedores y almacén cero"
         },
         "story2": {
           "name": "SubiWorx Auto Parts Marketplace",
-          "description": "Red independiente de entusiastas Subaru, con feed de oportunidades para builds custom, coches y piezas de segunda mano y chat"
+          "description": "Red independiente de entusiastas Subaru con feed de oportunidades para builds custom, usados, piezas y chat"
         },
         "story3": {
           "name": "Pet Friend App",
-          "description": "App pet-friendly para encontrar y compartir lugares, eventos y promociones, con chat sobre mapas pet-friendly"
+          "description": "App pet-friendly para encontrar y compartir lugares, eventos y promociones con chat en mapas pet-friendly"
         }
       },
       "democratization": {
-        "title": "democratización de la tecnología",
-        "description": "Ring no sólo brinda a las comunidades tecnología, sino también soberanía tecnológica. La capacidad de evolucionar sus plataformas en función de sus propias necesidades y no de los planes de la empresa."
+        "title": "Soberanía por tecnología",
+        "description": "Ring da a los fundadores independencia tecnológica: evoluciona la plataforma con ring-config y módulos, no con la hoja de ruta de un vendor. Connect sigue siendo el backbone realtime empresarial opcional cuando importan HA y fan-out.",
+        "quote": "Connect para realtime Erlang comercial. Ring como webOS open-source en Connect, Firebase, Supabase, Vercel o k8s/Postgres."
       }
     },
     "future": {
       "title": "Visión de futuro",
-      "description": "Imagínese preguntarle a su plataforma Ring: \"Agregue un sistema de certificado verificado por blockchain para cursos educativos\" y observe cómo la plataforma genera el módulo de forma autónoma, implementa contratos inteligentes, actualiza la interfaz de usuario y se prueba a sí misma. Sin desarrolladores en el medio. Hablan directamente con su plataforma.",
+      "description": "Pide a tu instancia Ring una capacidad en lenguaje natural — módulos, contratos y UI aparecen con orquestación de IA. Connect mantiene la ruta realtime lista para enterprise mientras Ring evoluciona la superficie de producto.",
+      "roadmapLabel": "Nuestra hoja de ruta:",
+      "roadmap": "De builds manuales de plataforma a clones white-label orquestados por IA. Del lock-in de una sola nube a Connect + Firebase + Supabase + Vercel + k8s/Postgres. De herramientas enterprise escasas a abundancia para fundadores.",
       "features": {
         "autonomous": {
-          "title": "Evolución autónoma de la IA",
-          "description": "Plataformas que escriben su propio código basado en requisitos de lenguaje natural"
+          "title": "Evolución autónoma de IA",
+          "description": "Plataformas que se extienden desde requisitos en lenguaje natural"
         },
         "learning": {
-          "title": "Aprendizaje multiplataforma",
-          "description": "Las instancias de anillo enseñan a otras instancias de anillo, acelerando el desarrollo global"
+          "title": "Aprendizaje entre plataformas",
+          "description": "Instancias Ring comparten patrones para que el siguiente clon arranque más adelante"
         },
         "adaptation": {
-          "title": "Ajuste en tiempo real",
-          "description": "Plataformas que evolucionan en tiempo real en función del comportamiento y las necesidades de los usuarios"
+          "title": "Adaptación en tiempo real",
+          "description": "Superficies de producto que evolucionan con el uso mientras Connect sostiene el cable HA"
         }
       }
     }
   },
   "thankYou": {
-    "title": "Gracias",
-    "subtitle": "A todos los que apoyaron la lucha de Ucrania por la libertad.",
-    "description": "La plataforma Ring es nuestra forma de agradecerle. Su apoyo no sólo nos dio la oportunidad de defender nuestra libertad, sino también de aportar algo duradero al mundo. Tecnología que une en lugar de dividir, que empodera en lugar de privar, que libera en lugar de controlar.",
-    "slogan": "Slava Ukraini! 🇺🇦",
-    "message": "Construido con amor por Ucrania y gratitud al mundo.\nPlataforma Ring: gratuita para siempre y para todos."
+    "title": "Construye con nosotros",
+    "subtitle": "Connect para el cable. Ring para el producto. Sonoratek como editor.",
+    "description": "Ya necesites realtime Erlang para cargas enterprise o un webOS open-source para una plataforma de nicho, Sonoratek publica ambos: Connect Platform y Ring — para que los fundadores entreguen software de clase empresarial sin reconstruir el stack.",
+    "slogan": "Software de clase empresarial para cada fundador",
+    "message": "Sonoratek LLC · Tempe, Arizona · Connect Platform + Ring\nPara fundadores que no se conforman con stacks de consumo."
   },
   "founders": {
-    "contactTitle": "Fundador y publisher",
-    "contactSubtitle": "Ray Sorkin — arquitecto de ConnectPlatform, Sonoratek LLC, Ringdom"
+    "contactTitle": "Fundador y editor",
+    "contactSubtitle": "Ray Sorkin — arquitecto de Connect Platform, Sonoratek LLC, Ringdom"
   },
   "actions": {
-    "cloneRing": "Clonar anillo ahora",
-    "learnTokens": "Obtenga más información sobre los tokens RING",
+    "cloneRing": "Clonar Ring ahora",
+    "learnTokens": "Aprender sobre tokens RING",
     "viewSource": "Ver código fuente"
   },
   "sidebar": {
-    "publisher_title": "Sonoratek LLC — publisher",
-    "publisher_desc": "Publisher legal de Ring Platform. Construido en Ucrania, libre para el mundo.",
+    "publisher_title": "Sonoratek LLC — editor",
+    "publisher_desc": "Editor de Connect Platform (Erlang ASN.1/BERT) y Ring webOS open-source. Tempe, Arizona.",
     "quick_actions": "Empezar",
-    "clone_hint": "install.sh → ring-config → primer despliegue",
-    "tokens_hint": "Token de utilidad RING y economía de membresía",
+    "clone_hint": "install.sh → ring-config → primer deploy",
+    "tokens_hint": "Token RING y economía de membresía",
     "source_hint": "connectplatform/ring en GitHub",
     "help_title": "Documentación",
-    "help_desc": "Clona Ring, personaliza ring-config.json y despliega tu instancia white-label.",
+    "help_desc": "Clona Ring, personaliza ring-config.json y despliega white-label.",
     "view_docs": "Abrir documentación",
-    "docs_hint": "Guías de arquitectura, módulos y despliegue",
+    "docs_hint": "Arquitectura, módulos y guías de despliegue",
     "impact": {
       "deployments": "Clones Ring activos y comunidades white-label",
-      "value": "Valor económico desbloqueado en los despliegues",
-      "benefiting": "Personas alcanzadas por plataformas impulsadas por Ring",
+      "value": "Valor económico desbloqueado en despliegues",
+      "benefiting": "Personas alcanzadas por plataformas Ring",
       "countries": "Países con instancias Ring en vivo o piloto"
     },
     "flow": {
       "step_install": "install.sh",
       "step_config": "ring-config",
-      "step_deploy": "primer despliegue",
+      "step_deploy": "primer deploy",
       "quick_start": "Inicio rápido"
     }
   }

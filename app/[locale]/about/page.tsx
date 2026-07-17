@@ -70,7 +70,7 @@ export default async function AboutPage(props: LocalePageProps<AboutParams>) {
 
   // Render About page with data and config loaded
   return (
-    <AboutWrapper locale={locale}>
+    <AboutWrapper locale={locale} flush>
       <AboutClient
         key={locale} // forces remount on locale change
         roadmapEnabled={roadmapEnabled}

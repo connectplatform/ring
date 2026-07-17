@@ -7,7 +7,7 @@ import { davinciAuthButtonLift, davinciBeamInnerSurface, davinciGlassSurface } f
 export interface DavinciGlassStatBlockProps {
   value: string
   label: string
-  hint: string
+  hint?: string
   className?: string
   /** Subtle beam animation on hover */
   beamOnHover?: boolean
@@ -15,7 +15,7 @@ export interface DavinciGlassStatBlockProps {
 
 /**
  * DaVinci glass stat tile for home / publisher right rails.
- * Value (OSS, 20+, AI…) + label + hint in glassmorphism surface.
+ * Value (OSS, 20+, AI…) + label + optional hint in glassmorphism surface.
  */
 export function DavinciGlassStatBlock({
   value,
@@ -28,12 +28,14 @@ export function DavinciGlassStatBlock({
     <BorderBeam
       disabled={!beamOnHover}
       duration="6s"
-      className={cn(davinciGlassSurface, davinciAuthButtonLift, 'group', className)}
-      innerClassName={cn(davinciBeamInnerSurface, 'p-4 text-left')}
+      className={cn(davinciGlassSurface, davinciAuthButtonLift, 'group min-w-0', className)}
+      innerClassName={cn(davinciBeamInnerSurface, 'p-3 text-left')}
     >
-      <div className="text-2xl font-bold tracking-tight text-[var(--davinci-beam)]">{value}</div>
-      <div className="mt-1 text-sm font-semibold text-foreground">{label}</div>
-      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>
+      <div className="truncate text-xl font-bold tracking-tight text-[var(--davinci-beam)] tabular-nums sm:text-2xl">
+        {value}
+      </div>
+      <div className="mt-1 text-sm font-semibold leading-snug text-foreground">{label}</div>
+      {hint ? <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p> : null}
     </BorderBeam>
   )
 }

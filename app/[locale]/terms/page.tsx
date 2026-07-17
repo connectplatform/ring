@@ -11,6 +11,8 @@ import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { setRequestLocale } from 'next-intl/server'
 // Connection is likely used for DB or app context on the server
 import { connection } from 'next/server'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 
 // There are no parameters expected for this route
 type TermsParams = Record<string, never>
@@ -62,5 +64,11 @@ export default async function TermsPage(props: LocalePageProps<TermsParams>) {
   // TODO: Consider removing the unnecessary 'await props.params' for clarity if there are no params.
   // TODO: If using React 19/Next 16 server components, check if these await statements are still required,
   // and refactor to take advantage of the improved server component streaming model and co-location.
-  return <TermsOfService />
+  return (
+    <RingRightRailLayout showRightRail={false} flushCenterPane contentClassName="pb-24 lg:pb-8">
+      <DavinciCenterPane>
+        <TermsOfService />
+      </DavinciCenterPane>
+    </RingRightRailLayout>
+  )
 }

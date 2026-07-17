@@ -1,95 +1,105 @@
 {
-  "title": "La IA se encuentra con la Web3: Ring & Connect.Software",
-  "description": "Así es como la plataforma Ring (y productos como Connect.Software) combina la comparación respaldada por IA, la economía del token RING y la gobernanza Web3: claramente explicable, auditable y diseñada para una verdadera cooperación.",
+  "title": "IA + Web3 — Ring Platform",
+  "description": "Cómo Ring combina el emparejamiento de oportunidades con IA, recompensas credit-balance, token SPL nativo patrocinado en Solana, Token Desk, votos MicroDAO con token nativo, envíos sin gas, puertas NFT y un mercado NFT secundario.",
   "badge": "IA + Web3",
   "hero": {
-    "title": "AI y Web3 como infraestructura común",
-    "subtitle": "Ring combina interfaces web modernas con capas de billetera y token. La IA sugiere personas adecuadas y próximos pasos; Los contratos y libros de contabilidad inteligentes resumen los acuerdos y acuerdos, sin promesas de marketing en lugar de ingeniería."
+    "title": "IA que empareja personas — Web3 que mueve valor",
+    "subtitle": "Ring Platform une el emparejamiento de oportunidades con IA y una pila monetaria real: gana credit-balance por contribuir, convierte al token SPL nativo patrocinado del clon sin SOL, envía a contactos, vota con pagos MicroDAO y desbloquea acceso con puertas NFT y el mercado secundario."
   },
-  "concept": {
+  "pillars": {
+    "title": "Dos capas que trabajan juntas",
     "ai": {
-      "title": "Coincidencia de oportunidades impulsada por IA",
-      "description": "El emparejador evalúa perfiles, habilidades, historia y contexto utilizando varios factores para sugerir equipos o socios adecuados. El objetivo es reducir el desperdicio y lograr más resultados explicables: cifras clave como \"94%\" son valores objetivo de las mediciones del producto, no una garantía en casos individuales."
+      "title": "Emparejamiento de oportunidades con IA",
+      "description": "Cuando alguien publica una necesidad u oferta, el matcher de Ring puntúa relevancia y notifica a las personas adecuadas — la colaboración empieza por la señal, no por el ruido. La IA dirige la atención; no inventa saldos ni gasta tus tokens."
     },
     "web3": {
-      "title": "RING como capa de uso y gobernanza",
-      "description": "Los tokens RING combinan micropagos, acceso a funciones de inteligencia artificial y votación. La lógica de distribución y tarifas se mantiene transparente a través de contratos y reglas comunitarias; Los parámetros exactos siguen la instancia del anillo desplegado."
+      "title": "Ledger de crédito + token nativo",
+      "description": "Los miembros tienen un credit balance in-app (puntos del ledger fiduciario) y una wallet custodial del token nativo en Solana. Los créditos financian tienda, membresía y recompensas; el SPL nativo liquida membresía on-chain, operaciones Desk, compras NFT y envíos P2P."
     }
   },
-  "fusion": {
-    "title": "donde ambos trabajan juntos",
-    "intelligence": {
-      "title": "Colaboración orquestada",
-      "description": "Las nuevas oportunidades pueden notificarse automáticamente a los perfiles calificados, con motivos breves y comprensibles. Esto significa que se pueden crear más rápidamente grupos de trabajo para proyectos de software, investigación o integración."
+  "flows": {
+    "title": "Flujos de dinero centrales",
+    "subtitle": "Rutas verificadas de WalletConductor, recompensas de crédito y wallets custodiales Solana — sin matemática especulativa de marketing.",
+    "rewards": {
+      "title": "Recompensas de credit-balance",
+      "description": "Contribuye en la plataforma — perfil, verificación, noticias aprobadas, comentarios, reseñas, solicitudes — y Ring otorga credit-balance según reglas de configuración. Los otorgamientos son idempotentes, con multiplicador de rol y tope diario UTC. Los créditos son puntos de utilidad para gastar, no cripto especulativa."
     },
-    "trust": {
-      "title": "Servicios integrales",
-      "description": "Los recibos en cadena o vinculados pueden respaldar pagos, pruebas de entrega y reputación. Los contratos inteligentes automatizan los lanzamientos tan pronto como se cumplen los hitos definidos."
+    "sponsored": {
+      "title": "SPL nativo patrocinado (sin SOL)",
+      "description": "El token nativo de tu clon es un SPL en Solana. Las wallets custodiales se provisionan al iniciar sesión. Al enviar o liquidar, el treasury es fee payer — los usuarios operan el token nativo dentro de Ring sin necesitar SOL para gas."
     },
-    "automation": {
-      "title": "Incentivos sin fuego constante",
-      "description": "Las recompensas y tarifas se pueden vincular al uso, la calidad y la utilización, de modo que las ofertas de mercado, el uso del editor y los servicios comunitarios permanezcan equilibrados."
+    "desk": {
+      "title": "Token Desk — crédito ↔ nativo",
+      "description": "Subscriber+ convierte puntos de crédito a token nativo (y viceversa) mediante cotizaciones de Token Desk al tipo oracle de la plataforma. Las operaciones Desk se firman, ejecutan en servidor y se registran aparte del accounting del checkout — cambiar el oracle Desk no reescribe la matemática de gasto de créditos."
     }
   },
   "features": {
-    "title": "Componentes básicos de Ring AI Web3 Suite",
-    "smartMatching": {
-      "title": "Coincidencia explicable",
-      "description": "Se incorporan a las propuestas perfiles, colaboraciones previas y métricas de éxito; El sistema debería aprender de la retroalimentación y producir menos coincidencias \"vacías\"."
+    "title": "Lo que los miembros hacen de verdad",
+    "send": {
+      "title": "Enviar tokens a contactos",
+      "description": "Desde la wallet, elige un contacto o dirección, el importe y confirma. Ring registra la transferencia y patrocina el gas — el destinatario recibe token nativo sin saldo SOL."
     },
-    "decentralized": {
-      "title": "DAO y patrones de votación",
-      "description": "Los poseedores de tokens pueden votar sobre parámetros, prioridades de funciones y tarifas, según el diseño de gobernanza del respectivo despliegue del anillo."
+    "nftGate": {
+      "title": "Puertas NFT (KEYS)",
+      "description": "Los NFT gate de Metaplex Core se venden por token nativo. Las puertas de membresía pueden ser soulbound; las KEYS de vendor comerciables desbloquean funciones solo tras stake en GateEscrow. La propiedad sola no es acceso — el stake activa GateResolver."
     },
-    "collective": {
-      "title": "Redes de inteligencia colectiva",
-      "description": "La IA puede hacer visible la experiencia complementaria en todas las ubicaciones y disciplinas y abordar las brechas en los equipos o en los canales de publicaciones."
+    "nftMarket": {
+      "title": "Mercado NFT secundario",
+      "description": "El Exhibition Marketplace lista KEYS verificadas y colecciones de miembros, liquidadas en token nativo. La reventa KEYS transfiere ownership; el comprador aún hace stake antes del unlock. Los mints de lane member solo transfieren ownership — sin GateEscrow."
     },
-    "adaptive": {
-      "title": "Mejora continua",
-      "description": "A partir de transacciones, tickets y proyectos exitosos se perfeccionan modelos y heurísticas, siempre dentro del marco de la protección de datos y las políticas de producto."
+    "matching": {
+      "title": "Matching IA + notificaciones",
+      "description": "Las oportunidades emparejadas disparan notificaciones in-app y push para que las personas relevantes aparezcan sin feeds infinitos. El matching sigue siendo advisory; pagos y unlocks permanecen en las vías de wallet y NFT."
+    },
+    "microDao": {
+      "title": "MicroDAO — votar con token nativo",
+      "description": "Los dueños de proyecto recogen prioridad comunitaria vía MicroDAO (public pools): los miembros dan like y aportan pagos en token nativo hacia una meta. Admins y confidential crean DAOs; al alcanzar umbral de señal o financiación, el pool entra en cola de delivery — votos que mueven treasury, no encuestas vacías."
     }
   },
   "architecture": {
-    "title": "Incrustación técnica",
-    "frontend": {
-      "title": "Interfaz reaccionar y Next.js",
-      "description": "Los componentes del servidor, la transmisión y los canales en tiempo real (incluidos los túneles ConnectPlatform) ofrecen una experiencia de usuario rápida; Wallet-Connect complementa la autenticación clásica."
+    "title": "Cómo encaja el stack",
+    "walletConductor": {
+      "title": "WalletConductor",
+      "description": "Una fachada de orquestación para top-up tarjeta→crédito, quote/execute de Token Desk, transferencia nativa sin gas, gasto de crédito, provisión de wallet y compras NFT — el homólogo monetario de PaymentConductor."
     },
-    "ai": {
-      "title": "Canalización modular de IA",
-      "description": "Los modelos de lenguaje para texto/resúmenes, componentes de puntuación para emparejar y monitorear costos/calidad se pueden configurar por separado para fines operativos."
+    "creditLedger": {
+      "title": "Ledger de crédito + motor de recompensas",
+      "description": "creditBalanceService posee los puntos fiduciarios. Los hooks de reward encolan eventos credit_add idempotentes con multiplicadores de rol y topes diarios. SubscriptionConductor puede renovar membresía desde credit_balance con un cron mensual."
     },
-    "blockchain": {
-      "title": "Capa habilitada para múltiples cadenas",
-      "description": "Los tokens RING y de socios pueden cruzar múltiples redes y puentes; Los contratos incluyen depósitos en garantía, apuestas y acuerdos."
+    "solana": {
+      "title": "Rieles Solana nativo + NFT",
+      "description": "Transferencias SPL patrocinadas, pagos por lotes RingMembership, compra/mint de puertas NFT y liquidación del marketplace corren en Solana con firma custodial. Las wallets EVM externas siguen siendo una vía de conexión aparte."
     },
     "integration": {
-      "title": "Orquestación AI ↔ Cadena",
-      "description": "Cuando una coincidencia o un flujo de trabajo se pone en marcha, los contratos pueden desencadenar flujos de efectivo y aprobaciones; las aprobaciones humanas permanecen donde el riesgo lo requiere."
+      "title": "Límite IA ↔ dinero",
+      "description": "El matcher de IA y las herramientas generativas consumen atención y (si está configurado) gasto de crédito. Nunca escriben saldos vanity. Los movimientos nativos on-chain y los unlocks NFT pasan por WalletConductor y servicios de gate/market."
     }
   },
-  "future": {
-    "title": "Dirección de la hoja de ruta",
-    "nearTerm": {
-      "title": "Fase 1: modelos más profundos (2025)",
-      "item1": "Más fuentes de señales por oportunidad y mejor explicabilidad de las puntuaciones",
-      "item2": "Conexión segura de corredores de pago y DeFi adicionales según lo requieran los clientes de Ring",
-      "item3": "Ajuste en vivo de umbrales y frecuencia de notificación según los datos de uso."
+  "journey": {
+    "title": "Un camino típico",
+    "subtitle": "De la primera contribución a la utilidad on-chain",
+    "step1": {
+      "title": "Ganar créditos",
+      "description": "Completa acciones de perfil y contribuye contenido. Las recompensas llegan como credit balance bajo reglas publicadas."
     },
-    "longTerm": {
-      "title": "Fase 2: flujos de trabajo más automatizados (2026+)",
-      "item1": "Orquestación de proyectos en varias etapas con rutas de escalada y control humano",
-      "item2": "Estructuras DAO con registros y pistas de auditoría impulsados ​​por IA",
-      "item3": "Bucles económicos que priorizan la creación de valor mensurable para las comunidades, sin la metáfora de la “singularidad”"
+    "step2": {
+      "title": "Convertir en Token Desk",
+      "description": "Cuando necesites token nativo on-chain, abre Desk, obtén una cotización y convierte puntos ↔ nativo al tipo oracle."
+    },
+    "step3": {
+      "title": "Enviar, desbloquear o comerciar",
+      "description": "Envía a contactos, compra o stakea puertas KEYS para funciones, o lista/compra en el Exhibition Marketplace — aún sin SOL para gas."
     }
   },
   "gettingStarted": {
-    "title": "Primeros pasos con AI + Web3 en Ring",
-    "subtitle": "De Connect.Software a clones de mercado: misma columna vertebral técnica, diferente configuración vertical.",
-    "step1": "Mantener el perfil y, opcionalmente, conectar la billetera Web3",
-    "step2": "Pruebe alertas de oportunidades y flujos de editor/tienda",
-    "step3": "Participar en la gobernanza y planificar el uso de RING de acuerdo con las reglas de la instancia.",
-    "cta": "Empezar ahora"
+    "title": "Explora los rieles en vivo",
+    "subtitle": "Abre wallet y superficies NFT, o lee la documentación de features para operadores.",
+    "step1": "Inicia sesión — las wallets custodiales se provisionan automáticamente",
+    "step2": "Gana o recarga credit balance, luego prueba Token Desk",
+    "step3": "Envía token nativo a un contacto, o explora puertas NFT y el market",
+    "ctaWallet": "Abrir wallet",
+    "ctaDocs": "Docs de wallet",
+    "ctaNft": "Mercado NFT",
+    "ctaDao": "Pools MicroDAO"
   }
 }

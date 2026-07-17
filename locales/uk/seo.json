@@ -255,34 +255,34 @@
     ]
   },
   "about-publisher": {
-    "title": "Sonoratek LLC — видавець платформи Ring",
-    "description": "Sonoratek LLC (Темпе, Аризона) — юридична особа Ringdom і офіційний видавець Ring, з вдячністю всім, хто допоміг Україні довести право на незалежність.",
+    "title": "Sonoratek LLC — видавець Connect Platform і Ring",
+    "description": "Sonoratek LLC (Темпе, Аризона) видає Connect Platform — enterprise Erlang ASN.1/BERT realtime — і Ring, open-source webOS для фаундерів на Connect, Firebase, Supabase, Vercel та k8s/Postgres.",
+    "ogTitle": "Sonoratek LLC — видавець Connect Platform і Ring",
+    "ogDescription": "Видавець Connect Platform і open-source webOS Ring — enterprise-клас для кожного фаундера.",
     "keywords": [
       "Sonoratek LLC",
-      "Ringdom",
-      "Ring Platform",
-      "видавець",
-      "відкритий код",
-      "AI",
-      "Web3",
-      "Україна"
-    ],
-    "ogTitle": "Sonoratek LLC — видавець платформи Ring",
-    "ogDescription": "Юридичний видавець Ring Platform — відкритий стек для спільнот, можливостей і маркетплейсів."
+      "Connect Platform",
+      "Ring",
+      "Erlang",
+      "webOS",
+      "Tempe",
+      "open source"
+    ]
   },
   "token-economy": {
-    "title": "Токеноміка - Економіка RING",
-    "description": "Розуміння економіки токенів RING, розподілу та корисності в екосистемі Платформи Ring.",
+    "title": "Токен-економіка — utility RING",
+    "description": "Три шари економіки Ring: credit-ledger, спонсорований Solana RING, Token Desk, rewards, membership, MicroDAO та vendor KEYS NFT RWA.",
     "keywords": [
       "RING",
-      "токеноміка",
-      "Web3",
-      "блокчейн",
-      "криптовалюта",
+      "Token Desk",
+      "credit balance",
+      "Solana SPL",
+      "NFT KEYS",
+      "MicroDAO",
       "Ring Platform"
     ],
     "ogTitle": "Економіка токена RING",
-    "ogDescription": "Як RING забезпечує мікротранзакції, доступ до ШІ та управління спільнотою на Ring Platform."
+    "ogDescription": "Кредити, sponsored SPL, Token Desk, rewards, membership, MicroDAO та vendor NFT RWA — utility-first, без фейкових pie-chart."
   },
   "global-impact": {
     "title": "Глобальний вплив - Платформа Ring",
@@ -300,18 +300,20 @@
     "ogDescription": "Від темряви до світла — Ring об'єднує людство через ШІ-оркестровану співпрацю."
   },
   "ai-web3": {
-    "title": "ШІ зустрічає Web3 - Платформа Ring",
-    "description": "Як Ring Platform поєднує AI-матчинг можливостей із децентралізованою економікою RING та Web3-управлінням.",
+    "title": "ШІ + Web3 — Ring Platform",
+    "description": "AI-підбір можливостей із винагородами credit-balance, спонсорованим Solana SPL, Token Desk, безгазовими переказами, NFT-гейтами та вторинним NFT-маркетплейсом.",
     "keywords": [
       "ШІ",
       "Web3",
-      "блокчейн",
+      "Solana",
+      "Token Desk",
+      "credit balance",
+      "NFT-гейти",
       "Ring Platform",
-      "колективний інтелект",
-      "RING"
+      "sponsored SPL"
     ],
     "ogTitle": "ШІ + Web3 на Ring Platform",
-    "ogDescription": "ШІ-оркестрована співпраця з блокчейн-верифікованою довірою та токен-стимулами."
+    "ogDescription": "Підбір через ШІ. Винагороди credit. Конверсія на Token Desk. Sponsored SPL. NFT-гейти та маркетплейс."
   },
   "roadmap": {
     "title": "Дорожня карта Ring Platform",
@@ -499,5 +501,17 @@
       "enable": "Увімкнути",
       "notNow": "Не зараз"
     }
+  },
+  "changelog": {
+    "title": "Журнал змін — Ring Platform",
+    "description": "Нотатки релізів і історія версій Ring Platform.",
+    "keywords": [
+      "changelog",
+      "release notes",
+      "Ring Platform",
+      "version"
+    ],
+    "ogTitle": "Журнал змін — Ring Platform",
+    "ogDescription": "Нотатки релізів з CHANGELOG.md"
   }
 }

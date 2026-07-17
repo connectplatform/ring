@@ -6,6 +6,8 @@ import { routing } from '@/i18n/routing'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { setRequestLocale } from 'next-intl/server'
 import { connection } from 'next/server'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 
 type PrivacyParams = Record<string, never>
 
@@ -44,5 +46,11 @@ export default async function PrivacyPage(props: LocalePageProps<PrivacyParams>)
   await props.params
   // TODO: Consider using React 19 use() for async data (if this is run on client), or refactoring param usage.
 
-  return <PrivacyPolicy />
+  return (
+    <RingRightRailLayout showRightRail={false} flushCenterPane contentClassName="pb-24 lg:pb-8">
+      <DavinciCenterPane>
+        <PrivacyPolicy />
+      </DavinciCenterPane>
+    </RingRightRailLayout>
+  )
 }

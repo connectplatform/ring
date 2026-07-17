@@ -1,129 +1,75 @@
 'use client'
 
-// About right-rail content for the platform's About page
+/**
+ * ABOUT RAIL — DaVinci glass right-rail for About / AI-Web3 / Global Impact / Contact.
+ * Matches about-publisher rail density: chips, glass stats, primary CTA — no Card shells.
+ */
 
-import React from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import {
-  Info,
-  HelpCircle,
-  ExternalLink,
   BookOpen,
+  ExternalLink,
+  Globe,
+  HelpCircle,
+  Info,
+  Mail,
   MessageSquare,
+  Sparkles,
+  Users,
 } from 'lucide-react'
-import {
-  getSystemConfigSnapshot,
-} from '@/lib/ring-config-core'
+import { GithubIcon } from '@/components/ui/icons/github-icon'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import type { Locale } from '@/i18n/shared'
 import type {
-  SidebarLinkConfig,
   SidebarCommunityLinkConfig,
+  SidebarLinkConfig,
   SidebarStatConfig,
-  SidebarStatValueKey,
 } from '@/lib/ring-config-types'
+import { ROUTES } from '@/constants/routes'
+import { cn } from '@/lib/utils'
+import {
+  DavinciGlassChip,
+  DavinciGlassStatBlock,
+  davinciCtaPrimary,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
 
-import Link from 'next/link' // Using Next.js <Link> for SPA navigation
+const ICON_BY_NAME: Record<string, React.ReactNode> = {
+  Info: <Info className="h-3.5 w-3.5" />,
+  Globe: <Globe className="h-3.5 w-3.5" />,
+  BookOpen: <BookOpen className="h-3.5 w-3.5" />,
+  Users: <Users className="h-3.5 w-3.5" />,
+  Mail: <Mail className="h-3.5 w-3.5" />,
+  MessageSquare: <MessageSquare className="h-3.5 w-3.5" />,
+  Sparkles: <Sparkles className="h-3.5 w-3.5" />,
+}
 
-// CONFIG-BASED LOGIC: interface mirroring ring-config-types
-
-/**
- * Helper for icon rendering. Accepts various possible icon forms:
- *  - string (legacy or custom URL): fallback to default
- *  - React node/component: clone with correct className
- *  Returns a rendered icon node.
- */
-// TODO: Switch to React 19's new functionally enhanced <Icon> prop in future updates if available.
-function renderSidebarIcon(
-  icon: SidebarLinkConfig['icon'],
-  fallback: React.ReactNode = <ExternalLink className="h-4 w-4 mr-2" />
-) {
-  if (!icon) return fallback
-  if (typeof icon === 'string') {
-    // STUB: handle image URLs or named icon string
-    // TODO(step 1): If icon is a valid URL, render <img> with alt/fallback; if custom string, map to library
-    return fallback
+function resolveConfigPath(config: Record<string, unknown>, path: string): string | undefined {
+  const parts = path.split('.')
+  let cur: unknown = config
+  for (const part of parts) {
+    if (cur == null || typeof cur !== 'object') return undefined
+    cur = (cur as Record<string, unknown>)[part]
   }
-  // Is a valid ReactNode/component (preferred)
-  return React.isValidElement(icon)
-    ? React.cloneElement(icon as React.ReactElement<React.SVGProps<SVGSVGElement>>, { className: 'h-4 w-4 mr-2' })
-    : fallback
+  return typeof cur === 'string' && cur.trim() ? cur : undefined
 }
 
-/**
- * Reads sidebar quickLinks from config and localizes the label.
- * Uses the translation function `t` for the labelKey.
- * @param config Configuration object
- * @param t Translation function
- * @param locale Current locale
- */
-function getSidebarLinksFromConfig(
-  config: any,
-  t: ReturnType<typeof useTranslations>,
-  locale: string
-): SidebarLinkConfig[] {
-  // Extracts quickLinks from config
-  const links: SidebarLinkConfig[] = config?.sidebar?.quickLinks || []
-  return links.map(link => ({
-    ...link,
-    // Localize the label using translation function; remove namespace prefix if exists
-    label: t(link.labelKey.replace(/^about\.sidebar\./, ''))
-  }))
+function sidebarKey(labelKey: string): string {
+  return labelKey.replace(/^about\.sidebar\./, '')
 }
 
-/**
- * Reads community links from config, localizes the label, and resolves the URL.
- * Converts a URL key to a concrete URL string, with fallback to the key itself.
- * @param config Configuration object
- * @param t Translation function
- * @param locale Current locale
- */
-// TODO: Update return type for clarity in future codegen/codemod passes.
-function getSidebarCommunityLinksFromConfig(
-  config: any,
-  t: ReturnType<typeof useTranslations>,
-  locale: string
-): Array<SidebarCommunityLinkConfig & { label: string, url: string }> {
-  const links: SidebarCommunityLinkConfig[] = config?.sidebar?.community || []
-  return links.map(link => ({
-    ...link,
-    label: t(link.labelKey.replace(/^about\.sidebar\./, '')),
-    // Prefer mapping urlKey through config.urls, else treat as literal
-    url: config.urls?.[link.urlKey] || link.urlKey,
-  }))
-}
-
-/**
- * Reads sidebar stats from config. Supports literal `value` or dynamic `valueKey`.
- * Returns array of { label, value } objects for display.
- * @param config Configuration object
- * @param t Translation function
- */
-function getSidebarStatsFromConfig(
-  config: any,
-  t: ReturnType<typeof useTranslations>
-): { label: string, value: string }[] {
-  // The config provides an array of stat configs
-  const stats: SidebarStatConfig[] = config?.sidebar?.stats || []
-  return stats.map(stat => {
-    let value: string | undefined = stat.value
-    // Support for dynamic value resolution based on valueKey
-    if (stat.valueKey) {
-      if (stat.valueKey === 'clone.version') {
-        value = config.version || 'n/a'
-      } else if (stat.valueKey === 'legal.licenseSpdx') {
-        value = config.licenseSpdx || 'n/a'
-      }
-      // STUB: Add additional dynamic keys as config evolves
-      // TODO(step 2): Add broader dynamic value resolution using known mappings or factory
-    }
-    return {
-      label: t(stat.labelKey.replace(/^about\.sidebar\./, '')),
-      value: value ?? '',
-    }
-  })
+function resolveSidebarIcon(icon: SidebarLinkConfig['icon']): React.ReactNode {
+  if (!icon) return <ExternalLink className="h-3.5 w-3.5" />
+  if (typeof icon === 'string') {
+    return ICON_BY_NAME[icon] ?? <ExternalLink className="h-3.5 w-3.5" />
+  }
+  if (React.isValidElement(icon)) {
+    return React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+      className: 'h-3.5 w-3.5',
+    })
+  }
+  return <ExternalLink className="h-3.5 w-3.5" />
 }
 
 export interface AboutSidebarContentProps {
@@ -131,178 +77,165 @@ export interface AboutSidebarContentProps {
   onNavigate?: () => void
 }
 
-/**
- * Main React component for the About right-rail.
- * Shows info summary, quick links, stats, community links, and help CTAs.
- */
 export default function AboutSidebarContent({ locale, onNavigate }: AboutSidebarContentProps) {
-  // TODO: Consider using the new useRouter from next/navigation or react-router 19 as APIs evolve
-  // Only for legacy purposes (can be removed when all navigation flows migrate to <Link>)
-  const router = useRouter()
-
-  // Translation function for about.sidebar namespace
   const t = useTranslations('about.sidebar')
+  const ringConfig = getSystemConfigSnapshot() as unknown as Record<string, unknown>
 
-  // STUB: Replace with react's use() + async loader when Next.js supports client async hook.
-  const ringConfig = getSystemConfigSnapshot()
+  const quickLinks = useMemo(() => {
+    const links = (ringConfig?.sidebar as { quickLinks?: SidebarLinkConfig[] } | undefined)
+      ?.quickLinks ?? []
+    return links.map((link) => ({
+      ...link,
+      label: t(sidebarKey(link.labelKey)),
+      iconNode: resolveSidebarIcon(link.icon),
+    }))
+  }, [ringConfig, t])
 
-  // -- Config-driven data resolution ----------------------------------------
-  const quickLinks = getSidebarLinksFromConfig(ringConfig, t, locale)
-  const communityLinks = getSidebarCommunityLinksFromConfig(ringConfig, t, locale)
-  const stats = getSidebarStatsFromConfig(ringConfig, t)
-  // ------------------------------------------------------------------------
+  const communityLinks = useMemo(() => {
+    const links = (ringConfig?.sidebar as { community?: SidebarCommunityLinkConfig[] } | undefined)
+      ?.community ?? []
+    return links.map((link) => {
+      const url =
+        resolveConfigPath(ringConfig, link.urlKey) ||
+        resolveConfigPath(ringConfig, `urls.${link.urlKey}`) ||
+        link.urlKey
+      return {
+        ...link,
+        label: t(sidebarKey(link.labelKey)),
+        url,
+      }
+    })
+  }, [ringConfig, t])
 
-  /**
-   * Handler for navigating to an internal path with optional callback.
-   * Modern code paths should prefer <Link> for SPA navigation.
-   */
-  // TODO: Remove handleNav in favor of <Link> navigations once all usages are migrated. 
-  const handleNav = (href: string) => {
-    router.push(href)
-    onNavigate?.()
-  }
-
-  // TODO: If onNavigate is only used with <Link/> and not for imperative push, consider removing or refactoring for event batching with new React <Actions> API.
+  const stats = useMemo(() => {
+    const rows = (ringConfig?.sidebar as { stats?: SidebarStatConfig[] } | undefined)?.stats ?? []
+    return rows.map((stat) => {
+      let value = stat.value
+      if (stat.valueKey) {
+        value =
+          resolveConfigPath(ringConfig, stat.valueKey) ||
+          // Fallbacks for older snapshots
+          (stat.valueKey === 'clone.version'
+            ? resolveConfigPath(ringConfig, 'version')
+            : undefined) ||
+          (stat.valueKey === 'legal.licenseSpdx'
+            ? resolveConfigPath(ringConfig, 'licenseSpdx')
+            : undefined)
+      }
+      return {
+        label: t(sidebarKey(stat.labelKey)),
+        value: value?.trim() || '—',
+      }
+    })
+  }, [ringConfig, t])
 
   return (
-    <div className="space-y-6">
-      {/* -------- Platform Info Card -------- */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Info className="h-4 w-4" />
-            {/* Translated Platform Info Title */}
+    <div className="space-y-5">
+      <section className="space-y-3" aria-labelledby="about-platform-heading">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 shrink-0 text-[var(--davinci-beam)]" aria-hidden />
+          <h2 id="about-platform-heading" className="text-sm font-semibold tracking-tight text-foreground">
             {t('platformInfo')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          {/* Localized description of the platform */}
-          <p>{t('platformInfoDesc')}</p>
-          {/* Conditional: Show stats only if available */}
-          {stats.length > 0 && (
-            <div className="space-y-2">
-              {stats.map((stat) => (
-                <div key={stat.label} className="flex justify-between">
-                  <span>{stat.label}</span>
-                  <span className="font-medium text-foreground">{stat.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* -------- Quick Links Card -------- */}
-      {quickLinks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              {t('quickLinks')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {/* Use Next.js <Link> for SPA navigation */}
-            {quickLinks.map((link: SidebarLinkConfig) => {
-              const icon = renderSidebarIcon(link.icon as React.ReactNode)
-              return (
-                // TODO: Remove passHref in Next.js 14+ (deprecated, as <Link> always passes href)
-                <Link
-                  href={link.href}
-                  key={link.href}
-                  onClick={onNavigate}
-                  className="w-full block"
-                >
-                  {/* Button asChild pattern gives <span> correct semantics */}
-                  <Button
-                    asChild
-                    variant="ghost"
-                    className="w-full justify-start"
-                  >
-                    <span>
-                      {icon}
-                      {/* TODO: Use link.label (localized) in display, fallback to labelKey only in error */}
-                      {link.labelKey}
-                    </span>
-                  </Button>
-                </Link>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* -------- Community Links Card (External) -------- */}
-      {communityLinks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              {t('community')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {communityLinks.map((link) => (
-              // Open external community link in new tab
-              // TODO: Consider adding dynamic icons per link type in future
-              <a
-                key={link.urlKey}
-                href={link.url} // Use resolved URL, not key
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full block"
-              >
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full justify-start"
-                >
-                  <span>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    {/* TODO: Use link.label (localized) in display, fallback to labelKey only in error */}
-                    {link.labelKey}
-                  </span>
-                </Button>
-              </a>
+          </h2>
+        </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">{t('platformInfoDesc')}</p>
+        {stats.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3">
+            {stats.map((stat) => (
+              <DavinciGlassStatBlock
+                key={stat.label}
+                value={stat.value}
+                label={stat.label}
+                hint=""
+                beamOnHover={false}
+              />
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* -------- Need Help Card -------- */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <HelpCircle className="h-4 w-4" />
-            {t('needHelp')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          {/* Localized support description */}
-          <p>{t('needHelpDesc')}</p>
-          <div className="space-y-2">
-            {/* Button links to /docs and /contact, localized by locale */}
-            <Link href={`/${locale}/docs`} className="block" onClick={onNavigate}>
-              <Button
-                asChild
-                variant="link"
-                className="p-0 h-auto text-sm"
-              >
-                <span>{t('documentation')}</span>
-              </Button>
-            </Link>
-            <Link href={`/${locale}/contact`} className="block" onClick={onNavigate}>
-              <Button
-                asChild
-                variant="link"
-                className="p-0 h-auto text-sm"
-              >
-                <span>{t('contactSupport')}</span>
-              </Button>
-            </Link>
           </div>
-        </CardContent>
-      </Card>
+        ) : null}
+      </section>
+
+      {quickLinks.length > 0 ? (
+        <section className="space-y-3" aria-labelledby="about-quick-links-heading">
+          <h3
+            id="about-quick-links-heading"
+            className="px-0.5 text-sm font-semibold tracking-tight text-foreground"
+          >
+            {t('quickLinks')}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {quickLinks.map((link) => (
+              <DavinciGlassChip
+                key={link.href}
+                href={`/${locale}${link.href.startsWith('/') ? link.href : `/${link.href}`}`}
+                icon={link.iconNode}
+              >
+                {link.label}
+              </DavinciGlassChip>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {communityLinks.length > 0 ? (
+        <section className="space-y-3" aria-labelledby="about-community-heading">
+          <h3
+            id="about-community-heading"
+            className="px-0.5 text-sm font-semibold tracking-tight text-foreground"
+          >
+            {t('community')}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {communityLinks.map((link) => (
+              <DavinciGlassChip
+                key={link.urlKey}
+                href={link.url}
+                external
+                icon={
+                  link.urlKey.includes('github') ? (
+                    <GithubIcon className="h-3 w-3" />
+                  ) : (
+                    <ExternalLink className="h-3 w-3" />
+                  )
+                }
+              >
+                {link.label}
+              </DavinciGlassChip>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-2" aria-labelledby="about-help-heading">
+        <div className="flex items-center gap-2 px-0.5">
+          <HelpCircle className="h-4 w-4 shrink-0 text-[var(--davinci-beam)]" aria-hidden />
+          <h3 id="about-help-heading" className="text-sm font-semibold tracking-tight text-foreground">
+            {t('needHelp')}
+          </h3>
+        </div>
+        <p className="px-0.5 text-xs leading-relaxed text-muted-foreground">{t('needHelpDesc')}</p>
+        <a
+          href={ROUTES.DOCS(locale)}
+          onClick={onNavigate}
+          className={cn(
+            davinciCtaPrimary,
+            'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0',
+          )}
+        >
+          <BookOpen className="size-4 shrink-0 text-[var(--davinci-beam)]" aria-hidden />
+          {t('documentation')}
+        </a>
+        <a
+          href={ROUTES.CONTACT(locale)}
+          onClick={onNavigate}
+          className={cn(
+            davinciGlassSurface,
+            'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold',
+          )}
+        >
+          <Mail className="size-4 shrink-0 text-[var(--davinci-beam)]" aria-hidden />
+          {t('contactSupport')}
+        </a>
+      </section>
     </div>
   )
 }

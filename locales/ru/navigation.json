@@ -261,5 +261,13 @@
   "confidentialEntities": "Конфиденциальные организации",
   "confidentialOpportunities": "Конфиденциальные возможности",
   "myJobs": "Мои работы",
-  "myProjectOrders": "Мои проекты"
+  "myProjectOrders": "Мои проекты",
+  "changelog": {
+    "title": "Журнал изменений",
+    "subtitle": "Заметки о релизах из CHANGELOG.md (v{version})",
+    "project": "Проект",
+    "publisher": "Издатель",
+    "reportErrors": "Сообщить об ошибке",
+    "publisherPage": "Страница издателя"
+  }
 }

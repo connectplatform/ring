@@ -13,6 +13,8 @@ export function withLocale(locale: Locale = defaultLocale, path: string) {
 // Base routes without locale
 const BASE_ROUTES = {
   ABOUT: '/about',
+  ABOUT_PUBLISHER: '/about-publisher',
+  CHANGELOG: '/changelog',
   ADD_ENTITY: '/entities/add',
   ADD_OPPORTUNITY: '/opportunities/add',
   ADMIN: '/admin',
@@ -144,6 +146,7 @@ const BASE_ROUTES = {
 export const ROUTES = {
   ABOUT: (locale: Locale = defaultLocale) => withLocale(locale, '/about'),
   ABOUT_PUBLISHER: (locale: Locale = defaultLocale) => withLocale(locale, '/about-publisher'),
+  CHANGELOG: (locale: Locale = defaultLocale) => withLocale(locale, '/changelog'),
   ADD_ENTITY: (locale: Locale = defaultLocale) => withLocale(locale, '/entities/add'),
 
   ADD_OPPORTUNITY: (locale: Locale = defaultLocale) => withLocale(locale, '/opportunities/add'),

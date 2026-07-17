@@ -33,7 +33,7 @@ export function DavinciCenterPane({
       <div
         className={cn(
           // Default padding; callers may override with Tailwind !p-* (cn does not twMerge)
-          'relative z-[1] flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 sm:py-7 lg:px-8',
+          'relative z-[1] flex min-h-0 flex-1 flex-col px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5',
           contentClassName,
         )}
       >

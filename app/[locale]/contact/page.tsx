@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { Card, CardContent } from '@/components/ui/card'
-import { Typography } from '@/components/ui/typography'
 import Image from 'next/image'
 import { ContactForm } from '@/components/common/widgets/contact-form'
 import { auth } from '@/auth'
@@ -13,8 +11,13 @@ import AboutWrapper from '@/components/wrappers/about-wrapper'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { getRingSeoBranding, getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import { connection } from 'next/server'
+import { cn } from '@/lib/utils'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
 
 type ContactPageParams = Record<string, never>
+
+/** Horizontal inset for text/CTAs — mirrors about-publisher's compact form/legal recipe. */
+const INSET = 'px-4 sm:px-5 lg:px-6'
 
 /** Universal contact-page FAQ slots — clone locales override copy; keys stay stable across Ring deployments. */
 const CONTACT_FAQ_ITEMS = [
@@ -64,19 +67,19 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
 
   return (
     <AboutWrapper locale={locale}>
-      <div className="container mx-auto px-4 py-12 max-w-4xl">
-        <Typography variant="h1" className="text-4xl font-bold mb-12 text-center text-primary">
-          {t('title', platformVars)}
-        </Typography>
+      <div className="w-full min-w-0">
+        <div className={cn('mx-auto max-w-4xl pb-6 pt-4 text-center sm:pt-6', INSET)}>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            {t('title', platformVars)}
+          </h1>
+        </div>
 
-        <Card className="mb-12">
-          <CardContent className="pt-6">
-            <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
-              {t('getInTouch')}
-            </Typography>
-            <Typography variant="p" className="mb-6 text-muted-foreground">
+        <div className={cn('mx-auto max-w-4xl space-y-6 pb-10', INSET)}>
+          <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+            <h2 className="mb-4 text-xl font-semibold sm:text-2xl">{t('getInTouch')}</h2>
+            <p className="mb-6 text-sm leading-relaxed text-muted-foreground sm:text-base">
               {t('description')}
-            </Typography>
+            </p>
             <Suspense fallback={<div>{t('loadingForm')}</div>}>
               <ContactForm
                 entityId="contact_page"
@@ -87,62 +90,52 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
                 }}
               />
             </Suspense>
-          </CardContent>
-        </Card>
+          </div>
 
-        {(contactInfo?.address || contactInfo?.phone || contactInfo?.email) && (
-          <Card className="mb-12">
-            <CardContent className="pt-6">
-              <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
+          {(contactInfo?.address || contactInfo?.phone || contactInfo?.email) && (
+            <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+              <h2 className="mb-4 text-xl font-semibold sm:text-2xl">
                 {t('contactInformation')}
-              </Typography>
+              </h2>
               {contactInfo?.address && (
-                <Typography variant="p" className="mb-2 text-muted-foreground">
+                <p className="mb-2 text-sm text-muted-foreground sm:text-base">
                   {contactInfo.address}
-                </Typography>
+                </p>
               )}
               {contactInfo?.phone && (
-                <Typography variant="p" className="mb-2 text-muted-foreground">
+                <p className="mb-2 text-sm text-muted-foreground sm:text-base">
                   {t('phoneLabel')}: {contactInfo.phone}
-                </Typography>
+                </p>
               )}
               {contactInfo?.email && (
-                <Typography variant="p" className="mb-6 text-muted-foreground">
+                <p className="text-sm text-muted-foreground sm:text-base">
                   {t('emailLabel')}: {contactInfo.email}
-                </Typography>
+                </p>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
 
-        <Card className="mb-12">
-          <CardContent className="pt-6">
-            <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
-              {t('faq')}
-            </Typography>
+          <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+            <h2 className="mb-4 text-xl font-semibold sm:text-2xl">{t('faq')}</h2>
             <div className="space-y-4">
               {CONTACT_FAQ_ITEMS.map(({ questionKey, answerKey }) => (
                 <div key={questionKey}>
-                  <Typography variant="h3" className="text-lg font-semibold mb-2 text-primary">
+                  <h3 className="mb-1.5 text-base font-semibold sm:text-lg">
                     {t(questionKey, platformVars)}
-                  </Typography>
-                  <Typography variant="p" className="text-muted-foreground">
+                  </h3>
+                  <p className="text-sm text-muted-foreground sm:text-base">
                     {t(answerKey, platformVars)}
-                  </Typography>
+                  </p>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {partners.length > 0 && (
-          <Card className="mb-12">
-            <CardContent className="pt-6">
-              <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
-                {t('partners')}
-              </Typography>
+          {partners.length > 0 && (
+            <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+              <h2 className="mb-4 text-xl font-semibold sm:text-2xl">{t('partners')}</h2>
               <div className="overflow-x-auto">
-                <div className="flex space-x-6 pb-4">
+                <div className="flex space-x-6 pb-2">
                   {partners.map((partner) => (
                     <div key={partner.name} className="flex-shrink-0">
                       <Image
@@ -156,9 +149,9 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </AboutWrapper>
   )

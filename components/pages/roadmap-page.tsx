@@ -24,8 +24,16 @@ import { Mermaid } from '@/components/docs/mermaid'
 import { Timeline } from '@/components/docs/timeline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import {
+  DavinciGlassChip,
+  davinciBeamInnerSurface,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
 import { VISUALIZATION_ROADMAP } from '@/lib/roadmap/visualization-roadmap'
+
+const INSET = 'px-4 sm:px-5 lg:px-6'
+const BAND_Y = 'py-12 sm:py-14 lg:py-16'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -60,16 +68,19 @@ export function RoadmapPage() {
   const mathFormula = String(t.raw('demos.mathFormula'))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <section className="relative py-16 px-4 border-b border-border/60 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent" />
-        <div className="relative max-w-5xl mx-auto text-center space-y-6">
-          <Badge variant="outline" className="px-3 py-1">
-            <Map className="h-3.5 w-3.5 mr-1.5 inline" />
-            {t('hero.badge')}
-          </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{t('title')}</h1>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">{t('hero.subtitle')}</p>
+    <div className="w-full min-w-0">
+      {/* Hero — full-bleed beam tint */}
+      <section className={cn('relative overflow-hidden text-center', BAND_Y)}>
+        <div
+          className="pointer-events-none absolute inset-0 bg-[color-mix(in_oklch,var(--davinci-beam)_8%,transparent)]"
+          aria-hidden
+        />
+        <div className={cn('relative mx-auto max-w-5xl space-y-6', INSET)}>
+          <div className="flex justify-center">
+            <DavinciGlassChip icon={<Map className="h-3 w-3" />}>{t('hero.badge')}</DavinciGlassChip>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">{t('title')}</h1>
+          <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">{t('hero.subtitle')}</p>
           <Callout type="info" title={t('hero.mandate')}>
             {spec.roadmap_name} · {t('labels.version', { version: spec.version })}
           </Callout>
@@ -97,7 +108,7 @@ export function RoadmapPage() {
       </section>
 
       <motion.section
-        className="py-16 px-4"
+        className={cn(BAND_Y, INSET)}
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
@@ -112,53 +123,47 @@ export function RoadmapPage() {
         </div>
       </motion.section>
 
-      <section className="py-12 px-4 bg-muted/30">
-        <div className="max-w-6xl mx-auto">
+      {/* Shipped — full-bleed band */}
+      <section
+        className={cn(BAND_Y, 'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]')}
+      >
+        <div className={cn('max-w-6xl mx-auto', INSET)}>
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold">{t('shipped.title')}</h2>
             <p className="text-muted-foreground text-sm mt-1">{t('shipped.subtitle')}</p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
             {shippedItems.map((item) => (
-              <Badge key={item.name} variant="secondary" className="px-3 py-1.5 text-sm">
-                <Sparkles className="h-3 w-3 mr-1.5 text-primary" />
+              <DavinciGlassChip key={item.name} icon={<Sparkles className="h-3 w-3" />}>
                 {item.name}
-                <span className="ml-2 text-muted-foreground font-normal">{item.tag}</span>
-              </Badge>
+                <span className="ml-1 font-normal text-muted-foreground">{item.tag}</span>
+              </DavinciGlassChip>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-16 px-4">
+      <section className={cn(BAND_Y, INSET)}>
         <div className="max-w-6xl mx-auto space-y-10">
           <div className="text-center">
             <h2 className="text-3xl font-bold mb-2">{t('demos.title')}</h2>
             <p className="text-muted-foreground">{t('demos.subtitle')}</p>
           </div>
-          <div className="grid lg:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('demos.mathCaption')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Math display>{mathFormula}</Math>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t('demos.sandboxTitle')}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 pt-0">
-                <CodeSandbox code={sandboxCode} template="vanilla-ts" showPreview={false} />
-              </CardContent>
-            </Card>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4 sm:p-5')}>
+              <h3 className="mb-3 text-lg font-semibold">{t('demos.mathCaption')}</h3>
+              <Math display>{mathFormula}</Math>
+            </div>
+            <div className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4 sm:p-5')}>
+              <h3 className="mb-3 text-lg font-semibold">{t('demos.sandboxTitle')}</h3>
+              <CodeSandbox code={sandboxCode} template="vanilla-ts" showPreview={false} />
+            </div>
           </div>
         </div>
       </section>
 
       <motion.section
-        className="py-16 px-4 bg-muted/20"
+        className={cn(BAND_Y, INSET, 'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]')}
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
@@ -169,29 +174,27 @@ export function RoadmapPage() {
             <h2 className="text-3xl font-bold mb-3">{t('platform.title')}</h2>
             <p className="text-muted-foreground">{t('platform.subtitle')}</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4">
             {platformPhases.map((phase, index) => (
-              <motion.div key={phase.title} variants={itemVariants}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-xl">{phase.title}</CardTitle>
-                      <Badge variant={index === 0 ? 'default' : index === 1 ? 'secondary' : 'outline'}>
-                        {phase.timeline}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm leading-relaxed">{phase.body}</p>
-                  </CardContent>
-                </Card>
+              <motion.div
+                key={phase.title}
+                variants={itemVariants}
+                className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4')}
+              >
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h3 className="text-lg font-semibold">{phase.title}</h3>
+                  <Badge variant={index === 0 ? 'default' : index === 1 ? 'secondary' : 'outline'}>
+                    {phase.timeline}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground text-sm leading-relaxed">{phase.body}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      <section className="py-16 px-4">
+      <section className={cn(BAND_Y, INSET)}>
         <div className="max-w-6xl mx-auto space-y-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold mb-2">{t('docs.title')}</h2>
@@ -201,17 +204,17 @@ export function RoadmapPage() {
             {docLinks.map((link, index) => {
               const Icon = DOC_LINK_ICONS[index % DOC_LINK_ICONS.length]
               return (
-                <Link key={link.href} href={`/${locale}${link.href}`} className="group block h-full">
-                  <Card className="h-full transition-colors hover:border-primary/40 hover:bg-muted/30">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-primary shrink-0" />
-                        {link.title}
-                        <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </CardTitle>
-                      <CardDescription className="text-sm">{link.description}</CardDescription>
-                    </CardHeader>
-                  </Card>
+                <Link
+                  key={link.href}
+                  href={`/${locale}${link.href}`}
+                  className={cn(davinciGlassSurface, 'group block p-4')}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Icon className="h-4 w-4 shrink-0 text-[var(--davinci-beam)]" />
+                    <span className="text-base font-semibold">{link.title}</span>
+                    <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">{link.description}</p>
                 </Link>
               )
             })}
@@ -219,8 +222,8 @@ export function RoadmapPage() {
         </div>
       </section>
 
-      <section className="py-12 px-4 bg-muted/30">
-        <div className="max-w-4xl mx-auto">
+      <section className={cn(BAND_Y, 'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]')}>
+        <div className={cn('max-w-4xl mx-auto', INSET)}>
           <Mermaid title="Platform + docs evolution">
             {`flowchart TB
   subgraph today [Shipped]
@@ -241,7 +244,7 @@ export function RoadmapPage() {
         </div>
       </section>
 
-      <section className="py-12 px-4 border-t">
+      <section className={cn(BAND_Y, INSET, 'border-t border-[var(--davinci-glass-border)]')}>
         <div className="max-w-3xl mx-auto text-center space-y-4">
           <Button asChild size="lg">
             <Link href={`/${locale}/docs`}>

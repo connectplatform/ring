@@ -196,6 +196,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json* ./
 COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
+COPY --from=builder --chown=nextjs:nodejs /app/CHANGELOG.md ./CHANGELOG.md
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
 
 # Install production dependencies

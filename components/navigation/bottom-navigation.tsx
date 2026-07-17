@@ -58,6 +58,7 @@ import {
   davinciAuthButtonLift,
   davinciGlassSurface,
 } from '@/lib/ui/davinci'
+import { NavLegalFooter } from '@/components/navigation/nav-legal-footer'
 
 // TODO: Consider using React.lazy instead of next/dynamic as React 19 is stable,
 // but for SSR disabling 'AnimatedLogo' component, next/dynamic is okay here.
@@ -444,19 +445,25 @@ function BottomNavFullscreenMenu({
           )}
           style={{ transitionDelay: prefersReducedMotion ? '0ms' : '500ms' }}
         >
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
             <button
               type="button"
               onClick={() => switchLocale(nextLocaleInRoutingOrder(locale))}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium"
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10"
+              title={localeDisplayLabel(locale)}
+              aria-label={`Switch locale (${localeDisplayLabel(locale)})`}
             >
               <Languages className="h-4 w-4 text-primary" />
-              <span>{localeDisplayLabel(locale)}</span>
             </button>
+            <NavLegalFooter
+              density="comfortable"
+              align="center"
+              className="min-w-0 px-1"
+            />
             <button
               type="button"
               onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium"
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10"
               aria-label={t('toggleTheme')}
             >
               {resolvedTheme === 'dark' ? (

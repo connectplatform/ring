@@ -1,144 +1,72 @@
 {
-  "title": "Global Impact - Ring Platform",
-  "description": "Experience Ring's revolutionary AI-orchestrated collective problem solving, white-label cloning capabilities, and RingChain's gasless blockchain for global technological abundance.",
-  "badge": "AI + Web3 Revolution",
+  "title": "Global Impact — Ring Platform",
+  "description": "Ring as an implied ultimate weapon of peace: open technology given freely to goodwill communities so they can focus on local needs inside their own ecosystem of values.",
+  "badge": "Weapon of peace",
 
   "hero": {
-    "title": "From Darkness to Light",
-    "subtitle": "Born during war and written through power outages, Ring Platform shows how AI can connect humanity beyond greed. RingChain eliminates artificial scarcity, creating abundance for all."
+    "title": "Technology that turns attention into peace work",
+    "subtitle": "Ring is offered freely to any goodwill community on the planet. Clone it, brand it in your values, and use AI matching plus a local money stack so neighbors can solve local needs together — instead of being pulled into noise, scarcity theater, and distant platforms that extract attention without returning sovereignty."
   },
 
-  "stats": {
-    "stats1": {
-      "title": "Ring-Powered Platforms",
-      "description": "White-label deployments solving real problems worldwide",
-      "value": "47+"
-    },
-    "stats2": {
-      "title": "Verified Community Members",
-      "description": "Building collective intelligence through AI-orchestrated collaboration",
-      "value": "12,847+"
-    },
-    "stats3": {
-      "title": "Countries Reached",
-      "description": "Nations gaining technological sovereignty through Ring Platform",
-      "value": "23+"
-    }
+  "thesis": {
+    "title": "Why Ring exists globally",
+    "description": "War, poverty, and fragmentation thrive when people cannot coordinate. Ring’s implied purpose is peaceful: give communities a complete digital commons — opportunities, messaging, store, credits, sponsored native token, MicroDAO votes, NFT gates — so they can focus on what is near and real. Not another feed. A shared operating system for local abundance.",
+    "quote": "From darkness toward light: open tools, local ownership, collective focus — peace as practiced coordination, not a slogan."
   },
 
-  "mission": {
-    "title": "Shared Prosperity",
-    "description": "Some are driven by possession and control - their power comes from repetitive processes and fiat instructions. We print our own values through Ring blueprints. AI connects humanity beyond greed, guiding masses with proper direction. RingChain creates abundance without artificial scarcity.",
-    "quote": "\"We print our own values with Ring blueprints. We eliminate the need for greed and guide masses with proper guidance. We are the future.\" - Ray, Architect of Ring",
-    "impact": "Human Liberation"
-  },
-
-  "vision": {
-    "title": "Global Connect in Action",
-    "hero": {
-      "title": "Ukraine's Digital Defense - Born in Crisis",
-      "description": "During Russia's invasion, while writing through power outages and recovering from kidnapping, we built Ring Platform as a bridge beyond conflict. AI-orchestrated opportunity matching connected 2,300 volunteers with defense needs. Our platform processed 15,600 collaboration requests, matched 8,900 experts with urgent tasks, and coordinated €2.8M in emergency funding - all through automated AI notifications that eliminate missed opportunities and connect people who can help."
+  "effects": {
+    "title": "Global effects of a free Ring",
+    "subtitle": "When every goodwill community can host its own Ring, the planet gains many small centers of relevant action instead of one extractive center of distraction.",
+    "sovereignty": {
+      "title": "Technological sovereignty",
+      "description": "Communities run their own clone — their branding, their token, their membership rules, their data posture. Values stay local; the stack stays modern."
     },
-    "story1": {
-      "title": "GreenFood Organic Food Marketplace",
-      "description": "Ring Platform transformed 50 Ukrainian farms through AI-powered supply chain optimization. Our 8-factor scoring system identified collaboration opportunities, notifying interested parties with 160-char personalized explanations. The result: 87% efficiency improvement and €2.3M annual value creation through collective problem solving."
+    "focus": {
+      "title": "Collective focus on local needs",
+      "description": "AI matching notifies the right people about nearby opportunities. Less scrolling past the world; more showing up for the street, the school, the clinic, the farm, the workshop."
     },
-    "story2": {
-      "title": "SubiWorx Auto Parts Marketplace",
-      "description": "Ring's white-label marketplace connected 200 Kenyan artisans with international buyers. AI matching algorithms analyzed 160+ data points to notify interested parties worldwide. Monthly revenue grew from $8K to $58K through automated opportunity discovery and Ring-powered payment integration."
+    "economy": {
+      "title": "An ecosystem of values that can settle",
+      "description": "Credit rewards, Token Desk, sponsored SPL transfers, MicroDAO native-token votes, and NFT gates let a community circulate value without forcing everyone to hold chain gas or abandon their cultural economics."
     },
-    "story3": {
-      "title": "Pet Friend App",
-      "description": "Ring Platform unified 300 European hospitals during supply shortages. Our AI system analyzed needs, notified interested suppliers with personalized match explanations, and coordinated €15M in critical equipment distribution. Diagnosis time reduced from 47 days to 3.2 days through real-time collaboration."
+    "peace": {
+      "title": "Peace as capacity, not performance",
+      "description": "Weapons of war destroy coordination. A weapon of peace multiplies it: open-source Ring lowers the cost of standing up honest markets, mutual aid, and transparent priority voting wherever goodwill already exists."
     },
-    "story4": {
-      "title": "Global Environmental Protection Network",
-      "description": "Ring-powered environmental monitoring coordinated 89 communities to protect 12,000 hectares of forest. AI matching notified conservation experts worldwide, raising €450K in funding through blockchain-verified impact tracking. Communities now have technological sovereignty over their environmental destiny."
+    "replication": {
+      "title": "Replication without permission theater",
+      "description": "Goodwill groups should not wait for venture approval to organize. Clone, configure, deploy — then invite neighbors into an ecosystem that answers to them."
     },
-    "story5": {
-      "title": "Cooperative Economic Sovereignty",
-      "description": "156 artisan cooperatives across 8 countries gained economic independence through Ring's AI-orchestrated marketplace. Our platform eliminated artificial deficit by connecting producers directly with global markets, creating €4.2M in new economic value through automated opportunity matching."
+    "education": {
+      "title": "Learning by building the commons",
+      "description": "Students and builders learn modern stacks while shipping real community infrastructure — the path from poverty of tools to prosperity of capability."
     }
   },
 
   "howItWorks": {
-    "title": "How Ring Connects Humanity Beyond Greed",
+    "title": "How a community turns Ring into local impact",
     "step1": {
-      "title": "AI-Powered Opportunity Analysis (94% Match Accuracy)",
-      "description": "Ring's AI analyzes 160+ data points per opportunity, creating 8-factor scoring systems that identify optimal collaborators. Unlike platforms driven by profit, Ring automatically notifies interested parties with 160-character personalized explanations explaining why they're the perfect match - eliminating missed opportunities that could help others."
+      "title": "Receive the commons",
+      "description": "Take the open Ring platform — documentation, clone path, and white-label config — as a gift of capability, not a lease on attention."
     },
     "step2": {
-      "title": "Automated Interest-Based Notifications",
-      "description": "When a new opportunity is posted, Ring's AI instantly scans the verified community and notifies interested parties. No more manual searching through greed-driven algorithms. Our system delivers personalized match explanations that connect people who genuinely want to help."
+      "title": "Root it in your values",
+      "description": "Set display name, locales, membership, native token, and modules so the system speaks your community’s language and rules."
     },
     "step3": {
-      "title": "White-Label Cloning for Collective Benefit",
-      "description": "Any organization can order AI-customized Ring clones through our deployment calculator. Staff-led customization ensures perfect fit for your community needs. From concept to production deployment in 4 weeks, with full AI orchestration and RingChain integration - democratizing technology access."
+      "title": "Match needs to people",
+      "description": "Post opportunities and let AI notify relevant members. Contribution earns credit-balance rewards under published, non-speculative rules."
     },
     "step4": {
-      "title": "RingChain: Abundance Without Artificial Scarcity",
-      "description": "RingChain eliminates artificial deficit with mobile-first, gasless blockchain technology. Every verified device becomes a node, storing encrypted ledger shards distributed via BitTorrent-style P2P. Social recovery through guardian consensus ensures no one loses access to their resources ever again."
+      "title": "Settle and decide together",
+      "description": "Use Token Desk, gasless sends, MicroDAO native-token votes, and NFT gates so priorities and access stay inside your ecosystem — transparent, local, and actionable."
     }
-  },
-
-  "cloning": {
-    "title": "AI-Customized Ring Clones - Democratizing Technology Access",
-    "subtitle": "Any community can have their own Ring platform",
-    "calculator": "Try Deployment Calculator",
-    "customization": "Staff-Led AI Customization",
-    "timeline": "4-Week Community Deployment",
-    "features": {
-      "ai_matching": "AI matching algorithms trained on your community's needs",
-      "white_label": "Interface reflecting your community's identity",
-      "ringchain": "Integrated RingChain for abundance economics",
-      "custom_modules": "Community-specific modules built by Ring experts",
-      "support": "Collaborative support and guidance included"
-    }
-  },
-
-  "ringchain": {
-    "title": "RingChain: Abundance Economics",
-    "description": "RingChain shows how blockchain can create abundance instead of artificial scarcity. A torrent-distributed BSON ledger where every mobile device is a full node. No gas fees, no mining waste, no lost keys. Just participation credits that grow with contribution to community.",
-    "features": {
-      "gasless": "Zero transaction fees through participation credits",
-      "mobile_first": "8MB mobile nodes with client-side validation",
-      "social_recovery": "Guardian consensus prevents lost access disasters",
-      "torrent_distribution": "BitTorrent-style P2P ledger distribution",
-      "human_verified": "Consensus through verified human participants",
-      "erasure_sharding": "11-nines durability with efficient storage"
-    },
-    "stats": {
-      "finality": "0.5-1.5 second transaction finality",
-      "throughput": "227 TPS baseline, scales with network",
-      "storage": "8MB mobile, 765MB full archive",
-      "participants": "Every verified device contributes to the network"
-    }
-  },
-
-  "liberation": {
-    "title": "Ring's Path to Human Liberation",
-    "phases": {
-      "phase1": {
-        "title": "Phase 1: Connection Beyond Greed (2025)",
-        "description": "Complete AI-powered opportunity matching system with 160-char personalized notifications. Deploy 1000+ community platforms globally. Launch RingChain proof-of-concept with 10K users who understand abundance economics."
-      },
-      "phase2": {
-        "title": "Phase 2: RingChain Abundance (2026)",
-        "description": "Full RingChain deployment with participation credits, social recovery, and mobile-first architecture. 100K users, 100K daily transactions. Show how economics can work without artificial scarcity."
-      },
-      "phase3": {
-        "title": "Phase 3: Global Human Network (2027+)",
-        "description": "1M+ users, 1M+ daily transactions. Complete ecosystem with bridges to existing systems, helping people transition from greed-based economics. Human liberation through proper guidance achieved globally."
-      }
-    },
-    "vision": "Ring Platform + RingChain will show humanity how to live beyond second-chakra greed. No more artificial deficit. No more gas fees. No more lost access. Just collective problem solving through AI guidance and abundance economics."
   },
 
   "cta": {
-    "title": "Join Ring's Human Liberation",
-    "subtitle": "Experience AI guidance beyond greed. Clone Ring for your community. Embrace abundance economics.",
-    "cloneRing": "Clone Ring Platform",
-    "learnRingChain": "Discover Abundance Economics",
-    "joinCommunity": "Join Human Liberation"
+    "title": "Carry the light outward",
+    "subtitle": "Read the publisher story, then start a clone path for your community — or for the next goodwill network that needs its own Ring.",
+    "learnMore": "About the publisher",
+    "getStarted": "Getting started docs"
   }
 }

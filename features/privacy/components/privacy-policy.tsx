@@ -3,94 +3,89 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
-import { Card, CardContent } from "@/components/ui/card"
-import { Typography } from "@/components/ui/typography"
+import { cn } from '@/lib/utils'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
+
+/** Horizontal inset for text — mirrors about-publisher's compact form/legal recipe. */
+const INSET = 'px-4 sm:px-5 lg:px-6'
 
 export default function PrivacyPolicy() {
   const t = useTranslations('privacy')
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -50 }}
+      initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="container mx-auto px-4 py-12 max-w-4xl"
+      transition={{ duration: 0.4 }}
+      className="w-full min-w-0"
     >
-      <Typography variant="h1" className="text-4xl font-bold mb-12 text-center text-primary">
-        {t('privacyPolicyText.title')}
-      </Typography>
-      
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
-            {t('privacyPolicyText.introduction.title')}
-          </Typography>
-          <Typography variant="p" className="mb-6 text-muted-foreground">
-            {t('privacyPolicyText.introduction.content')}
-          </Typography>
-        </CardContent>
-      </Card>
+      <div className={cn('mx-auto max-w-4xl pb-6 pt-4 text-center sm:pt-6', INSET)}>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          {t('privacyPolicyText.title')}
+        </h1>
+      </div>
 
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
+      <div className={cn('mx-auto max-w-4xl space-y-5 pb-10', INSET)}>
+        <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+          <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
+            {t('privacyPolicyText.introduction.title')}
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+            {t('privacyPolicyText.introduction.content')}
+          </p>
+        </div>
+
+        <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+          <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
             {t('privacyPolicyText.dataCollection.title')}
-          </Typography>
-          <Typography variant="p" className="mb-6 text-muted-foreground">
+          </h2>
+          <p className="mb-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t('privacyPolicyText.dataCollection.content')}
-          </Typography>
-          <ul className="list-disc pl-6 mb-6 space-y-4 text-muted-foreground">
+          </p>
+          <ul className="list-disc space-y-2 pl-6 text-sm leading-relaxed text-muted-foreground sm:text-base">
             <li>{t('privacyPolicyText.dataCollection.item1')}</li>
             <li>{t('privacyPolicyText.dataCollection.item2')}</li>
             <li>{t('privacyPolicyText.dataCollection.item3')}</li>
             <li>{t('privacyPolicyText.dataCollection.item4')}</li>
           </ul>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
+        <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+          <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
             {t('privacyPolicyText.dataUsage.title')}
-          </Typography>
-          <Typography variant="p" className="mb-6 text-muted-foreground">
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t('privacyPolicyText.dataUsage.content')}
-          </Typography>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
 
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
+        <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+          <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
             {t('privacyPolicyText.dataSecurity.title')}
-          </Typography>
-          <Typography variant="p" className="mb-6 text-muted-foreground">
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t('privacyPolicyText.dataSecurity.content')}
-          </Typography>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
 
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
+        <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+          <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
             {t('privacyPolicyText.userRights.title')}
-          </Typography>
-          <Typography variant="p" className="mb-6 text-muted-foreground">
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t('privacyPolicyText.userRights.content')}
-          </Typography>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
 
-      <Card className="mb-12">
-        <CardContent className="pt-6">
-          <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
+        <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+          <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
             {t('privacyPolicyText.contactUsPrivacy.title')}
-          </Typography>
-          <Typography variant="p" className="mb-6 text-muted-foreground">
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t('privacyPolicyText.contactUsPrivacy.content')}
-          </Typography>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+      </div>
     </motion.div>
   )
 }

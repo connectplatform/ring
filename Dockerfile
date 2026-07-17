@@ -405,6 +405,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 COPY --from=builder --chown=nextjs:nodejs /app/i18n ./i18n
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
+COPY --from=builder --chown=nextjs:nodejs /app/CHANGELOG.md ./CHANGELOG.md
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
 
 RUN mkdir -p /app/log /app/tmp && \

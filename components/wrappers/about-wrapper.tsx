@@ -15,6 +15,10 @@ import type { Locale } from '@/i18n/shared'
 interface AboutWrapperProps {
   children: React.ReactNode
   locale: Locale
+  /**
+   * @deprecated Always flush (`!p-0`) for DaVinci narrative bands — kept for call-site compat.
+   */
+  flush?: boolean
 }
 
 export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
@@ -43,7 +47,7 @@ export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
       isOpen={rightSidebarOpen}
       onToggle={setRightSidebarOpen}
     >
-      <DavinciCenterPane>
+      <DavinciCenterPane contentClassName="!p-0">
         {children}
       </DavinciCenterPane>
     </RingRightRailLayout>

@@ -2,6 +2,41 @@
 
 All notable changes to Ring Platform are documented in this file.
 
+## [1.97.3] - 2026-07-17
+
+### Added
+- **Owner project CRM lab** — Buyer `/my-orders` + operator `/my-jobs` surfaces, admin CRM orders desk, deployment widgets (pods, logs, restart), lab chat rails, and migrations `035_project_orders` / `036_project_order_deployments`
+- **Admin CRM rename** — Email admin routes consolidated under `/admin/crm/*` (inbox, drafts, contacts, analytics, tasks) with shared CRM shell
+- **Rewards admin** — `/admin/rewards` dashboard plus reward stats/events APIs and profile reward hooks
+- **Generative media** — Product/NFT image generation field, gallery strip, billing, fullscreen editor modal, and EN docs
+- **Mood player** — Playlist CRUD, public `/{username}/songs`, TipTap mood-player node, Suno audio provider, custom element registration
+- **News collaboration** — Collaborator invites, revision/amendment flows (`/my-news/.../amendments`, `/news/.../revise`), slash menu, embed preview, revision diff service
+- **Calculator checkout** — Project calculator order APIs, checkout/success pages, and project preset rates
+- **PayPal payment lane** — Store/membership/wallet/news-promotion/project-order PayPal handlers, webhook route, and subscription provider
+- **Store promotions** — Vendor promotion fields, share-and-earn card, migration `034_store_promotions_jsonb`
+- **Content interactions** — Migration `033_user_content_interactions_schema` and opportunity request/my APIs
+- **Entity vertical presets** — Agricultural / agricultural-ERP / platform preset catalog with active entity catalog helper
+- **Home presets** — `home-content-resolver` + MVM landing preset
+- **Admin supermenu** — Desktop/mobile admin supermenu with build/use helpers and tests
+- **Wallet modals** — Pay-request, recharge, request, and on-chain transaction detail fullscreen modals
+- **Locales DE/ES** — Full German and Spanish locale packs (plus RU/UK module additions for generative media and mood player)
+- **Docs** — Generative media, owner project lab, rewards, wallet conductor, and vertical presets feature/architecture pages
+
+### Changed
+- **PaymentConductor** — Expanded processor/handler surface (card + PayPal store payments, WayForPay HPP helpers, checkout redirect SSOT)
+- **Opportunities** — Feed card + type-tone UX; create/update/delete API routes collapsed into resource routes; program CRM ingest helper
+- **NFT market** — Media gallery/art-generate fields, page shell, member image-gen editor service
+- **Membership** — Manage subscription page and PayPal subscription cancel/status wiring
+- **Navigation / shells** — Bottom nav, sidebar synced layout, wrappers, and analytics beacon updates across center-pane pages
+- **Version** — Platform package `1.97.3` public release prep
+
+### Fixed
+- **Uploads & media** — Shared upload-core/types, media asset derivatives profile, WebP derive helper
+- **Wallet credit** — Reward credit math/service tests; token balance hooks consolidated (`use-token-balance`, `use-primary-native-balance`)
+- **Pagination / Zod** — Normalize paginated response typing and credit-reward schema hardening
+
+---
+
 ## [1.6.4] - 2026-06-13
 
 ### Added

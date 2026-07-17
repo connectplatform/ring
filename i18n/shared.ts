@@ -16,6 +16,7 @@ export const sharedPathnames = {
   '/': '/',
   '/about': '/about',
   '/about-publisher': '/about-publisher',
+  '/changelog': '/changelog',
   '/account/suspended': '/account/suspended',
   '/admin': '/admin',
   '/admin/analytics': '/admin/analytics',

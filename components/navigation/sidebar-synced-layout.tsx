@@ -44,10 +44,9 @@ import {
 import { useStoreCurrency } from '@/features/store/currency-context'
 import { useRouter, replaceLocalePath } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
-import packageInfo from '@/package.json'
 import type { Locale } from '@/i18n/shared'
-import { TunnelIndicatorCompact } from './tunnel-indicator'
 import { AdminSupermenuToggle } from './admin-supermenu'
+import { NavLegalFooter } from './nav-legal-footer'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
   ssr: false,
@@ -58,7 +57,7 @@ const BRAND_ROW = 'flex h-16 min-h-16 max-h-16 items-center'
 const SECTION_ROW = 'h-5 min-h-5 max-h-5'
 const GRID_COLS = 'grid-cols-[64px_minmax(0,1fr)]'
 const GUTTER_ICON = 'flex w-5 shrink-0 items-center justify-center'
-const FOOTER_H = 'h-10 min-h-10 max-h-10'
+const FOOTER_H = 'min-h-12 h-auto py-1.5'
 const FOOTER_BTN =
   'flex h-8 w-full shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent text-white hover:bg-white/10'
 const ASIDE_PAD = 'pl-1 pr-2'
@@ -517,27 +516,8 @@ export function SidebarSyncedLayout({
         )}
       >
         <div className={FOOTER_H} aria-hidden />
-        <div
-          className={cn(
-            FOOTER_H,
-            'flex items-center justify-between px-2 text-[10px] leading-none text-muted-foreground',
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-1.5">
-            <TunnelIndicatorCompact />
-            <Link href="/about-publisher" className="truncate hover:underline">
-              v{packageInfo.version}
-            </Link>
-          </div>
-          <div className="flex shrink-0 gap-1">
-            <Link href="/privacy" className="hover:underline">
-              Privacy
-            </Link>
-            <span>|</span>
-            <Link href="/contact" className="hover:underline">
-              Contact
-            </Link>
-          </div>
+        <div className={cn(FOOTER_H, 'flex items-center px-2')}>
+          <NavLegalFooter className="w-full" />
         </div>
       </div>
     </div>

@@ -255,36 +255,35 @@
     ]
   },
   "about-publisher": {
-    "title": "Sonoratek LLC — Ring platform publisher",
-    "description": "Sonoratek LLC (Tempe, Arizona) is Ringdom's domestic LLC and the legal publisher of Ring — with gratitude for everyone who helped Ukraine prove its right to independence.",
+    "title": "Sonoratek LLC — Connect Platform & Ring publisher",
+    "description": "Sonoratek LLC (Tempe, Arizona) publishes Connect Platform — enterprise Erlang ASN.1/BERT realtime — and Ring, the open-source webOS for founders on Connect, Firebase, Supabase, Vercel, and k8s/Postgres.",
+    "ogTitle": "Sonoratek LLC — Connect Platform & Ring publisher",
+    "ogDescription": "Publisher of Connect Platform and Ring open-source webOS — enterprise-class software for every founder.",
     "keywords": [
       "Sonoratek LLC",
-      "Ringdom",
-      "Ring Platform",
-      "publisher",
-      "open source",
-      "AI",
-      "Web3",
-      "Ukraine"
-    ],
-    "ogTitle": "Sonoratek LLC — Ring platform publisher",
-    "ogDescription": "Legal publisher of Ring Platform — open-source community, opportunities, and marketplace stack built with gratitude for Ukraine's independence."
+      "Connect Platform",
+      "Ring",
+      "Erlang",
+      "webOS",
+      "Tempe",
+      "open source"
+    ]
   },
   "token-economy": {
-    "title": "Tokenomics - RING Economy",
-    "description": "Understanding the RING token economy, distribution, and utility within the Ring Platform ecosystem.",
+    "title": "Token economy — RING utility",
+    "description": "Three-layer Ring economy: fiat credit ledger, sponsored Solana RING, Token Desk, contribution rewards, membership, MicroDAO, and vendor KEYS NFT RWA.",
     "keywords": [
-      "Ring Token",
       "RING",
-      "Tokenomics",
-      "Web3",
-      "Blockchain",
-      "Cryptocurrency",
-      "Digital Economy",
-      "DeFi"
+      "Token Desk",
+      "credit balance",
+      "Solana SPL",
+      "NFT KEYS",
+      "MicroDAO",
+      "Ring Platform",
+      "token economics"
     ],
-    "ogTitle": "RING Token Economy",
-    "ogDescription": "How RING powers microtransactions, AI access, governance, and community incentives across Ring Platform."
+    "ogTitle": "RING token economy",
+    "ogDescription": "Credits, sponsored SPL, Token Desk, rewards, membership, MicroDAO votes, and vendor NFT RWA — utility-first, no fake allocation charts."
   },
   "global-impact": {
     "title": "Global Impact - Ring Platform",
@@ -304,19 +303,20 @@
     "ogDescription": "From darkness to light — Ring connects humanity through AI-orchestrated collaboration and open cloneable platforms."
   },
   "ai-web3": {
-    "title": "AI Meets Web3 - Ring Platform",
-    "description": "Discover how Ring Platform combines AI opportunity matching with decentralized RING token economics and Web3 governance.",
+    "title": "AI + Web3 — Ring Platform",
+    "description": "AI opportunity matching with credit-balance rewards, sponsored Solana SPL, Token Desk, gasless sends, NFT gates, and secondary NFT marketplace.",
     "keywords": [
       "AI",
       "Web3",
-      "Blockchain",
+      "Solana",
+      "Token Desk",
+      "credit balance",
+      "NFT gates",
       "Ring Platform",
-      "Collective Intelligence",
-      "Smart Contracts",
-      "RING token"
+      "sponsored SPL"
     ],
     "ogTitle": "AI + Web3 on Ring Platform",
-    "ogDescription": "AI-orchestrated collaboration meets blockchain-verified trust and token incentives."
+    "ogDescription": "Match with AI. Earn credit rewards. Convert at Token Desk. Send sponsored SPL. Unlock with NFT gates and marketplace."
   },
   "roadmap": {
     "title": "Ring Platform Roadmap",
@@ -504,5 +504,17 @@
       "enable": "Enable",
       "notNow": "Not now"
     }
+  },
+  "changelog": {
+    "title": "Changelog — Ring Platform",
+    "description": "Ring Platform release notes and version history. Track new features, fixes, and breaking changes.",
+    "keywords": [
+      "changelog",
+      "release notes",
+      "Ring Platform",
+      "version"
+    ],
+    "ogTitle": "Changelog — Ring Platform",
+    "ogDescription": "Release notes sourced from CHANGELOG.md"
   }
 }

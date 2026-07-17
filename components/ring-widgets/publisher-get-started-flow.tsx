@@ -13,7 +13,7 @@
 import { ChevronDown, Rocket } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { davinciCtaPrimary, davinciTerminalSurface } from '@/lib/ui/davinci'
+import { davinciCtaPrimary, davinciGlassSurface, davinciTerminalSurface } from '@/lib/ui/davinci'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 
@@ -43,7 +43,7 @@ export function PublisherGetStartedFlow({ locale }: PublisherGetStartedFlowProps
       </h3>
 
       <div
-        className="ring-widget-flow rounded-xl border border-[color-mix(in_oklch,var(--davinci-beam)_22%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_5%,transparent)] p-3"
+        className={cn(davinciGlassSurface, 'p-3')}
         data-testid="publisher-clone-flow"
       >
         <ol className="list-none space-y-0">

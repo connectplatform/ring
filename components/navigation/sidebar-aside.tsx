@@ -21,12 +21,11 @@ import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import packageInfo from '@/package.json'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
-import { TunnelIndicatorCompact } from './tunnel-indicator'
 import { AdminSupermenuToggle } from './admin-supermenu'
+import { NavLegalFooter } from './nav-legal-footer'
 
 interface NavigationItem {
   href: string
@@ -243,23 +242,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
           )}
 
           <div className="mt-auto px-2 pb-4">
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <TunnelIndicatorCompact />
-                <Link href="/about-publisher" className="hover:underline">
-                  v{packageInfo.version}
-                </Link>
-              </div>
-              <div className="flex gap-1">
-                <Link href="/privacy" className="hover:underline">
-                  Privacy
-                </Link>
-                <span>|</span>
-                <Link href="/contact" className="hover:underline">
-                  Contact
-                </Link>
-              </div>
-            </div>
+            <NavLegalFooter />
           </div>
         </div>
       </aside>

@@ -1,263 +1,201 @@
-'use client';
+'use client'
 
-import { useTranslations } from 'next-intl';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Callout } from '@/components/docs/callout';
-import { RingWidgetsContact } from '@/components/ring-widgets/contact';
-import type { RingWidgetsContactProps } from '@/lib/ring-widgets/contact-schema';
-import { Heart, Users, Globe, Code, Target, Sparkles, MapPin, Award, ExternalLink, BookIcon } from 'lucide-react';
-import { GithubIcon } from '@/components/ui/icons/github-icon';
-// NOTE: LinkedinIcon, FacebookIcon, TwitterIcon are imported but not used here
-// TODO: Remove unused imports (LinkedinIcon, FacebookIcon, TwitterIcon) for optimization if not used elsewhere in the module
+import { useTranslations } from 'next-intl'
+import { Button } from '@/components/ui/button'
+import { Callout } from '@/components/docs/callout'
+import { RingWidgetsContact } from '@/components/ring-widgets/contact'
+import type { RingWidgetsContactProps } from '@/lib/ring-widgets/contact-schema'
+import {
+  Heart,
+  Users,
+  Globe,
+  Code,
+  Target,
+  Sparkles,
+  MapPin,
+  Award,
+  BookIcon,
+} from 'lucide-react'
+import { GithubIcon } from '@/components/ui/icons/github-icon'
+import Link from 'next/link'
+import { cn } from '@/lib/utils'
+import {
+  DavinciGlassChip,
+  DavinciGlassStatBlock,
+  davinciBeamInnerSurface,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
 
-import Image from 'next/image';
-import Link from 'next/link';
+/** Horizontal inset for text/CTAs — bands themselves stay edge-to-edge. */
+const INSET = 'px-4 sm:px-5 lg:px-6'
+const BAND_Y = 'py-12 sm:py-14 lg:py-16'
 
-// Props type for the main component
 export type AboutPublisherClientProps = {
-  primaryFounder: RingWidgetsContactProps | null;
-};
+  primaryFounder: RingWidgetsContactProps | null
+}
 
-// Main client component rendering About Publisher page
 export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientProps) {
-  // Load translations for about-publisher namespace
-  const t = useTranslations('about-publisher');
-  // TODO: With Next.js 16/React 19, consider useOptimistic or use() for async data, but here t is synchronous
+  const t = useTranslations('about-publisher')
+
+  const impactStats = [
+    { value: '50+', label: t('sections.impact.stats.deployments') },
+    { value: '€500M+', label: t('sections.impact.stats.value') },
+    { value: '2.5M+', label: t('sections.impact.stats.benefiting') },
+    { value: '40+', label: t('sections.impact.stats.countries') },
+  ] as const
 
   return (
-    <div className="mx-4">
-      {/* Hero Section: Title, subtitle, and feature badges */}
-      <section className="relative py-20 px-4 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary/10"></div>
-        <div className="relative max-w-4xl mx-auto space-y-8">
-          <div className="flex items-center justify-center space-x-4 mb-8">
-            <div className="text-6xl">🇺🇦</div>
-            <div className="text-center">
-              {/* Main title with gradient effect */}
-              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent">
-                {t('title')}
-              </h1>
-            </div>
-          </div>
-          {/* Hero description */}
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+    <div className="w-full min-w-0">
+      {/* Hero — full-bleed tint */}
+      <section className={cn('relative overflow-hidden text-center', BAND_Y)}>
+        <div
+          className="pointer-events-none absolute inset-0 bg-[color-mix(in_oklch,var(--davinci-beam)_8%,transparent)]"
+          aria-hidden
+        />
+        <div className={cn('relative mx-auto max-w-4xl space-y-6', INSET)}>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+            {t('title')}
+          </h1>
+          <p className="mx-auto max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl">
             {t('hero.description')}
           </p>
-          {/* Feature badges */}
-          <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Code className="w-4 h-4 mr-2" />
-              {t('badges.openSource')}
-            </Badge>
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Sparkles className="w-4 h-4 mr-2" />
-              {t('badges.aiPowered')}
-            </Badge>
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Globe className="w-4 h-4 mr-2" />
-              {t('badges.weaponOfPeace')}
-            </Badge>
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
+            <DavinciGlassChip icon={<Code className="h-3 w-3" />}>{t('badges.openSource')}</DavinciGlassChip>
+            <DavinciGlassChip icon={<Sparkles className="h-3 w-3" />}>{t('badges.aiPowered')}</DavinciGlassChip>
+            <DavinciGlassChip icon={<Globe className="h-3 w-3" />}>{t('badges.weaponOfPeace')}</DavinciGlassChip>
           </div>
         </div>
       </section>
 
-      {/* Origin Story Section: Three main story cards */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('sections.origin.title')}</h2>
-            <p className="text-xl text-muted-foreground">
-              {t('sections.origin.subtitle')}
-            </p>
+      {/* Origin */}
+      <section className={cn(BAND_Y, INSET)}>
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-10 text-center">
+            <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t('sections.origin.title')}</h2>
+            <p className="text-base text-muted-foreground sm:text-lg">{t('sections.origin.subtitle')}</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              {/* Story: Crisis */}
-              <div className="space-y-4">
-                <h3 className="text-2xl font-semibold flex items-center">
-                  <MapPin className="w-6 h-6 mr-3 text-primary" />
-                  {t('sections.origin.stories.crisis.title')}
+          <div className="space-y-5">
+            {(
+              [
+                { key: 'crisis' as const, Icon: MapPin, iconClass: undefined as string | undefined },
+                { key: 'liberation' as const, Icon: Target, iconClass: undefined as string | undefined },
+                { key: 'gratitude' as const, Icon: Heart, iconClass: 'text-red-500' },
+              ]
+            ).map(({ key, Icon, iconClass }) => (
+              <div key={key} className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
+                <h3 className="mb-2 flex items-center text-lg font-semibold sm:text-xl">
+                  <Icon
+                    className={cn(
+                      'mr-2.5 h-5 w-5 shrink-0 text-[var(--davinci-beam)]',
+                      iconClass,
+                    )}
+                  />
+                  {t(`sections.origin.stories.${key}.title`)}
                 </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {t('sections.origin.stories.crisis.description')}
+                <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+                  {t(`sections.origin.stories.${key}.description`)}
                 </p>
               </div>
-              {/* Story: Liberation */}
-              <div className="space-y-4">
-                <h3 className="text-2xl font-semibold flex items-center">
-                  <Target className="w-6 h-6 mr-3 text-primary" />
-                  {t('sections.origin.stories.liberation.title')}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {t('sections.origin.stories.liberation.description')}
-                </p>
-              </div>
-              {/* Story: Gratitude */}
-              <div className="space-y-4">
-                <h3 className="text-2xl font-semibold flex items-center">
-                  <Heart className="w-6 h-6 mr-3 text-red-500" />
-                  {t('sections.origin.stories.gratitude.title')}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {t('sections.origin.stories.gratitude.description')}
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Mission & Philosophy: Three cards grid and callout */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('sections.mission.title')}</h2>
-            <p className="text-xl text-muted-foreground">
-              {t('sections.mission.subtitle')}
-            </p>
+      {/* Mission — full-bleed band */}
+      <section
+        className={cn(
+          BAND_Y,
+          'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+        )}
+      >
+        <div className={cn('mx-auto max-w-4xl', INSET)}>
+          <div className="mb-10 text-center">
+            <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t('sections.mission.title')}</h2>
+            <p className="text-base text-muted-foreground sm:text-lg">{t('sections.mission.subtitle')}</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Mission Card: Unite */}
-            <Card className="text-center p-6">
-              <CardContent className="space-y-4">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
-                  <Users className="w-6 h-6 text-primary" />
+          <div className="grid gap-4 md:grid-cols-3">
+            {(
+              [
+                { key: 'unite' as const, Icon: Users },
+                { key: 'democratize' as const, Icon: Sparkles },
+                { key: 'endDeficit' as const, Icon: Target },
+              ] as const
+            ).map(({ key, Icon }) => (
+              <div key={key} className={cn(davinciGlassSurface, davinciBeamInnerSurface, 'p-4 text-center')}>
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)]">
+                  <Icon className="h-5 w-5 text-[var(--davinci-beam)]" />
                 </div>
-                <h3 className="text-xl font-semibold">{t('sections.mission.cards.unite.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('sections.mission.cards.unite.description')}
+                <h3 className="mb-2 text-base font-semibold sm:text-lg">
+                  {t(`sections.mission.cards.${key}.title`)}
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  {t(`sections.mission.cards.${key}.description`)}
                 </p>
-              </CardContent>
-            </Card>
-            {/* Mission Card: Democratize */}
-            <Card className="text-center p-6">
-              <CardContent className="space-y-4">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
-                  <Sparkles className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">{t('sections.mission.cards.democratize.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('sections.mission.cards.democratize.description')}
-                </p>
-              </CardContent>
-            </Card>
-            {/* Mission Card: EndDeficit */}
-            <Card className="text-center p-6">
-              <CardContent className="space-y-4">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
-                  <Target className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">{t('sections.mission.cards.endDeficit.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('sections.mission.cards.endDeficit.description')}
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+            ))}
           </div>
-          {/* Vision Callout */}
-          <div className="mt-16 text-center">
+          <div className="mt-10 text-center">
             <Callout type="info">
-              <strong>Our Vision:</strong> Ring clones write their own code, guided by human needs, communities that govern themselves with a token of their own value.
+              <strong>{t('sections.mission.visionLabel')}</strong> {t('sections.mission.vision')}
             </Callout>
           </div>
         </div>
       </section>
 
-      {/* Global Impact: Stats and stories grids */}
-      <section className="py-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('sections.impact.title')}</h2>
-            <p className="text-xl text-muted-foreground">
-              {t('sections.impact.subtitle')}
-            </p>
+      {/* Impact */}
+      <section className={cn(BAND_Y, INSET)}>
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-8 text-center">
+            <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t('sections.impact.title')}</h2>
+            <p className="text-base text-muted-foreground sm:text-lg">{t('sections.impact.subtitle')}</p>
           </div>
-          {/* Impact Statistics */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            <Card className="text-center p-6">
-              <CardContent>
-                {/* TODO: If values can change, consider fetching from API/server and using React 19's use() or useOptimistic */}
-                <div className="text-3xl font-bold text-primary mb-2">50+</div>
-                <div className="text-sm text-muted-foreground">{t('sections.impact.stats.deployments')}</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center p-6">
-              <CardContent>
-                <div className="text-3xl font-bold text-primary mb-2">€500M+</div>
-                <div className="text-sm text-muted-foreground">{t('sections.impact.stats.value')}</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center p-6">
-              <CardContent>
-                <div className="text-3xl font-bold text-primary mb-2">2.5M+</div>
-                <div className="text-sm text-muted-foreground">{t('sections.impact.stats.benefiting')}</div>
-              </CardContent>
-            </Card>
-            <Card className="text-center p-6">
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600 mb-2">40+</div>
-                <div className="text-sm text-muted-foreground">{t('sections.impact.stats.countries')}</div>
-              </CardContent>
-            </Card>
+
+          <div className="mb-10 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {impactStats.map((stat) => (
+              <DavinciGlassStatBlock
+                key={stat.label}
+                value={stat.value}
+                label={stat.label}
+                hint=""
+                beamOnHover={false}
+                className="min-w-0"
+              />
+            ))}
           </div>
-          {/* Impact stories and democratization */}
-          <div className="grid md:grid-cols-2 gap-12">
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold">{t('sections.impact.stories.title')}</h3>
-              <div className="space-y-4">
-                {/* TODO: Story items map is a candidate for array.map for DRY in React 19 using fragment refs if dynamic */}
-                {/* Agricultural Impact Story */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                    <div>
-                      <div className="font-medium">{t('sections.impact.stories.agricultural.name')}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {t('sections.impact.stories.agricultural.description')}
+
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold">{t('sections.impact.stories.title')}</h3>
+              {(['story1', 'story2', 'story3'] as const).map((key) => (
+                <div key={key} className={cn(davinciGlassSurface, 'p-3.5')}>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--davinci-beam)]" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground">
+                        {t(`sections.impact.stories.${key}.name`)}
+                      </div>
+                      <div className="mt-0.5 text-sm text-muted-foreground">
+                        {t(`sections.impact.stories.${key}.description`)}
                       </div>
                     </div>
                   </div>
                 </div>
-                {/* Marketplace Impact Story */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                    <div>
-                      <div className="font-medium">{t('sections.impact.stories.marketplace.name')}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {t('sections.impact.stories.marketplace.description')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Medical Impact Story */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                    <div>
-                      <div className="font-medium">{t('sections.impact.stories.medical.name')}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {t('sections.impact.stories.medical.description')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
-            {/* Democratization Section */}
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold">{t('sections.impact.democratization.title')}</h3>
-              <div className="space-y-4 text-muted-foreground">
-                <p>
-                  {t('sections.impact.democratization.description')}
-                </p>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-muted to-muted dark:from-muted/50 dark:to-muted/50 rounded-lg">
-                <p className="text-sm italic">
-                  "Ring gives communities technological sovereignty: 
-                  the ability to evolve their platforms based on their own needs, different from global corporations."
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold">{t('sections.impact.democratization.title')}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+                {t('sections.impact.democratization.description')}
+              </p>
+              <div
+                className={cn(
+                  davinciGlassSurface,
+                  'border-[color-mix(in_oklch,var(--davinci-beam)_22%,transparent)] p-4',
+                )}
+              >
+                <p className="text-sm italic text-muted-foreground">
+                  {t('sections.impact.democratization.quote')}
                 </p>
               </div>
             </div>
@@ -265,113 +203,99 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
         </div>
       </section>
 
-      {/* Future Vision: What the platform aims to achieve */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-8">{t('sections.future.title')}</h2>
-          <div className="space-y-8">
-            <div className="max-w-2xl mx-auto">
-              <p className="text-xl text-muted-foreground leading-relaxed mb-8">
-                {t('sections.future.description')}
-              </p>
-            </div>
-            {/* Three pillars: AI, Inter-Platform, Real-time */}
-            <div className="grid md:grid-cols-3 gap-6 mt-12">
-              {/* Pillar: AI Autonomous Evolution */}
-              <div className="text-center">
-                <div className="text-4xl mb-4">🤖</div>
-                <h3 className="text-lg font-semibold mb-2">AI Autonomous Evolution</h3>
-                <p className="text-sm text-muted-foreground">
-                  Platforms that write their own code based on natural language requirements
+      {/* Future — full-bleed band */}
+      <section
+        className={cn(
+          BAND_Y,
+          'bg-[color-mix(in_oklch,var(--davinci-glass-bg)_80%,hsl(var(--muted)))]',
+        )}
+      >
+        <div className={cn('mx-auto max-w-4xl text-center', INSET)}>
+          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">{t('sections.future.title')}</h2>
+          <p className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            {t('sections.future.description')}
+          </p>
+          <div className="mb-8 grid gap-4 md:grid-cols-3">
+            {(
+              [
+                { key: 'autonomous' as const, emoji: '🤖' },
+                { key: 'learning' as const, emoji: '🌐' },
+                { key: 'adaptation' as const, emoji: '⚡' },
+              ] as const
+            ).map(({ key, emoji }) => (
+              <div key={key} className={cn(davinciGlassSurface, 'p-4')}>
+                <div className="mb-3 text-3xl" aria-hidden>
+                  {emoji}
+                </div>
+                <h3 className="mb-1.5 text-base font-semibold">
+                  {t(`sections.future.features.${key}.title`)}
+                </h3>
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  {t(`sections.future.features.${key}.description`)}
                 </p>
               </div>
-              {/* Pillar: Inter-Platform Learning */}
-              <div className="text-center">
-                <div className="text-4xl mb-4">🌐</div>
-                <h3 className="text-lg font-semibold mb-2">Inter-Platform Learning</h3>
-                <p className="text-sm text-muted-foreground">
-                  Ring instances teaching other Ring instances, accelerating global evolution
-                </p>
-              </div>
-              {/* Pillar: Real-time Adaptation */}
-              <div className="text-center">
-                <div className="text-4xl mb-4">⚡</div>
-                <h3 className="text-lg font-semibold mb-2">Real-time Adaptation</h3>
-                <p className="text-sm text-muted-foreground">
-                  Platforms that evolve in real-time based on user behavior and needs
-                </p>
-              </div>
-            </div>
-            {/* Roadmap Callout */}
-            <Callout type="success">
-              <strong>This is our roadmap:</strong> From human moderation to fully autonomous AI orchestration guided by human needs.
-              From centralized control to community governance. From technology deficit to abundance.
-            </Callout>
+            ))}
           </div>
+          <Callout type="success">
+            <strong>{t('sections.future.roadmapLabel')}</strong> {t('sections.future.roadmap')}
+          </Callout>
         </div>
       </section>
 
-      {/* Team & Gratitude: Show primary founder if present, action buttons, and thank you callout */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('thankYou.title')}</h2>
-            <p className="text-xl text-muted-foreground">
-              {t('thankYou.subtitle')}
-            </p>
+      {/* CTA — inset so buttons respect pane padding */}
+      <section className={cn(BAND_Y, INSET)}>
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="mb-3 text-2xl font-bold sm:text-3xl">{t('thankYou.title')}</h2>
+          <p className="mb-6 text-base text-muted-foreground sm:text-lg">{t('thankYou.subtitle')}</p>
+          <p className="mx-auto mb-8 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            {t('thankYou.description')}
+          </p>
+
+          {primaryFounder ? (
+            <div className="mx-auto mb-8 max-w-lg space-y-3 text-left">
+              <div className="space-y-1 text-center">
+                <h3 className="text-lg font-semibold">{t('founders.contactTitle')}</h3>
+                <p className="text-sm text-muted-foreground">{t('founders.contactSubtitle')}</p>
+              </div>
+              <RingWidgetsContact {...primaryFounder} />
+            </div>
+          ) : null}
+
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
+            <Button asChild size="lg">
+              <Link href="/docs/deployment/quick-start">
+                <BookIcon className="mr-2 h-4 w-4" />
+                {t('actions.cloneRing')}
+              </Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link href="/token-economy">
+                <Award className="mr-2 h-4 w-4" />
+                {t('actions.learnTokens')}
+              </Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <a
+                href="https://github.com/connectplatform/ring"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <GithubIcon className="mr-2 h-4 w-4" />
+                {t('actions.viewSource')}
+              </a>
+            </Button>
           </div>
-          <div className="text-center space-y-8">
-            <div className="max-w-2xl mx-auto">
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                {t('thankYou.description')}
-              </p>
+
+          <div className={cn(davinciGlassSurface, 'mt-12 p-6')}>
+            <div className="mb-3 flex items-center justify-center gap-2">
+              <Heart className="h-5 w-5 text-red-500" />
+              <span className="text-base font-medium">{t('thankYou.slogan')}</span>
+              <Heart className="h-5 w-5 text-red-500" />
             </div>
-            {/* If a primary founder exists, show their contact */}
-            {primaryFounder ? (
-              <div className="max-w-lg mx-auto text-left space-y-3">
-                <div className="text-center space-y-1">
-                  <h3 className="text-xl font-semibold">{t('founders.contactTitle')}</h3>
-                  <p className="text-sm text-muted-foreground">{t('founders.contactSubtitle')}</p>
-                </div>
-                {/* Founder's contact widget */}
-                <RingWidgetsContact {...primaryFounder} />
-              </div>
-            ) : null}
-            {/* Action Buttons: Clone, Token, Source */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-              <Button asChild size="lg">
-                <Link href="/docs/deployment/quick-start">
-                  <BookIcon className="w-4 h-4 mr-2" />
-                  {t('actions.cloneRing')}
-                </Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/token-economy">
-                  <Award className="w-4 h-4 mr-2" />
-                  {t('actions.learnTokens')}
-                </Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <a href="https://github.com/connectplatform/ring" target="_blank" rel="noopener noreferrer">
-                  <GithubIcon className="w-4 h-4 mr-2" />
-                  {t('actions.viewSource')}
-                </a>
-              </Button>
-            </div>
-            {/* Thank You Section */}
-            <div className="mt-16 p-8 bg-gradient-to-r from-muted to-muted dark:from-muted/50 dark:to-muted/50 rounded-2xl">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Heart className="w-6 h-6 text-red-500" />
-                <span className="text-lg font-medium">{t('thankYou.slogan')}</span>
-                <Heart className="w-6 h-6 text-red-500" />
-              </div>
-              <p className="text-muted-foreground">
-                {t('thankYou.message')}
-              </p>
-            </div>
+            <p className="whitespace-pre-line text-sm text-muted-foreground">{t('thankYou.message')}</p>
           </div>
         </div>
       </section>
     </div>
-  );
+  )
 }
