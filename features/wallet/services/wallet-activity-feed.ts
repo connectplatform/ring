@@ -142,10 +142,9 @@ export async function getWalletActivityFeed(
     filter === 'requests' ||
     Boolean(walletAddress)
 
-  const includeCredit =
-    needsBoth || filter === 'credit'
-  const includeChain =
-    needsBoth || filter === 'chain' || filter === 'requests'
+  // `requests` is already covered by needsBoth; do not re-check here (TS narrows filter).
+  const includeCredit = needsBoth || filter === 'credit'
+  const includeChain = needsBoth || filter === 'chain'
 
   let chainTxsForScope = includeChain
     ? await listWalletTransactionsByUser(userId, {

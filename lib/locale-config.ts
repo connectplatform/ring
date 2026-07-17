@@ -64,6 +64,20 @@ export function resolveLocale(input: string | undefined | null): Locale {
   return DEFAULT_LOCALE
 }
 
+/**
+ * Complete a partial locale map to Record<Locale, T>, filling gaps from `en`.
+ * Use for widget/demo copy when new locales (es/de) land before full translations.
+ */
+export function completeLocaleRecord<T>(
+  partial: Partial<Record<Locale, T>> & Pick<Record<Locale, T>, 'en'>,
+): Record<Locale, T> {
+  const out = {} as Record<Locale, T>
+  for (const loc of FALLBACK_SUPPORTED_LOCALES) {
+    out[loc] = (partial[loc] ?? partial.en) as T
+  }
+  return out
+}
+
 export const LOCALE_DISPLAY_LABELS: Readonly<Record<string, string>> = {
   en: 'EN',
   uk: 'UA',

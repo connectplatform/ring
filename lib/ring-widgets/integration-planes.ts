@@ -1,4 +1,5 @@
 import type { Locale } from '@/i18n/shared'
+import { completeLocaleRecord } from '@/lib/locale-config'
 
 export type IntegrationPlanesTheme = 'light' | 'dark' | 'inherit'
 
@@ -83,7 +84,7 @@ const planesEn: IntegrationPlane[] = [
   },
 ]
 
-const copy: Record<Locale, IntegrationHubCopy> = {
+const copy = completeLocaleRecord<IntegrationHubCopy>({
   en: {
     title: 'Integration planes on a Ring clone',
     subtitle: 'Tap any plane or connector — each link opens the canonical operator doc.',
@@ -209,7 +210,7 @@ const copy: Record<Locale, IntegrationHubCopy> = {
       },
     ],
   },
-}
+})
 
 export function getIntegrationHubCopy(locale: Locale = 'en'): IntegrationHubCopy {
   return copy[locale] ?? copy.en

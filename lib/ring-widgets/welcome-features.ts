@@ -1,4 +1,5 @@
 import type { Locale } from '@/i18n/shared'
+import { completeLocaleRecord } from '@/lib/locale-config'
 
 export type WelcomeFeatureTheme = 'light' | 'dark' | 'inherit'
 
@@ -299,7 +300,7 @@ const developerEn: WelcomeFeatureSection[] = [
   },
 ]
 
-const copy: Record<Locale, WelcomeFeatureExplorerCopy> = {
+const copy = completeLocaleRecord<WelcomeFeatureExplorerCopy>({
   en: {
     title: 'Complete feature ecosystem',
     subtitle: '20+ production modules — pick your lens: product outcomes or developer depth.',
@@ -867,7 +868,7 @@ const copy: Record<Locale, WelcomeFeatureExplorerCopy> = {
       },
     ],
   },
-}
+})
 
 export function getWelcomeFeatureExplorerCopy(locale: Locale = 'en'): WelcomeFeatureExplorerCopy {
   return copy[locale] ?? copy.en

@@ -10,6 +10,7 @@ import {
   Target,
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
+import { completeLocaleRecord } from '@/lib/locale-config'
 
 export type MatcherPhase = 'request' | 'fanOut' | 'straighten' | 'chat'
 
@@ -88,56 +89,56 @@ export const MATCHER_OFFER_TYPES: MatcherOfferType[] = [
     icon: HelpCircle,
     color: '#3b82f6',
     emoji: '❓',
-    label: { en: 'Question', uk: 'Запит', ru: 'Вопрос' },
+    label: completeLocaleRecord({ en: 'Question', uk: 'Запит', ru: 'Вопрос' }),
   },
   {
     id: 'money',
     icon: DollarSign,
     color: '#10b981',
     emoji: '💰',
-    label: { en: 'Funding', uk: 'Фінанси', ru: 'Финансы' },
+    label: completeLocaleRecord({ en: 'Funding', uk: 'Фінанси', ru: 'Финансы' }),
   },
   {
     id: 'product',
     icon: Package,
     color: '#f59e0b',
     emoji: '📦',
-    label: { en: 'Product', uk: 'Продукт', ru: 'Продукт' },
+    label: completeLocaleRecord({ en: 'Product', uk: 'Продукт', ru: 'Продукт' }),
   },
   {
     id: 'education',
     icon: GraduationCap,
     color: '#8b5cf6',
     emoji: '🎓',
-    label: { en: 'Education', uk: 'Освіта', ru: 'Образование' },
+    label: completeLocaleRecord({ en: 'Education', uk: 'Освіта', ru: 'Образование' }),
   },
   {
     id: 'job',
     icon: Briefcase,
     color: '#6366f1',
     emoji: '💼',
-    label: { en: 'Job', uk: 'Робота', ru: 'Работа' },
+    label: completeLocaleRecord({ en: 'Job', uk: 'Робота', ru: 'Работа' }),
   },
   {
     id: 'partnership',
     icon: Handshake,
     color: '#ec4899',
     emoji: '🤝',
-    label: { en: 'Partnership', uk: 'Партнерство', ru: 'Партнёрство' },
+    label: completeLocaleRecord({ en: 'Partnership', uk: 'Партнерство', ru: 'Партнёрство' }),
   },
   {
     id: 'goal',
     icon: Target,
     color: '#ef4444',
     emoji: '🎯',
-    label: { en: 'Goal', uk: 'Ціль', ru: 'Цель' },
+    label: completeLocaleRecord({ en: 'Goal', uk: 'Ціль', ru: 'Цель' }),
   },
   {
     id: 'idea',
     icon: Lightbulb,
     color: '#eab308',
     emoji: '💡',
-    label: { en: 'Idea', uk: 'Ідея', ru: 'Идея' },
+    label: completeLocaleRecord({ en: 'Idea', uk: 'Ідея', ru: 'Идея' }),
   },
 ]
 
@@ -174,7 +175,7 @@ export type MatcherOrchestrationCopy = {
   play: string
 }
 
-export const matcherOrchestrationCopy: Record<Locale, MatcherOrchestrationCopy> = {
+export const matcherOrchestrationCopy = completeLocaleRecord<MatcherOrchestrationCopy>({
   en: {
     title: 'AI Matcher orchestration',
     subtitle: 'Many requests run in parallel — the matcher routes, straightens, and opens DMs continuously.',
@@ -223,7 +224,7 @@ export const matcherOrchestrationCopy: Record<Locale, MatcherOrchestrationCopy> 
     pause: 'Пауза',
     play: 'Играть',
   },
-}
+})
 
 export function getOfferType(id: MatcherOfferTypeId): MatcherOfferType {
   return MATCHER_OFFER_TYPES.find((t) => t.id === id) ?? MATCHER_OFFER_TYPES[0]
