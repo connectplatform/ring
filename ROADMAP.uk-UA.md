@@ -1,144 +1,89 @@
-# 🚀 Дорожня карта платформи **Ring**
+# Дорожня карта платформи Ring
 
-## 📊 ПОТОЧНИЙ СТАН
+## ПОТОЧНИЙ СТАН
 
-**Останнє оновлення:** 13 червня 2026
-**Версія платформи Ring:** 1.6.4
-
-**Канонічна англомовна дорожня карта:** [ROADMAP.md](ROADMAP.md) (EN-first; UK переклад у наступному проході).
-
-**Ключовий результат:** v1.6.4 — **AI-чат у магазині**, **ring-db `*Doc`**, **сплощення шляхів документації**, **LoginAuthenticatedRedirect**; v1.6.0 — **PaymentConductor**, **News Kingdom**, **науковий редактор**, **locale SSOT**; платформа в production на Kubernetes.
+**Останнє оновлення:** 21 липня 2026  
+**Версія:** **1.97.6**  
+**Канонічна EN-дорожня карта:** [ROADMAP.md](ROADMAP.md)  
+**Changelog:** [ring-platform.org/changelog](https://ring-platform.org/changelog)
 
 ---
 
-## 🎯 КЛЮЧОВІ ДОСЯГНЕННЯ
+## ЗАВЕРШЕНІ КЛЮЧОВІ ФУНКЦІЇ
 
-### ✅ ЗАВЕРШЕНІ КРИТИЧНІ ФУНКЦІЇ (2025–2026)
+### v1.97.x (липень 2026)
+- Changelog на locale JSON + DaVinci-glass UI
+- **Ring Mailer** — власний SMTP (`lib/mailer.ts`); Resend прибрано
+- Owner CRM lab (`/my-orders`, `/my-jobs`), адмін `/admin/crm/*`
+- Generative media; mood player; публічний `/{username}/player`
+- PayPal + розширення PaymentConductor; локалі **DE/ES**
+- NFT market (медіа / art-generate); admin supermenu; rewards
+- **File Cabinet** — `/profile/cabinet`, `/shared`, `/gallery`, `/{username}/img`
 
-* **💳 PaymentConductor v1** (2026-05-22) — WayForPay + Stripe + внутрішній кредит
-* **📰 News Kingdom** (2026-05-21) — промоція, Telegram, блоги учасників
-* **✍️ Науковий редактор** (2026-05-28) — publications API, i18n редактора
-* **🌐 Locale SSOT** (2026-05-28) — `lib/locale-config.ts`
-* **🔒 OSS v1.6.0** (2026-06-06) — публічний репозиторій без k8s/cli
+### v1.6.x (червень 2026)
+- AI-чат у магазині + SSE; ring-db `*Doc`; сплощення docs
+- PaymentConductor v1; News Kingdom; науковий редактор; locale SSOT
+- OSS-межа: `install.sh`, без k8s/cli у публічному дереві
 
-* **🗄️ Абстракційний шар бази даних**
-  Уніфікований `DatabaseService` з підтримкою PostgreSQL, Firebase та ConnectPlatform
-
-* **☸️ Production-інфраструктура Kubernetes**
-  Zero-downtime деплойменти, SSL, health-checks, rolling updates
-
-* **🛒 Мультивендорна e-commerce система**
-  Повноцінний маркетплейс: каталог, кошик, checkout, платежі WayForPay
-
-* **🔀 White-Label система клонування**
-  Активні production-клони:
-  `ring-greenfood-live`, `ring-wellness-gov-ua`, `ring-vikka-ua`
-
-* **📡 Tunnel Protocol**
-  Власний WebSocket pub/sub для реального часу (заміна Firebase RTDB у K8s)
-
-* **💰 Економіка токена RING**
-  Web3-гаманець, токенові платежі, стейкінг
-
-* **🧪 Комплексне тестування**
-  Понад **95 автоматизованих тестів** для критичної бізнес-логіки
-
-* **⚡ React 19.2 + Next.js 16**
-  Server Components, `useActionState`, `useOptimistic`, `useFormStatus`
-
-* **🎨 Tailwind CSS 4.1**
-  Сучасна дизайн-система з Radix UI
-
-* **⚙️ TypeScript 5.9.3**
-  Повна типізація, **0 помилок у production**
-
-* **🔥 ES2022 `Error.cause`**
-  Повноцінні ланцюги причин помилок
-
-* **📊 Моніторинг Web Vitals**
-  LCP, CLS, FCP, TTFB, INP у реальному часі
-
-* **💬 Система повідомлень (бекенд)**
-  Production-ready API + FCM-сповіщення
-
-* **🔐 Auth.js v5**
-  Google, Apple, MetaMask, Credentials
-
-* **🌍 Глобальна користувацька модель**
-  Спільні акаунти між усіма клонами Ring
+### Раніше (2025–2026)
+- React 19 + Next.js 16; Tunnel; AI Matcher; мультивендорний store
+- Гаманець / токен / стейкінг / NFT gates; messaging
+- Email AI CRM; PIN; white-label клони на K8s
 
 ---
 
-## 🔄 У ПРОЦЕСІ РЕАЛІЗАЦІЇ
+## У ПРОЦЕСІ
 
-* **💬 Фронтенд системи повідомлень**
-  ConversationList — завершено
-  MessageThread та MessageComposer — у роботі
-
-* **🔍 AI-пошук**
-  Повнотекстовий + семантичний пошук з Legiox AI Matcher
-
-* **📈 Аналітична панель**
-  Бізнес- та performance-метрики
+- Глибина File Cabinet (папки, share UX, shared FileTree)
+- Паритет docs для UK/RU/ES/DE у довгих MDX
+- Глибший пошук + Matcher по вертикалях
+- Serialization Hardening Phase 2
 
 ---
 
-## ❌ ЗАПЛАНОВАНІ ПРІОРИТЕТИ
+## ЗАПЛАНОВАНО
 
-* **📱 Мобільний застосунок** (React Native / Expo)
-* **🎫 NFT-маркетплейс** (ERC-721 / ERC-1155)
-* **🗳️ DAO-управління** токеном RING
-* **🌐 Ring Academy** — сертифікація та навчання розробників
+- Ring Academy
+- Повне DAO-управління (on-chain voting UX)
+- Мобільний застосунок (React Native / Expo)
+- Додаткові мови (FR, PT, SW, …)
 
----
-
-## 🧱 ТЕХНОЛОГІЧНИЙ СТЕК
-
-* **Frontend:** Next.js 16, React 19.2
-* **Auth:** Auth.js v5 (NextAuth)
-* **DB:** PostgreSQL / Firebase / ConnectPlatform
-* **UI:** Tailwind CSS 4.1 + Radix UI
-* **Web3:** wagmi 2.18, viem 2.38, RainbowKit 2.2
-* **Payments:** WayForPay (PCI-DSS)
-* **Deploy:** Kubernetes / Vercel Edge Functions
-* **Testing:** Jest 30 + RTL 16
-* **i18n:** next-intl (EN / UK / RU)
-* **Realtime:** Tunnel Protocol / Firebase RTDB
-* **AI:** Legiox AI (136 агентів, 21 MCP-інструмент)
+**Вже не «TODO» (реалізовано):** фронтенд messaging, NFT-маркетплейс, NFT gates, локалі ES/DE, AI Matcher.
 
 ---
 
-## 📏 ПОТОЧНІ МАСШТАБИ
+## ТЕХНОЛОГІЧНИЙ СТЕК
 
-* **44+ API endpoint-ів**
-* **58+ маршрутів**
-* **~17 с build-time**
-* **260 KB bundle** (-55 KB завдяки React 19)
-* **0 TypeScript-помилок**
-* **3 активні production-клони**
+- **Frontend:** Next.js 16.2, React 19.2, TypeScript 6, Tailwind 4.3
+- **Auth:** Auth.js v5 — Google, Apple, MetaMask, Ring Mailer (OTP / magic / password), PIN
+- **DB:** PostgreSQL (+ Firebase / Connect адаптери), ring-db `*Doc`
+- **Web3:** wagmi 3, viem, Solana + EVM, NFT gate/market, стейкінг
+- **Payments:** PaymentConductor — WayForPay, Stripe, PayPal, credit
+- **Realtime:** Tunnel (SSE / WebSocket) + FCM
+- **i18n:** next-intl — en, uk, ru, es, de
+- **AI:** Matcher + LLM; Legiox MCP (шар Ringdom / IDE)
+
+---
+
+## МАСШТАБИ (2026-07-21)
+
+- ~300 API route handlers · ~165 сторінок App Router · 41 модуль `features/`
+- Production-клони: ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua та інші
 
 ---
 
-## 🏁 ВИСНОВОК
+## РОЗТАШУВАННЯ КОДУ
 
-**Ring Platform досягла повного production-статусу** та перейшла у фазу масштабування.
-
-Платформа еволюціонувала з інструменту професійного нетворкінгу у **універсальну white-label екосистему** для community-driven маркетплейсів, медіа, gov-tech та Web3-проєктів.
-
-### Ключові результати 2025–2026:
-
-1. Абстракція бази даних (PostgreSQL / Firebase / Enterprise)
-2. Kubernetes-інфраструктура з zero-downtime
-3. Повноцінна мультивендорна e-commerce
-4. White-label архітектура з активними клонами
-5. Web3-економіка токена RING
-6. Сильна тестова інфраструктура
-7. Актуальний стек React 19 + Next.js 16
-8. Глибока інтеграція Legiox AI
-
-**Загальний статус:** 🟢 *Production Deployed — Phase of Expansion*
-**Версія:** 1.48
+- Email CRM pipeline → `features/email-crm/pipeline/`
+- Native token price oracle → `features/wallet/services/native-token-price-oracle.ts`
+- Auth SMTP SSOT → `lib/mailer.ts`
 
 ---
-> **Ring — це не продукт.
-> Це платформа, яка дозволяє іншим створювати продукти швидше, безпечніше й масштабованіше.**
+
+## ВИСНОВОК
+
+Ring Platform у production і фазі розширення verticals / MCP-оркестрації.  
+Актуальний інвентар можливостей: [FEATURESET.md](FEATURESET.md).
+
+**Статус:** Production Deployed — Expansion  
+**Версія:** 1.97.6

@@ -6,8 +6,8 @@ import {
   DraftCreateInput,
   DraftUpdateInput,
   EmailDraft,
-} from '@/services/email/drafts/draft-service'
-import type { ToolUsageRecord } from '@/services/email/ai/response-generator'
+} from '@/features/email-crm/pipeline/drafts/draft-service'
+import type { ToolUsageRecord } from '@/features/email-crm/pipeline/ai/response-generator'
 import { parseIsoDate, queryDocs, readDoc, upsertDoc } from '@/features/email-crm/lib/jsonb-collection'
 
 const COLLECTION = 'email_drafts'

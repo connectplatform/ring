@@ -136,7 +136,7 @@ API prefix: `/api/admin/email/*` — session + `isPlatformAdmin` (paths unchange
 | **Webhook** | `POST /api/webhooks/email/inbound` — Postfix pipe; auth via `WEBHOOK_EMAIL_SECRET` or HMAC `X-Email-Webhook-Signature` |
 | **IDLE autostart** | Long-lived Node pod only; `instrumentation.ts` + `EMAIL_PROCESSOR_AUTOSTART=true` |
 
-Processor entrypoints: `services/email/email-processor.ts` — `pollInboundBatch()`, `ingestEvent()`.
+Processor entrypoints: `features/email-crm/pipeline/email-processor.ts` — `pollInboundBatch()`, `ingestEvent()`.
 
 ---
 
@@ -159,7 +159,7 @@ Processor entrypoints: `services/email/email-processor.ts` — `pollInboundBatch
 |-------|------|
 | Migrations | `009_email_crm_jsonb.sql`, `010_email_crm_tasks_jsonb.sql` |
 | Migration index | `data/migrations/README.md` |
-| Feature code | `features/email-crm/`, `services/email/` |
+| Feature code | `features/email-crm/`, `features/email-crm/pipeline/` |
 | Cron route | `app/api/cron/email-processor/route.ts` |
 | Webhook | `app/api/webhooks/email/inbound/route.ts` |
 | Env template | `env.local.template` (EMAIL CRM block) |

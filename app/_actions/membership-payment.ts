@@ -222,7 +222,7 @@ async function initiateCreditBalancePayment(
   try {
     // Dynamically import credit-balance and pricing services (to reduce cold start cost)
     const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const { NativeTokenPriceOracleService } = await import('@/services/blockchain/price-oracle-service')
+    const { NativeTokenPriceOracleService } = await import('@/features/wallet/services/native-token-price-oracle')
     // Fetch the current USD price for accurate deduction (for crypto tokens)
     const priceOracleService = NativeTokenPriceOracleService.getInstance()
     const priceData = await priceOracleService.getNativeTokenUsdPrice()

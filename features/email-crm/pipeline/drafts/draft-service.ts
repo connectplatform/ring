@@ -5,65 +5,28 @@
  * Reference: Email Automation Specialist skillset
  */
 
-import { logger } from '@/lib/logger';
-import { ResponseGenerationResult, ToolUsageRecord } from '../ai/response-generator';
+import { logger } from '@/lib/logger'
+import { ResponseGenerationResult, ToolUsageRecord } from '../ai/response-generator'
+import { JsonbDraftRepository } from '@/features/email-crm/repositories/jsonb-draft-repository'
+import type {
+  EmailDraft,
+  DraftStatus,
+  DraftCreateInput,
+  DraftUpdateInput,
+  DraftApprovalResult,
+  AutoSendConfig,
+  DraftRepository,
+} from '@/features/email-crm/types/draft'
 
-export interface EmailDraft {
-  id: string;
-  messageId: string;
-  threadId: string;
-  draftContent: string;
-  draftHtml: string | null;
-  confidenceScore: number;
-  modelUsed: string;
-  modelReasoning: string | null;
-  toolsUsed: ToolUsageRecord[];
-  status: DraftStatus;
-  reviewedBy: string | null;
-  reviewedAt: Date | null;
-  editNotes: string | null;
-  sentAt: Date | null;
-  sentMessageId: string | null;
-  createdAt: Date;
-}
-
-export type DraftStatus = 'pending' | 'approved' | 'edited' | 'sent' | 'rejected' | 'auto_sent';
-
-export interface DraftCreateInput {
-  messageId: string;
-  threadId: string;
-  draftContent: string;
-  draftHtml?: string;
-  confidenceScore: number;
-  modelUsed: string;
-  modelReasoning?: string;
-  toolsUsed?: ToolUsageRecord[];
-}
-
-export interface DraftUpdateInput {
-  draftContent?: string;
-  draftHtml?: string;
-  status?: DraftStatus;
-  editNotes?: string;
-}
-
-export interface DraftApprovalResult {
-  draft: EmailDraft;
-  shouldAutoSend: boolean;
-  requiresReview: boolean;
-  warnings: string[];
-}
-
-// Auto-send configuration
-export interface AutoSendConfig {
-  enabled: boolean;
-  minConfidence: number; // Minimum confidence for auto-send
-  allowedIntents: string[]; // Intents that can be auto-sent
-  maxDailyAutoSends: number; // Rate limit
-  requireSecurityPass: boolean; // Must pass security validation
-  excludeNewContacts: boolean; // Don't auto-send to new contacts
-  excludeHighPriority: boolean; // Don't auto-send high priority
-}
+export type {
+  EmailDraft,
+  DraftStatus,
+  DraftCreateInput,
+  DraftUpdateInput,
+  DraftApprovalResult,
+  AutoSendConfig,
+  DraftRepository,
+} from '@/features/email-crm/types/draft'
 
 const DEFAULT_AUTO_SEND_CONFIG: AutoSendConfig = {
   enabled: true,
@@ -81,17 +44,7 @@ const DEFAULT_AUTO_SEND_CONFIG: AutoSendConfig = {
   excludeHighPriority: true,
 };
 
-// Repository interface
-export interface DraftRepository {
-  findById(id: string): Promise<EmailDraft | null>;
-  findByMessageId(messageId: string): Promise<EmailDraft | null>;
-  findByThreadId(threadId: string): Promise<EmailDraft[]>;
-  findPending(limit?: number): Promise<EmailDraft[]>;
-  create(input: DraftCreateInput): Promise<EmailDraft>;
-  update(id: string, input: DraftUpdateInput): Promise<EmailDraft>;
-  markSent(id: string, sentMessageId: string): Promise<EmailDraft>;
-  countTodayAutoSends(): Promise<number>;
-}
+// Repository interface — types live in @/features/email-crm/types/draft
 
 export class EmailDraftService {
   private config: AutoSendConfig;
@@ -495,13 +448,9 @@ let serviceInstance: EmailDraftService | null = null;
 
 function createDraftRepository(): DraftRepository {
   if (process.env.EMAIL_CRM_PERSISTENCE === 'memory') {
-    return new InMemoryDraftRepository();
+    return new InMemoryDraftRepository()
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { JsonbDraftRepository } = require('@/features/email-crm/repositories/jsonb-draft-repository') as {
-    JsonbDraftRepository: new () => DraftRepository;
-  };
-  return new JsonbDraftRepository();
+  return new JsonbDraftRepository()
 }
 
 export function getEmailDraftService(): EmailDraftService {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
-import { getEmailProcessor } from '@/services/email/email-processor'
-import { getEmailTaskService } from '@/services/email/crm/task-service'
+import { getEmailProcessor } from '@/features/email-crm/pipeline/email-processor'
+import { getEmailTaskService } from '@/features/email-crm/pipeline/crm/task-service'
 import { ProcessConductor } from '@/lib/processes'
 import { getPipelineDefinition } from '@/lib/processes/registry'
 

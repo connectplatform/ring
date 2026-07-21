@@ -4,7 +4,7 @@
  * Email Inbox Admin Dashboard
  * ===========================
  * View and manage incoming emails for Ring Platform
- * Configure email settings in /services/email/imap/config.ts
+ * Configure email settings in /features/email-crm/pipeline/imap/config.ts
  * This is temporary in-code setting and will be replaced 
  * with configurable addresses in next Ring Platform releases.
  */
@@ -33,11 +33,24 @@ interface EmailThread {
   hasDraft: boolean;
   lastMessageAt: string;
   createdAt: string;
+  sourceChannel?: string | null;
+  channelId?: string | null;
   contact: {
     type: string;
     company: string | null;
     interactions: number;
   };
+}
+
+interface ChannelStatus {
+  id: string;
+  name: string;
+  flow: string;
+  mailbox: string;
+  imapHost: string;
+  imapUser: string;
+  hasImapPassword: boolean;
+  hasSmtpPassword: boolean;
 }
 
 // Threads load from GET /api/admin/email/threads (email_threads JSONB table,
@@ -69,6 +82,8 @@ export default function EmailInboxPage() {
   const [threads, setThreads] = useState<EmailThread[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [channelFilter, setChannelFilter] = useState<string>('all');
+  const [channels, setChannels] = useState<ChannelStatus[]>([]);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -77,7 +92,11 @@ export default function EmailInboxPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch('/api/admin/email/threads', { cache: 'no-store' });
+      const qs =
+        channelFilter !== 'all'
+          ? `?sourceChannel=${encodeURIComponent(channelFilter)}`
+          : '';
+      const res = await fetch(`/api/admin/email/threads${qs}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Failed to load threads (${res.status})`);
       const json = await res.json();
       setThreads(Array.isArray(json.threads) ? json.threads : []);
@@ -87,11 +106,26 @@ export default function EmailInboxPage() {
     } finally {
       setIsLoading(false);
     }
+  }, [channelFilter]);
+
+  const loadChannels = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/email/channels', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setChannels(Array.isArray(json.channels) ? json.channels : []);
+    } catch {
+      /* non-fatal */
+    }
   }, []);
 
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
+
+  useEffect(() => {
+    loadChannels();
+  }, [loadChannels]);
 
   const filteredThreads = threads.filter(thread => {
     const matchesSearch = 
@@ -174,7 +208,41 @@ export default function EmailInboxPage() {
             <option value="waiting">Waiting</option>
             <option value="resolved">Resolved</option>
           </select>
+
+          <select
+            value={channelFilter}
+            onChange={(e) => setChannelFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All channels</option>
+            {channels.map((ch) => (
+              <option key={ch.id} value={ch.name}>
+                {ch.name}
+              </option>
+            ))}
+          </select>
         </div>
+
+        {/* Channel status (read-only) */}
+        {channels.length > 0 && (
+          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {channels.map((ch) => (
+              <div
+                key={ch.id}
+                className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-sm"
+              >
+                <div className="font-medium text-gray-900 dark:text-white">{ch.name}</div>
+                <div className="text-gray-500 dark:text-gray-400 mt-1">
+                  {ch.imapUser} @ {ch.imapHost} / {ch.mailbox}
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  flow={ch.flow} · IMAP {ch.hasImapPassword ? 'ok' : 'missing pwd'} · SMTP{' '}
+                  {ch.hasSmtpPassword ? 'ok' : 'missing pwd'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Email List */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">

@@ -5,7 +5,7 @@ import { sendToTelegramBot } from '@/lib/telegram'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { rateLimit } from '@/lib/rate-limit'
-import { getEmailContactService, getEmailTaskService } from '@/services/email/crm'
+import { getEmailContactService, getEmailTaskService } from '@/features/email-crm/pipeline/crm'
 
 export interface ContactFormState {
   success?: boolean

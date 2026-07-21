@@ -59,3 +59,11 @@ scripts/verify-public-seo-metadata.mjs
 
 # Legacy internal doc snapshots
 docs/2025-*
+
+# Local IDE / one-off validation (not for public OSS)
+.cursor/
+PHASE_S5_VALIDATION_REPORT.md
+scripts/patch-admin-i18n-nav.mjs
+scripts/smoke-matcher-analytics-pipeline.cts
+scripts/validate-provider-ssot.sh
+scripts/verify-admin-nav-paths.mjs

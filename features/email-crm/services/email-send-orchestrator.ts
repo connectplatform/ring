@@ -1,7 +1,7 @@
 import 'server-only'
 
-import { getEmailSender } from '@/services/email/smtp'
-import { getEmailDraftService } from '@/services/email/drafts/draft-service'
+import { getEmailSender } from '@/features/email-crm/pipeline/smtp'
+import { getEmailDraftService } from '@/features/email-crm/pipeline/drafts/draft-service'
 import { EmailMessageService } from './email-message-service'
 import { EmailThreadService } from './email-thread-service'
 

@@ -113,7 +113,7 @@ On-chain контракти працюють разом із серверним�
 NEXT_PUBLIC_RING_TOKEN_ADDRESS=0x...
 RING_MEMBERSHIP_CONTRACT_ADDRESS=0x...
 RING_TREASURY_WALLET_ADDRESS=0x...
-POLYGON_RPC_URL=https://polygon-rpc.com
+POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
 
 # Ціноутворення (опційно)
 CHAINLINK_RING_USD_FEED=0x...
@@ -134,7 +134,7 @@ REFERRAL_REWARD_TOKEN_ADDRESS=0x...
 |--------|------|------|
 | Кредити | `features/wallet/services/credit-balance-service.ts` | Баланс, списання, членський внесок |
 | Підписки | `services/membership/subscription-service.ts` | Створення, скасування, продовження, batch |
-| Oracle | `services/blockchain/price-oracle-service.ts` | RING/USD із fallback-джерелами |
+| Oracle | `features/wallet/services/native-token-price-oracle.ts` | RING/USD із fallback-джерелами |
 
 **Типовий апгрейд:**
 

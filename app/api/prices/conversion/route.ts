@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { nativeTokenPriceOracleService } from '@/services/blockchain/price-oracle-service';
+import { nativeTokenPriceOracleService } from '@/features/wallet/services/native-token-price-oracle';
 import { logger } from '@/lib/logger';
 
 // TODO: Native Next.js 13/14/16 API routes now support automatic type validation via `zod` and request helpers. 

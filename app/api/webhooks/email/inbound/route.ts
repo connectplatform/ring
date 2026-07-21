@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
-import { getEmailProcessor } from '@/services/email/email-processor'
-import type { EmailReceivedEvent } from '@/services/email/imap/imap-listener'
+import { getEmailProcessor } from '@/features/email-crm/pipeline/email-processor'
+import type { EmailReceivedEvent } from '@/features/email-crm/pipeline/imap/imap-listener'
 
 function verifySignature(rawBody: string, signature: string | null, secret: string): boolean {
   if (!signature) return false

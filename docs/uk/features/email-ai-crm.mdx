@@ -15,7 +15,7 @@ last_modified: "2026-06-10"
 | Шар | Відповідальність |
 |-----|------------------|
 | **Збір** | Cron `POST /api/cron/email-processor` (`action: poll`) або webhook |
-| **Процесор** | `services/email/email-processor.ts` — parse, security, AI, CRM |
+| **Процесор** | `features/email-crm/pipeline/email-processor.ts` — parse, security, AI, CRM |
 | **Зберігання** | PostgreSQL JSONB: `email_threads`, `email_contacts`, `email_messages`, `email_drafts`, `email_tasks`, `email_api_usage` |
 | **Вихід** | `EmailSenderService` (nodemailer), `In-Reply-To` / `References` |
 | **Адмін UI** | inbox, drafts, contacts, analytics, tasks |

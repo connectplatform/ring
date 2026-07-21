@@ -3,6 +3,7 @@ import { createPublicClient, http, type PublicClient, type Chain } from 'viem';
 import { polygon, mainnet, arbitrum, optimism, base } from 'viem/chains';
 import { getSystemConfigSnapshot, NativeChainConfig } from '@/lib/ring-config-core';
 import { getNativeChain } from '@/lib/ring-config-chain';
+import { getEvmRpcUrl } from '@/lib/ring-config-chain';
 import type { NativeTokenPriceOracleConfig } from '@/lib/ring-config-types';
 
 // Get global config snapshot for token symbol/decimals.
@@ -79,13 +80,23 @@ function buildConfigFromRingConfig(): NativeTokenPriceOracleConfig {
     return c;
   }
 
+  // Merge legacy JSON `evm.aggregatorAddress` into typed chains[137] when feed unset/zero.
+  const legacyEvmFeed = (oracleConfig as { evm?: { aggregatorAddress?: string } })?.evm?.aggregatorAddress
+  const configured137 = oracleConfig?.chains?.[137]?.chainlink?.feedAddress
+  const isZeroFeed = (a?: string) =>
+    !a || a === '0x0000000000000000000000000000000000000000'
+  const polygonFeed =
+    (!isZeroFeed(configured137) ? configured137 : undefined) ||
+    (!isZeroFeed(legacyEvmFeed) ? legacyEvmFeed : undefined) ||
+    process.env.POLYGON_CHAINLINK_TOKEN_USD_FEED
+
   // TODO: Externalize hardcoded chain list. Use dynamic registration or loadable config (Next16 config, Edge middleware, remote fetch).
   const defaultChains: Record<number, PriceOracleChainConfig> = {
     137: ensureCache({
       ...(oracleConfig?.chains?.[137] || {}),
       chainlink: {
-        enabled: !!oracleConfig?.chains?.[137]?.chainlink?.feedAddress || !!process.env.POLYGON_CHAINLINK_TOKEN_USD_FEED,
-        feedAddress: oracleConfig?.chains?.[137]?.chainlink?.feedAddress || process.env.POLYGON_CHAINLINK_TOKEN_USD_FEED,
+        enabled: !!polygonFeed && !isZeroFeed(polygonFeed),
+        feedAddress: polygonFeed,
         aggregatorAbi: [], // STUB: Patch with canonical ABI for price feeds. TODO: Import/verify Chainlink AggregatorV3 ABI, assign here.
       },
       fallbacks: {
@@ -269,8 +280,7 @@ export class NativeTokenPriceOracleService {
     const url = this.config.chains?.[chainId]?.rpcUrl;
     if (typeof url === 'string' && url.length > 0)
       return url;
-    // Default to Polygon RPC if not provided
-    return 'https://polygon-rpc.com';
+    return getEvmRpcUrl();
   }
 
   /**
@@ -773,6 +783,57 @@ export class NativeTokenPriceOracleService {
       throw new Error(`No price data available for ${tokenSymbol}`);
     }
     return bestPrice;
+  }
+
+  /**
+   * Read USD price from an arbitrary Chainlink AggregatorV3 feed on a given chain.
+   * Used by treasury-swap allowlist entries (per-token chainlinkFeed).
+   * Rejects zero/stale answers (default max age 1h).
+   */
+  async getUsdPriceFromFeed(
+    feedAddress: string,
+    chainId?: number,
+    options?: { maxAgeMs?: number },
+  ): Promise<PriceData> {
+    const targetChainId = chainId ?? this.config.defaultChain ?? 137
+    if (!feedAddress || feedAddress === '0x0000000000000000000000000000000000000000') {
+      throw new Error('chainlink_feed_not_configured')
+    }
+    const client = this.clients.get(targetChainId)
+    if (!client) {
+      throw new Error(`No viem client for chain ${targetChainId}`)
+    }
+
+    const roundData = await client.readContract({
+      address: feedAddress as `0x${string}`,
+      abi: this.getNativeTokenPriceOracleAggregatorAbi(),
+      functionName: 'latestRoundData',
+    } as any)
+
+    const roundDataTuple = roundData as [bigint, bigint, bigint, bigint, bigint]
+    const [, answer, , updatedAt] = roundDataTuple
+    const asNum = Number(answer)
+    if (!Number.isFinite(asNum) || asNum <= 0) {
+      throw new Error('chainlink_feed_zero_or_invalid')
+    }
+
+    // Chainlink USD feeds use 8 decimals
+    const price = (asNum / 1e8).toFixed(8)
+    const timestamp = Number(updatedAt) * 1000
+    const maxAge = options?.maxAgeMs ?? 60 * 60 * 1000
+    const priceAge = Date.now() - timestamp
+    if (priceAge > maxAge) {
+      throw new Error('chainlink_feed_stale')
+    }
+
+    return {
+      price,
+      timestamp,
+      source: 'chainlink',
+      confidence: 0.9,
+      chainId: targetChainId,
+      tokenDecimals: 8,
+    }
   }
 
   /**

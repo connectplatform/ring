@@ -6,7 +6,11 @@
  */
 
 import { EventEmitter } from 'events';
-import { ImapListener, getImapListener, EmailReceivedEvent } from './imap';
+import { ImapListener, getImapListener, EmailReceivedEvent } from './imap'
+import {
+  loadCrmChannels,
+  type ChannelFlow,
+} from './imap/config'
 import { EmailParser, getEmailParser, ParsedEmail } from './parser';
 import { SecurityPipeline, getSecurityPipeline, SecurityCheckResult } from './security';
 import { 
@@ -154,25 +158,85 @@ export class EmailProcessor extends EventEmitter {
     });
   }
   
-  /** Cron-safe one-shot IMAP poll (no IDLE). */
-  async pollInboundBatch(): Promise<{ processed: number; failed: number; skipped?: boolean }> {
+  /** Cron-safe one-shot IMAP poll across all enabled CRM channels (no IDLE). */
+  async pollInboundBatch(): Promise<{
+    processed: number
+    failed: number
+    skipped?: boolean
+    channels?: Array<{
+      channelId: string
+      channelName: string
+      processed: number
+      failed: number
+      error?: string
+    }>
+  }> {
     if (pollInFlight) {
-      logger.warn('[EmailProcessor] Poll skipped — already in flight');
-      return { processed: 0, failed: 0, skipped: true };
+      logger.warn('[EmailProcessor] Poll skipped — already in flight')
+      return { processed: 0, failed: 0, skipped: true }
     }
     if (this.isRunning) {
-      logger.warn('[EmailProcessor] Poll skipped — IDLE listener active');
-      return { processed: 0, failed: 0, skipped: true };
+      logger.warn('[EmailProcessor] Poll skipped — IDLE listener active')
+      return { processed: 0, failed: 0, skipped: true }
     }
 
-    pollInFlight = true;
+    pollInFlight = true
     try {
-      const result = await this.imapListener.pollBatch((event) =>
-        this.handleEmail(event, { skipMarkSeen: false })
-      );
-      return { processed: result.queued - result.failed, failed: result.failed };
+      const channels = loadCrmChannels()
+      const channelResults: Array<{
+        channelId: string
+        channelName: string
+        processed: number
+        failed: number
+        error?: string
+      }> = []
+      let processed = 0
+      let failed = 0
+
+      for (const channel of channels) {
+        try {
+          const listener = new ImapListener(channel.config)
+          const result = await listener.pollBatch((event) =>
+            this.handleEmail(
+              {
+                ...event,
+                channelId: channel.id,
+                channelName: channel.name,
+                flow: channel.flow,
+              },
+              { skipMarkSeen: false, imapListener: listener },
+            ),
+          )
+          const chProcessed = result.queued - result.failed
+          const chFailed = result.failed
+          processed += chProcessed
+          failed += chFailed
+          channelResults.push({
+            channelId: channel.id,
+            channelName: channel.name,
+            processed: chProcessed,
+            failed: chFailed,
+          })
+        } catch (err) {
+          const message = (err as Error).message
+          logger.error('[EmailProcessor] Channel poll failed', {
+            channelId: channel.id,
+            error: message,
+          })
+          failed++
+          channelResults.push({
+            channelId: channel.id,
+            channelName: channel.name,
+            processed: 0,
+            failed: 1,
+            error: message,
+          })
+        }
+      }
+
+      return { processed, failed, channels: channelResults }
     } finally {
-      pollInFlight = false;
+      pollInFlight = false
     }
   }
 
@@ -186,7 +250,7 @@ export class EmailProcessor extends EventEmitter {
    */
   private async handleEmail(
     event: EmailReceivedEvent,
-    options: { skipMarkSeen?: boolean } = {}
+    options: { skipMarkSeen?: boolean; imapListener?: ImapListener } = {}
   ): Promise<void> {
     const startTime = Date.now();
     const timing = {
@@ -201,9 +265,22 @@ export class EmailProcessor extends EventEmitter {
       messageId: event.messageId,
       from: event.from,
       subject: event.subject,
+      channelId: event.channelId,
+      channelName: event.channelName,
+      flow: event.flow,
     });
     
     this.emit('email:received', event);
+
+    const flow: ChannelFlow = event.flow || 'standard'
+    const channelMeta = {
+      channelId: event.channelId,
+      channelName: event.channelName,
+      sourceChannel: event.channelName || event.channelId,
+    }
+    const runTasks = this.config.createTasks && flow !== 'ingest_only'
+    const runGeneration =
+      this.config.generateResponses && flow === 'standard'
     
     try {
       // Step 1: Parse email
@@ -215,7 +292,7 @@ export class EmailProcessor extends EventEmitter {
 
       if (await EmailMessageService.exists(parsed.messageId)) {
         logger.info('[EmailProcessor] Skipping duplicate message', { messageId: parsed.messageId });
-        await this.markSeenIfImap(event.uid, options.skipMarkSeen);
+        await this.markSeenIfImap(event.uid, options);
         return;
       }
       
@@ -240,7 +317,7 @@ export class EmailProcessor extends EventEmitter {
         
         this.emit('email:blocked', { parsed, security });
         
-        await this.markSeenIfImap(event.uid, options.skipMarkSeen);
+        await this.markSeenIfImap(event.uid, options);
         return;
       }
       
@@ -313,7 +390,13 @@ export class EmailProcessor extends EventEmitter {
       const priority = this.sentimentAnalyzer.getPriorityFromSentiment(sentiment);
 
       try {
-        await EmailMessageService.upsertInboundMessage(parsed, threadId, intent, sentiment);
+        await EmailMessageService.upsertInboundMessage(
+          parsed,
+          threadId,
+          intent,
+          sentiment,
+          channelMeta,
+        );
       } catch (err) {
         logger.error('[EmailProcessor] Message persist failed', {
           messageId: parsed.messageId,
@@ -338,6 +421,9 @@ export class EmailProcessor extends EventEmitter {
             company: contact.company ?? null,
             interactions: contact.totalInteractions,
           },
+          sourceChannel: channelMeta.sourceChannel,
+          channelId: channelMeta.channelId,
+          channelName: channelMeta.channelName,
         });
       } catch (err) {
         logger.error('[EmailProcessor] Thread persist failed', {
@@ -345,6 +431,18 @@ export class EmailProcessor extends EventEmitter {
           messageId: event.messageId,
           error: (err as Error).message,
         });
+      }
+
+      if (flow === 'ingest_only') {
+        await this.markSeenIfImap(event.uid, options)
+        timing.total = Date.now() - startTime
+        this.processedCount++
+        logger.info('[EmailProcessor] Ingest-only channel complete', {
+          messageId: event.messageId,
+          channelId: event.channelId,
+          totalTimeMs: timing.total,
+        })
+        return
       }
       
       // Step 5: Build context
@@ -366,7 +464,7 @@ export class EmailProcessor extends EventEmitter {
       );
       
       // Step 6: Create tasks if enabled
-      if (this.config.createTasks) {
+      if (runTasks) {
         const tasks = await this.taskService.autoCreateTasks({
           threadId,
           messageId: event.messageId,
@@ -390,7 +488,7 @@ export class EmailProcessor extends EventEmitter {
       let generation: ResponseGenerationResult | undefined;
       let draftResult: DraftApprovalResult | undefined;
       
-      if (this.config.generateResponses && intent.intent !== 'spam') {
+      if (runGeneration && intent.intent !== 'spam') {
         const genStart = Date.now();
         
         generation = await this.responseGenerator.generate(
@@ -454,6 +552,7 @@ export class EmailProcessor extends EventEmitter {
               inReplyTo: parsed.messageId,
               references: parsed.references,
               wasAutoSent: true,
+              channelId: event.channelId,
             });
 
             logger.info('[EmailProcessor] Auto-sent response', {
@@ -475,7 +574,7 @@ export class EmailProcessor extends EventEmitter {
         }
       }
       
-      await this.markSeenIfImap(event.uid, options.skipMarkSeen);
+      await this.markSeenIfImap(event.uid, options);
       
       // Calculate total time
       timing.total = Date.now() - startTime;
@@ -549,11 +648,15 @@ export class EmailProcessor extends EventEmitter {
     return parsed.externalThreadId || parsed.inReplyTo || parsed.messageId;
   }
 
-  private async markSeenIfImap(uid: number, skipMarkSeen?: boolean): Promise<void> {
-    if (skipMarkSeen || uid <= 0) return;
-    if (!this.imapListener.isConnected()) return;
+  private async markSeenIfImap(
+    uid: number,
+    options: { skipMarkSeen?: boolean; imapListener?: ImapListener } = {},
+  ): Promise<void> {
+    if (options.skipMarkSeen || uid <= 0) return;
+    const listener = options.imapListener || this.imapListener;
+    if (!listener.isConnected()) return;
     try {
-      await this.imapListener.markAsSeen(uid);
+      await listener.markAsSeen(uid);
     } catch (err) {
       logger.warn('[EmailProcessor] markAsSeen failed', {
         uid,

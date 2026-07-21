@@ -5,72 +5,27 @@
  * Reference: Email Automation Specialist skillset
  */
 
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger'
+import { JsonbContactRepository } from '@/features/email-crm/repositories/jsonb-contact-repository'
+import type {
+  ContactRepository,
+  ContactCreateInput,
+  ContactUpdateInput,
+  ContactSearchParams,
+  EmailContact,
+  SentimentEntry,
+  ContactType,
+} from '@/features/email-crm/types/contact'
 
-export interface EmailContact {
-  id: string;
-  email: string;
-  name: string | null;
-  company: string | null;
-  type: ContactType;
-  tags: string[];
-  metadata: Record<string, unknown>;
-  ringUserId: string | null;
-  firstContact: Date;
-  lastContact: Date;
-  totalInteractions: number;
-  sentimentHistory: SentimentEntry[];
-}
-
-export type ContactType = 'lead' | 'customer' | 'partner' | 'vendor' | 'spam' | 'unknown';
-
-export interface SentimentEntry {
-  sentiment: string;
-  score: number;
-  timestamp: Date;
-}
-
-export interface ContactCreateInput {
-  email: string;
-  name?: string;
-  company?: string;
-  type?: ContactType;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-  ringUserId?: string;
-}
-
-export interface ContactUpdateInput {
-  name?: string;
-  company?: string;
-  type?: ContactType;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-  ringUserId?: string;
-}
-
-export interface ContactSearchParams {
-  email?: string;
-  name?: string;
-  company?: string;
-  type?: ContactType;
-  tags?: string[];
-  hasRingAccount?: boolean;
-  limit?: number;
-  offset?: number;
-}
-
-// Database interface (to be implemented with actual DB)
-export interface ContactRepository {
-  findById(id: string): Promise<EmailContact | null>;
-  findByEmail(email: string): Promise<EmailContact | null>;
-  create(input: ContactCreateInput): Promise<EmailContact>;
-  update(id: string, input: ContactUpdateInput): Promise<EmailContact>;
-  search(params: ContactSearchParams): Promise<EmailContact[]>;
-  incrementInteractions(id: string): Promise<void>;
-  addSentimentEntry(id: string, entry: SentimentEntry): Promise<void>;
-  delete(id: string): Promise<void>;
-}
+export type {
+  ContactRepository,
+  ContactCreateInput,
+  ContactUpdateInput,
+  ContactSearchParams,
+  EmailContact,
+  SentimentEntry,
+  ContactType,
+} from '@/features/email-crm/types/contact'
 
 export class EmailContactService {
   constructor(private repository: ContactRepository) {}
@@ -433,13 +388,9 @@ let serviceInstance: EmailContactService | null = null;
 
 function createContactRepository(): ContactRepository {
   if (process.env.EMAIL_CRM_PERSISTENCE === 'memory') {
-    return new InMemoryContactRepository();
+    return new InMemoryContactRepository()
   }
-  const { JsonbContactRepository } =
-    // Dynamic import avoided at module load to keep client bundles clean
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@/features/email-crm/repositories/jsonb-contact-repository') as typeof import('@/features/email-crm/repositories/jsonb-contact-repository');
-  return new JsonbContactRepository();
+  return new JsonbContactRepository()
 }
 
 export function getEmailContactService(): EmailContactService {

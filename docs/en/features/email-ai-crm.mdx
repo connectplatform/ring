@@ -1,7 +1,7 @@
 ---
 title: Email AI-CRM
-description: AI-assisted inbox for public contact mailboxes — IMAP ingest, JSONB persistence via DatabaseService, draft review, tasks, and admin dashboards under /admin/crm
-last_modified: "2026-07-17"
+description: Multi-mailbox AI inbox — IMAP via ring-config.emailCrm.channels, JSONB persistence, per-channel SMTP replies, admin CRM under /admin/crm
+last_modified: "2026-07-21"
 audience: both
 ---
 
@@ -12,24 +12,24 @@ audience: both
 </Callout>
 
 <Callout type="success" title="Executive summary">
-Ring ships an **AI-assisted email CRM** for public contact mailboxes (for example `info@example.com`). Inbound mail is classified, threaded, and answered with Claude drafts; platform admins review, approve, and send from the admin UI under **`/admin/crm/*`**. Ingest is **IMAP cron poll** or an **inbound webhook**; persistence is PostgreSQL JSONB when migrations `009` + `010` are applied. HTTP APIs remain at **`/api/admin/email/*`**.
+Ring ships an **AI-assisted email CRM** for public contact mailboxes (for example `info@ringdom.org`). Inbound mail is classified, threaded, and answered with Claude drafts; platform admins review and send from **`/admin/crm/*`**. Channels live in **`ring-config.json` → `emailCrm.channels[]`**; secrets use **`CRM_CHANNEL_<ID>_PASSWORD`**. CRM replies use **per-channel SMTP** via `EmailSenderService` — **not** Auth OTP transport (`lib/mailer.ts` / `SMTP_*`).
 </Callout>
 
 <Cards>
   <Card title="Architecture deep dive" href="/docs/architecture/email-ai-crm">
-    EmailProcessor, IMAP poll, JSONB collections, cron and webhook ingest.
+    EmailProcessor, multi-mailbox IMAP, JSONB collections, Auth vs CRM SMTP planes.
   </Card>
   <Card title="API reference" href="/docs/api/email-ai-crm">
-    Admin routes, cron actions, and inbound webhook contract.
+    Admin routes (including channels), cron actions, inbound webhook.
   </Card>
   <Card title="Developer setup guide" href="/docs/examples/email-ai-crm">
-    Local `.env.local`, migrations, SMTP smoke test, production cron.
+    Local env, migrations, channel secrets, production cron.
+  </Card>
+  <Card title="Ring Mailer (auth SMTP)" href="/docs/features/ring-mailer">
+    OTP / magic-link mail — separate from CRM channel SMTP.
   </Card>
   <Card title="Owner Project Lab" href="/docs/features/owner-project-lab">
     Project orders + shared order_lab chat under the same CRM shell.
-  </Card>
-  <Card title="Environment variables" href="/docs/deployment/environment#email-ai-crm">
-    Full EMAIL CRM block in `env.local.template`.
   </Card>
 </Cards>
 
@@ -37,66 +37,69 @@ Ring ships an **AI-assisted email CRM** for public contact mailboxes (for exampl
 
 | Layer | Responsibility |
 |-------|----------------|
+| **Channels** | `ring-config.emailCrm.channels[]` + `loadCrmChannels()` — IMAP/SMTP host, user, mailbox per channel |
 | **Ingestion** | `POST /api/cron/email-processor` (`action: poll`) or `POST /api/webhooks/email/inbound` |
-| **Processor** | `services/email/email-processor.ts` — parse, security, AI, CRM, drafts |
-| **Persistence** | `features/email-crm/lib/jsonb-collection.ts` → `db()` (`readDoc`, `upsertDoc`, `queryDocs`) on six JSONB collections |
-| **Outbound** | `services/email/smtp/email-sender.ts` (nodemailer) — replies with `In-Reply-To` / `References` |
-| **Admin UI** | `/admin/crm/inbox`, drafts, contacts, analytics, tasks, thread detail — plus `/admin/crm/orders` (project orders) |
-| **Admin API** | `/api/admin/email/*` — `auth()` + `isPlatformAdmin` on every route (paths unchanged) |
-| **Shell** | `CrmAdminShell` — horizontal tabs, `showRightRail={false}`, pageContexts `crm-*` |
+| **Processor** | `features/email-crm/pipeline/email-processor.ts` — parse, security, AI, CRM, drafts (constructed per cron action) |
+| **Persistence** | JSONB collections via `jsonb-collection.ts` → `db()`; types in `features/email-crm/types/*` |
+| **Outbound** | `features/email-crm/pipeline/smtp/email-sender.ts` — per-channel CRM SMTP (`In-Reply-To` / `References`) |
+| **Admin UI** | `/admin/crm/inbox` (channel filter), drafts, contacts, analytics, tasks — plus `/admin/crm/orders` |
+| **Admin API** | `/api/admin/email/*` including `GET /api/admin/email/channels` |
 
-<Mermaid title="Admin journey — ingest to reply">
+<Mermaid title="Admin journey — multi-mailbox ingest to reply">
 {`sequenceDiagram
-    participant M as Contact mailbox
+    participant M as Channel mailbox
     participant C as Cron poll
     participant P as EmailProcessor
-    participant DB as db() DatabaseService
+    participant DB as db() JSONB
     participant A as Admin CRM UI
+    participant S as EmailSenderService
 
-    M->>C: UNSEEN messages
+    M->>C: UNSEEN per channel
     C->>P: pollInboundBatch
     P->>P: Security + intent + sentiment
     P->>DB: messages, threads, contacts, drafts, tasks
-    P->>P: Optional SMTP auto-send
-    A->>DB: GET /api/admin/email/threads
-    A->>A: Review draft, approve, send`}
+    A->>DB: GET threads?sourceChannel=
+    A->>A: Review draft, approve
+    A->>S: Send via channel SMTP
+    S-->>M: Re: reply`}
 </Mermaid>
 
 <Audience for="founder">
 
 ## Why this matters for your clone
 
-Public contact inboxes (`info@`, `support@`, `hello@`) are where trust is won or lost. Email AI-CRM gives operators a single admin surface to triage inbound mail, review AI drafts before send, and track follow-up tasks — without hiring a full support desk on day one. Project orders share the same CRM tab bar — see [Owner Project Lab](/docs/features/owner-project-lab).
+Public contact inboxes (`info@`, `support@`, `hello@`) are where trust is won or lost. Email AI-CRM gives operators a single admin surface to triage inbound mail, filter by mailbox channel, review AI drafts before send, and track follow-up tasks — without hiring a full support desk on day one.
 
 <Cards>
   <Card title="Community support" description="Classify FAQs, route urgent mail, draft replies for admin approval." />
-  <Card title="Enterprise inquiries" description="Intent detection flags demo and pricing requests; auto-tasks remind admins to respond." />
-  <Card title="White-label onboarding" description="Pair with Ringize settler flows — inbound briefs can create CRM tasks automatically." />
+  <Card title="Multi-mailbox" description="Primary + future channels in ring-config — filter the inbox by source channel." />
+  <Card title="Separate from login mail" description="Keep noreply@ (Auth) off the CRM plane so OTP deliverability stays independent of support replies." />
 </Cards>
 
 ### Business rules
 
-- **Message-ID dedup** — the same RFC `Message-ID` is never processed twice (avoids duplicate LLM spend).
-- **Auto-send off by default** — set `EMAIL_AUTO_SEND_ENABLED=true` only after an SMTP smoke test passes.
-- **Cron poll in serverless** — production schedules `poll` every 1–5 minutes; `EMAIL_PROCESSOR_AUTOSTART` is for long-lived Node workers only.
+- **Message-ID dedup** — the same RFC `Message-ID` is never processed twice.
+- **Auto-send off by default** — set `EMAIL_AUTO_SEND_ENABLED=true` only after a CRM SMTP smoke test passes.
+- **Cron poll in serverless** — schedule `poll` every 1–5 minutes; `EMAIL_PROCESSOR_AUTOSTART` is for long-lived Node workers only.
 - **Admin-only** — all `/api/admin/email/*` routes require a platform admin session.
+- **Auth mail ≠ CRM mail** — OTP/magic links use `SMTP_*` / `lib/mailer.ts`; CRM replies use channel SMTP (`CRM_CHANNEL_*`).
 
 ### Admin pages (CRM shell)
 
 | Route | Purpose |
 |-------|---------|
-| `/admin/crm/inbox` | Thread list (live API) |
+| `/admin/crm/inbox` | Thread list with **sourceChannel** filter + read-only channel status |
 | `/admin/crm/inbox/[id]` | Thread detail + messages |
 | `/admin/crm/drafts` | Pending AI drafts — approve / reject / send |
 | `/admin/crm/contacts` | CRM contacts registry |
-| `/admin/crm/analytics` | Volume, intent/sentiment, API cost (from `email_api_usage`) |
+| `/admin/crm/analytics` | Volume, intent/sentiment, API cost |
 | `/admin/crm/tasks` | Follow-ups and escalations |
-| `/admin/crm/orders` | Project / custom orders desk (see Owner Project Lab) |
+| `/admin/crm/orders` | Project / custom orders desk |
 
-Navigation: **Admin → CRM** horizontal tabs (Orders \| Inbox \| Drafts \| Contacts \| Tasks \| Analytics). Right rail is hidden for CRM pages (`showRightRail={false}`).
+Navigation: **Admin → CRM** horizontal tabs. Right rail is hidden (`showRightRail={false}`).
 
 <Callout type="warning" title="No redirects from /admin/email-*">
-Legacy `/admin/email-*` page URLs are a **clean break** — update bookmarks and docs to `/admin/crm/*`. `ADMIN_EMAIL_*` route constants alias to the CRM paths. APIs and cron ids are unchanged.
+Legacy `/admin/email-*` page URLs are a **clean break** — use `/admin/crm/*`. APIs and cron ids are unchanged.
 </Callout>
 
 ### Operator setup
@@ -105,25 +108,25 @@ Legacy `/admin/email-*` page URLs are a **clean break** — update bookmarks and
 
 <Step>
 
-Copy the **EMAIL CRM** block from `env.local.template` into `.env.local`. Set `IMAP_*`, `SMTP_*`, `ANTHROPIC_API_KEY`, and `CRON_SECRET`. Keep `EMAIL_AUTO_SEND_ENABLED=false` until verified.
+Enable `emailCrm` in `ring-config.json` with at least one channel (host, user, mailbox). Set `CRM_CHANNEL_PRIMARY_PASSWORD` (and optional `CRM_CHANNEL_PRIMARY_SMTP_PASSWORD`) in secrets. Keep Auth `SMTP_*` pointed at your login mailbox (often a different host).
 
 </Step>
 
 <Step>
 
-Apply JSONB migrations on Postgres (`009_email_crm_jsonb.sql` + `010_email_crm_tasks_jsonb.sql`). For a quick UI-only test without tables, set `EMAIL_CRM_PERSISTENCE=memory` (data does not survive restarts).
+Apply JSONB migrations (`009_email_crm_jsonb.sql` + `010_email_crm_tasks_jsonb.sql`). For a UI-only test without tables, set `EMAIL_CRM_PERSISTENCE=memory`.
 
 </Step>
 
 <Step>
 
-Trigger ingest: schedule `POST /api/cron/email-processor` with `{"action":"poll"}` and `Authorization: Bearer $CRON_SECRET` every 1–5 minutes — or use the inbound webhook (see [developer guide](/docs/examples/email-ai-crm)).
+Schedule `POST /api/cron/email-processor` with `{"action":"poll"}` and `Authorization: Bearer $CRON_SECRET` every 1–5 minutes.
 
 </Step>
 
 <Step>
 
-Open **Admin → CRM Inbox** and **Drafts**. Approve a draft and send. Confirm the reply in the sender mailbox before enabling auto-send.
+Open **Admin → CRM Inbox**, confirm channel status chips load, approve a draft, and verify the reply left via the **CRM** host (not Auth noreply).
 
 </Step>
 
@@ -133,121 +136,106 @@ Open **Admin → CRM Inbox** and **Drafts**. Approve a draft and send. Confirm t
 
 <Audience for="developer">
 
-## Processing pipeline
+## Auth SMTP vs CRM SMTP (do not merge)
 
-1. **Parse** — headers, body, attachments, thread keys (`References`, `In-Reply-To`).
-2. **Security** — four-layer prompt-injection defense (`services/email/security/`).
-3. **AI** — Haiku intent + sentiment; Sonnet response generation with prompt caching.
-4. **CRM** — contact upsert, thread upsert, optional auto-tasks.
+| Plane | Config | Code | Use |
+|-------|--------|------|-----|
+| **Auth** | `SMTP_*` / `EMAIL_MODE` | `lib/mailer.ts` → `sendMail()` | OTP, magic link, password reset |
+| **CRM** | `emailCrm.channels[].smtp` + `CRM_CHANNEL_<ID>_PASSWORD` | `EmailSenderService.sendReply()` | Approved inbox replies |
+
+ring-platform.org prod Auth host is documented in `data/migrations/RING-MAILER-OPS.md` (`mail.subiworx.com`). CRM primary channel uses `mail.ringdom.org` / `info@ringdom.org` in `ring-config.json`.
+
+Legacy fallback: when `emailCrm.channels` is empty, `IMAP_*` / `SMTP_*` still feed a single mailbox via `loadCrmChannels()`.
+
+### Processing pipeline
+
+1. **Parse** — headers, body, attachments, thread keys.
+2. **Security** — four-layer prompt-injection defense (`features/email-crm/pipeline/security/`).
+3. **AI** — Haiku intent + sentiment; Sonnet response generation.
+4. **CRM** — contact/thread upsert with `sourceChannel`; optional auto-tasks.
 5. **Draft** — pending queue unless auto-send criteria are met.
-6. **Notify** — `EmailNotificationService` (in-app / optional Slack) on draft, task, security block, urgent mail.
+6. **Notify** — `EmailNotificationService` on draft, task, security block, urgent mail.
 
 ### Code layout
 
 | Path | Role |
 |------|------|
-| `services/email/email-processor.ts` | Orchestrator; dedup, poll, ingest |
-| `services/email/imap/` | Config, listener, `pollBatch()` |
-| `services/email/smtp/email-sender.ts` | Outbound replies |
-| `services/email/crm/` | Contact + task services |
-| `services/email/drafts/` | Draft queue + auto-send rules |
-| `services/email/ai/` | Classifiers, generator, cost tracker |
+| `features/email-crm/pipeline/imap/config.ts` | `loadCrmChannels()`, `validateCrmChannels()` |
+| `features/email-crm/pipeline/email-processor.ts` | Orchestrator; polls each enabled channel |
+| `features/email-crm/pipeline/smtp/email-sender.ts` | Per-channel CRM SMTP (not `lib/mailer`) |
+| `features/email-crm/types/{contact,task,draft}.ts` | Pure types — breaks Jsonb circular require |
+| `features/email-crm/repositories/jsonb-*-repository.ts` | `import type` from types; static ESM only |
+| `features/email-crm/pipeline/crm/*`, `features/email-crm/pipeline/drafts/*` | `import { Jsonb*Repository }` (no CJS `require`) |
 | `features/email-crm/lib/jsonb-collection.ts` | `readDoc` / `upsertDoc` / `queryDocs` → `db()` |
-| `features/email-crm/repositories/` | JSONB repositories per collection |
-| `features/email-crm/services/` | Thread, message, API usage services |
-| `features/admin/crm/crm-admin-shell.tsx` | Shared CRM UI shell (`crm-*` pageContexts) |
-| `app/api/cron/email-processor/route.ts` | Cron: `poll`, `status`, `mark-overdue-tasks` |
-| `app/api/webhooks/email/inbound/route.ts` | HMAC-signed webhook ingest |
+| `app/api/cron/email-processor/route.ts` | Cron: `getEmailProcessor()` **per action** |
+| `app/api/admin/email/channels/route.ts` | Read-only channel status (no secrets) |
+| `app/[locale]/admin/crm/inbox/page.tsx` | `sourceChannel` query filter |
 
-### Persistence — `jsonb-collection` → `db()`
+### Persistence — Jsonb circular fix (shipped)
 
-All active CRM writes go through `features/email-crm/lib/jsonb-collection.ts`, which delegates to the platform `db()` singleton (`lib/database/DatabaseService.ts`):
-
-| Helper | Delegates to |
-|--------|----------------|
-| `readDoc(collection, id)` | `db().readDoc()` |
-| `upsertDoc(collection, id, record)` | `db().readDoc()` + `updateDoc()` or `createDoc()` |
-| `queryDocs({ collection, filters, orderBy, limit })` | `db().queryDocs()` |
-| `deleteDoc(collection, id)` | `db().deleteDoc()` |
-
-Repositories (`jsonb-contact-repository.ts`, `jsonb-draft-repository.ts`, `jsonb-task-repository.ts`) and services (`email-message-service.ts`, `email-api-usage-service.ts`) import these helpers — they do **not** issue raw SQL.
+Types live in `features/email-crm/types/*` with **no runtime imports**. Repositories use `import type`; services use static ESM `import { Jsonb*Repository }`. Do **not** reintroduce CJS `require()` of Jsonb repos (that cycle broke Next server bundles).
 
 ### Active JSONB collections (migrations 009 + 010)
 
 | Collection | Document id | Indexed fields |
 |------------|-------------|----------------|
-| `email_threads` | RFC thread root / Message-ID | `status`, `fromEmail`, `lastMessageAt` |
+| `email_threads` | RFC thread root / Message-ID | `status`, `fromEmail`, `lastMessageAt`, `sourceChannel` |
 | `email_contacts` | `contact_<sha256(email)>` | `email`, `type` |
 | `email_messages` | RFC Message-ID | `threadId` |
 | `email_drafts` | `draft_<uuid>` | `threadId`, `status` |
 | `email_tasks` | `task_<uuid>` | `threadId`, `status`, `dueDate` |
 | `email_api_usage` | `req_<timestamp>_<random>` | `timestamp`, `operation`, `emailId` |
 
-Factory: `getEmailContactService()` / `getEmailTaskService()` / `getEmailDraftService()` use Postgres unless `EMAIL_CRM_PERSISTENCE=memory`.
-
 ### Cron actions
 
-`POST /api/cron/email-processor` accepts `action`: `poll` (default), `status`, `mark-overdue-tasks`, and optionally `start` / `stop` when `EMAIL_PROCESSOR_ALLOW_HTTP_START=true`.
+`POST /api/cron/email-processor` — `poll` (default), `status`, `mark-overdue-tasks`, optional `start` / `stop` when `EMAIL_PROCESSOR_ALLOW_HTTP_START=true`. Fail-closed on `CRON_SECRET`. Processor instance is created **inside** each action branch (not always at module top).
 
 </Audience>
 
 ## Schema-only tables (not wired in app)
 
 <Callout type="development" title="Deprecated 001 column-model tables">
-The legacy migration `001_email_crm_schema.sql` defines **`email_analytics`**, **`email_knowledge_base`**, and **`email_security_events`** as column-model tables. **No TypeScript module reads or writes these tables today.** Production uses JSONB migrations `009` + `010` only. Cost tracking persists to `email_api_usage`; RAG uses `InMemoryKnowledgeRepository` in `services/email/knowledge/knowledge-base.ts`.
-</Callout>
-
-<Callout type="development" title="Backlog — not yet production-persisted">
-| Planned capability | Current state |
-|--------------------|---------------|
-| **PGVector knowledge base** (`email_knowledge_base`) | In-memory default docs via `getKnowledgeBaseService()` — no `jsonb-collection` table |
-| **Security event audit trail** (`email_security_events`) | Security pipeline blocks in-flight; events are not persisted to Postgres |
-| **Daily analytics rollup** (`email_analytics`) | Admin analytics aggregates from `email_api_usage` JSONB at query time — no daily rollup table |
+The legacy migration `001_email_crm_schema.sql` defines **`email_analytics`**, **`email_knowledge_base`**, and **`email_security_events`**. **No TypeScript module reads or writes these tables today.** Production uses JSONB migrations `009` + `010` only.
 </Callout>
 
 ## Local configuration
 
-Add to **`.env.local`** (canonical comments in `env.local.template` **EMAIL CRM** block):
+Prefer **multi-mailbox** secrets (canonical comments in `env.local.template`):
 
 <Code language="env" title=".env.local — Email AI-CRM essentials">
-{`IMAP_HOST=mail.example.com
-IMAP_PORT=993
-IMAP_TLS=true
-IMAP_USER=info@example.com
-IMAP_PASSWORD=
-
-SMTP_HOST=mail.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=info@example.com
-SMTP_PASSWORD=
+{`# ring-config.emailCrm.channels[].id = "primary"
+CRM_CHANNEL_PRIMARY_PASSWORD=
+# CRM_CHANNEL_PRIMARY_SMTP_PASSWORD=   # optional override
 
 ANTHROPIC_API_KEY=
-
 CRON_SECRET=generate-a-long-random-string
 EMAIL_AUTO_SEND_ENABLED=false
 EMAIL_CRM_PERSISTENCE=memory
-WEBHOOK_EMAIL_SECRET=`}
+WEBHOOK_EMAIL_SECRET=
+
+# Legacy single-mailbox fallback (only when emailCrm.channels is empty):
+# IMAP_HOST=mail.example.com
+# IMAP_USER=info@example.com
+# IMAP_PASSWORD=
+# SMTP_HOST=mail.example.com
+# SMTP_USER=info@example.com
+# SMTP_PASSWORD=`}
 </Code>
 
 | Variable | Purpose |
 |----------|---------|
-| `IMAP_*` / `SMTP_*` | Community inbox (any IMAP/SMTP provider) |
-| `ANTHROPIC_API_KEY` | Intent, sentiment, and draft generation |
-| `CRON_SECRET` | Bearer token for `/api/cron/email-processor` |
-| `EMAIL_AUTO_SEND_ENABLED` | Keep `false` until SMTP smoke test passes |
-| `WEBHOOK_EMAIL_SECRET` | HMAC for `POST /api/webhooks/email/inbound` (optional alternative to IMAP) |
-| `EMAIL_CRM_PERSISTENCE` | `memory` for quick local UI tests; omit when using migrations `009`/`010` |
-| `EMAIL_POLLING_INTERVAL` | Poll interval in ms (default `30000`) |
-| `EMAIL_PROCESSOR_AUTOSTART` | Long-lived worker IDLE mode — not for serverless cron |
-
-<Callout type="warning" title="Deprecated migration">
-Do **not** apply `001_email_crm_schema.sql` (column-model CRM). Use **`009` + `010` JSONB migrations** only. See [developer guide](/docs/examples/email-ai-crm).
-</Callout>
+| `CRM_CHANNEL_<ID>_PASSWORD` | IMAP (and SMTP if no SMTP override) for channel `id` |
+| `CRM_CHANNEL_<ID>_SMTP_PASSWORD` | Optional dedicated SMTP password |
+| `ANTHROPIC_API_KEY` | Intent, sentiment, draft generation |
+| `CRON_SECRET` | Bearer for `/api/cron/email-processor` |
+| `EMAIL_AUTO_SEND_ENABLED` | Keep `false` until CRM SMTP smoke test passes |
+| `WEBHOOK_EMAIL_SECRET` | HMAC for inbound webhook (optional) |
+| `EMAIL_CRM_PERSISTENCE` | `memory` for UI-only tests; omit for Postgres JSONB |
+| `SMTP_*` | **Auth** Ring Mailer only — not CRM replies when channels are configured |
 
 ## Production deployment
 
-On k8s or Vercel cron, store the same variables in your secret manager, apply migrations `009` + `010`, and schedule:
+Store channel secrets in the cluster secret manager, apply migrations `009` + `010`, and schedule:
 
 <Code language="bash" title="Production cron poll (every 1–5 min)">
 {`curl -sS -X POST "$BASE_URL/api/cron/email-processor" \\
@@ -256,22 +244,54 @@ On k8s or Vercel cron, store the same variables in your secret manager, apply mi
   -d '{"action":"poll"}'`}
 </Code>
 
-Optional analytics snapshot: `GET $BASE_URL/api/cron/email-analytics` with the same Bearer token.
+Ops notes: `data/migrations/EMAIL-CRM-OPS.md`. Auth SMTP split: `data/migrations/RING-MAILER-OPS.md`.
 
-<Cards>
-  <Card title="Email AI-CRM architecture" href="/docs/architecture/email-ai-crm">
-    System diagram, collections, and module boundaries.
-  </Card>
-  <Card title="Email AI-CRM API" href="/docs/api/email-ai-crm">
-    Request/response contracts for admin and webhook routes.
-  </Card>
-  <Card title="Developer guide" href="/docs/examples/email-ai-crm">
-    Step-by-step local setup and troubleshooting.
-  </Card>
-  <Card title="Owner Project Lab" href="/docs/features/owner-project-lab">
-    Buyer My Projects and CRM orders desk.
-  </Card>
-  <Card title="Database migrations" href="/docs/getting-started/migrations">
-    Kingdom migration order and `run-migration.sh`.
-  </Card>
-</Cards>
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="architecture/email-ai-crm"
+    relation="Deep-dive: ingest diagram, jsonb-collection → db(), Auth vs CRM SMTP planes."
+  />
+  <RelatedArticle
+    slug="api/email-ai-crm"
+    relation="Next-step: channels status route, sourceChannel query, cron and webhook contracts."
+  />
+  <RelatedArticle
+    slug="examples/email-ai-crm"
+    relation="Same-workflow: local smoke test from env through draft send."
+  />
+  <RelatedArticle
+    slug="features/ring-mailer"
+    relation="Depends-on: Auth OTP/magic SMTP stays on lib/mailer — do not reuse for CRM replies."
+  />
+  <RelatedArticle
+    slug="features/owner-project-lab"
+    relation="See-also: project orders desk under the same CRM shell."
+  />
+  <RelatedArticle
+    slug="features/authentication"
+    relation="See-also: vitals onboarding and login mail (separate from CRM)."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — Email AI-CRM persistence">
+<FutureFeatureWidget
+  name="PGVector knowledge base"
+  description="Persist RAG docs to email_knowledge_base / jsonb-collection. Today getKnowledgeBaseService() uses InMemoryKnowledgeRepository only."
+  implementationCost={48}
+  labels={['email-crm', 'ai', 'persistence']}
+/>
+<FutureFeatureWidget
+  name="Security event audit trail"
+  description="Persist security pipeline blocks to Postgres (email_security_events). Events are in-flight only today."
+  implementationCost={24}
+  labels={['email-crm', 'security']}
+/>
+<FutureFeatureWidget
+  name="Daily analytics rollup table"
+  description="Populate email_analytics daily rollups. Admin analytics currently aggregates email_api_usage JSONB at query time."
+  implementationCost={32}
+  labels={['email-crm', 'analytics']}
+/>
+</FutureFeatureBacklog>

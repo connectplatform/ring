@@ -435,7 +435,7 @@ export async function getMembershipPricing(): Promise<PricingResult> {
 
     // Dynamic SSR imports for server storage/chain logic
     const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const { nativeTokenPriceOracleService } = await import('@/services/blockchain/price-oracle-service')
+    const { nativeTokenPriceOracleService } = await import('@/features/wallet/services/native-token-price-oracle')
     const { getNativeTokenBalanceForUser } = await import('@/features/wallet/chains/native-token-transfer-service')
 
     const memberTier = getMemberFiatTier()

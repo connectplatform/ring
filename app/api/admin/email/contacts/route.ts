@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { requireEmailAdmin } from '@/features/email-crm/lib/admin-auth'
-import { getEmailContactService } from '@/services/email/crm/email-contact-service'
+import { getEmailContactService } from '@/features/email-crm/pipeline/crm/email-contact-service'
 
 // Handler for GET requests to fetch email contacts.
 // Expects optional query params: email, name, company, type.

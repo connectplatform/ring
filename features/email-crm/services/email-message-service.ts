@@ -1,8 +1,8 @@
 import 'server-only'
 
-import type { ParsedEmail } from '@/services/email/parser/email-parser'
-import type { IntentClassification } from '@/services/email/ai/intent-classifier'
-import type { SentimentAnalysis } from '@/services/email/ai/sentiment-analyzer'
+import type { ParsedEmail } from '@/features/email-crm/pipeline/parser/email-parser'
+import type { IntentClassification } from '@/features/email-crm/pipeline/ai/intent-classifier'
+import type { SentimentAnalysis } from '@/features/email-crm/pipeline/ai/sentiment-analyzer'
 import { readDoc, upsertDoc, queryDocs } from '@/features/email-crm/lib/jsonb-collection'
 
 const COLLECTION = 'email_messages'

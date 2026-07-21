@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { requireEmailAdmin } from '@/features/email-crm/lib/admin-auth'
-import { getEmailDraftService } from '@/services/email/drafts/draft-service'
+import { getEmailDraftService } from '@/features/email-crm/pipeline/drafts/draft-service'
 import { EmailThreadService } from '@/features/email-crm/services/email-thread-service'
 import { sendDraftReply } from '@/features/email-crm/services/email-send-orchestrator'
 

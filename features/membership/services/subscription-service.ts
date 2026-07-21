@@ -1,6 +1,6 @@
 import { SubscriptionStatus } from '@/lib/zod/credit-schemas';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
-import { nativeTokenPriceOracleService } from '@/services/blockchain/price-oracle-service';
+import { nativeTokenPriceOracleService } from '@/features/wallet/services/native-token-price-oracle';
 import { getNativeChainConfig } from '@/lib/ring-config-chain';
 import { db } from '@/lib/database';
 import { auth } from '@/auth';

@@ -16,8 +16,10 @@
 export { EmailProcessor, getEmailProcessor } from './email-processor';
 export { wireEmailNotifications } from './wire-email-notifications';
 
-// SMTP outbound
-export { EmailSenderService, getEmailSender } from './smtp';
+// SMTP outbound (Ring Mailer SSOT)
+export { EmailSenderService, getEmailSender } from './smtp'
+export { sendMail, isRingMailerConfigured, getSmtpFromAddress } from '@/lib/mailer'
+export type { SendMailParams } from '@/lib/mailer'
 export type { ProcessedEmail, ProcessorEvents } from './email-processor';
 
 // IMAP

@@ -1,7 +1,8 @@
 ---
 title: Email AI-CRM API
-description: Admin email CRM routes, cron processor, and inbound webhook
-last_modified: "2026-07-17"
+description: Admin email CRM routes (channels + sourceChannel), cron processor, cleanup tokens note, and inbound webhook
+last_modified: "2026-07-21"
+audience: both
 ---
 
 # Email AI-CRM API
@@ -11,12 +12,48 @@ All `/api/admin/email/*` routes require an authenticated **platform admin** sess
 </Callout>
 
 <Callout type="info" title="Admin UI paths">
-Review UI lives at **`/admin/crm/*`** (`CrmAdminShell`). API paths stay `/api/admin/email/*` — see [Email AI-CRM](/docs/features/email-ai-crm) and [Owner Project Lab](/docs/features/owner-project-lab).
+Review UI lives at **`/admin/crm/*`** (`CrmAdminShell`). API paths stay `/api/admin/email/*` — see [Email AI-CRM](/docs/features/email-ai-crm).
 </Callout>
 
 <Callout type="info" title="Cron / webhook">
-`/api/cron/*` and `/api/webhooks/email/inbound` use `CRON_SECRET` or `WEBHOOK_EMAIL_SECRET` — not user sessions.
+`/api/cron/*` and `/api/webhooks/email/inbound` use `CRON_SECRET` or `WEBHOOK_EMAIL_SECRET` — not user sessions. Fail-closed when secret missing.
 </Callout>
+
+<Callout type="warning" title="CRM SMTP ≠ Auth SMTP">
+Draft **send** uses `EmailSenderService` + channel SMTP (`CRM_CHANNEL_*`). Auth OTP uses `lib/mailer.ts` / `SMTP_*`. Do not conflate the two in ops runbooks.
+</Callout>
+
+## Admin — channels
+
+### `GET /api/admin/email/channels`
+
+Read-only CRM channel status (no passwords). Backs the inbox channel filter UI.
+
+**Response:**
+
+```json
+{
+  "channels": [
+    {
+      "id": "primary",
+      "name": "Primary",
+      "flow": "standard",
+      "mailbox": "INBOX",
+      "imapHost": "mail.ringdom.org",
+      "imapUser": "info@ringdom.org",
+      "smtpHost": "mail.ringdom.org",
+      "smtpUser": "info@ringdom.org",
+      "hasImapPassword": true,
+      "hasSmtpPassword": true
+    }
+  ],
+  "validation": { "ok": true, "errors": [] }
+}
+```
+
+Implementation: `loadCrmChannels()` + `validateCrmChannels()` from `features/email-crm/pipeline/imap/config.ts`.
+
+---
 
 ## Admin — threads
 
@@ -27,6 +64,7 @@ List conversation threads.
 | Query | Type | Description |
 |-------|------|-------------|
 | `status` | string | Filter: `new`, `ongoing`, `waiting`, `resolved`, or omit for all |
+| `sourceChannel` | string | Filter by channel id/name (multi-mailbox) |
 
 **Response:** `{ threads: EmailThreadRecord[] }`
 
@@ -60,7 +98,7 @@ Approve draft for sending. Uses session user id as reviewer.
 
 ### `POST /api/admin/email/drafts/[id]/send`
 
-Send approved draft via SMTP.
+Send approved draft via **CRM channel SMTP** (`EmailSenderService`).
 
 **Body (optional):** `{ "toEmail": "...", "subject": "..." }` — defaults from thread.
 
@@ -118,17 +156,19 @@ Persists outbound row in `email_messages` and updates thread status to `waiting`
 
 ### `POST` or `GET` `/api/cron/email-processor`
 
-**Auth:** `Authorization: Bearer $CRON_SECRET`
+**Auth:** `Authorization: Bearer $CRON_SECRET` (fail-closed)
 
 **Body or query `action`:**
 
 | Action | Behavior |
 |--------|----------|
-| `poll` (default) | `pollInboundBatch()` — fetch UNSEEN, process, disconnect |
-| `status` | Processor + IMAP stats |
+| `poll` (default) | `pollInboundBatch()` — fetch UNSEEN per channel, process, disconnect |
+| `status` | Processor + IMAP stats (`getEmailProcessor()` for this action) |
 | `stop` | Stop IDLE listener |
 | `start` | Start IDLE (requires `EMAIL_PROCESSOR_ALLOW_HTTP_START=true`) |
 | `mark-overdue-tasks` | Run `EmailTaskService.processOverdueTasks()` |
+
+Processor instances are constructed **per action** in the route handler (not a single top-level always-on instance).
 
 **Example:**
 
@@ -142,6 +182,10 @@ curl -X POST "$BASE_URL/api/cron/email-processor" \
 ### `GET /api/cron/email-analytics`
 
 Returns 7-day dashboard snapshot (same shape as admin analytics). Cron-auth only.
+
+### Auth token cleanup (related)
+
+`GET/POST /api/cron/cleanup-email-tokens` — purges expired `email_login_tokens`. Same fail-closed `CRON_SECRET` pattern. Documented under [Ring Mailer](/docs/features/ring-mailer); not an Email CRM route.
 
 ---
 
@@ -172,9 +216,27 @@ Calls `EmailProcessor.ingestEvent()` with `uid: 0` (no IMAP mark-seen).
 
 ---
 
-## Related
+## Related documentation
 
-- [Email AI-CRM feature](/docs/features/email-ai-crm)
-- [Owner Project Lab](/docs/features/owner-project-lab)
-- [Admin API](/docs/api/admin)
-- [Developer guide](/docs/examples/email-ai-crm)
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/email-ai-crm"
+    relation="Prerequisite: operator setup, channel secrets, Auth vs CRM SMTP."
+  />
+  <RelatedArticle
+    slug="architecture/email-ai-crm"
+    relation="Deep-dive: EmailProcessor and jsonb-collection persistence."
+  />
+  <RelatedArticle
+    slug="examples/email-ai-crm"
+    relation="Same-workflow: local poll + draft send smoke test."
+  />
+  <RelatedArticle
+    slug="features/ring-mailer"
+    relation="See-also: Auth cleanup-email-tokens cron and SMTP_* plane."
+  />
+  <RelatedArticle
+    slug="features/owner-project-lab"
+    relation="See-also: CRM orders desk sharing the admin shell."
+  />
+</RelatedDocs>

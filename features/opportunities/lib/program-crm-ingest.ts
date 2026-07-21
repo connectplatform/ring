@@ -15,7 +15,7 @@
  */
 
 import { logger } from '@/lib/logger'
-import { getEmailContactService, getEmailTaskService } from '@/services/email/crm'
+import { getEmailContactService, getEmailTaskService } from '@/features/email-crm/pipeline/crm'
 
 export async function ingestProgramOpportunityToEmailCrm(input: {
   opportunityId: string

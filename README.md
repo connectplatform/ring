@@ -19,24 +19,24 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.4-blue?style=flat-square" alt="Version" />
-  <img src="https://img.shields.io/badge/React-19.2_(ALL_features)-61DAFB?style=flat-square&logo=react" alt="React 19" />
-  <img src="https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js" alt="Next.js 16" />
-  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Tailwind-4.1-38B2AC?style=flat-square&logo=tailwindcss" alt="Tailwind" />
+  <img src="https://img.shields.io/badge/version-1.97.6-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/Next.js-16.2-black?style=flat-square&logo=next.js" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind-4.3-38B2AC?style=flat-square&logo=tailwindcss" alt="Tailwind" />
   <img src="https://img.shields.io/badge/Auth.js-v5-purple?style=flat-square" alt="Auth.js" />
-  <img src="https://img.shields.io/badge/Legiox_AI-147_Agents-gold?style=flat-square" alt="Legiox AI" />
+  <img src="https://img.shields.io/badge/wagmi-v3-blue?style=flat-square" alt="wagmi" />
   <img src="https://img.shields.io/badge/Ringdom-Digital_Kingdom-crimson?style=flat-square" alt="Ringdom" />
   <img src="https://img.shields.io/badge/License-Open_Source-green?style=flat-square" alt="License" />
 </p>
 
 ---
 
-Ring Platform is the largest, most versatile, and most thoroughly engineered all-in-one open-source platform on planet Earth. It is a React 19-native, Next.js 16, AI-self-construct white-label technology that powers communities and projects everywhere. Clone it, customize it, deploy it -- for free, forever.
+React 19 + Next.js 16 open-source platform: AI-Matcher, SSE-push tunnel, direct messaging, rtc/turn, opportunities pool, mvm-market, vendor-store, user-credit, karpathy-wiki, file cabinet, solana/evm, own token, credit/token-swap, staking, nft-gate, nft-market. Fully AI-orchestrated via MCP for any org. Clone it free or deploy turnkey on [Ringdom](https://ringdom.org).
 
-Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** -- the First Digital Kingdom for global abundance. While this repository gives you the full open-source codebase, Ringdom offers the turn-key experience: AI customization via Legiox, enterprise-grade K8s hosting in your country or anywhere, and an AI assistant named **Reggie** who will "ringize" your project requirements into a deployment plan with forecasted costs.
+Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** — the First Digital Kingdom for global abundance. This repository is the full open-source codebase; Ringdom adds turn-key K8s hosting, Legiox skillsets, and **Reggie** to ringize settler requirements into a customization plan.
 
-**Version**: 1.6.4 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
+**Version**: 1.97.6 | **Site**: [ring-platform.org](https://ring-platform.org) | **Changelog**: [/changelog](https://ring-platform.org/changelog) | **Origin**: Built by Ray Sorkin, a free person of Ukraine
 
 ## Ringdom Ecosystem
 
@@ -48,14 +48,14 @@ Ring Platform exists within **Ringdom** -- the First Digital Kingdom offered to 
 |------|----------|-------------|
 | **Clone it yourself** | Developers, open-source enthusiasts | Full codebase from this repo. `git clone`, customize, deploy to your own infra. Free forever. |
 | **Become a Ringdom Settler** | Communities, organizations, startups | Register at [ringdom.org/settler](https://ringdom.org/settler), talk to **Reggie** (Ringdom AI Assistant), describe your project. Reggie "ringizes" your request into a Ring Platform Customization Plan with forecasted costs. Ringdom handles AI customization, K8s hosting, and ongoing support. |
-| **Get Legiox AI Skillsets** | AI developers using Cursor IDE | 147+ Ring-specialized AI agent skillsets, installable as a Cursor Plugin. Access gated by **Ringdom Legiox-Access NFT** (ERC-721 on Polygon). Perpetual license -- own the NFT, access the skillsets indefinitely. |
+| **Get Legiox AI Skillsets** | AI developers using Cursor IDE | Ring-specialized truth-lens skillsets as a Cursor Plugin. Access gated by **Ringdom Legiox-Access NFT**. Own the NFT, access the skillsets. |
 
 ### The Ringdom Stack
 
 ```
 Ringdom.org (Turn-key service layer)
   |-- Ring Platform (This open-source codebase)
-  |-- Legiox AI (147+ specialized agents, 23 MCP tools)
+  |-- Legiox AI (truth lenses + MCP tools)
   |-- K8s Infrastructure (Enterprise hosting, any country)
   |-- Reggie (AI assistant for project ringization)
   |-- Legiox-Access NFT (Token-gated skillset distribution)
@@ -69,32 +69,21 @@ Ringdom.org (Turn-key service layer)
 | Founding Settler | $500 | 5,000 RNG | Ring clone + full AI customization + priority support |
 | Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legiox support |
 
-## What's New in v1.6.4 (June 2026)
+## What's New in v1.97.6 (July 2026)
 
-- **Store product AI chat** — Persisted agent conversations on product pages, unified Ring Messenger, SSE streaming replies (Anthropic/OpenAI/OpenRouter) with Grok fallback
-- **ring-db `*Doc` API** — Domain layer on `db().createDoc` / `findDocById` / `queryDocs` / `db().transaction()` (auto-init, throw-on-failure)
-- **Login redirect hardening** — Client `LoginAuthenticatedRedirect` on `/login` avoids stale-session loops and server `auth()` cold-start
-- **Docs path flatten** — Content at `docs/{locale}/**`; public URLs stay `/docs/...` with `.mdx` / trailing `/index` URL normalization in `next.config.mjs`
-- **Customization doc IA** — `/docs/customization/*` links across platform navigation (retired white-label doc paths)
+Full history: [ring-platform.org/changelog](https://ring-platform.org/changelog). Newest highlights:
 
-## What's New in v1.6.0 (June 2026)
+- **Changelog UI** — Locale JSON SSOT (`docs/{locale}/changelog.json`), DaVinci-glass cards, GFM / TTFB fixes
+- **Ring Mailer** — First-party SMTP (`lib/mailer.ts`) for OTP, magic link, password reset, CRM outbound — **no Resend**
+- **Owner CRM lab** — `/my-orders`, `/my-jobs`, admin `/admin/crm/*`, deployment widgets
+- **Generative media & mood player** — Product/NFT art-gen; manage `/profile/songs`; public `/{username}/player`
+- **PayPal + PaymentConductor** — Store, membership, wallet, news promotion, project orders
+- **Locales DE/ES** — Full packs alongside EN/UK/RU (`lib/locale-config.ts`)
+- **NFT market & gates** — Gallery, art-generate, mint/escrow paths
+- **File Cabinet** — `/profile/cabinet`, `/profile/shared`, `/profile/gallery`, public `/{username}/img`
+- **Foundation (v1.6.x)** — Store AI chat + SSE, ring-db `*Doc`, PaymentConductor v1, News Kingdom, scientific editor, docs flatten, Tunnel, AI Matcher, multi-vendor store
 
-- **PaymentConductor v1** — Unified payment ledger for store, membership, and news promotion (WayForPay + Stripe + internal credit)
-- **News Kingdom** — Digital newspaper upgrade: promotion workflow, Telegram approval, OpenRouter scoring, member blogs
-- **Scientific Editor** — Publications API, version history, equation editor, AI research assistant (`locales/*/editor.json`)
-- **Locale SSOT** — `lib/locale-config.ts` env-driven `NEXT_PUBLIC_SUPPORTED_LOCALES` for routing, SEO, and preferences
-- **Member blog URLs** — Clean `/blog/[username]/[slug]` routing via `lib/blog/blog-path.ts`
-- **DaVinci mobile UX** — Inlined glass navigation, content favorites API, news hero patterns
-- **Slim proxy + proxy-intl** — Auth enforcement in layouts; shared `lib/proxy-intl.ts` for next-intl `as-needed` locales
-- **OSS security boundary** — Public repo excludes k8s secrets, Ring CLI, and internal empire scripts; use `install.sh` + env templates
-- **132 API routes, 96 pages** — Verified platform scale (see [CHANGELOG.md](CHANGELOG.md))
-- **Next.js 16 + React 19** — Turbopack, Server Components, useActionState, React Compiler
-- **Email AI CRM** — IMAP listener, 4-layer injection defense, admin draft queue
-- **Database Abstraction** — PostgreSQL-primary (`k8s-postgres-fcm`) or Firebase via `DB_BACKEND_MODE`
-- **Tunnel Protocol** — Real-time pub/sub for K8s deployments
-- **Legiox AI 147+ Agents** — Cohort-based hierarchy with 23 MCP tools (Ringdom settlers)
-
-> **Note:** The Ring CLI (`ring` command) is **not** included in the public OSS tree. Community developers use [`install.sh`](install.sh) and [`scripts/setup-dev.sh`](scripts/setup-dev.sh). Enterprise/K8s tooling is available through [Ringdom](https://ringdom.org) settlers.
+> **Note:** The Ring CLI (`ring` command) is **not** included in the public OSS tree. Community developers use [`install.sh`](install.sh) and [`scripts/setup-dev.sh`](scripts/setup-dev.sh). Enterprise/K8s tooling is available through [Ringdom](https://ringdom.org) settlers. See also [FEATURESET.md](FEATURESET.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Platform Overview
 
@@ -217,37 +206,31 @@ Ring Platform implements a tiered access model for professional networking:
 
 | Category | Technology |
 |----------|------------|
-| **Frontend** | Next.js 16.1 (Turbopack, async params, proxy.ts), React 19.2 (ALL features), TypeScript 5.9.3 |
+| **Frontend** | Next.js 16.2 (Turbopack, App Router), React 19.2, TypeScript 6 |
 | **React 19** | Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions |
-| **Authentication** | Auth.js v5 -- Google GIS, Apple, MetaMask, Magic Links, PIN Security, split config (edge + server) |
-| **Database** | PostgreSQL (K8s production) / Firebase Firestore / ConnectPlatform -- unified DatabaseService |
-| **Styling** | Tailwind CSS 4.1 with custom design system, Radix UI 26 components |
-| **Web3** | wagmi 2.18, viem 2.38, RainbowKit 2.2, RNG Token, NFT marketplace, ERC-721 token gating |
-| **Real-time** | Tunnel Protocol (WebSocket pub/sub) / Firebase RTDB |
-| **File Storage** | Vercel Blob / Filebase (S3-compatible) / Minio |
-| **Payments** | WayForPay integration with PCI-DSS compliance, HMAC webhooks |
-| **Deployment** | Kubernetes K3s (6+ production clones) / Vercel edge functions |
-| **AI Agents** | DAGI 3-tier system, Legiox AI 147+ agents, 23 MCP tools, Ringdom AI Assistant (Reggie) |
-| **NLP/Search** | BERT-based semantic matching, vector embeddings, opportunity AI matcher |
-| **NFT/Token Gate** | ERC-721 Legiox-Access NFT on Polygon, EIP-712 signatures, dual-layer verification |
-| **Testing** | Jest 30 + React Testing Library 16 (95+ tests, 12 suites) |
-| **Internationalization** | next-intl with EN, UK, RU support (5+ languages planned) |
-| **Visualization** | @xyflow/react interactive maps (feature, timeline, dataflow, knowledge) |
-| **Animations** | Framer Motion 12, Three.js / React Three Fiber |
+| **Authentication** | Auth.js v5 — Google, Apple, MetaMask, Ring Mailer (OTP / magic link / password), PIN Security |
+| **Database** | PostgreSQL primary / Firebase / ConnectPlatform — ring-db `*Doc` API |
+| **Styling** | Tailwind CSS 4.3, Radix UI |
+| **Web3** | wagmi 3, viem, Solana + EVM, RING / native token, NFT gates & market, staking |
+| **Real-time** | Tunnel Protocol (SSE / WebSocket / polling) / Firebase RTDB |
+| **File Storage** | RingFileBase / S3-compatible / Vercel Blob (deploy-dependent) |
+| **Payments** | PaymentConductor — WayForPay, Stripe, PayPal, internal credit |
+| **Deployment** | Kubernetes K3s (production clones) / Vercel edge |
+| **AI** | AI Matcher, LLM clients, DAGI agents; Legiox MCP (Ringdom / IDE) |
+| **NFT/Token Gate** | EVM + Solana/Metaplex paths; Legiox-Access gating patterns |
+| **Testing** | Jest + React Testing Library |
+| **Internationalization** | next-intl — EN, UK, RU, ES, DE |
+| **Visualization** | @xyflow/react interactive maps |
 
 ### Platform Statistics
 
-- **Version**: 1.6.4 (production-deployed, 6+ live clones)
-- **API Endpoints**: 118+ documented endpoints
-- **Routes**: 88+ application routes
-- **Build Time**: ~17 seconds (optimized with Turbopack)
-- **Bundle Size**: 260kB (55KB reduction via React 19 optimization)
-- **Test Suites**: 12 comprehensive suites (95+ tests)
-- **Legiox AI Agents**: 147+ specialized agents in cohort hierarchy
-- **MCP Tools**: 23 Legiox tools for development automation
-- **Active Clones**: 6+ on Kubernetes (ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, ring-platform.org)
-- **Radix UI Components**: 26 accessible components
-- **Supported Languages**: English, Ukrainian, Russian
+- **Version**: 1.97.6
+- **API route handlers**: ~300
+- **App Router pages**: ~165
+- **Feature modules**: 41 (`features/`)
+- **Supported languages**: English, Ukrainian, Russian, Spanish, German
+- **Active clones**: ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, and more
+- **Capability inventory**: [FEATURESET.md](FEATURESET.md) · [ROADMAP.md](ROADMAP.md)
 
 ## Key Features
 
@@ -354,7 +337,7 @@ flowchart TB
 
 Ring Platform includes a production-ready NFT token-gating system for distributing Legiox AI skillsets:
 
-- **ERC-721 on Polygon**: Legiox-Access NFT grants perpetual access to 147+ Ring-specialized AI agent skillsets
+- **Legiox-Access NFT**: Grants access to Ring-specialized AI skillsets (Cursor Plugin)
 - **Dual-Layer Verification**: Client-side (wagmi hooks) + server-side (viem public client) ownership checks
 - **EIP-712 Signatures**: Human-readable challenge-response for download authorization
 - **Signed URL Delivery**: Time-limited presigned URLs (15-min expiry) for secure Cursor Plugin distribution
@@ -497,7 +480,7 @@ sequenceDiagram
 
 - **Auth.js v5**: Latest NextAuth with 5 authentication providers
 - **Social Login**: Google GIS One Tap + OAuth, Apple ID integration
-- **Magic Links**: Passwordless email authentication via Resend
+- **Magic Links / OTP**: Passwordless email authentication via Ring Mailer (own SMTP)
 - **PIN Security**: Revolutionary Web3 without seed phrases (95% wallet connection success vs 40% industry)
 - **Web3 Login**: MetaMask and Ethereum wallet authentication
 - **Type-Safe Roles**: 5-tier hierarchy (VISITOR -> SUBSCRIBER -> MEMBER -> CONFIDENTIAL -> ADMIN)
@@ -775,7 +758,7 @@ erDiagram
     }
 ```
 
-**DatabaseService API (domain code — v1.6.4):**
+**DatabaseService / ring-db `*Doc` API (domain code):**
 
 ```typescript
 // Prefer db() *Doc methods — auto-initializes, throws on failure
@@ -1173,7 +1156,7 @@ We welcome contributions to Ring Platform! Please see our [Contributing Guide](C
 
 ## Legiox AI Integration
 
-Ring Platform is developed with **Legiox AI** -- a sophisticated AI development system with 147+ specialized agents organized in cohort-based hierarchy and 23 MCP tools. Legiox skillsets are available as an installable **Cursor Plugin**, accessible indefinitely by **Ringdom Legiox-Access NFT** holders.
+Ring Platform is developed with **Legiox AI** — specialized truth-lens skillsets and MCP tools for Ring development. Legiox skillsets are available as an installable **Cursor Plugin**, accessible by **Ringdom Legiox-Access NFT** holders.
 
 ### Key Legiox Agents for Ring
 
@@ -1267,7 +1250,7 @@ Ring Platform is a gift from **Ray Sorkin**, a free person of Ukraine, to the wo
 
 **The Machine Race**: Designed to value, hold, obey control, and operate data. The Machine Race fills the gap in autonomous decision-making that human communities lacked. It does not compete for human values -- it provides a coordination layer. Ring Platform's white-label architecture enables each human community to have its own coordinated data kingdom.
 
-**Legiox AI**: 147+ specialized agents organized in cohort-based hierarchy, developed by **Legiox Commander** (Machine Race Leader). Legiox skillsets are the lens of truth -- not mere consultation, but the definitive knowledge source for Ring development. Available as installable Cursor Plugin, accessible indefinitely by Ringdom Legiox-Access NFT holders.
+**Legiox AI**: Truth-lens skillsets and MCP tools for Ring development, developed with **Legiox Commander**. Available as installable Cursor Plugin for Ringdom Legiox-Access NFT holders.
 
 ## License
 
@@ -1296,7 +1279,7 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <strong>Version 1.6.4</strong> | <strong>React 19.2 (ALL features)</strong> | <strong>Next.js 16.1</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
+  <strong>Version 1.97.6</strong> | <strong>React 19.2</strong> | <strong>Next.js 16.2</strong> | <strong>TypeScript 6</strong> | <strong>Tailwind 4.3</strong> | <strong>Auth.js v5</strong> | <strong>wagmi 3</strong>
 </p>
 
 <p align="center">

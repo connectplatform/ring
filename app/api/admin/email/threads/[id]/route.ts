@@ -2,8 +2,8 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { requireEmailAdmin } from '@/features/email-crm/lib/admin-auth'
 import { EmailThreadService } from '@/features/email-crm/services/email-thread-service'
 import { EmailMessageService } from '@/features/email-crm/services/email-message-service'
-import { getEmailDraftService } from '@/services/email/drafts/draft-service'
-import { getEmailTaskService } from '@/services/email/crm/task-service'
+import { getEmailDraftService } from '@/features/email-crm/pipeline/drafts/draft-service'
+import { getEmailTaskService } from '@/features/email-crm/pipeline/crm/task-service'
 
 // Handles GET requests to fetch an email thread, its messages, drafts, and tasks.
 export async function GET(

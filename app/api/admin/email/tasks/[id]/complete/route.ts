@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { requireEmailAdmin } from '@/features/email-crm/lib/admin-auth'
-import { getEmailTaskService } from '@/services/email/crm/task-service'
+import { getEmailTaskService } from '@/features/email-crm/pipeline/crm/task-service'
 
 // API handler for marking an email task as complete
 export async function POST(

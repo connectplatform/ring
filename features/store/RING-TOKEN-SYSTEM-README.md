@@ -54,7 +54,7 @@ The Ring Platform now features a complete RING token-based membership payment sy
   - `processBatchPayments(batchSize)` - Process due payments
 
 #### PriceOracleService
-- **File**: `ring/services/blockchain/price-oracle-service.ts`
+- **File**: `ring/features/wallet/services/native-token-price-oracle.ts`
 - **Purpose**: Multi-source native token/USD price feeds with caching
 - **Price Sources**: Chainlink (primary), CoinGecko, CoinMarketCap, Binance
 - **Key Methods**:
@@ -188,7 +188,7 @@ POLYGONSCAN_API_KEY=your_api_key        # For contract verification
 ```typescript
 import { creditBalanceService } from '@/services/wallet/credit-balance-service';
 import { subscriptionService } from '@/services/membership/subscription-service';
-import { priceOracleService } from '@/services/blockchain/price-oracle-service';
+import { priceOracleService } from '@/features/wallet/services/native-token-price-oracle';
 
 // Check user credit balance
 const balance = await creditBalanceService.getUserCreditBalance(userId);

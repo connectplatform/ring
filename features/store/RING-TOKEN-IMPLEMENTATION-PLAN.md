@@ -109,7 +109,7 @@ export class creditBalanceService {
 ### Phase 3: RING/USD Conversion Service (P0)
 
 #### 3.1 Price Oracle Integration
-**File**: `ring/services/blockchain/price-oracle-service.ts`
+**File**: `ring/features/wallet/services/native-token-price-oracle.ts`
 ```typescript
 export class PriceOracleService {
   // Integrate with Chainlink price feeds

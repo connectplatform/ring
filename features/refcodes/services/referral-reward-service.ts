@@ -3,7 +3,7 @@ import 'server-only' // Ensures this code is only executed on the server side
 import { parseUnits } from 'viem'
 import { db } from '@/lib/database' // Custom DB abstraction; assumed to be async
 import { logger } from '@/lib/logger'
-import { nativeTokenPriceOracleService } from '@/services/blockchain/price-oracle-service'
+import { nativeTokenPriceOracleService } from '@/features/wallet/services/native-token-price-oracle'
 import {
   REFERRAL_CHAIN_ID,
   REFCODE_COLLECTION,

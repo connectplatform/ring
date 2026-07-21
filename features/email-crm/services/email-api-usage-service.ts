@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { UsageRecord } from '@/services/email/ai/cost-tracker'
+import type { UsageRecord } from '@/features/email-crm/pipeline/ai/cost-tracker'
 import { upsertDoc, queryDocs } from '@/features/email-crm/lib/jsonb-collection'
 
 const COLLECTION = 'email_api_usage'

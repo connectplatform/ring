@@ -70,9 +70,9 @@ last_modified: "2026-06-10"
 
 | Путь | Роль |
 |------|------|
-| `services/email/email-processor.ts` | Оркестратор: dedup, poll, ingest |
-| `services/email/imap/` | `pollBatch()` для cron |
-| `services/email/smtp/email-sender.ts` | Исходящие ответы |
+| `features/email-crm/pipeline/email-processor.ts` | Оркестратор: dedup, poll, ingest |
+| `features/email-crm/pipeline/imap/` | `pollBatch()` для cron |
+| `features/email-crm/pipeline/smtp/email-sender.ts` | Исходящие ответы |
 | `features/email-crm/repositories/` | JSONB Contact / Task / Draft |
 | `features/email-crm/services/` | Thread, message, analytics, send |
 

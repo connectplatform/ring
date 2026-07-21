@@ -2,8 +2,8 @@ import 'server-only'
 
 import { EmailApiUsageService } from './email-api-usage-service'
 import { EmailThreadService } from './email-thread-service'
-import { getEmailDraftService } from '@/services/email/drafts/draft-service'
-import { getEmailTaskService } from '@/services/email/crm/task-service'
+import { getEmailDraftService } from '@/features/email-crm/pipeline/drafts/draft-service'
+import { getEmailTaskService } from '@/features/email-crm/pipeline/crm/task-service'
 
 function parseRange(range: string): Date {
   const days = range === '90d' ? 90 : range === '30d' ? 30 : 7

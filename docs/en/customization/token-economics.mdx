@@ -93,7 +93,7 @@ Schema comment: `users.data` JSONB in `data/schema.sql` v4+.
 |---------|------|------|
 | **creditBalanceService** | `features/wallet/services/credit-balance-service.ts` | Balance read/write, spend, top-up, membership fee debit, tunnel publish on change |
 | **SubscriptionService** | `services/membership/subscription-service.ts` | Create/cancel/renew; 1 RING/month; upgrades `membership.tier` → `member` |
-| **PriceOracleService** | `services/blockchain/price-oracle-service.ts` | RING/USD via viem + Chainlink/CoinGecko/CMC/Binance fallbacks |
+| **PriceOracleService** | `features/wallet/services/native-token-price-oracle.ts` | RING/USD via viem + Chainlink/CoinGecko/CMC/Binance fallbacks |
 | **Internal credit checkout** | `lib/payments/processors/internal-credit.processor.ts` | PaymentConductor rail for store + membership spend |
 
 ### Membership economics (reference)

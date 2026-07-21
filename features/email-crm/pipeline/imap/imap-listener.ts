@@ -8,7 +8,7 @@
 import Imap from 'imap';
 import { simpleParser, ParsedMail } from 'mailparser';
 import { EventEmitter } from 'events';
-import { emailConfig } from './config';
+import { emailConfig, type EmailConfig } from './config';
 import { logger } from '@/lib/logger';
 
 // Event types emitted by the listener
@@ -32,6 +32,10 @@ export interface EmailReceivedEvent {
     content: Buffer;
   }>;
   raw: ParsedMail;
+  /** CRM source channel (multi-mailbox). */
+  channelId?: string;
+  channelName?: string;
+  flow?: 'standard' | 'ingest_only' | 'tasks_only';
 }
 
 export interface ImapListenerEvents {
@@ -52,8 +56,9 @@ export class ImapListener extends EventEmitter {
   private lastUid: number = 0;
   private mailbox = 'INBOX';
 
-  constructor(private config: typeof emailConfig) {
+  constructor(private config: EmailConfig = emailConfig) {
     super();
+    this.mailbox = config.mailbox || 'INBOX';
   }
 
   async start(): Promise<void> {
@@ -273,7 +278,7 @@ export class ImapListener extends EventEmitter {
         messageId: parsed.messageId || `${uid}@mail.ringdom.org`,
         from: fromAddress?.address || '',
         fromName: fromAddress?.name || null,
-        to: toAddress?.address || emailConfig.user,
+        to: toAddress?.address || this.config.user,
         subject: parsed.subject || '(No Subject)',
         bodyText: parsed.text || null,
         bodyHtml: parsed.html || null,
