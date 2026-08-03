@@ -17,11 +17,21 @@ import {
   resolveSessionUserRole,
   UserRolesArray,
 } from '@/features/auth/user-role'
-import { acceptsProfileDms } from '@/features/auth/lib/personal-page-sections'
+import {
+  acceptsProfileDms,
+  normalizePublicProfileMedia,
+  personalPageMediaVisible,
+  showNftListings,
+} from '@/features/auth/lib/personal-page-sections'
 import { maybePrivatePersonalPageShell } from '@/features/auth/lib/personal-page-route-gate'
+import {
+  hasBlockedUser,
+} from '@/features/auth/services/user-blocklist'
+import { isDirectMessagingBlockedBetween } from '@/features/auth/services/user-blocklist-lib'
 import { recordPersonalPageView } from '@/features/analytics/lib/personal-page-analytics'
 import UserProfileWrapper from '@/components/wrappers/user-profile-wrapper'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
+import { BlockUserButton } from '@/features/auth/components/block-user-button'
 import { PublicProfileSections } from '@/features/auth/components/public-profile-sections'
 import ProfileListings from '@/features/nft-market/components/profile-listings'
 import { getNftMarketListings } from '@/features/nft-market/services/listing-query'
@@ -101,17 +111,25 @@ export default async function PublicProfilePage(
   const isOwner = Boolean(session?.user?.id && session.user.id === user.id)
   const visitorRole = resolveSessionUserRole(session?.user?.role as string)
   const dmsOk = acceptsProfileDms(user.acceptProfileDms)
+
+  let messagingBlocked = false
+  if (session?.user?.id && !isOwner) {
+    messagingBlocked = await isDirectMessagingBlockedBetween(session.user.id, user.id)
+  }
+  const contactAllowed = dmsOk && !messagingBlocked
+
   const canContact =
     Boolean(session?.user?.id) &&
     !isOwner &&
-    dmsOk &&
+    contactAllowed &&
     hasRoleAtLeast(visitorRole, UserRolesArray.subscriber)
 
-  const privateShell = maybePrivatePersonalPageShell({
+  const privateShell = await maybePrivatePersonalPageShell({
     user,
     session,
     locale: validLocale,
     username,
+    surface: 'profile',
   })
   if (privateShell) return privateShell
 
@@ -119,15 +137,24 @@ export default async function PublicProfilePage(
   const showOwnerChrome = isOwner && !viewAsVisitor
 
   const projected = projectPublicPersonalPage(user)
+  const media = normalizePublicProfileMedia(user.publicProfileMedia)
+  const master = Boolean(user.publicProfile)
+  const showPlayer = personalPageMediaVisible(media, 'player', master)
+  const showGames = personalPageMediaVisible(media, 'games', master)
+  const showGallery = personalPageMediaVisible(media, 'gallery', master)
+  const nftOn = showNftListings(user.publicProfileNftListings)
+
   const ownerRole = visitorRole
   const showCreateCta =
     showOwnerChrome && isMemberCollectionsEnabled() && hasMemberPrivileges(ownerRole)
   const showSellCta = showOwnerChrome && isNftMarketplaceEnabled()
-  const initialListings = await getNftMarketListings({
-    sellerUsername: profileUsername,
-    status: 'active',
-    limit: 12,
-  })
+  const initialListings = nftOn
+    ? await getNftMarketListings({
+        sellerUsername: profileUsername,
+        status: 'active',
+        limit: 12,
+      })
+    : null
 
   void (async () => {
     if (isOwner) return
@@ -140,6 +167,9 @@ export default async function PublicProfilePage(
   })().catch(() => undefined)
 
   const t = await getTranslations('modules.profile')
+  const initiallyBlocked =
+    session?.user?.id && !isOwner ? await hasBlockedUser(user.id) : false
+  const showGuestMessageCta = !session?.user?.id && contactAllowed && !viewAsVisitor
 
   return (
     <UserProfileWrapper locale={validLocale} username={username}>
@@ -183,24 +213,43 @@ export default async function PublicProfilePage(
                   targetUserId={user.id}
                   targetUserName={projected.name || projected.username}
                   locale={validLocale}
-                  acceptProfileDms={dmsOk}
+                  acceptProfileDms={contactAllowed}
                 />
               ) : null}
-              <Button asChild variant="outline" size="sm">
-                <Link href={ROUTES.PUBLIC_PROFILE_PLAYER(profileUsername, validLocale)}>
-                  {t('publicNavPlayer') || 'Player'}
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href={ROUTES.PUBLIC_PROFILE_GAMES(profileUsername, validLocale)}>
-                  {t('publicNavGames') || 'Games'}
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href={ROUTES.PUBLIC_PROFILE_IMG(profileUsername, validLocale)}>
-                  {t('publicNavGallery') || 'Gallery'}
-                </Link>
-              </Button>
+              {showGuestMessageCta ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={ROUTES.LOGIN(validLocale)}>
+                    {t('signInToMessage') || 'Sign in to message'}
+                  </Link>
+                </Button>
+              ) : null}
+              {session?.user?.id && !isOwner && !viewAsVisitor ? (
+                <BlockUserButton
+                  targetUserId={user.id}
+                  initiallyBlocked={initiallyBlocked}
+                />
+              ) : null}
+              {showPlayer ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={ROUTES.PUBLIC_PROFILE_PLAYER(profileUsername, validLocale)}>
+                    {t('publicNavPlayer') || 'Player'}
+                  </Link>
+                </Button>
+              ) : null}
+              {showGames ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={ROUTES.PUBLIC_PROFILE_GAMES(profileUsername, validLocale)}>
+                    {t('publicNavGames') || 'Games'}
+                  </Link>
+                </Button>
+              ) : null}
+              {showGallery ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={ROUTES.PUBLIC_PROFILE_IMG(profileUsername, validLocale)}>
+                    {t('publicNavGallery') || 'Gallery'}
+                  </Link>
+                </Button>
+              ) : null}
               {showOwnerChrome ? (
                 <Button asChild variant="secondary" size="sm">
                   <Link href={ROUTES.PROFILE_SONGS(validLocale)}>
@@ -226,16 +275,18 @@ export default async function PublicProfilePage(
           signInHref={ROUTES.LOGIN(validLocale)}
         />
 
-        <section className="mt-10">
-          <h2 className="text-xl font-medium">{t('nftsForSale') || 'NFTs for sale'}</h2>
-          <div className="mt-4">
-            <ProfileListings
-              username={profileUsername}
-              locale={validLocale}
-              initialPage={initialListings}
-            />
-          </div>
-        </section>
+        {nftOn && initialListings ? (
+          <section className="mt-10">
+            <h2 className="text-xl font-medium">{t('nftsForSale') || 'NFTs for sale'}</h2>
+            <div className="mt-4">
+              <ProfileListings
+                username={profileUsername}
+                locale={validLocale}
+                initialPage={initialListings}
+              />
+            </div>
+          </section>
+        ) : null}
 
         {showOwnerChrome && (showSellCta || showCreateCta) ? (
           <section className="mt-10">

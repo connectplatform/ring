@@ -43,11 +43,14 @@ export function AppShellStaticFallback() {
 export function AppClientShell({
   instanceConfig,
   session = null,
+  initialExchangeRates = null,
   children,
 }: {
   instanceConfig: PublicInstanceConfig
   /** SSR session from root layout — prevents loading→unauthenticated flash on protected forms. */
   session?: Session | null
+  /** SSR FX rates from ring-oracle (ensureFxFeedFresh + getExchangeRates). */
+  initialExchangeRates?: Record<string, number> | null
   children: React.ReactNode
 }) {
   return (
@@ -63,7 +66,7 @@ export function AppClientShell({
                     <CreditBalanceProvider>
                       <GlobalTunnelListeners />
                       <Web3ScopeProvider>
-                        <StorePaymentMethodsProvider>
+                        <StorePaymentMethodsProvider initialExchangeRates={initialExchangeRates}>
                           <StoreProvider>
                             {children}
                             <GoogleOneTap />

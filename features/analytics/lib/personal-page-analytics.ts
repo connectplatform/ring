@@ -21,6 +21,7 @@ const ANALYTICS_EVENTS = 'analytics_events'
 
 export const PERSONAL_PAGE_EVENT_TYPES = {
   pageView: 'personal_page_view',
+  privateProfileView: 'private_profile_view',
 } as const
 
 export type {
@@ -35,6 +36,8 @@ const EMPTY_STATS: PersonalPageVisitStats = {
   visits7d: 0,
   byRole24h: [],
   byRole7d: [],
+  privateUnique24h: 0,
+  privateUnique7d: 0,
   hasData: false,
 }
 
@@ -142,6 +145,35 @@ export async function recordPersonalPageView(input: {
   locale: string
   path: string
 }): Promise<void> {
+  return recordProfileAnalyticsEvent({
+    ...input,
+    eventType: PERSONAL_PAGE_EVENT_TYPES.pageView,
+  })
+}
+
+/** Record a hit on PrivateProfileShell (master or media surface gated). */
+export async function recordPrivateProfileView(input: {
+  username: string
+  profileUserId: string
+  locale: string
+  path: string
+  surface?: 'profile' | 'player' | 'games' | 'img'
+}): Promise<void> {
+  return recordProfileAnalyticsEvent({
+    ...input,
+    eventType: PERSONAL_PAGE_EVENT_TYPES.privateProfileView,
+    surface: input.surface ?? 'profile',
+  })
+}
+
+async function recordProfileAnalyticsEvent(input: {
+  username: string
+  profileUserId: string
+  locale: string
+  path: string
+  eventType: string
+  surface?: string
+}): Promise<void> {
   if (isAnalyticsStorageDisabled()) return
 
   const handle = input.username.trim().toLowerCase()
@@ -165,12 +197,13 @@ export async function recordPersonalPageView(input: {
 
   await insertAnalyticsEventBatch(sessionId, visitorUserId, [
     {
-      type: PERSONAL_PAGE_EVENT_TYPES.pageView,
+      type: input.eventType,
       data: {
         profileUsername: handle,
         profileUserId: input.profileUserId,
         locale: input.locale,
         path: input.path,
+        surface: input.surface,
         visitorUserId,
         visitorUsername,
         visitorRole,
@@ -188,7 +221,11 @@ export async function recordPersonalPageView(input: {
   ])
 }
 
-async function queryPersonalPageViews(since: Date, profileUsername?: string) {
+async function queryPersonalPageEvents(
+  since: Date,
+  eventType: string,
+  profileUsername?: string,
+) {
   if (isAnalyticsStorageDisabled()) {
     return [] as Array<Record<string, unknown>>
   }
@@ -196,7 +233,7 @@ async function queryPersonalPageViews(since: Date, profileUsername?: string) {
   const result = await db().queryDocs({
     collection: ANALYTICS_EVENTS,
     filters: [
-      { field: 'eventType', operator: '==', value: PERSONAL_PAGE_EVENT_TYPES.pageView },
+      { field: 'eventType', operator: '==', value: eventType },
       { field: 'created_at', operator: '>=', value: since },
     ],
     orderBy: [{ field: 'created_at', direction: 'desc' }],
@@ -218,6 +255,10 @@ async function queryPersonalPageViews(since: Date, profileUsername?: string) {
   })
 }
 
+async function queryPersonalPageViews(since: Date, profileUsername?: string) {
+  return queryPersonalPageEvents(since, PERSONAL_PAGE_EVENT_TYPES.pageView, profileUsername)
+}
+
 /** Unique + total visit windows for one personal page, roles sorted by unique desc. */
 export async function getPersonalPageVisitStats(
   username: string,
@@ -230,17 +271,32 @@ export async function getPersonalPageVisitStats(
     const dayAgo = new Date(now - 24 * 60 * 60 * 1000)
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
 
-    const weekRows = await queryPersonalPageViews(weekAgo, handle)
-    if (!weekRows.length) return EMPTY_STATS
+    const [weekRows, privateWeekRows] = await Promise.all([
+      queryPersonalPageViews(weekAgo, handle),
+      queryPersonalPageEvents(
+        weekAgo,
+        PERSONAL_PAGE_EVENT_TYPES.privateProfileView,
+        handle,
+      ),
+    ])
 
-    const dayRows = weekRows.filter((row) => {
-      const raw = (row.created_at as string | Date | undefined) ?? row.recordedAt
-      const when = raw ? new Date(raw as string) : null
-      return when && !Number.isNaN(when.getTime()) && when >= dayAgo
-    })
+    const filterDay = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((row) => {
+        const raw = (row.created_at as string | Date | undefined) ?? row.recordedAt
+        const when = raw ? new Date(raw as string) : null
+        return when && !Number.isNaN(when.getTime()) && when >= dayAgo
+      })
+
+    const dayRows = filterDay(weekRows)
+    const privateDayRows = filterDay(privateWeekRows)
 
     const weekAgg = aggregateWindow(weekRows)
     const dayAgg = aggregateWindow(dayRows)
+    const privateWeekAgg = aggregateWindow(privateWeekRows)
+    const privateDayAgg = aggregateWindow(privateDayRows)
+
+    const hasData = weekRows.length > 0 || privateWeekRows.length > 0
+    if (!hasData) return EMPTY_STATS
 
     return {
       unique24h: dayAgg.unique,
@@ -249,6 +305,8 @@ export async function getPersonalPageVisitStats(
       visits7d: weekAgg.visits,
       byRole24h: dayAgg.byRole,
       byRole7d: weekAgg.byRole,
+      privateUnique24h: privateDayAgg.unique,
+      privateUnique7d: privateWeekAgg.unique,
       hasData: true,
     }
   } catch {
@@ -259,7 +317,16 @@ export async function getPersonalPageVisitStats(
 /** Platform-wide personal page metrics for admin/analytics. */
 export async function getPersonalPagePlatformStats(
   timeframe: '24h' | '7d' | '30d' = '7d',
-): Promise<PersonalPageVisitStats & { topProfiles: Array<{ username: string; unique: number; visits: number }> }> {
+): Promise<
+  PersonalPageVisitStats & {
+    topProfiles: Array<{
+      username: string
+      unique: number
+      visits: number
+      privateUnique: number
+    }>
+  }
+> {
   const ms =
     timeframe === '24h'
       ? 24 * 60 * 60 * 1000
@@ -272,46 +339,85 @@ export async function getPersonalPagePlatformStats(
   const dayAgo = new Date(now - 24 * 60 * 60 * 1000)
 
   try {
-    const periodRows = await queryPersonalPageViews(periodStart)
-    if (!periodRows.length) {
+    const [periodRows, privatePeriodRows] = await Promise.all([
+      queryPersonalPageViews(periodStart),
+      queryPersonalPageEvents(
+        periodStart,
+        PERSONAL_PAGE_EVENT_TYPES.privateProfileView,
+      ),
+    ])
+
+    if (!periodRows.length && !privatePeriodRows.length) {
       return { ...EMPTY_STATS, topProfiles: [] }
     }
 
-    const dayRows = periodRows.filter((row) => {
+    const inDay = (row: Record<string, unknown>) => {
       const raw = (row.created_at as string | Date | undefined) ?? row.recordedAt
       const when = raw ? new Date(raw as string) : null
       return when && !Number.isNaN(when.getTime()) && when >= dayAgo
-    })
+    }
+
+    const dayRows = periodRows.filter(inDay)
+    const privateDayRows = privatePeriodRows.filter(inDay)
 
     const weekAgg = aggregateWindow(periodRows)
     const dayAgg = aggregateWindow(dayRows)
+    const privateWeekAgg = aggregateWindow(privatePeriodRows)
+    const privateDayAgg = aggregateWindow(privateDayRows)
 
-    const perProfile = new Map<string, { keys: Set<string>; visits: number }>()
-    for (const row of periodRows) {
-      const payload = (row.payload ?? {}) as Record<string, unknown>
-      const username =
-        typeof payload.profileUsername === 'string'
-          ? payload.profileUsername.toLowerCase()
-          : ''
-      if (!username) continue
-      const key = visitorKey({
-        userId: row.userId,
-        sessionId: row.sessionId,
-        payload,
-      })
-      const bucket = perProfile.get(username) ?? { keys: new Set(), visits: 0 }
-      bucket.keys.add(key)
-      bucket.visits += 1
-      perProfile.set(username, bucket)
+    type ProfileBucket = {
+      keys: Set<string>
+      visits: number
+      privateKeys: Set<string>
     }
+    const perProfile = new Map<string, ProfileBucket>()
+
+    const bump = (
+      rows: Array<Record<string, unknown>>,
+      kind: 'public' | 'private',
+    ) => {
+      for (const row of rows) {
+        const payload = (row.payload ?? {}) as Record<string, unknown>
+        const username =
+          typeof payload.profileUsername === 'string'
+            ? payload.profileUsername.toLowerCase()
+            : ''
+        if (!username) continue
+        const key = visitorKey({
+          userId: row.userId,
+          sessionId: row.sessionId,
+          payload,
+        })
+        const bucket = perProfile.get(username) ?? {
+          keys: new Set(),
+          visits: 0,
+          privateKeys: new Set(),
+        }
+        if (kind === 'public') {
+          bucket.keys.add(key)
+          bucket.visits += 1
+        } else {
+          bucket.privateKeys.add(key)
+        }
+        perProfile.set(username, bucket)
+      }
+    }
+
+    bump(periodRows, 'public')
+    bump(privatePeriodRows, 'private')
 
     const topProfiles = [...perProfile.entries()]
       .map(([username, bucket]) => ({
         username,
         unique: bucket.keys.size,
         visits: bucket.visits,
+        privateUnique: bucket.privateKeys.size,
       }))
-      .sort((a, b) => b.unique - a.unique || b.visits - a.visits)
+      .sort(
+        (a, b) =>
+          b.unique + b.privateUnique - (a.unique + a.privateUnique) ||
+          b.visits - a.visits,
+      )
       .slice(0, 10)
 
     return {
@@ -321,6 +427,8 @@ export async function getPersonalPagePlatformStats(
       visits7d: weekAgg.visits,
       byRole24h: dayAgg.byRole,
       byRole7d: weekAgg.byRole,
+      privateUnique24h: privateDayAgg.unique,
+      privateUnique7d: privateWeekAgg.unique,
       hasData: true,
       topProfiles,
     }

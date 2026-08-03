@@ -1,9 +1,9 @@
 import fs from 'fs'
-import path from 'path'
 import {
   buildDocsHref,
   buildDocsLinkPath,
   getDocsLocaleRoot,
+  joinDocsFsPath,
   readSectionMeta,
   resolveDocFilePath,
 } from '@/lib/docs/docs-path'
@@ -33,12 +33,12 @@ export function getDocsSectionSlugs(locale: string): string[] {
   const localeRoot = getDocsLocaleRoot(locale)
   if (!fs.existsSync(localeRoot)) return []
 
-  const meta = readSectionMeta(path.join(localeRoot, 'meta.json'))
+  const meta = readSectionMeta(joinDocsFsPath(localeRoot, 'meta.json'))
   const fromMeta = meta.pages ?? []
   const seen = new Set<string>(fromMeta)
 
   for (const item of fs.readdirSync(localeRoot)) {
-    const fullPath = path.join(localeRoot, item)
+    const fullPath = joinDocsFsPath(localeRoot, item)
     const stat = fs.statSync(fullPath)
     if (stat.isDirectory() && !item.startsWith('.')) {
       seen.add(item)
@@ -77,7 +77,7 @@ export function listDocsInSection(
   limit = 6,
 ): DocsLinkSuggestion[] {
   const localeRoot = getDocsLocaleRoot(locale)
-  const sectionDir = path.join(localeRoot, sectionSlug)
+  const sectionDir = joinDocsFsPath(localeRoot, sectionSlug)
   const suggestions: DocsLinkSuggestion[] = []
   const seen = new Set<string>()
 
@@ -90,13 +90,13 @@ export function listDocsInSection(
     suggestions.push(link)
   }
 
-  const sectionMeta = readSectionMeta(path.join(sectionDir, 'meta.json'))
+  const sectionMeta = readSectionMeta(joinDocsFsPath(sectionDir, 'meta.json'))
   for (const page of sectionMeta.pages ?? []) {
     if (suggestions.length >= limit) break
     pushSlug([sectionSlug, page])
   }
 
-  if (fs.existsSync(path.join(sectionDir, 'index.mdx'))) {
+  if (fs.existsSync(joinDocsFsPath(sectionDir, 'index.mdx'))) {
     pushSlug([sectionSlug])
   }
 

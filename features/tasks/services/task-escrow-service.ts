@@ -2,13 +2,15 @@ import { MessageService } from '@/features/chat/services/message-service'
 import type { Message, TaskMetadata } from '@/features/chat/types'
 import type { TaskEscrow, TaskEscrowFundInput } from '@/features/tasks/types/escrow'
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
-import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
+import {
+  getMainCurrencyCreditAccountingRate,
+  getNativeTokenPerMainCurrencyRate,
+} from '@/lib/ring-oracle'
 import { refundStorePayment } from '@/lib/payments/wayforpay-store-service'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { getNativeChain, getNativeTokenDecimals } from '@/lib/ring-config-chain'
 import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
-import { getNativeTokenPerMainCurrencyRate } from '@/lib/ring-oracle'
 import { db } from '@/lib/database'
 import { ValidationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'

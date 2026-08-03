@@ -1,18 +1,191 @@
 ---
-title: Vercel
-description: Vercel documentation for Ring Platform
+title: Vercel Deployment
+description: Deploy Ring on Vercel with RING_DEPLOY_TARGET, serverless limits, and vercel.json as the ProcessConductor cron schedule catalog (19 pipelines, CRON_SECRET).
+last_modified: "2026-08-03"
+audience: both
 ---
 
 # Vercel Deployment
 
-## Steps
-
-1. Push repo to GitHub
-2. Import project in Vercel
-3. Set environment variables
-4. Deploy main branch
-
-
 <Callout type="info">
-Set `RING_DEPLOY_TARGET=vercel` and `NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel`. Vercel runs serverless route handlers only — **no custom `server.ts`**. Tunnel uses SSE + long-polling; native WSS is not available.
+  Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page for your role. `audience` frontmatter controls content filtering within the page. Sidebar article visibility is controlled separately by `lib/docs/audience-curated-docs.ts`.
 </Callout>
+
+Vercel is a **first-class Ring deploy target** — equal in the backend matrix to Firebase Hosting / Cloud Run and k3s. The app runs as **Next.js serverless route handlers** (no custom `server.ts`). Platform Cron reads root **`vercel.json`** and invokes each ProcessConductor path on a UTC schedule.
+
+| Concern | Vercel truth |
+|---------|----------------|
+| Deploy flags | `RING_DEPLOY_TARGET=vercel`, `NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel` |
+| Runtime | Serverless only — no custom Node `server.ts` |
+| Tunnel | SSE + long-polling (no native WSS) |
+| Cron catalog | `vercel.json` → `crons[]` — must list every ProcessConductor `cronPath` |
+| Auth gate | `Authorization: Bearer $CRON_SECRET` on `/api/cron/*` |
+
+<Audience for="founder">
+
+## Why Vercel Cron matters for clone health
+
+ProcessConductor runs **19** background pipelines (email poll, cleanups, settlements, membership expiry, peer-game session expiry, Forgejo lab GC, and more). On Vercel, **Platform Cron** hits the same HTTP routes your Admin → **Background Processes** panel records. If `CRON_SECRET` is missing or `crons[]` is incomplete, those jobs silently never run.
+
+### Operator checklist
+
+1. Import the Ring repo in the Vercel dashboard and deploy the main branch.
+2. Copy required secrets from [Environment variables](/docs/deployment/environment) — include a long random **`CRON_SECRET`**.
+3. Set `RING_DEPLOY_TARGET=vercel` and `NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel`.
+4. Confirm root `vercel.json` `crons[]` lists **every** ProcessConductor path (schedule SSOT for all backends).
+5. After deploy, open Admin → Background Processes and verify runs appear.
+6. Expect Tunnel over **SSE + long-polling** only — native WebSocket is a self-hosted / custom-server concern.
+
+<Callout type="tip">
+  Hosting on **Firebase** instead? Same cron URLs and schedules — trigger with **Google Cloud Scheduler**, using `vercel.json` as the catalog. See [Firebase Integration](/docs/backend/firebase).
+</Callout>
+
+<Cards>
+  <Card href="/docs/deployment/environment" title="Environment variables" description="CRON_SECRET, deploy targets, and the full env checklist." />
+  <Card href="/docs/backend/firebase" title="Firebase + Cloud Scheduler" description="Same ProcessConductor contracts when firebase.json is not your cron file." />
+  <Card href="/docs/features/admin" title="Admin console" description="Background Processes labels for pipeline run history." />
+</Cards>
+
+</Audience>
+
+<Audience for="developer">
+
+## Deploy on Vercel
+
+<Steps>
+
+<Step>
+
+Push the Ring repo to GitHub (or connect another Git provider Vercel supports).
+
+</Step>
+
+<Step>
+
+Import the project in the Vercel dashboard. Framework preset: **Next.js**. Root directory: the Ring app root (where `package.json` and `vercel.json` live).
+
+</Step>
+
+<Step>
+
+Set environment variables (see [Environment](/docs/deployment/environment)), including:
+
+```bash
+RING_DEPLOY_TARGET=vercel
+NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel
+CRON_SECRET=generate-a-long-random-string
+```
+
+Plus your `DB_BACKEND_MODE` and backend-specific secrets (`AUTH_FIREBASE_*`, Postgres URL, payment keys, etc.).
+
+</Step>
+
+<Step>
+
+Deploy the production branch. Confirm Platform Cron shows the paths from `vercel.json`.
+
+</Step>
+
+</Steps>
+
+<Callout type="warning">
+  Vercel runs **serverless route handlers only** — there is **no** custom `server.ts`. Tunnel uses **SSE + long-polling**; native WSS is unavailable on this target (`server.ts` logs SSE-only when `RING_DEPLOY_TARGET=vercel`).
+</Callout>
+
+## ProcessConductor + vercel.json
+
+| Layer | Path |
+|-------|------|
+| Pipeline SSOT | `lib/processes/registry.ts` — `PIPELINE_IDS` + `PIPELINE_REGISTRY` (**19**) |
+| HTTP routes | `app/api/cron/<name>/route.ts` — `GET`/`POST` |
+| Schedule catalog | `ring-platform.org/vercel.json` → `crons[]` (UTC) |
+| Ledger | `ProcessConductor.recordRun` |
+| Admin copy | `locales/*/modules/admin.json` → `processes.pipelines.*` |
+| Ops write-up | `AI-RING/scripts/PIPELINES.md` § ProcessConductor cron pipelines |
+
+**Parity rule:** `vercel.json` **must list every** ProcessConductor `cronPath`. Firebase-hosted rings reuse this file as the schedule catalog for Cloud Scheduler. k3s uses per-job YAML under `k8s/` (e.g. `cronjob-email-processor.yaml`) curling an in-cluster URL — not a single inventory file.
+
+### Full schedule catalog (UTC)
+
+| Pipeline ID | cronPath | schedule |
+|-------------|----------|----------|
+| email-processor | `/api/cron/email-processor` | `*/5 * * * *` |
+| email-analytics | `/api/cron/email-analytics` | `0 6 * * *` |
+| refcodes-mint | `/api/cron/refcodes-mint` | `*/30 * * * *` |
+| cleanup-reservations | `/api/cron/cleanup-reservations` | `*/15 * * * *` |
+| cleanup-usernames | `/api/cron/cleanup-usernames` | `*/5 * * * *` |
+| cleanup-news-deleted | `/api/cron/cleanup-news-deleted` | `0 3 * * 0` |
+| cleanup-email-tokens | `/api/cron/cleanup-email-tokens` | `0 */6 * * *` |
+| train | `/api/cron/train` | `0 2 * * *` |
+| settlement-payout | `/api/cron/settlement-payout` | `0 1 * * *` |
+| inventory-drift | `/api/cron/inventory-drift` | `0 */6 * * *` |
+| subscription-expiry-check | `/api/cron/subscription-expiry` | `0 0 * * *` |
+| credit-balance-monthly | `/api/cron/credit-balance-monthly` | `0 * * * *` |
+| subscription-payment | `/api/cron/subscription-payment` | `0 2 * * *` |
+| solana-batch-payment | `/api/cron/solana-batch-payment` | `0 3 * * *` |
+| nft-gate-expiry | `/api/cron/nft-gate-expiry` | `0 4 * * *` |
+| close-expired-polls | `/api/cron/close-expired-polls` | `*/5 * * * *` |
+| peer-game-session-expiry | `/api/cron/peer-game-session-expiry` | `*/5 * * * *` |
+| forgejo-robot-gc | `/api/cron/forgejo-robot-gc` | `0 4 * * 0` |
+| forgejo-token-rotate | `/api/cron/forgejo-token-rotate` | `0 5 1 * *` |
+
+Example `vercel.json` shape (every ProcessConductor path must appear):
+
+```json
+{
+  "crons": [
+    { "path": "/api/cron/email-processor", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/forgejo-robot-gc", "schedule": "0 4 * * 0" }
+  ]
+}
+```
+
+### Auth smoke test
+
+```bash
+curl -sS -H "Authorization: Bearer $CRON_SECRET" \
+  "https://<your-deployment>/api/cron/email-processor"
+```
+
+Fail-closed: missing/wrong bearer → `401`.
+
+### Adding a pipeline
+
+1. Register in `lib/processes/registry.ts` (`PIPELINE_IDS` + `PIPELINE_REGISTRY` with `cronPath`).
+2. Add `app/api/cron/<name>/route.ts` (Bearer gate + `ProcessConductor.recordRun`).
+3. Add Admin labels under `locales/*/modules/admin.json` → `processes.pipelines.*`.
+4. **Append** `{ path, schedule }` to `vercel.json` `crons[]`.
+5. Optionally add `k8s/cronjob-<name>.yaml` for cluster deploys.
+
+Ops notes: `forgejo-robot-gc` supports `?dryRun=1`; `forgejo-token-rotate` uses `FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS` / `FORGEJO_TOKEN_ROTATE_LIMIT`.
+
+</Audience>
+
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="backend/firebase"
+    relation="Same-workflow: Firebase-hosted rings use Cloud Scheduler + this vercel.json catalog (firebase.json is not cron)."
+  />
+  <RelatedArticle
+    slug="deployment/environment"
+    relation="Depends-on: CRON_SECRET, RING_DEPLOY_TARGET, and backend secrets."
+  />
+  <RelatedArticle
+    slug="features/admin"
+    relation="Next-step: Admin → Background Processes for recorded pipeline runs."
+  />
+  <RelatedArticle
+    slug="features/email-ai-crm"
+    relation="Same-workflow: email-processor and email-analytics cron pipelines."
+  />
+  <RelatedArticle
+    slug="deployment/self-hosted"
+    relation="See-also: k3s path with native WSS and per-job CronJob YAML."
+  />
+  <RelatedArticle
+    slug="architecture/backend-modes-and-databases"
+    relation="Prerequisite: pick DB_BACKEND_MODE before choosing a host."
+  />
+</RelatedDocs>

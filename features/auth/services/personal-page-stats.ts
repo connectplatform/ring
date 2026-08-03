@@ -21,6 +21,8 @@ const EMPTY: PersonalPageViewStats = {
   visits7d: 0,
   byRole24h: [],
   byRole7d: [],
+  privateUnique24h: 0,
+  privateUnique7d: 0,
   hasData: false,
 }
 

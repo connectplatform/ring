@@ -93,7 +93,7 @@ export async function initiateMembershipPayment(
     const { getLiveMemberMainCurrencyTierForPeriod } = await import(
       '@/lib/membership/pricing-live'
     )
-    const { getCreditUnitLabel } = await import('@/lib/payments/credit-balance')
+    const { getCreditUnitLabel } = await import('@/lib/ring-oracle')
     // Live desk price so the charge equals what the desk quotes right now.
     const tierConfig = await getLiveMemberMainCurrencyTierForPeriod(billingPeriod)
     if (!tierConfig) {

@@ -1,5 +1,5 @@
 /**
- * Personal page section + field SSOT — shared by Page Builder and public /[username] RSC.
+ * Personal page section + field + media SSOT — shared by Page Builder and public /[username] RSC.
  */
 
 export const PERSONAL_PAGE_SECTION_IDS = [
@@ -19,7 +19,7 @@ export const DEFAULT_PERSONAL_PAGE_SECTIONS: readonly PersonalPageSectionId[] = 
 /** Per-section field ids (v1). Missing key = visible when parent section is on. */
 export const PERSONAL_PAGE_FIELDS = {
   bio: ['text'],
-  messengers: ['telegram', 'whatsapp', 'viber', 'signal'],
+  messengers: ['telegram', 'whatsapp'],
   professional: ['organization', 'position', 'linkedin', 'twitter', 'skills'],
   location: ['country', 'timezone'],
   contact: ['phone'],
@@ -33,6 +33,13 @@ export type PublicProfileFieldsMap = {
     Record<(typeof PERSONAL_PAGE_FIELDS)[K][number], boolean>
   >
 }
+
+/** Media surfaces gated independently of master publicProfile when pinned. */
+export const PERSONAL_PAGE_MEDIA_IDS = ['player', 'games', 'gallery'] as const
+
+export type PersonalPageMediaId = (typeof PERSONAL_PAGE_MEDIA_IDS)[number]
+
+export type PublicProfileMediaMap = Partial<Record<PersonalPageMediaId, boolean>>
 
 export function normalizePersonalPageSections(
   raw?: string[] | null,
@@ -90,8 +97,79 @@ export function personalPageFieldEnabled(
   return bucket[field] !== false
 }
 
+/**
+ * Normalize users.skills from JSONB (array, JSON string, or comma-separated).
+ * Empty / unparseable → undefined (omit from AuthUser).
+ */
+export function normalizeSkills(raw: unknown): string[] | undefined {
+  if (raw == null) return undefined
+  let list: unknown[] = []
+  if (Array.isArray(raw)) {
+    list = raw
+  } else if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return undefined
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) list = parsed
+        else return undefined
+      } catch {
+        list = trimmed.split(',')
+      }
+    } else {
+      list = trimmed.split(',')
+    }
+  } else {
+    return undefined
+  }
+  const skills = [
+    ...new Set(
+      list
+        .map((s) => (typeof s === 'string' ? s.trim() : String(s ?? '').trim()))
+        .filter(Boolean),
+    ),
+  ]
+  return skills.length ? skills : undefined
+}
+
 /** Default true when unset — recipient accepts profile ContactForm / MessageUserButton. */
 export function acceptsProfileDms(value: unknown): boolean {
   if (value === false || value === 'false' || value === 0 || value === '0') return false
   return true
+}
+
+/** Default true when unset — NFT listings strip on public personal page. */
+export function showNftListings(value: unknown): boolean {
+  if (value === false || value === 'false' || value === 0 || value === '0') return false
+  return true
+}
+
+/** Normalize publicProfileMedia map; unknown keys dropped. */
+export function normalizePublicProfileMedia(raw?: unknown): PublicProfileMediaMap {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: PublicProfileMediaMap = {}
+  for (const id of PERSONAL_PAGE_MEDIA_IDS) {
+    const value = (raw as Record<string, unknown>)[id]
+    if (value === false || value === 'false' || value === 0 || value === '0') {
+      out[id] = false
+    } else if (value === true || value === 'true' || value === 1 || value === '1') {
+      out[id] = true
+    }
+  }
+  return out
+}
+
+/**
+ * Media visibility: missing key inherits master `publicProfile`;
+ * explicit true/false pins the surface independently.
+ */
+export function personalPageMediaVisible(
+  media: PublicProfileMediaMap | null | undefined,
+  surface: PersonalPageMediaId,
+  masterPublicProfile: boolean,
+): boolean {
+  const pinned = media?.[surface]
+  if (typeof pinned === 'boolean') return pinned
+  return Boolean(masterPublicProfile)
 }

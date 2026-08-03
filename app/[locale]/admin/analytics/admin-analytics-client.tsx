@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { useTranslations } from 'next-intl'
+import Link from 'next/link'
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,8 @@ import type { PlatformAnalyticsSummary } from '@/features/analytics/types/platfo
 import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
 import { AnalyticsForensicsRow } from '@/components/admin/analytics-forensics-row'
 import { AdminUserAnalyticsPanel } from '@/components/admin/admin-user-analytics-panel'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 
 // Format a given web vital based on its type/name
 function formatVitalValue(name: string, value: number): string {
@@ -63,6 +66,7 @@ export default function AdminAnalyticsClient({
 }) {
   // TODO: Consider using useOptimistic or useFormState for future interactive analytic filtering.
   const t = useTranslations('modules.admin.webAnalytics')
+  const locale = useLocale() as Locale
 
   return (
     <div className="container mx-auto px-0 py-0">
@@ -191,6 +195,22 @@ export default function AdminAnalyticsClient({
                           {data.personalPages.visitsPeriod} {t('overview.personalVisits')}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('overview.personalPrivateUnique24h')}
+                        </p>
+                        <p className="text-2xl font-bold">
+                          {data.personalPages.privateUnique24h}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('overview.personalPrivateUniquePeriod')}
+                        </p>
+                        <p className="text-2xl font-bold">
+                          {data.personalPages.privateUniquePeriod}
+                        </p>
+                      </div>
                     </div>
                     {data.personalPages.byRolePeriod.length > 0 ? (
                       <div className="space-y-2">
@@ -222,18 +242,28 @@ export default function AdminAnalyticsClient({
                     ) : null}
                     {data.personalPages.topProfiles.length > 0 ? (
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">{t('overview.personalTopProfiles')}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">{t('overview.personalTopProfiles')}</p>
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {t('overview.personalTopProfilesHint')}
+                          </p>
+                        </div>
                         <ul className="space-y-1">
                           {data.personalPages.topProfiles.map((row) => (
                             <li
                               key={row.username}
-                              className="flex items-center justify-between text-sm"
+                              className="flex items-center justify-between gap-3 text-sm"
                             >
-                              <span className="truncate font-mono text-muted-foreground">
+                              <Link
+                                href={ROUTES.PUBLIC_PROFILE(row.username, locale)}
+                                className="truncate font-mono text-primary hover:underline"
+                              >
                                 /{row.username}
-                              </span>
-                              <span className="shrink-0 tabular-nums font-medium">
+                              </Link>
+                              <span className="shrink-0 tabular-nums font-medium text-muted-foreground">
                                 {row.unique}
+                                <span className="mx-1 text-border">·</span>
+                                {row.privateUnique}
                               </span>
                             </li>
                           ))}

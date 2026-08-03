@@ -35,8 +35,8 @@ import {
   updatePaymentPreference,
   updateLastUsedAddress
 } from '@/app/_actions/store-preferences-actions'
-import { getMainCurrencySymbol, getSupportedCurrencies } from '@/lib/ring-config-core'
-import type { SupportedCurrencies } from '@/lib/ring-config-types'
+import { getMainCurrencySymbol, getSupportedCurrencies, getSupportedCrypto } from '@/lib/ring-config-core'
+import type { SupportedCurrencies, SupportedCrypto } from '@/lib/ring-config-types'
 import type { StorePaymentMethods } from '@/features/store/types'
 import {
   DavinciDroplist,
@@ -44,7 +44,8 @@ import {
   DavinciDroplistTrigger,
 } from '@/components/ui/davinci-droplist'
 
-const PRESENTMENT_CURRENCIES: SupportedCurrencies[] = getSupportedCurrencies()
+const FIAT_PRESENTMENT: SupportedCurrencies[] = getSupportedCurrencies()
+const CRYPTO_PRESENTMENT: SupportedCrypto[] = getSupportedCrypto()
 const MAIN_CURRENCY_CODE = getMainCurrencySymbol() as SupportedCurrencies
 
 // ===================
@@ -102,7 +103,13 @@ export function PrebillingPage({
     formatPrice: formatCurrencyPrice,
     currency: activeCurrency,
     mainCurrency,
+    displayMode,
+    setCurrency,
   } = useStorePaymentMethods()
+
+  /** Left-rail mode drives pool: fiats vs configured crypto symbols. */
+  const presentmentPool: StorePaymentMethods[] =
+    displayMode === 'native_token' ? [...CRYPTO_PRESENTMENT] : [...FIAT_PRESENTMENT]
 
   // ==========================================
   // UI/Form State (User, Address, Preferences)
@@ -126,9 +133,9 @@ export function PrebillingPage({
   const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true) // Billing = shipping
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<UserAddress | null>(null) // Separate billing if needed
 
-  // Presentment currency for card/paypal (fiat pool only)
+  // Presentment selection — card/paypal charge stays fiat (main or last fiat pick).
   const defaultPaymentCurrency: SupportedCurrencies =
-    PRESENTMENT_CURRENCIES.includes(activeCurrency as SupportedCurrencies)
+    FIAT_PRESENTMENT.includes(activeCurrency as SupportedCurrencies)
       ? (activeCurrency as SupportedCurrencies)
       : MAIN_CURRENCY_CODE
   const [paymentCurrency, setPaymentCurrency] = useState<SupportedCurrencies>(defaultPaymentCurrency)
@@ -194,7 +201,7 @@ export function PrebillingPage({
         }
         if (
           userPreferences.preferredDisplayCurrency &&
-          PRESENTMENT_CURRENCIES.includes(userPreferences.preferredDisplayCurrency)
+          FIAT_PRESENTMENT.includes(userPreferences.preferredDisplayCurrency)
         ) {
           setPaymentCurrency(userPreferences.preferredDisplayCurrency)
         }
@@ -628,12 +635,12 @@ export function PrebillingPage({
 
                 const grandTotalMain = subtotalMain + shippingCostMain
                 const showPresentment = paymentMethod === 'card' || paymentMethod === 'paypal'
-                const displayCode = showPresentment
-                  ? paymentCurrency
-                  : (PRESENTMENT_CURRENCIES.includes(activeCurrency as SupportedCurrencies)
-                      ? (activeCurrency as SupportedCurrencies)
-                      : MAIN_CURRENCY_CODE)
-                const filteredCurrencies = PRESENTMENT_CURRENCIES.filter((c) =>
+                const displayCode: StorePaymentMethods = showPresentment
+                  ? (displayMode === 'native_token'
+                      ? activeCurrency
+                      : paymentCurrency)
+                  : activeCurrency
+                const filteredCurrencies = presentmentPool.filter((c) =>
                   c.toLowerCase().includes(currencySearch.trim().toLowerCase()),
                 )
 
@@ -678,7 +685,9 @@ export function PrebillingPage({
                                 onClick={() => setCurrencyDroplistOpen(true)}
                                 className="h-9 w-[7.5rem] shrink-0"
                               >
-                                <span className="truncate">{paymentCurrency}</span>
+                                <span className="truncate">
+                                  {displayMode === 'native_token' ? activeCurrency : paymentCurrency}
+                                </span>
                                 <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
                               </DavinciDroplistTrigger>
                             }
@@ -686,9 +695,16 @@ export function PrebillingPage({
                             {filteredCurrencies.map((code) => (
                               <DavinciDroplistItem
                                 key={code}
-                                selected={code === paymentCurrency}
+                                selected={
+                                  displayMode === 'native_token'
+                                    ? code === activeCurrency
+                                    : code === paymentCurrency
+                                }
                                 onSelect={() => {
-                                  setPaymentCurrency(code)
+                                  if (FIAT_PRESENTMENT.includes(code as SupportedCurrencies)) {
+                                    setPaymentCurrency(code as SupportedCurrencies)
+                                  }
+                                  setCurrency(code)
                                   setCurrencyDroplistOpen(false)
                                   setCurrencySearch('')
                                 }}

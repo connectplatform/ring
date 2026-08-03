@@ -43,7 +43,7 @@ function defaultNativePerMainCurrency(): string {
   try {
     const rates = getExchangeRates()
     const symbol = getNativeTokenSymbol()
-    const keyed = rates?.[symbol] ?? rates?.RING
+    const keyed = rates?.[symbol]
     if (typeof keyed === 'number' && Number.isFinite(keyed) && keyed > 0) {
       return String(keyed)
     }

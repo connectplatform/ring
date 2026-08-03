@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import {
-  buildDocsLinkPath,
-  resolveDocFilePath,
-} from '@/lib/docs/docs-path'
+import { buildDocsLinkPath } from '@/lib/docs/docs-path-url'
+import { resolveDocFilePath } from '@/lib/docs/docs-path'
 import { getDocTitleFromFile } from '@/lib/docs/docs-article'
 
 export interface RelatedDocsProps {

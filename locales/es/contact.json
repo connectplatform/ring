@@ -39,6 +39,16 @@
     "success": "¡Gracias por tu mensaje!",
     "openMessages": "Abrir conversación",
     "messageSent": "¡Mensaje enviado!",
-    "notAcceptingMessages": "Este miembro no acepta mensajes desde el perfil"
+    "notAcceptingMessages": "Este miembro no acepta mensajes desde el perfil",
+    "signInRequired": "Inicia sesión para enviar un mensaje",
+    "subscriberRequired": "Se requiere suscripción para contactar a este usuario",
+    "cannotMessageSelf": "No puedes enviarte un mensaje a ti mismo",
+    "messageRequired": "El mensaje es obligatorio",
+    "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en un minuto.",
+    "recipientNotFound": "Destinatario no encontrado",
+    "recipientRequired": "Se requiere destinatario",
+    "sendFailed": "No se pudo enviar el mensaje. Inténtalo de nuevo.",
+    "allFieldsRequired": "Todos los campos son obligatorios",
+    "invalidEmail": "Introduce un correo electrónico válido"
   }
 }

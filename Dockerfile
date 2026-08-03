@@ -358,7 +358,7 @@ ENV SKIP_TYPE_CHECK=1
 # Ephemeral AUTH_SECRET for Next compile only — production value comes from K8s at pod start.
 RUN --mount=type=cache,target=/app/.next/cache \
     AUTH_SECRET=ring-docker-build-placeholder-not-for-runtime \
-    NODE_OPTIONS="--no-deprecation --max-old-space-size=4096" npm run build:skip-types
+    NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
 
 # Trim devDependencies for runtime copy (avoids second npm ci in runtime stage)
 RUN npm prune --omit=dev

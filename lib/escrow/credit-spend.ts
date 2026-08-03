@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
-import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
+import { getMainCurrencyCreditAccountingRate } from '@/lib/ring-oracle'
 import { ValidationError } from '@/lib/errors'
 
 /**

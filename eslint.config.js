@@ -31,10 +31,9 @@ const eslintConfig = [
       "@next/next/no-html-link-for-pages": "warn",
       "@next/next/no-img-element": "warn",
 
-      // Ring Oracle SSOT — prefer @/lib/ring-oracle over deep rate modules.
-      // Implementations + the facade itself are exempt below.
+      // Ring Oracle SSOT — error so CI blocks regressive deep rate imports.
       "no-restricted-imports": [
-        "warn",
+        "error",
         {
           paths: [
             {
@@ -52,6 +51,11 @@ const eslintConfig = [
               message:
                 "Deleted — use @/lib/ring-oracle (mainCurrencyToNativeTokenUiWithMeta / nativeTokenUiToMainCurrencyWithMeta).",
             },
+            {
+              name: "@/lib/payments/credit-balance",
+              message:
+                "Import credit rate helpers from @/lib/ring-oracle (server). Client: credit-balance-client or ring-config-core.",
+            },
           ],
         },
       ],
@@ -64,6 +68,8 @@ const eslintConfig = [
       "features/wallet/services/native-token-oracle.ts",
       "features/wallet/services/native-token-chainlink-oracle.ts",
       "lib/fx/**",
+      "lib/payments/credit-balance.ts",
+      "lib/processes/fx/**",
     ],
     rules: {
       "no-restricted-imports": "off",
@@ -71,4 +77,4 @@ const eslintConfig = [
   },
 ];
 
-export default eslintConfig; 
+export default eslintConfig;

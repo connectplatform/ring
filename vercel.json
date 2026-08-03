@@ -1,8 +1,64 @@
 {
   "crons": [
     {
+      "path": "/api/cron/email-processor",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/email-analytics",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/refcodes-mint",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-reservations",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/cleanup-usernames",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-news-deleted",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/cleanup-email-tokens",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/train",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/settlement-payout",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/inventory-drift",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/subscription-expiry",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/credit-balance-monthly",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/subscription-payment",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/solana-batch-payment",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/nft-gate-expiry",
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/close-expired-polls",
@@ -11,6 +67,14 @@
     {
       "path": "/api/cron/peer-game-session-expiry",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/forgejo-robot-gc",
+      "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/forgejo-token-rotate",
+      "schedule": "0 5 1 * *"
     }
   ]
 }

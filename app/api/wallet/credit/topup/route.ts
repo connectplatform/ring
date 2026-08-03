@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { CreditBalanceTopUpRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
-import { formatCreditAmount, getCreditUnitLabel, getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance';
+import { formatCreditAmount, getCreditUnitLabel, getMainCurrencyCreditAccountingRate } from '@/lib/ring-oracle';
 import { isPlatformAdmin } from '@/features/auth/user-role';
 import {
   isChainProofRequired,

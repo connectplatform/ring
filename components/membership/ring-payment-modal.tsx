@@ -371,7 +371,7 @@ export function MembershipPaymentModal({
                   <Coins className="h-5 w-5 text-primary" />
                   <span className="text-xl font-bold">{currentOption.cost.ring_amount} RING</span>
                   <span className="text-sm text-muted-foreground">
-                    (≈ ${currentOption.cost.main_currency_equivalent} USD)
+                    (≈ ${currentOption.cost.main_currency_equivalent} {creditCurrency})
                   </span>
                 </div>
                 <p className="text-xs text-center text-muted-foreground">

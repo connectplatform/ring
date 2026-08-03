@@ -1,6 +1,33 @@
+/**
+ * Docs filesystem resolution under `docs/{locale}/**`.
+ *
+ * Turbopack NFT: never join `process.cwd()` to a dynamic segment without
+ * `/* turbopackIgnore: true *\/` — that traces the whole repo into every
+ * Server Component chunk that imports this module. Prefer static `docs`
+ * segment after cwd (same pattern as `lib/file/local-storage-root.ts`).
+ *
+ * Pure slug/URL helpers live in `./docs-path-url` (no fs).
+ */
+
 import fs from 'fs'
 import path from 'path'
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from '@/lib/locale-config'
+import { SUPPORTED_LOCALES } from '@/lib/locale-config'
+import {
+  buildDocsHref,
+  buildDocsLinkPath,
+  normalizeDocsSlug,
+  slugFromDocRelativePath,
+} from '@/lib/docs/docs-path-url'
+
+export type {
+  Locale,
+} from '@/lib/docs/docs-path-url'
+export {
+  buildDocsHref,
+  buildDocsLinkPath,
+  normalizeDocsSlug,
+  slugFromDocRelativePath,
+}
 
 export interface DocFilePathResult {
   filePath: string | null
@@ -12,18 +39,31 @@ export interface DocsSectionMeta {
   pages?: string[]
 }
 
-/** Normalize optional catch-all param: `/docs` → `[]`. */
-export function normalizeDocsSlug(slug: string[] | undefined): string[] {
-  return slug ?? []
+/** Join under project `docs/` without NFT-tracing the repo root. */
+export function joinUnderDocs(...segments: string[]): string {
+  // Static second segment `docs` scopes NFT; never join(cwd, onlyDynamic).
+  const docsRoot = path.join(/* turbopackIgnore: true */ process.cwd(), 'docs')
+  if (segments.length === 0) return docsRoot
+  return path.join(/* turbopackIgnore: true */ docsRoot, segments.join('/'))
+}
+
+/** NFT-safe join when the base is already under `docs/`. */
+export function joinDocsFsPath(base: string, ...segments: string[]): string {
+  if (segments.length === 0) return base
+  return path.join(/* turbopackIgnore: true */ base, segments.join('/'))
 }
 
 /** Physical MDX root: `docs/`. */
 export function getDocsRoot(docsRoot?: string): string {
-  return docsRoot ?? path.join(process.cwd(), 'docs')
+  return docsRoot ?? joinUnderDocs()
 }
 
 export function getDocsLocaleRoot(locale: string, docsRoot?: string): string {
-  return path.join(getDocsRoot(docsRoot), locale)
+  if (docsRoot) {
+    return joinDocsFsPath(docsRoot, locale)
+  }
+  // Static `docs` + locale segment — do not path.join(cwd, dynamicOnly)
+  return joinUnderDocs(locale)
 }
 
 /**
@@ -35,17 +75,14 @@ export function resolveDocFilePath(
   locale: string,
   slug: string[],
 ): DocFilePathResult {
-  const localeRoot = getDocsLocaleRoot(locale)
-
   if (slug.length === 0) {
-    return { filePath: path.join(localeRoot, 'index.mdx') }
+    return { filePath: joinUnderDocs(locale, 'index.mdx') }
   }
 
-  // Instead of path.join(localeRoot, ...slug) + '.mdx', join manually to avoid
-  // dynamic spread patterns in build tooling
-  const slugPath = slug.join('/')
-  const directPath = path.join(localeRoot, slugPath + '.mdx')
-  const hubPath = path.join(localeRoot, slugPath, 'index.mdx')
+  // Static docs + locale + relative slug path (no cwd+dynamic alone)
+  const relative = slug.join('/')
+  const directPath = joinUnderDocs(locale, `${relative}.mdx`)
+  const hubPath = joinUnderDocs(locale, relative, 'index.mdx')
 
   if (fs.existsSync(directPath)) {
     return { filePath: directPath }
@@ -61,30 +98,6 @@ export function getDocFilePath(locale: string, slug: string[]): string {
   return resolveDocFilePath(locale, slug).filePath ?? ''
 }
 
-/** `features/erp/index.mdx` → `['features','erp']`; `welcome.mdx` → `['welcome']`. */
-export function slugFromDocRelativePath(relativePath: string): string[] {
-  const normalized = relativePath.replace(/\\/g, '/').replace(/\.mdx$/, '')
-  if (normalized === 'index' || normalized.endsWith('/index')) {
-    const withoutIndex = normalized.replace(/\/?index$/, '')
-    return withoutIndex ? withoutIndex.split('/') : []
-  }
-  return normalized.split('/').filter(Boolean)
-}
-
-/** Locale-neutral path for next-intl `Link` (routing adds `/uk`, `/ru`, etc.). */
-export function buildDocsLinkPath(slug: string[]): string {
-  if (slug.length === 0) {
-    return '/docs'
-  }
-  return `/docs/${slug.join('/')}`
-}
-
-/** Public docs href with `localePrefix: as-needed` (default locale omits `/en`). */
-export function buildDocsHref(locale: string, slug: string[]): string {
-  const prefix = locale === DEFAULT_LOCALE ? '' : `/${locale}`
-  return `${prefix}${buildDocsLinkPath(slug)}`
-}
-
 export function readSectionMeta(metaPath: string): DocsSectionMeta {
   try {
     if (!fs.existsSync(metaPath)) return {}
@@ -95,7 +108,7 @@ export function readSectionMeta(metaPath: string): DocsSectionMeta {
 }
 
 export function readLocaleSectionMeta(locale: string, sectionSlug: string): DocsSectionMeta {
-  return readSectionMeta(path.join(getDocsLocaleRoot(locale), sectionSlug, 'meta.json'))
+  return readSectionMeta(joinUnderDocs(locale, sectionSlug, 'meta.json'))
 }
 
 /** Static params for `docs/[[...slug]]` (slug segment only; locale comes from parent). */
@@ -119,11 +132,11 @@ export function scanDocsStaticParams(): { slug?: string[] }[] {
       if (!fs.existsSync(dir)) return
 
       for (const item of fs.readdirSync(dir)) {
-        const fullPath = path.join(dir, item)
+        const fullPath = joinDocsFsPath(dir, item)
         const stat = fs.statSync(fullPath)
 
         if (stat.isDirectory()) {
-          const indexPath = path.join(fullPath, 'index.mdx')
+          const indexPath = joinDocsFsPath(fullPath, 'index.mdx')
           if (fs.existsSync(indexPath)) {
             add([...currentSlug, item])
           }
@@ -139,5 +152,3 @@ export function scanDocsStaticParams(): { slug?: string[] }[] {
 
   return params
 }
-
-export type { Locale }

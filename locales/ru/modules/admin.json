@@ -190,13 +190,16 @@
       "fromYesterday": "с вчера",
       "thisWeek": "за эту неделю",
       "personalPages": "Личные страницы",
-      "personalPagesSubtitle": "Уникальные посетители публичных /username профилей",
+      "personalPagesSubtitle": "Публичные визиты + приватные просмотры /username",
       "personalUnique24h": "Уникальные 24ч",
       "personalUniquePeriod": "Уникальные (период)",
       "personalVisits": "визиты",
       "personalByRole": "По ролям",
       "personalByRoleHint": "24ч / период уникальные",
-      "personalTopProfiles": "Топ профилей"
+      "personalTopProfiles": "Топ профилей",
+      "personalPrivateUnique24h": "Приватные уникальные 24ч",
+      "personalPrivateUniquePeriod": "Приватные уникальные (период)",
+      "personalTopProfilesHint": "публичные · приватные уникальные"
     },
     "webvitals": {
       "title": "Производительность Core Web Vitals",
@@ -663,6 +666,16 @@
       "peer-game-session-expiry": {
         "label": "Истечение сессий peer-игр",
         "description": "Истечение pending (15м), idle active (2ч), orphan reclaim"
+      },
+      "forgejo-robot-gc": {
+        "label": "Forgejo GC роботов",
+        "description": "Удаляет orphan order-src-* роботов Forgejo (возраст ≥7 дней; dryRun через ?dryRun=1)",
+        "schedule": "Еженедельно воскресенье 04:00 UTC"
+      },
+      "forgejo-token-rotate": {
+        "label": "Ротация Forgejo PAT",
+        "description": "Ротирует per-order PAT Source Editor старше FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (по умолчанию 30) на активных заказах",
+        "schedule": "Ежемесячно 1-го 05:00 UTC"
       }
     },
     "nav": "Фоновые процессы"

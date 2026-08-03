@@ -64,7 +64,7 @@ ${CYAN}Options:${NC}
   -p, --platform PLATFORM  Target platform [default: linux/amd64]
   -t, --tag TAG            Custom tag for the image
   -r, --registry REGISTRY  Docker registry [default: registry.ringdom.org]
-  -n, --namespace NS       Docker namespace [default: ringdom]
+  -n, --namespace NS       Docker namespace [default: ringdom-clones]
   --push                   Push image to registry after build
   --no-cache              Disable Docker build cache
   --multi-arch            Build for multiple architectures (linux/amd64,linux/arm64)

@@ -299,8 +299,8 @@ export async function revokeOrderSourceToken(orderId: string): Promise<void> {
 }
 
 /**
- * Rotate per-order PAT (delete old id + remint). Usable for 401 recovery and future cron.
- * TODO: wire monthly cron forgejo-token-rotate when product enables TTL rotation.
+ * Rotate per-order PAT (delete old id + remint). Used by 401 recovery and
+ * ProcessConductor pipeline forgejo-token-rotate (monthly cron).
  */
 export async function rotateOrderSourceToken(orderId: string): Promise<string> {
   invalidateOrderSourceTokenCache(orderId)

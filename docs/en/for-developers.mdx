@@ -1,7 +1,7 @@
 ---
 title: For Developers
 description: Curated docTree for developers and integrators — bootstrap, architecture, APIs, payments cluster, deploy, and contribution layers
-last_modified: "2026-07-24"
+last_modified: "2026-08-03"
 audience: developer
 ---
 
@@ -50,7 +50,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 - [News Kingdom](/docs/architecture/news-kingdom)
 - [Email AI-CRM](/docs/architecture/email-ai-crm)
 - [k3s + Postgres + FCM](/docs/backend/k8s-postgres-fcm)
-- [Firebase](/docs/backend/firebase)
+- [Firebase](/docs/backend/firebase) — Hosting rewrites + Cloud Scheduler for ProcessConductor `/api/cron/*` (schedule catalog = `vercel.json`)
 
 ---
 
@@ -77,6 +77,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 [**Features** →](/docs/features)
 
 - [PaymentConductor](/docs/features/payment-conductor)
+- [Ring Oracle](/docs/features/ring-oracle) — server-only rate facade, FX cron, conversion API, SSR hydrate, and checkout presentment
 - [WayForPay Integration](/docs/features/wayforpay-integration)
 - [SubscriptionConductor](/docs/features/subscriptions) — multi-provider ledger including `telegram_stars`
 - [Payments overview](/docs/features/payments)
@@ -145,7 +146,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 - [Environment](/docs/deployment/environment) — first
 - [Self-Hosted](/docs/deployment/self-hosted)
 - [Docker](/docs/deployment/docker)
-- [Vercel](/docs/deployment/vercel)
+- [Vercel](/docs/deployment/vercel) — `vercel.json` crons[] must list every ProcessConductor `cronPath`; Bearer `CRON_SECRET`
 - [Monitoring](/docs/deployment/monitoring)
 - [Performance](/docs/deployment/performance)
 - [Backup](/docs/deployment/backup)

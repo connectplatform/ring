@@ -1,19 +1,19 @@
 ---
 title: Firebase Integration
-description: Firebase Admin SDK v14, FirebaseAdapter, FCM push, React 19 cache()-native firebase-service-manager SSOT helpers, build-time mocking, AI Logic, Firebase Hosting deployment, and client-side service worker setup for ring-db firebase-full mode.
-last_modified: "2026-07-01"
+description: Firebase Admin SDK v14, FirebaseAdapter, FCM, Hosting rewrites, and ProcessConductor scheduled jobs via Cloud Scheduler (same /api/cron/* contracts as Vercel) for firebase-full mode.
+last_modified: "2026-08-03"
 audience: both
 ---
 
 # Firebase Integration
 
 <Callout type="info">
-  Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page for your role.
+  Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page for your role. `audience` frontmatter controls content filtering within the page. Sidebar article visibility is controlled separately by `lib/docs/audience-curated-docs.ts`.
 </Callout>
 
 Ring Platform uses **Firebase in two separate paths** — a **server-side Admin SDK v14** (for FCM push, Firestore, Auth, Storage, App Check, and Remote Config) and a **client-side browser SDK** (for FCM push token registration, Auth state, Firestore real-time, and AI Logic). The two paths use different credential strategies and different SDK versions.
 
-This page covers the **full Firebase 14 Enterprise stack** in `firebase-full` ring-db mode: pipeline operations, change streams, text/geo search, FCM Admin HTTP v1 bridge, SSOT atomic writes, AI Logic, Firebase Hosting config, and React 19 cache()-native helpers.
+This page covers the **full Firebase 14 Enterprise stack** in `firebase-full` ring-db mode: pipeline operations, change streams, text/geo search, FCM Admin HTTP v1 bridge, SSOT atomic writes, AI Logic, Firebase Hosting config, React 19 cache()-native helpers, and **ProcessConductor scheduled jobs** (Cloud Scheduler → the same `/api/cron/*` URLs as Vercel Cron).
 
 <Cards>
   <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="Three-mode comparison: firebase-full as first-class, k8s-postgres-fcm, supabase-fcm." />
@@ -93,6 +93,31 @@ flowchart TB
 - **Firebase Hosting** — free tier includes 10 GB storage, 100 GB/month transfer
 - **AI Logic (Gemini)** — usage-based via Vertex AI pricing; optional to enable
 - **No PostgreSQL costs** — no database server to provision or maintain
+
+### Scheduled jobs — firebase.json is not a cron file
+
+Ring’s background health (email CRM poll, reservation cleanup, subscription expiry, settlements, and more) runs through **ProcessConductor** — currently **19** pipelines in `lib/processes/registry.ts`. Each pipeline exposes `GET/POST /api/cron/<path>` gated by `Authorization: Bearer $CRON_SECRET`.
+
+**Critical for Firebase-hosted clones:** `firebase.json` holds Firestore rules/indexes (and Hosting rewrites when generated). It is **not** a scheduler catalog. There is no Firebase-native cron entries file in the Ring tree.
+
+| What you need | Where it lives |
+|---------------|----------------|
+| Human-readable schedule catalog (UTC) | `vercel.json` → `crons[]` — copy every path/schedule |
+| HTTP contracts (same on all backends) | `/api/cron/*` + `CRON_SECRET` |
+| Run history labels | Admin → **Background Processes** (`locales/*/modules/admin.json` → `processes.pipelines.*`) |
+| Trigger on Firebase Hosting / Cloud Run | **Google Cloud Scheduler** (or any external cron) hitting those URLs |
+
+<Callout type="warning">
+  Deploying Hosting alone does **not** schedule ProcessConductor jobs. Wire Cloud Scheduler to the same cron URLs using the [Vercel schedule catalog](/docs/deployment/vercel), and set `CRON_SECRET` in the app env.
+</Callout>
+
+#### Founder checklist
+
+1. Set a long random `CRON_SECRET` in the Firebase-hosted app environment.
+2. Open `vercel.json` in the Ring root — treat `crons[]` as the schedule SSOT (must list every ProcessConductor `cronPath`).
+3. Create one Cloud Scheduler job per entry (UTC schedule → `GET` or `POST` your public `/api/cron/...` URL with `Authorization: Bearer <CRON_SECRET>`).
+4. Confirm runs appear under Admin → Background Processes.
+5. Contrast: k3s uses per-job YAML under `k8s/` (e.g. `cronjob-email-processor.yaml`) curling an in-cluster URL — not a single inventory file.
 
 </Audience>
 
@@ -437,7 +462,7 @@ if (ai) {
 
 ## Firebase Hosting bridge (new)
 
-firebase-full mode supports **Firebase Hosting** as a production deployment target alongside k3s, Vercel, and Docker. Module-level helpers generate a canonical `firebase.json`:
+firebase-full mode supports **Firebase Hosting** as a production deployment target alongside k3s, Vercel, and Docker. Module-level helpers generate a canonical `firebase.json` for **hosting rewrites/headers only** — they do **not** register schedulers or ProcessConductor cron entries:
 
 ```typescript
 import { generateFirebaseJson, getRingHostingRewrites } from '@/lib/database/adapters/FirebaseAdapter'
@@ -462,6 +487,75 @@ The default rewrites map the canonical Ring routes:
 - `**` → SPA fallback (`/index.html`)
 
 Default headers include `Cache-Control: immutable` for `.js`/`.css`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, and `Permissions-Policy`.
+
+<Callout type="tip">
+  `generateFirebaseJson` / `getRingHostingRewrites` in `FirebaseAdapter.ts` = Hosting rewrites/headers only. Schedule ProcessConductor jobs with Cloud Scheduler against `/api/cron/*` — see below.
+</Callout>
+
+## ProcessConductor cron (Cloud Scheduler)
+
+Same HTTP contracts as Vercel and k3s — different trigger.
+
+| Layer | Path / artifact |
+|-------|-----------------|
+| Registry SSOT | `lib/processes/registry.ts` — `PIPELINE_IDS` + `PIPELINE_REGISTRY` (**19** pipelines) |
+| Routes | `app/api/cron/<name>/route.ts` — `GET`/`POST`, fail-closed on `Authorization: Bearer $CRON_SECRET` |
+| Schedule catalog | `vercel.json` → `crons[]` (UTC) — **must list every** `cronPath` |
+| Ledger | `ProcessConductor.recordRun` |
+| Admin labels | `locales/*/modules/admin.json` → `processes.pipelines.*` |
+| Human ops doc | `AI-RING/scripts/PIPELINES.md` § ProcessConductor cron pipelines |
+
+### Wire Google Cloud Scheduler
+
+<Steps>
+
+<Step>
+
+Set `CRON_SECRET` in the Firebase-hosted / Cloud Run app environment (same secret you will send from Scheduler).
+
+</Step>
+
+<Step>
+
+Copy every `{ path, schedule }` from root `vercel.json` `crons[]`. Full catalog (UTC) is also documented on [Vercel deployment](/docs/deployment/vercel).
+
+</Step>
+
+<Step>
+
+For each entry, create a Cloud Scheduler job:
+
+- **Frequency:** the `schedule` string (UTC)
+- **Target:** `https://<your-ring-host><path>` (e.g. `/api/cron/email-processor`)
+- **HTTP method:** `GET` or `POST` (both accepted by Ring cron routes)
+- **Header:** `Authorization: Bearer <CRON_SECRET>`
+
+</Step>
+
+<Step>
+
+Smoke-test one job:
+
+```bash
+curl -sS -H "Authorization: Bearer $CRON_SECRET" \
+  "https://<your-ring-host>/api/cron/cleanup-usernames"
+```
+
+Expect `200` when authorized; `401` when the secret is missing/wrong (fail-closed).
+
+</Step>
+
+<Step>
+
+Confirm Admin → Background Processes shows recorded runs. When adding a pipeline: update `registry.ts` + route + locale labels + **append `vercel.json`** (schedule catalog) + optional `k8s/cronjob-*.yaml`.
+
+</Step>
+
+</Steps>
+
+<Callout type="info">
+  Ops notes: `forgejo-robot-gc` supports `?dryRun=1` (classifies without deleting). `forgejo-token-rotate` reads `FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS` / `FORGEJO_TOKEN_ROTATE_LIMIT`. k3s contrast: per-job YAML under `k8s/` curling an in-cluster URL — not a single inventory file.
+</Callout>
 
 ## Build-time mocking (`build-mock.server.ts`)
 
@@ -527,15 +621,41 @@ NEXT_PUBLIC_FIREBASE_USE_EMULATOR=1  # Enables Firebase Local Emulator Suite aut
 | React 19 native | `globalThis` HMR-safe singleton + per-service observability | `cache()`-wrapped lazy getters + async methods for `use()` + Suspense |
 | Enterprise features | Pipeline, change streams, text/geo, AI Logic (via Vertex AI) | All of the above as adapter methods + module-level exports |
 
+</Audience>
+
 ## Related documentation
 
-<Cards>
-  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="Three-mode comparison: firebase-full as first-class, k8s-postgres-fcm, supabase-fcm." />
-  <Card href="/docs/features/push-notifications-fcm" title="Push notifications (FCM)" description="End-to-end FCM setup: token registration, Server Actions, lifecycle management." />
-  <Card href="/docs/deployment/environment" title="Environment variables" description="Complete env var reference — all Firebase variables and their scope." />
-  <Card href="/docs/architecture/authentication" title="Authentication" description="Auth.js v5 — Firebase is not used for authentication." />
-  <Card href="/docs/backend/k8s-postgres-fcm" title="k8s-postgres-fcm mode" description="Recommended production mode — PostgreSQL with FCM-only Firebase." />
-  <Card href="/docs/development/local-setup" title="Local setup" description="Local development with Firebase Emulator Suite and k8s-postgres-fcm." />
-</Cards>
-
-</Audience>
+<RelatedDocs>
+  <RelatedArticle
+    slug="deployment/vercel"
+    relation="Same-workflow: vercel.json is the ProcessConductor schedule catalog — copy crons[] into Cloud Scheduler."
+  />
+  <RelatedArticle
+    slug="architecture/backend-modes-and-databases"
+    relation="Prerequisite: firebase-full vs k8s-postgres-fcm vs supabase-fcm."
+  />
+  <RelatedArticle
+    slug="features/push-notifications-fcm"
+    relation="Next-step: FCM token registration and Server Action upsert."
+  />
+  <RelatedArticle
+    slug="deployment/environment"
+    relation="Depends-on: AUTH_FIREBASE_*, NEXT_PUBLIC_FIREBASE_*, and CRON_SECRET."
+  />
+  <RelatedArticle
+    slug="architecture/authentication"
+    relation="See-also: Auth.js v5 — Firebase Auth is not used."
+  />
+  <RelatedArticle
+    slug="backend/k8s-postgres-fcm"
+    relation="See-also: PostgreSQL-primary mode with FCM-only Firebase."
+  />
+  <RelatedArticle
+    slug="features/admin"
+    relation="Next-step: Admin → Background Processes labels for pipeline runs."
+  />
+  <RelatedArticle
+    slug="features/email-ai-crm"
+    relation="Same-workflow: email-processor / email-analytics cron pipelines."
+  />
+</RelatedDocs>

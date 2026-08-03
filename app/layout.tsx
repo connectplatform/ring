@@ -146,8 +146,20 @@ async function AuthenticatedAppShell({
   children: React.ReactNode
 }) {
   const session = await auth()
+  let initialExchangeRates: Record<string, number> | null = null
+  try {
+    const { ensureFxFeedFresh, getExchangeRates } = await import('@/lib/ring-oracle')
+    await ensureFxFeedFresh()
+    initialExchangeRates = getExchangeRates()
+  } catch {
+    /* static ring-config rates still apply on client */
+  }
   return (
-    <AppClientShell instanceConfig={instanceConfig} session={session}>
+    <AppClientShell
+      instanceConfig={instanceConfig}
+      session={session}
+      initialExchangeRates={initialExchangeRates}
+    >
       {children}
     </AppClientShell>
   )

@@ -185,7 +185,15 @@ const nextConfig = {
     '@react-email/components',
   ],
   outputFileTracingIncludes: {
-    '**/*': ['./i18n/**/*', './locales/**/*', './ring-config.json', './ring-config.template.json', './server.ts', './server.js'],
+    '**/*': [
+      './i18n/**/*',
+      './locales/**/*',
+      './docs/**/*',
+      './ring-config.json',
+      './ring-config.template.json',
+      './server.ts',
+      './server.js',
+    ],
   },
   experimental: {
     serverActions: {

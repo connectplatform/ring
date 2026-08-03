@@ -39,6 +39,16 @@
     "success": "Danke für deine Nachricht!",
     "openMessages": "Unterhaltung öffnen",
     "messageSent": "Nachricht gesendet!",
-    "notAcceptingMessages": "Dieses Mitglied akzeptiert keine Profilnachrichten"
+    "notAcceptingMessages": "Dieses Mitglied akzeptiert keine Profilnachrichten",
+    "signInRequired": "Melden Sie sich an, um eine Nachricht zu senden",
+    "subscriberRequired": "Abonnement erforderlich, um diesen Nutzer zu kontaktieren",
+    "cannotMessageSelf": "Sie können sich nicht selbst schreiben",
+    "messageRequired": "Nachricht ist erforderlich",
+    "rateLimited": "Zu viele Anfragen. Bitte in einer Minute erneut versuchen.",
+    "recipientNotFound": "Empfänger nicht gefunden",
+    "recipientRequired": "Empfänger ist erforderlich",
+    "sendFailed": "Nachricht konnte nicht gesendet werden. Bitte erneut versuchen.",
+    "allFieldsRequired": "Alle Felder sind erforderlich",
+    "invalidEmail": "Bitte gültige E-Mail-Adresse eingeben"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "ring-platform-org",
-  "version": "1.97.13",
+  "version": "1.97.14",
   "private": true,
   "type": "module",
   "bin": {
@@ -51,7 +51,11 @@
     "cli:dev": "node cli/index.js",
     "smoke:pipelines": "./scripts/run-all-smokes.sh",
     "type-check:smoke": "npm run type-check && npm run smoke:pipelines",
-    "solana:create-mint": "node --import tsx scripts/solana/create-ring-mint.ts"
+    "solana:create-mint": "node --import tsx scripts/solana/create-ring-mint.ts",
+    "ci:layer1": "bash scripts/ci/layer1-forge-build-deploy.sh",
+    "ci:layer1:dry": "bash scripts/ci/layer1-forge-build-deploy.sh --dry-run",
+    "push:layer1": "bash scripts/ci/push-layer1.sh",
+    "ci:layer1:install-alias": "bash scripts/ci/install-layer1-push-alias.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",

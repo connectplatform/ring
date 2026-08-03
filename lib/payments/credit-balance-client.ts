@@ -1,14 +1,15 @@
 'use client'
 
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
+
 /**
- * Client-safe fiat credit currency code (from public env; mirrors PAYMENT_MAIN_CURRENCY).
- * Set both in env.local.template: PAYMENT_MAIN_CURRENCY and NEXT_PUBLIC_PAYMENT_MAIN_CURRENCY.
+ * Client-safe fiat credit currency code.
+ * Prefer NEXT_PUBLIC_PAYMENT_MAIN_CURRENCY; else store.mainCurrency from ring-config.
  */
 export function getClientCreditCurrencyCode(): string {
-  return (
-    process.env.NEXT_PUBLIC_PAYMENT_MAIN_CURRENCY?.toUpperCase().trim() ||
-    'USD'
-  )
+  const fromEnv = process.env.NEXT_PUBLIC_PAYMENT_MAIN_CURRENCY?.toUpperCase().trim()
+  if (fromEnv) return fromEnv
+  return getMainCurrencySymbol()
 }
 
 export function formatClientCreditAmount(amount: string | number, currency?: string): string {

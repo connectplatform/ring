@@ -29,7 +29,7 @@ import {
   getRewardMultiplierForRole,
   getRewardDailyEarnCap,
 } from '@/lib/ring-config-chain'
-import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
+import { getMainCurrencyCreditAccountingRate } from '@/lib/ring-oracle'
 import { computeRewardFinalAmount } from '@/lib/wallet/reward-credit-math'
 import {
   ROLE_LEVEL,
@@ -280,7 +280,7 @@ export async function enqueueRewardCreditAddEvent(params: {
       const { notifyRewardCreditReceived } = await import(
         '@/features/notifications/services/notification-triggers'
       )
-      const { getCreditUnitLabel } = await import('@/lib/payments/credit-balance')
+      const { getCreditUnitLabel } = await import('@/lib/ring-oracle')
       await notifyRewardCreditReceived(
         params.userId,
         amount,

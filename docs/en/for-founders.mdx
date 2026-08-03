@@ -1,7 +1,7 @@
 ---
 title: For Founders
 description: Curated docTree for founders and operators — Features, Examples, Customization, and Web3 first, then go-live
-last_modified: "2026-07-24"
+last_modified: "2026-08-03"
 audience: founder
 ---
 
@@ -45,6 +45,7 @@ Curated index for **founders, operators, and decision-makers**. Sidebar **Founde
 - [Ring ERP](/docs/features/erp) — [Inventory](/docs/features/erp/inventory) · [Vendor management](/docs/features/erp/vendor-management) · [Commissions](/docs/features/erp/commissions) — stock invariant, paid commit, settlements cockpit
 - [SubscriptionConductor](/docs/features/subscriptions) — Recurring membership (PayPal Subscriptions v1 + Telegram Stars XTR pending) + `/membership/manage`
 - [PaymentConductor](/docs/features/payment-conductor) — Store, membership, news, wallet top-up (incl. PayPal Orders)
+- [Ring Oracle](/docs/features/ring-oracle) — Native-token desk rate, fiat FX feed, credit accounting, and checkout presentment
 - [Public Pools & DAO Jars](/docs/features/public-pools) — Dual-currency jars, desk-oracle card rail, role-fee builder payout
 - [Payments overview](/docs/features/payments) — Rails and gateway selection
 - [WayForPay](/docs/features/wayforpay-integration) — HPP, webhooks, returnUrl vs serviceUrl
@@ -124,7 +125,8 @@ Deep WayForPay HMAC lives on Developer: [WayForPay integration](/docs/features/w
 [**Deployment** →](/docs/deployment)
 
 - [Self-Hosted](/docs/deployment/self-hosted) — k3s recommended
-- [Vercel](/docs/deployment/vercel) · [Docker](/docs/deployment/docker)
+- [Vercel](/docs/deployment/vercel) · [Docker](/docs/deployment/docker) — Vercel Cron uses `vercel.json` as the ProcessConductor schedule catalog (`CRON_SECRET` required)
+- [Firebase](/docs/backend/firebase) — Hosting is not a cron file; wire Cloud Scheduler to the same `/api/cron/*` URLs using the `vercel.json` catalog
 - [Environment](/docs/deployment/environment) — Required secrets checklist
 - [Monitoring](/docs/deployment/monitoring) · [Backup](/docs/deployment/backup) · [Performance](/docs/deployment/performance)
 

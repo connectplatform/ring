@@ -97,8 +97,14 @@ export function ContactForm({
       {state?.error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {state.errorKey === 'notAcceptingMessages'
-              ? t('notAcceptingMessages')
+            {state.errorKey
+              ? (() => {
+                  try {
+                    return t(state.errorKey)
+                  } catch {
+                    return state.error
+                  }
+                })()
               : state.error}
           </AlertDescription>
         </Alert>

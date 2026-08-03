@@ -82,7 +82,10 @@ import { ShareEarnWidget } from './share-earn-widget'
 import {
   acceptsProfileDms,
   normalizePublicProfileFields,
+  normalizePublicProfileMedia,
+  showNftListings,
   type PublicProfileFieldsMap,
+  type PublicProfileMediaMap,
 } from '@/features/auth/lib/personal-page-sections'
 import TimezoneSelectorModal from './timezone-selector-modal'
 const LocationMapModal = dynamic(
@@ -125,6 +128,20 @@ function readPublicProfileFields(userLike: unknown): PublicProfileFieldsMap {
 function readAcceptProfileDms(userLike: unknown): boolean {
   if (!userLike || typeof userLike !== 'object') return true
   return acceptsProfileDms((userLike as { acceptProfileDms?: unknown }).acceptProfileDms)
+}
+
+function readNftListings(userLike: unknown): boolean {
+  if (!userLike || typeof userLike !== 'object') return true
+  return showNftListings(
+    (userLike as { publicProfileNftListings?: unknown }).publicProfileNftListings,
+  )
+}
+
+function readPublicProfileMedia(userLike: unknown): PublicProfileMediaMap {
+  if (!userLike || typeof userLike !== 'object') return {}
+  return normalizePublicProfileMedia(
+    (userLike as { publicProfileMedia?: unknown }).publicProfileMedia,
+  )
 }
 
 // TODO: Refactor for React 19 and Next.js 15/16 codemods:
@@ -728,13 +745,24 @@ export default function ProfileContent({
                       publicProfileSections={readPublicProfileSections(user)}
                       publicProfileFields={readPublicProfileFields(user)}
                       acceptProfileDms={readAcceptProfileDms(user)}
+                      publicProfileNftListings={readNftListings(user)}
+                      publicProfileMedia={readPublicProfileMedia(user)}
                       onOpenUsernameModal={() => setSetUsernameModalOpen(true)}
-                      onPublicProfileChange={(enabled, sections, fields, acceptDms) => {
+                      onPublicProfileChange={(
+                        enabled,
+                        sections,
+                        fields,
+                        acceptDms,
+                        nft,
+                        media,
+                      ) => {
                         if (initialUser) {
                           ;(initialUser as AuthUser).publicProfile = enabled
                           ;(initialUser as AuthUser).publicProfileSections = sections
                           ;(initialUser as AuthUser).publicProfileFields = fields
                           ;(initialUser as AuthUser).acceptProfileDms = acceptDms
+                          ;(initialUser as AuthUser).publicProfileNftListings = nft
+                          ;(initialUser as AuthUser).publicProfileMedia = media
                         }
                       }}
                     />
@@ -849,21 +877,6 @@ export default function ProfileContent({
                           />
                         </div>
                       </div>
-                      {/* Viber */}
-                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 bg-purple-50 dark:bg-purple-950 rounded-full shrink-0">
-                          <Phone className="w-5 h-5 text-purple-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('viberAccount')}</p>
-                          {/* STUB: Implement value change and save logic */}
-                          <Input
-                            placeholder={t('inputPlaceholder', { platform: 'Viber' }) || 'Enter your Viber phone number'}
-                            className="h-8 mt-1 text-sm"
-                            defaultValue={(user as any)?.communication?.viberNumber || ''}
-                          />
-                        </div>
-                      </div>
                       {/* Instagram */}
                       <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
                         <div className="flex items-center justify-center w-10 h-10 bg-pink-50 dark:bg-pink-950 rounded-full shrink-0">
@@ -876,21 +889,6 @@ export default function ProfileContent({
                             placeholder={t('inputPlaceholder', { platform: 'Instagram' }) || 'Enter your Instagram username'}
                             className="h-8 mt-1 text-sm"
                             defaultValue={(user as any)?.communication?.instagramUsername || ''}
-                          />
-                        </div>
-                      </div>
-                      {/* Signal */}
-                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-full shrink-0">
-                          <MessageSquare className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('signalAccount')}</p>
-                          {/* STUB: Implement value change and save logic */}
-                          <Input
-                            placeholder={t('inputPlaceholder', { platform: 'Signal' }) || 'Enter your Signal phone number'}
-                            className="h-8 mt-1 text-sm"
-                            defaultValue={(user as any)?.communication?.signalNumber || ''}
                           />
                         </div>
                       </div>

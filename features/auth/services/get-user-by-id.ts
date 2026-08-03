@@ -28,6 +28,9 @@ import { getDefaultTheme } from '@/lib/ring-config-core';
 import {
   acceptsProfileDms,
   normalizePublicProfileFields,
+  normalizePublicProfileMedia,
+  normalizeSkills,
+  showNftListings,
 } from '@/features/auth/lib/personal-page-sections';
 
 /**
@@ -182,6 +185,8 @@ function processEnhancedUserProfile(userData: any): AuthUser {
       : undefined,
     publicProfileFields: normalizePublicProfileFields(userData?.publicProfileFields),
     acceptProfileDms: acceptsProfileDms(userData?.acceptProfileDms),
+    publicProfileNftListings: showNftListings(userData?.publicProfileNftListings),
+    publicProfileMedia: normalizePublicProfileMedia(userData?.publicProfileMedia),
     canPostconfidentialOpportunities: userData?.canPostconfidentialOpportunities || false,
     canViewconfidentialOpportunities: userData?.canViewconfidentialOpportunities || false,
     postedopportunities: userData?.postedopportunities || [],
@@ -203,6 +208,7 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     phoneNumber: userData?.phoneNumber,
     organization: userData?.organization,
     position: userData?.position,
+    skills: normalizeSkills(userData?.skills),
     lastRoleUpgrade: userData?.lastRoleUpgrade,
     dataVersion: userData?.data_version || 1,
     lastProfileUpdate: userData?.last_profile_update ? convertTimestamp(userData.last_profile_update) : undefined,

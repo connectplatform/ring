@@ -9,6 +9,7 @@ import {
   UserRolesArray,
 } from '@/features/auth/user-role'
 import { acceptsProfileDms } from '@/features/auth/lib/personal-page-sections'
+import { isDirectMessagingBlockedBetween } from '@/features/auth/services/user-blocklist-lib'
 import UserProfileWrapper from '@/components/wrappers/user-profile-wrapper'
 import { ContactForm } from '@/components/common/widgets/contact-form'
 import { Button } from '@/components/ui/button'
@@ -120,23 +121,30 @@ type SessionLike = {
   } | null
 } | null
 
-/** Shared gate for main + player/games/img when personal page is off. */
-export function buildPrivateProfileShellProps(input: {
+/** Shared gate for main + player/games/img when personal page / media surface is off. */
+export async function buildPrivateProfileShellProps(input: {
   user: AuthUser
   session: SessionLike
   locale: Locale
   username: string
-}): PrivateProfileShellProps {
+}): Promise<PrivateProfileShellProps> {
   const { user, session, locale, username } = input
   const isOwner = Boolean(session?.user?.id && session.user.id === user.id)
   const visitorRole = resolveSessionUserRole(session?.user?.role as string)
   const dmsOk = acceptsProfileDms(
     (user as AuthUser & { acceptProfileDms?: unknown }).acceptProfileDms,
   )
+
+  let blocked = false
+  if (session?.user?.id && !isOwner) {
+    blocked = await isDirectMessagingBlockedBetween(session.user.id, user.id)
+  }
+
   const canContact =
     Boolean(session?.user?.id) &&
     !isOwner &&
     dmsOk &&
+    !blocked &&
     hasRoleAtLeast(visitorRole, UserRolesArray.subscriber)
 
   return {
@@ -145,7 +153,7 @@ export function buildPrivateProfileShellProps(input: {
     profileUserId: user.id,
     isOwner,
     canContact,
-    acceptProfileDms: dmsOk,
+    acceptProfileDms: dmsOk && !blocked,
     isAuthenticated: Boolean(session?.user?.id),
     visitorName: session?.user?.name || '',
     visitorEmail: session?.user?.email || '',

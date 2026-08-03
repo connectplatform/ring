@@ -190,13 +190,16 @@
       "fromYesterday": "desde ayer",
       "thisWeek": "esta semana",
       "personalPages": "Páginas personales",
-      "personalPagesSubtitle": "Visitantes únicos de perfiles públicos /username",
+      "personalPagesSubtitle": "Visitas públicas + hits privados en perfiles /username",
       "personalUnique24h": "Únicos 24h",
       "personalUniquePeriod": "Únicos (periodo)",
       "personalVisits": "visitas",
       "personalByRole": "Por rol",
       "personalByRoleHint": "24h / periodo únicos",
-      "personalTopProfiles": "Perfiles top"
+      "personalTopProfiles": "Perfiles top",
+      "personalPrivateUnique24h": "Únicos privados 24h",
+      "personalPrivateUniquePeriod": "Únicos privados (período)",
+      "personalTopProfilesHint": "públicos · privados únicos"
     },
     "webvitals": {
       "title": "Rendimiento de Core Web Vitals",
@@ -663,6 +666,16 @@
       "peer-game-session-expiry": {
         "label": "Caducidad de sesiones de juegos",
         "description": "Caducar invitaciones pendientes (15m), idle (2h), reclaim huérfanos"
+      },
+      "forgejo-robot-gc": {
+        "label": "Forgejo robot GC",
+        "description": "Elimina robots order-src-* huérfanos de Forgejo (edad ≥7 días; dryRun con ?dryRun=1)",
+        "schedule": "Semanal domingo 04:00 UTC"
+      },
+      "forgejo-token-rotate": {
+        "label": "Rotación Forgejo PAT",
+        "description": "Rota PATs per-order del Source Editor mayores que FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (30 por defecto) en pedidos activos",
+        "schedule": "Mensual día 1 05:00 UTC"
       }
     },
     "nav": "Procesos en segundo plano"

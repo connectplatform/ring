@@ -119,6 +119,12 @@ export class ConversationService {
 
     if (data.type === 'direct' && participantIds.length >= 2) {
       const [first, second] = participantIds;
+      const { isDirectMessagingBlockedBetween } = await import(
+        '@/features/auth/services/user-blocklist-lib'
+      );
+      if (await isDirectMessagingBlockedBetween(first, second)) {
+        throw new Error('Direct messaging unavailable between these users');
+      }
       const existing = await this.findDirectConversation(first, second);
       if (existing) {
         return existing;

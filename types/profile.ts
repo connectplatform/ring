@@ -11,6 +11,8 @@ export interface ProfileFormData {
   publicProfileSections?: string | string[];
   publicProfileFields?: Record<string, Record<string, boolean>> | string;
   acceptProfileDms?: boolean | string;
+  publicProfileNftListings?: boolean | string;
+  publicProfileMedia?: Record<string, boolean> | string;
 }
 
 export interface ProfileUpdateState {

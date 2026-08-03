@@ -48,6 +48,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'commissions',
       'subscriptions',
       'payment-conductor',
+      'ring-oracle',
       'payments',
       'public-pools',
       'wayforpay-integration',
@@ -134,6 +135,8 @@ export const AUDIENCE_CURATED_DOCS = {
       'payment-conductor',
       'wallet-conductor',
     ],
+    // firebase-full operators need Hosting + Cloud Scheduler cron guidance
+    backend: ['firebase'],
     // AI remote ops — dual-audience manuals founders need for clone control
     development: ['ring-mcp'],
   },
@@ -180,6 +183,7 @@ export const AUDIENCE_CURATED_DOCS = {
     ],
     features: [
       'payment-conductor',
+      'ring-oracle',
       'wayforpay-integration',
       'subscriptions',
       'payments',

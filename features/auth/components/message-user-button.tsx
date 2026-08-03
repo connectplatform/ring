@@ -7,12 +7,17 @@ import { MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
+import {
+  hasRoleAtLeast,
+  resolveSessionUserRole,
+  UserRolesArray,
+} from '@/features/auth/user-role'
 
 interface MessageUserButtonProps {
   targetUserId: string
   targetUserName?: string | null
   locale: Locale
-  /** When false, hide (recipient opted out of profile DMs). Default true. */
+  /** When false, hide (recipient opted out or blocked). Default true. */
   acceptProfileDms?: boolean
 }
 
@@ -35,6 +40,16 @@ export function MessageUserButton({
   }
 
   if (session.user.id === targetUserId) {
+    return null
+  }
+
+  // Parity with ContactForm / submitDirectMessageContact — subscriber+
+  if (
+    !hasRoleAtLeast(
+      resolveSessionUserRole(session.user.role as string),
+      UserRolesArray.subscriber,
+    )
+  ) {
     return null
   }
 

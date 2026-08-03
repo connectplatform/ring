@@ -21,6 +21,7 @@ import { isPlatformAdmin } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { NativeChain } from '@/lib/ring-config-chain'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 
 // ============================================================================
 // TYPES
@@ -371,7 +372,7 @@ export async function getCreditBalance(): Promise<CreditBalanceResult> {
       balance: {
         amount: balance.amount,
         main_currency_equivalent: balance.main_currency_equivalent,
-        main_currency: balance.main_currency ?? 'USD',
+        main_currency: balance.main_currency ?? getMainCurrencySymbol(),
         last_updated: balance.last_updated,
         subscription_active: balance.subscription_active ?? false,
       },
@@ -848,7 +849,7 @@ export async function processMembershipFee(formData: FormData): Promise<WalletAc
 
     // Bill for subscription/etc.
     const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/ring-oracle')
     const result = await creditBalanceService.processMembershipFee(
       session.user.id,
       membershipFee,
@@ -1749,7 +1750,7 @@ export async function getRewardQuestBoard(): Promise<WalletActionResult & {
 
     const { getUserRewardCreditAddEventSummary } = await import('@/lib/wallet/reward-credit-service')
     const { getPublicRewardCatalog } = await import('@/lib/ring-config-chain')
-    const { getCreditUnitLabel } = await import('@/lib/payments/credit-balance')
+    const { getCreditUnitLabel } = await import('@/lib/ring-oracle')
 
     const summary = await getUserRewardCreditAddEventSummary(session.user.id)
     return {

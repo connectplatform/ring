@@ -399,6 +399,10 @@ export interface AuthUser extends GlobalUserIdentity {
   publicProfileFields?: import('@/features/auth/lib/personal-page-sections').PublicProfileFieldsMap;
   /** When false, profile ContactForm / MessageUserButton are blocked. Default true. */
   acceptProfileDms?: boolean;
+  /** When false, NFT listings strip is hidden on public page. Default true. */
+  publicProfileNftListings?: boolean;
+  /** Per-media visibility pins; missing key inherits publicProfile. */
+  publicProfileMedia?: import('@/features/auth/lib/personal-page-sections').PublicProfileMediaMap;
   canPostconfidentialOpportunities: boolean;
   canViewconfidentialOpportunities: boolean;
   postedopportunities: string[];
@@ -486,6 +490,8 @@ export type ProfileFormData = Partial<ExtendedProfile> & Pick<AuthUser, 'name' |
   publicProfileSections?: string[] | string;
   publicProfileFields?: import('@/features/auth/lib/personal-page-sections').PublicProfileFieldsMap | string;
   acceptProfileDms?: boolean | string;
+  publicProfileNftListings?: boolean | string;
+  publicProfileMedia?: import('@/features/auth/lib/personal-page-sections').PublicProfileMediaMap | string;
   wallets?: Wallet[];
   photoURL?: string;
   lastLogin?: Date;

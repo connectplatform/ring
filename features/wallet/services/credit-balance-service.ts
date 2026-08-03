@@ -791,7 +791,7 @@ export class CreditBalanceService {
     type: CreditBalanceTransactionType = 'desk_buy',
     metadata?: Record<string, unknown>
   ) {
-    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/ring-oracle')
     return this.spendCredits(
       userId,
       { amount: usdAmount, description, metadata },
@@ -811,7 +811,7 @@ export class CreditBalanceService {
     metadata?: Record<string, unknown>,
     referenceId?: string,
   ) {
-    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/ring-oracle')
     return this.addCredits(
       userId,
       {

@@ -5,7 +5,7 @@ import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
 import { revalidatePath } from 'next/cache';
 import { getMembershipCreditAmountForPeriod } from '@/lib/membership/pricing';
-import { getCreditUnitLabel, getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance';
+import { getCreditUnitLabel, getMainCurrencyCreditAccountingRate } from '@/lib/ring-oracle';
 
 /** Monthly membership billing window (mirrors subscription_ledger / Membership.sol). */
 const MEMBERSHIP_BILLING_PERIOD_MS = 30 * 24 * 60 * 60 * 1000

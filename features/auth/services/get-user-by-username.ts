@@ -18,10 +18,14 @@ import {
   acceptsProfileDms,
   normalizePersonalPageSections,
   normalizePublicProfileFields,
+  normalizePublicProfileMedia,
+  normalizeSkills,
   personalPageFieldEnabled,
   personalPageSectionEnabled,
+  showNftListings,
   type PersonalPageSectionId,
   type PublicProfileFieldsMap,
+  type PublicProfileMediaMap,
 } from '@/features/auth/lib/personal-page-sections'
 
 function mapCommunication(row: Record<string, unknown>): CommunicationChannels | undefined {
@@ -114,19 +118,7 @@ export const getUserByUsername = cache(async (username: string): Promise<AuthUse
     const communication = mapCommunication(row)
     const cultural = mapCultural(row)
     const integrations = mapIntegrations(row)
-    const skills = Array.isArray(row.skills) ? (row.skills as string[]) : undefined
-
-    const commExtra = (row.communication as Record<string, unknown> | undefined) || {}
-    if (communication) {
-      if (typeof commExtra.viberNumber === 'string') {
-        ;(communication as CommunicationChannels & { viberNumber?: string }).viberNumber =
-          commExtra.viberNumber
-      }
-      if (typeof commExtra.signalNumber === 'string') {
-        ;(communication as CommunicationChannels & { signalNumber?: string }).signalNumber =
-          commExtra.signalNumber
-      }
-    }
+    const skills = normalizeSkills(row.skills)
 
     return {
       id: row.id as string,
@@ -154,6 +146,8 @@ export const getUserByUsername = cache(async (username: string): Promise<AuthUse
         : undefined,
       publicProfileFields: normalizePublicProfileFields(row.publicProfileFields),
       acceptProfileDms: acceptsProfileDms(row.acceptProfileDms),
+      publicProfileNftListings: showNftListings(row.publicProfileNftListings),
+      publicProfileMedia: normalizePublicProfileMedia(row.publicProfileMedia),
       communication,
       cultural,
       integrations,
@@ -198,10 +192,9 @@ export type PublicPersonalPageUser = {
   publicProfileSections?: string[]
   publicProfileFields?: PublicProfileFieldsMap
   acceptProfileDms?: boolean
-  communication?: CommunicationChannels & {
-    viberNumber?: string
-    signalNumber?: string
-  }
+  publicProfileNftListings?: boolean
+  publicProfileMedia?: PublicProfileMediaMap
+  communication?: CommunicationChannels
   cultural?: Pick<CulturalContext, 'country' | 'timezone' | 'languages'>
   integrations?: {
     socialProfiles?: {
@@ -238,6 +231,8 @@ export function projectPublicPersonalPage(user: AuthUser): PublicPersonalPageUse
     publicProfileSections: sections,
     publicProfileFields: fields,
     acceptProfileDms: acceptsProfileDms(user.acceptProfileDms),
+    publicProfileNftListings: showNftListings(user.publicProfileNftListings),
+    publicProfileMedia: normalizePublicProfileMedia(user.publicProfileMedia),
     isVerified: user.isVerified,
   }
 
@@ -252,10 +247,7 @@ export function projectPublicPersonalPage(user: AuthUser): PublicPersonalPageUse
   }
 
   if (enabled('messengers') && user.communication) {
-    const c = user.communication as CommunicationChannels & {
-      viberNumber?: string
-      signalNumber?: string
-    }
+    const c = user.communication
     const telegram = fieldOn('messengers', 'telegram')
       ? {
           telegramUsername: c.telegramUsername,
@@ -266,27 +258,16 @@ export function projectPublicPersonalPage(user: AuthUser): PublicPersonalPageUse
       fieldOn('messengers', 'whatsapp') && c.whatsappNumber
         ? { whatsappNumber: c.whatsappNumber }
         : {}
-    const viber =
-      fieldOn('messengers', 'viber') && c.viberNumber ? { viberNumber: c.viberNumber } : {}
-    const signal =
-      fieldOn('messengers', 'signal') && c.signalNumber
-        ? { signalNumber: c.signalNumber }
-        : {}
-    const hasAny =
-      Boolean(
-        ('telegramUsername' in telegram && telegram.telegramUsername) ||
-          ('telegramId' in telegram && telegram.telegramId) ||
-          whatsapp.whatsappNumber ||
-          viber.viberNumber ||
-          signal.signalNumber,
-      )
+    const hasAny = Boolean(
+      ('telegramUsername' in telegram && telegram.telegramUsername) ||
+        ('telegramId' in telegram && telegram.telegramId) ||
+        whatsapp.whatsappNumber,
+    )
     if (hasAny) {
       base.communication = {
         preferredContactMethod: c.preferredContactMethod || 'telegram',
         ...telegram,
         ...whatsapp,
-        ...viber,
-        ...signal,
       }
     }
   }

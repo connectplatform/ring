@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/database'
-import { getCreditUnitLabel } from '@/lib/payments/credit-balance'
+import { getCreditUnitLabel } from '@/lib/ring-oracle'
 
 export type RewardStatsRange = '7d' | '28d' | '90d'
 

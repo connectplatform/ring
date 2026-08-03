@@ -25,6 +25,7 @@
     "affiliate-enablement",
     "payments",
     "payment-conductor",
+    "ring-oracle",
     "public-pools",
     "subscriptions",
     "video-conductor",

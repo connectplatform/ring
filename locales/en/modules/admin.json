@@ -190,13 +190,16 @@
       "fromYesterday": "from yesterday",
       "thisWeek": "this week",
       "personalPages": "Personal pages",
-      "personalPagesSubtitle": "Unique visitors to public /username profiles",
+      "personalPagesSubtitle": "Public visits + private-shell hits on /username profiles",
       "personalUnique24h": "Unique 24h",
       "personalUniquePeriod": "Unique (period)",
       "personalVisits": "visits",
       "personalByRole": "By role",
       "personalByRoleHint": "24h / period unique",
-      "personalTopProfiles": "Top profiles"
+      "personalTopProfiles": "Top profiles",
+      "personalPrivateUnique24h": "Private unique 24h",
+      "personalPrivateUniquePeriod": "Private unique (period)",
+      "personalTopProfilesHint": "public · private unique"
     },
     "webvitals": {
       "title": "Core Web Vitals Performance",
@@ -669,6 +672,16 @@
       "peer-game-session-expiry": {
         "label": "Peer game session expiry",
         "description": "Expire pending invites (15m), idle active games (2h), reclaim orphan pending sessions"
+      },
+      "forgejo-robot-gc": {
+        "label": "Forgejo robot GC",
+        "description": "Delete orphan order-src-* Forgejo robots (7-day age guard; dryRun via ?dryRun=1)",
+        "schedule": "Weekly Sunday 04:00 UTC"
+      },
+      "forgejo-token-rotate": {
+        "label": "Forgejo source PAT rotate",
+        "description": "Rotate per-order Source Editor PATs older than FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (default 30) on active orders",
+        "schedule": "Monthly 1st 05:00 UTC"
       }
     },
     "nav": "Background Processes"

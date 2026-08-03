@@ -12,7 +12,7 @@
  *   4. ring-config.json → membership.tiers                (pricing amounts)
  */
 
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import { getSystemConfigSnapshot, getMainCurrencySymbol } from '@/lib/ring-config-core'
 import type {
   CardPaymentProcessor,
   MembershipPaymentProvider,
@@ -119,7 +119,7 @@ export function calculateNetRevenue(
   const gw = getGatewayConfig(provider)
   const feePercent = gw?.feePercent ?? 0
   const feeFixed = gw?.feeFixedCents ?? 0
-  const currency = gw?.currency ?? 'USD'
+  const currency = gw?.currency?.trim() ? gw.currency.trim().toUpperCase() : getMainCurrencySymbol()
 
   const percentageFee = Math.round(amount * feePercent) / 100
   const totalFee = percentageFee + feeFixed

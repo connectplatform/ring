@@ -17,12 +17,31 @@ import {
   acceptsProfileDms,
   normalizePersonalPageSections,
   normalizePublicProfileFields,
+  normalizePublicProfileMedia,
   personalPageFieldEnabled,
+  personalPageMediaVisible,
+  showNftListings,
+  type PersonalPageMediaId,
   type PersonalPageSectionId,
   type PublicProfileFieldsMap,
+  type PublicProfileMediaMap,
 } from '@/features/auth/lib/personal-page-sections'
 
 export { PERSONAL_PAGE_SECTION_IDS, type PersonalPageSectionId }
+
+const EMPTY_STATS: PersonalPageViewStats = {
+  today: 0,
+  last7d: 0,
+  unique24h: 0,
+  unique7d: 0,
+  visits24h: 0,
+  visits7d: 0,
+  byRole24h: [],
+  byRole7d: [],
+  privateUnique24h: 0,
+  privateUnique7d: 0,
+  hasData: false,
+}
 
 export type PersonalPageWidgetProps = {
   username?: string | null
@@ -30,12 +49,16 @@ export type PersonalPageWidgetProps = {
   publicProfileSections?: string[] | null
   publicProfileFields?: PublicProfileFieldsMap | null
   acceptProfileDms?: boolean | null
+  publicProfileNftListings?: boolean | null
+  publicProfileMedia?: PublicProfileMediaMap | null
   onOpenUsernameModal: () => void
   onPublicProfileChange?: (
     enabled: boolean,
     sections: string[],
     fields: PublicProfileFieldsMap,
     acceptDms: boolean,
+    nftListings: boolean,
+    media: PublicProfileMediaMap,
   ) => void
   className?: string
 }
@@ -54,6 +77,8 @@ export function PersonalPageWidget({
   publicProfileSections,
   publicProfileFields,
   acceptProfileDms: acceptDmsProp,
+  publicProfileNftListings: nftProp,
+  publicProfileMedia: mediaProp,
   onOpenUsernameModal,
   onPublicProfileChange,
   className,
@@ -69,17 +94,11 @@ export function PersonalPageWidget({
     normalizePublicProfileFields(publicProfileFields),
   )
   const [acceptDms, setAcceptDms] = useState(() => acceptsProfileDms(acceptDmsProp))
-  const [stats, setStats] = useState<PersonalPageViewStats>({
-    today: 0,
-    last7d: 0,
-    unique24h: 0,
-    unique7d: 0,
-    visits24h: 0,
-    visits7d: 0,
-    byRole24h: [],
-    byRole7d: [],
-    hasData: false,
-  })
+  const [nftListings, setNftListings] = useState(() => showNftListings(nftProp))
+  const [media, setMedia] = useState<PublicProfileMediaMap>(() =>
+    normalizePublicProfileMedia(mediaProp),
+  )
+  const [stats, setStats] = useState<PersonalPageViewStats>(EMPTY_STATS)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -87,21 +106,20 @@ export function PersonalPageWidget({
     setSections(normalizePersonalPageSections(publicProfileSections))
     setFields(normalizePublicProfileFields(publicProfileFields))
     setAcceptDms(acceptsProfileDms(acceptDmsProp))
-  }, [publicProfile, publicProfileSections, publicProfileFields, acceptDmsProp])
+    setNftListings(showNftListings(nftProp))
+    setMedia(normalizePublicProfileMedia(mediaProp))
+  }, [
+    publicProfile,
+    publicProfileSections,
+    publicProfileFields,
+    acceptDmsProp,
+    nftProp,
+    mediaProp,
+  ])
 
   useEffect(() => {
-    if (!publicProfile || !username) {
-      setStats({
-        today: 0,
-        last7d: 0,
-        unique24h: 0,
-        unique7d: 0,
-        visits24h: 0,
-        visits7d: 0,
-        byRole24h: [],
-        byRole7d: [],
-        hasData: false,
-      })
+    if (!username) {
+      setStats(EMPTY_STATS)
       return
     }
     let cancelled = false
@@ -110,24 +128,12 @@ export function PersonalPageWidget({
         if (!cancelled) setStats(next)
       })
       .catch(() => {
-        if (!cancelled) {
-          setStats({
-            today: 0,
-            last7d: 0,
-            unique24h: 0,
-            unique7d: 0,
-            visits24h: 0,
-            visits7d: 0,
-            byRole24h: [],
-            byRole7d: [],
-            hasData: false,
-          })
-        }
+        if (!cancelled) setStats(EMPTY_STATS)
       })
     return () => {
       cancelled = true
     }
-  }, [publicProfile, username])
+  }, [username])
 
   const siteHost = typeof window !== 'undefined' ? window.location.host : ''
   const publicUrl = username ? `${siteHost}/${username}` : ''
@@ -147,12 +153,24 @@ export function PersonalPageWidget({
     [t],
   )
 
+  const mediaMeta = useMemo(
+    () =>
+      [
+        { id: 'player' as const, label: t('mediaPlayer') || 'Player' },
+        { id: 'games' as const, label: t('mediaGames') || 'Games' },
+        { id: 'gallery' as const, label: t('mediaGallery') || 'Gallery' },
+      ] as const,
+    [t],
+  )
+
   const persist = useCallback(
     async (
       nextEnabled: boolean,
       nextSections: string[],
       nextFields: PublicProfileFieldsMap,
       nextAcceptDms: boolean,
+      nextNft: boolean,
+      nextMedia: PublicProfileMediaMap,
     ) => {
       setSaving(true)
       try {
@@ -161,11 +179,20 @@ export function PersonalPageWidget({
         formData.append('publicProfileSections', JSON.stringify(nextSections))
         formData.append('publicProfileFields', JSON.stringify(nextFields))
         formData.append('acceptProfileDms', nextAcceptDms ? 'true' : 'false')
+        formData.append('publicProfileNftListings', nextNft ? 'true' : 'false')
+        formData.append('publicProfileMedia', JSON.stringify(nextMedia))
         const { updateProfile } = await import('@/app/_actions/profile')
         const result = await updateProfile({ success: false, message: '' }, formData)
         if (result.success) {
           await updateSession().catch(() => undefined)
-          onPublicProfileChange?.(nextEnabled, nextSections, nextFields, nextAcceptDms)
+          onPublicProfileChange?.(
+            nextEnabled,
+            nextSections,
+            nextFields,
+            nextAcceptDms,
+            nextNft,
+            nextMedia,
+          )
         }
       } finally {
         setSaving(false)
@@ -180,7 +207,7 @@ export function PersonalPageWidget({
     const next = has ? sections.filter((x) => x !== id) : [...sections, id]
     const safe = normalizePersonalPageSections(next)
     setSections(safe)
-    void persist(enabled, safe, fields, acceptDms)
+    void persist(enabled, safe, fields, acceptDms, nftListings, media)
   }
 
   const toggleField = (section: PersonalPageSectionId, field: string) => {
@@ -195,7 +222,7 @@ export function PersonalPageWidget({
     }
     const normalized = normalizePublicProfileFields(next)
     setFields(normalized)
-    void persist(enabled, sections, normalized, acceptDms)
+    void persist(enabled, sections, normalized, acceptDms, nftListings, media)
   }
 
   const handleEnabledChange = (next: boolean) => {
@@ -205,14 +232,30 @@ export function PersonalPageWidget({
       return
     }
     setEnabled(next)
-    void persist(next, sections, fields, acceptDms)
+    void persist(next, sections, fields, acceptDms, nftListings, media)
   }
 
   const handleAcceptDmsChange = (next: boolean) => {
     if (saving) return
     setAcceptDms(next)
-    void persist(enabled, sections, fields, next)
+    void persist(enabled, sections, fields, next, nftListings, media)
   }
+
+  const handleNftChange = (next: boolean) => {
+    if (saving) return
+    setNftListings(next)
+    void persist(enabled, sections, fields, acceptDms, next, media)
+  }
+
+  const handleMediaChange = (id: PersonalPageMediaId, next: boolean) => {
+    if (saving) return
+    const nextMedia = normalizePublicProfileMedia({ ...media, [id]: next })
+    setMedia(nextMedia)
+    void persist(enabled, sections, fields, acceptDms, nftListings, nextMedia)
+  }
+
+  const showPrivateHits =
+    stats.privateUnique24h > 0 || stats.privateUnique7d > 0 || !enabled
 
   return (
     <>
@@ -258,28 +301,44 @@ export function PersonalPageWidget({
           </span>
         </div>
 
-        {enabled ? (
+        {username ? (
           <div className="space-y-2 border-t border-border/40 pt-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="min-w-0">
-                <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <Eye className="size-3" />
-                  {t('personalPageUnique24h') || 'Unique 24h'}
-                </p>
-                <p className="mt-0.5 text-lg font-semibold tabular-nums text-[var(--davinci-beam)]">
-                  {stats.unique24h}
-                </p>
+            {enabled ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <Eye className="size-3" />
+                    {t('personalPageUnique24h') || 'Unique 24h'}
+                  </p>
+                  <p className="mt-0.5 text-lg font-semibold tabular-nums text-[var(--davinci-beam)]">
+                    {stats.unique24h}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {t('personalPageUnique7d') || 'Unique 7d'}
+                  </p>
+                  <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+                    {stats.unique7d}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {t('personalPageUnique7d') || 'Unique 7d'}
-                </p>
-                <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-                  {stats.unique7d}
-                </p>
-              </div>
-            </div>
-            {(stats.byRole24h.length > 0 || stats.byRole7d.length > 0) && (
+            ) : null}
+            {showPrivateHits ? (
+              <p className="text-[11px] text-muted-foreground">
+                {t('personalPagePrivateHits') || 'Private hits'}{' '}
+                <span className="tabular-nums text-foreground">
+                  {stats.privateUnique24h}
+                  <span className="text-muted-foreground"> / </span>
+                  {stats.privateUnique7d}
+                </span>
+                <span className="text-muted-foreground/80">
+                  {' '}
+                  ({t('personalPageByRoleHint') || '24h / 7d unique'})
+                </span>
+              </p>
+            ) : null}
+            {enabled && (stats.byRole24h.length > 0 || stats.byRole7d.length > 0) ? (
               <div className="space-y-1">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   {t('personalPageByRole') || 'By role'}
@@ -303,11 +362,8 @@ export function PersonalPageWidget({
                     )
                   })}
                 </ul>
-                <p className="text-[10px] text-muted-foreground/80">
-                  {t('personalPageByRoleHint') || '24h / 7d unique'}
-                </p>
               </div>
-            )}
+            ) : null}
           </div>
         ) : null}
       </button>
@@ -361,6 +417,49 @@ export function PersonalPageWidget({
             disabled={saving}
             onCheckedChange={handleAcceptDmsChange}
           />
+        </div>
+
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2.5">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">
+              {t('sectionNftListings') || 'NFT listings'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t('sectionNftListingsHint') ||
+                'Show NFTs for sale on your public personal page'}
+            </p>
+          </div>
+          <Switch
+            checked={nftListings}
+            disabled={saving}
+            onCheckedChange={handleNftChange}
+          />
+        </div>
+
+        <div className="mb-4 space-y-2 rounded-lg border border-border/50 px-3 py-2.5">
+          <p className="text-sm font-medium">{t('mediaSurfaces') || 'Media surfaces'}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('mediaSurfacesHint') ||
+              'Pin visibility independently of the personal page master switch'}
+          </p>
+          <ul className="space-y-2 pt-1">
+            {mediaMeta.map((row) => {
+              const effective = personalPageMediaVisible(media, row.id, enabled)
+              return (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span>{row.label}</span>
+                  <Switch
+                    checked={effective}
+                    disabled={saving}
+                    onCheckedChange={(next) => handleMediaChange(row.id, next)}
+                  />
+                </li>
+              )
+            })}
+          </ul>
         </div>
 
         <ul className="space-y-2">

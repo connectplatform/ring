@@ -13,6 +13,9 @@ export type PersonalPageVisitStats = {
   visits7d: number
   byRole24h: PersonalPageRoleBucket[]
   byRole7d: PersonalPageRoleBucket[]
+  /** Unique hits on private shell (24h / 7d). */
+  privateUnique24h: number
+  privateUnique7d: number
   hasData: boolean
 }
 

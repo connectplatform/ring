@@ -52,9 +52,16 @@ export interface PlatformAnalyticsSummary {
     uniquePeriod: number
     visits24h: number
     visitsPeriod: number
+    privateUnique24h: number
+    privateUniquePeriod: number
     byRole24h: Array<{ role: string; unique: number; visits: number }>
     byRolePeriod: Array<{ role: string; unique: number; visits: number }>
-    topProfiles: Array<{ username: string; unique: number; visits: number }>
+    topProfiles: Array<{
+      username: string
+      unique: number
+      visits: number
+      privateUnique: number
+    }>
     hasData: boolean
   }
 }

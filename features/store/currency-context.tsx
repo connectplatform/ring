@@ -22,8 +22,11 @@ import {
   convertToMainCurrency,
   convertFromMainCurrency,
 } from '@/lib/ring-config-core'
+import { convertViaRates } from '@/lib/fx/convert-with-rates'
 
 export type { StorePaymentMethods }
+
+export type StoreDisplayMode = 'main_currency' | 'native_token'
 
 export const MAIN_CURRENCY: StorePaymentMethods = getMainCurrencySymbol()
 export const NATIVE_TOKEN: StorePaymentMethods = getNativeTokenSymbol()
@@ -84,48 +87,31 @@ interface StorePaymentMethodsContextType {
   mainCurrency: StorePaymentMethods
   nativeTokenCurrency: StorePaymentMethods
   displayCurrencies: StorePaymentMethods[]
+  /**
+   * Left-rail denomination mode: main_currency ↔ native_token only.
+   * Checkout presentment pools (SupportedCurrencies vs SupportedCrypto) key off this.
+   */
+  displayMode: StoreDisplayMode
 }
 
 const StorePaymentMethodsContext = createContext<StorePaymentMethodsContextType | null>(null)
 
-/**
- * Client-side convert mirroring ring-config-core convertTo/FromMainCurrency,
- * using a hydrated rate table (live FX feed + static + manual from ring-oracle).
- */
-function convertViaRates(
-  amount: number,
-  from: string,
-  to: string,
-  rates: Record<string, number>,
-  main: string,
-): number {
-  if (!Number.isFinite(amount)) return 0
-  const fromCode = (from || main).trim().toUpperCase()
-  const toCode = (to || main).trim().toUpperCase()
-  if (fromCode === toCode) return amount
-
-  const mainRate = rates[main]
-  const fromRate = rates[fromCode]
-  const toRate = rates[toCode]
-  if (
-    typeof mainRate !== 'number' ||
-    mainRate <= 0 ||
-    typeof fromRate !== 'number' ||
-    fromRate <= 0
-  ) {
-    return amount
-  }
-  const inMain = fromCode === main ? amount : (amount * mainRate) / fromRate
-  if (toCode === main) return inMain
-  if (typeof toRate !== 'number' || toRate <= 0) return inMain
-  return (inMain * toRate) / mainRate
-}
-
-export function StorePaymentMethodsProvider({ children }: { children: React.ReactNode }) {
+export function StorePaymentMethodsProvider({
+  children,
+  initialExchangeRates = null,
+}: {
+  children: React.ReactNode
+  /** SSR-seeded rates from AuthenticatedAppShell (ring-oracle ensureFxFeedFresh). */
+  initialExchangeRates?: Record<string, number> | null
+}) {
   const [currency, setCurrencyState] = useState<StorePaymentMethods>(MAIN_CURRENCY)
   const [mounted, setMounted] = useState(false)
-  /** Live FX table from ring-oracle (server action); null until hydrated. */
-  const [liveRates, setLiveRates] = useState<Record<string, number> | null>(null)
+  /** Live FX table — SSR seed first; client refresh may replace. */
+  const [liveRates, setLiveRates] = useState<Record<string, number> | null>(
+    initialExchangeRates && Object.keys(initialExchangeRates).length > 0
+      ? initialExchangeRates
+      : null,
+  )
   /** Last selected fiat — used so rail toggle returns to user preference, not always default. */
   const lastFiatRef = React.useRef<StorePaymentMethods>(MAIN_CURRENCY)
 
@@ -293,6 +279,9 @@ export function StorePaymentMethodsProvider({ children }: { children: React.Reac
   const equivalentCurrency: StorePaymentMethods =
     currency === NATIVE_TOKEN ? MAIN_CURRENCY : NATIVE_TOKEN
 
+  const displayMode: StoreDisplayMode =
+    currency === NATIVE_TOKEN ? 'native_token' : 'main_currency'
+
   const value: StorePaymentMethodsContextType = {
     currency,
     setCurrency,
@@ -304,6 +293,7 @@ export function StorePaymentMethodsProvider({ children }: { children: React.Reac
     mainCurrency: MAIN_CURRENCY,
     nativeTokenCurrency: NATIVE_TOKEN,
     displayCurrencies: DISPLAY_CURRENCIES,
+    displayMode,
   }
 
   return (

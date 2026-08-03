@@ -190,13 +190,16 @@
       "fromYesterday": "seit gestern",
       "thisWeek": "diese Woche",
       "personalPages": "Persönliche Seiten",
-      "personalPagesSubtitle": "Eindeutige Besucher öffentlicher /username-Profile",
+      "personalPagesSubtitle": "Öffentliche Besuche + private Aufrufe von /username-Profilen",
       "personalUnique24h": "Einzigartig 24h",
       "personalUniquePeriod": "Einzigartig (Zeitraum)",
       "personalVisits": "Besuche",
       "personalByRole": "Nach Rolle",
       "personalByRoleHint": "24h / Zeitraum einzigartig",
-      "personalTopProfiles": "Top-Profile"
+      "personalTopProfiles": "Top-Profile",
+      "personalPrivateUnique24h": "Private einzigartig 24h",
+      "personalPrivateUniquePeriod": "Private einzigartig (Zeitraum)",
+      "personalTopProfilesHint": "öffentlich · privat einzigartig"
     },
     "webvitals": {
       "title": "Core Web Vitals Leistung",
@@ -663,6 +666,16 @@
       "peer-game-session-expiry": {
         "label": "Peer-Spiel-Sitzungsablauf",
         "description": "Pending-Einladungen (15m), idle active (2h), Orphan-Reclaim"
+      },
+      "forgejo-robot-gc": {
+        "label": "Forgejo Robot-GC",
+        "description": "Löscht verwaiste order-src-*-Forgejo-Roboter (Alter ≥7 Tage; dryRun via ?dryRun=1)",
+        "schedule": "Wöchentlich Sonntag 04:00 UTC"
+      },
+      "forgejo-token-rotate": {
+        "label": "Forgejo-PAT-Rotation",
+        "description": "Rotiert per-order Source-Editor-PATs älter als FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (Standard 30) bei aktiven Aufträgen",
+        "schedule": "Monatlich am 1. 05:00 UTC"
       }
     },
     "nav": "Hintergrundprozesse"

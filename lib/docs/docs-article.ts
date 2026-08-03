@@ -1,10 +1,10 @@
 import fs from 'fs'
-import path from 'path'
 import matter from 'gray-matter'
 import { calculateReadingTime } from '@/features/news/utils/reading-time'
 import {
   buildDocsLinkPath,
   getDocsLocaleRoot,
+  joinDocsFsPath,
   readSectionMeta,
   resolveDocFilePath,
 } from '@/lib/docs/docs-path'
@@ -74,11 +74,11 @@ function stripMdxForReadingEstimate(content: string): string {
 function breadcrumbLabelForSegment(locale: string, slugPrefix: string[]): string {
   const segment = slugPrefix[slugPrefix.length - 1]
   const localeRoot = getDocsLocaleRoot(locale)
-  const sectionMeta = readSectionMeta(path.join(localeRoot, ...slugPrefix, 'meta.json'))
+  const sectionMeta = readSectionMeta(joinDocsFsPath(localeRoot, ...slugPrefix, 'meta.json'))
   if (sectionMeta.title) {
     return sectionMeta.title
   }
-  const indexPath = path.join(localeRoot, ...slugPrefix, 'index.mdx')
+  const indexPath = joinDocsFsPath(localeRoot, ...slugPrefix, 'index.mdx')
   return getDocTitleFromFile(indexPath, slugToLabel(segment))
 }
 

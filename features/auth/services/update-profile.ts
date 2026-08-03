@@ -91,13 +91,12 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
       }
     }
     
-    // Parse skills field if it's a JSON string
-    if (typeof processedData.skills === 'string') {
-      try {
-        processedData.skills = JSON.parse(processedData.skills);
-      } catch (e) {
-        console.warn('Services: updateProfile - Failed to parse skills JSON:', e);
-      }
+    // Normalize skills from JSON string / comma list / array
+    if ('skills' in processedData) {
+      const { normalizeSkills } = await import(
+        '@/features/auth/lib/personal-page-sections'
+      )
+      processedData.skills = normalizeSkills(processedData.skills)
     }
     
     // Parse notificationPreferences field if it's a JSON string
@@ -141,6 +140,15 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
         v === '0'
       )
     }
+    if ('publicProfileNftListings' in processedData) {
+      const v = processedData.publicProfileNftListings
+      processedData.publicProfileNftListings = !(
+        v === false ||
+        v === 'false' ||
+        v === 0 ||
+        v === '0'
+      )
+    }
     if (typeof processedData.publicProfileSections === 'string') {
       try {
         processedData.publicProfileSections = JSON.parse(processedData.publicProfileSections)
@@ -158,6 +166,18 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
         )
       } catch (e) {
         console.warn('Services: updateProfile - Failed to parse publicProfileFields JSON:', e)
+      }
+    }
+    if (typeof processedData.publicProfileMedia === 'string') {
+      try {
+        const { normalizePublicProfileMedia } = await import(
+          '@/features/auth/lib/personal-page-sections'
+        )
+        processedData.publicProfileMedia = normalizePublicProfileMedia(
+          JSON.parse(processedData.publicProfileMedia),
+        )
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse publicProfileMedia JSON:', e)
       }
     }
     

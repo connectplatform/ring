@@ -32,7 +32,14 @@ export async function generateMetadata({
   const user = await getUserByUsername(username)
   if (!user) return {}
   const displayName = user.name || user.username || username
-  if (!user.publicProfile) {
+  const {
+    normalizePublicProfileMedia,
+    personalPageMediaVisible,
+  } = await import('@/features/auth/lib/personal-page-sections')
+  const media = normalizePublicProfileMedia(
+    (user as { publicProfileMedia?: unknown }).publicProfileMedia,
+  )
+  if (!personalPageMediaVisible(media, 'player', Boolean(user.publicProfile))) {
     return {
       title: `@${user.username || username} — Player`,
       ...privatePersonalPageRobots(),
@@ -61,11 +68,12 @@ export default async function PublicPlayerPage(props: LocalePageProps<Params>) {
   if (!user) notFound()
 
   const session = await auth()
-  const privateShell = maybePrivatePersonalPageShell({
+  const privateShell = await maybePrivatePersonalPageShell({
     user,
     session,
     locale,
     username,
+    surface: 'player',
   })
   if (privateShell) return privateShell
 

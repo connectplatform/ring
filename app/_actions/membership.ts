@@ -21,7 +21,7 @@ import {
   getMembershipRingAmountForPeriod,
   getMembershipMainCurrencyPerNativeToken,
 } from '@/lib/membership/pricing'
-import { getCreditUnitLabel } from '@/lib/payments/credit-balance'
+import { getCreditUnitLabel } from '@/lib/ring-oracle'
 import {
   getCardPaymentProcessor,
   getGatewayConfig,
@@ -127,7 +127,7 @@ export async function payWithCreditBalance(formData: FormData): Promise<Membersh
     const { creditBalanceService } = await import(
       '@/features/wallet/services/credit-balance-service'
     )
-    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/ring-oracle')
     const { SubscriptionConductor } = await import(
       '@/lib/payments/subscription/subscription-conductor'
     )

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { DocsArticleShell } from '@/components/docs/docs-article-shell'
-import { normalizeDocsSlug } from '@/lib/docs/docs-path'
+import { normalizeDocsSlug } from '@/lib/docs/docs-path-url'
 
 type LayoutProps = {
   children: ReactNode

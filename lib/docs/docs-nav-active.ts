@@ -1,4 +1,4 @@
-import { buildDocsLinkPath } from '@/lib/docs/docs-path'
+import { buildDocsLinkPath } from '@/lib/docs/docs-path-url'
 import { stripLocalePrefix } from '@/lib/pathname-without-locale'
 
 /** Locale-neutral docs hub — `docs/index.mdx` at `/docs`. */

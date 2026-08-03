@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import type { LocalePageProps } from '@/utils/page-props'
-import { normalizeDocsSlug } from '@/lib/docs/docs-path'
+import { normalizeDocsSlug } from '@/lib/docs/docs-path-url'
 import {
   generateDocsMetadata,
   generateDocsStaticParams,

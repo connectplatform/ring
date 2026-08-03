@@ -48,6 +48,7 @@ propagation/
 # Empire infrastructure — not shared with community
 k8s/
 cli/
+.forgejo/
 
 # Internal ops scripts (community uses install.sh, scripts/setup-dev.sh, scripts/setup-env.js, scripts/run-migration.sh)
 scripts/file-registry-schema.sql

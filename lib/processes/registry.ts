@@ -17,6 +17,9 @@ import { runSolanaBatchPayment } from '@/lib/processes/subscription/solana-nft-s
 import { runNftGateExpiry } from '@/lib/processes/subscription/solana-nft-stubs'
 import { closeExpiredPolls } from '@/features/chat/lib/close-expired-polls'
 import { expirePeerGameSessions } from '@/features/peer-games/session-expiry'
+import { runForgejoRobotGc } from '@/features/crm/lab/forgejo-robot-gc-service'
+import { runForgejoTokenRotate } from '@/features/crm/lab/forgejo-token-rotate-service'
+import { runFxFeedRefresh } from '@/lib/processes/fx/fx-feed-refresh'
 import type { PipelineDefinition } from '@/lib/processes/types'
 
 /** Stable pipeline ids — display copy lives in locales (modules.admin.processes.pipelines.*). */
@@ -38,6 +41,9 @@ export const PIPELINE_IDS = [
   'nft-gate-expiry',
   'close-expired-polls',
   'peer-game-session-expiry',
+  'forgejo-robot-gc',
+  'forgejo-token-rotate',
+  'fx-feed-refresh',
 ] as const
 
 export type PipelineId = (typeof PIPELINE_IDS)[number]
@@ -185,6 +191,24 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     category: 'cleanup',
     cronPath: '/api/cron/peer-game-session-expiry',
     handler: async () => expirePeerGameSessions(),
+  },
+  {
+    id: 'forgejo-robot-gc',
+    category: 'cleanup',
+    cronPath: '/api/cron/forgejo-robot-gc',
+    handler: async () => runForgejoRobotGc({ dryRun: false }),
+  },
+  {
+    id: 'forgejo-token-rotate',
+    category: 'cleanup',
+    cronPath: '/api/cron/forgejo-token-rotate',
+    handler: async () => runForgejoTokenRotate(),
+  },
+  {
+    id: 'fx-feed-refresh',
+    category: 'commerce',
+    cronPath: '/api/cron/fx-feed-refresh',
+    handler: runFxFeedRefresh,
   },
 ]
 

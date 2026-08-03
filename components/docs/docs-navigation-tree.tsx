@@ -1,10 +1,14 @@
 import * as fs from 'fs'
-import * as path from 'path'
 import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale, supportedLocales } from '@/i18n/shared'
-import { buildDocsLinkPath, getDocsLocaleRoot, readSectionMeta } from '@/lib/docs/docs-path'
+import {
+  buildDocsLinkPath,
+  getDocsLocaleRoot,
+  joinDocsFsPath,
+  readSectionMeta,
+} from '@/lib/docs/docs-path'
 import { buildDocsPageHref } from '@/lib/docs/docs-nav-active'
 import { getDocTitleFromFile } from '@/lib/docs/docs-article'
 import DocsNavigationPanel from '@/components/docs/docs-navigation-panel'
@@ -42,12 +46,12 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
   const buildHref = buildDocsPageHref
 
   const sectionHasIndex = (sectionDir: string): boolean =>
-    fs.existsSync(path.join(sectionDir, 'index.mdx'))
+    fs.existsSync(joinDocsFsPath(sectionDir, 'index.mdx'))
 
   const loadTopPinnedLinks = (): DocsNavItem[] => {
     const pinned: DocsNavItem[] = []
 
-    const welcomePath = path.join(docsRoot, 'welcome.mdx')
+    const welcomePath = joinDocsFsPath(docsRoot, 'welcome.mdx')
     if (fs.existsSync(welcomePath)) {
       pinned.push({
         href: buildHref(null, 'welcome'),
@@ -56,7 +60,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
       })
     }
 
-    const indexPath = path.join(docsRoot, 'index.mdx')
+    const indexPath = joinDocsFsPath(docsRoot, 'index.mdx')
     if (fs.existsSync(indexPath)) {
       pinned.push({
         href: buildHref(null, 'index'),
@@ -70,7 +74,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   const loadHierarchicalNavigation = (): DocsNavSection[] => {
     const sections: DocsNavSection[] = []
-    const rootMeta = readSectionMeta(path.join(docsRoot, 'meta.json'))
+    const rootMeta = readSectionMeta(joinDocsFsPath(docsRoot, 'meta.json'))
     const sectionSlugs = rootMeta.pages ?? []
 
     for (const entry of sectionSlugs) {
@@ -78,12 +82,12 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
         continue
       }
 
-      const sectionDir = path.join(docsRoot, entry)
+      const sectionDir = joinDocsFsPath(docsRoot, entry)
       if (!fs.existsSync(sectionDir) || !fs.statSync(sectionDir).isDirectory()) {
         continue
       }
 
-      const sectionMeta = readSectionMeta(path.join(sectionDir, 'meta.json'))
+      const sectionMeta = readSectionMeta(joinDocsFsPath(sectionDir, 'meta.json'))
       const sectionTitle = sectionMeta.title ?? slugToLabel(entry)
       const pageSlugs = sectionMeta.pages ?? ['index']
       const sectionHref = sectionHasIndex(sectionDir)
@@ -96,8 +100,8 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
           continue
         }
 
-        const nestedDir = path.join(sectionDir, pageSlug)
-        const nestedMetaPath = path.join(nestedDir, 'meta.json')
+        const nestedDir = joinDocsFsPath(sectionDir, pageSlug)
+        const nestedMetaPath = joinDocsFsPath(nestedDir, 'meta.json')
 
         if (fs.existsSync(nestedDir) && fs.statSync(nestedDir).isDirectory() && fs.existsSync(nestedMetaPath)) {
           const nestedMeta = readSectionMeta(nestedMetaPath)
@@ -108,7 +112,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
             }
 
             const nestedFileName = `${nestedPageSlug}.mdx`
-            const nestedFilePath = path.join(nestedDir, nestedFileName)
+            const nestedFilePath = joinDocsFsPath(nestedDir, nestedFileName)
             if (!fs.existsSync(nestedFilePath)) continue
 
             items.push({
@@ -121,7 +125,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
         }
 
         const fileName = `${pageSlug}.mdx`
-        const filePath = path.join(sectionDir, fileName)
+        const filePath = joinDocsFsPath(sectionDir, fileName)
         if (!fs.existsSync(filePath)) continue
 
         items.push({

@@ -190,13 +190,16 @@
       "fromYesterday": "від учора",
       "thisWeek": "цього тижня",
       "personalPages": "Особисті сторінки",
-      "personalPagesSubtitle": "Унікальні відвідувачі публічних /username профілів",
+      "personalPagesSubtitle": "Публічні відвідування + приватні перегляди /username",
       "personalUnique24h": "Унікальні 24г",
       "personalUniquePeriod": "Унікальні (період)",
       "personalVisits": "візити",
       "personalByRole": "За ролями",
       "personalByRoleHint": "24г / період унікальні",
-      "personalTopProfiles": "Топ профілів"
+      "personalTopProfiles": "Топ профілів",
+      "personalPrivateUnique24h": "Приватні унікальні 24г",
+      "personalPrivateUniquePeriod": "Приватні унікальні (період)",
+      "personalTopProfilesHint": "публічні · приватні унікальні"
     },
     "webvitals": {
       "title": "Продуктивність Core Web Vitals",
@@ -637,6 +640,16 @@
       "peer-game-session-expiry": {
         "label": "Термін сесій peer-ігор",
         "description": "Закрити pending-запрошення (15хв), idle active (2г), orphan reclaim"
+      },
+      "forgejo-robot-gc": {
+        "label": "Forgejo GC роботів",
+        "description": "Видаляє orphan order-src-* роботів Forgejo (охорона віку 7 днів; dryRun через ?dryRun=1)",
+        "schedule": "Щотижня неділя 04:00 UTC"
+      },
+      "forgejo-token-rotate": {
+        "label": "Ротація Forgejo PAT",
+        "description": "Ротує per-order PAT Source Editor старші за FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (типово 30) на активних замовленнях",
+        "schedule": "Щомісяця 1-го 05:00 UTC"
       }
     },
     "nav": "Фонові процеси"

@@ -2,7 +2,7 @@ import 'server-only'
 
 import { crc32 } from 'zlib'
 import { createVerify } from 'crypto'
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import { getSystemConfigSnapshot, getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { logger } from '@/lib/logger'
 
 type CachedToken = { accessToken: string; expiresAtMs: number }
@@ -22,7 +22,8 @@ export function isPayPalGatewayEnabled(): boolean {
 
 export function getPayPalGatewayCurrency(): string {
   const gw = getSystemConfigSnapshot().payment?.gateways?.paypal as { currency?: string } | undefined
-  return (gw?.currency || 'USD').toUpperCase()
+  if (gw?.currency?.trim()) return gw.currency.trim().toUpperCase()
+  return getMainCurrencySymbol()
 }
 
 function paypalBaseUrl(): string {

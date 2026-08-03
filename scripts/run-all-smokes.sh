@@ -16,5 +16,9 @@ echo ""
 echo "== smoke-chat-interactive.cts =="
 npx tsx "$ROOT/scripts/smoke-chat-interactive.cts"
 
+echo ""
+echo "== smoke-ring-oracle-fx.cts =="
+npx tsx "$ROOT/scripts/smoke-ring-oracle-fx.cts"
+
 echo "OK"
 exit 0

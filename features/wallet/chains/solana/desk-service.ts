@@ -4,6 +4,7 @@ import { creditBalanceService } from '@/features/wallet/services/credit-balance-
 import {
   assertQuoteSlippage,
   getNativeTokenPerMainCurrencyRate,
+  getMainCurrencyCreditAccountingRate,
   signQuote,
   verifyQuoteToken,
   type SignedQuotePayload,
@@ -27,7 +28,6 @@ import { transferTokenFromTreasury } from '@/features/wallet/chains/solana/treas
 import type { DeskOrderSide } from '@/lib/zod/desk-schemas'
 import { db } from '@/lib/database'
 import { getClientMainCurrency } from '@/lib/ring-config-client'
-import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
 
 /** Credit point → main currency multiplier (ring-config credit.creditBalanceUnitToMainCurrency). */
 function getPointFiatValue(): number {

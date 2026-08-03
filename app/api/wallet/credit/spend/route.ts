@@ -7,7 +7,7 @@ import {
   formatCreditAmount,
   getCreditUnitLabel,
   getMainCurrencyCreditAccountingRate,
-} from '@/lib/payments/credit-balance';
+} from '@/lib/ring-oracle';
 
 /**
  * POST /api/wallet/credit/spend

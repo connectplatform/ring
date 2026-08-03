@@ -39,6 +39,16 @@
     "success": "Thank you for your message!",
     "openMessages": "Open conversation",
     "messageSent": "Message sent!",
-    "notAcceptingMessages": "This member is not accepting profile messages"
+    "notAcceptingMessages": "This member is not accepting profile messages",
+    "signInRequired": "Sign in to send a message",
+    "subscriberRequired": "Subscriber access required to contact this user",
+    "cannotMessageSelf": "You cannot message yourself",
+    "messageRequired": "Message is required",
+    "rateLimited": "Too many requests. Please try again in a minute.",
+    "recipientNotFound": "Recipient not found",
+    "recipientRequired": "Recipient is required",
+    "sendFailed": "Failed to send message. Please try again.",
+    "allFieldsRequired": "All fields are required",
+    "invalidEmail": "Please enter a valid email address"
   }
 }

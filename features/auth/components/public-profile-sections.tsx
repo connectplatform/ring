@@ -12,11 +12,6 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
 
-type MessengerExtra = {
-  viberNumber?: string
-  signalNumber?: string
-}
-
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, '')
 }
@@ -29,14 +24,8 @@ function hasSectionContent(
     case 'bio':
       return Boolean(user.bio?.trim())
     case 'messengers': {
-      const c = user.communication as (typeof user.communication & MessengerExtra) | undefined
-      return Boolean(
-        c?.telegramUsername ||
-          c?.telegramId ||
-          c?.whatsappNumber ||
-          c?.viberNumber ||
-          c?.signalNumber,
-      )
+      const c = user.communication
+      return Boolean(c?.telegramUsername || c?.telegramId || c?.whatsappNumber)
     }
     case 'professional':
       return Boolean(
@@ -97,9 +86,7 @@ export async function PublicProfileSections({
   const show = (id: PersonalPageSectionId) => personalPageSectionEnabled(sections, id)
   const dmsOk = acceptsProfileDms(user.acceptProfileDms)
 
-  const messengers = user.communication as
-    | (NonNullable<PublicPersonalPageUser['communication']> & MessengerExtra)
-    | undefined
+  const messengers = user.communication
 
   // Never invite sign-in / form preview when recipient opted out of profile DMs
   const showContactSignIn =
@@ -149,16 +136,6 @@ export async function PublicProfileSections({
                 >
                   {messengers.whatsappNumber}
                 </a>
-              </li>
-            ) : null}
-            {messengers?.viberNumber ? (
-              <li>
-                {t('messengerViber') || 'Viber'}: {messengers.viberNumber}
-              </li>
-            ) : null}
-            {messengers?.signalNumber ? (
-              <li>
-                {t('messengerSignal') || 'Signal'}: {messengers.signalNumber}
               </li>
             ) : null}
           </ul>

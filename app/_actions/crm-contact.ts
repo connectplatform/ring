@@ -13,13 +13,26 @@ import {
   UserRolesArray,
 } from '@/features/auth/user-role'
 
+export type ContactFormErrorKey =
+  | 'signInRequired'
+  | 'subscriberRequired'
+  | 'cannotMessageSelf'
+  | 'messageRequired'
+  | 'rateLimited'
+  | 'recipientNotFound'
+  | 'recipientRequired'
+  | 'sendFailed'
+  | 'allFieldsRequired'
+  | 'invalidEmail'
+  | 'notAcceptingMessages'
+
 export interface ContactFormState {
   success?: boolean
   message?: string
   /** Client maps via contact.form.* — prefer over hardcoded English message. */
   successKey?: 'thankYou' | 'messageSent'
-  /** Client maps via contact.form.* for DM/privacy errors. */
-  errorKey?: 'notAcceptingMessages'
+  /** Client maps via contact.form.* for DM/CRM errors. */
+  errorKey?: ContactFormErrorKey
   error?: string
   taskId?: string
   supportConversationId?: string
@@ -44,19 +57,22 @@ async function submitDirectMessageContact(
   const message = String(formData.get('message') || '').trim()
 
   if (!recipientUserId) {
-    return { error: 'Recipient is required' }
+    return { errorKey: 'recipientRequired', error: 'Recipient is required' }
   }
   if (!session.user?.id) {
-    return { error: 'Sign in to send a message' }
+    return { errorKey: 'signInRequired', error: 'Sign in to send a message' }
   }
   if (!hasRoleAtLeast(resolveSessionUserRole(session.user.role), UserRolesArray.subscriber)) {
-    return { error: 'Subscriber access required to contact this user' }
+    return {
+      errorKey: 'subscriberRequired',
+      error: 'Subscriber access required to contact this user',
+    }
   }
   if (recipientUserId === session.user.id) {
-    return { error: 'You cannot message yourself' }
+    return { errorKey: 'cannotMessageSelf', error: 'You cannot message yourself' }
   }
   if (!message) {
-    return { error: 'Message is required' }
+    return { errorKey: 'messageRequired', error: 'Message is required' }
   }
 
   const resolvedName = session.user.name || name || 'Member'
@@ -69,20 +85,33 @@ async function submitDirectMessageContact(
     'unknown'
   const limit = rateLimit(`contact-dm:${session.user.id}:${ip}`, 8, 60_000)
   if (!limit.ok) {
-    return { error: 'Too many requests. Please try again in a minute.' }
+    return {
+      errorKey: 'rateLimited',
+      error: 'Too many requests. Please try again in a minute.',
+    }
   }
 
   try {
     const { db } = await import('@/lib/database')
     const recipient = await db().readDoc('users', recipientUserId)
     if (!recipient.success || !recipient.data) {
-      return { error: 'Recipient not found' }
+      return { errorKey: 'recipientNotFound', error: 'Recipient not found' }
     }
 
     const { acceptsProfileDms } = await import(
       '@/features/auth/lib/personal-page-sections'
     )
     if (!acceptsProfileDms((recipient.data as { acceptProfileDms?: unknown }).acceptProfileDms)) {
+      return {
+        errorKey: 'notAcceptingMessages',
+        error: 'This member is not accepting profile messages',
+      }
+    }
+
+    const { isDirectMessagingBlockedBetween } = await import(
+      '@/features/auth/services/user-blocklist-lib'
+    )
+    if (await isDirectMessagingBlockedBetween(session.user.id, recipientUserId)) {
       return {
         errorKey: 'notAcceptingMessages',
         error: 'This member is not accepting profile messages',
@@ -140,7 +169,10 @@ async function submitDirectMessageContact(
       process.env.NODE_ENV !== 'production' && error instanceof Error
         ? ` (${error.message})`
         : ''
-    return { error: `Failed to send message. Please try again.${detail}` }
+    return {
+      errorKey: 'sendFailed',
+      error: `Failed to send message. Please try again.${detail}`,
+    }
   }
 }
 
@@ -159,7 +191,7 @@ export async function submitContactForm(
   // Private /username profile: reuse same form UI → owner DM inbox
   if (deliveryMode === 'direct_message') {
     if (!session?.user?.id) {
-      return { error: 'Sign in to send a message' }
+      return { errorKey: 'signInRequired', error: 'Sign in to send a message' }
     }
     return submitDirectMessageContact(formData, session)
   }
@@ -171,7 +203,10 @@ export async function submitContactForm(
     'unknown'
   const limit = rateLimit(`contact:${ip}`, 5, 60_000)
   if (!limit.ok) {
-    return { error: 'Too many requests. Please try again in a minute.' }
+    return {
+      errorKey: 'rateLimited',
+      error: 'Too many requests. Please try again in a minute.',
+    }
   }
 
   const entityId = formData.get('entityId') as string
@@ -181,11 +216,11 @@ export async function submitContactForm(
   const message = formData.get('message') as string
 
   if (!name || !email || !message) {
-    return { error: 'All fields are required' }
+    return { errorKey: 'allFieldsRequired', error: 'All fields are required' }
   }
 
   if (!/\S+@\S+\.\S+/.test(email)) {
-    return { error: 'Please enter a valid email address' }
+    return { errorKey: 'invalidEmail', error: 'Please enter a valid email address' }
   }
 
   const resolvedName = session?.user?.name || name
@@ -314,7 +349,10 @@ export async function submitContactForm(
       process.env.NODE_ENV !== 'production' && crmError instanceof Error
         ? ` (${crmError.message})`
         : ''
-    return { error: `Failed to send message. Please try again.${detail}` }
+    return {
+      errorKey: 'sendFailed',
+      error: `Failed to send message. Please try again.${detail}`,
+    }
   }
 
   try {

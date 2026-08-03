@@ -97,7 +97,8 @@ async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateC
     userEmail: ctx.userEmail,
     items: (ctx.items as any) || [],
     totalAmount: ctx.amount,
-    currency: (ctx.currency as 'UAH' | 'USD' | 'EUR') || 'UAH',
+    currency: ((ctx.currency as 'UAH' | 'USD' | 'EUR') ||
+      (getMainCurrencySymbol() as 'UAH' | 'USD' | 'EUR')),
     shippingInfo: (ctx.shippingInfo as any) || { email: ctx.userEmail },
     returnUrl: ctx.returnUrl,
     webhookUrl: getWebhookUrl('wayforpay'),

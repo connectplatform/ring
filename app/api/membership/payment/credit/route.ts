@@ -10,7 +10,7 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
-import { getCreditUnitLabel } from '@/lib/payments/credit-balance'
+import { getCreditUnitLabel } from '@/lib/ring-oracle'
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
 import { getGatewayConfig } from '@/lib/payments/subscription/subscription-config'
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'membership_fee') {
-      const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+      const { getMainCurrencyCreditAccountingRate } = await import('@/lib/ring-oracle')
       const result = await creditBalanceService.processMembershipFee(
         userId,
         String(creditAmount),

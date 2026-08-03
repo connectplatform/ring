@@ -589,7 +589,7 @@ export const WalletConductor = {
       if (!hasBalance) {
         return { success: false, error: 'Insufficient credit balance' }
       }
-      const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+      const { getMainCurrencyCreditAccountingRate } = await import('@/lib/ring-oracle')
       const result = await creditBalanceService.spendCredits(
         params.userId,
         {
