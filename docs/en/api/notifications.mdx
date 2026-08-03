@@ -1,7 +1,7 @@
 ---
 title: Notifications API
 description: Complete API documentation for Ring Platform's notification system with real-time delivery, FCM push notifications, and comprehensive management
-last_modified: "2026-06-20"
+last_modified: "2026-08-04"
 ---
 
 
@@ -401,10 +401,14 @@ See [Tunnel protocol](/en/docs/features/tunnel-protocol) for routes and configur
 
 ### FCM Integration
 
-Ring Platform integrates with Firebase Cloud Messaging. Browser registration SSOT: `hooks/use-fcm.ts` inside `FCMProvider`, persisting via `upsertFcmToken` Server Action. Logout SSOT: `useAuth().signOut()` unregisters the device token.
+Ring Platform integrates with Firebase Cloud Messaging. Browser registration SSOT: `hooks/use-fcm.ts` inside `FCMProvider`. The hook persists tokens via `POST /api/notifications/fcm/register` (preferred over the `upsertFcmToken` Server Action to avoid RSC revalidation storms). Logout SSOT: `useAuth().signOut()` unregisters the device token. Server send uses the **Firebase Admin SDK** (`features/notifications/services/fcm-service.ts`, `getAdminMessaging()`), not a legacy server key.
 
-<Callout type="tip" title="Primary path">
-Do not `fetch('/api/notifications/fcm/register')` from React — use the Server Action. Reserve the API route for mobile and external clients.
+<Callout type="warning" title="VAPID: Firebase certificate ≠ RFC web-push keys">
+  Browser `getToken()` needs `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase Console → Cloud Messaging → Web Push certificates). That is **not** the planned RFC Web Push trio (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` for the `web-push` library — **not shipped**; package not in `package.json`). Do not copy the Firebase certificate into the RFC vars. Full split: [Push notifications (FCM)](/docs/features/push-notifications-fcm).
+</Callout>
+
+<Callout type="tip" title="Register path">
+  React shell uses `fetch('/api/notifications/fcm/register')` from `use-fcm`. The Server Action `upsertFcmToken` remains for callers that need it; both write through `lib/notifications/fcm-token-db.ts`.
 </Callout>
 
 #### Client setup (SSOT)
@@ -761,18 +765,27 @@ trackEvent('notification_delivered', {
 
 ### Environment Variables
 
-FCM Configuration Notification Settings Redis (optional)
+**Shipped FCM** — there are no `FCM_SERVER_KEY` or `FCM_VAPID_KEY` variables. Use Firebase client + Admin env from `env.local.template`:
 
-<Code language="bash" title="terminal">
-{`FCM_SERVER_KEY=your-fcm-server-key
-FCM_VAPID_KEY=your-vapid-public-key
+<Code language="bash" title="FCM client + Admin (shipped)">
+{`# Client — Web Push certificate for getToken() (Firebase Console → Cloud Messaging)
+NEXT_PUBLIC_FIREBASE_API_KEY=…
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=…
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=…
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=…
+NEXT_PUBLIC_FIREBASE_APP_ID=…
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=…   # NOT an RFC web-push keypair
 
-NOTIFICATION_RATE_LIMIT=100
-NOTIFICATION_BULK_LIMIT=50
-NOTIFICATION_RETENTION_DAYS=90
-
-REDIS_URL=redis://localhost:6379`}
+# Server — Firebase Admin SDK send (not a legacy FCM server key)
+AUTH_FIREBASE_PROJECT_ID=…
+AUTH_FIREBASE_CLIENT_EMAIL=…
+AUTH_FIREBASE_PRIVATE_KEY="…"
+DB_BACKEND_MODE=k8s-postgres-fcm`}
 </Code>
+
+<Callout type="info" title="Planned RFC Web Push (Developer)">
+  Dual-stack browser push will add app-owned keys for the `web-push` library: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (generate with `npx web-push generate-vapid-keys`). These are **separate** from `NEXT_PUBLIC_FIREBASE_VAPID_KEY`. Not implemented yet — see commented block in `env.local.template` and [Push notifications (FCM)](/docs/features/push-notifications-fcm).
+</Callout>
 
 ### Database Schema
 

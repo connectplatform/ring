@@ -115,4 +115,25 @@ describe('runForgejoTokenRotate', () => {
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/ADMIN/)
   })
+
+  it('treats missing mintedAt as eligible (legacy rows)', async () => {
+    dep.ProjectDeploymentService.listSourceAuthRefs.mockResolvedValue([
+      { orderId: 'ord-legacy', robotUsername: 'order-src-leg', revokedAt: null, mintedAt: null },
+    ])
+    dep.ProjectDeploymentService.getByOrderId.mockResolvedValue({
+      sourceAuth: {
+        tokenEncrypted: 'v2:x',
+        robotUsername: 'order-src-leg',
+      },
+    })
+    orders.ProjectOrderService.getById.mockResolvedValue({
+      workStatus: 'in_progress',
+      paymentStatus: 'paid',
+    })
+
+    const result = await runForgejoTokenRotate({ maxAgeDays: 30, limit: 10 })
+    expect(result.rotated).toBe(1)
+    expect(result.skippedYoung).toBe(0)
+    expect(authSvc.rotateOrderSourceToken).toHaveBeenCalledWith('ord-legacy')
+  })
 })

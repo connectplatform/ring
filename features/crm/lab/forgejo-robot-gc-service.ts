@@ -91,16 +91,21 @@ export async function runForgejoRobotGc(opts?: {
     let canDelete = linked.length === 0
 
     if (!canDelete) {
-      // All linked orders must be canceled/refunded AND have revokedAt
+      // Linked robots may be deleted when every ref is either:
+      // - orphan (order missing), or
+      // - revokedAt set AND order canceled/refunded
       let allRevokedDead = true
       for (const ref of linked) {
+        const order = await ProjectOrderService.getById(ref.orderId)
+        if (!order) {
+          // Orphan deployment row — do not require revokedAt (else GC never reclaim)
+          continue
+        }
         if (!ref.revokedAt) {
           allRevokedDead = false
           break
         }
-        const order = await ProjectOrderService.getById(ref.orderId)
         const dead =
-          !order ||
           order.workStatus === 'canceled' ||
           order.paymentStatus === 'refunded'
         if (!dead) {

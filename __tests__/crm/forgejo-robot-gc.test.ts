@@ -75,6 +75,29 @@ describe('runForgejoRobotGc', () => {
     expect(admin.deleteUser).not.toHaveBeenCalled()
   })
 
+  it('deletes robot linked to missing order without requiring revokedAt', async () => {
+    const old = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+    admin.listUsers.mockResolvedValue([
+      { id: 1, login: 'order-src-orphan-order', email: 'a@x', created: old },
+    ])
+    dep.ProjectDeploymentService.listSourceAuthRefs.mockResolvedValue([
+      {
+        orderId: 'ord-gone',
+        robotUsername: 'order-src-orphan-order',
+        revokedAt: null,
+        mintedAt: old,
+      },
+    ])
+    orders.ProjectOrderService.getById.mockResolvedValue(null)
+
+    const result = await runForgejoRobotGc({ dryRun: false })
+    expect(result.deleted).toBe(1)
+    expect(admin.deleteUser).toHaveBeenCalledWith('order-src-orphan-order')
+    expect(dep.ProjectDeploymentService.patch).toHaveBeenCalledWith('ord-gone', {
+      sourceAuth: null,
+    })
+  })
+
   it('deletes revoked+canceled robot and clears sourceAuth', async () => {
     const old = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
     admin.listUsers.mockResolvedValue([

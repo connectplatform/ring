@@ -196,13 +196,25 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     id: 'forgejo-robot-gc',
     category: 'cleanup',
     cronPath: '/api/cron/forgejo-robot-gc',
-    handler: async () => runForgejoRobotGc({ dryRun: false }),
+    handler: async () => {
+      const result = await runForgejoRobotGc({ dryRun: false })
+      if (!result.success) {
+        throw new Error(result.error || 'forgejo-robot-gc failed')
+      }
+      return result
+    },
   },
   {
     id: 'forgejo-token-rotate',
     category: 'cleanup',
     cronPath: '/api/cron/forgejo-token-rotate',
-    handler: async () => runForgejoTokenRotate(),
+    handler: async () => {
+      const result = await runForgejoTokenRotate()
+      if (!result.success) {
+        throw new Error(result.error || 'forgejo-token-rotate failed')
+      }
+      return result
+    },
   },
   {
     id: 'fx-feed-refresh',

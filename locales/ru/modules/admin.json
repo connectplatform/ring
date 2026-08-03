@@ -676,6 +676,16 @@
         "label": "Ротация Forgejo PAT",
         "description": "Ротирует per-order PAT Source Editor старше FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (по умолчанию 30) на активных заказах",
         "schedule": "Ежемесячно 1-го 05:00 UTC"
+      },
+      "cleanup-email-tokens": {
+        "label": "Очистка email-токенов входа",
+        "description": "Удаляет просроченные email_login_tokens (OTP / magic / reset) после grace-окна",
+        "schedule": "Ежедневно (или ежечасно)"
+      },
+      "fx-feed-refresh": {
+        "label": "Обновление FX-курсов",
+        "description": "Обновляет курсы валют в Redis/кэше для конвертации в магазине и checkout",
+        "schedule": "Ежечасно (или по vercel.json)"
       }
     },
     "nav": "Фоновые процессы"

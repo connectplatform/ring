@@ -1,7 +1,9 @@
 /**
  * Tunnel Hub backend mode — mirrors DB_BACKEND_MODE pattern (env-driven, no JSON config file).
  *
- * memory / k8s-postgres: InMemoryTunnelHub (single-process; correct for 1 replica).
+ * memory: InMemoryTunnelHub (local dev).
+ * k8s-postgres: InMemoryTunnelHub by default; optional Postgres LISTEN/NOTIFY fan-out when
+ *   TUNNEL_POSTGRES_FANOUT=enabled (multi-replica publish path).
  * redis / connect: gated for multi-replica fan-out (not implemented yet).
  */
 
@@ -9,9 +11,17 @@ export type TunnelHubMode = 'memory' | 'k8s-postgres' | 'redis' | 'connect';
 
 const VALID_MODES: TunnelHubMode[] = ['memory', 'k8s-postgres', 'redis', 'connect'];
 
-/** In-memory fan-out modes (single replica / single process). */
+/** Modes that start from an in-process registry (optionally wrapped by Postgres fan-out). */
 export function usesInMemoryTunnelHub(mode: TunnelHubMode): boolean {
   return mode === 'memory' || mode === 'k8s-postgres';
+}
+
+/**
+ * Additive gate for Postgres NOTIFY cross-pod fan-out.
+ * Default disabled — zero overhead on single replica.
+ */
+export function isPostgresFanoutEnabled(): boolean {
+  return process.env.TUNNEL_POSTGRES_FANOUT === 'enabled';
 }
 
 /**
@@ -39,7 +49,9 @@ export function getTunnelHubModeDescription(mode: TunnelHubMode): string {
     case 'memory':
       return 'In-process hub (default; local dev)';
     case 'k8s-postgres':
-      return 'k8s single-replica: in-process fan-out; Postgres for persistence only';
+      return isPostgresFanoutEnabled()
+        ? 'k8s: InMemoryTunnelHub + Postgres LISTEN/NOTIFY cross-pod fan-out'
+        : 'k8s: in-process fan-out (set TUNNEL_POSTGRES_FANOUT=enabled for multi-replica)';
     case 'redis':
       return 'Redis pub/sub hub (multi-replica; not implemented)';
     case 'connect':

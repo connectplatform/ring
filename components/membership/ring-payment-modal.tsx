@@ -27,6 +27,7 @@ import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
 import { getClientCreditCurrencyCode } from '@/lib/payments/credit-balance-client'
+import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 
 export type MembershipPaymentRail = 'account_credit' | 'on_chain_ring'
 
@@ -61,6 +62,7 @@ export function MembershipPaymentModal({
   const locale = useLocale() as Locale
   const router = useRouter()
   const creditCurrency = getClientCreditCurrencyCode()
+  const nativeTokenSymbol = getClientNativeTokenSymbol()
   const { balance, refresh } = useCreditBalanceContext()
   
   const [autoSubscribe, setAutoSubscribe] = useState(true)
@@ -119,7 +121,7 @@ export function MembershipPaymentModal({
     membership_upgrade: {
       type: 'membership_upgrade',
       title: t('payment.upgrade.title', { defaultValue: 'Upgrade to Member' }),
-      description: t('payment.upgrade.description', { defaultValue: 'Unlock all Member features with RING tokens' }),
+      description: t('payment.upgrade.description', { defaultValue: `Unlock all Member features with ${nativeTokenSymbol} tokens` }),
       cost: {
         ring_amount: upgradeRingAmount.toFixed(2),
         main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? upgradeRingAmount.toFixed(2),
@@ -157,7 +159,7 @@ export function MembershipPaymentModal({
   const requiredAmount = parseFloat(currentOption.cost.ring_amount)
   const hasSufficientBalance = currentBalance >= requiredAmount
   const balanceLabel =
-    paymentRail === 'on_chain_ring' ? 'RING' : creditCurrency
+    paymentRail === 'on_chain_ring' ? nativeTokenSymbol : creditCurrency
 
   const handlePayment = async () => {
     if (!hasSufficientBalance) return
@@ -306,7 +308,7 @@ export function MembershipPaymentModal({
                         {t('payment.required', { defaultValue: 'Required' })}
                       </p>
                       <p className="font-medium">
-                        {currentOption.cost.ring_amount} RING
+                        {currentOption.cost.ring_amount} {nativeTokenSymbol}
                       </p>
                     </div>
                   </div>
@@ -357,7 +359,7 @@ export function MembershipPaymentModal({
                       </label>
                       <p className="text-xs text-muted-foreground">
                         {t('payment.auto_subscribe_description', { 
-                          defaultValue: 'Automatically deduct 1 RING token monthly to maintain your membership. Cancel anytime.' 
+                          defaultValue: `Automatically deduct 1 ${nativeTokenSymbol} token monthly to maintain your membership. Cancel anytime.` 
                         })}
                       </p>
                     </div>
@@ -369,9 +371,9 @@ export function MembershipPaymentModal({
               <div className="bg-muted p-4 rounded-lg">
                 <div className="flex justify-center items-center space-x-2 mb-2">
                   <Coins className="h-5 w-5 text-primary" />
-                  <span className="text-xl font-bold">{currentOption.cost.ring_amount} RING</span>
+                  <span className="text-xl font-bold">{currentOption.cost.ring_amount} {nativeTokenSymbol}</span>
                   <span className="text-sm text-muted-foreground">
-                    (≈ ${currentOption.cost.main_currency_equivalent} {creditCurrency})
+                    (≈ {currentOption.cost.main_currency_equivalent} {creditCurrency})
                   </span>
                 </div>
                 <p className="text-xs text-center text-muted-foreground">

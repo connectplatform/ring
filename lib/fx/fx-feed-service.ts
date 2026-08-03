@@ -25,8 +25,21 @@ import {
   setFxOverlayRates,
 } from '@/lib/fx/fx-rates-overlay'
 
-const FX_CACHE_COLLECTION = 'system_config'
-const FX_CACHE_DOC_ID = 'fx_feed_rates'
+/** Persist via platform_settings hybrid JSONB (same pattern as web3 desk oracle). */
+const FX_CACHE_COLLECTION = 'platform_settings'
+const FX_CACHE_DOC_ID = 'fx_feed'
+
+const FX_CACHE_META_KEYS = new Set([
+  'id',
+  'secrets',
+  'updatedBy',
+  'updated_by',
+  'updatedAt',
+  'updated_at',
+  'createdAt',
+  'created_at',
+  'version',
+])
 
 export type FxFeedCache = {
   provider: FxFeedProviderId
@@ -255,24 +268,56 @@ async function fetchProviderRates(
   }
 }
 
+function extractFxCache(row: Record<string, unknown>): FxFeedCache | null {
+  const payload = Object.fromEntries(
+    Object.entries(row).filter(([key]) => !FX_CACHE_META_KEYS.has(key)),
+  ) as Partial<FxFeedCache>
+  if (
+    typeof payload.provider !== 'string' ||
+    typeof payload.mainCurrency !== 'string' ||
+    typeof payload.fetchedAt !== 'string' ||
+    !payload.rates ||
+    typeof payload.rates !== 'object'
+  ) {
+    return null
+  }
+  return {
+    provider: payload.provider as FxFeedProviderId,
+    mainCurrency: payload.mainCurrency,
+    fetchedAt: payload.fetchedAt,
+    rates: payload.rates as Record<string, number>,
+    sourceMeta:
+      payload.sourceMeta && typeof payload.sourceMeta === 'object'
+        ? (payload.sourceMeta as Record<string, unknown>)
+        : undefined,
+  }
+}
+
 async function readPersistedCache(): Promise<FxFeedCache | null> {
   try {
-    const result = await db().readDoc<FxFeedCache>(FX_CACHE_COLLECTION, FX_CACHE_DOC_ID)
+    const result = await db().readDoc<Record<string, unknown>>(
+      FX_CACHE_COLLECTION,
+      FX_CACHE_DOC_ID,
+    )
     if (!result.success || !result.data) return null
-    return result.data
+    return extractFxCache(result.data as Record<string, unknown>)
   } catch {
     return null
   }
 }
 
 async function writePersistedCache(cache: FxFeedCache): Promise<void> {
+  const payload = {
+    ...cache,
+    updatedBy: 'fx-feed-refresh',
+  }
   const existing = await db().readDoc(FX_CACHE_COLLECTION, FX_CACHE_DOC_ID)
   if (existing.success && existing.data) {
-    const updated = await db().updateDoc(FX_CACHE_COLLECTION, FX_CACHE_DOC_ID, cache)
+    const updated = await db().updateDoc(FX_CACHE_COLLECTION, FX_CACHE_DOC_ID, payload)
     if (!updated.success) throw updated.error || new Error('FX cache update failed')
     return
   }
-  const created = await db().createDoc(FX_CACHE_COLLECTION, cache, { id: FX_CACHE_DOC_ID })
+  const created = await db().createDoc(FX_CACHE_COLLECTION, payload, { id: FX_CACHE_DOC_ID })
   if (!created.success) throw created.error || new Error('FX cache create failed')
 }
 

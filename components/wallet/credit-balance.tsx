@@ -160,7 +160,7 @@ export function CreditBalance({
                   {balance?.amount ? formatClientCreditAmount(balance.amount, creditCurrency) : `0 ${creditCurrency}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  ≈ ${balance?.main_currency_equivalent || '0.00'} USD
+                  ≈ {balance?.main_currency_equivalent || '0.00'} {creditCurrency}
                 </div>
               </div>
               

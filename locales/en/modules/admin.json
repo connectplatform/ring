@@ -682,6 +682,11 @@
         "label": "Forgejo source PAT rotate",
         "description": "Rotate per-order Source Editor PATs older than FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (default 30) on active orders",
         "schedule": "Monthly 1st 05:00 UTC"
+      },
+      "fx-feed-refresh": {
+        "label": "FX Feed Refresh",
+        "description": "Refresh FX rates into Redis/cache for store and checkout currency conversion",
+        "schedule": "Hourly (or per vercel.json)"
       }
     },
     "nav": "Background Processes"

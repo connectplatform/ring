@@ -1,7 +1,7 @@
 /**
  * Ring Wallet Balance Component
  *
- * Displays the RING credit balance with USD equivalent.
+ * Displays the credit balance with main-currency equivalent.
  * Used in wallet center pane and profile rails.
  *
  * @author LegioX Commander
@@ -23,11 +23,12 @@ import {
   davinciGlassSurface,
   HeroAmbient,
 } from '@/lib/ui/davinci'
+import { getClientCreditUnitLabel, getClientMainCurrency } from '@/lib/ring-config-client'
 
 export interface RingWalletBalanceProps {
-  /** Formatted RING amount, e.g. "12.50" */
+  /** Formatted credit amount, e.g. "12.50" */
   displayBalance: string
-  /** USD equivalent string */
+  /** Main-currency equivalent string (legacy prop name: usdEquivalent) */
   usdEquivalent?: string
   isLoading?: boolean
   isRefreshing?: boolean
@@ -56,6 +57,8 @@ export function RingWalletBalance({
 }: RingWalletBalanceProps) {
   // Initialize translation function for "modules.wallet" namespace
   const t = useTranslations('modules.wallet')
+  const creditUnit = getClientCreditUnitLabel()
+  const mainCurrency = getClientMainCurrency()
 
   // TODO: For Next.js 16, explore useFormStatus or useFormState for tight button state integration (if applicable).
 
@@ -149,13 +152,13 @@ export function RingWalletBalance({
               ) : (
                 <>
                   {displayBalance}{' '}
-                  <span className="text-xl font-semibold text-muted-foreground sm:text-2xl">RING</span>
+                  <span className="text-xl font-semibold text-muted-foreground sm:text-2xl">{creditUnit}</span>
                 </>
               )}
             </div>
-            {/* USD equivalent display */}
+            {/* Main-currency equivalent display */}
             <p className="mt-1.5 text-sm text-muted-foreground">
-              ≈ ${usdEquivalent} USD
+              ≈ {usdEquivalent} {mainCurrency}
             </p>
           </div>
 

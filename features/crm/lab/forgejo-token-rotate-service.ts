@@ -109,7 +109,8 @@ export async function runForgejoTokenRotate(opts?: {
     }
 
     const age = ageMs(auth.rotatedAt || auth.mintedAt)
-    if (age === null || age < maxAgeMs) {
+    // Missing mintedAt/rotatedAt → treat as eligible (legacy rows must not skip forever)
+    if (age !== null && age < maxAgeMs) {
       skippedYoung += 1
       continue
     }
@@ -121,7 +122,10 @@ export async function runForgejoTokenRotate(opts?: {
     }
 
     eligible += 1
-    if (rotated + failed >= limit) continue
+    if (rotated + failed >= limit) {
+      // Count remaining as eligible but do not attempt — stop attempts
+      continue
+    }
 
     try {
       await rotateOrderSourceToken(ref.orderId)

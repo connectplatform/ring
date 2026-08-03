@@ -1,7 +1,7 @@
 ---
 title: Notifications
 description: In-app notification types, preferences, and delivery channels — including GAME_REQUEST / GAME_UPDATED for Peer Games
-last_modified: "2026-07-24"
+last_modified: "2026-08-04"
 audience: both
 ---
 
@@ -30,7 +30,8 @@ Ring delivers in-app and push notifications for opportunities, messages, entity 
 ### Delivery channels
 
 - **In-app** — Tunnel `notifications:inbox` / bell UI
-- **Push (FCM)** — [Push Notifications with FCM](/docs/features/push-notifications-fcm)
+- **Push (FCM, shipped)** — [Push Notifications with FCM](/docs/features/push-notifications-fcm). Browser subscribe uses Firebase’s Web Push **certificate** (`NEXT_PUBLIC_FIREBASE_VAPID_KEY`); server send uses Firebase Admin — not RFC `web-push` VAPID keys.
+- **Push (RFC Web Push, planned)** — future dual-stack via `web-push` + `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (not installed yet). Do not conflate with the Firebase certificate. See the VAPID split on the FCM page.
 - **Email / SMS** — preference-gated where wired
 
 ### User preferences
@@ -42,7 +43,7 @@ Granular enable/disable by type and channel, including quiet hours — see prefe
 <RelatedDocs>
   <RelatedArticle
     slug="features/push-notifications-fcm"
-    relation="Deep-dive: FCM token registration, Server Action path, and delivery."
+    relation="Deep-dive: FCM today vs planned RFC Web Push VAPID — do not mix the two key spaces."
   />
   <RelatedArticle
     slug="features/peer-games"

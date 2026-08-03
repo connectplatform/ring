@@ -1,345 +1,213 @@
 ---
 title: Push Notifications with FCM (Ring-Powered)
-description: Implement web and cross-platform push notifications using Firebase Cloud Messaging with Ring's Server Action token flow, shared DB layer, lifecycle management, and the FirebaseAdapter FCM Admin bridge.
-last_modified: "2026-07-24"
+description: Shipped FCM push today — Firebase Web Push certificate vs planned RFC Web Push VAPID keys; token register, Admin send, and dual-stack roadmap.
+last_modified: "2026-08-04"
 audience: both
 ---
 
 # Push Notifications with FCM (Ring-Powered)
 
 <Callout type="info">
-  Use the **Founder** / **Developer** tabs to filter this page for your role. FCM is available in all `DB_BACKEND_MODE` values (k8s-postgres-fcm, firebase-full, supabase-fcm) — you never need Firestore for push alone.
+  Use the **Founder** / **Developer** tabs to filter this page. FCM works in every `DB_BACKEND_MODE` (`k8s-postgres-fcm`, `supabase-fcm`, `firebase-full`) — you do not need Firestore for push alone.
 </Callout>
 
-Ring Platform stores FCM tokens in your primary database (PostgreSQL or Firestore by backend mode), one row per user per device. React apps register tokens via a Server Action; non-React clients use a rate-limited API. Both paths call the same server-only DB layer so behavior and security stay consistent everywhere.
+Ring stores FCM device tokens in your primary database (PostgreSQL or Firestore by backend mode), one row per user per device. Browser clients obtain a token with the Firebase Messaging SDK; the server sends with the **Firebase Admin SDK**.
+
+<Callout type="warning" title="Two different “VAPID” concepts — do not mix them">
+  **Today (shipped):** `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is the **Firebase Console → Cloud Messaging → Web Push certificates** public key. It is passed to Firebase `getToken()` as `vapidKey` only. It is **not** an app-owned RFC 8292 VAPID keypair.
+
+  **Planned (not shipped):** RFC Web Push via the `web-push` npm package will use a **separate** app-owned trio: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`. Never paste the Firebase certificate into those vars. The `web-push` package, `services/push/`, and `push-sw.js` are **not** in the tree yet.
+</Callout>
 
 <Cards>
-  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="Postgres-primary vs full Firebase — how FCM token storage differs." />
-  <Card href="/docs/api/notifications" title="Notifications API" description="FCM register/unregister endpoints and realtime tunnel delivery." />
-  <Card href="/docs/development/code-structure#hooks-and-providers" title="useAuth sign-out" description="signOut() unregisters this device's FCM token before session ends." />
-  <Card href="/docs/backend/firebase" title="Firebase integration" description="Full Firebase 14 Enterprise stack — Admin SDK, adapter, SSOT helpers, AI Logic, Hosting." />
+  <Card href="/docs/features/notifications" title="Notifications overview" description="In-app types, channels, and Peer Games GAME_* delivery." />
+  <Card href="/docs/api/notifications" title="Notifications API" description="FCM register/unregister endpoints and Tunnel delivery." />
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="Where fcm_tokens live per DB_BACKEND_MODE." />
+  <Card href="/docs/backend/firebase" title="Firebase integration" description="Admin SDK, client config, and FCM bridge methods." />
 </Cards>
 
 <Audience for="founder">
 
-## What Ring-powered FCM gives you
+## Why FCM matters for your clone
 
-- **One code path, any backend** — your FCM tokens live in your primary database (PostgreSQL or Firestore), not a separate Firebase service
-- **One row per device per user** — a user who signs in on their phone, laptop, and tablet gets exactly 3 token rows, not a growing list of stale tokens
-- **Self-healing delivery** — invalid tokens are automatically cleaned up when FCM reports them as unregistered (no waste, no quota burn)
-- **Server Action token registration** — React apps call a Server Action; the server derives `user_id` from the authenticated session (never from the client)
+- **Reach users when the tab is closed** — FCM delivers OS/browser push; Tunnel covers live in-app inbox while they are online
+- **One row per device** — phone + laptop + tablet stay separate; invalid tokens are cleaned when FCM reports them dead
+- **Works without full Firestore** — Postgres-primary clones still use Firebase only for Cloud Messaging
+- **Per-clone Firebase project** — each white-label needs its **own** Web Push certificate; copying ring-main’s key into another project breaks token subscribe
 
-### How it works
+### Typical scenarios
 
-<Mermaid title="Ring-powered FCM token flow">{`
-flowchart LR
-  subgraph Client["Client Side"]
-    React["React app\n(useFCM + FCMProvider)"]
-    NonReact["Non-React\n(mobile, API)"]
-    SW["Service Worker\nfirebase-messaging-sw.js\nbackground handler"]
-  end
-  subgraph Server["Server Side"]
-    SA["Server Action\nupsertFcmToken"]
-    API["POST .../fcm/register\n(rate-limited)"]
-    DBLayer["FirebaseAdapter\nsendFcmToUser\n+ cleanupInvalidFcmTokens"]
-  end
-  subgraph Storage["Token Store"]
-    PG[(PostgreSQL\nfcm_tokens\nJSONB)]
-    FS[(Firestore\nfcm_tokens\ncollection)]
-  end
-  React -->|primary| SA
-  NonReact -->|secondary| API
-  SA -->|write| DBLayer
-  API -->|write| DBLayer
-  DBLayer -->|k8s / supabase| PG
-  DBLayer -->|firebase-full| FS
-  SW -->|background push| Client
-`}</Mermaid>
+| Scenario | What to do |
+|----------|------------|
+| New clone / white-label | Create (or reuse) a Firebase project for **that** clone; generate Web Push certificates there; set `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_FIREBASE_VAPID_KEY` |
+| Push “not working” after copy-paste env | Suspect cross-project VAPID leak — regenerate certificates for the clone’s `NEXT_PUBLIC_FIREBASE_PROJECT_ID` |
+| Future: no Firebase dependency for browser push | Dual-stack RFC Web Push (planned) — separate VAPID trio; keep FCM for mobile / existing tokens until you migrate |
 
-### What you need
+### Operator checklist (shipped FCM)
 
-- **Authentication** — users must be signed in (Auth.js session). Token registration is always tied to the authenticated user
-- **HTTPS** (or localhost) — required for Web Push in browsers
-- **Firebase project** — with Cloud Messaging enabled, and a VAPID key pair generated
-- **No Firestore required for push** — in `k8s-postgres-fcm` and `supabase-fcm` modes, FCM works with PostgreSQL only
+1. Firebase project with Cloud Messaging enabled
+2. Web Push **certificate** generated in that same project → `NEXT_PUBLIC_FIREBASE_VAPID_KEY`
+3. Server service account → `AUTH_FIREBASE_PROJECT_ID` / `AUTH_FIREBASE_CLIENT_EMAIL` / `AUTH_FIREBASE_PRIVATE_KEY`
+4. HTTPS (or localhost) for browser permission + service worker at `/firebase-messaging-sw.js`
+5. Signed-in users (Auth.js) before token registration
 
 </Audience>
 
 <Audience for="developer">
 
-## Overview: Ring-Powered FCM Logic
+## Shipped stack vs planned dual-stack
 
-"Ring-powered" FCM means a single, backend-agnostic design:
+| Layer | Today (verified) | Planned (not in tree) |
+|-------|------------------|------------------------|
+| Client subscribe | `hooks/use-fcm.ts` → Firebase `getToken()` with `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | `web-push` + PushSubscription; app-owned `VAPID_PUBLIC_KEY` |
+| Service worker | `public/firebase-messaging-sw.js` | Planned `push-sw.js` (not present) |
+| Register token / sub | `POST /api/notifications/fcm/register` (preferred by `use-fcm` to avoid RSC revalidation); Server Action `upsertFcmToken` still available | Planned `/api/push/register` |
+| Token store | `fcm_tokens` via `lib/notifications/fcm-token-db.ts` | Extended schema / provider partition (plan) |
+| Server send | `features/notifications/services/fcm-service.ts` + `FirebaseAdapter.sendFcm*` (Admin HTTP v1 `sendEach`) | Planned `webpush-service.ts` using `web-push` |
+| npm | `firebase`, `firebase-admin` | `web-push` **not** installed yet |
 
-- **Token store as source of truth** — The `fcm_tokens` table (PostgreSQL) or collection (Firestore) holds all registration tokens. Stored payload lives in a JSONB `data` column where applicable. No secondary cache; the database is the registry.
-- **One row per device per user** — A composite unique constraint on `(user_id, device_fingerprint)` ensures one record per device. The token value is not unique, so FCM token rotation updates the same row instead of creating duplicates.
-- **React app → Server Action** — The primary path for browser and React Native web is the `upsertFcmToken` Server Action. The server derives `user_id` from `auth()` only; the client never sends it.
-- **Non-React clients → API route** — Mobile apps or external services call `POST /api/notifications/fcm/register` with the same payload. This endpoint is rate-limited per user (e.g. 10 requests per minute).
-- **Server-side send → FirebaseAdapter FCM bridge** — The new `sendFcmToUser()`, `sendFcmToTopic()`, `validateFcmToken()`, and `cleanupInvalidFcmTokens()` methods on `FirebaseAdapter` provide a typed, reactive-cleanup-aware send surface. All use the HTTP v1 API exclusively.
-- **Lifecycle in data** — Each row carries `status` (`active` | `stale` | `invalid`) and `invalidatedAt`. Reactive cleanup runs when FCM returns errors for a token; scheduled jobs mark stale tokens and optionally hard-delete after a retention window.
-- **Backend mode** — Token storage is backend-agnostic. BackendSelector routes by `DB_BACKEND_MODE` to PostgreSQL (`k8s-postgres-fcm`, `supabase-fcm`) or Firestore (`firebase-full`). One code path; no branching in the Server Action or API route.
+### VAPID env map (critical)
 
-<Mermaid title="Ring-powered FCM registration and delivery">{`
-flowchart LR
-  subgraph client["Client"]
-    React["React app\n(useFCM + FCMProvider)"]
-    NonReact["Non-React\n(mobile, API)"]
-  end
-  subgraph server["Server"]
-    SA["Server Action\nupsertFcmToken"]
-    API["POST .../fcm/register\n(rate-limited)"]
-    DBLayer["upsertFcmTokenForUser\n(server-only)"]
-    Selector["BackendSelector"]
-    FCMBridge["FirebaseAdapter\nsendFcm* methods"]
-  end
-  subgraph storage["Storage"]
-    PG[(PostgreSQL\nfcm_tokens JSONB)]
-    FS[(Firestore\nfcm_tokens)]
-  end
-  React -->|primary| SA
-  NonReact --> API
-  SA --> DBLayer
-  API --> DBLayer
-  DBLayer --> Selector
-  Selector -->|k8s / supabase| PG
-  Selector -->|firebase-full| FS
-  FCMBridge -->|send| DBLayer
-`}</Mermaid>
+| Variable | Role | Status |
+|----------|------|--------|
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Firebase Web Push **certificate** (public) for `getToken()` | **Required today** — listed under FIREBASE CLIENT SDK in `env.local.template` |
+| `VAPID_PUBLIC_KEY` | App-owned RFC VAPID public key for `web-push` | **Planned** — commented section in `env.local.template`; do not set to the Firebase cert |
+| `VAPID_PRIVATE_KEY` | App-owned RFC VAPID private key (server-only) | **Planned** — generate with `npx web-push generate-vapid-keys` |
+| `VAPID_SUBJECT` | `mailto:` or `https:` contact URI for Web Push | **Planned** |
 
-## Prerequisites
+Firebase does **not** expose an app-owned VAPID private key for the FCM browser path. Server send uses the Admin SDK credentials (`AUTH_FIREBASE_*`), not a VAPID private key. There are no `FCM_SERVER_KEY` / `FCM_VAPID_KEY` env vars in Ring.
 
-- **Authentication** — A signed-in user (Auth.js session). Token registration is always tied to the authenticated user; the server never trusts a client-supplied user id.
-- **Web push (browser)** — HTTPS (or localhost for development), browser support for Web Push, a registered service worker, and the Firebase client SDK. The service worker file is served at `/firebase-messaging-sw.js`.
-- **API clients** — Valid session (cookie or Bearer) and the same request body contract as below (token, deviceFingerprint, deviceInfo).
-- **FCM Admin SDK** — Available in all `DB_BACKEND_MODE` values. No Firestore needed for push alone.
-
-## React App: Server Action Path
-
-Use the Server Action as the primary way to register and refresh FCM tokens from any React or Next.js client. This path is not rate-limited like the API route and keeps user id server-derived only.
-
-<Callout type="info" title="Primary path">
-  React apps should use the Server Action as the primary path. The API route is for non-React clients and is rate-limited.
+<Callout type="error" title="Cross-clone VAPID leak">
+  `lib/firebase-client.ts` detects known ring-main certificate prefixes (`BKQ4OAwA…`) when `NEXT_PUBLIC_FIREBASE_PROJECT_ID` is not `ring-main`. Symptom: `token-subscribe-failed` / missing authentication credential. Always generate Web Push certificates in the **same** Firebase project as the clone’s client config.
 </Callout>
+
+## Token flow (shipped)
+
+<Mermaid title="FCM token register and send">
+{`flowchart LR
+  Browser["Browser\nuse-fcm + getToken"]
+  SW["/firebase-messaging-sw.js"]
+  API["POST /api/notifications/fcm/register"]
+  DB["fcm_tokens\nPG or Firestore"]
+  Admin["Firebase Admin\nFCMService / sendFcm*"]
+  Browser --> SW
+  Browser -->|NEXT_PUBLIC_FIREBASE_VAPID_KEY| Browser
+  Browser --> API
+  API --> DB
+  Admin --> DB
+  Admin -->|HTTP v1 sendEach| FCM[(FCM)]
+  FCM --> SW
+`}
+</Mermaid>
+
+### Prerequisites
+
+- Auth.js session — server derives `user_id`; never trust a client-supplied user id
+- HTTPS or localhost; SW at `/firebase-messaging-sw.js`
+- Valid `NEXT_PUBLIC_FIREBASE_*` + matching `NEXT_PUBLIC_FIREBASE_VAPID_KEY`
+- Server Admin: `AUTH_FIREBASE_PROJECT_ID`, `AUTH_FIREBASE_CLIENT_EMAIL`, `AUTH_FIREBASE_PRIVATE_KEY` (or ADC where applicable)
+
+### Register path
 
 <Steps>
 
 <Step>
 
-**Obtain a stable device fingerprint**
+**Stable device fingerprint**
 
-Generate or load a stable value (for example, `crypto.randomUUID()` stored in `localStorage`) and reuse it on every load and on token refresh. The server uses `(user_id, device_fingerprint)` to upsert one row per device.
-
-</Step>
-
-<Step>
-
-**Request permission and get the FCM token**
-
-In a `'use client'` component (for example inside a notification provider), call `Notification.requestPermission()`. When granted, call `getToken(messaging, { vapidKey })` from the Firebase Messaging SDK. Do not call `getToken()` in Server Components; they have no browser context.
+Persist a UUID (e.g. `localStorage`) and reuse it. Upsert key is `(user_id, device_fingerprint)`.
 
 </Step>
 
 <Step>
 
-**Call the Server Action to register the token**
+**Permission + FCM token**
 
-Invoke `upsertFcmToken({ token, deviceFingerprint, deviceInfo, platform: 'web' })`. Do not pass `userId`; the server derives it from `auth()`.
+`Notification.requestPermission()`, then Firebase Messaging `getToken()` with `vapidKey` from `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in a client component (`hooks/use-fcm.ts`).
 
 </Step>
 
 <Step>
 
-**Handle token refresh**
+**Persist on the server**
 
-When the Firebase SDK emits a new token (for example via `onTokenRefresh`), call the same Server Action again with the new token and the same `deviceFingerprint`. The shared DB layer updates the existing row for that user and device.
+`use-fcm` prefers `POST /api/notifications/fcm/register` (avoids Server Action RSC revalidation storms). React can still call `upsertFcmToken` from `app/_actions/fcm.ts` when appropriate. Body: `token`, `deviceFingerprint`, optional `deviceInfo` / `platform`. Auth required.
+
+</Step>
+
+<Step>
+
+**Unregister on logout**
+
+`useAuth().signOut()` runs device unregister (`unregisterFcmToken` / fingerprint invalidation). Non-React: `DELETE /api/notifications/fcm/register` with the same `deviceFingerprint`.
 
 </Step>
 
 </Steps>
 
-Example: `FCMProvider` wraps `useFCM` in the app shell — prefer that over ad-hoc copies.
+<Code language="typescript" title="Client — VAPID is Firebase certificate only">
+{`import { getMessaging, getToken } from 'firebase/messaging'
+import { app } from '@/lib/firebase-client'
 
-<Code language="typescript" title="useFCM — token registration via Server Action">{`'use client';
+const messaging = getMessaging(app!)
+const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+// Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
+const token = await getToken(messaging, { vapidKey })`}
+</Code>
 
-import { useFCM } from '@/hooks/use-fcm';
-import { useAuth } from '@/hooks/use-auth';
+### Server send (verified modules)
 
-export function NotificationControls() {
-  const { permission, requestPermission, token, isSupported } = useFCM();
-  const { signOut } = useAuth();
+| Module | Path |
+|--------|------|
+| Domain FCM send + invalid-token cleanup | `features/notifications/services/fcm-service.ts` |
+| firebase-full adapter bridge | `lib/database/adapters/FirebaseAdapter.ts` — `sendFcmMessage`, `sendFcmToUser`, `sendFcmToTopic`, `validateFcmToken`, `cleanupInvalidFcmTokens` |
+| Admin messaging accessor | `lib/firebase-admin.server.ts` → `getAdminMessaging()` |
+| Token DB layer | `lib/notifications/fcm-token-db.ts` |
+| Client hook / SW | `hooks/use-fcm.ts`, `public/firebase-messaging-sw.js` |
 
-  return (
-    <div>
-      {!isSupported ? <p>Push not available</p> : null}
-      {permission !== 'granted' ? (
-        <button type="button" onClick={() => requestPermission()}>
-          Enable notifications
-        </button>
-      ) : (
-        <p>Registered token: {token ? 'active' : 'pending\u2026'}</p>
-      )}
-      <button type="button" onClick={() => signOut({ redirectTo: '/login' })}>
-        Sign out (unregisters FCM for this device)
-      </button>
-    </div>
-  );
-}`}</Code>
+PostgreSQL schema: `data/migrations/016_fcm_jsonb_schema.sql`.
 
-## Non-React Clients: API Route
-
-Mobile apps or other non-React clients register tokens by calling the same contract over HTTP.
-
-**Endpoint:** `POST /api/notifications/fcm/register`
-
-**Request body:**
-
-- `token` (string, required) — FCM registration token from the client SDK.
-- `deviceFingerprint` (string, required) — Stable device identifier (e.g. UUID in local storage). Maximum 128 characters; alphanumeric, hyphens, and underscores only.
-- `deviceInfo` (object, optional) — Arbitrary device metadata (e.g. platform, userAgent).
-
-**Authentication:** Required (session cookie or Bearer token). The server uses the authenticated user id; do not send `userId` in the body.
-
-**Responses:**
-
-- `200` — `{ "success": true }`
-- `400` — Validation error (e.g. missing or invalid `deviceFingerprint`)
-- `401` — Not authenticated
-- `429` — Rate limit exceeded (see `Retry-After` header)
-- `500` — Server error
-
-<Callout type="warning" title="Rate limit">
-  This endpoint is rate-limited per user (e.g. 10 requests per minute). Use the Server Action from React apps to avoid consuming the API rate limit.
-</Callout>
-
-Example with cURL (replace session cookie or use Bearer token as required by your auth setup):
-
-<Code language="bash" title="Example: register token via API">{`curl -X POST https://your-app.com/api/notifications/fcm/register \\
-  -H "Content-Type: application/json" \\
-  -H "Cookie: your-session-cookie" \\
-  -d '{
-    "token": "FCM_REGISTRATION_TOKEN",
-    "deviceFingerprint": "uuid-from-device",
-    "deviceInfo": { "platform": "ios", "appVersion": "1.0.0" }
-  }'`}</Code>
-
-## Sending Push Messages with the Adapter FCM Bridge (new)
-
-In `firebase-full` mode, the `FirebaseAdapter` now exposes dedicated **FCM Admin bridge** methods that use the HTTP v1 API exclusively (`sendEach()` not legacy `sendMulticast()`):
-
-```typescript
-import { getDatabaseService } from '@/lib/database'
-import type { FirebaseAdapter } from '@/lib/database/adapters/FirebaseAdapter'
-
-const db = getDatabaseService()
-// If the adapter is the FirebaseAdapter (firebase-full mode):
-
-// 1. Send a push to a single device token
-await adapter.sendFcmMessage({
-  token: 'fcm-device-token',
-  notification: { title: 'Welcome!', body: 'Your account is ready.' },
-  webpush: { fcmOptions: { link: 'https://your-app.com/dashboard' } },
-})
-
-// 2. Send to all active tokens for a user (auto-fetches tokens from fcm_tokens)
-const result = await adapter.sendFcmToUser(userId, {
-  title: 'New message',
-  body: 'Alice replied to your comment',
-}, { route: '/messages/123' })
-
-// sendFcmToUser automatically handles:
-// - Fetching all active tokens for the user from fcm_tokens
-// - Building a message per token
-// - Calling messaging.sendEach() (HTTP v1, concurrency-safe)
-// - Reactive cleanup: UNREGISTERED / INVALID_ARGUMENT errors
-//   mark tokens as status='invalid' in the fcm_tokens collection
-
-// 3. Send to a topic (all subscribers)
-await adapter.sendFcmToTopic('global-announcements', {
-  title: 'Scheduled maintenance',
-  body: 'Platform will be unavailable 2–4 AM UTC',
-})
-
-// 4. Validate a token's liveness
-const { data } = await adapter.validateFcmToken(token)
-if (data?.valid === false) {
-  await adapter.cleanupInvalidFcmTokens([token])
-}
-
-// 5. Bulk invalidate dead tokens
-await adapter.cleanupInvalidFcmTokens(['dead-token-1', 'dead-token-2'])
-```
-
-### fcm_tokens collection model (Firestore)
-
-When running in `firebase-full` mode, the `fcm_tokens` Firestore collection has this schema:
-
-```typescript
-interface FcmTokenRow {
-  user_id: string           // Auth.js user ID (server-derived, never from client)
-  token: string             // FCM registration token (variable length, ~140-180 chars)
-  device_fingerprint: string // Stable device identifier (UUID)
-  platform: string          // 'web' | 'android' | 'ios'
-  status: 'active' | 'stale' | 'invalid'
-  created_at: Timestamp
-  last_seen_at: Timestamp   // Updated on every successful delivery
-  invalidated_at?: Timestamp // Set when status becomes 'invalid'
-}
-```
-
-For the equivalent PostgreSQL schema (k8s-postgres-fcm / supabase-fcm modes), see `data/migrations/016_fcm_jsonb_schema.sql` and the [FCM specialist truth lens](/docs/backend/firebase#fcm-specialist-truth-lens).
-
-## Unregister and Logout
-
-On logout or when the user disables push:
-
-- **Browser / React** — Call `useAuth().signOut()`. It runs `unregisterCurrentDeviceFcmToken()` (Firebase `deleteToken` + server invalidation by `deviceFingerprint`) before Auth.js sign-out. `FCMProvider` also exposes disable flows via `fcm-provider.tsx`.
-- **Manual disable** — `DELETE /api/notifications/fcm/register` with body `{ "deviceFingerprint": "same-uuid-as-register" }` for non-React clients.
-- **Non-React** — Same `DELETE` request with the same `deviceFingerprint` used at registration.
-
-The server marks the row as `status: 'invalid'` and sets `invalidatedAt`; delivery to that token is stopped.
-
-## Environment Variables
-
-Split configuration so that only public, safe values are exposed to the client.
-
-<Callout type="info" title="Security">
-  VAPID private key and Firebase service account credentials must never be exposed to the client. Keep them server-only.
-</Callout>
+### Environment (shipped + planned)
 
 | Purpose | Variables | Where |
-|---------|----------|--------|
-| Client (browser / app) | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Client-safe; used by Firebase client SDK and service worker |
-| Server (token store, FCM send) | `AUTH_FIREBASE_PROJECT_ID`, `AUTH_FIREBASE_CLIENT_EMAIL`, `AUTH_FIREBASE_PRIVATE_KEY` (or ADC on Cloud Run); `DB_BACKEND_MODE` (e.g. `k8s-postgres-fcm`, `firebase-full`, `supabase-fcm`) | Server-only; used by `getAdminMessaging()` and BackendSelector |
+|---------|-----------|--------|
+| Firebase client + FCM subscribe | `NEXT_PUBLIC_FIREBASE_API_KEY`, `…_AUTH_DOMAIN`, `…_PROJECT_ID`, `…_MESSAGING_SENDER_ID`, `…_APP_ID`, **`NEXT_PUBLIC_FIREBASE_VAPID_KEY`** | Client / build |
+| Admin send | `AUTH_FIREBASE_PROJECT_ID`, `AUTH_FIREBASE_CLIENT_EMAIL`, `AUTH_FIREBASE_PRIVATE_KEY`; `DB_BACKEND_MODE` | Server-only |
+| RFC Web Push (`web-push`) | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | **Planned** — server keeps private key; never copy Firebase cert here |
 
-## Troubleshooting
+### Troubleshooting
 
-| Issue | Cause | What to do |
-|-------|--------|------------|
-| Permission denied or token not received | User denied notification permission or permission not yet requested | Request permission before calling `getToken()`; handle `permission === 'denied'` in the UI |
-| 429 on register | Rate limit exceeded | Use the Server Action from React apps; for API clients, respect `Retry-After` and reduce register frequency |
-| Invalid deviceFingerprint | Validation failure | Use a string of length 1–128 with only letters, numbers, hyphens, and underscores |
-| 401 on register | Not authenticated | Ensure a valid session (cookie or Bearer) is sent; do not send `userId` in the body |
-| UNREGISTERED on send | Token is stale / invalid | `sendFcmToUser` auto-handles this via `cleanupInvalidFcmTokens` — no manual action needed |
-| sendMulticast deprecation | Legacy API called | Use `sendEach()` from the Admin SDK (not `sendMulticast()` or `sendAll()`) — this is what `sendFcmToUser` uses |
-| Service worker not receiving | SW not at root scope | Ensure `public/firebase-messaging-sw.js` is served at `/firebase-messaging-sw.js`; register with root scope |
-
-## See Also
-
-<Cards>
-  <Card href="/docs/features/notifications" title="Notifications" description="Overview of notification types, channels, and preferences — includes GAME_REQUEST / GAME_UPDATED." />
-  <Card href="/docs/features/peer-games" title="Peer Games" description="createInvite FCM GAME_REQUEST after ~500ms Tunnel presence grace when peer still offline." />
-  <Card href="/docs/api/notifications" title="Notifications API" description="FCM register/unregister endpoints and realtime tunnel delivery." />
-  <Card href="/docs/backend/firebase" title="Firebase integration" description="Full Firebase 14 Enterprise stack — Admin SDK, adapter, SSOT helpers, FCM Admin bridge, AI Logic." />
-  <Card href="/docs/backend/k8s-postgres-fcm" title="k8s-postgres-fcm mode" description="FCM token model in PostgreSQL — recommended production mode." />
-  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="Postgres-primary vs full Firebase — how FCM token storage differs." />
-  <Card href="/docs/development/code-structure#hooks-and-providers" title="Code structure" description="Hooks and providers — useFCM, FCMProvider, useAuth sign-out." />
-</Cards>
-
-**Schema and migrations:** `data/migrations/016_fcm_jsonb_schema.sql` (PostgreSQL) — FCM tokens with JSONB payload, composite unique index, status lifecycle.
-
-**Truth lenses:**
-- `AI-LEGIOX/legiox-truth-lens/fcm-specialist.nodus.json` — Canonical FCM truth: token lifecycle, HTTP v1-only `sendEach()` pattern, reactive cleanup, pro-active staleness, PostgreSQL token store schema, Next.js 16 App Router integration. See also [Firebase integration](/docs/backend/firebase).
-- `AI-LEGIOX/legiox-truth-lens/ring-backend-administrator.nodus.json` — firebase-full ring-db mode SSOT context: fcm_tokens collection in Firestore, FirebaseAdapter FCM bridge methods.
-- `AI-LEGIOX/legiox-truth-lens/google-firebase-specialist.nodus.json` — Firebase 14 Enterprise AI Logic integration.
+| Issue | Cause | Fix |
+|-------|--------|-----|
+| token-subscribe-failed / auth credential | VAPID cert from another Firebase project | Regenerate Web Push certificates for this `PROJECT_ID` |
+| Permission denied | User denied notifications | Request permission before `getToken()` |
+| 401 on register | No session | Cookie / Bearer required |
+| UNREGISTERED on send | Stale token | `FCMService` / `sendFcmToUser` marks row invalid |
+| Expecting `web-push` dual delivery | Not shipped | Keep FCM path; track dual-stack plan — do not invent routes |
 
 </Audience>
+
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/notifications"
+    relation="Prerequisite: notification types and channels before deep FCM setup."
+  />
+  <RelatedArticle
+    slug="api/notifications"
+    relation="Same-workflow: FCM register API contract and env truth for push."
+  />
+  <RelatedArticle
+    slug="backend/firebase"
+    relation="Deep-dive: Firebase Admin, client SDK, and FCM adapter bridge."
+  />
+  <RelatedArticle
+    slug="backend/k8s-postgres-fcm"
+    relation="Depends-on: Postgres-primary mode where FCM tokens live in SQL."
+  />
+  <RelatedArticle
+    slug="architecture/backend-modes-and-databases"
+    relation="See-also: how token storage routes by DB_BACKEND_MODE."
+  />
+</RelatedDocs>

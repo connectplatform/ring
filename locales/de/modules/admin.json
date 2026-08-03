@@ -676,6 +676,16 @@
         "label": "Forgejo-PAT-Rotation",
         "description": "Rotiert per-order Source-Editor-PATs älter als FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (Standard 30) bei aktiven Aufträgen",
         "schedule": "Monatlich am 1. 05:00 UTC"
+      },
+      "cleanup-email-tokens": {
+        "label": "E-Mail-Login-Token-Bereinigung",
+        "description": "Löscht abgelaufene email_login_tokens (OTP / Magic / Reset) nach Grace-Fenster",
+        "schedule": "Täglich (oder stündlich)"
+      },
+      "fx-feed-refresh": {
+        "label": "FX-Kursaktualisierung",
+        "description": "Aktualisiert Wechselkurse in Redis/Cache für Shop- und Checkout-Umrechnung",
+        "schedule": "Stündlich (oder laut vercel.json)"
       }
     },
     "nav": "Hintergrundprozesse"

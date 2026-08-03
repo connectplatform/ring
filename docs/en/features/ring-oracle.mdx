@@ -1,7 +1,7 @@
 ---
 title: Ring Oracle
 description: One server-only rate facade for native-token desk quotes, Chainlink bridges, fiat FX, credit accounting, and store presentment
-last_modified: "2026-08-03"
+last_modified: "2026-08-04"
 audience: both
 ---
 
@@ -162,7 +162,7 @@ curl \
   https://your-ring.example/api/cron/fx-feed-refresh`}
 </Code>
 
-The authorization check is conditional on `CRON_SECRET`, so production deployments must configure it. The response includes ProcessConductor `runId` plus refresh metadata; a disabled feed reports a successful skipped run.
+The authorization check is conditional on `CRON_SECRET`, so production deployments must configure it. The response includes ProcessConductor `runId` plus refresh metadata; a disabled feed reports a successful skipped run. Rates persist under `platform_settings` id `fx_feed` (same hybrid JSONB pattern as the desk oracle). Ship `k8s/cronjob-fx-feed-refresh.yaml` for hourly cluster refresh.
 
 </Step>
 

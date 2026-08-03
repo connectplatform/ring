@@ -8,6 +8,7 @@
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
 import type { CartItem, CheckoutInfo } from '@/features/store/types';
+import { getMainCurrencySymbol } from '@/lib/ring-config-core';
 
 // WayForPay API Configuration — env SSOT only (no hardcoded merchant fallbacks)
 const WAYFORPAY_API_URL = 'https://api.wayforpay.com/api';
@@ -24,9 +25,11 @@ const WAYFORPAY_DOMAIN =
 
 const WAYFORPAY_MERCHANT_PASSWORD = process.env.WAYFORPAY_MERCHANT_PASSWORD
 
-// Store payment configuration
+// Store payment configuration (currency falls back to clone main currency)
 export const STORE_PAYMENT_CONFIG = {
-  currency: 'UAH',
+  get currency(): 'UAH' | 'USD' | 'EUR' {
+    return getMainCurrencySymbol() as 'UAH' | 'USD' | 'EUR'
+  },
   defaultLanguage: 'UK',
   paymentLifetime: 86400, // 24 hours in seconds
   holdTimeout: 1728000, // 20 days in seconds

@@ -130,7 +130,7 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 <span className="text-sm font-normal text-muted-foreground">{creditCurrency}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ≈ ${creditBalance?.main_currency_equivalent || '0.00'} USD
+                ≈ {creditBalance?.main_currency_equivalent || '0.00'} {creditCurrency}
               </p>
             </div>
           </div>

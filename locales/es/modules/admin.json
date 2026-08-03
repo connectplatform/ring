@@ -676,6 +676,16 @@
         "label": "Rotación Forgejo PAT",
         "description": "Rota PATs per-order del Source Editor mayores que FORGEJO_TOKEN_ROTATE_MAX_AGE_DAYS (30 por defecto) en pedidos activos",
         "schedule": "Mensual día 1 05:00 UTC"
+      },
+      "cleanup-email-tokens": {
+        "label": "Limpieza de tokens de email",
+        "description": "Elimina email_login_tokens caducados (OTP / magic / reset) tras la ventana de gracia",
+        "schedule": "Diario (o cada hora)"
+      },
+      "fx-feed-refresh": {
+        "label": "Actualización de tipos FX",
+        "description": "Actualiza tipos de cambio en Redis/caché para conversión en tienda y checkout",
+        "schedule": "Cada hora (o según vercel.json)"
       }
     },
     "nav": "Procesos en segundo plano"

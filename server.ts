@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { parse } from 'node:url';
 import next from 'next';
 import { getDeployTarget } from './lib/tunnel/deploy-target';
-import { getTunnelHub } from './lib/tunnel/hub';
+import { getTunnelHub, isTunnelHubLifecycle } from './lib/tunnel/hub';
 import { attachTunnelWss } from './lib/tunnel/native-ws/attach';
 
 // @next/env is CJS-only. Named ESM import `{ loadEnvConfig }` fails under
@@ -41,16 +41,57 @@ const server = createServer(async (req, res) => {
 });
 
 const deployTarget = getDeployTarget();
+const hub = getTunnelHub();
+
+if (isTunnelHubLifecycle(hub)) {
+  try {
+    await hub.startFanout();
+    console.log('[server] Postgres tunnel fan-out LISTEN started');
+  } catch (error) {
+    console.error(
+      '[server] Postgres tunnel fan-out failed to start (continuing with local hub):',
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
 
 if (deployTarget !== 'vercel') {
   attachTunnelWss(server, {
     path: '/api/tunnel/ws',
-    hub: getTunnelHub(),
+    hub,
   });
   console.log(`[server] Native WSS attached at /api/tunnel/ws (RING_DEPLOY_TARGET=${deployTarget})`);
 } else {
   console.log('[server] SSE-only mode (RING_DEPLOY_TARGET=vercel)');
 }
+
+let shuttingDown = false;
+async function gracefulShutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[server] ${signal} — shutting down`);
+  if (isTunnelHubLifecycle(hub)) {
+    try {
+      await hub.stopFanout();
+    } catch (error) {
+      console.error(
+        '[server] stopFanout error:',
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+  server.close(() => {
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.on('SIGTERM', () => {
+  void gracefulShutdown('SIGTERM');
+});
+process.on('SIGINT', () => {
+  void gracefulShutdown('SIGINT');
+});
 
 server.listen(port, () => {
   console.log(`> Ready on http://${hostname}:${port} [${deployTarget}]`);
