@@ -1,0 +1,30 @@
+---
+title: Ringization playbook
+description: Feature-overlay steps for calculator → project_order → Order Lab self-build and integrator paths
+audience: [founder, developer]
+last_modified: 2026-07-26
+---
+
+# Ringization playbook
+
+Product SSOT for teaching **clone-local Tier-1/2/3 overlays** — never edit `ring-platform.org` for clone product.
+
+## Pipeline
+
+1. Calculator → paid `project_order`
+2. Order Lab Project Config (`home.preset`, `domainFeatureId`, brand)
+3. Integrator assign → playbook seeded in project room
+4. `reggie_autonomous_clone` → Forgejo `ringdom-clones/<slug>` → BuildKit → Order Lab deploy
+
+See [vertical presets](/docs/customization/vertical-presets) and [Owner Project Lab](/docs/features/owner-project-lab).
+
+## Hard bans
+
+- No Cosmic Mirror / brand locales in platform `home-wrapper` or `lib/i18n`
+- Platform `lib/overlay/registry.ts` stays **maps-empty**; clones overlay registrations (maps only)
+- Platform `lib/overlay/runtime.ts` + `types.ts` are SSOT — never fork loaders onto the clone plug
+- Factory = `reggie_autonomous_clone` (not `reggie-ringize` plans)
+
+## In-app
+
+Buyers and integrators see the playbook panel on `/my-orders/[id]` and `/my-jobs/[id]`.

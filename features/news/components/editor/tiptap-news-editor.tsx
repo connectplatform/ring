@@ -16,6 +16,7 @@ import Image from '@tiptap/extension-image'
 import { Extension } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
 import { PluginKey } from '@tiptap/pm/state'
+import { EditorImageEnhanceHost } from '@/features/generative-media/components/editor-image-enhance-host'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -46,6 +47,7 @@ import {
 } from 'lucide-react'
 import { MoodPlayerNode } from './mood-player-node'
 import { RingEmbedExtension } from './extensions/embed-node'
+import { VideoExtension } from '@/components/editor/extensions/video-node'
 import {
   buildSlashItems,
   tryInsertEmbedFromPaste,
@@ -278,6 +280,7 @@ export function TipTapNewsEditor({
       Placeholder.configure({ placeholder: resolvedPlaceholder }),
       MoodPlayerNode,
       RingEmbedExtension,
+      VideoExtension,
       SlashCommands,
     ],
     content: content || '',
@@ -563,7 +566,7 @@ export function TipTapNewsEditor({
                     id="playlistId"
                     value={playlistId}
                     onChange={(e) => setPlaylistId(e.target.value)}
-                    placeholder="UUID from /profile/player/playlists"
+                    placeholder="UUID from /profile/songs"
                   />
                 </div>
                 <Button type="button" onClick={insertMoodPlayer} disabled={!playlistId.trim()}>
@@ -579,6 +582,7 @@ export function TipTapNewsEditor({
         </div>
         <EditorContent editor={editor} />
       </div>
+      <EditorImageEnhanceHost editor={editor} surfaceId="news-editor" />
     </div>
   )
 }

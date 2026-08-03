@@ -8,6 +8,8 @@ import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { LocalePageProps } from '@/utils/page-props'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { connection } from 'next/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/constants/routes'
 
 type WalletConnectParams = Record<string, never>
 
@@ -55,6 +57,12 @@ export default async function WalletConnectPage(props: LocalePageProps<WalletCon
         : undefined
 
   const session = await auth()
+  if (session?.user && session.user.needsOnboarding) {
+    const qs = new URLSearchParams()
+    if (from) qs.set('callbackUrl', from)
+    const q = qs.toString()
+    redirect(q ? `${ROUTES.LOGIN_ONBOARDING(locale)}?${q}` : ROUTES.LOGIN_ONBOARDING(locale))
+  }
   if (session?.user && !session.user.needsOnboarding) {
     redirectPostAuth(from, locale)
   }

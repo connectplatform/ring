@@ -39,9 +39,9 @@ export interface WalletListResult extends WalletActionResult {
     label?: string
     createdAt?: string
     balance?: string
-    nativeBalance?: string
+    nativeTokenBalance?: string
     tokenSymbol?: ReturnType<typeof getNativeTokenSymbol> | string
-    creditFiatCurrency?: string
+    mainCurrency?: string
     chain?: NativeChain
   }>
 }
@@ -49,8 +49,8 @@ export interface WalletListResult extends WalletActionResult {
 export interface CreditBalanceResult extends WalletActionResult {
   balance?: {
     amount: string
-    usd_equivalent: string
-    fiat_currency: string
+    main_currency_equivalent: string
+    main_currency: string
     last_updated: number
     subscription_active: boolean
   }
@@ -62,8 +62,8 @@ export interface CreditHistoryResult extends WalletActionResult {
     user_id: string
     type: string
     amount: string
-    usd_equivalent: string
-    usd_rate: string
+    main_currency_equivalent: string
+    main_currency_rate: string
     balance_after: string
     timestamp: number
     description?: string
@@ -88,7 +88,8 @@ export interface ActivityResult extends WalletActionResult {
 }
 
 export interface OracleRateResult extends WalletActionResult {
-  ringPerUsd?: string
+  /** Main-currency units per 1 native token. */
+  nativePerMainCurrency?: string
 }
 
 // ============================================================================
@@ -170,9 +171,9 @@ export async function listUserWallets(): Promise<WalletListResult> {
         label: w.label,
         createdAt: w.createdAt,
         balance: w.balance,
-        nativeBalance: w.nativeBalance,
+        nativeTokenBalance: w.nativeTokenBalance,
         tokenSymbol: w.tokenSymbol,
-        creditFiatCurrency: w.creditFiatCurrency,
+        mainCurrency: w.mainCurrency,
         chain: w.chain,
       })),
     }
@@ -369,8 +370,8 @@ export async function getCreditBalance(): Promise<CreditBalanceResult> {
       success: true,
       balance: {
         amount: balance.amount,
-        usd_equivalent: balance.usd_equivalent,
-        fiat_currency: balance.fiat_currency ?? 'USD',
+        main_currency_equivalent: balance.main_currency_equivalent,
+        main_currency: balance.main_currency ?? 'USD',
         last_updated: balance.last_updated,
         subscription_active: balance.subscription_active ?? false,
       },
@@ -393,7 +394,10 @@ export async function getCreditBalance(): Promise<CreditBalanceResult> {
  * Does NOT credit native RING wallet balance — that is Token Desk / native_token_onramp.
  * Card → credit points use initiateCreditTopupPayment → PaymentConductor wallet_topup.
  */
-export async function topUpCredits(formData: FormData): Promise<WalletActionResult & {
+export async function topUpCredits(
+  _prev: WalletActionResult | null,
+  formData: FormData,
+): Promise<WalletActionResult & {
   newBalance?: string
   txHash?: string
 }> {
@@ -404,14 +408,16 @@ export async function topUpCredits(formData: FormData): Promise<WalletActionResu
       return { success: false, error: 'Authentication required' }
     }
 
-    const txHash = formData.get('txHash') as string
-    const amount = formData.get('amount') as string
-    const description = formData.get('description') as string || 'Credit top-up'
-
-    // Validate minimum required fields
-    if (!txHash || !amount) {
-      return { success: false, error: 'Transaction hash and amount are required' }
+    const { parseFormData, walletChainTopupFormSchema } = await import(
+      '@/lib/zod/wallet-store-schemas'
+    )
+    const parsed = parseFormData(walletChainTopupFormSchema, formData)
+    if (parsed.success === false) {
+      return { success: false, error: parsed.error }
     }
+
+    const { txHash, amount } = parsed.data
+    const description = parsed.data.description || 'Credit top-up'
 
     // Get all user wallet addresses for securing the top-up source(s)
     const { getUserWallets } = await import('@/lib/wallet/user-wallet-db')
@@ -438,9 +444,11 @@ export async function topUpCredits(formData: FormData): Promise<WalletActionResu
       return { success: false, error: 'Transaction already processed' }
     }
 
-    // Grab current token oracle rate for accurate USD conversion
-    const { getRingPerUsdRate } = await import('@/features/wallet/services/ring-token-oracle')
-    const rate = await getRingPerUsdRate()
+    // Desk oracle SSOT: main currency per 1 native token
+    const { getNativeTokenPerMainCurrencyRate } = await import(
+      '@/lib/ring-oracle'
+    )
+    const rate = await getNativeTokenPerMainCurrencyRate()
 
     // Actually credit user after validation & USD conversion
     const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
@@ -634,24 +642,25 @@ export async function verifyTopUpTransaction(formData: FormData): Promise<Wallet
 }
 
 // ============================================================================
-// 11. GET RING PER USD RATE
+// 11. NATIVE TOKEN ↔ MAIN CURRENCY RATE
 // ============================================================================
 
 /**
- * Gets the current RING token per USD rate from the oracle.
+ * Gets the current desk oracle rate: main-currency units per 1 native token.
  */
-export async function getRingPerUsdRate(): Promise<OracleRateResult> {
+export async function getNativeTokenPerMainCurrencyRate(): Promise<OracleRateResult> {
   try {
-    // Lightweight dynamic import of token oracle
-    const { getRingPerUsdRate: getRate } = await import('@/features/wallet/services/ring-token-oracle')
+    const { getNativeTokenPerMainCurrencyRate: getRate } = await import(
+      '@/lib/ring-oracle'
+    )
     const rate = await getRate()
 
     return {
       success: true,
-      ringPerUsd: rate,
+      nativePerMainCurrency: rate,
     }
   } catch (error) {
-    logger.error('getRingPerUsdRate failed', { error })
+    logger.error('getNativeTokenPerMainCurrencyRate failed', { error })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get oracle rate',
@@ -660,42 +669,48 @@ export async function getRingPerUsdRate(): Promise<OracleRateResult> {
 }
 
 // ============================================================================
-// 12. SET RING PER USD RATE (ADMIN)
+// 12. SET NATIVE TOKEN ↔ MAIN CURRENCY RATE (ADMIN)
 // ============================================================================
 
 /**
- * Updates the RING per USD oracle rate. Admin-only.
+ * Updates the desk oracle rate (main currency per 1 native). Admin-only.
  * Includes audit logging and deviation checks.
  */
-export async function setRingPerUsdRate(formData: FormData): Promise<OracleRateResult> {
+export async function setNativeTokenPerMainCurrencyRate(
+  _prev: OracleRateResult | null,
+  formData: FormData,
+): Promise<OracleRateResult> {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return { success: false, error: 'Authentication required' }
     }
 
-    // Only admins may update oracle
     if (!isPlatformAdmin(session.user.role)) {
       return { success: false, error: 'Admin access required' }
     }
 
-    const newRate = formData.get('rate') as string
-    if (!newRate || parseFloat(newRate) <= 0) {
-      return { success: false, error: 'Valid rate is required' }
+    const { parseFormData, walletOracleRateSchema } = await import(
+      '@/lib/zod/wallet-store-schemas'
+    )
+    const parsed = parseFormData(walletOracleRateSchema, formData)
+    if (parsed.success === false) {
+      return { success: false, error: parsed.error }
     }
 
-    // Mutate oracle value and propagate fresh settings
-    const { setRingPerUsdRate: setRate } = await import('@/features/wallet/services/ring-token-oracle')
-    const result = await setRate(newRate, session.user.id)
+    const { setNativeTokenPerMainCurrencyRate: setRate } = await import(
+      '@/lib/ring-oracle'
+    )
+    const result = await setRate(parsed.data.rate, session.user.id)
 
     revalidatePath('/admin/platform-settings')
 
     return {
       success: true,
-      ringPerUsd: result.ringPerUsd,
+      nativePerMainCurrency: result.nativePerMainCurrency,
     }
   } catch (error) {
-    logger.error('setRingPerUsdRate failed', { error })
+    logger.error('setNativeTokenPerMainCurrencyRate failed', { error })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to set oracle rate',
@@ -711,7 +726,10 @@ export async function setRingPerUsdRate(formData: FormData): Promise<OracleRateR
  * Signs a desk quote for RING token trading.
  * Returns a signed quote token that can be verified server-side.
  */
-export async function signDeskQuote(formData: FormData): Promise<WalletActionResult & {
+export async function signDeskQuote(
+  _prev: WalletActionResult | null,
+  formData: FormData,
+): Promise<WalletActionResult & {
   quoteToken?: string
   expiresAt?: number
 }> {
@@ -721,24 +739,23 @@ export async function signDeskQuote(formData: FormData): Promise<WalletActionRes
       return { success: false, error: 'Authentication required' }
     }
 
-    // Extract and strongly type required quote params
-    const side = formData.get('side') as 'buy' | 'sell'
-    const ringAmount = formData.get('ringAmount') as string
-    const creditUsd = formData.get('creditUsd') as string
-    const rate = formData.get('rate') as string
-    const discountBps = parseInt(formData.get('discountBps') as string || '0', 10)
-
-    // Frontload basic validation to enable clear UX and safe signing
-    if (!side || !ringAmount || !creditUsd || !rate) {
-      return { success: false, error: 'All quote parameters are required' }
+    const { parseFormData, walletSignDeskQuoteFormSchema } = await import(
+      '@/lib/zod/wallet-store-schemas'
+    )
+    const parsed = parseFormData(walletSignDeskQuoteFormSchema, formData)
+    if (parsed.success === false) {
+      return { success: false, error: parsed.error }
     }
 
+    const { side, ringAmount, creditBalanceAmount, rate } = parsed.data
+    const discountBps = parseInt(parsed.data.discountBps || '0', 10)
+
     // Create signed quote for later verification/execution
-    const { signQuote } = await import('@/features/wallet/services/ring-token-oracle')
+    const { signQuote } = await import('@/lib/ring-oracle')
     const quoteToken = signQuote({
       side,
       ringAmountRaw: ringAmount,
-      creditUsd,
+      creditBalanceAmount,
       rate,
       discountBps,
     })
@@ -768,34 +785,31 @@ export async function signDeskQuote(formData: FormData): Promise<WalletActionRes
 // ============================================================================
 
 /**
- * Verifies a signed desk quote token.
- * Checks signature and expiry.
+ * Verifies a signed desk / treasury-swap quote token.
+ * Checks signature and expiry. Payload side may be buy|sell|treasury_swap_in.
  */
-export async function verifyDeskQuote(formData: FormData): Promise<WalletActionResult & {
-  payload?: {
-    side: 'buy' | 'sell'
-    ringAmountRaw: string
-    creditUsd: string
-    rate: string
-    discountBps: number
-    expiresAt: number
+export async function verifyDeskQuote(formData: FormData): Promise<
+  WalletActionResult & {
+    payload?: import('@/lib/ring-oracle').SignedQuotePayload
   }
-}> {
+> {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return { success: false, error: 'Authentication required' }
     }
 
-    // Must provide quote token for server-side verification (prevents tampering)
-    const quoteToken = formData.get('quoteToken') as string
-    if (!quoteToken) {
-      return { success: false, error: 'Quote token is required' }
+    const { parseFormData, walletVerifyDeskQuoteFormSchema } = await import(
+      '@/lib/zod/wallet-store-schemas'
+    )
+    const parsed = parseFormData(walletVerifyDeskQuoteFormSchema, formData)
+    if (parsed.success === false) {
+      return { success: false, error: parsed.error }
     }
 
     // Validate quote signature, parse payload, etc
-    const { verifyQuoteToken } = await import('@/features/wallet/services/ring-token-oracle')
-    const payload = verifyQuoteToken(quoteToken)
+    const { verifyQuoteToken } = await import('@/lib/ring-oracle')
+    const payload = verifyQuoteToken(parsed.data.quoteToken)
 
     return {
       success: true,
@@ -834,11 +848,11 @@ export async function processMembershipFee(formData: FormData): Promise<WalletAc
 
     // Bill for subscription/etc.
     const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
     const result = await creditBalanceService.processMembershipFee(
       session.user.id,
       membershipFee,
-      getFiatCreditAccountingRate(),
+      getMainCurrencyCreditAccountingRate(),
     )
 
     revalidatePath('/[locale]/wallet')
@@ -1562,6 +1576,9 @@ export async function setPrimaryWallet(formData: FormData): Promise<WalletAction
 
     await setUserWallets(session.user.id, updated)
 
+    const { publishWalletListUpdate } = await import('@/lib/wallet/publish-wallet-list')
+    await publishWalletListUpdate(session.user.id, 'updated')
+
     revalidatePath('/[locale]/wallet')
 
     return { success: true, message: 'Primary wallet updated' }
@@ -1732,7 +1749,7 @@ export async function getRewardQuestBoard(): Promise<WalletActionResult & {
 
     const { getUserRewardCreditAddEventSummary } = await import('@/lib/wallet/reward-credit-service')
     const { getPublicRewardCatalog } = await import('@/lib/ring-config-chain')
-    const { getCreditUnitLabel } = await import('@/lib/payments/credit-currency')
+    const { getCreditUnitLabel } = await import('@/lib/payments/credit-balance')
 
     const summary = await getUserRewardCreditAddEventSummary(session.user.id)
     return {

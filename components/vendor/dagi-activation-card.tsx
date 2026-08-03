@@ -3,8 +3,8 @@
 /**
  * DAGI Activation Card
  *
- * Unlock requires GateEscrow stake of vendor-dagi-key (hasFeature vendor.dagi).
- * Agent provisioning API remains coming-soon — no fake activation.
+ * Unlock requires GateEscrow stake of vendor-dagi-key (hasFeatureForVendor).
+ * When unlocked, mounts ERP chat bound to vendorEntityId (Anthropic tool loop).
  */
 
 import Link from 'next/link'
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Bot } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GateStakeCard } from '@/components/vendor/gate-stake-card'
+import { DagiErpChatPanel } from '@/components/vendor/dagi-erp-chat-panel'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { NftOwnershipRecord, NftStakeRecord } from '@/features/nft-gates/types'
@@ -21,18 +22,26 @@ import type { NftOwnershipRecord, NftStakeRecord } from '@/features/nft-gates/ty
 interface DAGIActivationCardProps {
   userId: string
   locale?: Locale
-  /** GateResolver: hasFeature(userId, 'vendor.dagi') */
+  /** GateResolver: hasFeatureForVendor(userId, vendorEntityId, 'vendor.dagi') */
   dagiUnlocked: boolean
+  /** Bound store for ERP tools — must match stake.vendorEntityId */
+  vendorEntityId: string
+  vendorName?: string
   owned: NftOwnershipRecord[]
   stakes: NftStakeRecord[]
+  /** Owned vendor entities for stake-time bind (multi-store picker) */
+  vendorEntities?: Array<{ id: string; name: string }>
 }
 
 export function DAGIActivationCard({
   userId,
   locale = 'en',
   dagiUnlocked,
+  vendorEntityId,
+  vendorName,
   owned,
   stakes,
+  vendorEntities = [],
 }: DAGIActivationCardProps) {
   const t = useTranslations('vendor.dashboard.dagi')
   void userId
@@ -51,7 +60,7 @@ export function DAGIActivationCard({
             </div>
           </div>
           {dagiUnlocked ? (
-            <Badge>Gate unlocked</Badge>
+            <Badge>{t('unlocked')}</Badge>
           ) : (
             <Badge variant="secondary">{t('comingSoon')}</Badge>
           )}
@@ -60,23 +69,35 @@ export function DAGIActivationCard({
       <CardContent className="space-y-4">
         {!dagiUnlocked && (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Buy and stake a <span className="font-medium">vendor-dagi-key</span> NFT to unlock
-              DAGI. Stake uses GateEscrow — not the APR yield pool.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('unlockHint')}</p>
             <Button asChild variant="outline" size="sm">
               <Link href={`${ROUTES.NFT_GATES(locale)}?slug=vendor-dagi-key`}>
-                Get DAGI key
+                {t('getKey')}
               </Link>
             </Button>
-            <GateStakeCard owned={owned} stakes={stakes} focusSlug="vendor-dagi-key" />
+            <GateStakeCard
+              owned={owned}
+              stakes={stakes}
+              focusSlug="vendor-dagi-key"
+              vendorEntities={vendorEntities}
+            />
           </div>
         )}
         {dagiUnlocked && (
-          <p className="text-sm text-muted-foreground">
-            DAGI gate is active via GateEscrow. Agent provisioning API is not live yet —{' '}
-            {t('todoNote')}
-          </p>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t('chatIntro')}</p>
+            <DagiErpChatPanel
+              vendorEntityId={vendorEntityId}
+              vendorName={vendorName}
+              locale={locale}
+            />
+            <GateStakeCard
+              owned={owned}
+              stakes={stakes}
+              focusSlug="vendor-dagi-key"
+              vendorEntities={vendorEntities}
+            />
+          </div>
         )}
       </CardContent>
     </Card>

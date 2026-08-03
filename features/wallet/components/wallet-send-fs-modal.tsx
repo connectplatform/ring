@@ -82,7 +82,7 @@ export default function WalletSendFsModal({
 
   const { results, loading: searchLoading, search, term, clear } = useUserSearch()
 
-  const availableBalance = parseFloat(wallet.nativeBalance || '0') || 0
+  const availableBalance = parseFloat(wallet.nativeTokenBalance || '0') || 0
   const sendAmount = parseFloat(amount) || 0
   const hasInsufficientBalance = sendAmount > availableBalance
 
@@ -425,7 +425,7 @@ export default function WalletSendFsModal({
               </p>
               <p className="text-xs text-muted-foreground">
                 {t('ringBalance', {
-                  balance: formatNativeBalance(wallet.nativeBalance),
+                  balance: formatNativeBalance(wallet.nativeTokenBalance),
                 })}
               </p>
             </div>

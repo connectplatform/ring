@@ -169,5 +169,10 @@
     "waitlistPromoted": "Has ascendido de la lista de espera: {{title}}",
     "reminderOneDayBefore": "Recordatorio: Reunión mañana – {{title}}",
     "reminderOneHourBefore": "Recordatorio: Reunión en 1 hora – {{title}}"
-  }
+  },
+  "inviteRsvp": "Invitar RSVP",
+  "inviteRsvpPickContacts": "Invitar contactos al RSVP",
+  "inviteRsvpConfirm": "Enviar RSVP",
+  "inviteRsvpSuccess": "Invitaciones RSVP enviadas",
+  "inviteRsvpFailed": "No se pudieron enviar las invitaciones RSVP"
 }

@@ -114,7 +114,12 @@
     "browseCatalog": "Katalog durchsuchen",
     "verifiedPublishers": "Verifizierte Publisher",
     "newListings": "Neue Listings",
-    "bundlesAndStacks": "Bundles & Stacks"
+    "bundlesAndStacks": "Bundles & Stacks",
+    "supermenuFilter": "Menü filtern…",
+    "economics": "Ökonomie",
+    "calculateYourProject": "Projekt kalkulieren",
+    "calculateYourProjectDesc": "Optionen für Ihren KI-Projektklon wählen — Zahlung mit {token} oder Karte.",
+    "calculatorCta": "Kalkulator"
   },
   "userRole": {
     "superadmin": "Super-Administrator",
@@ -264,10 +269,13 @@
   "myProjectOrders": "Meine Projekte",
   "changelog": {
     "title": "Changelog",
-    "subtitle": "Release-Hinweise aus CHANGELOG.md (v{version})",
+    "subtitle": "Release-Hinweise aus docs changelog (v{version})",
     "project": "Projekt",
     "publisher": "Herausgeber",
     "reportErrors": "Fehler melden",
-    "publisherPage": "Herausgeberseite"
-  }
+    "publisherPage": "Herausgeberseite",
+    "empty": "Noch keine Changelog-Einträge."
+  },
+  "games": "Spiele",
+  "tasks": "Aufgaben"
 }

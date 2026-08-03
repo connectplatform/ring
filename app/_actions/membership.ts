@@ -2,21 +2,10 @@
 
 /**
  * Membership Server Actions — Ring Platform
- * 
- * This file defines all critical server actions for membership:
- * - Credit, Native Token, and Card payment for membership
- * - Subscription lifecycle management
- * - Pricing/stat retrieval
- * 
- * Design Patterns:
- * - Dynamic SSR-only imports to keep client bundle lean
- * - Next.js revalidations after mutations (with `revalidatePath`)
- * - Clear return objects for use in React 19 useActionState
- * - Optimistic server error/log handling
- * - Top-of-function authentication gate
- * 
- * // TODO: When React 19 & Next 16 are stable, migrate to React `useServerAction` and server-form actions. See https://react.dev/reference/react/useServerAction and Next.js beta docs.
- * // TODO: Consider using Zod or similar for strong runtime validation of incoming FormData. See: https://github.com/colinhacks/zod
+ *
+ * Payment rails go through SubscriptionConductor (adapter SSOT).
+ * Amounts derived from membership.ring × desk/oracle ratios (lib/membership/pricing).
+ * Card processor: payment.cardPaymentProcessor (not CARD_PAYMENT_PROCESSOR).
  */
 
 import { revalidatePath } from 'next/cache'
@@ -24,11 +13,34 @@ import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
-import { getMemberFiatTier } from '@/lib/membership/pricing'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
+import {
+  getMemberMainCurrencyTier,
+  getMembershipCreditAmountForPeriod,
+  getMembershipMainCurrencyAmountForPeriod,
+  getMembershipRingAmountForPeriod,
+  getMembershipMainCurrencyPerNativeToken,
+} from '@/lib/membership/pricing'
+import { getCreditUnitLabel } from '@/lib/payments/credit-balance'
+import {
+  getCardPaymentProcessor,
+  getGatewayConfig,
+  isPaymentMethodEnabled,
+} from '@/lib/payments/subscription/subscription-config'
+import type { MembershipPaymentProvider } from '@/lib/ring-config-types'
+import {
+  cancelSubscriptionSchema,
+  createSubscriptionSchema,
+  parseMembershipForm,
+  payWithCardSchema,
+  payWithCreditBalanceSchema,
+  payWithNativeTokenSchema,
+} from '@/lib/zod/membership-schemas'
 
-// ============================================================================
-// TYPES
-// ============================================================================
+/**
+ * Prefer `useActionState` + Zod-validated FormData for client forms.
+ * There is no stable React `useServerAction` API — treat older TODOs as useActionState.
+ */
 
 export interface MembershipActionResult {
   success: boolean
@@ -45,7 +57,7 @@ export interface PricingResult extends MembershipActionResult {
     type: string
     title: string
     description: string
-    cost: { token_amount: string; usd_equivalent: string }
+    cost: { token_amount: string; main_currency_equivalent: string }
     available: boolean
     benefits: string[]
   }>
@@ -67,20 +79,24 @@ export interface SubscriptionResult extends MembershipActionResult {
   }
 }
 
+function gatewayFees(provider: MembershipPaymentProvider): {
+  gatewayFeePercent: number
+  gatewayFeeFixed: number
+} {
+  const gw = getGatewayConfig(provider)
+  return {
+    gatewayFeePercent: gw?.feePercent ?? 0,
+    gatewayFeeFixed: gw?.feeFixedCents ?? 0,
+  }
+}
+
 // ============================================================================
 // 1. PAY WITH CREDIT BALANCE
 // ============================================================================
 
 /**
- * Pay a membership fee using a user's credit balance (fiat USD).
- * - Supports upgrade, renewal, and one-time fee types.
- * - Checks for sufficient balance before proceeding.
- * - Handles optional auto-subscribe logic.
- * - Dynamically imports credit service for server-only code.
- * - Returns structured result for React 19 useActionState.
- * 
- * // TODO: Migrate to useServerAction (React 19) when stable, replacing manual FormData extraction and manual mutation return structures.
- * // TODO: Use Zod for all input validation.
+ * Pay membership via credit points (as set in ring-config).
+ * Upgrade/renew routes through SubscriptionConductor.
  */
 export async function payWithCreditBalance(formData: FormData): Promise<MembershipActionResult & {
   transactionId?: string
@@ -89,119 +105,125 @@ export async function payWithCreditBalance(formData: FormData): Promise<Membersh
   autoSubscribed?: boolean
 }> {
   try {
-    // Step 1: Auth check (prevents all downstream ops if not logged in)
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
+
+    const parsedForm = parseMembershipForm(payWithCreditBalanceSchema, formData)
+    if (parsedForm.success === false) return { success: false, error: parsedForm.error }
 
     const userId = session.user.id
-    // Parse payment intent type from form
-    const type = formData.get('type') as 'membership_upgrade' | 'subscription_renewal' | 'membership_fee'
-    const autoSubscribe = formData.get('auto_subscribe') === 'true'
-    // If amount is unspecified, fallback to configured fee/tier, else '1.0'
-    const membershipFee = formData.get('amount') as string || getMemberFiatTier()?.amount.toString() || '1.0'
+    const type = parsedForm.data.type
+    const autoSubscribe = parsedForm.data.auto_subscribe !== false
+    const period = parsedForm.data.period ?? parsedForm.data.billingPeriod ?? 'monthly'
+    const creditFee = getMembershipCreditAmountForPeriod(period)
+    const nativeTokenFee = getMembershipRingAmountForPeriod(period)
+    const mainCurrencyFee = getMembershipMainCurrencyAmountForPeriod(period)
+    const membershipFee = parsedForm.data.amount || String(creditFee)
 
-    // Input validation: require payment type
-    if (!type)
-      return {
-        success: false,
-        error: 'Payment type is required (membership_upgrade, subscription_renewal, or membership_fee)'
-      }
+    if (!isPaymentMethodEnabled('credit_balance')) {
+      return { success: false, error: 'Credit balance payments are not enabled' }
+    }
 
-    // SSR dynamic import for server-side logic (keeps client lean)
-    const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
+    const { creditBalanceService } = await import(
+      '@/features/wallet/services/credit-balance-service'
+    )
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
+    const { SubscriptionConductor } = await import(
+      '@/lib/payments/subscription/subscription-conductor'
+    )
 
-    // Fetch user's current credit balance from DB/cache
     const balance = await creditBalanceService.getUserCreditBalance(userId)
     if (!balance || parseFloat(balance.amount) < parseFloat(membershipFee)) {
       return {
         success: false,
         error: 'Insufficient credit balance',
-        message: `Required: ${membershipFee}, Available: ${balance?.amount || '0'}. Please top up at /wallet/topup`,
+        message: `Required: ${membershipFee} ${getCreditUnitLabel()}, Available: ${balance?.amount || '0'}. Please top up at /wallet/topup`,
       }
     }
 
-    const paymentAmount = parseFloat(membershipFee)
-    let result: any // All mutations place result in here for shaped response
+    const fees = gatewayFees('credit_balance')
+    let transactionId: string | undefined
+    let newBalance: string | undefined
     let autoSubscribed = false
 
     switch (type) {
       case 'membership_upgrade': {
-        // Attempt to deduct user's credits for membership upgrade
-        result = await creditBalanceService.spendCredits(
+        // Single charge inside credit provider via Conductor (no pre-spend).
+        const subResult = await SubscriptionConductor.createSubscription({
           userId,
-          {
-            amount: membershipFee,
-            description: 'Membership upgrade via credit balance',
-            metadata: { type: 'membership_upgrade' }
+          userEmail: session.user.email || '',
+          provider: 'credit_balance',
+          gateway: 'Credit Balance',
+          method: 'credit_balance',
+          amount: parseFloat(membershipFee),
+          currency: getCreditUnitLabel(),
+          ...fees,
+          metadata: {
+            auto_renew: autoSubscribe,
+            target_role: 'member',
+            billingPeriod: period,
+            ringAmount: nativeTokenFee,
+            mainCurrencyAmount: mainCurrencyFee,
+            source: 'membership_action_credit',
           },
-          'membership_fee',
-          '1', // STUB: Clarify or refactor magic string argument. // STUB: Step 1, identify meaning of '1' (is version/type code?), refactor to enum/constant in creditBalanceService args.
-        )
-
-        // Handle optional auto-subscribe intent (create subscription in SSOT)
-        if (autoSubscribe) {
-          const { SubscriptionConductor } = await import('@/lib/payments/subscription/subscription-conductor')
-          const subResult = await SubscriptionConductor.createSubscription({
-            userId,
-            userEmail: session.user.email || '',
-            provider: 'credit_balance',
-            gateway: 'Credit Balance',
-            method: 'credit_balance',
-            amount: paymentAmount,
-            currency: 'USD',
-            gatewayFeePercent: 0,
-            gatewayFeeFixed: 0,
-            metadata: { auto_renew: true, target_role: 'MEMBER' }
-          })
-          if (subResult.success) autoSubscribed = true
-          // TODO: Add more granular error handling for SubscriptionConductor failure if needed.
+        })
+        if (!subResult.success) {
+          return {
+            success: false,
+            error: subResult.error || 'Credit membership upgrade failed',
+          }
         }
+        autoSubscribed = true
+        transactionId = subResult.gatewayReference || subResult.subscriptionId
+        const after = await creditBalanceService.getUserCreditBalance(userId)
+        newBalance = after?.amount
         break
       }
 
       case 'subscription_renewal': {
-        // Renew subscription using SSOT - handles idempotency, double-charge, etc.
-        const { SubscriptionConductor } = await import('@/lib/payments/subscription/subscription-conductor')
-        const renewResult = await SubscriptionConductor.renewSubscription(userId, 'credit_balance')
+        const renewResult = await SubscriptionConductor.renewSubscription(
+          userId,
+          'credit_balance',
+        )
         if (!renewResult.success) {
           return {
             success: false,
-            error: renewResult.error || 'Renewal failed'
+            error: renewResult.error || 'Renewal failed',
           }
         }
-        // STUB: Fake transaction (renewal handled elsewhere). // STUB: Step 2, refactor so transaction/result always reflects actual ledger event.
-        result = {
-          success: true,
-          transaction: { id: `renewal_${Date.now()}` },
-          newBalance: (parseFloat(balance.amount) - paymentAmount).toString()
-        }
+        transactionId = renewResult.txSignature
+        const after = await creditBalanceService.getUserCreditBalance(userId)
+        newBalance = after?.amount
         break
       }
 
       case 'membership_fee': {
-        // One-shot processing for simple payment (non-subscription)
-        result = await creditBalanceService.processMembershipFee(userId, membershipFee, '1')
-        // STUB: '1' magic arg above should be constant not literal
+        const result = await creditBalanceService.processMembershipFee(
+          userId,
+          membershipFee,
+          getMainCurrencyCreditAccountingRate(),
+        )
+        transactionId = result.transaction?.id
+        const after = await creditBalanceService.getUserCreditBalance(userId)
+        newBalance = after?.amount
         break
       }
 
-      // TODO: Consider adding an explicit error throw/fail for unexpected types for dev safety.
+      default:
+        return { success: false, error: `Unsupported payment type: ${String(type)}` }
     }
 
-    // Invalidate path-based Next.js caches for wallet/profile post-mutation
     revalidatePath('/[locale]/wallet')
     revalidatePath('/[locale]/profile')
 
     return {
       success: true,
-      message: `${type.replace('_', ' ')} completed successfully`,
-      transactionId: result?.transaction?.id,
-      newBalance: result?.newBalance,
+      message: `${String(type).replace(/_/g, ' ')} completed successfully`,
+      transactionId,
+      newBalance,
       autoSubscribed,
     }
   } catch (error) {
-    // Catch all errors, log w/ context, return user-friendly message
     logger.error('payWithCreditBalance failed', { error })
     return {
       success: false,
@@ -215,34 +237,43 @@ export async function payWithCreditBalance(formData: FormData): Promise<Membersh
 // ============================================================================
 
 /**
- * Pay membership fee using native-chain token (e.g. RING, SOL, ETH, etc.)
- * - Checks user's native token balance on-chain.
- * - Executes transfer (treasury-sponsoring gas fees).
- * - Provisions a subscription for upgrades if needed.
- *
- * // TODO: useServerAction for direct mutation and React 19 pattern ergonomics.
+ * Pay membership with on-chain Native Token via SubscriptionConductor →
+ * nativeTokenSubscriptionProvider (Membership program).
+ * Do NOT transfer then create — that double-charges when metadata.tx_hash is missing.
  */
 export async function payWithNativeToken(formData: FormData): Promise<MembershipActionResult & {
   txHash?: string
 }> {
   try {
-    // Step 1: Require login/auth for all actions
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
 
-    // Parse intent/type + fallback amount (from tier/db/config else 1.0)
-    const type = formData.get('type') as string
-    const amount = formData.get('amount') as string || getMemberFiatTier()?.amount.toString() || '1.0'
+    const parsedForm = parseMembershipForm(payWithNativeTokenSchema, formData)
+    if (parsedForm.success === false) return { success: false, error: parsedForm.error }
 
-    if (!type)
-      return { success: false, error: 'Payment type is required' }
+    const type = parsedForm.data.type
+    const period = parsedForm.data.period ?? parsedForm.data.billingPeriod ?? 'monthly'
+    const nativeTokenFee = getMembershipRingAmountForPeriod(period)
+    const amount = parsedForm.data.amount || String(nativeTokenFee)
 
-    // SSR dynamic import for chain service to get user's on-chain balance
-    const { getNativeTokenBalanceForUser } = await import('@/features/wallet/chains/native-token-transfer-service')
+    if (!isPaymentMethodEnabled('native_token')) {
+      return { success: false, error: 'Native token payments are not enabled' }
+    }
+
+    const parsed = parseFloat(amount)
+    const maxRing = getMembershipRingAmountForPeriod('yearly') * 2
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > maxRing) {
+      return {
+        success: false,
+        error: `Invalid payment amount. Must be between 0.01 and ${maxRing} ${getNativeTokenSymbol()}`,
+      }
+    }
+
+    const { getNativeTokenBalanceForUser } = await import(
+      '@/features/wallet/chains/native-token-transfer-service'
+    )
     const onChain = await getNativeTokenBalanceForUser(session.user.id)
-    if (parseFloat(onChain.balance) < parseFloat(amount)) {
-      // Return specific error so client can offer "top up" UX
+    if (parseFloat(onChain.balance) < parsed) {
       return {
         success: false,
         error: `Insufficient native token balance. Required: ${amount} ${onChain.tokenSymbol}, Available: ${onChain.balance}`,
@@ -250,50 +281,86 @@ export async function payWithNativeToken(formData: FormData): Promise<Membership
       }
     }
 
-    // SSR dynamic import for blockchain transfer logic (covers gas fees)
-    const { transferTokenToTreasury } = await import('@/features/wallet/chains/solana/treasury-transfer-service')
-    // Fetch user's native wallet (assume Solana for MVP initial implementation)
-    const wallet = await import('@/lib/wallet/user-wallet-db').then(m => m.getNativeWallet(session.user.id, 'solana'))
-    if (!wallet) {
-      return { success: false, error: 'No Solana wallet found. Please ensure your wallet first.' }
-    }
-    const { nativeTokenUiToRaw } = await import('@/lib/wallet/native-token-amount')
-    const amountRaw = nativeTokenUiToRaw(amount)
-    const transfer = await transferTokenToTreasury(wallet, amountRaw)
+    const { SubscriptionConductor } = await import(
+      '@/lib/payments/subscription/subscription-conductor'
+    )
+    const tokenSymbol = getNativeTokenSymbol()
+    const fees = gatewayFees('native_token')
+    const autoRenew = parsedForm.data.auto_subscribe === true
 
-    // If "membership_upgrade" also provision subscription
-    if (type === 'membership_upgrade') {
-      const { SubscriptionConductor } = await import('@/lib/payments/subscription/subscription-conductor')
-      const tokenSymbol = getNativeTokenSymbol()
-      // Write to subscription SSOT for this user
-      await SubscriptionConductor.createSubscription({
+    if (type === 'subscription_renewal') {
+      const renew = await SubscriptionConductor.renewSubscription(
+        session.user.id,
+        'native_token',
+      )
+      if (!renew.success) {
+        return { success: false, error: renew.error || 'Native token renewal failed' }
+      }
+      revalidatePath('/[locale]/wallet')
+      revalidatePath('/[locale]/profile')
+      return {
+        success: true,
+        message: `Native token renewal of ${amount} ${tokenSymbol} completed`,
+        txHash: renew.txSignature,
+      }
+    }
+
+    if (type === 'membership_fee') {
+      // One-shot treasury transfer without subscription ledger (matches token API).
+      const { transferNativeTokenForUser } = await import(
+        '@/features/wallet/chains/native-token-transfer-service'
+      )
+      const { getNativeTokenTreasuryAddress } = await import('@/lib/ring-config-chain')
+      const treasury = getNativeTokenTreasuryAddress()
+      if (!treasury || treasury.length < 32) {
+        return { success: false, error: 'Native token treasury is not configured' }
+      }
+      const transfer = await transferNativeTokenForUser({
         userId: session.user.id,
-        userEmail: session.user.email || '',
-        provider: 'native_token' as const,
-        gateway: tokenSymbol,
-        method: 'crypto',
-        amount: parseFloat(amount),
-        currency: tokenSymbol,
-        gatewayFeePercent: 0,
-        gatewayFeeFixed: 0,
-        metadata: {
-          auto_renew: formData.get('auto_subscribe') === 'true',
-          target_role: 'MEMBER',
-          txHash: transfer.txHash, // cross-links on-chain payment with ledger event
-          tokenAddress: wallet.address,
-        }
+        toAddress: treasury,
+        amount,
       })
-      // TODO: Refactor payment+subscription into atomic transaction once feasible.
+      revalidatePath('/[locale]/wallet')
+      revalidatePath('/[locale]/profile')
+      return {
+        success: true,
+        message: `Native token payment of ${amount} ${tokenSymbol} completed`,
+        txHash: transfer.txHash,
+      }
     }
 
-    // Next.js cache invalidation for dirty data on wallet/profile
+    // membership_upgrade (default): Conductor owns transfer + ledger + role.
+    const result = await SubscriptionConductor.createSubscription({
+      userId: session.user.id,
+      userEmail: session.user.email || '',
+      provider: 'native_token',
+      gateway: tokenSymbol,
+      method: 'crypto',
+      amount: parsed,
+      currency: tokenSymbol,
+      ...fees,
+      metadata: {
+        auto_renew: autoRenew,
+        target_role: 'member',
+        billingPeriod: period,
+        source: 'membership_action_native',
+      },
+    })
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Native token membership upgrade failed',
+      }
+    }
+
     revalidatePath('/[locale]/wallet')
     revalidatePath('/[locale]/profile')
 
     return {
       success: true,
-      message: `Native token payment of ${amount} ${getNativeTokenSymbol()} completed`,
-      txHash: transfer.txHash,
+      message: `Native token payment of ${amount} ${tokenSymbol} completed`,
+      txHash: result.txSignature || result.gatewayReference,
     }
   } catch (error) {
     logger.error('payWithNativeToken failed', { error })
@@ -309,11 +376,8 @@ export async function payWithNativeToken(formData: FormData): Promise<Membership
 // ============================================================================
 
 /**
- * Initiate a card payment for membership (Stripe/WayForPay).
- * - Returns a checkout URL for client to redirect.
- * - Handles admin-only variable-amount override.
- * 
- * // TODO: Consider refactoring to expose "native" React action for direct server-form handling, see Next.js form actions docs.
+ * Card membership checkout via SubscriptionConductor.
+ * Processor SSOT: payment.cardPaymentProcessor (env PAYMENT_MEMBERSHIP_PROCESSOR override).
  */
 export async function payWithCard(formData: FormData): Promise<MembershipActionResult & {
   paymentUrl?: string
@@ -326,86 +390,82 @@ export async function payWithCard(formData: FormData): Promise<MembershipActionR
   orderReference?: string
 }> {
   try {
-    // Step 1: Gate all actions via server authentication
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
 
-    // Card processor/provider (defaults to Stripe, can override per env or form)
-    const provider = formData.get('provider') as string || process.env.CARD_PAYMENT_PROCESSOR || 'stripe'
-    // Use tier for amount unless admin supplies explicit value
-    const amount = formData.get('amount') as string || getMemberFiatTier()?.amount.toString() || '1.0'
-    // Redirect-after-payment URL
-    const returnUrl = formData.get('returnUrl') as string || '/profile'
+    const parsedForm = parseMembershipForm(payWithCardSchema, formData)
+    if (parsedForm.success === false) return { success: false, error: parsedForm.error }
 
-    // Amount limits for non-admin users; admin can override
+    const period = parsedForm.data.period ?? parsedForm.data.billingPeriod ?? 'monthly'
+    const memberTier = getMemberMainCurrencyTier()
+    const fiatDefault = getMembershipMainCurrencyAmountForPeriod(period)
+    const amount = parsedForm.data.amount || String(fiatDefault)
+    const returnUrl = parsedForm.data.returnUrl || '/profile'
+
+    const formProvider = parsedForm.data.provider
+    const provider =
+      formProvider === 'stripe' || formProvider === 'wayforpay'
+        ? formProvider
+        : getCardPaymentProcessor()
+
+    if (!isPaymentMethodEnabled(provider)) {
+      return {
+        success: false,
+        error: `${provider} is not currently supported. Please use credit balance or native token.`,
+      }
+    }
+
+    const maxFiat = getMembershipMainCurrencyAmountForPeriod('yearly') * 2
     if (!isPlatformAdmin(session.user.role)) {
       const parsed = parseFloat(amount)
-      if (isNaN(parsed) || parsed <= 0 || parsed > 100)
-        return { success: false, error: 'Invalid payment amount. Must be between 0.01 and 100.' }
-    }
-
-    // Stripe (default) flow
-    if (provider === 'stripe') {
-      const { stripeSubscriptionProvider } = await import('@/lib/payments/subscription/providers/stripe-subscription')
-      const result = await stripeSubscriptionProvider.createSubscription({
-        userId: session.user.id,
-        userEmail: session.user.email || '',
-        provider: 'stripe',
-        gateway: 'Stripe',
-        method: 'card',
-        amount: parseFloat(amount),
-        currency: 'USD',
-        gatewayFeePercent: 0,
-        gatewayFeeFixed: 0,
-        metadata: {
-          auto_renew: formData.get('auto_subscribe') === 'true',
-          target_role: 'MEMBER'
+      if (isNaN(parsed) || parsed <= 0 || parsed > maxFiat) {
+        return {
+          success: false,
+          error: `Invalid payment amount. Must be between 0.01 and ${maxFiat} ${memberTier.currency}`,
         }
-      })
-
-      if (!result.success)
-        return { success: false, error: result.error || 'Stripe payment initiation failed' }
-
-      return {
-        success: true,
-        message: 'Redirecting to Stripe checkout',
-        paymentUrl: result.redirectUrl,
-        orderReference: result.subscriptionId,
       }
     }
 
-    // Ukrainian Hryvnia/WayForPay provider
-    if (provider === 'wayforpay') {
-      const { wayforpaySubscriptionProvider } = await import('@/lib/payments/subscription/providers/wayforpay-subscription')
-      const result = await wayforpaySubscriptionProvider.createSubscription({
-        userId: session.user.id,
-        userEmail: session.user.email || '',
-        provider: 'wayforpay' as const,
-        gateway: 'WayForPay',
-        method: 'card',
-        amount: parseFloat(amount),
-        currency: 'UAH',
-        gatewayFeePercent: 0,
-        gatewayFeeFixed: 0,
-        metadata: { auto_renew: formData.get('auto_subscribe') === 'true', target_role: 'MEMBER' },
-      })
+    const { SubscriptionConductor } = await import(
+      '@/lib/payments/subscription/subscription-conductor'
+    )
+    const gw = getGatewayConfig(provider)
+    const fees = gatewayFees(provider)
+    const currency = memberTier.currency || gw?.currency || getMainCurrencySymbol()
 
-      if (!result.success) {
-        return { success: false, error: result.error || 'WayForPay payment not yet implemented' }
-      }
+    const result = await SubscriptionConductor.createSubscription({
+      userId: session.user.id,
+      userEmail: session.user.email || '',
+      provider,
+      gateway: gw?.label || provider,
+      method: 'card',
+      amount: parseFloat(amount),
+      currency,
+      ...fees,
+      returnUrl,
+      metadata: {
+        auto_renew: parsedForm.data.auto_subscribe === true,
+        target_role: 'member',
+        billingPeriod: period,
+        source: 'membership_action_card',
+      },
+    })
 
+    if (!result.success) {
       return {
-        success: true,
-        paymentUrl: result.redirectUrl,
-        paymentFields: result.paymentFields,
-        redirect: result.redirect,
-        orderReference: result.subscriptionId,
+        success: false,
+        error: result.error || `${provider} payment initiation failed`,
       }
     }
 
-    // Fallback for all unknown/unsupported providers
-    return { success: false, error: `Unsupported card provider: ${provider}` }
+    return {
+      success: true,
+      message: `Redirecting to ${provider} checkout`,
+      paymentUrl: result.redirectUrl ?? result.redirect?.url,
+      paymentFields: result.paymentFields ?? result.redirect?.fields,
+      redirect: result.redirect,
+      orderReference: result.subscriptionId || result.gatewayReference,
+    }
   } catch (error) {
     logger.error('payWithCard failed', { error })
     return {
@@ -419,94 +479,75 @@ export async function payWithCard(formData: FormData): Promise<MembershipActionR
 // 4. GET MEMBERSHIP PRICING
 // ============================================================================
 
-/**
- * Get membership pricing incl. available payment options for the current user.
- * - Gets fiat + native token balances, price oracles
- * - Returns all suitable payment methods, with balance sufficient flags
- * 
- * // TODO: Consider refactor to enable React Suspense SSR for loading/instant UI.
- */
 export async function getMembershipPricing(): Promise<PricingResult> {
   try {
-    // Require login to calculate balances/options
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
 
-    // Dynamic SSR imports for server storage/chain logic
-    const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const { nativeTokenPriceOracleService } = await import('@/features/wallet/services/native-token-price-oracle')
-    const { getNativeTokenBalanceForUser } = await import('@/features/wallet/chains/native-token-transfer-service')
+    const { creditBalanceService } = await import(
+      '@/features/wallet/services/credit-balance-service'
+    )
+    const { getNativeTokenBalanceForUser } = await import(
+      '@/features/wallet/chains/native-token-transfer-service'
+    )
 
-    const memberTier = getMemberFiatTier()
-    if (!memberTier)
-      return { success: false, error: 'Member tier not configured' }
+    const nativeTokenFee = getMembershipRingAmountForPeriod('monthly')
+    const creditFee = getMembershipCreditAmountForPeriod('monthly')
+    const mainCurrencyFee = getMembershipMainCurrencyAmountForPeriod('monthly')
+    const mainCurrencyPerNativeToken = getMembershipMainCurrencyPerNativeToken()
 
-    const membershipFee = memberTier.amount
-    // Fetch user's credit balance (may be 0 if uninitialized)
     const creditBalance = await creditBalanceService.getUserCreditBalance(session.user.id)
     const currentBalance = parseFloat(creditBalance?.amount || '0')
 
-    // Try fetch on-chain native token balance (may fail if no chain wallet)
     let nativeTokenBalance = '0'
     try {
       const onChain = await getNativeTokenBalanceForUser(session.user.id)
       nativeTokenBalance = onChain.balance
     } catch {
-      // Suppress chain balance fetch errors.
+      // no wallet yet
     }
 
-    // Try fetch USD rate for native token (not critical, fallback to '1.00')
-    let usdRate = '1.00'
-    try {
-      // STUB: nativeTokenPriceOracleService.getNativeTokenUsdPrice expects float symbol, which is likely incorrect—should use chain+token
-      // STUB: Step 3: patch priceOracleService to accept real token symbols, not parseFloat.
-      const priceData = await nativeTokenPriceOracleService.getNativeTokenUsdPrice(parseFloat(getNativeTokenSymbol()))
-      if (priceData?.price) usdRate = priceData.price
-    } catch {
-      // Suppress price oracle failures
-    }
-
-    // Compute USD price for configured fee
-    const usdCost = (membershipFee * parseFloat(usdRate)).toFixed(2)
     const tokenSymbol = getNativeTokenSymbol()
-
+    const usdCost = mainCurrencyFee.toFixed(2)
     const paymentOptions = [
       {
         type: 'credit_balance',
         title: 'Credit Balance',
-        description: 'Pay with your credit balance (fiat USD)',
-        cost: { token_amount: membershipFee.toFixed(2), usd_equivalent: usdCost },
-        available: currentBalance >= membershipFee,
+        description: `Pay with credit points (${creditFee} points = ${nativeTokenFee} ${tokenSymbol})`,
+        cost: { token_amount: creditFee.toFixed(2), main_currency_equivalent: usdCost },
+        available:
+          isPaymentMethodEnabled('credit_balance') && currentBalance >= creditFee,
         benefits: ['Instant processing', 'No additional fees'],
       },
       {
         type: 'native_token',
         title: `Pay with ${tokenSymbol}`,
-        description: `Pay with your ${tokenSymbol} token balance`,
-        cost: { token_amount: membershipFee.toFixed(2), usd_equivalent: usdCost },
-        available: parseFloat(nativeTokenBalance) >= membershipFee,
-        benefits: ['Gas sponsored by treasury', 'No wallet required'],
+        description: `Pay with your on-chain ${tokenSymbol} (treasury transfer / Membership)`,
+        cost: { token_amount: nativeTokenFee.toFixed(2), main_currency_equivalent: usdCost },
+        available:
+          isPaymentMethodEnabled('native_token') &&
+          parseFloat(nativeTokenBalance) >= nativeTokenFee,
+        benefits: ['Gas sponsored by treasury', 'No wallet popup required'],
       },
       {
         type: 'card',
         title: 'Credit/Debit Card',
-        description: 'Pay with Visa, Mastercard, or Apple Pay',
-        cost: { token_amount: membershipFee.toFixed(2), usd_equivalent: usdCost },
-        available: true,
+        description: `Pay with Visa, Mastercard, or Apple Pay (${getCardPaymentProcessor()})`,
+        cost: { token_amount: mainCurrencyFee.toFixed(2), main_currency_equivalent: usdCost },
+        available: isPaymentMethodEnabled(getCardPaymentProcessor()),
         benefits: ['Secure payment', 'Instant activation'],
       },
     ]
 
     return {
       success: true,
-      membershipFee: membershipFee.toFixed(2),
-      currency: 'USD',
+      membershipFee: nativeTokenFee.toFixed(2),
+      currency: tokenSymbol,
       usdEquivalent: usdCost,
-      exchangeRate: usdRate,
+      exchangeRate: String(mainCurrencyPerNativeToken),
       paymentOptions,
       currentBalance: currentBalance.toFixed(2),
-      balanceSufficient: currentBalance >= membershipFee,
+      balanceSufficient: currentBalance >= creditFee,
     }
   } catch (error) {
     logger.error('getMembershipPricing failed', { error })
@@ -521,62 +562,117 @@ export async function getMembershipPricing(): Promise<PricingResult> {
 // 5. CREATE SUBSCRIPTION
 // ============================================================================
 
-/**
- * Create a membership subscription.
- * Routes to the appropriate provider (credit, token, stripe, wayforpay).
- * - Updates SSOT ledger using SubscriptionConductor (atomic).
- * 
- * // TODO: Migrate to React 19 Native useServerAction for type-inference in forms.
- */
 export async function createSubscription(formData: FormData): Promise<SubscriptionResult> {
   try {
-    // Require authentication to act on account
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
 
-    const provider = (formData.get('provider') as string) || 'credit_balance'
-    // If 'auto_renew' not explicitly false, default to true (future: zod this)
-    const autoRenew = formData.get('auto_renew') !== 'false'
-    const memberTier = getMemberFiatTier()
-    if (!memberTier)
-      return { success: false, error: 'Member tier not configured' }
+    const parsedForm = parseMembershipForm(createSubscriptionSchema, formData)
+    if (parsedForm.success === false) return { success: false, error: parsedForm.error }
 
-    // Dynamic SSR import for Subscription SSOT conductor
-    const { SubscriptionConductor } = await import('@/lib/payments/subscription/subscription-conductor')
+    const rawProvider = parsedForm.data.provider || 'credit_balance'
+    const provider =
+      rawProvider === 'ring_token' ? 'native_token' : (rawProvider as MembershipPaymentProvider)
+    const autoRenew = parsedForm.data.auto_renew !== false
+    const period = parsedForm.data.period ?? parsedForm.data.billingPeriod ?? 'monthly'
+    const ringAmount = getMembershipRingAmountForPeriod(period)
+    const creditAmount = getMembershipCreditAmountForPeriod(period)
+    const mainCurrencyAmount = getMembershipMainCurrencyAmountForPeriod(period)
+    const memberTier = getMemberMainCurrencyTier()
+
+    const knownProviders = [
+      'stripe',
+      'wayforpay',
+      'credit_balance',
+      'native_token',
+      'nft_gate',
+      'paypal',
+      'telegram_stars',
+    ]
+    if (!knownProviders.includes(provider)) {
+      return { success: false, error: `Unsupported provider: ${provider}` }
+    }
+
+    const { SubscriptionConductor } = await import(
+      '@/lib/payments/subscription/subscription-conductor'
+    )
+    const isCredit = provider === 'credit_balance'
+    const isNative = provider === 'native_token'
+    const fees = gatewayFees(provider)
+    const gw = getGatewayConfig(provider)
+
     const result = await SubscriptionConductor.createSubscription({
       userId: session.user.id,
       userEmail: session.user.email || '',
-      provider: provider as 'credit_balance' | 'native_token' | 'stripe' | 'wayforpay',
-      gateway: provider === 'credit_balance' ? 'Credit Balance' : getNativeTokenSymbol(),
-      method: provider === 'credit_balance' ? 'credit_balance' as const : 'crypto' as const,
-      amount: memberTier.amount,
-      currency: provider === 'credit_balance' ? 'USD' : getNativeTokenSymbol(),
-      gatewayFeePercent: 0,
-      gatewayFeeFixed: 0,
-      metadata: { auto_renew: autoRenew, target_role: 'MEMBER' },
+      provider: provider as
+        | 'credit_balance'
+        | 'native_token'
+        | 'stripe'
+        | 'wayforpay'
+        | 'paypal'
+        | 'nft_gate'
+        | 'telegram_stars',
+      gateway: isCredit
+        ? 'Credit Balance'
+        : isNative
+          ? getNativeTokenSymbol()
+          : gw?.label || provider,
+      method: isCredit
+        ? ('credit_balance' as const)
+        : isNative
+          ? ('crypto' as const)
+          : provider === 'paypal'
+            ? ('paypal' as const)
+            : ('card' as const),
+      amount: isCredit ? creditAmount : isNative ? ringAmount : mainCurrencyAmount,
+      currency: isCredit
+        ? getCreditUnitLabel()
+        : isNative
+          ? getNativeTokenSymbol()
+          : memberTier.currency,
+      ...fees,
+      metadata: {
+        auto_renew: autoRenew,
+        target_role: 'member',
+        billingPeriod: period,
+        ringAmount,
+        mainCurrencyAmount,
+        source: 'membership_action_create',
+      },
     })
 
-    if (!result.success)
+    if (!result.success) {
       return { success: false, error: result.error || 'Failed to create subscription' }
+    }
 
-    // Mutating: refresh wallet/profile on next request for fresh UI
     revalidatePath('/[locale]/wallet')
     revalidatePath('/[locale]/profile')
+
+    const ledger = result.subscriptionId
+      ? await SubscriptionConductor.getSubscription(session.user.id)
+      : null
 
     return {
       success: true,
       message: 'Subscription created successfully',
-      subscription: result.subscriptionId
+      subscription: ledger
         ? {
-            id: result.subscriptionId,
-            status: 'active',
-            provider,
-            start_time: Date.now(),
-            next_payment_due: Date.now() + 30 * 24 * 60 * 60 * 1000, // STUB: Renewal time is 30 days from now -- consider using real next cycle from provider
-            auto_renew: autoRenew,
+            id: ledger.id,
+            status: ledger.status,
+            provider: ledger.provider,
+            gateway: ledger.gateway,
+            start_time: ledger.start_time,
+            next_payment_due: ledger.next_payment_due,
+            auto_renew: ledger.auto_renew,
+            total_paid: ledger.total_paid,
+            payments_count: ledger.payments_count,
           }
-        : { status: 'active', provider },
+        : {
+            id: result.subscriptionId,
+            status: result.ledgerStatus || 'active',
+            provider,
+            auto_renew: autoRenew,
+          },
     }
   } catch (error) {
     logger.error('createSubscription failed', { error })
@@ -591,33 +687,28 @@ export async function createSubscription(formData: FormData): Promise<Subscripti
 // 6. CANCEL SUBSCRIPTION
 // ============================================================================
 
-/**
- * Cancel the current active membership subscription.
- * - Delegates to SubscriptionConductor, which handles provider-specific logic.
- * 
- * // TODO: Refactor to give clearer UX on when cancel will take effect by returning effective cancel date.
- */
 export async function cancelSubscription(formData: FormData): Promise<SubscriptionResult> {
   try {
-    // Gate with authentication
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
 
-    // Immediate means terminate instantly, else cancel at end of period (future: let user select)
-    const immediate = formData.get('immediate') === 'true'
-    const reason = (formData.get('reason') as string) || 'User requested cancellation'
+    const parsedForm = parseMembershipForm(cancelSubscriptionSchema, formData)
+    if (parsedForm.success === false) return { success: false, error: parsedForm.error }
 
-    const { SubscriptionConductor } = await import('@/lib/payments/subscription/subscription-conductor')
+    // Conductor cancels immediately at gateway + ledger; "end of period" is UX copy only until provider supports it.
+    const immediate = parsedForm.data.immediate !== false
+    const reason = parsedForm.data.reason || 'User requested cancellation'
 
-    // Lookup user subscription for provider reference
+    const { SubscriptionConductor } = await import(
+      '@/lib/payments/subscription/subscription-conductor'
+    )
+
     const subscription = await SubscriptionConductor.getSubscription(session.user.id)
-    if (!subscription)
-      return { success: false, error: 'No active subscription found' }
-    if (subscription.status !== 'active' && subscription.status !== 'pending')
+    if (!subscription) return { success: false, error: 'No active subscription found' }
+    if (subscription.status !== 'active' && subscription.status !== 'pending') {
       return { success: false, error: `Subscription is already ${subscription.status}` }
+    }
 
-    // Extract gateway reference (PayPal needs paypal_subscription_id / I-…)
     let gatewayReference: string | undefined
     switch (subscription.provider) {
       case 'stripe':
@@ -639,18 +730,23 @@ export async function cancelSubscription(formData: FormData): Promise<Subscripti
         gatewayReference = undefined
     }
 
-    // Cancel actual subscription atomically in SSOT
-    // STUB: Reason param is NOT forwarded -- optionally log to audit!
+    logger.info('cancelSubscription requested', {
+      userId: session.user.id,
+      provider: subscription.provider,
+      immediate,
+      reason,
+    })
+
     const result = await SubscriptionConductor.cancelSubscription(
       session.user.id,
       subscription.provider,
       gatewayReference,
     )
 
-    if (!result.success)
+    if (!result.success) {
       return { success: false, error: result.error || 'Failed to cancel subscription' }
+    }
 
-    // Invalidate data caches
     revalidatePath('/[locale]/wallet')
     revalidatePath('/[locale]/profile')
 
@@ -658,11 +754,11 @@ export async function cancelSubscription(formData: FormData): Promise<Subscripti
       success: true,
       message: immediate
         ? 'Subscription cancelled immediately'
-        : 'Subscription will cancel at end of billing period',
+        : 'Subscription cancelled (gateway cancel is immediate; end-of-period hold not yet provider-supported)',
       subscription: {
-        status: immediate ? 'cancelled' : 'active',
+        status: 'cancelled',
         provider: subscription.provider,
-        next_payment_due: immediate ? undefined : subscription.next_payment_due,
+        next_payment_due: undefined,
       },
     }
   } catch (error) {
@@ -678,13 +774,6 @@ export async function cancelSubscription(formData: FormData): Promise<Subscripti
 // 7. GET SUBSCRIPTION STATUS
 // ============================================================================
 
-/**
- * Get current subscription status for the authenticated user.
- * - Reads from single source of truth (SSOT) `subscription_ledger`.
- * - Also returns payment reminders & warnings as needed.
- *
- * // TODO: Use React Suspense for optimal server-form/instant UI updates
- */
 export async function getSubscriptionStatus(): Promise<SubscriptionResult & {
   role?: string
   hasActiveMembership?: boolean
@@ -693,42 +782,39 @@ export async function getSubscriptionStatus(): Promise<SubscriptionResult & {
   warnings?: Array<{ type: string; message: string }>
 }> {
   try {
-    // Require auth for status lookup
     const session = await auth()
-    if (!session?.user?.id)
-      return { success: false, error: 'Authentication required' }
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
 
-    // SSR side-load for speed/concurrency
-    const { SubscriptionConductor } = await import('@/lib/payments/subscription/subscription-conductor')
-    const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
+    const { SubscriptionConductor } = await import(
+      '@/lib/payments/subscription/subscription-conductor'
+    )
+    const { creditBalanceService } = await import(
+      '@/features/wallet/services/credit-balance-service'
+    )
 
-    // Parallelize DB calls: fetch both subscription and balance
     const [subscription, creditBalance] = await Promise.all([
       SubscriptionConductor.getSubscription(session.user.id),
       creditBalanceService.getUserCreditBalance(session.user.id),
     ])
 
-    const hasActiveMembership =
-      subscription
-        ? subscription.status === 'active' || subscription.status === 'grace_period'
-        : false
+    const hasActiveMembership = subscription
+      ? subscription.status === 'active' || subscription.status === 'grace_period'
+      : false
 
-    // Compute days until next payment if relevant
     let daysUntilPayment: number | null = null
     const warnings: Array<{ type: string; message: string }> = []
     if (subscription && subscription.next_payment_due) {
       const timeDiff = subscription.next_payment_due - Date.now()
       daysUntilPayment = Math.ceil(timeDiff / (24 * 60 * 60 * 1000))
-      // Proactive warnings for late or soon-to-due payments
       if (timeDiff < 0) {
         warnings.push({
           type: 'payment_overdue',
-          message: `Payment is ${Math.abs(daysUntilPayment)} days overdue`
+          message: `Payment is ${Math.abs(daysUntilPayment)} days overdue`,
         })
       } else if (daysUntilPayment <= 3) {
         warnings.push({
           type: 'payment_reminder',
-          message: `Payment due in ${daysUntilPayment} days`
+          message: `Payment due in ${daysUntilPayment} days`,
         })
       }
     }
@@ -752,7 +838,6 @@ export async function getSubscriptionStatus(): Promise<SubscriptionResult & {
             payments_count: subscription.payments_count,
           }
         : { status: 'none' },
-      // Only include warnings if any present (for cleaner API)
       warnings: warnings.length > 0 ? warnings : undefined,
     }
   } catch (error) {

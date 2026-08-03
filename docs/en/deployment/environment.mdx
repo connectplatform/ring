@@ -1,7 +1,7 @@
 ---
 title: Environment Configuration
-description: Required and optional environment variables for Ring Platform — database backend, Firebase Admin SDK, FCM, payments, locales, Tunnel, and file storage.
-last_modified: "2026-07-09"
+description: Required and optional environment variables for Ring Platform — database backend, Firebase Admin SDK, FCM, Auth.js (Google / Telegram / Apple), payments, locales, Tunnel, and file storage.
+last_modified: "2026-07-20"
 audience: both
 ---
 
@@ -117,16 +117,28 @@ AUTH_TRUST_HOST=true
 AUTH_GOOGLE_ID=your_google_client_id
 AUTH_GOOGLE_SECRET=your_google_client_secret
 
+# Telegram Web Login OIDC (BotFather → Bot Settings → Web Login)
+# Allowed URLs: https://<host> and https://<host>/api/auth/callback/telegram
+AUTH_TELEGRAM_ID=your_telegram_oidc_client_id
+AUTH_TELEGRAM_SECRET=your_telegram_oidc_client_secret
+# ADMIN_BOT_TOKEN=...  # Login Widget hash + admin bot API (not the OIDC secret)
+
 # Apple Sign-In (required for Apple sign-in)
 AUTH_APPLE_ID=your_apple_client_id
 AUTH_APPLE_SECRET=your_apple_private_key
 
-# Magic links (optional — uses Resend)
-AUTH_RESEND_KEY=your_resend_api_key
-AUTH_RESEND_FROM=noreply@ring-platform.org
+# Ring Mailer — OTP / magic link / reset (own SMTP; no AUTH_RESEND_*)
+# EMAIL_MODE=ethereal
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=noreply@example.com
+SMTP_PASSWORD=
+SMTP_FROM=Ring Platform <noreply@example.com>
+# OTP_HMAC_SECRET=
 ```
 
-Auth.js v5 reads `AUTH_*` prefixed vars automatically for each provider. See [Authentication architecture](/docs/architecture/authentication).
+Auth.js v5 reads `AUTH_*` prefixed vars for OAuth/OIDC providers (Google, Telegram, Apple). Email auth uses Ring Mailer — see [Ring Mailer](/docs/features/ring-mailer) and [Authentication](/docs/features/authentication).
 
 ## Payments (PaymentConductor)
 

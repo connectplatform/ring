@@ -8,7 +8,6 @@
   "upcomingMeetups": "Upcoming Meetups",
   "pastMeetups": "Past Meetups",
   "myMeetups": "My Meetups",
-  
   "types": {
     "dog_park_meetup": "Dog Park Meetup",
     "hiking": "Hiking with Pets",
@@ -19,14 +18,12 @@
     "charity": "Charity Event",
     "other": "Other"
   },
-  
   "privacy": {
     "public": "Public",
     "private": "Private",
     "publicDescription": "Anyone can see and join",
     "privateDescription": "Invite-only"
   },
-  
   "fields": {
     "title": "Meetup Title",
     "description": "Description",
@@ -41,7 +38,6 @@
     "photos": "Photos",
     "safetyGuidelines": "Safety Guidelines"
   },
-  
   "allowedPets": {
     "title": "Allowed Pets",
     "dogs": "Dogs",
@@ -50,7 +46,6 @@
     "allPets": "All Pets Welcome",
     "noPets": "No Pets (Human-only event)"
   },
-  
   "rsvp": {
     "title": "RSVP",
     "going": "Going",
@@ -65,7 +60,6 @@
     "attendees": "Attendees",
     "viewAttendees": "View Attendees"
   },
-  
   "participants": {
     "title": "Participants",
     "organizer": "Organizer",
@@ -77,7 +71,6 @@
     "confirmed": "Confirmed",
     "declined": "Declined"
   },
-  
   "groupChat": {
     "title": "Group Chat",
     "openChat": "Open Chat",
@@ -86,7 +79,6 @@
     "leaveChat": "Leave Chat",
     "members": "{{count}} members"
   },
-  
   "safety": {
     "title": "Safety Guidelines",
     "leashRequired": "Leashes required",
@@ -97,7 +89,6 @@
     "weatherDependent": "Weather-dependent event",
     "emergencyContact": "Emergency contact available"
   },
-  
   "search": {
     "placeholder": "Search meetups...",
     "filterByType": "Filter by Type",
@@ -114,7 +105,6 @@
       "newest": "Newest"
     }
   },
-  
   "status": {
     "upcoming": "Upcoming",
     "ongoing": "Happening Now",
@@ -123,7 +113,6 @@
     "postponed": "Postponed",
     "full": "Full"
   },
-  
   "actions": {
     "saveMeetup": "Save Meetup",
     "updateMeetup": "Update Meetup",
@@ -140,7 +129,6 @@
     "viewOnMap": "View on Map",
     "getDirections": "Get Directions"
   },
-  
   "validation": {
     "titleRequired": "Meetup title is required",
     "typeRequired": "Meetup type is required",
@@ -151,7 +139,6 @@
     "maxParticipantsInvalid": "Maximum participants must be at least 2",
     "entryFeeInvalid": "Entry fee must be a positive number"
   },
-  
   "success": {
     "created": "Meetup created successfully! Group chat has been created.",
     "updated": "Meetup updated successfully!",
@@ -164,7 +151,6 @@
     "photoUploaded": "Photo uploaded successfully",
     "checkedIn": "Checked in successfully!"
   },
-  
   "errors": {
     "loadFailed": "Failed to load meetups",
     "saveFailed": "Failed to save meetup",
@@ -174,7 +160,6 @@
     "uploadFailed": "Photo upload failed",
     "locationAccessDenied": "Location access denied"
   },
-  
   "notifications": {
     "newMeetupNearby": "New meetup nearby: {{title}}",
     "meetupStartingSoon": "Meetup starting in {{minutes}} minutes!",
@@ -184,5 +169,10 @@
     "waitlistPromoted": "You've been promoted from the waitlist! {{title}}",
     "reminderOneDayBefore": "Reminder: Meetup tomorrow - {{title}}",
     "reminderOneHourBefore": "Reminder: Meetup starting in 1 hour - {{title}}"
-  }
+  },
+  "inviteRsvp": "Invite RSVP",
+  "inviteRsvpPickContacts": "Invite contacts to RSVP",
+  "inviteRsvpConfirm": "Send RSVP",
+  "inviteRsvpSuccess": "RSVP invites sent",
+  "inviteRsvpFailed": "Could not send RSVP invites"
 }

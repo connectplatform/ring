@@ -19,9 +19,11 @@ export async function syncEntityDiscovery(params: {
   entityId: string
   event: EntityMutationEvent
   roleKeys?: readonly string[]
+  /** Optional serialized entity (or partial) for optimistic list/detail patches. */
+  snippet?: Record<string, unknown> | null
 }): Promise<void> {
   const roleKeys = params.roleKeys ?? DEFAULT_ROLE_KEYS
-  const { entityId, event } = params
+  const { entityId, event, snippet } = params
 
   try {
     invalidateEntitiesCache([...roleKeys])
@@ -40,5 +42,5 @@ export async function syncEntityDiscovery(params: {
     logger.warn('syncEntityDiscovery: revalidatePath failed', { entityId, error })
   }
 
-  await syncDiscovery({ channel: 'entities', resourceId: entityId, event })
+  await syncDiscovery({ channel: 'entities', resourceId: entityId, event, snippet })
 }

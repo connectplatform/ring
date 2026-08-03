@@ -1,33 +1,34 @@
 'use client'
 
+/**
+ * Profile reward quests — live board from getRewardQuestBoard
+ * (catalog amounts + byTrigger earn counts). Progress is real:
+ * % = completed/total; remaining = sum of catalog amounts for incomplete quests.
+ * Collapsed by default; expand to stacked quest rows.
+ */
+
 import React, { useEffect, useMemo, useState, useTransition } from 'react'
 import {
   Sparkles,
-  TrendingUp,
-  Coins,
-  ArrowUpRight,
   Shield,
   Send,
-  MessageSquare,
   User,
   FileText,
   Newspaper,
   ClipboardList,
   Star,
-  Wallet,
+  Check,
+  ChevronDown,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { davinciGlassSurface, davinciAuthButtonLift } from '@/lib/ui/davinci'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { Link, toAppHref, useRouter } from '@/i18n/routing'
+import { useRouter } from '@/i18n/routing'
 import { ROUTES } from '@/constants/routes'
 import { getRewardQuestBoard } from '@/app/_actions/wallet'
-import { usePrimaryNativeBalance } from '@/hooks/use-primary-native-balance'
 import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
 
@@ -95,23 +96,16 @@ export function UserProgressWidget({
   onOpenBioModal,
 }: UserProgressWidgetProps) {
   const t = useTranslations('modules.profile')
-  const credit = useCreditBalanceContext()
   const router = useRouter()
   const [, startTransition] = useTransition()
-  const creditUnitFallback = getClientCreditUnitLabel()
-  const {
-    nativeBalance,
-    formatted: nativeFormatted,
-    loading: nativeLoading,
-    error: nativeError,
-    symbol: nativeSymbol,
-  } = usePrimaryNativeBalance({ enabled: true })
+  const creditBalanceUnitFallback = getClientCreditUnitLabel()
 
-  const [unitLabel, setUnitLabel] = useState(creditUnitFallback)
+  const [unitLabel, setUnitLabel] = useState(creditBalanceUnitFallback)
   const [amounts, setAmounts] = useState<Partial<Record<RewardTrigger, number>>>({})
   const [earnedByTrigger, setEarnedByTrigger] = useState<Record<string, number>>({})
   const [questsLoaded, setQuestsLoaded] = useState(false)
   const [questsFailed, setQuestsFailed] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -145,17 +139,7 @@ export function UserProgressWidget({
     }
   }, [])
 
-  const creditBalance = credit?.balance?.amount ?? '0'
-  const creditUsd = credit?.balance?.usd_equivalent ?? '0.00'
-  const creditLoading = Boolean(credit?.isLoading && !credit?.balance)
   const loc = locale.toLowerCase() as Locale
-  const walletHref = toAppHref(ROUTES.WALLET(loc))
-  const topupHref = ROUTES.WALLET_TOPUP(loc)
-
-  const goTopup = () =>
-    router.push(topupHref as Parameters<typeof router.push>[0])
-  const goWallet = () =>
-    router.push(walletHref as Parameters<typeof router.push>[0])
 
   const hasEarned = (trigger: RewardTrigger) => (earnedByTrigger[trigger] ?? 0) > 0
 
@@ -276,125 +260,57 @@ export function UserProgressWidget({
   ])
 
   const incompleteActions = actions.filter((a) => !a.completed)
+  const completedCount = actions.filter((a) => a.completed).length
   const remainingPoints = incompleteActions.reduce((sum, a) => sum + (a.reward || 0), 0)
   const earnedQuestPoints = actions
     .filter((a) => a.earned)
     .reduce((sum, a) => sum + (a.reward || 0), 0)
   const questProgressValue = Math.min(
     100,
-    Math.round((actions.filter((a) => a.completed).length / Math.max(actions.length, 1)) * 100),
+    Math.round((completedCount / Math.max(actions.length, 1)) * 100),
   )
 
-  const nativeDisplay = (() => {
-    if (nativeLoading && nativeBalance === null) return null
-    if (nativeError && nativeBalance === null) return '—'
-    return nativeFormatted
-  })()
-
   return (
-    <div className={cn(davinciGlassSurface, 'p-5 space-y-4')}>
-      {/* Balances row: credits + native */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-              <Coins className="w-5 h-5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">{t('rewardQuests.userCredits')}</p>
-              {creditLoading ? (
-                <div className="space-y-1.5 mt-0.5">
-                  <Skeleton className="h-6 w-24" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              ) : (
-                <>
-                  <p className="text-lg font-bold truncate">
-                    {Number(creditBalance).toLocaleString()}{' '}
-                    <span className="text-xs font-normal text-muted-foreground">{unitLabel}</span>
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {t('rewardQuests.approxFiat', {
-                      amount: Number(creditUsd).toFixed(2),
-                      currency: 'USD',
-                    })}
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-
-          <Link
-            href={walletHref}
-            className={cn(
-              'flex items-center gap-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/10',
-              'transition-colors hover:bg-violet-500/10 hover:border-violet-500/25',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2',
-              'cursor-pointer',
-            )}
-            aria-label={t('rewardQuests.openWallet')}
-          >
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-500/10">
-              <Wallet className="w-5 h-5 text-violet-500" />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <p className="text-xs text-muted-foreground">
-                {t('rewardQuests.nativeBalance', { symbol: nativeSymbol })}
-              </p>
-              {nativeDisplay === null ? (
-                <Skeleton className="h-6 w-20 mt-0.5" />
-              ) : (
-                <p className="text-lg font-bold truncate">
-                  {nativeDisplay}{' '}
-                  <span className="text-xs font-normal text-muted-foreground">{nativeSymbol}</span>
-                </p>
-              )}
-            </div>
-          </Link>
+    <div className={cn(davinciGlassSurface, 'overflow-hidden')}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className={cn(
+          'flex w-full items-center gap-3 p-4 text-left',
+          'hover:bg-yellow-500/5 transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40 focus-visible:ring-inset',
+        )}
+        aria-expanded={expanded}
+        aria-controls="profile-quest-list"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
+          <Sparkles className="h-5 w-5 text-yellow-500" aria-hidden />
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="default" size="sm" className="text-xs gap-1.5" onClick={goTopup}>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            {t('rewardQuests.recharge')}
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={goTopup}>
-            {t('rewardQuests.getNative', { symbol: nativeSymbol })}
-          </Button>
-          <Button variant="ghost" size="sm" className="text-xs" onClick={goWallet}>
-            {t('rewardQuests.openWallet')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Quest progress */}
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-yellow-500/10">
-          <Sparkles className="w-5 h-5 text-yellow-500" />
-        </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">{t('rewardQuests.questProgress')}</p>
           {!questsLoaded ? (
-            <div className="space-y-2 mt-1">
+            <div className="mt-1 space-y-2">
               <Skeleton className="h-6 w-36" />
               <Skeleton className="h-1.5 w-full" />
             </div>
           ) : questsFailed ? (
-            <p className="text-sm text-muted-foreground mt-0.5">—</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">—</p>
           ) : (
             <>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <span className="text-lg font-bold text-yellow-600">
                   {t('rewardQuests.remainingEarn', {
                     amount: remainingPoints,
                     unit: unitLabel,
                   })}
                 </span>
-                <span className="text-xs text-muted-foreground">({questProgressValue}%)</span>
+                <span className="text-xs text-muted-foreground">
+                  ({questProgressValue}% · {completedCount}/{actions.length})
+                </span>
               </div>
-              <Progress value={questProgressValue} className="h-1.5 mt-1" />
+              <Progress value={questProgressValue} className="mt-1 h-1.5" />
               {earnedQuestPoints > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="mt-1 text-[10px] text-muted-foreground">
                   {t('rewardQuests.earnedFromQuests', {
                     amount: earnedQuestPoints,
                     unit: unitLabel,
@@ -404,67 +320,75 @@ export function UserProgressWidget({
             </>
           )}
         </div>
-      </div>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            expanded && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      </button>
 
-      {!questsLoaded ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-[88px] rounded-xl" />
-          ))}
+      {expanded ? (
+        <div
+          id="profile-quest-list"
+          className="space-y-1 border-t border-border/40 px-2 pb-3 pt-2"
+        >
+          {!questsLoaded ? (
+            <div className="space-y-2 px-2 py-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : questsFailed ? (
+            <p className="px-3 py-2 text-sm text-muted-foreground">—</p>
+          ) : (
+            actions.map((action) => {
+              const Icon = action.icon
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  disabled={action.completed}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!action.completed) action.onClick()
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left',
+                    'transition-colors',
+                    action.completed
+                      ? 'cursor-default opacity-60'
+                      : 'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60',
+                      action.colorClass,
+                    )}
+                  >
+                    {action.completed ? (
+                      <Check className="h-4 w-4 text-emerald-500" aria-hidden />
+                    ) : (
+                      <Icon className="h-4 w-4" aria-hidden />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {action.label}
+                  </span>
+                  <Badge
+                    variant={action.completed ? 'outline' : 'secondary'}
+                    className="shrink-0 text-[10px] px-1.5 py-0"
+                  >
+                    {action.completed ? '✓' : `+${action.reward}`}
+                  </Badge>
+                </button>
+              )
+            })
+          )}
         </div>
-      ) : incompleteActions.length > 0 ? (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-muted-foreground" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              {t('rewardQuests.completeToEarn')}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
-            {incompleteActions.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                onClick={action.onClick}
-                className={cn(
-                  'flex flex-col items-center gap-1 p-2.5 sm:p-3 rounded-xl border border-muted bg-background/50',
-                  'hover:border-primary/30 hover:bg-accent/30 transition-all duration-200',
-                  davinciAuthButtonLift,
-                )}
-              >
-                <action.icon className={cn('w-4 h-4 sm:w-5 sm:h-5', action.colorClass)} />
-                <span className="text-[10px] sm:text-[11px] font-medium text-center leading-tight">
-                  {action.label}
-                </span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  +{action.reward}
-                </Badge>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-3">
-          <Sparkles className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-          <p className="text-sm font-semibold">{t('rewardQuests.allComplete')}</p>
-          <p className="text-xs text-muted-foreground">{t('rewardQuests.allCompleteHint')}</p>
-          <div className="mt-3 flex justify-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => router.push(ROUTES.NEWS(loc) as Parameters<typeof router.push>[0])}
-            >
-              <MessageSquare className="w-3.5 h-3.5 mr-1" />
-              {t('rewardQuests.commentCreated')}
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs" onClick={goTopup}>
-              <ArrowUpRight className="w-3.5 h-3.5 mr-1" />
-              {t('rewardQuests.recharge')}
-            </Button>
-          </div>
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }

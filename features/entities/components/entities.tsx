@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { SerializedEntity } from '@/features/entities/types'
-import Link from 'next/link'
+import { Link } from '@/i18n/routing'
 import { Building2, MapPin, Tag, Globe, Calendar, Users, Award, Plus, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -17,6 +17,7 @@ import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { fingerprintFromSearchParams } from '@/lib/pagination/filter-fingerprint'
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
+import { useRealtimeEntities, useEntityUpdates, applyEntityListUpdate } from '@/hooks/use-realtime-entities'
 
 
 
@@ -73,10 +74,12 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 
   const {
     items: entities,
+    setItems,
     loading,
     hasMore,
     error: feedError,
     sentinelRef,
+    reload,
   } = useCursorFeed<SerializedEntity>({
     moduleId: 'entities',
     locale,
@@ -86,6 +89,27 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
     initialCursor: initialLastVisible,
     enabled: Boolean(session),
     fetchPage: fetchEntitiesPage,
+  })
+
+  // Tunnel discovery: entity:* events from syncEntityDiscovery
+  useRealtimeEntities({ autoConnect: Boolean(session), debug: false })
+
+  // Stable handlers via refs — reload identity churns after each fetch (same as CreditHistoryProvider)
+  const reloadRef = useRef(reload)
+  reloadRef.current = reload
+  const setItemsRef = useRef(setItems)
+  setItemsRef.current = setItems
+
+  useEntityUpdates((update) => {
+    if (update.type === 'deleted' || update.data) {
+      setItemsRef.current((prev) => {
+        const next = applyEntityListUpdate(prev, update)
+        return next.kind === 'next' ? next.entities : prev
+      })
+      return
+    }
+    // created / updated without snippet — soft reload first page
+    void reloadRef.current()
   })
 
   const error = feedError ?? initialError
@@ -227,7 +251,7 @@ const EntityCard: React.FC<{ entity: SerializedEntity }> = ({ entity }) => {
         
         <CardFooter className="bg-muted/50 p-4">
           <Button asChild className="w-full">
-            <Link href={`/entities/${entity.id}`}>
+            <Link href={{ pathname: '/entities/[id]', params: { id: entity.id } }}>
               {tEntities('viewDetails')}
             </Link>
           </Button>

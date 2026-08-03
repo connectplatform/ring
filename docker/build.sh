@@ -15,10 +15,10 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
-# Configuration
-DOCKER_REGISTRY=${DOCKER_REGISTRY:-"ghcr.io"}
-DOCKER_NAMESPACE=${DOCKER_NAMESPACE:-"connectplatform"}
-IMAGE_NAME="ring-platform"
+# Configuration — Forgejo OCI on ring-mesh (not GHCR)
+DOCKER_REGISTRY=${DOCKER_REGISTRY:-"${RING_DOCKER_REGISTRY:-registry.ringdom.org}"}
+DOCKER_NAMESPACE=${DOCKER_NAMESPACE:-"${RING_DOCKER_NAMESPACE:-ringdom-clones}"}
+IMAGE_NAME=${IMAGE_NAME:-"${RING_DOCKER_IMAGE:-ring}"}
 VERSION=${VERSION:-$(cat package.json | grep '"version"' | cut -d'"' -f4)}
 BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -63,8 +63,8 @@ ${CYAN}Options:${NC}
   -e, --env ENVIRONMENT     Build environment (development|production) [default: production]
   -p, --platform PLATFORM  Target platform [default: linux/amd64]
   -t, --tag TAG            Custom tag for the image
-  -r, --registry REGISTRY  Docker registry [default: ghcr.io]
-  -n, --namespace NS       Docker namespace [default: connectplatform]
+  -r, --registry REGISTRY  Docker registry [default: registry.ringdom.org]
+  -n, --namespace NS       Docker namespace [default: ringdom]
   --push                   Push image to registry after build
   --no-cache              Disable Docker build cache
   --multi-arch            Build for multiple architectures (linux/amd64,linux/arm64)

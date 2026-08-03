@@ -159,7 +159,16 @@
       "invalid_amount": "Введіть коректну суму більше нуля."
     },
     "proceed_card": "Перейти до оплати карткою",
-    "proceed_paypal": "Перейти до PayPal"
+    "proceed_paypal": "Перейти до PayPal",
+    "oracleRateBubble": "Токени розраховуються за курсом: 1 {symbol} = {rate} {creditUnit}.",
+    "securePaymentBubble": "Платежі безпечно обробляє {processor}. Операція без повернення коштів.",
+    "externalDescription": "Обміняйте токени з allowlist із підключеного гаманця входу на custodial {symbol}.",
+    "externalNoAllowlist": "Токени для обміну через скарбницю ще не налаштовані.",
+    "externalTreasuryMissing": "Адреса скарбниці ще не видима. Встановіть chains.evm.treasuryAddress або NEXT_PUBLIC_EVM_TREASURY_ADDRESS.",
+    "externalSelectToken": "Токен",
+    "externalAmount": "Сума",
+    "externalAvailable": "Доступно: {balance} {symbol}",
+    "externalYouReceive": "Отримаєте ≈"
   },
   "send": {
     "title": "Надіслати RING",
@@ -231,10 +240,15 @@
     "reward_credit_add": "Нагорода кредитом",
     "reimbursement": "Відшкодування",
     "payment_request_sent": "Надіслано запит на оплату ({token})",
-    "payment_request_received": "Отримано запит на оплату ({token})"
+    "payment_request_received": "Отримано запит на оплату ({token})",
+    "treasury_swap_in": "Обмін через скарбницю → {token}"
   },
   "topupTabs": {
-    "creditDesk": "Кредит {creditUnit}"
+    "creditDesk": "Кредит {creditUnit}",
+    "otherWallet": "Інший гаманець",
+    "creditCard": "Банківська картка",
+    "paypal": "Paypal",
+    "creditNative": "{creditUnit} ↔ {symbol}"
   },
   "transactionDetails": {
     "title": "Деталі транзакції",
@@ -315,5 +329,20 @@
   "deskNoCreditTitle": "Немає кредитних балів",
   "deskNoCreditHint": "Будьте активні в {project}, щоб заробити кредит {unit}",
   "deskNoCreditOr": "або",
-  "deskBuyCreditUnit": "Купити {unit}"
+  "deskBuyCreditUnit": "Купити {unit}",
+  "signinWallet": "Гаманець входу",
+  "signinWalletDisconnected": "Підключіть гаманець, щоб поповнити активами входу",
+  "swapForNative": "Обміняти на {symbol}",
+  "swapStubHint": "Обмін через скарбницю для токенів з allowlist ще не активний. Коли контракт скарбниці, allowlist і оракули будуть налаштовані, ви зможете поповнити custodial-гаманець {symbol} з цього гаманця входу.",
+  "swapComingSoon": "Незабаром",
+  "close": "Закрити",
+  "swapHint": "Перекажіть токен з allowlist до скарбниці. Custodial {symbol} зараховується за підписаним котируванням оракула.",
+  "swapAmountPlaceholder": "Сума",
+  "swapAvailable": "Доступно: {balance} {symbol}",
+  "swapQuoting": "Отримання котирування…",
+  "swapYouReceive": "Отримаєте ≈ {amount} {symbol} (${usd})",
+  "swapConfirm": "Підтвердити обмін",
+  "swapSuccess": "Отримано {amount} {symbol}",
+  "swapTreasuryMissing": "Адресу скарбниці не налаштовано",
+  "balanceStaleShort": "Баланс може бути застарілим"
 }

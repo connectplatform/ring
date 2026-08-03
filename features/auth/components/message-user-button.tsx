@@ -12,16 +12,23 @@ interface MessageUserButtonProps {
   targetUserId: string
   targetUserName?: string | null
   locale: Locale
+  /** When false, hide (recipient opted out of profile DMs). Default true. */
+  acceptProfileDms?: boolean
 }
 
 export function MessageUserButton({
   targetUserId,
   targetUserName,
   locale,
+  acceptProfileDms = true,
 }: MessageUserButtonProps) {
   const t = useTranslations('modules.messenger')
   const { data: session, status } = useSession()
   const router = useRouter()
+
+  if (!acceptProfileDms) {
+    return null
+  }
 
   if (status !== 'authenticated' || !session?.user?.id) {
     return null

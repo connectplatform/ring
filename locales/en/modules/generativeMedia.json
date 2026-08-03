@@ -33,5 +33,22 @@
   "promptPlaceholder": "Describe your media in full detail…",
   "modeImage": "Image",
   "modeVideo": "Video",
-  "modeVideoSoon": "Video mode uses VideoConductor — coming soon in this editor."
+  "modeVideoSoon": "Video mode uses VideoConductor — coming soon in this editor.",
+  "useThisVideo": "Use this video",
+  "saveToDesktop": "Save to Desktop",
+  "savedToDesktop": "Saved to Desktop",
+  "saveDesktopFailed": "Failed to save to Desktop",
+  "noUseTarget": "No editor target to apply media — open an editor or use a media field.",
+  "videoNeedsReference": "Attach or paste a reference image for video generation.",
+  "generatingVideo": "Generating video (this can take a few minutes)…",
+  "referenceAttached": "Reference image",
+  "clearAttachment": "Clear attachment",
+  "pasteHint": "Pasted / dropped image will be used as reference.",
+  "pasteOrDropHint": "Paste or drop an image here to attach as reference.",
+  "attachTooLarge": "Attachment exceeds 20MB limit.",
+  "generatingVideoProgress": "Generating video…",
+  "videoStatus": "Status: {status}",
+  "videoProgressPct": "{pct}%",
+  "cancelGeneration": "Cancel generation",
+  "videoCancelled": "Video generation cancelled"
 }

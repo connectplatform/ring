@@ -55,8 +55,8 @@
     "subtitle": "Join professionals who are growing their business with Ring Platform"
   },
   "pricing": {
-    "amount": "₴299",
-    "period": "UAH",
+    "amount": "$10",
+    "period": "/month",
     "features_included": "All member features included"
   },
   "sidebar": {
@@ -149,5 +149,32 @@
     "faq_info_answer": "We'll ask for basic information about your organization, your role, and why you'd like to upgrade. LinkedIn profile or portfolio links can help speed up the review process.",
     "faq_downgrade_question": "Can I downgrade later?",
     "faq_downgrade_answer": "Yes, you can request to change your account type at any time through your profile settings. Note that downgrading may affect your access to certain features."
+  },
+  "gate": {
+    "title": "Upgrade to Member",
+    "subtitle": "Unlock entity creation and the full Ring member experience",
+    "subscribe_now": "Subscribe Now",
+    "continue_free": "Continue with free",
+    "cancel_anytime": "Cancel anytime. Membership renews on your selected plan.",
+    "fiat_period": "/month",
+    "fiat_period_year": "/year",
+    "fiat_hint": "Card or account credit",
+    "ring_period": "one-time",
+    "ring_hint": "Pay once with on-chain RING",
+    "select_method": "Select method",
+    "plan_monthly_hint": "Billed monthly",
+    "plan_annual_off": "20% off vs monthly",
+    "eternal_nft": "Eternal Member NFT — {amount} {symbol}",
+    "eternal_hint": "Lifetime member access via NFT",
+    "nft_month": "1-month NFT — {amount} {symbol}",
+    "nft_month_off": "20% off vs fiat monthly",
+    "nft_year": "1-year NFT — {amount} {symbol}",
+    "nft_year_off": "40% off vs fiat annual",
+    "nft_need_token": "Need more {symbol}",
+    "native_insufficient_short": "Insufficient {symbol} balance",
+    "no_token_has_credit": "No {symbol} yet — you have {credit} {unit}. Swap at the Token Desk.",
+    "visit_desk": "Visit {symbol} desk",
+    "token_insufficient_buy_credit": "Low {symbol}. Buy {unit} credit, then swap at the desk.",
+    "buy_credit": "Buy {unit} / get {symbol}"
   }
 }

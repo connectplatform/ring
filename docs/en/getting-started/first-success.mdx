@@ -32,7 +32,7 @@ Before showing the clone to stakeholders, confirm the **happy path** a member wo
     No blank screen or “database adapter” errors in the terminal.
   </Card>
   <Card title="Sign in" href="/docs/features/authentication">
-    Google, Apple, or Resend magic link — whichever you configured in Google Cloud / Resend.
+    Google, Apple, or Ring Mailer OTP / magic link — whichever you configured (SMTP or Ethereal).
   </Card>
   <Card title="Create an entity" href="/docs/features/entities">
     Proves Postgres JSONB writes and your role gates work.
@@ -92,7 +92,7 @@ Expect **200**. Open in browser; check console for red errors (ignore dev-only A
 ### 4 — Authentication
 
 1. Visit `/login` (locale prefix may apply: `/en/login`).
-2. Complete **one** configured provider from `auth.ts`: Google OAuth, Apple, Resend magic link, Google One Tap, or crypto wallet — not GitHub/Discord (not in default provider list).
+2. Complete **one** configured provider from `auth.ts`: Google OAuth, Apple, Ring Mailer (OTP / magic link), Google One Tap, or crypto wallet — not GitHub/Discord (not in default provider list).
 3. Confirm session: `/profile` shows user data; refresh persists session.
 
 Optional: `GET /api/auth/session` with browser cookies returns `{ user: { id, email, role, … } }`.

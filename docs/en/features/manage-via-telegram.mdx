@@ -1,14 +1,14 @@
 ---
 title: Manage via Telegram
 description: Platform-admin Telegram bot — whitelist RBAC, news approval, and Ring API executor from chat
-last_modified: "2026-07-10"
+last_modified: "2026-07-20"
 audience: both
 ---
 
 # Manage via Telegram
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar. This is the **admin bot** for operators — not member Telegram Login (see [Username reservation](/docs/features/username-reservation) for identity linking).
+  Use **Founder** / **Developer** tabs in the docs sidebar. This is the **admin bot** for operators — **not** member **Login via Telegram** (OIDC) or **Mini App initData** auth. Member auth: [Authentication](/docs/features/authentication). Stars membership: [SubscriptionConductor](/docs/features/subscriptions).
 </Callout>
 
 Ring ships a **Telegram Admin Bot** so platform admins can moderate news, run selected admin operations, and receive approval callbacks without opening the web admin UI — while still obeying the same RBAC SSOT as `/admin`.
@@ -19,6 +19,16 @@ Ring ships a **Telegram Admin Bot** so platform admins can moderate news, run se
 | Code | `lib/telegram/admin-bot/` |
 | RBAC | `features/auth/user-role.ts` — `isPlatformAdmin` / `isSuperadmin` |
 | News approval | Bot callbacks + [News](/docs/features/news) / [News Kingdom](/docs/architecture/news-kingdom) |
+
+### Do not confuse these Telegram surfaces
+
+| Surface | Audience | Secret / crypto |
+|---------|----------|-----------------|
+| **Login via Telegram** | Members (browser) | `AUTH_TELEGRAM_ID` / `SECRET` — OIDC at `oauth.telegram.org` |
+| **Mini App initData** | Members (WebApp client) | WebAppData HMAC — `TELEGRAM_MINI_APP_BOT_TOKEN` (fallbacks documented on Authentication) |
+| **Link Telegram** (profile) | Logged-in members | Login Widget HMAC with `ADMIN_BOT_TOKEN` / `TELEGRAM_LOGIN_BOT_TOKEN` |
+| **telegram_stars** membership | Paying members | Same Mini App bot token + Bot API `createInvoiceLink` — [SubscriptionConductor](/docs/features/subscriptions) |
+| **Admin bot** (this page) | Platform admins | `ADMIN_BOT_TOKEN` + `ADMIN_BOT_WEBHOOK_SECRET` + whitelist |
 
 <Audience for="founder">
 
@@ -32,7 +42,7 @@ Telegram management sits with **authentication, security, and verification**:
 
 - Only **whitelisted** Telegram IDs mapped to Ring `admin` / `superadmin` users can talk to the bot.
 - Destructive actions (user delete, platform settings) stay **superadmin-only**.
-- Member-facing “Verified by Telegram” badges are a **separate** Login Widget flow — do not confuse the two.
+- Admins must first **link Telegram** on their Ring profile (or sign in via Telegram OIDC so `communication.telegramId` is set) before the whitelist can see them.
 
 <Cards>
   <Card title="Security" href="/docs/features/security">
@@ -42,7 +52,7 @@ Telegram management sits with **authentication, security, and verification**:
     Telegram approval in the newsroom pipeline.
   </Card>
   <Card title="Authentication" href="/docs/features/authentication">
-    Roles and session model the bot must respect.
+    Member Login via Telegram OIDC + roles the bot must respect.
   </Card>
 </Cards>
 
@@ -64,7 +74,7 @@ Telegram management sits with **authentication, security, and verification**:
 |------|------|
 | `app/api/telegram/admin-bot/webhook/route.ts` | Telegram updates ingress |
 | `lib/telegram/admin-bot/bot-config.ts` | Token, webhook secret, `setWebhook` |
-| `lib/telegram/admin-bot/whitelist.ts` | Map Telegram chat → Ring admin user |
+| `lib/telegram/admin-bot/whitelist.ts` | Map Telegram chat → Ring admin user via `communication.telegramId` |
 | `lib/telegram/admin-bot/ring-api-executor.ts` | Operation-level RBAC before Ring HTTP |
 | `lib/telegram/admin-bot/news-callback-handler.ts` | Inline news approve/reject |
 | `lib/telegram/admin-bot/anthropic-router.ts` | Optional NL → tool routing |
@@ -80,6 +90,8 @@ ADMIN_BOT_WEBHOOK_SECRET=...
 
 Webhook URL shape: `https://<your-domain>/api/telegram/admin-bot/webhook` (HTTPS in production). Validate `secret_token` via `validateWebhookSecret`.
 
+Member Login OIDC uses **different** env: `AUTH_TELEGRAM_ID` / `AUTH_TELEGRAM_SECRET` — see [Authentication](/docs/features/authentication).
+
 ### RBAC layers
 
 1. **Whitelist** — sender Telegram ID must map to a Ring user in `PLATFORM_ADMIN_ROLES`.
@@ -90,24 +102,43 @@ Strict **superadmin** examples: user delete, platform branding / AI settings mut
 
 ### Related member Telegram (not this bot)
 
-- Login Widget: `features/auth/components/telegram-linking-modal.tsx`
-- Callback: `app/api/auth/telegram/callback/route.ts`
+| Path | Role |
+|------|------|
+| `features/auth/components/telegram-signin-button.tsx` | Login via Telegram OIDC |
+| `lib/auth/telegram-oidc.ts` | Auth.js OIDC provider |
+| `lib/auth/telegram-miniapp-initdata.ts` | Mini App WebAppData HMAC + bot token helper |
+| `features/auth/components/telegram-linking-modal.tsx` | Legacy Login Widget linking |
+| `app/api/auth/telegram/callback/route.ts` | Widget callback (session required) |
+| `lib/auth/telegram-login-widget-hash.ts` | Shared widget HMAC |
+| `lib/payments/subscription/providers/telegram-stars-subscription.ts` | Stars XTR invoices |
 
 </Audience>
 
-## Related
+## Related documentation
 
-<Cards>
-  <Card title="Ring MCP Server" href="/docs/development/ring-mcp">
-    IDE twin: Cursor stdio MCP for the same clone.
-  </Card>
-  <Card title="News Kingdom architecture" href="/docs/architecture/news-kingdom">
-    Scoring, promotion, Telegram callbacks.
-  </Card>
-  <Card title="Generative newsroom" href="/docs/development/generative-newsroom">
-    Draft → image → Telegram approve pipeline.
-  </Card>
-  <Card title="Admin API" href="/docs/api/admin">
-    Web admin surfaces the bot mirrors carefully.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/authentication"
+    relation="Prerequisite: member Login via Telegram OIDC + Mini App initData vs this admin bot."
+  />
+  <RelatedArticle
+    slug="features/subscriptions"
+    relation="See-also: telegram_stars invoices share the Mini App bot token helper — not this admin webhook."
+  />
+  <RelatedArticle
+    slug="architecture/news-kingdom"
+    relation="Same-workflow: scoring, promotion, and Telegram approve callbacks."
+  />
+  <RelatedArticle
+    slug="development/generative-newsroom"
+    relation="Next-step: draft → image → Telegram approve pipeline."
+  />
+  <RelatedArticle
+    slug="development/ring-mcp"
+    relation="See-also: IDE MCP twin for the same clone’s admin operations."
+  />
+  <RelatedArticle
+    slug="api/admin"
+    relation="Depends-on: web admin HTTP surfaces the bot mirrors carefully."
+  />
+</RelatedDocs>

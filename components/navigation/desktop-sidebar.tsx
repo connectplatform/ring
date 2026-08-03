@@ -93,7 +93,11 @@ function DesktopSidebarInner({ className }: DesktopSidebarProps) {
             />
           </div>
         ) : (
-          <SidebarSyncedLayout asideContentRef={asideContentRef} className="min-h-0 flex-1" />
+          <SidebarSyncedLayout
+            asideContentRef={asideContentRef}
+            className="min-h-0 flex-1"
+            collapsed={collapsed}
+          />
         )}
 
         {!overlayMode && (

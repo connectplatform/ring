@@ -9,6 +9,8 @@
 import { auth } from '@/auth'
 import { StoreUserPreferencesService, type StoreUserPreferences } from '@/features/store/services/user-preferences-service'
 import { logger } from '@/lib/logger'
+import { getSupportedCurrencies } from '@/lib/ring-config-core'
+import type { SupportedCurrencies } from '@/lib/ring-config-types'
 
 /**
  * Gets user store preferences (shipping, payment, etc.)
@@ -102,6 +104,37 @@ export async function updatePaymentPreference(
       success: false,
       error: 'Failed to update payment preference'
     }
+  }
+}
+
+/**
+ * Updates user's preferred display / presentment currency (fiat only).
+ */
+export async function updateDisplayCurrencyPreference(
+  currency: SupportedCurrencies,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const allowed = getSupportedCurrencies()
+    if (!allowed.includes(currency)) {
+      return { success: false, error: `Currency ${currency} is not in supportedCurrencies` }
+    }
+
+    await StoreUserPreferencesService.updateDisplayCurrencyPreference(session.user.id, currency)
+
+    logger.info('Store Preferences Action: Updated display currency preference', {
+      userId: session.user.id,
+      currency,
+    })
+
+    return { success: true }
+  } catch (error) {
+    logger.error('Store Preferences Action: Error updating display currency', error)
+    return { success: false, error: 'Failed to update display currency preference' }
   }
 }
 

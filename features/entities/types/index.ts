@@ -5,7 +5,7 @@ import {
   StoreVisibility,
   PaymentProcessor 
 } from '@/constants/store';
-import { SupportedCurrencies, SupportedTokens, VendorAcceptedPaymentMethods } from '@/lib/ring-config-types';
+import { SupportedCurrencies, SupportedCrypto, VendorAcceptedPaymentMethods } from '@/lib/ring-config-types';
 import { SupportedChains } from '@/lib/ring-config-chain';
 
 // Professional networking industry categories (ring-platform.org SSOT — see entity-management-system.json)
@@ -76,7 +76,7 @@ export interface PaymentProcessorConfig {
   config: Record<string, any>;
   supportedMethods: VendorAcceptedPaymentMethods[];
   supportedCurrencies: SupportedCurrencies[];
-  supportedTokens: SupportedTokens[];
+  supportedCrypto: SupportedCrypto[];
   fees?: {
     fixed: number;
     percentage: number;

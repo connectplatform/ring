@@ -48,7 +48,10 @@ async function resolveLanguage(highlighter: Highlighter, language: string): Prom
   return highlighter.getLoadedLanguages().includes('text') ? 'text' : 'bash'
 }
 
-/** Single server-side highlight path for MDX `<Code>` and any RSC code blocks. */
+/** Single server-side highlight path for MDX `<Code>` (RSC).
+ * Dual-theme CSS vars + `styles/globals.css` `pre.shiki[data-theme]` toggle —
+ * do not pipe highlighter HTML through markdown sanitize.
+ */
 export async function highlightCodeToHtml(source: string, language = 'text'): Promise<string> {
   const highlighter = await getDocsHighlighter()
   const lang = await resolveLanguage(highlighter, language)

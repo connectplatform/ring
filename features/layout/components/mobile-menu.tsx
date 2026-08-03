@@ -12,7 +12,7 @@ import {
   Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
   Building2, Wallet, Shield, Crown, Heart, Bell, MessageCircle,
   Home, Info, Phone, FileText, HelpCircle, ChevronRight,
-  Sparkles, Zap, Globe
+  Sparkles, Zap, Globe, ListTodo
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
@@ -221,6 +221,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         label: t('profile'),
         icon: User,
         gradient: 'from-indigo-500 to-blue-600'
+      },
+      {
+        href: ROUTES.MESSAGES(locale),
+        label: t('messages'),
+        icon: MessageCircle,
+        gradient: 'from-orange-500 to-amber-600'
+      },
+      {
+        href: ROUTES.TASKS(locale),
+        label: t('tasks'),
+        icon: ListTodo,
+        gradient: 'from-cyan-500 to-sky-600'
       },
       {
         href: ROUTES.WALLET(locale),

@@ -1,7 +1,7 @@
 ---
 title: WebRTC Calls & STUNner TURN
 description: 1:1 messenger audio/video over Tunnel signaling plus Kubernetes STUNner ICE — operator checklist and integrator paths
-last_modified: "2026-07-10"
+last_modified: "2026-07-24"
 audience: both
 ---
 
@@ -20,7 +20,11 @@ Ring messenger can place **1:1 audio and video calls** inside a **direct** conve
 | ICE | `GET /api/webrtc/ice-servers` (session required) |
 | TURN | STUNner Gateway `TURN-UDP:3478` (e.g. `turn.ring-platform.org`) |
 
-Related: [Messaging](/docs/features/messaging) · [Tunnel Protocol](/docs/features/tunnel-protocol) · [Real-time architecture](/docs/architecture/real-time)
+Related: [Messaging](/docs/features/messaging) · [Peer Games](/docs/features/peer-games) · [Tunnel Protocol](/docs/features/tunnel-protocol) · [Real-time architecture](/docs/architecture/real-time)
+
+<Callout type="tip">
+  Peer Games share a **call ↔ game mutex** (`features/peer-games/lib/peer-game-mutex.ts`). `MessagesShell` publishes `setPeerCallBusy` from the WebRTC phase so `/games` banner and `game_request` widgets refuse accept while a call is live. Cross-tab sync ships via **BroadcastChannel** (optional `navigator.locks`). Peer Games also reuse `GET /api/webrtc/ice-servers` for optimistic **DataChannel** move hints — Tunnel + DB remain board SSOT.
+</Callout>
 
 <Audience for="founder">
 
@@ -247,17 +251,25 @@ Connect Platform’s RTVS / FastTransponder stack is **not** ported — only con
 
 ## Related documentation
 
-<Cards>
-  <Card title="Messaging" href="/docs/features/messaging">
-    Conversations REST + Tunnel chat UI.
-  </Card>
-  <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
-    useTunnelChannel SSOT and transports.
-  </Card>
-  <Card title="Messaging API" href="/docs/api/messaging">
-    Conversation and typing HTTP contracts.
-  </Card>
-  <Card title="Real-time architecture" href="/docs/architecture/real-time">
-    TunnelProvider ownership and consumers.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/messaging"
+    relation="Depends-on: calls start from direct conversation headers in the messenger."
+  />
+  <RelatedArticle
+    slug="features/peer-games"
+    relation="Same-workflow: shared call/game mutex (BroadcastChannel); ICE route reused for optimistic DataChannel move hints."
+  />
+  <RelatedArticle
+    slug="features/tunnel-protocol"
+    relation="Depends-on: call:invite … call:hangup ride conversation:{id}."
+  />
+  <RelatedArticle
+    slug="api/messaging"
+    relation="See-also: conversation and typing HTTP contracts."
+  />
+  <RelatedArticle
+    slug="architecture/real-time"
+    relation="Deep-dive: TunnelProvider ownership and consumers."
+  />
+</RelatedDocs>

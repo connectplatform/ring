@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPublicClient, http, formatEther } from 'viem'
 import { mainnet, polygon, arbitrum, optimism, base } from 'viem/chains'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 // Map each supported network's chainId to a corresponding client instance
 const CHAIN_CLIENTS = {
@@ -11,8 +12,7 @@ const CHAIN_CLIENTS = {
   }),
   [polygon.id]: createPublicClient({
     chain: polygon,
-    // Use provided RPC URL for Polygon or fallback to public endpoint
-    transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+    transport: http(getEvmRpcUrl()),
   }),
   [arbitrum.id]: createPublicClient({
     chain: arbitrum,

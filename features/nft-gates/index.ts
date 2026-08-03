@@ -13,7 +13,7 @@ export {
   invalidateEntitlementsForAsset,
   listEntitlementCache,
 } from './gate-escrow'
-export { hasFeature, listUnlockedFeatures } from './gate-resolver'
+export { hasFeature, hasFeatureForVendor, listUnlockedFeatures } from './gate-resolver'
 export { listOwnedGateAssets, purchaseGateNft } from './purchase'
 export {
   upsertActiveTemplatePointer,

@@ -27,6 +27,8 @@ declare module "next-auth" {
         inApp: boolean
         sms?: boolean
       }
+      /** Telegram numeric user id when linked via OIDC or Login Widget */
+      telegramId?: string
     }
     accessToken?: string
     refreshToken?: string
@@ -51,6 +53,7 @@ declare module "next-auth" {
     needsOnboarding?: boolean
     provider?: string
     wallets?: Wallet[]
+    telegramId?: string
   }
 }
 
@@ -71,6 +74,7 @@ declare module "next-auth/jwt" {
     provider?: string
     needsOnboarding?: boolean
     photoURL?: string
+    telegramId?: string
   }
 }
 

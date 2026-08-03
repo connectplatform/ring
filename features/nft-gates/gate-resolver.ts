@@ -54,6 +54,43 @@ export const hasFeature = cache(async (userId: string, feature: NftGateFeature):
   return false
 })
 
+/**
+ * Scoped unlock for vendor ERP / DAGI tools.
+ * Secondary market: stake rebinds vendorEntityId to the new owner's entity —
+ * never unlock the previous vendor from mint attrs alone.
+ */
+export const hasFeatureForVendor = cache(
+  async (
+    userId: string,
+    vendorEntityId: string,
+    feature: NftGateFeature,
+  ): Promise<boolean> => {
+    const entityId = String(vendorEntityId || '').trim()
+    if (!userId || !entityId) return false
+
+    const collection = getNftCollectionMint()
+    const stakes = await listActiveStakes(userId)
+    const now = Date.now()
+
+    for (const stake of stakes) {
+      if (stake.expiresAt && new Date(stake.expiresAt).getTime() <= now) continue
+      if (!stake.features.includes(feature)) continue
+      if (stake.vendorEntityId !== entityId) continue
+
+      const verified = await verifyAssetInCollection(stake.asset)
+      if (!verified.ok) {
+        if (collection) continue
+        if (!stake.asset.startsWith('gate_')) continue
+      }
+      const listed = await findActiveListingByAsset(stake.asset)
+      if (listed) continue
+      return true
+    }
+
+    return false
+  },
+)
+
 export async function listUnlockedFeatures(userId: string): Promise<NftGateFeature[]> {
   const features = new Set<NftGateFeature>()
   const candidates: NftGateFeature[] = [

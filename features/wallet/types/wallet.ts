@@ -59,9 +59,9 @@ export interface WalletAccount {
  * API-facing wallet list item.
  * Used by list-wallets.ts & wallet-list-provider. Fields allow:
  * - Address, primary status, user-supplied label & creation details.
- * - balance & nativeBalance: formatted string representations, if available.
+ * - balance & nativeTokenBalance: formatted string representations, if available.
  * - tokenSymbol: the token symbol of the balance, if present.
- * - creditFiatCurrency: fiat currency (if wallet supports fiat overlay).
+ * - mainCurrency: fiat currency (if wallet supports fiat overlay).
  * - chain?: Strongly typed chain ('solana' | 'evm') for frontend differentiation.
  * // TODO: If additional chains are enabled dynamically, migrate 'chain' to WalletChain for type consistency.
  */
@@ -71,9 +71,9 @@ export interface WalletInfo {
   label?: string
   createdAt?: string
   balance?: string
-  nativeBalance?: string
+  nativeTokenBalance?: string
   tokenSymbol?: string
-  creditFiatCurrency?: string
+  mainCurrency?: string
   chain?: 'solana' | 'evm' // TODO: Extend this union from WalletChain for expanded chain support in future.
   /** Unix ms when native balance was last fetched on-chain (DB read-through cache). */
   balanceUpdatedAt?: number

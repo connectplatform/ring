@@ -27,13 +27,21 @@ function productNameForPurpose(ctx: CreateCheckoutContext): string {
       return 'Wallet credit top-up'
     case 'native_token_onramp':
       return 'Native token onramp (unsupported via PayPal)'
+    case 'collective_order_slot':
+      return 'Collective order slot'
+    case 'scheduled_service_slot':
+      return 'Scheduled service slot'
+    case 'task_escrow':
+      return 'Task escrow hold'
+    case 'public_pool_contribution':
+      return 'DAO pool card contribution'
     default:
       return 'Ring payment'
   }
 }
 
 /**
- * PayPal PaymentConductor processor — Orders v2 CAPTURE (merchant_redirect).
+ * PayPal PaymentConductor processor — Orders v2 CAPTURE (paypal rail).
  * Fulfillment is webhook-driven (PAYMENT.CAPTURE.COMPLETED); never trust return URL alone.
  */
 export async function createPayPalCheckout(
@@ -73,7 +81,7 @@ export async function createPayPalCheckout(
   await paymentTransactionService.createPending({
     purpose: ctx.purpose,
     processor: 'paypal',
-    rail: 'merchant_redirect',
+    rail: 'paypal',
     orderReference,
     entityType: ctx.purpose,
     entityId: ctx.entityId,

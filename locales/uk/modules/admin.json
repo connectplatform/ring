@@ -179,7 +179,8 @@
       "noErrors": "Помилок за цей період не зафіксовано",
       "noTraffic": "Джерела трафіку з'являться після збору переглядів сторінок",
       "noActivity": "Остання активність з'явиться після запису подій",
-      "noDevices": "Розподіл пристроїв з'явиться після відстеження сесій"
+      "noDevices": "Розподіл пристроїв з'явиться після відстеження сесій",
+      "noPersonalPages": "Ще немає відвідувань особистих сторінок"
     },
     "overview": {
       "activeSessions": "Активні сесії",
@@ -187,7 +188,15 @@
       "avgResponseTime": "Сер. час відповіді",
       "errorRate": "Частота помилок",
       "fromYesterday": "від учора",
-      "thisWeek": "цього тижня"
+      "thisWeek": "цього тижня",
+      "personalPages": "Особисті сторінки",
+      "personalPagesSubtitle": "Унікальні відвідувачі публічних /username профілів",
+      "personalUnique24h": "Унікальні 24г",
+      "personalUniquePeriod": "Унікальні (період)",
+      "personalVisits": "візити",
+      "personalByRole": "За ролями",
+      "personalByRoleHint": "24г / період унікальні",
+      "personalTopProfiles": "Топ профілів"
     },
     "webvitals": {
       "title": "Продуктивність Core Web Vitals",
@@ -220,6 +229,8 @@
   "dashboard": "Панель керування",
   "users": "Користувачі",
   "news": "Новини",
+  "wiki": "Вікі",
+  "wikiDescription": "Markdown-база знань у стилі Obsidian з [[wikilinks]] для платформи та проєктних сховищ",
   "dao": "Публічні пули",
   "newsManagement": "Керування новинами",
   "newsManagementDescription": "Керуйте статтями новин, категоріями та публікаціями на платформі",
@@ -458,7 +469,36 @@
         "completed": "Завершено",
         "canceled": "Скасовано"
       }
-    }
+    },
+    "hub": "Огляд",
+    "hubTitle": "ERP хаб магазину",
+    "hubSubtitle": "Склад {warehouse} ({warehouseId} / store {storeId}) — товари, залишки, замовлення та розрахунки",
+    "warehouseLabel": "{name} · {id} · store {storeId}",
+    "warehouse": "Склад",
+    "reason": "Причина",
+    "restock": "Поповнити",
+    "adjustReasonPlaceholder": "Причина коригування",
+    "adjustStockError": "Не вдалося змінити залишок",
+    "filter": {
+      "all": "Усі",
+      "low": "Низький",
+      "critical": "Критичний",
+      "out": "Немає"
+    },
+    "settlementFilter": {
+      "all": "Усі",
+      "pending": "Очікує",
+      "held": "Утримано",
+      "completed": "Завершено"
+    },
+    "dryRunPayouts": "Перевірка виплат",
+    "dryRunResult": "До виплати: {due} з {pending} · сума {total}",
+    "hold": "Утримати",
+    "release": "Звільнити",
+    "holdReasonPrompt": "Причина утримання",
+    "holdError": "Не вдалося утримати",
+    "releaseError": "Не вдалося звільнити",
+    "actions": "Дії"
   },
   "verificationQueue": {
     "pageTitle": "Identity Verification",
@@ -540,6 +580,11 @@
         "description": "Звільнення прострочених резервів товарів (TTL)",
         "schedule": "Кожні 5–15 хвилин"
       },
+      "inventory-drift": {
+        "label": "Детектор дрейфу запасів",
+        "description": "Перевірка stock === available + reserved; звіт без авто-ремонту",
+        "schedule": "Щоночі або щогодини"
+      },
       "cleanup-usernames": {
         "label": "Очищення резервів імен користувачів",
         "description": "Видалення прострочених резервів username",
@@ -584,6 +629,14 @@
         "label": "Закінчення NFT Gate",
         "description": "Перевірка володіння NFT для підписників nft_gate (Phase S7)",
         "schedule": "Щодня о 4:00"
+      },
+      "close-expired-polls": {
+        "label": "Закрити прострочені опитування",
+        "description": "Автозакриття опитувань після closeAt"
+      },
+      "peer-game-session-expiry": {
+        "label": "Термін сесій peer-ігор",
+        "description": "Закрити pending-запрошення (15хв), idle active (2г), orphan reclaim"
       }
     },
     "nav": "Фонові процеси"
@@ -772,5 +825,6 @@
     "title": "Моніторинг винагород",
     "subtitle": "Відстежуйте кредитні винагороди, обсяг mint і стан доставки."
   },
-  "moderationTabReports": "Скарги користувачів"
+  "moderationTabReports": "Скарги користувачів",
+  "crmTaskEscrows": "Ескроу задач"
 }

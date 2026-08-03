@@ -1,85 +1,11 @@
 'use server'
 
-import { redirect } from 'next/navigation'
-import { auth } from '@/auth'
-import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n/shared'
-import { routing } from '@/i18n/routing'
-import { logger } from '@/lib/logger'
+/**
+ * Crypto wallet auth helpers (nonce flow lives under /api/auth/crypto).
+ * Vitals onboarding for wallet + email is SSOT at @/app/_actions/vitals-onboarding.
+ */
 
-export interface CryptoOnboardingFormState {
-  success?: boolean
-  message?: string
-  error?: string
-  fieldErrors?: Record<string, string>
-}
-
-export async function completeCryptoOnboarding(
-  prevState: CryptoOnboardingFormState | null,
-  formData: FormData,
-  locale: Locale
-): Promise<CryptoOnboardingFormState> {
-
-  // Get current user session
-  const session = await auth()
-  if (!session?.user?.id) {
-    return {
-      error: 'Authentication required'
-    }
-  }
-
-  const userId = session.user.id // Use session user ID for security
-  const name = formData.get('name') as string
-  const email = formData.get('email') as string
-
-  try {
-
-    // Validation
-    const fieldErrors: Record<string, string> = {}
-    
-    if (!name?.trim()) {
-      fieldErrors.name = 'Name is required'
-    }
-    
-    if (!email?.trim()) {
-      fieldErrors.email = 'Email is required'
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      fieldErrors.email = 'Please enter a valid email address'
-    }
-
-    if (Object.keys(fieldErrors).length > 0) {
-      return {
-        fieldErrors
-      }
-    }
-    // ✅ Use direct service call instead of HTTP request
-    // Use the auth profile update service for crypto onboarding
-    const { updateProfile } = await import('@/features/auth/services')
-    
-    const success = await updateProfile({
-      name: name.trim(),
-      email: email.trim(),
-    })
-
-    if (success) {
-      return {
-        success: true,
-        message: 'Profile completed successfully! Welcome to Ring.'
-      }
-    } else {
-      return {
-        error: 'Failed to complete onboarding. Please try again.'
-      }
-    }
-    
-  } catch (error) {
-    logger.error('Crypto onboarding service call failed:', {
-      userId: session?.user?.id,
-      email: session?.user?.email,
-      error: error instanceof Error ? error.message : error
-    })
-    return {
-      error: 'An unexpected error occurred. Please try again.'
-    }
-  }
-} 
+export {
+  completeVitalsOnboarding,
+  type VitalsOnboardingFormState,
+} from '@/app/_actions/vitals-onboarding'

@@ -10,20 +10,24 @@ class FileServiceManager {
   }
 
   /**
-   * Get file service instance
+   * Get file service instance (sync — RingFileBase / Vercel only until local is warmed)
    */
   getService(backend?: FileBackendType): IFileService {
-    // If no backend specified, let FileSelector determine from environment
     const service = this.selector.getService(backend);
-
-    // Cache the service for reuse
     const backendType = backend || getStorageBackendFromEnvironment();
-    const cacheKey = backendType;
-
-    if (!this.cache.has(cacheKey)) {
-      this.cache.set(cacheKey, service);
+    if (!this.cache.has(backendType)) {
+      this.cache.set(backendType, service);
     }
+    return service;
+  }
 
+  /** Async getter — required when STORAGE_PROVIDER=local (lazy LocalStorageAdapter). */
+  async getServiceAsync(backend?: FileBackendType): Promise<IFileService> {
+    const service = await this.selector.getServiceAsync(backend);
+    const backendType = backend || getStorageBackendFromEnvironment();
+    if (!this.cache.has(backendType)) {
+      this.cache.set(backendType, service);
+    }
     return service;
   }
 
@@ -31,7 +35,7 @@ class FileServiceManager {
    * Upload a file
    */
   async upload(filename: string, file: File | Buffer, options?: FileUploadOptions, backend?: FileBackendType): Promise<FileUploadResult> {
-    const service = this.getService(backend);
+    const service = await this.getServiceAsync(backend);
     return service.upload(filename, file, options);
   }
 
@@ -39,7 +43,7 @@ class FileServiceManager {
    * Delete a file
    */
   async delete(url: string, backend?: FileBackendType): Promise<FileDeleteResult> {
-    const service = this.getService(backend);
+    const service = await this.getServiceAsync(backend);
     return service.delete(url);
   }
 
@@ -47,7 +51,7 @@ class FileServiceManager {
    * Get file metadata
    */
   async getMetadata(url: string, backend?: FileBackendType): Promise<FileMetadata | null> {
-    const service = this.getService(backend);
+    const service = await this.getServiceAsync(backend);
     return service.getMetadata(url);
   }
 

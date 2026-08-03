@@ -22,6 +22,7 @@ const BASE_ROUTES = {
   ADMIN_REWARDS: '/admin/rewards',
   ADMIN_MATCHER: '/admin/matcher',
   ADMIN_NEWS: '/admin/news',
+  ADMIN_WIKI: '/admin/wiki',
   ADMIN_PERFORMANCE: '/admin/performance',
   ADMIN_SECURITY: '/admin/security',
   ADMIN_FRAUD_DESK: '/admin/fraud-desk',
@@ -35,6 +36,8 @@ const BASE_ROUTES = {
   ADMIN_STORE_PRODUCTS_EDIT: (id: string) => `/admin/store/products/${id}/edit`,
   ADMIN_CRM_ORDERS: '/admin/crm/orders',
   ADMIN_CRM_ORDER: (id: string) => `/admin/crm/orders/${id}`,
+  ADMIN_CRM_TASK_ESCROWS: '/admin/crm/task-escrows',
+  ADMIN_CRM_TASK_ESCROW: (id: string) => `/admin/crm/task-escrows/${id}`,
   ADMIN_CRM_INBOX: '/admin/crm/inbox',
   ADMIN_CRM_THREAD: (id: string) => `/admin/crm/inbox/${encodeURIComponent(id)}`,
   ADMIN_CRM_DRAFTS: '/admin/crm/drafts',
@@ -79,10 +82,17 @@ const BASE_ROUTES = {
   INTRO: '/intro',
   KYC: '/kyc',
   LOGIN: '/login',
+  LOGIN_ONBOARDING: '/login/onboarding',
+  VERIFY: '/verify',
   MARKETPLACE: '/marketplace',
   MEMBERSHIP: '/membership',
   MEMBERSHIP_MANAGE: '/membership/manage',
   MESSAGES: '/messages',
+  /** Peer mini-games marketplace */
+  GAMES: '/games',
+  GAMES_SLUG: (slug: string) => `/games/${encodeURIComponent(slug)}`,
+  TASKS: '/tasks',
+  TASK: (chatId: string) => `/tasks/${chatId}`,
   NOTIFICATION_STATUS: '/notifications/status/[action]/[status]',
   OPPORTUNITIES: '/opportunities',
   OPPORTUNITY: (id: string) => `/opportunities/${id}`,
@@ -90,11 +100,23 @@ const BASE_ROUTES = {
   OPPORTUNITY_STATUS: '/opportunities/status/[action]/[status]',
   PRIVACY: '/privacy',
   PROFILE: '/profile',
-  PROFILE_PLAYER_PLAYLISTS: '/profile/player/playlists',
-  PROFILE_PLAYER_PLAYLIST: (id: string) => `/profile/player/playlists/${encodeURIComponent(id)}`,
-  PROFILE_PLAYER_PLAYLIST_NEW: '/profile/player/playlists/new',
+  PROFILE_SONGS: '/profile/songs',
+  PROFILE_SONGS_EDIT: (id: string) => `/profile/songs?p=${encodeURIComponent(id)}`,
+  PROFILE_SONGS_NEW: '/profile/songs?new=1',
+  /** Member-managed peer game availability */
+  PROFILE_GAMES: '/profile/games',
   PUBLIC_PROFILE: (username: string) => `/${encodeURIComponent(username)}`,
-  PUBLIC_PROFILE_SONGS: (username: string) => `/${encodeURIComponent(username)}/songs`,
+  /** Public mood player page (renamed from /songs — no legacy redirect). */
+  PUBLIC_PROFILE_PLAYER: (username: string) => `/${encodeURIComponent(username)}/player`,
+  /** Public peer games availability */
+  PUBLIC_PROFILE_GAMES: (username: string) => `/${encodeURIComponent(username)}/games`,
+  PUBLIC_PROFILE_IMG: (username: string) => `/${encodeURIComponent(username)}/img`,
+  /** Personal File Cabinet (three-column shell). */
+  FILE_CABINET: '/file-cabinet',
+  /** @deprecated Prefer FILE_CABINET — redirects to /file-cabinet. */
+  PROFILE_CABINET: '/file-cabinet',
+  PROFILE_SHARED: '/profile/shared',
+  PROFILE_GALLERY: '/profile/gallery',
   PUBLICATIONS: '/publications',
   REF_MAGIC: '/refmagic',
   REFMAGIC: '/refmagic',
@@ -196,10 +218,19 @@ export const ROUTES = {
   INTRO: (locale: Locale = defaultLocale) => withLocale(locale, '/intro'),
   KYC: (locale: Locale = defaultLocale) => withLocale(locale, '/kyc'),
   LOGIN: (locale: Locale = defaultLocale) => withLocale(locale, '/login'),
+  LOGIN_ONBOARDING: (locale: Locale = defaultLocale) =>
+    withLocale(locale, '/login/onboarding'),
+  VERIFY: (locale: Locale = defaultLocale) => withLocale(locale, '/verify'),
   MARKETPLACE: (locale: Locale = defaultLocale) => withLocale(locale, '/marketplace'),
   MEMBERSHIP: (locale: Locale = defaultLocale) => withLocale(locale, '/membership'),
   MEMBERSHIP_MANAGE: (locale: Locale = defaultLocale) => withLocale(locale, '/membership/manage'),
   MESSAGES: (locale: Locale = defaultLocale) => withLocale(locale, '/messages'),
+  GAMES: (locale: Locale = defaultLocale) => withLocale(locale, '/games'),
+  GAMES_SLUG: (slug: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/games/${encodeURIComponent(slug)}`),
+  TASKS: (locale: Locale = defaultLocale) => withLocale(locale, '/tasks'),
+  TASK: (chatId: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/tasks/${chatId}`),
   MY_OPPORTUNITIES: (locale: Locale = defaultLocale) => withLocale(locale, '/opportunities/my'),
   NOTIFICATIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/notifications'),
   NOTIFICATION_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => withLocale(locale, `/notifications/status/${action}/${status}`),
@@ -235,16 +266,25 @@ export const ROUTES = {
   NEWS_AUTHOR: (username: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/news/author/${encodeURIComponent(username)}`),
   PROFILE: (locale: Locale = defaultLocale) => withLocale(locale, '/profile'),
-  PROFILE_PLAYER_PLAYLISTS: (locale: Locale = defaultLocale) =>
-    withLocale(locale, '/profile/player/playlists'),
-  PROFILE_PLAYER_PLAYLIST: (id: string, locale: Locale = defaultLocale) =>
-    withLocale(locale, `/profile/player/playlists/${encodeURIComponent(id)}`),
-  PROFILE_PLAYER_PLAYLIST_NEW: (locale: Locale = defaultLocale) =>
-    withLocale(locale, '/profile/player/playlists/new'),
+  PROFILE_SONGS: (locale: Locale = defaultLocale) => withLocale(locale, '/profile/songs'),
+  PROFILE_SONGS_EDIT: (id: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/profile/songs?p=${encodeURIComponent(id)}`),
+  PROFILE_SONGS_NEW: (locale: Locale = defaultLocale) =>
+    withLocale(locale, '/profile/songs?new=1'),
+  PROFILE_GAMES: (locale: Locale = defaultLocale) => withLocale(locale, '/profile/games'),
   PUBLIC_PROFILE: (username: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/${encodeURIComponent(username)}`),
-  PUBLIC_PROFILE_SONGS: (username: string, locale: Locale = defaultLocale) =>
-    withLocale(locale, `/${encodeURIComponent(username)}/songs`),
+  PUBLIC_PROFILE_PLAYER: (username: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/${encodeURIComponent(username)}/player`),
+  PUBLIC_PROFILE_GAMES: (username: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/${encodeURIComponent(username)}/games`),
+  PUBLIC_PROFILE_IMG: (username: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/${encodeURIComponent(username)}/img`),
+  FILE_CABINET: (locale: Locale = defaultLocale) => withLocale(locale, '/file-cabinet'),
+  /** @deprecated Prefer FILE_CABINET — same path as /file-cabinet. */
+  PROFILE_CABINET: (locale: Locale = defaultLocale) => withLocale(locale, '/file-cabinet'),
+  PROFILE_SHARED: (locale: Locale = defaultLocale) => withLocale(locale, '/profile/shared'),
+  PROFILE_GALLERY: (locale: Locale = defaultLocale) => withLocale(locale, '/profile/gallery'),
   PUBLICATIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/publications'),
   REF_MAGIC: (locale: Locale = defaultLocale) => withLocale(locale, '/refmagic'),
   REFMAGIC: (locale: Locale = defaultLocale) => withLocale(locale, '/refmagic'),
@@ -279,6 +319,10 @@ export const ROUTES = {
   DOCS_GETTING_STARTED: (locale: Locale = defaultLocale) =>
     withLocale(locale, '/docs/getting-started'),
   DOCS_MCP: (locale: Locale = defaultLocale) => withLocale(locale, '/docs/mcp'),
+  TOKEN_ECONOMY: (locale: Locale = defaultLocale) => withLocale(locale, '/token-economy'),
+  GLOBAL_IMPACT: (locale: Locale = defaultLocale) => withLocale(locale, '/global-impact'),
+  AI_WEB3: (locale: Locale = defaultLocale) => withLocale(locale, '/ai-web3'),
+  ROADMAP: (locale: Locale = defaultLocale) => withLocale(locale, '/roadmap'),
   WALLET_CONNECT: (locale: Locale = defaultLocale) => withLocale(locale, '/auth/wallet-connect'),
   REFCODES: (locale: Locale = defaultLocale) => withLocale(locale, '/refcodes'),
   // Admin routes
@@ -295,6 +339,9 @@ export const ROUTES = {
   ADMIN_NEWS_BULK: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/bulk'),
   ADMIN_NEWS_ANALYTICS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/analytics'),
   ADMIN_NEWS_CATEGORIES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/categories'),
+  ADMIN_WIKI: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/wiki'),
+  ADMIN_WIKI_PAGE: (id: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/admin/wiki?page=${encodeURIComponent(id)}`),
   ADMIN_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/settings'),
   ADMIN_MATCHER: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/matcher'),
   ADMIN_VERIFICATION: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/verification'),
@@ -304,6 +351,10 @@ export const ROUTES = {
   ADMIN_CRM_ORDERS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/crm/orders'),
   ADMIN_CRM_ORDER: (id: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/admin/crm/orders/${encodeURIComponent(id)}`),
+  ADMIN_CRM_TASK_ESCROWS: (locale: Locale = defaultLocale) =>
+    withLocale(locale, '/admin/crm/task-escrows'),
+  ADMIN_CRM_TASK_ESCROW: (id: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/admin/crm/task-escrows/${encodeURIComponent(id)}`),
   ADMIN_CRM_INBOX: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/crm/inbox'),
   ADMIN_CRM_THREAD: (id: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/admin/crm/inbox/${encodeURIComponent(id)}`),

@@ -16,7 +16,12 @@ export interface RefcodeRecord {
   }
 }
 
-export type ReferralRewardRail = 'fiat' | 'crypto'
+/** Value triad shared by task budgets, referral rewards and escrow. */
+export type { ValueDenomination } from '@/lib/value-denomination'
+import type { ValueDenomination } from '@/lib/value-denomination'
+
+/** Rail the paid order settled on — determines auto-approve vs pending_approval. */
+export type ReferralRewardRail = ValueDenomination
 
 export type ReferralRewardStatus =
   | 'pending_approval'
@@ -33,8 +38,10 @@ export interface ReferralRewardRecord {
   referrerUserId: string
   referrerWallet: string
   refereeUserId: string
-  orderTotal: number
-  currency: string
+  orderAmount: number
+  currencyType: ValueDenomination
+  currencyCode?: string
+  displayUnit: ValueDenomination
   rewardToken: string
   rewardAmount: string
   rewardAmountWei: string

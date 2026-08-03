@@ -115,5 +115,20 @@
     "title": "Unauthorized access",
     "message": "You do not have permission to view this page.",
     "returnHome": "Return to home"
+  },
+  "davinciDroplist": {
+    "selectTitle": "Select {scope}",
+    "filterPlaceholder": "Filter…",
+    "noResults": "No results found.",
+    "detecting": "Detecting…",
+    "clearSelection": "Clear selection",
+    "searchHintMinChars": "Type at least {count} characters to search.",
+    "scopes": {
+      "country": "country",
+      "timezone": "timezone",
+      "representative": "representative",
+      "vendor": "vendor"
+    },
+    "searching": "Searching…"
   }
 }

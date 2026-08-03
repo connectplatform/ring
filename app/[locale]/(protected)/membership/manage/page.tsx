@@ -21,6 +21,7 @@ import { listActiveStakes } from '@/features/nft-gates/gate-escrow'
 import { isNftGatesEnabled } from '@/features/nft-gates/config'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { SubscriptionManagement } from '@/components/membership/subscription-management'
+import { MembershipPricingSuspense } from '@/components/membership/membership-pricing-suspense'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -103,6 +104,11 @@ export default async function MembershipManagePage(props: LocalePageProps) {
           {isPlatformAdmin(role) && <Badge variant="outline">Admin</Badge>}
         </CardContent>
       </Card>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Pricing & status</h2>
+        <MembershipPricingSuspense />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Subscription</h2>

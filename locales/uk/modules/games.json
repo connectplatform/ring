@@ -1,0 +1,22 @@
+{
+  "marketplaceTitle": "Peer-ігри",
+  "marketplaceDescription": "Безкоштовні міні-ігри для Member. Кидайте виклик у Messages або з публічної сторінки ігор. Ходи синхронізуються через Tunnel — без ставок.",
+  "manageMyGames": "Керувати моїми іграми",
+  "becomeMember": "Стати Member, щоб публікувати",
+  "openMessages": "Відкрити Messages",
+  "openMiniApp": "Відкрити міні-ап",
+  "catalog": {
+    "tic-tac-toe": {
+      "title": "Хрестики-нулики",
+      "description": "Класичне 3×3. Перший з трьома в ряд перемагає."
+    },
+    "chess": {
+      "title": "Шахи",
+      "description": "Стандартні шахи. Білі ходять першими."
+    },
+    "checkers": {
+      "title": "Шашки",
+      "description": "Англійські шашки на дошці 8×8. Обов’язкові взяття."
+    }
+  }
+}

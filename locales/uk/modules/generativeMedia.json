@@ -33,5 +33,22 @@
   "promptPlaceholder": "Опишіть медіа детально…",
   "modeImage": "Зображення",
   "modeVideo": "Відео",
-  "modeVideoSoon": "Режим відео (VideoConductor) — незабаром у цьому редакторі."
+  "modeVideoSoon": "Режим відео (VideoConductor) — незабаром у цьому редакторі.",
+  "useThisVideo": "Використати це відео",
+  "saveToDesktop": "Зберегти на Desktop",
+  "savedToDesktop": "Збережено на Desktop",
+  "saveDesktopFailed": "Не вдалося зберегти на Desktop",
+  "noUseTarget": "Немає цілі редактора для медіа — відкрийте редактор або поле медіа.",
+  "videoNeedsReference": "Додайте або вставте референсне зображення для відео.",
+  "generatingVideo": "Генеруємо відео (може зайняти кілька хвилин)…",
+  "referenceAttached": "Референсне зображення",
+  "clearAttachment": "Прибрати вкладення",
+  "pasteHint": "Вставлене / перетягнуте зображення буде референсом.",
+  "pasteOrDropHint": "Вставте або перетягніть зображення як референс.",
+  "attachTooLarge": "Вкладення перевищує ліміт 20 МБ.",
+  "generatingVideoProgress": "Генеруємо відео…",
+  "videoStatus": "Статус: {status}",
+  "videoProgressPct": "{pct}%",
+  "cancelGeneration": "Скасувати генерацію",
+  "videoCancelled": "Генерацію відео скасовано"
 }

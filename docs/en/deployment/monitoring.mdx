@@ -1,14 +1,14 @@
 ---
 title: Monitoring & Analytics
-description: Health checks, first-party analytics, Web Vitals, structured logging, and optional Docker Prometheus for Ring Platform deployments
-last_modified: "2026-06-22"
+description: Health checks, first-party analytics (including personal_page_view), Web Vitals, structured logging, and optional Docker Prometheus
+last_modified: "2026-08-03"
 audience: both
 ---
 
 # Monitoring & Analytics
 
 <Callout type="info">
-  Filter with **Founder** / **Developer** in the docs sidebar. This page replaces legacy fiction (PostHog/Mixpanel stacks, fabricated ROI, invented `apiMonitor` classes). Monitoring truth lives in `app/api/health`, `app/api/analytics/*`, `lib/logger.ts`, and the admin analytics UI.
+  Filter with **Founder** / **Developer** in the docs sidebar. Monitoring truth lives in `app/api/health`, `app/api/analytics/*`, `lib/logger.ts`, `public/scripts/analytics.js` + `RingAnalyticsBeacon`, and the admin analytics UI. No separate `features/analytics` doc page — this article is the ring-wide analytics overview.
 </Callout>
 
 Ring Platform ships **first-party telemetry** into PostgreSQL JSONB tables, a **container-friendly health endpoint**, and **structured server logs**. External APM (Sentry, Vercel Analytics) is optional via env vars — not required for core operation.
@@ -19,9 +19,10 @@ Ring Platform ships **first-party telemetry** into PostgreSQL JSONB tables, a **
 |-------|-----------|----------------|
 | **Liveness** | `GET /api/health` (+ `HEAD`) | Process up, env warnings, memory |
 | **UX performance** | `WebVitalsProvider` → `POST /api/analytics/web-vitals` | LCP, CLS, INP, TTFB, FCP |
-| **Product events** | `app-analytics.js` → `POST /api/analytics/app` | Sessions, page loads, custom events |
+| **Product events** | `analytics.js` + `RingAnalyticsBeacon` → `POST /api/analytics/app` | Sessions, page loads, custom events (`analytics_events`) |
+| **Personal profiles** | `recordPersonalPageView` → `personal_page_view` | Unique visits 24h/7d by role on `/{username}` |
 | **Client errors** | `POST /api/analytics/errors` | Stack traces, component, severity |
-| **Admin dashboard** | `/admin/analytics` | Aggregates via `getPlatformAnalytics()` |
+| **Admin dashboard** | `/admin/analytics` | `getPlatformAnalytics()` incl. `personalPages` |
 | **Realtime connectivity** | `/api/tunnel/ping`, `/api/tunnel/heartbeat` | Tunnel latency / session health |
 | **Server logs** | `lib/logger.ts` | JSON lines to stdout (`LOG_LEVEL`) |
 | **Optional infra** | Docker profile `monitoring` | Prometheus + Grafana (local dev only) |
@@ -30,7 +31,7 @@ Ring Platform ships **first-party telemetry** into PostgreSQL JSONB tables, a **
 
 ## Why operators should monitor
 
-A Ring clone combines **auth**, **marketplace data**, **payments**, and **realtime notifications**. Silent failure shows up as “the site loads but orders don’t sync” — not as a red error page.
+A Ring clone combines **auth**, **marketplace data**, **payments**, and **realtime notifications**. Silent failure shows up as “the site loads but orders don’t sync” — not as a red error page. Personal-page unique visits tell you whether member trust faces are getting traffic without counting owners refreshing their own pages.
 
 ### What to watch without reading code
 
@@ -39,13 +40,13 @@ A Ring clone combines **auth**, **marketplace data**, **payments**, and **realti
     Probe `GET /api/health` from your load balancer or uptime checker — `503` means degraded (often missing `AUTH_SECRET`).
   </Card>
   <Card title="Admin analytics" href="/docs/features/admin">
-    Platform admins open **Admin → Analytics** for user counts, Web Vitals medians, and recent client errors (7-day window).
+    **Admin → Analytics** for user counts, Web Vitals medians, recent client errors, and personalPages (top profiles + role buckets).
+  </Card>
+  <Card title="Public profiles" href="/docs/features/public-profile">
+    Owners see unique 24h/7d visit stats on their personal page widget.
   </Card>
   <Card title="Backup correlation" href="/docs/deployment/backup">
     Monitoring tells you *when* things broke; backups tell you *what* you can restore.
-  </Card>
-  <Card title="Email CRM cron" href="/docs/examples/email-ai-crm">
-    Production inboxes rely on `POST /api/cron/email-processor` — alert if cron stops firing.
   </Card>
 </Cards>
 
@@ -70,13 +71,16 @@ A Ring clone combines **auth**, **marketplace data**, **payments**, and **realti
 {`flowchart LR
   Browser[Browser / PWA]
   WV[WebVitalsProvider]
-  AppJS[app-analytics.js]
+  Beacon[RingAnalyticsBeacon]
+  Script["/scripts/analytics.js"]
+  Profile["recordPersonalPageView"]
   API["/api/analytics/*"]
   ADB[analytics-db.ts]
   PG[(PostgreSQL JSONB)]
 
   Browser --> WV --> API
-  Browser --> AppJS --> API
+  Browser --> Beacon --> Script --> API
+  Profile --> ADB
   API --> ADB --> PG
   Admin["/admin/analytics"] --> ADB`}
 </Mermaid>
@@ -88,7 +92,15 @@ Returns JSON: `status` (`healthy` | `degraded` | `unhealthy`), uptime, memory, i
 <Code language="bash" title="Probe from shell or k8s probe">{`curl -sS https://your-clone.example/api/health | jq .
 curl -I https://your-clone.example/api/health   # HEAD — 200 if alive`}</Code>
 
-Used by `Dockerfile` / `docker-compose.yml` healthchecks and optional Prometheus scrape config (see caveat below).
+### Client beacon (verified)
+
+| Piece | Path |
+|-------|------|
+| Script | `public/scripts/analytics.js` — batches to `POST /api/analytics/app` via `sendBeacon` / fetch; exposes `window.ringAnalytics` |
+| App Router glue | `components/providers/ring-analytics-beacon.tsx` — loads the script; calls `pageView` on pathname/searchParams change (hard load alone is not enough) |
+| Mount | `components/providers/app-client-shell.tsx` |
+
+Legacy `public/scripts/app-analytics.js` exists in tree but is **not** the mounted SSOT — do not document it as live.
 
 ### Analytics API surface
 
@@ -102,23 +114,34 @@ Used by `Dockerfile` / `docker-compose.yml` healthchecks and optional Prometheus
 | `/api/analytics/device` | POST | Session required | `user_device_telemetry` |
 | `/api/analytics/platform-stats` | GET | Admin | Counts: users, entities, opportunities |
 
-Implementation: `features/analytics/lib/analytics-db.ts`. Client collector: `lib/web-vitals.tsx` (uses `web-vitals` package — INP replaces FID).
+Implementation: `features/analytics/lib/analytics-db.ts` (`insertAnalyticsEventBatch`). Client Web Vitals: `lib/web-vitals.tsx` (INP replaces FID).
+
+### Personal page events
+
+| Piece | Path |
+|-------|------|
+| Event type | `personal_page_view` |
+| Writer | `features/analytics/lib/personal-page-analytics.ts` → `recordPersonalPageView` |
+| Call site | `app/[locale]/[username]/page.tsx` — skips owners |
+| Owner widget | `getPersonalPageViewStats` (`features/auth/services/personal-page-stats.ts`) |
+| Admin | `getPersonalPagePlatformStats` → `PlatformAnalyticsSummary.personalPages` |
+| Engagement | `personal_page_view` joins `docs_page_view` / `page_view` / `app_load` in admin pageViews aggregates |
+
+Details and unique-by-role math: [Public Profile Pages](/docs/features/public-profile).
 
 ### Database tables
 
 Included in `data/schema.sql` and migration `017_ring_analytics_schema.sql`:
 
-- `analytics_events` — batched client telemetry  
+- `analytics_events` — batched client telemetry **and** server `personal_page_view` rows  
 - `web_vitals` — Core Web Vitals batches  
 - `analytics_errors` — client-side error log  
-
-Apply on postgres-primary clones per [Database migrations](/docs/getting-started/migrations).
 
 ### Disable storage (privacy / load testing)
 
 <Code language="bash" title=".env.local">{`ANALYTICS_DISABLE_STORAGE=true`}</Code>
 
-When set, ingest routes **acknowledge** payloads but skip `DatabaseService` writes (`isAnalyticsStorageDisabled()`).
+When set, ingest routes **acknowledge** payloads but skip `DatabaseService` writes (`isAnalyticsStorageDisabled()`). Personal-page recorder also no-ops.
 
 ### Structured logging
 
@@ -128,7 +151,7 @@ logger.info('Subscription created', { userId })
 logger.warn('syncDiscovery: tunnel publish failed', { channel, error })
 logger.error('Failed to create subscription', { userId, error })`}</Code>
 
-Env: `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info` in production), `LOG_SILENT=true` to mute. Logs are **JSON to stdout** — ship with your cluster log agent (not built into Ring).
+Env: `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info` in production), `LOG_SILENT=true` to mute.
 
 ### Optional external APM
 
@@ -148,7 +171,7 @@ See [Tunnel protocol](/docs/features/tunnel-protocol).
 
 ### Cron / pipeline monitoring
 
-Cron routes (`/api/cron/*`) fail closed without `CRON_SECRET`. Example: `GET /api/cron/email-analytics` runs ProcessConductor pipeline `email-analytics`. Monitor HTTP **401** vs **200** from your scheduler.
+Cron routes (`/api/cron/*`) fail closed without `CRON_SECRET`. Example: `GET /api/cron/email-analytics` runs ProcessConductor pipeline `email-analytics`.
 
 ### Optional Docker Prometheus + Grafana
 
@@ -157,34 +180,43 @@ Cron routes (`/api/cron/*`) fail closed without `CRON_SECRET`. Example: `GET /ap
 Services: `ring-prometheus` (:9090), `ring-grafana` (:3001). Config: `docker/prometheus/prometheus.yml`.
 
 <Callout type="warning" title="Prometheus config caveat">
-  The bundled Prometheus job references `/api/metrics`, which **is not implemented** in this tree, and scrapes `/api/health` as JSON (not Prometheus exposition format). Treat the profile as a **starting scaffold** — add a real metrics exporter or fix scrape targets before production use.
+  The bundled Prometheus job references `/api/metrics`, which **is not implemented** in this tree, and scrapes `/api/health` as JSON (not Prometheus exposition format). Treat the profile as a **starting scaffold**.
 </Callout>
 
 ### Admin UI entrypoint
 
-Server page: `app/[locale]/admin/analytics/page.tsx` — requires `isPlatformAdmin`, loads `getPlatformAnalytics('7d')`.
+Server page: `app/[locale]/admin/analytics/page.tsx` — requires `isPlatformAdmin`, loads `getPlatformAnalytics('7d')` including `personalPages`.
 
 </Audience>
 
 ## Related documentation
 
-<Cards>
-  <Card title="Backup & recovery" href="/docs/deployment/backup">
-    Restore after incidents detected here.
-  </Card>
-  <Card title="Performance optimization" href="/docs/deployment/performance">
-    Next stale cohort doc — React 19 and Web Vitals tuning.
-  </Card>
-  <Card title="Environment configuration" href="/docs/deployment/environment">
-    `CRON_SECRET`, `LOG_LEVEL`, optional Sentry.
-  </Card>
-  <Card title="Realtime transport" href="/docs/architecture/real-time">
-    Tunnel transports and heartbeat behavior.
-  </Card>
-  <Card title="Admin API" href="/docs/api/admin">
-    Additional admin endpoints (verify against live routes before relying on legacy API doc examples).
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/public-profile"
+    relation="Same-workflow: personal_page_view unique visit stats and owner skip."
+  />
+  <RelatedArticle
+    slug="deployment/backup"
+    relation="Next-step: restore after incidents detected here."
+  />
+  <RelatedArticle
+    slug="deployment/performance"
+    relation="See-also: Web Vitals tuning and performance ops."
+  />
+  <RelatedArticle
+    slug="deployment/environment"
+    relation="Depends-on: CRON_SECRET, LOG_LEVEL, ANALYTICS_DISABLE_STORAGE, optional Sentry."
+  />
+  <RelatedArticle
+    slug="architecture/real-time"
+    relation="Deep-dive: tunnel transports and heartbeat behavior."
+  />
+  <RelatedArticle
+    slug="features/admin"
+    relation="Next-step: Admin console entry for /admin/analytics."
+  />
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — monitoring (TBD)">
 

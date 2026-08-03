@@ -1,16 +1,41 @@
 import { NextResponse, NextRequest } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
 import { routing, type Locale } from '@/i18n/routing'
+import { stripHreflangLinkHeaders } from '@/lib/hreflang'
 
 /** Shared next-intl middleware instance for proxy.ts (localePrefix: as-needed). */
 export const intlMiddleware = createMiddleware(routing)
 
+/**
+ * Prefer explicit `ring-locale` over Accept-Language by syncing `NEXT_LOCALE`
+ * onto the request cookie jar before next-intl resolves unprefixed paths.
+ */
+export function withRingLocalePreferred(req: NextRequest): NextRequest {
+  const preferred = req.cookies.get('ring-locale')?.value
+  if (!preferred || !routing.locales.includes(preferred as Locale)) {
+    return req
+  }
+  if (req.cookies.get('NEXT_LOCALE')?.value === preferred) {
+    return req
+  }
+
+  const headers = new Headers(req.headers)
+  const rebuilt = req.cookies
+    .getAll()
+    .filter((c) => c.name !== 'NEXT_LOCALE')
+    .map((c) => `${c.name}=${c.value}`)
+  rebuilt.push(`NEXT_LOCALE=${preferred}`)
+  headers.set('cookie', rebuilt.join('; '))
+  return new NextRequest(req.nextUrl, { headers })
+}
+
 /** Clone request so downstream `headers()` (RSC) sees pathname before next-intl forwards headers. */
 export function withUpstreamPathHeaders(req: NextRequest): NextRequest {
-  const headers = new Headers(req.headers)
-  headers.set('x-pathname', req.nextUrl.pathname)
-  headers.set('x-url', req.nextUrl.toString())
-  return new NextRequest(req.nextUrl, { headers })
+  const preferred = withRingLocalePreferred(req)
+  const headers = new Headers(preferred.headers)
+  headers.set('x-pathname', preferred.nextUrl.pathname)
+  headers.set('x-url', preferred.nextUrl.toString())
+  return new NextRequest(preferred.nextUrl, { headers })
 }
 
 /**
@@ -131,6 +156,7 @@ export function stampPathHeadersOnResponse(
 ): NextResponse {
   response.headers.set('x-pathname', req.nextUrl.pathname)
   response.headers.set('x-url', req.nextUrl.toString())
+  stripHreflangLinkHeaders(response.headers)
   return response
 }
 
@@ -148,15 +174,42 @@ export function finalizeIntlResponse(
   intlReq: NextRequest,
   intlResponse: NextResponse | null | undefined,
 ): NextResponse {
+  let response: NextResponse
   if (intlResponse) {
     // Rewrites must forward `intlReq` (carries x-pathname) or RSC `headers()` falls back to `/`
     // and scoped i18n loads `public-home` — dropping namespaces like deployment-calculator.
     if (intlResponse.headers.get('x-middleware-rewrite')) {
-      return stampPathHeadersOnResponse(applyIntlMiddlewareOutcome(intlReq, intlResponse), req)
+      response = stampPathHeadersOnResponse(applyIntlMiddlewareOutcome(intlReq, intlResponse), req)
+    } else {
+      const passthrough = NextResponse.next({ request: intlReq })
+      intlResponse.cookies.getAll().forEach((cookie) => passthrough.cookies.set(cookie))
+      response = stampPathHeadersOnResponse(passthrough, req)
     }
-    const passthrough = NextResponse.next({ request: intlReq })
-    intlResponse.cookies.getAll().forEach((cookie) => passthrough.cookies.set(cookie))
-    return stampPathHeadersOnResponse(passthrough, req)
+  } else {
+    response = nextWithPathHeaders(req, intlReq)
   }
-  return nextWithPathHeaders(req, intlReq)
+  return stampPreferredLocaleCookie(req, response)
+}
+
+/**
+ * Persist NEXT_LOCALE from ring-locale so the next bare-path hit does not
+ * renegotiate via Accept-Language after an explicit language choice.
+ */
+export function stampPreferredLocaleCookie(
+  req: NextRequest,
+  response: NextResponse,
+): NextResponse {
+  const preferred = req.cookies.get('ring-locale')?.value
+  if (!preferred || !routing.locales.includes(preferred as Locale)) {
+    return response
+  }
+  if (req.cookies.get('NEXT_LOCALE')?.value === preferred) {
+    return response
+  }
+  response.cookies.set('NEXT_LOCALE', preferred, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: 'lax',
+  })
+  return response
 }

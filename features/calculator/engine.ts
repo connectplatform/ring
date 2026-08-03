@@ -9,7 +9,7 @@ import {
   BRANDING_CUSTOMIZATION_POINTS,
   HOSTING_BASE_POINTS_MONTHLY,
   PACK_MODULE_DISCOUNT,
-  PROJECT_EXTERNAL_USD_MONTHLY,
+  PROJECT_EXTERNAL_MAIN_CURRENCY,
   PROJECT_HOSTING_CONSTRUCT_MULT,
   PROJECT_MODULE_POINTS,
   PROJECT_NICHE_BASE_CONSTRUCT_POINTS,
@@ -21,7 +21,11 @@ import {
   type ProjectNicheId,
   type ProjectScaleId,
 } from './presets/project'
-import { pointsToFiat, pointsToNative, usdCatalogToPoints } from './rates'
+import {
+  creditBalanceUnitToMainCurrency,
+  creditBalanceUnitToNativeToken,
+  mainCurrencyToCreditBalanceUnit,
+} from './rates'
 
 export function calculateProject(
   inputs: CalculatorInputs,
@@ -75,8 +79,8 @@ export function calculateProject(
 
   let externalPoints = 0
   for (const ext of inputs.externals) {
-    const usd = PROJECT_EXTERNAL_USD_MONTHLY[ext as ProjectExternalId] ?? 0
-    externalPoints += usdCatalogToPoints(usd, rates)
+    const mainCurrency = PROJECT_EXTERNAL_MAIN_CURRENCY[ext as ProjectExternalId] ?? 0
+    externalPoints += mainCurrencyToCreditBalanceUnit(mainCurrency, rates)
   }
   // Ringdom hosting includes managed CDN narrative — no extra auto-charge;
   // ringcdn remains an explicit external toggle for capacity beyond included plane.
@@ -95,12 +99,12 @@ export function calculateProject(
     monthlyPoints,
     alaCartePoints,
     packSavingsPoints,
-    oneTimeFiat: pointsToFiat(oneTimePoints, rates),
-    monthlyFiat: pointsToFiat(monthlyPoints, rates),
-    alaCarteFiat: pointsToFiat(alaCartePoints, rates),
-    packSavingsFiat: pointsToFiat(packSavingsPoints, rates),
-    oneTimeNative: pointsToNative(oneTimePoints, rates),
-    monthlyNative: pointsToNative(monthlyPoints, rates),
+    oneTimeFiat: creditBalanceUnitToMainCurrency(oneTimePoints, rates),
+    monthlyFiat: creditBalanceUnitToMainCurrency(monthlyPoints, rates),
+    alaCarteFiat: creditBalanceUnitToMainCurrency(alaCartePoints, rates),
+    packSavingsFiat: creditBalanceUnitToMainCurrency(packSavingsPoints, rates),
+    oneTimeNative: creditBalanceUnitToNativeToken(oneTimePoints, rates),
+    monthlyNative: creditBalanceUnitToNativeToken(monthlyPoints, rates),
     estimatedHours,
     complexity,
     customizationComplexity,
@@ -137,9 +141,9 @@ export function calculateDeployment(
   if (scaledHours > 100) complexity = 'complex'
   else if (scaledHours > 50) complexity = 'medium'
 
-  const hostingCostUsd = selectedRegion.cost + selectedDatabase.cost
+  const hostingCostMainCurrency = selectedRegion.cost + selectedDatabase.cost
   const oneTimePoints = scaledHours * 5
-  const monthlyPoints = usdCatalogToPoints(hostingCostUsd, rates)
+  const monthlyPoints = mainCurrencyToCreditBalanceUnit(hostingCostMainCurrency, rates)
   const timeline = ctx.timelineTasks[complexity]
 
   return {
@@ -147,12 +151,12 @@ export function calculateDeployment(
     monthlyPoints,
     alaCartePoints: oneTimePoints,
     packSavingsPoints: 0,
-    oneTimeFiat: pointsToFiat(oneTimePoints, rates),
-    monthlyFiat: pointsToFiat(monthlyPoints, rates),
-    alaCarteFiat: pointsToFiat(oneTimePoints, rates),
+    oneTimeFiat: creditBalanceUnitToMainCurrency(oneTimePoints, rates),
+    monthlyFiat: creditBalanceUnitToMainCurrency(monthlyPoints, rates),
+    alaCarteFiat: creditBalanceUnitToMainCurrency(oneTimePoints, rates),
     packSavingsFiat: 0,
-    oneTimeNative: pointsToNative(oneTimePoints, rates),
-    monthlyNative: pointsToNative(monthlyPoints, rates),
+    oneTimeNative: creditBalanceUnitToNativeToken(oneTimePoints, rates),
+    monthlyNative: creditBalanceUnitToNativeToken(monthlyPoints, rates),
     estimatedHours: scaledHours,
     complexity,
     recommendedConfig: {

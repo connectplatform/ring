@@ -22,7 +22,7 @@
 #   --build-arg DB_USER="ring_user" \
 #   --build-arg NEXT_PUBLIC_APP_URL="https://YOUR_DOMAIN" \
 #   --build-arg NEXT_PUBLIC_API_URL="https://YOUR_DOMAIN" \
-#   -t ghcr.io/YOUR_ORG/ring:v1.0.0-YOUR_CLONE_NAME-amd64 .
+#   -t registry.ringdom.org/ringdom/ring:v1.0.0-YOUR_CLONE_NAME-amd64 .
 #
 # =============================================================================
 # CRITICAL: AUTH_SECRET and sensitive secrets are injected at RUNTIME via K8s!
@@ -196,7 +196,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json* ./
 COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
-COPY --from=builder --chown=nextjs:nodejs /app/CHANGELOG.md ./CHANGELOG.md
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
 
 # Install production dependencies

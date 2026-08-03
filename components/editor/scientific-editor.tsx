@@ -20,8 +20,10 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import { MathExtension } from './extensions/latex-extension'
 import { CitationDetectorExtension } from './extensions/citation-detector-extension'
+import { VideoExtension } from './extensions/video-node'
 import { EditorToolbar } from './editor-toolbar'
 import { useTranslations } from 'next-intl'
+import { EditorImageEnhanceHost } from '@/features/generative-media/components/editor-image-enhance-host'
 
 // Create lowlight instance with common languages
 const lowlight = createLowlight(common)
@@ -124,7 +126,8 @@ export function ScientificEditor({
         }
       }),
       MathExtension,
-      CitationDetectorExtension
+      CitationDetectorExtension,
+      VideoExtension,
     ],
     content,
     editable,
@@ -187,6 +190,8 @@ export function ScientificEditor({
       <div className="flex-1 overflow-y-auto p-6 bg-background">
         <EditorContent editor={editor} />
       </div>
+
+      <EditorImageEnhanceHost editor={editor} surfaceId="scientific-editor" />
       
       {/* Editor Styles */}
       <style jsx global>{`

@@ -4,7 +4,7 @@ import { createPublicClient, http, parseAbiItem, parseUnits, type Address } from
 import { polygon } from 'viem/chains'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
-import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 const TRANSFER_EVENT = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
 
@@ -15,7 +15,7 @@ export interface TopUpVerificationResult {
 }
 
 function getRpcUrl(): string {
-  return getPolygonRpcUrl()
+  return getEvmRpcUrl()
 }
 
 function getTokenAddress(): Address | null {

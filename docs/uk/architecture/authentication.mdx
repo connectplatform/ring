@@ -18,7 +18,7 @@ audience: both
 |-----------|------|-------------------|
 | **Google OAuth** | Повний OAuth 2.0 redirect + Google Identity Services (GIS) One Tap | `GoogleProvider` + `CredentialsProvider("google-one-tap")` |
 | **Apple Sign-In** | OAuth redirect, нативний iOS/macOS | `AppleProvider` |
-| **Magic Links** | Email через Resend, 24-годинний термін дії токену | `Resend` |
+| **Magic Links** | Email через Ring Mailer, 24-годинний термін дії токену | `Resend` |
 | **Крипто-гаманець** | Nonce-підпис верифікація (MetaMask, WalletConnect) | `CredentialsProvider("crypto-wallet")` |
 
 Конфігурація знаходиться в `auth.ts` та `auth.config.ts` у корені проєкту. Auth.js v5 розділяє edge-безпечну конфігурацію (`auth.config.ts` — без провайдерів, мінімальні callbacks) від повної серверної конфігурації (`auth.ts` — всі провайдери, адаптери бази даних).
@@ -104,12 +104,10 @@ GIS JWT верифікується на сервері в `signIn` callback за
 
 ### Magic Links (Resend)
 
-Потребує `AUTH_RESEND_KEY` змінну середовища та активний адаптер бази даних (для зберігання токенів):
+Потребує SMTP_* або EMAIL_MODE=ethereal змінну середовища та активний адаптер бази даних (для зберігання токенів):
 
 <Code language="typescript" title="auth.ts">
-{`Resend({
-  from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org",
-})`}
+{`/* Ring Mailer Credentials — see auth.ts */`}
 </Code>
 
 24-годинний термін дії токену (maxAge в Resend провайдері), одноразове використання, автоматична інвалідація.
@@ -208,8 +206,8 @@ AUTH_APPLE_ID=your_apple_client_id
 AUTH_APPLE_SECRET=your_apple_private_key
 
 # Magic Links
-AUTH_RESEND_KEY=your_resend_api_key
-AUTH_RESEND_FROM=noreply@ring-platform.org
+# Ring Mailer: EMAIL_MODE=ethereal or SMTP_HOST / SMTP_USER / SMTP_PASSWORD
+# OTP_HMAC_SECRET=
 
 # Firebase (тільки для firebase-full режиму)
 AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id

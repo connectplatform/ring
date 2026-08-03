@@ -66,7 +66,6 @@ const nextConfig = {
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     NEXT_PUBLIC_AUTH_GOOGLE_ID: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID || process.env.AUTH_GOOGLE_ID,
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
-    AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
     RING_DEPLOY_TARGET: process.env.RING_DEPLOY_TARGET,
     NEXT_PUBLIC_RING_DEPLOY_TARGET: process.env.NEXT_PUBLIC_RING_DEPLOY_TARGET,
     NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED: process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED,
@@ -90,6 +89,19 @@ const nextConfig = {
       : ['http://localhost:3000', 'http://localhost:3001']
     
     return [
+      {
+        // Allow Telegram Login library popups if used; Auth.js Telegram OIDC uses redirect.
+        source: '/:locale/login',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+        ],
+      },
+      {
+        source: '/login',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+        ],
+      },
       {
         source: '/api/:path*',
         headers: [
@@ -163,11 +175,15 @@ const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.join(__dirname, './'),
   serverExternalPackages: [
-    'google-auth-library', 
-    'gaxios', 
+    'google-auth-library',
+    'gaxios',
     'gtoken',
-    '@solana/spl-token', 
-    '@solana/web3.js'],
+    '@solana/spl-token',
+    '@solana/web3.js',
+    'nodemailer',
+    '@react-email/render',
+    '@react-email/components',
+  ],
   outputFileTracingIncludes: {
     '**/*': ['./i18n/**/*', './locales/**/*', './ring-config.json', './ring-config.template.json', './server.ts', './server.js'],
   },
@@ -178,9 +194,11 @@ const nextConfig = {
     },
   ...(process.env.SKIP_TYPE_CHECK === '1'
     ? {
-        cpus: 8,
-        staticGenerationMaxConcurrency: 8,
-        staticGenerationMinPagesPerWorker: 500,
+        // Docker/Colima: keep concurrency low — 8 workers + 6GiB heap OOMs a 12GiB VM
+        // during ~2k static pages (BuildKit RPC EOF / daemon crash).
+        cpus: 2,
+        staticGenerationMaxConcurrency: 2,
+        staticGenerationMinPagesPerWorker: 25,
       }
     : {}),
   },

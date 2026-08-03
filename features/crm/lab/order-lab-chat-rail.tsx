@@ -5,40 +5,15 @@ import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { Loader2, MessageSquare, FlaskConical, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ConversationHeader } from '@/features/chat/components/conversation-header'
-import { MessageThread } from '@/features/chat/components/message-thread'
-import { useConversation } from '@/hooks/use-messaging'
 import { cn } from '@/lib/utils'
 
-export function LabThread({
-  conversationId,
-  userId,
-}: {
-  conversationId: string
-  userId: string
-}) {
-  const { conversation, loading } = useConversation(conversationId, { enabled: !!conversationId })
+export {
+  EmbeddedConversation,
+  LabThread,
+} from '@/features/chat/components/embedded-conversation'
+export type { EmbeddedConversationVariant } from '@/features/chat/components/embedded-conversation'
 
-  if (loading || !conversation) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ConversationHeader conversation={conversation} currentUserId={userId} />
-      <MessageThread
-        className="min-h-0 flex-1"
-        conversation={conversation}
-        conversationId={conversationId}
-        userId={userId}
-      />
-    </div>
-  )
-}
+import { EmbeddedConversation } from '@/features/chat/components/embedded-conversation'
 
 /**
  * Integrator Order Lab chat rail — single shared Project room (buyer + integrator + Reggie).
@@ -103,7 +78,7 @@ export function OrderLabChatRail({
       ) : bootError ? (
         <p className="p-4 text-sm text-destructive">{bootError}</p>
       ) : !userId ? null : labId ? (
-        <LabThread conversationId={labId} userId={userId} />
+        <EmbeddedConversation conversationId={labId} userId={userId} variant="order_lab" />
       ) : (
         <p className="p-4 text-sm text-muted-foreground">{t('order.lab.noProjectRoom')}</p>
       )}

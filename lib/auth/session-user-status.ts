@@ -64,6 +64,14 @@ export const getLiveAccountStatus = cache(
  * - Same camelCase/snake_case for account status, deactivation reason.
  */
 export function applyUserRowToJwt(token: JWT, userData: UserRow): void {
+  // Core identity — required for vitals-onboarding gate recompute on session.update
+  if (typeof userData.name === 'string' && userData.name.trim()) {
+    token.name = userData.name.trim()
+  }
+  if (typeof userData.email === 'string' && userData.email.trim()) {
+    token.email = userData.email.trim()
+  }
+
   token.username = userData.username as string | undefined
   token.phoneNumber = userData.phoneNumber as string | undefined
   token.bio = userData.bio as string | undefined
@@ -92,6 +100,19 @@ export function applyUserRowToJwt(token: JWT, userData: UserRow): void {
   token.suspensionReason =
     (userData.deactivationReason as string | undefined) ??
     (userData.deactivation_reason as string | undefined)
+
+  // Telegram UID SSOT — rehydrate from users.data.communication on every JWT refresh
+  // so session.telegramId stays accurate after link/unlink without re-login.
+  const communication = (userData as { communication?: unknown }).communication
+  const telegramIdRaw =
+    communication && typeof communication === 'object' && communication !== null
+      ? String((communication as Record<string, unknown>).telegramId ?? '').trim()
+      : ''
+  if (/^\d{3,}$/.test(telegramIdRaw)) {
+    token.telegramId = telegramIdRaw
+  } else if ('telegramId' in token) {
+    delete (token as { telegramId?: string }).telegramId
+  }
 }
 
 /** Defensive: If JWT is null-ish, should probably indicate explicitly. */

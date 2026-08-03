@@ -6,11 +6,11 @@
  */
 
 export type {
-  CreditTransactionType,
+  CreditBalanceTransactionType,
   CreditTransaction,
   UserCreditBalance,
   UserProfileWithCredits,
-  CreditTopUpRequest,
+  CreditBalanceTopUpRequest,
   CreditSpendRequest,
   CreditBalanceResponse,
   CreditHistoryRequest,

@@ -75,7 +75,7 @@ export const paypalSubscriptionProvider: SubscriptionProviderModule = {
         await paymentTransactionService.createPending({
           purpose: 'membership_upgrade',
           processor: 'paypal',
-          rail: 'merchant_redirect',
+          rail: 'card',
           orderReference: customId,
           entityType: 'membership_upgrade',
           entityId: input.userId,
@@ -92,6 +92,10 @@ export const paypalSubscriptionProvider: SubscriptionProviderModule = {
           cancelUrl,
           userEmail: input.userEmail,
           idempotencyKey: customId,
+          intervalUnit:
+            input.metadata?.billingPeriod === 'yearly' || input.metadata?.billingPeriod === 'YEAR'
+              ? 'YEAR'
+              : 'MONTH',
         })
 
         logger.info('PayPal Subscriptions v1: subscription created', {
@@ -115,7 +119,7 @@ export const paypalSubscriptionProvider: SubscriptionProviderModule = {
       // One-shot membership via Orders v2
       const checkout = await PaymentConductor.createCheckout({
         purpose: 'membership_upgrade',
-        rail: 'merchant_redirect',
+        rail: 'card',
         userId: input.userId,
         userEmail: input.userEmail,
         entityId: input.userId,

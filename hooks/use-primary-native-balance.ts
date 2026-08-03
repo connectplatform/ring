@@ -11,7 +11,7 @@ export type UsePrimaryNativeBalanceOptions = {
 }
 
 export type PrimaryNativeBalanceState = {
-  nativeBalance: string | null
+  nativeTokenBalance: string | null
   loading: boolean
   error: string | null
   symbol: string
@@ -25,27 +25,26 @@ async function fetchPrimaryNativeBalance(): Promise<string> {
     throw new Error(`wallet_list_${res.status}`)
   }
   const data = (await res.json()) as {
-    wallets?: Array<{ isPrimary?: boolean; nativeBalance?: string }>
+    wallets?: Array<{ isPrimary?: boolean; nativeTokenBalance?: string }>
   }
   const wallets = data.wallets ?? []
   const primary = wallets.find((w) => w.isPrimary) ?? wallets[0]
-  return primary?.nativeBalance ?? '0'
+  return primary?.nativeTokenBalance ?? '0'
 }
 
 /**
  * Primary custodial wallet native-token balance via GET /api/wallet/list.
  * Shared by mobile floating user widget + profile Balances card.
  *
- * SSOT for client native RING display. Prefer this over:
- * - deprecated `useTokenBalance` (alias in use-token-balance.ts)
- * - non-existent `useNativeTokenBalance` (server helpers are getNativeTokenBalance*)
+ * For the browser-connected sign-in address (wagmi), use useConnection + useBalance
+ * from @/lib/wagmi-config — not this hook.
  */
 export function usePrimaryNativeBalance(
   options: UsePrimaryNativeBalanceOptions = {},
 ): PrimaryNativeBalanceState {
   const { enabled = true } = options
   const { data: session } = useSession()
-  const [nativeBalance, setNativeBalance] = useState<string | null>(null)
+  const [nativeTokenBalance, setNativeTokenBalance] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const symbol = getClientNativeTokenSymbol()
@@ -53,7 +52,7 @@ export function usePrimaryNativeBalance(
 
   const refresh = useCallback(async () => {
     if (!userId) {
-      setNativeBalance(null)
+      setNativeTokenBalance(null)
       setError(null)
       return
     }
@@ -61,9 +60,9 @@ export function usePrimaryNativeBalance(
     setError(null)
     try {
       const balance = await fetchPrimaryNativeBalance()
-      setNativeBalance(balance)
+      setNativeTokenBalance(balance)
     } catch (err) {
-      setNativeBalance(null)
+      setNativeTokenBalance(null)
       setError(err instanceof Error ? err.message : 'fetch_failed')
     } finally {
       setLoading(false)
@@ -78,10 +77,10 @@ export function usePrimaryNativeBalance(
       setError(null)
       try {
         const balance = await fetchPrimaryNativeBalance()
-        if (!cancelled) setNativeBalance(balance)
+        if (!cancelled) setNativeTokenBalance(balance)
       } catch (err) {
         if (!cancelled) {
-          setNativeBalance(null)
+          setNativeTokenBalance(null)
           setError(err instanceof Error ? err.message : 'fetch_failed')
         }
       } finally {
@@ -95,11 +94,11 @@ export function usePrimaryNativeBalance(
   }, [enabled, userId])
 
   return {
-    nativeBalance,
+    nativeTokenBalance,
     loading,
     error,
     symbol,
-    formatted: formatNativeBalance(nativeBalance ?? '0'),
+    formatted: formatNativeBalance(nativeTokenBalance ?? '0'),
     refresh,
   }
 }

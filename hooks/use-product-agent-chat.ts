@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { apiClient, type ApiResponse } from '@/lib/api-client'
 import { useMessages } from '@/hooks/use-messaging'
@@ -20,16 +21,29 @@ type AgentChatSendResult = {
 type StreamEvent =
   | { type: 'userMessage'; message: Message; conversation: Conversation }
   | { type: 'token'; content: string }
-  | { type: 'done'; agentMessage: Message; conversation: Conversation }
+  | { type: 'tool_status'; tools?: string[]; message?: string }
+  | {
+      type: 'done'
+      agentMessage: Message
+      conversation: Conversation
+      productCardMessages?: Message[]
+      navigateTo?: string
+      cartUpdated?: boolean
+    }
   | { type: 'error'; error?: string }
 
+/** Dispatched when agent commerce tools mutate the server cart — StoreProvider hydrates. */
+export const STORE_CART_UPDATED_EVENT = 'ring:store-cart-updated'
+
 export function useProductAgentChat(productId: string, enabled = true) {
+  const router = useRouter()
   const { data: session, status } = useSession()
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [subject, setSubject] = useState('')
   const [bootstrapping, setBootstrapping] = useState(false)
   const [sending, setSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
+  const [toolStatus, setToolStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const conversationId = conversation?.id || ''
@@ -70,6 +84,7 @@ export function useProductAgentChat(productId: string, enabled = true) {
 
       setSending(true)
       setStreamingContent('')
+      setToolStatus(null)
       setError(null)
 
       try {
@@ -96,6 +111,7 @@ export function useProductAgentChat(productId: string, enabled = true) {
         let buffer = ''
         let result: AgentChatSendResult | null = null
         let pendingUserMessage: Message | null = null
+        let navigateTo: string | undefined
 
         while (true) {
           const { done, value } = await reader.read()
@@ -123,10 +139,18 @@ export function useProductAgentChat(productId: string, enabled = true) {
                   event.conversation.metadata.productName ||
                   subject,
               )
+            } else if (event.type === 'tool_status') {
+              setToolStatus(event.message || 'Working…')
             } else if (event.type === 'token' && event.content) {
               setStreamingContent((prev) => `${prev ?? ''}${event.content}`)
             } else if (event.type === 'done') {
               setConversation(event.conversation)
+              if (event.cartUpdated && typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent(STORE_CART_UPDATED_EVENT))
+              }
+              if (event.navigateTo) {
+                navigateTo = event.navigateTo
+              }
               result = {
                 conversation: event.conversation,
                 userMessage: pendingUserMessage!,
@@ -139,17 +163,22 @@ export function useProductAgentChat(productId: string, enabled = true) {
         }
 
         setStreamingContent(null)
+        setToolStatus(null)
         await messagesState.refresh()
+        if (navigateTo) {
+          router.push(navigateTo)
+        }
         return result
       } catch (err) {
         setStreamingContent(null)
+        setToolStatus(null)
         setError(err instanceof Error ? err.message : 'Failed to send message')
         return null
       } finally {
         setSending(false)
       }
     },
-    [session?.user?.id, productId, messagesState, subject],
+    [session?.user?.id, productId, messagesState, subject, router],
   )
 
   return {
@@ -158,6 +187,7 @@ export function useProductAgentChat(productId: string, enabled = true) {
     bootstrapping,
     sending,
     streamingContent,
+    toolStatus,
     error,
     bootstrap,
     sendMessage,

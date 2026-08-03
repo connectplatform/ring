@@ -1,14 +1,20 @@
+/**
+ * WayForPay store-order webhook adapter.
+ *
+ * Translates the WFP payload into the shared fulfillment contract; all paid-order
+ * side effects live in `fulfillStoreOrderPaid`. The order records rail `card`
+ * with processor `wayforpay` — never `method: 'wayforpay'`.
+ */
+
 import { logger } from '@/lib/logger'
 import {
   processStorePaymentWebhook,
   type StoreWebhookPayload,
 } from '@/lib/payments/wayforpay-store-service'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
-import { VendorSettlementService } from '@/features/store/services/vendor-settlement'
-import { ERPStockService } from '@/features/store/services/erp-stock-service'
-import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
-import type { StorePayment, StoreOrder } from '@/features/store/types'
-import { ReferralRewardService } from '@/features/refcodes/services/referral-reward-service'
+import { restoreStockForOrder } from '@/features/store/services/inventory-sync'
+import { fulfillStoreOrderPaid } from '@/lib/payments/conductor/fulfill-store-order-paid'
+import type { StorePayment } from '@/features/store/types'
 
 function mapTransactionStatus(wayforpayStatus: string): StorePayment['status'] {
   const statusMap: Record<string, StorePayment['status']> = {
@@ -37,80 +43,43 @@ export async function handleStoreWayForPayWebhook(
   const orderReference = payload.orderReference
 
   if (payload.transactionStatus === 'Approved') {
-    const isNew = await paymentTransactionService.markPaid(orderReference, payload as unknown as Record<string, unknown>)
-
-    const paymentData: StorePayment = {
-      method: 'wayforpay',
-      status: 'paid',
-      wayforpayOrderId: orderReference,
-      wayforpayTransactionId: orderReference,
+    return fulfillStoreOrderPaid({
+      orderId,
+      orderReference,
       amount: payload.amount,
       currency: payload.currency,
-      cardLast4: payload.cardPan ? payload.cardPan.slice(-4) : undefined,
-      cardType: payload.cardType,
-      paymentSystem: payload.paymentSystem,
-      paidAt: new Date().toISOString(),
-    }
-
-    if (isNew) {
-      await StoreOrdersService.updateOrderPaymentStatus(orderId, paymentData)
-      await StoreOrdersService.adminUpdateOrderStatus(orderId, 'paid')
-
-      const order = await StoreOrdersService.getOrderWithPaymentDetails(orderId)
-
-      if (order?.items?.length) {
-        try {
-          await ERPStockService.deductStockForOrder(orderId, order.items, order.userId, {
-            referralCode: order.referralCode,
-            assisted: Boolean(order.referralCode),
-          })
-        } catch (stockError) {
-          logger.error('Store webhook: stock deduction failed', { orderId, stockError })
-        }
-      }
-
-      if (order?.vendorSettlements?.length) {
-        try {
-          await VendorSettlementService.processSettlements(orderId, {
-            paymentMethod: 'wayforpay',
-            transactionId: orderReference,
-            amount: payload.amount,
-            currency: payload.currency,
-          })
-        } catch (settlementError) {
-          logger.error('Store webhook: settlement failed', { orderId, settlementError })
-        }
-      }
-
-      if (order) {
-        try {
-          await ReferralRewardService.onOrderPaid({
-            order: order as StoreOrder,
-            orderReference,
-            rail: 'fiat',
-          })
-        } catch (referralError) {
-          logger.error('Store webhook: referral reward failed', { orderId, referralError })
-        }
-      }
-    }
-  } else if (['Declined', 'Expired', 'Refunded', 'Voided'].includes(payload.transactionStatus)) {
-    await StoreOrdersService.updateOrderPaymentStatus(orderId, {
-      method: 'wayforpay',
-      status: mapTransactionStatus(payload.transactionStatus),
-      wayforpayOrderId: orderReference,
-      failureReason: `${payload.reason} (Code: ${payload.reasonCode})`,
-      amount: payload.amount,
-      currency: payload.currency,
+      rail: 'card',
+      processor: 'wayforpay',
+      processorPayload: payload as unknown as Record<string, unknown>,
+      paymentDetails: {
+        wayforpayOrderId: orderReference,
+        wayforpayTransactionId: orderReference,
+        cardLast4: payload.cardPan ? payload.cardPan.slice(-4) : undefined,
+        cardType: payload.cardType,
+        paymentSystem: payload.paymentSystem,
+      },
+      source: 'WayForPay store',
     })
-  } else {
-    await StoreOrdersService.updateOrderPaymentStatus(orderId, {
-      method: 'wayforpay',
-      status: mapTransactionStatus(payload.transactionStatus),
-      wayforpayOrderId: orderReference,
-      amount: payload.amount,
-      currency: payload.currency,
-    })
+  }
+
+  const failed = ['Declined', 'Expired', 'Refunded', 'Voided'].includes(payload.transactionStatus)
+
+  await StoreOrdersService.updateOrderPaymentStatus(orderId, {
+    method: 'card',
+    processor: 'wayforpay',
+    status: mapTransactionStatus(payload.transactionStatus),
+    wayforpayOrderId: orderReference,
+    amount: payload.amount,
+    currency: payload.currency,
+    ...(failed ? { failureReason: `${payload.reason} (Code: ${payload.reasonCode})` } : {}),
+  })
+
+  if (payload.transactionStatus === 'Refunded' || payload.transactionStatus === 'Voided') {
+    try {
+      await restoreStockForOrder(orderId)
+    } catch (restoreError) {
+      logger.error('WayForPay store: stock restore failed', { orderId, restoreError })
+    }
   }
 
   return { success: true, orderId }

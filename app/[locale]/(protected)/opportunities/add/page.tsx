@@ -111,11 +111,33 @@ export default async function AddOpportunityPage(props: PageProps) {
 
   // Extract opportunity type from search param (?type=)
   const typeParam = searchParams.type
-  // Only allow known types; if not passed, treat as undefined
+  const { isOpportunityTypeEnabled } = await import(
+    '@/features/opportunities/lib/opportunity-enabled-types'
+  )
+  const ALLOWED_ADD_TYPES = [
+    'request',
+    'offer',
+    'cv',
+    'ring_customization',
+    'program',
+    'partnership',
+    'volunteer',
+    'mentorship',
+    'resource',
+    'event',
+    'scheduled_services',
+    'collective_order',
+    'bounty',
+    'tender',
+    'asset_rental',
+    'job',
+  ] as const
+  type AllowedAddType = (typeof ALLOWED_ADD_TYPES)[number]
   const type =
     typeof typeParam === 'string' &&
-    ['request', 'offer', 'cv', 'ring_customization'].includes(typeParam)
-      ? (typeParam as 'request' | 'offer' | 'cv' | 'ring_customization')
+    (ALLOWED_ADD_TYPES as readonly string[]).includes(typeParam) &&
+    isOpportunityTypeEnabled(typeParam)
+      ? (typeParam as AllowedAddType)
       : undefined
 
   // Retrieve HTTP headers and cookies (for auth and logging/diagnostics)
@@ -168,7 +190,15 @@ export default async function AddOpportunityPage(props: PageProps) {
 
   // Validate if the type requires member role and user lacks it
   // Prefer in-pane upgrade from picker; fail-closed redirect for direct URL abuse.
-  const memberOnlyTypes = new Set(['offer', 'ring_customization', 'program']);
+  const memberOnlyTypes = new Set([
+    'offer',
+    'ring_customization',
+    'program',
+    'collective_order',
+    'tender',
+    'asset_rental',
+    'job',
+  ]);
   if (typeof type === 'string' && memberOnlyTypes.has(type) && !hasMemberPrivileges(userRole)) {
     logger.info('AddOpportunityPage: User lacks permission for member-only type', { userRole, type });
     redirect(ROUTES.MEMBERSHIP(validLocale) + `?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(validLocale) + `?type=${type}`)}`);

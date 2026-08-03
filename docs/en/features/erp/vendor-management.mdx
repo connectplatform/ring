@@ -1,23 +1,91 @@
 ---
 title: Vendor Management
-description: Vendor lifecycle, tiers, trust scoring, and merchant configuration
+description: Vendor lifecycle, stock ownership, earnings, and merchant configuration
+last_modified: "2026-07-23"
+audience: both
 ---
 
 # Vendor Management
 
-Ring's multi-vendor marketplace ties **entities** (`storeActivated: true`) to vendor profiles, product ownership (`productOwner`), and merchant payout configuration.
+Ring’s multi-vendor marketplace ties **entities** (`storeActivated: true`) to product ownership and merchant payout configuration. ERP hub P0 adds **ownership-gated stock restock** and deeper earnings visibility from the canonical `settlements` ledger.
 
-## Lifecycle
+<Audience for="founder">
 
-1. **Onboarding** — `/vendor/start` creates store slug, branding, and categories.
-2. **Products** — `/vendor/products` with optional main-store submission for admin review.
-3. **Orders** — `/vendor/orders` lists orders where `vendorSettlements` includes the vendor entity id.
-4. **Earnings** — `/vendor/earnings` reads `settlements` collection via `getVendorPayoutHistory` / `getVendorPendingPayouts`.
+## Vendor journey
+
+1. **Onboarding** — `/vendor/start` creates store slug, branding, categories.
+2. **Products** — `/vendor/products` (+ optional Main Store submission for admin review).
+3. **Orders** — `/vendor/orders` for lines where the vendor appears in `vendorSettlements`.
+4. **Stock** — `/vendor/stock` — restock own catalog only; bulk select; low-stock badges.
+5. **Earnings** — `/vendor/earnings` — pending + history (simulated badge when payout mode is simulated).
+6. **Settings** — merchant-facing configuration (settlement frequency / branding where enabled).
+
+Approved vendors see a **VENDOR** group in desktop/mobile nav: Dashboard, Products, Orders, Stock, Earnings, Settings.
+
+<Callout type="tip">
+  Platform admins can restock any product from `/admin/store/stock`. Vendors cannot restock another vendor’s SKU — ownership is enforced server-side.
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## Ownership & data
+
+| Concern | Implementation |
+|---------|----------------|
+| Vendor entity | `getVendorEntity(userId)` — `entities` with `storeActivated: true` |
+| Product owner | `productOwner` / `resolveVendorEntityId` (`features/store/lib/product-document.ts`) |
+| Restock ACL | `restockVendorProduct` in `app/_actions/admin-store-erp.ts` — admin OR matching vendor entity |
+| Stock list | `ERPStockService.listProductsForVendor(vendorEntityId)` |
+| Earnings | `getVendorPayoutHistory` / `getVendorPendingPayouts` from `settlement.ts` |
 
 ## Trust tiers & commission
 
-Platform commission defaults come from vendor **store tier** (`TIER_BENEFITS` in `constants/store.ts`). Merchants may receive a `merchantConfigs` document with `commissionStructure` overrides (admin-managed).
+Platform commission defaults follow vendor **store tier** (`TIER_BENEFITS` in `constants/store.ts`). Merchants may have `merchant_configs` / `merchantConfigs` with `commissionStructure` overrides (admin-managed). Per-product `referralCommission` overrides feed the shared resolver used by settlements and refcodes.
 
-## Navigation
+## Related code
 
-Approved vendors see a **VENDOR** block in the desktop sidebar (Dashboard, Products, Orders, Stock, Earnings, Settings).
+- Vendor UI: `app/[locale]/(protected)/vendor/*`
+- Admin product CRUD: `app/_actions/admin-store-erp.ts`
+- Entity service: `features/entities/services/vendor-entity.ts`
+
+</Audience>
+
+<FutureFeatureBacklog title="Backlog — vendor ops">
+<FutureFeatureWidget
+  name="Vendor analytics page"
+  description="Dedicated /vendor/analytics — dashboard currently absorbs analytics until shipped."
+  implementationCost={56}
+  labels={['erp', 'vendor', 'analytics']}
+/>
+<FutureFeatureWidget
+  name="Reorder → PO draft from low-stock"
+  description="Warehouse Manager alert already suggests reorder; generate purchase-order draft for vendor."
+  implementationCost={72}
+  labels={['erp', 'inventory', 'vendor']}
+/>
+</FutureFeatureBacklog>
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/erp"
+    relation="Prerequisite: ERP hub overview."
+  />
+  <RelatedArticle
+    slug="features/erp/inventory"
+    relation="Same-workflow: vendor stock restock and low-stock badges."
+  />
+  <RelatedArticle
+    slug="features/erp/commissions"
+    relation="Next-step: earnings backed by settlements ledger."
+  />
+  <RelatedArticle
+    slug="features/store"
+    relation="Depends-on: multi-vendor catalog and product approval."
+  />
+  <RelatedArticle
+    slug="features/entities"
+    relation="See-also: entity profiles with storeActivated."
+  />
+</RelatedDocs>

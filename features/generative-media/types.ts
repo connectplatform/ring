@@ -5,7 +5,7 @@ import { pickImageSrc, type MediaImageSlot } from '@/lib/file/media-asset'
  * Generative Media SSOT types — gallery items shared across NFT + store product fields.
  */
 
-export type GenerativeMediaScope = 'nft' | 'product'
+export type GenerativeMediaScope = 'nft' | 'product' | 'cabinet' | 'editor'
 
 export type GalleryItemSource = 'upload' | 'generated' | 'video'
 
@@ -58,8 +58,18 @@ export type NftShowcaseExtras = {
 
 export const IMAGE_CONDUCTOR_SENDER_ID = 'system:image-conductor'
 export const IMAGE_CONDUCTOR_SENDER_NAME = 'ImageConductor'
+export const VIDEO_CONDUCTOR_SENDER_ID = 'system:video-conductor'
+export const VIDEO_CONDUCTOR_SENDER_NAME = 'VideoConductor'
 export const GHOST_WRITE_SENDER_ID = 'system:ghost-write'
 export const GHOST_WRITE_SENDER_NAME = 'Ghost-write'
+
+/** Enhance (image edit) preset — File Cabinet / editor viewer. */
+export const CABINET_ENHANCE_PROMPT =
+  'Enhance this image for a better view while maintaining originality: keep everything on the image intact while enhancing blurry, overexposed and undershadowed objects, make photo look professional'
+
+/** Enlive (image→video) preset — File Cabinet / editor viewer. */
+export const CABINET_ENLIVE_PROMPT =
+  'Analyze image, analyze intent of every object and person, envision each intent results in several seconds to understand the flow of the upcoming video, make sure everything in the video is realistic and make sense. When ready, output the video made from this photo'
 
 /** Stable tool-chat productId — hidden from Messages inbox. */
 export function buildGenMediaChatKey(params: {

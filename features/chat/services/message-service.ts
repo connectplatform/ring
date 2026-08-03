@@ -52,6 +52,17 @@ export class MessageService {
         });
       }
 
+      const resolvedType = (data.type || 'text') as Message['type']
+      const { MESSAGE_TYPE_ALLOWLIST } = await import('@/features/chat/lib/interactive-kind')
+      if (!MESSAGE_TYPE_ALLOWLIST.includes(resolvedType)) {
+        throw new ValidationError('Invalid message type', undefined, {
+          timestamp: Date.now(),
+          senderId,
+          conversationId: data.conversationId,
+          operation: 'sendMessage',
+        })
+      }
+
       const now = new Date();
       
       // Handle file attachments via Vercel Blob if any
@@ -83,7 +94,7 @@ export class MessageService {
         attachments: processedAttachments,
         timestamp: now,
         status: 'sent' as const,
-        type: (data.type || 'text') as Message['type'],
+        type: resolvedType,
         ...(data.metadata ? { metadata: data.metadata } : {}),
       }
 
@@ -110,6 +121,24 @@ export class MessageService {
       } catch (error) {
         // Log but don't fail - this is not critical for message sending
         logRingError(error, `Failed to update conversation last message for ${data.conversationId}`)
+      }
+
+      // Client reply in CRM support chat → prefer chat over email (not staff)
+      try {
+        const { markSupportPreferChat } = await import(
+          '@/features/email-crm/services/support-chat-service'
+        )
+        const kind =
+          data.metadata && typeof data.metadata.kind === 'string'
+            ? data.metadata.kind
+            : null
+        await markSupportPreferChat({
+          conversationId: data.conversationId,
+          actorUserId: senderId,
+          messageKind: kind,
+        })
+      } catch (error) {
+        logRingError(error, `Failed to mark support preferChat for ${data.conversationId}`)
       }
 
       // Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
@@ -500,54 +529,30 @@ export class MessageService {
       if (recipients.length === 0) return
 
       const { createNotification } = await import('@/features/notifications/services/notification-service')
-      const {
-        NotificationType,
-        NotificationChannel,
-        NotificationPriority,
-      } = await import('@/features/notifications/types')
+      const { NotificationChannel } = await import('@/features/notifications/types')
+      const { buildInteractiveNotifyPayload } = await import(
+        '@/features/chat/lib/interactive-notify'
+      )
 
-      const preview =
-        message.type === 'text'
-          ? message.content.slice(0, 140)
-          : message.type === 'image'
-            ? 'Sent an image'
-            : message.type === 'file'
-              ? 'Sent a file'
-              : message.type === 'payment_request'
-                ? message.content.slice(0, 140)
-                : message.content.slice(0, 140)
-
-      const notificationType =
-        message.type === 'payment_request'
-          ? NotificationType.PAYMENT_REQUEST
-          : NotificationType.MESSAGE_RECEIVED
-
-      const title =
-        message.type === 'payment_request'
-          ? 'Payment request'
-          : conversation.type === 'group'
-            ? conversation.metadata.groupName || 'Group chat'
-            : message.senderName || 'New message'
+      const payload = buildInteractiveNotifyPayload({
+        conversation,
+        conversationId,
+        senderId,
+        message,
+      })
 
       await Promise.allSettled(
         recipients.map((userId) =>
           createNotification({
             userId,
-            type: notificationType,
-            priority: NotificationPriority.NORMAL,
-            title,
-            body: preview,
-            actionText: message.type === 'payment_request' ? 'View request' : 'Open chat',
-            actionUrl: `/messages?c=${encodeURIComponent(conversationId)}`,
+            type: payload.notificationType,
+            priority: payload.priority,
+            title: payload.title,
+            body: payload.body,
+            actionText: payload.actionText,
+            actionUrl: payload.actionUrl,
             channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
-            data: {
-              conversationId,
-              messageId: message.id,
-              senderId,
-              ...(message.type === 'payment_request'
-                ? { kind: 'payment_request', metadata: message.metadata }
-                : {}),
-            },
+            data: payload.data,
           } as never),
         ),
       )
@@ -591,6 +596,73 @@ export class MessageService {
           messageId,
           operation: 'getMessage'
         }
+      )
+    }
+  }
+
+  /**
+   * Update a message under a short transaction lock (SELECT … FOR UPDATE).
+   * Use for concurrent metadata merges (poll votes, RSVP responses).
+   */
+  async updateMessageLocked(
+    messageId: string,
+    mutator: (current: Message) => Partial<Message>,
+  ): Promise<Message> {
+    try {
+      const updated = await db().transaction(async (txn) => {
+        const locked = await txn.read('messages', messageId)
+        if (!locked) {
+          throw new ValidationError('Message not found', undefined, {
+            timestamp: Date.now(),
+            messageId,
+            operation: 'updateMessageLocked',
+          })
+        }
+
+        const current = {
+          id: locked.id,
+          ...(locked.data as Omit<Message, 'id'>),
+        } as Message
+
+        const patch = mutator(current)
+        const nextDoc = {
+          ...current,
+          ...patch,
+          id: messageId,
+          editedAt: new Date(),
+        }
+
+        const { id: _id, ...dataWithoutId } = nextDoc
+        await txn.update('messages', messageId, dataWithoutId as Partial<Message>)
+        return nextDoc
+      })
+
+      const conversationId = updated.conversationId
+
+      await publishToChannel(`conversation:${conversationId}`, 'message:update', updated)
+      await publishToChannel(`message:${messageId}`, 'message:edited', {
+        id: messageId,
+        editedAt: Date.now(),
+      })
+
+      if (conversationId) {
+        revalidatePath(`/[locale]/chat/${conversationId}`)
+      }
+
+      return updated
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error
+      }
+
+      throw new EntityDatabaseError(
+        'Failed to update message under lock',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          messageId,
+          operation: 'updateMessageLocked',
+        },
       )
     }
   }

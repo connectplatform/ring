@@ -37,6 +37,7 @@
   "profile": "Профіль",
   "settings": "Налаштування",
   "messages": "Повідомлення",
+  "tasks": "Завдання",
   "wallet": "Гаманець",
   "refcodes": "Ділись і заробляй",
   "admin": {
@@ -114,7 +115,12 @@
     "browseCatalog": "Досліджуйте ферми",
     "verifiedPublishers": "Сертифіковані органічні ферми",
     "newListings": "Свіжий врожай",
-    "bundlesAndStacks": "Сезонні продукти"
+    "bundlesAndStacks": "Сезонні продукти",
+    "supermenuFilter": "Фільтр меню…",
+    "economics": "Економіка",
+    "calculateYourProject": "Розрахуйте свій проєкт",
+    "calculateYourProjectDesc": "Оберіть опції для AI-клону проєкту, оплата {token} або карткою.",
+    "calculatorCta": "Калькулятор"
   },
   "userRole": {
     "superadmin": "Супер-адміністратор",
@@ -264,10 +270,12 @@
   "myProjectOrders": "Мої проєкти",
   "changelog": {
     "title": "Журнал змін",
-    "subtitle": "Нотатки релізів з CHANGELOG.md (v{version})",
+    "subtitle": "Нотатки релізів з docs changelog (v{version})",
     "project": "Проєкт",
     "publisher": "Видавець",
     "reportErrors": "Повідомити про помилку",
-    "publisherPage": "Сторінка видавця"
-  }
+    "publisherPage": "Сторінка видавця",
+    "empty": "Поки немає записів у changelog."
+  },
+  "games": "Ігри"
 }

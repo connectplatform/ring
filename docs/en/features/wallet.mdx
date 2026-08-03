@@ -1,7 +1,7 @@
 ---
 title: Wallet & Credit System
 description: Custodial native-token wallets, fiat credit ledger, gasless Solana transfers, Token Desk credit↔token conversion, and PIN-wrapped encryption on Ring Platform
-last_modified: "2026-07-14"
+last_modified: "2026-07-21"
 audience: both
 ---
 
@@ -25,7 +25,7 @@ Four separate money paths — do not conflate them:
 | # | Path | Entry | Result |
 |---|------|-------|--------|
 | 1 | Card top-up (`wallet_topup`) | `/wallet/topup` / `CreditAddFsModal` → PaymentConductor | **Credit points** (fiat ledger) — never on-chain RING |
-| 2 | Token Desk (buy) | `/wallet` Desk widget → `desk-service.ts` (subscriber+) | Credit points → **native RING** (`nativeOut = points / ringPerUsd`) |
+| 2 | Token Desk (buy) | `/wallet` Desk widget → `desk-service.ts` (subscriber+) | Credit points → **native RING** (`nativeOut = points / nativePerMainCurrency`) |
 | 3 | Store `native_token` rail | `POST /api/store/payments/token` | Spend **native RING** at checkout (separate from top-up) |
 | 4 | Chain-proof credit add | `POST /api/wallet/credit/topup` (tx-hash verify) | Credit add after on-chain transfer proof |
 | 5 | BuyNativeViaCard (`native_token_onramp`) | Confidential tabs when `CONFIDENTIAL_TOKEN_ONRAMP=true` | Card/PayPal → **treasury RING** (not credit) |
@@ -55,7 +55,7 @@ Four separate money paths — do not conflate them:
 
 ### Core concepts for clone operators
 
-**Credit balance is fiat points** denominated in store `defaultCurrency` (USD on ring-platform.org). Accounting multiplier is `credit.unitToDefaultCurrency` in `ring-config.json` (usually `1` = 1:1). Members earn or top up credits; convert to native token only through the Token Desk (separate **oracle** rate in `platform_settings.web3.oracle.ringPerUsd`).
+**Credit balance is fiat points** denominated in store `mainCurrency` (USD on ring-platform.org). Accounting multiplier is `credit.creditBalanceUnitToMainCurrency` in `ring-config.json` (usually `1` = 1:1). Members earn or top up credits; convert to native token only through the Token Desk (separate **oracle** rate in `platform_settings.web3.oracle.nativePerMainCurrency`).
 
 **Native token transfers are gasless.** The clone treasury sponsors Solana transaction fees so members never need SOL for gas. An optional transfer tax can be configured per clone for high-frequency send projects.
 
@@ -66,7 +66,7 @@ Four separate money paths — do not conflate them:
 ### Typical member flows
 
 - **First login** — wallet auto-provisioned; credit balance initialized at 0.
-- **Check balance** — wallet page shows credit balance + native-token balance per chain.
+- **Check balance** — wallet page shows credit balance + native-token balance per chain. Credits push live on Tunnel `credit:balance`; custodial wallet rows refresh on `wallet:list` when Tunnel is connected (60s poll only as fallback).
 - **Send tokens to a contact** — pick recipient from contacts, enter amount, confirm. Gas sponsored by treasury.
 - **Top up credits** — native-token transfer (tx hash verify) **or** Add Credit modal (`CreditAddFsModal`): **Card** | **PayPal** tabs → `WalletConductor.initiateTopUp` → PaymentConductor (amount 25–2000). Browser follows `redirect` via `followCheckoutResult`. Balance updates after webhook **Approved** / capture — not when the browser returns to `/wallet`.
 
@@ -76,29 +76,45 @@ Four separate money paths — do not conflate them:
 - **Set a wallet PIN** — profile/security page; 4-digit PIN activates v2 PIN-wrapped encryption for all existing wallets.
 - **Authorize a withdrawal** — enter PIN; server validates against the stored encryption envelope; single-use access token issued.
 - **Convert credits to tokens** — use the Desk widget: choose buy/sell direction, get a quote, execute at oracle rate.
-- **Pay in store** — checkout rail `internal_credit` debits the fiat ledger (same `unitToDefaultCurrency` rate as ad-hoc spend).
+- **Pay in store** — checkout rail `credit_balance` debits the fiat ledger (same `creditBalanceUnitToMainCurrency` rate as ad-hoc spend).
 - **Pay with credits (ad-hoc)** — `spendCredits` / `POST /api/wallet/credit/spend` for non-checkout debits (services, membership fee paths).
 
 <Callout type="warning">
-  **Custodial model:** Ring signs transfers server-side for auto-provisioned wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use custodial transfer routes. Credits and native-token balances are separate concepts.
+  **Custodial model:** Ring signs transfers server-side for auto-provisioned wallets. External wallets (MetaMask, Coinbase Wallet, WalletConnect via the Wagmi v3 connector picker) connect client-side — they do not use custodial transfer routes. Credits and native-token balances are separate concepts.
 </Callout>
 
 ## Related documentation
 
-<Cards>
-  <Card title="Wallet API reference" href="/docs/api/wallet">
-    Server actions and SSOT file listing.
-  </Card>
-  <Card title="Token economics" href="/docs/customization/token-economics">
-    Oracle rate, transfer tax, first-settler discounts.
-  </Card>
-  <Card title="Store feature" href="/docs/features/store">
-    Credit spend at checkout.
-  </Card>
-  <Card title="Authentication" href="/docs/features/authentication">
-    Google/Apple/social sign-in triggers wallet provisioning.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/tunnel-protocol"
+    relation="Depends-on: live `credit:balance` and `wallet:list` updates while the wallet tab stays open."
+  />
+  <RelatedArticle
+    slug="api/wallet"
+    relation="Deep-dive: Server Actions and HTTP SSOT for list, credit, and transfer."
+  />
+  <RelatedArticle
+    slug="customization/token-economics"
+    relation="See-also: oracle rate, transfer tax, first-settler discounts."
+  />
+  <RelatedArticle
+    slug="features/store"
+    relation="Same-workflow: credit spend at checkout."
+  />
+  <RelatedArticle
+    slug="features/authentication"
+    relation="Prerequisite: Google/Apple/social sign-in triggers wallet provisioning."
+  />
+  <RelatedArticle
+    slug="integrations/ethereum-wallets"
+    relation="Deep-dive: Wagmi v3 pathNeedsWeb3 gate, getEvmRpcUrl / getEvmTokenAddress SSOT."
+  />
+  <RelatedArticle
+    slug="features/public-pools"
+    relation="Same-workflow: desk oracle nativePerMainCurrency converts public-pool card chip-ins to pledged native (not wallet_topup 1:1)."
+  />
+</RelatedDocs>
 
 </Audience>
 
@@ -119,12 +135,12 @@ The wallet system uses **server actions** (`app/_actions/wallet.ts`) as the prim
 | 5 | `getCreditHistory` | Credit | Paginated credit transaction history |
 | 6 | `getCreditBalance` | Credit | Current credit balance (always fiat USD) |
 | 7 | `topUpCredits` | Credit | Add credits after on-chain verification |
-| 8 | `spendCredits` | Credit | Ad-hoc fiat debit via `WalletConductor.spendCredits` (rate = `credit.unitToDefaultCurrency`, not desk oracle) |
+| 8 | `spendCredits` | Credit | Ad-hoc fiat debit via `WalletConductor.spendCredits` (rate = `credit.creditBalanceUnitToMainCurrency`, not desk oracle) |
 | 9 | `transferCredits` | Credit | Admin credit adjustment |
 | 10 | `processMembershipFee` | Credit | Monthly membership fee from credits |
 | 11 | `transferNativeTokens` | Token | Gasless native-token transfer (treasury-sponsored) |
-| 12 | `getRingPerUsdRate` | Oracle | Current oracle rate |
-| 13 | `setRingPerUsdRate` | Oracle | Update oracle rate (admin-only) |
+| 12 | `getNativeTokenPerMainCurrencyRate` | Oracle | Current oracle rate |
+| 13 | `setNativeTokenPerMainCurrencyRate` | Oracle | Update oracle rate (admin-only) |
 | 14 | `signDeskQuote` | Desk | Sign quote for credit↔token conversion |
 | 15 | `executeDeskQuote` | Desk | Execute signed quote (buy/sell/refund) |
 | 16 | `verifyDeskQuote` | Desk | Verify signed quote token |
@@ -185,7 +201,7 @@ const [state, formAction, isPending] = useActionState(
 | Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser(userId, toAddress, amount)` — treasury sponsors gas |
 | Treasury ops | `features/wallet/chains/solana/treasury-transfer-service.ts` | `transferNativeTokenFromTreasury`, `transferNativeTokenToTreasury`, `burnRingFromUser` |
 | Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` — credit↔token conversion |
-| Oracle rate | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate` — `platform_settings` doc `web3` via `db().readDoc` / `updateDoc` |
+| Oracle rate | `features/wallet/services/native-token-oracle.ts` | `getNativeTokenPerMainCurrencyRate`, `setNativeTokenPerMainCurrencyRate` — `platform_settings` doc `web3` via `db().readDoc` / `updateDoc` |
 | Wallet DB | `lib/wallet/user-wallet-db.ts` | `getNativeWallet`, `getUserWallets`, `setUserWallets`, `migrateUserWalletsToPin` |
 | Wallet provisioning | `features/wallet/conductor/wallet-conductor.ts` + `ensure-wallet.ts` | App callers use `WalletConductor.ensureNativeWallet`; low-level `ensureWallets` remains the atomic multi-chain writer |
 | Balance fetch | `features/wallet/services/list-wallets.ts` | `listWallets` — gets on-chain balances via viem/Solana RPC |
@@ -269,7 +285,7 @@ Legacy v1 wallets (`iv:encrypted:authTag`) remain readable via `decryptWalletSec
   participant D as DB (credits)
 
   C->>A: signDeskQuote({ side: buy, amount })
-  A->>O: getRingPerUsdRate()
+  A->>O: getNativeTokenPerMainCurrencyRate()
   O-->>A: rate
   A-->>C: quoteToken + ringAmountUi
   C->>A: executeDeskQuote({ idempotencyKey, quoteToken })
@@ -309,7 +325,7 @@ Credit balance is **always fiat USD** on ring-platform.org — never native-toke
 <Code language="typescript">{`// lib/zod/credit-schemas.ts
 export const UserCreditBalanceSchema = z.object({
   amount: z.string(),       // Fiat balance amount (USD)
-  usd_equivalent: z.string(),
+  main_currency_equivalent: z.string(),
   fiat_currency: z.string().optional(), // 'USD' on ring-platform.org
   last_updated: z.number(),
   subscription_active: z.boolean().default(false),
@@ -319,11 +335,11 @@ export const UserCreditBalanceSchema = z.object({
 
 The Token Desk converts at the oracle rate (`desk-service.ts`):
 ```
-nativeOut = (points × pointFiatValue) / ringPerUsd   // pointFiatValue = 1
-100 credit points (USD) at ringPerUsd=100 → 1 native token
+nativeOut = (points × pointFiatValue) / nativePerMainCurrency   // pointFiatValue = 1
+100 credit points (USD) at nativePerMainCurrency=100 → 1 native token
 ```
 
-Rate stored in `platform_settings` collection, document id `web3`, field path `oracle.ringPerUsd`. `ring-token-oracle.ts` uses `db()` from `@/lib/database` — same persistence layer as `platform-settings-service.ts`. When `PLATFORM_SETTINGS_DISABLE_DB=true`, reads use `RING_ORACLE_DEFAULT_RATE` (fallback `100`) and writes throw. Superadmin updates via `setRingPerUsdRate` action or `POST /api/admin/web3/settings`.
+Rate stored in `platform_settings` collection, document id `web3`, field path `oracle.nativePerMainCurrency`. `native-token-oracle.ts` uses `db()` from `@/lib/database` — same persistence layer as `platform-settings-service.ts`. When `PLATFORM_SETTINGS_DISABLE_DB=true`, reads use `RING_ORACLE_DEFAULT_RATE` (fallback `100`) and writes throw. Superadmin updates via `setNativeTokenPerMainCurrencyRate` action or `POST /api/admin/web3/settings`.
 
 ### Environment variables
 
@@ -333,8 +349,8 @@ Rate stored in `platform_settings` collection, document id `web3`, field path `o
 | `SOLANA_RPC_URL` | Yes | `solana-client.ts` — on-chain Solana operations |
 | `SOLANA_TREASURY_PRIVATE_KEY` | Yes | `treasury-transfer-service.ts` — sponsored gas transfers |
 | `WALLET_ACCESS_TOKEN_TTL_SECONDS` | No (default: 900) | `pin-access-token-db.ts` — single-use token TTL |
-| `POLYGON_RPC_URL` | For EVM chains | `get-wallet-balance.ts` — EVM balance fallback path |
-| `ORACLE_QUOTE_SECRET` | For desk | `ring-token-oracle.ts` — desk quote HMAC signing (falls back to `WALLET_ENCRYPTION_KEY`) |
+| `POLYGON_RPC_URL` / `getEvmRpcUrl()` | For EVM chains | `lib/ring-config-chain.ts` + `features/wallet/chains/evm/evm-token-transfer.ts`; live balance via `getWalletBalance` in `app/_actions/wallet.ts` |
+| `ORACLE_QUOTE_SECRET` | For desk | `native-token-oracle.ts` — desk quote HMAC signing (falls back to `WALLET_ENCRYPTION_KEY`) |
 | `RING_ORACLE_DEFAULT_RATE` | No (default `100`) | Oracle read fallback when DB row missing or `PLATFORM_SETTINGS_DISABLE_DB=true` |
 | `PLATFORM_SETTINGS_DISABLE_DB` | No | When `true`, oracle/settings reads use env defaults; writes blocked |
 | `CONFIDENTIAL_TOKEN_ONRAMP` | No (default `false`) | PaymentConductor `native_token_onramp` — confidential+ card/PayPal → treasury RING |
@@ -378,21 +394,21 @@ Distinct from PaymentConductor card top-up. Verifies an on-chain transfer to tre
 | `quoteDesk` / `executeDesk` | Credit points → native RING (subscriber+; Solana desk) |
 | `getNativeBalance` | Custodial native balance |
 | `transferNative` | Gasless custodial native send (`chains.native` / `chains.enabled`) |
-| `spendCredits` | User credit-spend API / FormData path — fiat rate from `credit.unitToDefaultCurrency` (not desk oracle) |
+| `spendCredits` | User credit-spend API / FormData path — fiat rate from `credit.creditBalanceUnitToMainCurrency` (not desk oracle) |
 
 **Not in WalletConductor:** external EVM wallet USDT/POL via `POST /api/wallet/transfer` (SupportedCrypto when `chains.enabled` includes `evm`) — keep separate from Solana custodial SSOT.
 
 ### Fiat credit spend — two-rate boundary
 
 <Callout type="tip">
-  **Fiat accounting** (`getFiatCreditAccountingRate` → `credit.unitToDefaultCurrency`) applies to ledger debits. **Desk oracle** (`ringPerUsd`) applies only to credit ↔ native conversion. Mixing them understates or overstates store/ad-hoc spends.
+  **Fiat accounting** (`getMainCurrencyCreditAccountingRate` → `credit.creditBalanceUnitToMainCurrency`) applies to ledger debits. **Desk oracle** (`nativePerMainCurrency`) applies only to credit ↔ native conversion. Mixing them understates or overstates store/ad-hoc spends.
 </Callout>
 
 | Path | Entry | Rate helper |
 |------|-------|-------------|
-| Ad-hoc debit | `spendCredits` action / `POST /api/wallet/credit/spend` → `WalletConductor.spendCredits` | `getFiatCreditAccountingRate()` |
-| Store checkout | PaymentConductor `internal_credit` → `internal-credit.processor.ts` | `getFiatCreditAccountingRate()` |
-| Desk buy/sell | `quoteDesk` / `executeDesk` | `getRingPerUsdRate()` only |
+| Ad-hoc debit | `spendCredits` action / `POST /api/wallet/credit/spend` → `WalletConductor.spendCredits` | `getMainCurrencyCreditAccountingRate()` |
+| Store checkout | PaymentConductor `credit_balance` → `credit-balance.processor.ts` | `getMainCurrencyCreditAccountingRate()` |
+| Desk buy/sell | `quoteDesk` / `executeDesk` | `getNativeTokenPerMainCurrencyRate()` only |
 
 Deep HTTP tables and Mermaid: [Wallet API](/docs/api/wallet).
 

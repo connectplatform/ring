@@ -1,14 +1,14 @@
 ---
 title: Ring CDN (RingFileBase edge)
 description: NGINX CDN edge for Ring clones — public /files paths (originals + {fileId}_v_* derivatives), host-to-bucket mapping, multi-zone delivery
-last_modified: "2026-07-15"
+last_modified: "2026-07-21"
 audience: both
 ---
 
 # Ring CDN (RingFileBase edge)
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Uploads are documented under [RingFileBase](/docs/integrations/ring-filebase); this page covers **public delivery**.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Uploads are documented under [RingFileBase](/docs/integrations/ring-filebase); this page covers **public delivery**. [Ring File Cabinet](/docs/features/file-cabinet) public galleries (`/{username}/img`) serve `visibility=public` items from stable CDN `/files/{uuid}` URLs.
 </Callout>
 
 **Ring CDN** is the read path for objects stored by RingFileBase: an NGINX edge (`ring-filebase-cdn`) that proxies `GET /files/<key>` to MinIO (or RGW) with caching headers. Browsers and crawlers never need MinIO credentials. Keys include originals (`/files/{uuid}`) and derivatives (`/files/{uuid}_v_thumb.webp`, `/files/{uuid}_v_video_frame_0_480.webp`, …) — same `{fileId}_v_*` scheme as [RingFileBase](/docs/integrations/ring-filebase).
@@ -35,6 +35,9 @@ Users and search engines load product photos, avatars, and generated media from 
   </Card>
   <Card title="Marketplace media" href="/docs/features/store">
     Store product images once via RingFileBase; serve forever from CDN URLs stored in Postgres.
+  </Card>
+  <Card title="File Cabinet /img" href="/docs/features/file-cabinet">
+    Curated public gallery items embed CDN `/files/{uuid}` (+ `_v_*` derivatives) — no HMAC/TTL signed URLs in current adapter.
   </Card>
   <Card title="Generative media" href="/docs/development/generative-images">
     ImageConductor / VideoConductor outputs should land on RingFileBase so OG and newsroom assets use CDN URLs.
@@ -164,17 +167,26 @@ Expect **200**. **403** → bucket policy / ACL. **404** → wrong bucket map or
 
 ## Related documentation
 
-<Cards>
-  <Card title="RingFileBase API" href="/docs/integrations/ring-filebase">
-    Authenticated uploads, tokens, `file()` adapter.
-  </Card>
-  <Card title="Environment configuration" href="/docs/deployment/environment">
-    Storage and CDN-related env vars.
-  </Card>
-  <Card title="Performance" href="/docs/deployment/performance">
-    Caching and edge considerations for clones.
-  </Card>
-  <Card title="Integrations hub" href="/docs/integrations">
-    Full integration catalog.
-  </Card>
-</Cards>
+<RelatedDocs>
+
+<RelatedArticle
+  slug="integrations/ring-filebase"
+  relation="Prerequisite: authenticated uploads and file() / RingBaseAdapter before public CDN reads."
+/>
+
+<RelatedArticle
+  slug="features/file-cabinet"
+  relation="Same-workflow: member gallery curation → public /{username}/img via CDN /files/{uuid}; private bytes use ACL download proxy."
+/>
+
+<RelatedArticle
+  slug="deployment/environment"
+  relation="Depends-on: RINGBASE_PUBLIC_URL and storage-related env for clones."
+/>
+
+<RelatedArticle
+  slug="deployment/performance"
+  relation="See-also: caching and edge considerations for clones."
+/>
+
+</RelatedDocs>

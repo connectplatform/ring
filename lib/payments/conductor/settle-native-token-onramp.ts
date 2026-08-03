@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getRingPerUsdRate } from '@/features/wallet/services/ring-token-oracle'
+import { mainCurrencyToNativeTokenUi } from '@/lib/ring-oracle'
 import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
 import { transferTokenFromTreasury } from '@/features/wallet/chains/solana/treasury-transfer-service'
 import { createWalletTransaction } from '@/lib/wallet/wallet-transaction-db'
@@ -15,17 +15,17 @@ import { logger } from '@/lib/logger'
 
 /**
  * After card/PayPal capture for purpose native_token_onramp:
- * convert fiat → RING (desk SSOT: nativeOut = fiat / ringPerUsd) and transfer from treasury.
+ * convert fiat → native UI (desk SSOT: nativeOut = fiat / nativePerMainCurrency) and transfer from treasury.
  */
 export async function settleNativeTokenOnramp(params: {
   userId: string
-  fiatAmount: number
+  mainCurrencyAmount: number
   orderReference: string
   processor: string
 }): Promise<{ ok: boolean; txHash?: string; tokenAmount?: string; error?: string }> {
-  const { userId, fiatAmount, orderReference, processor } = params
+  const { userId, mainCurrencyAmount, orderReference, processor } = params
 
-  if (!Number.isFinite(fiatAmount) || fiatAmount <= 0) {
+  if (!Number.isFinite(mainCurrencyAmount) || mainCurrencyAmount <= 0) {
     return { ok: false, error: 'Invalid fiat amount' }
   }
 
@@ -34,12 +34,7 @@ export async function settleNativeTokenOnramp(params: {
   }
 
   try {
-    const ringPerUsd = Number(await getRingPerUsdRate())
-    if (!Number.isFinite(ringPerUsd) || ringPerUsd <= 0) {
-      return { ok: false, error: 'Oracle rate unavailable' }
-    }
-
-    const ringUi = (fiatAmount / ringPerUsd).toFixed(8)
+    const ringUi = await mainCurrencyToNativeTokenUi(mainCurrencyAmount)
     const ringRaw = nativeTokenUiToRaw(ringUi, getNativeTokenDecimals() ?? 8)
     if (ringRaw <= 0n) {
       return { ok: false, error: 'Converted token amount too small' }
@@ -70,12 +65,12 @@ export async function settleNativeTokenOnramp(params: {
       amount: tokenAmount,
       tokenSymbol: getNativeTokenSymbol(),
       chain: 'solana',
-      notes: `onramp ${processor} ${orderReference} fiat=${fiatAmount}`,
+      notes: `onramp ${processor} ${orderReference} fiat=${mainCurrencyAmount}`,
     })
 
     logger.info('Native token onramp settled', {
       userId,
-      fiatAmount,
+      mainCurrencyAmount,
       tokenAmount,
       orderReference,
       txHash: transfer.txHash,
@@ -90,7 +85,7 @@ export async function settleNativeTokenOnramp(params: {
         reversible: false,
         payload: {
           orderReference,
-          fiatAmount,
+          mainCurrencyAmount,
           tokenAmount,
           txHash: transfer.txHash,
           processor,

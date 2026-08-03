@@ -211,11 +211,23 @@ export class RingBaseAdapter implements IFileService {
       const result = await response.json()
       if (!result.success || !result.file) return null
       const file = result.file
+      // Ring-filebase GET /files/:id/metadata returns S3 shape:
+      // { id, size, mimeType, lastModified, metadata: { 'original-filename', 'uploaded-at', ... } }
+      const s3Meta = (file.metadata || {}) as Record<string, string>
+      const original =
+        s3Meta['original-filename'] ||
+        s3Meta.originalFilename ||
+        file.filename ||
+        file.originalName
       return {
-        filename: file.filename || this.extractFilenameFromUrl(url),
+        filename: original || this.extractFilenameFromUrl(url),
         size: file.size,
-        contentType: file.contentType || file.mimeType,
-        uploadedAt: file.uploadedAt || new Date().toISOString(),
+        contentType: file.contentType || file.mimeType || s3Meta['content-type'],
+        uploadedAt:
+          s3Meta['uploaded-at'] ||
+          file.uploadedAt ||
+          file.lastModified ||
+          new Date().toISOString(),
         url,
         downloadUrl: url,
       }

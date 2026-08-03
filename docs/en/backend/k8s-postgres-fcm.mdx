@@ -82,7 +82,7 @@ audience: both
 | **Raw SQL (PostGIS)** | `getSharedPgPool()` | Spatial queries only — after `initializeDatabase()` |
 | **Pool owner** | `PostgreSQLAdapter.getPgPool()` | Internal; exposed via `getSharedPgPool()` |
 
-A 2026-07-07 audit eliminated three rogue `pg.Pool` instances in feature modules (`platform-settings-service.ts`, `ring-token-oracle.ts`, `geolocation-service.ts`). Those modules now route through `db()` or `getSharedPgPool()`. The `validate-provider-ssot.sh` gate allows `new Pool(` only under `lib/database/`.
+A 2026-07-07 audit eliminated three rogue `pg.Pool` instances in feature modules (`platform-settings-service.ts`, `native-token-oracle.ts`, `geolocation-service.ts`). Those modules now route through `db()` or `getSharedPgPool()`. The `validate-provider-ssot.sh` gate allows `new Pool(` only under `lib/database/`.
 
 ## Required environment variables
 
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 `PostgreSQLAdapter` splits writes: public config into `data`, API keys into `secrets`, actor into `updated_by`. Consumers use `db().readDoc` / `createDoc` / `updateDoc`:
 
 - `features/admin/platform-settings/platform-settings-service.ts` — AI, branding, matcher namespaces
-- `features/wallet/services/ring-token-oracle.ts` — `web3` namespace oracle rates
+- `features/wallet/services/native-token-oracle.ts` — `web3` namespace oracle rates
 
 ## PostGIS and geolocation
 

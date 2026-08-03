@@ -15,6 +15,7 @@ import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-
 import { getGatewayConfig } from '@/lib/payments/subscription/subscription-config'
 import { parseOrderReference } from '@/lib/payments/order-reference'
 import { logger } from '@/lib/logger'
+import { getPayPalGatewayCurrency } from '@/lib/payments/processors/paypal-client'
 
 function resourceOf(event: Record<string, unknown>): Record<string, unknown> {
   return (event.resource as Record<string, unknown>) || {}
@@ -36,7 +37,7 @@ function extractSaleAmount(resource: Record<string, unknown>): {
     (resource.amount as { total?: string; value?: string; currency?: string; currency_code?: string }) ||
     {}
   const value = Number(amountObj.total ?? amountObj.value ?? 0)
-  const currency = String(amountObj.currency_code ?? amountObj.currency ?? 'USD').toUpperCase()
+  const currency = String(amountObj.currency_code ?? amountObj.currency ?? getPayPalGatewayCurrency()).toUpperCase()
   return { amount: Number.isFinite(value) ? value : 0, currency }
 }
 
@@ -68,7 +69,7 @@ export async function handlePayPalSubscriptionActivated(
   }
 
   const amount = Number(row?.amount ?? 0)
-  const currency = String(row?.currency ?? 'USD').toUpperCase()
+  const currency = String(row?.currency ?? getPayPalGatewayCurrency()).toUpperCase()
   const resolvedUserId = String(row?.user_id || userId || '')
 
   if (!resolvedUserId) {

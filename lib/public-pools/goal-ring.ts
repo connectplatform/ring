@@ -8,7 +8,7 @@ export function goalHoursFromImplementationCost(implementationCost: number): num
   return hours
 }
 
-/** goal_ring = goal_hours × ringPerMachineHour (decimal string). */
+/** goal_native_token = goal_hours × ringPerMachineHour (decimal string). */
 export function goalRingFromHours(goalHours: number): string {
   const { ringPerMachineHour } = getPublicPoolConfig()
   const ring = goalHours * ringPerMachineHour

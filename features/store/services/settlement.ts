@@ -30,7 +30,12 @@ import {
   type ReferralItemRate,
 } from '@/features/store/lib/referral-commission'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import {
+  getCreditUnitLabel,
+  getMainCurrencySymbol,
+  getNativeTokenSymbol,
+  getSystemConfigSnapshot,
+} from '@/lib/ring-config-core'
 
 // --- NEW: Import extra types for payment rails support from ring-config-types
 import type { VendorMerchantPayoutRailType, VendorMerchantPayoutCurrencyType, VendorAcceptedPaymentMethods } from '@/lib/ring-config-types'
@@ -49,14 +54,14 @@ function settlementCurrency(order: Order): string {
   }
   // Fallback: infer from system config tokens and fiats, match order totals
   const config = getSystemConfigSnapshot()
-  const tokens = config.tokens.supported ?? ['RING']
-  const fiats = config.supportedCurrencies ?? ['USD']
+  const tokens = config.tokens.supported ?? [getNativeTokenSymbol()]
+  const fiats = config.supportedCurrencies ?? [getMainCurrencySymbol()]
   // Attempt to match currency in order.totals; return first match
   for (const currency of [...tokens, ...fiats]) {
     if (order.totals[currency]) return currency
   }
-  // Final default to USD (or system-default fiat)
-  return fiats[0] ?? 'USD'
+  // Final default: the project main currency
+  return fiats[0] ?? getMainCurrencySymbol()
 }
 
 // Settlement record shape - see related payout rails
@@ -451,8 +456,8 @@ async function processSettlement(
     }
     const systemConfig = getSystemConfigSnapshot()
     const nativeToken = systemConfig.tokens.nativeToken
-    const creditUnit = systemConfig.credits.unit ?? 'credits'
-    const creditFiatCurrency = systemConfig.store.defaultCurrency
+    const creditBalanceUnit = getCreditUnitLabel()
+    const mainCurrency = getMainCurrencySymbol()
 
     // Retrieve platform payout mode (simulated, onchain, etc)
     const payoutMode = getSettlementPayoutMode()
@@ -641,8 +646,7 @@ async function processCreditBalancePayout(
 ): Promise<string> {
   // Atomically decrement the vendor's available credit balance by 'amount'
   // Returns payout reference id (e.g., a journal txn id)
-  const ringConfig = getSystemConfigSnapshot()
-  const creditUnit = ringConfig.credits.unit ?? 'credits'
+  const creditBalanceUnit = getCreditUnitLabel()
   const vendorResult = await db().findDocById<VendorProfile>(
     STORE_COLLECTIONS.vendorProfiles,
     vendorId
@@ -652,15 +656,15 @@ async function processCreditBalancePayout(
   }
 
   const vendor = vendorResult.data as VendorProfile
-  if (typeof vendor[creditUnit] !== 'number' || vendor[creditUnit] < amount) {
-    throw new Error(`Insufficient ${creditUnit} balance for payout`)
+  if (typeof vendor[creditBalanceUnit] !== 'number' || vendor[creditBalanceUnit] < amount) {
+    throw new Error(`Insufficient ${creditBalanceUnit} balance for payout`)
   }
 
   // Update: decrement balance, log journal entry (atomic)
-  const newBalance = vendor[creditUnit] - amount
+  const newBalance = vendor[creditBalanceUnit] - amount
 
   const updateResult = await db().updateDoc(STORE_COLLECTIONS.vendorProfiles, vendorId, {
-    [creditUnit]: newBalance,
+    [creditBalanceUnit]: newBalance,
     // Optionally add a credit payout journal entry
     $push: {
       creditJournal: {

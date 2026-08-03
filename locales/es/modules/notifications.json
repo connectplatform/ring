@@ -114,5 +114,14 @@
     "description": "Recibe actualizaciones en tiempo real sobre colaboraciones, comentarios y estado de publicación.",
     "enable": "Activar",
     "notNow": "Ahora no"
+  },
+  "typeLabels": {
+    "poll_created": "Nuevas encuestas en tus chats",
+    "poll_closed": "Cuando se cierra una encuesta que sigues",
+    "rsvp_invite": "Invitaciones RSVP en el chat",
+    "rsvp_updated": "Actualizaciones de RSVP en los que participas",
+    "dao_jar_update": "Publicaciones de DAO jar y contribuciones",
+    "game_request": "Desafíos de juego en el chat",
+    "game_updated": "Actualizaciones cuando se acepta o termina una partida"
   }
 }

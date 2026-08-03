@@ -1,60 +1,44 @@
-# Ring PublicPool — Solana Anchor program (v2 escrow)
+# Ring PublicPool — Solana Anchor program (escrow)
 
-Status: **scaffold / not deployed**. v1 docs backlog uses **donation** chip-ins to the clone treasury ATA with off-chain pool accounting in Postgres.
+**Canonical source:** [`solana/programs/public-pool`](../../solana/programs/public-pool) (workspace member).  
+This directory keeps the historical README pointer used by Type Debt docs.
 
-## Purpose
+## Do we need a separate Solana contract?
 
-Conditional RING contributions for `public_pools` with `funding_mode: escrow`:
+**Yes.** Escrow (`funding_mode: escrow`) uses this Anchor program (PDA vault + contribute / finalize / refund). It is distinct from:
 
-- Contributors deposit SPL RING into a **PDA vault** tied to `pool_slug`
-- If `raised >= goal` before `deadline` → `finalize_success` releases to builder/treasury
-- If deadline passes under goal → contributors call `refund_contributor`
+- Donation chip-ins → clone treasury ATA (`transferTokenToTreasury`)
+- Card/PayPal jar → PaymentConductor `public_pool_contribution` + desk-oracle → `pledged_native_token`
+- Builder payout → treasury → opportunity-owner native wallet (pledged − platform fee)
 
-## Instructions (planned)
+## Emperor — manual deploy (devnet-first)
 
-| Instruction | Description |
-|-------------|-------------|
-| `init_pool` | Create pool account: goal, deadline, clone_id hash, pool_slug hash |
-| `contribute` | SPL transfer checked into vault; emit contribution index |
-| `finalize_success` | Authority or crank when raised ≥ goal; transfer vault → recipient |
-| `refund_contributor` | After deadline if under goal; return contributor share |
+Use the **same Solana owner / fee-payer / treasury keys** already configured for this clone (`SOLANA_FEE_PAYER_PRIVATE_KEY`, `SOLANA_TREASURY_PRIVATE_KEY`, `WALLET_ENCRYPTION_KEY`, mint from `ring-config` `chains.solana`).
 
-## Account layout (sketch)
+```bash
+cd ring-platform.org/solana
+# Ensure ~/.config/solana/id.json (or Anchor.toml provider.wallet) is the deploy authority
+solana config set --url https://api.devnet.solana.com
+solana airdrop 2   # if needed for deploy rent
 
-```rust
-// programs/public-pool/src/state.rs (to implement)
-pub struct PublicPoolState {
-    pub clone_id_hash: [u8; 32],
-    pub pool_slug_hash: [u8; 32],
-    pub goal_amount: u64,
-    pub raised_amount: u64,
-    pub deadline_unix: i64,
-    pub status: u8, // Open | Finalized | Refunding
-    pub bump: u8,
-}
+anchor build -p public_pool
+# Note program id from target/deploy/public_pool-keypair.json
+anchor keys list
+# Update declare_id! + Anchor.toml [programs.devnet] to the real id, rebuild once
+
+anchor deploy -p public_pool --provider.cluster devnet
 ```
 
-## Postgres sync
+Then set on the clone:
 
-On program events, indexer or cron updates:
+```bash
+NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID=<deployed_program_id>
+```
 
-- `public_pools.data.on_chain` → `{ program_id, pool_pda, vault_ata }`
-- `public_pool_contributions.status` → `confirmed` | `refunded`
+Per escrow pool: call `init_pool` (admin/crank) with clone_id_hash + pool_slug_hash; store `{ program_id, pool_pda, vault_ata }` on `public_pools.on_chain`.
 
-## Gate separation
+App path: `executeNativePoolContribution` uses on-chain contribute when `isPublicPoolEscrowDeployed()`; donation path unchanged.
 
-**Off-chain (Postgres):** 100 likes OR 100% pledged → `status: queued` for build prioritization.
+## Platform fee (off-chain)
 
-**On-chain (program):** Financial goal + deadline only — do not duplicate like quorum on-chain.
-
-## Devnet checklist
-
-1. Deploy program to devnet
-2. Set `NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID` in clone env
-3. Enable `funding_mode: escrow` in widget when program is live
-4. Wire `PublicPoolEscrowNotAvailableError` removal in contribute service
-
-## References
-
-- Existing SPL paths: `features/wallet/chains/solana/ring-transfer.ts`, `treasury-transfer-service.ts`
-- Service stub: `features/public-pools/services/public-pool-contribute.ts` throws until program ships
+`publicPools.platformFeePercentByRole` in `ring-config.json` — applied on builder payout (treasury → owner wallet), not inside the program.

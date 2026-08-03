@@ -27,19 +27,10 @@ description: Аутентифікація, авторизація, захист 
 
 <Code language="typescript" title="TypeScript">
 {`import NextAuth from 'next-auth'
-import { Resend } from 'next-auth/providers/resend'
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    Resend({
-      server: process.env.EMAIL_SERVER,
-      from: 'noreply@ring.ck.ua',
-      maxAge: 15 * 60, // 15 хвилин
-    }),
+// Ring Mailer: Credentials email-otp / email-magic — see /docs/features/ring-mailer
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    })
+      clientId: process.env.AUTH_GOOGLE_ID!,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET!
   ],
   pages: {
     signIn: '/login',

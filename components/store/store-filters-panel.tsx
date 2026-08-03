@@ -17,9 +17,9 @@ import { STORE_VENDOR_CATEGORY_IDS } from '@/constants/store-vendor-categories'
 import type { Locale } from '@/i18n/shared'
 import { useOptionalStore } from '@/features/store/context'
 import {
-  DEFAULT_CURRENCY,
-  NATIVE_TOKEN_CURRENCY,
-  useOptionalStoreCurrency,
+  MAIN_CURRENCY,
+  NATIVE_TOKEN,
+  useOptionalStorePaymentMethods,
 } from '@/features/store/currency-context'
 import { getDefaultStorePriceBounds, PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
@@ -60,8 +60,8 @@ interface StoreFiltersPanelProps {
 // Categories imported from constants - extendable for new categories
 const productCategories = [...STORE_VENDOR_CATEGORY_IDS]
 
-// SSOT: display currencies from StoreCurrencyProvider (ring-config), not clone hardcodes.
-const allowedCurrenciesFallback = [DEFAULT_CURRENCY, 'UAH', NATIVE_TOKEN_CURRENCY] as string[]
+// SSOT: display currencies from StorePaymentMethodsProvider (ring-config), not clone hardcodes.
+const allowedCurrenciesFallback = [MAIN_CURRENCY, 'UAH', NATIVE_TOKEN] as string[]
 
 // Props extended with persisted and catalog bounds state
 interface StoreFiltersPanelPropsWithPersisted extends StoreFiltersPanelProps {
@@ -88,8 +88,8 @@ export default function StoreFiltersPanel({
   const totalItems = store?.totalItems || 0
 
   // Get currency from SSOT context
-  const storeCurrencyContext = useOptionalStoreCurrency()
-  const displayCurrency = storeCurrencyContext?.currency || DEFAULT_CURRENCY
+  const storeCurrencyContext = useOptionalStorePaymentMethods()
+  const displayCurrency = storeCurrencyContext?.currency || MAIN_CURRENCY
   const allowedCurrencies =
     storeCurrencyContext?.displayCurrencies?.length
       ? storeCurrencyContext.displayCurrencies

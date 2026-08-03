@@ -63,6 +63,8 @@ export async function createPublicPoolAction(
     doc_path: formData.get('doc_path') || null,
     funding_mode: formData.get('funding_mode') || 'donation', // Default funding mode
     status: formData.get('status') || 'open', // Default open
+    builder_user_id: formData.get('builder_user_id') || null,
+    payout_wallet_address: formData.get('payout_wallet_address') || null,
   })
 
   // Early return if invalid. Flatten errors for presentation.
@@ -117,6 +119,12 @@ export async function updatePublicPoolAction(
     doc_path: formData.has('doc_path') ? formData.get('doc_path') || null : undefined,
     funding_mode: formData.get('funding_mode') || undefined,
     status: formData.get('status') || undefined,
+    builder_user_id: formData.has('builder_user_id')
+      ? formData.get('builder_user_id') || null
+      : undefined,
+    payout_wallet_address: formData.has('payout_wallet_address')
+      ? formData.get('payout_wallet_address') || null
+      : undefined,
   })
 
   // Show all (flattened) Zod errors if validation fails.

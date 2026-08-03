@@ -15,8 +15,9 @@ export interface CreateSubscriptionInput {
   userId: string
   userEmail: string
   provider: SubscriptionProvider
-  /** Monthly fee in the gateway's minor units (cents for fiat, raw for crypto). */
+  /** Monthly fee in the gateway's minor units (cents for main currency, raw for crypto). */
   amount: number
+  /** Transaction currency — main currency code for fiat rails, token symbol for crypto. */
   currency: string
   /** Gateway fee percent for net-revenue calculation. */
   gatewayFeePercent: number
@@ -25,7 +26,7 @@ export interface CreateSubscriptionInput {
   /** Human-readable gateway label. */
   gateway: string
   /** Payment method category. */
-  method: 'card' | 'credit_balance' | 'crypto' | 'paypal' | 'nft'
+  method: 'card' | 'credit_balance' | 'crypto' | 'paypal' | 'nft' | 'stars'
   /** User's wallet address (required for crypto). */
   walletAddress?: string
   /** Language preference for checkout. */

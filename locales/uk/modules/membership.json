@@ -55,8 +55,8 @@
     "subtitle": "Приєднуйтеся до професіоналів, які розвивають свій бізнес з Ring Platform"
   },
   "pricing": {
-    "amount": "₴299",
-    "period": "грн",
+    "amount": "$10",
+    "period": "/міс",
     "features_included": "Всі функції учасника включені"
   },
   "sidebar": {
@@ -155,5 +155,32 @@
     "faq_info_answer": "Ми запитаємо базову інформацію про вашу організацію, вашу роль та чому ви хочете підвищитися. LinkedIn профіль або посилання на портфоліо можуть допомогти прискорити процес розгляду.",
     "faq_downgrade_question": "Чи можу я понизити статус пізніше?",
     "faq_downgrade_answer": "Так, ви можете запросити зміну типу облікового запису в будь-який час через налаштування профілю. Зверніть увагу, що пониження може вплинути на ваш доступ до певних функцій."
+  },
+  "gate": {
+    "title": "Оновіть до Member",
+    "subtitle": "Відкрийте створення організацій і повний досвід члена Ring",
+    "subscribe_now": "Підписатися зараз",
+    "continue_free": "Продовжити безкоштовно",
+    "cancel_anytime": "Скасування будь-коли. Членство поновлюється за обраним планом.",
+    "fiat_period": "/міс",
+    "fiat_period_year": "/рік",
+    "fiat_hint": "Картка або кредит рахунку",
+    "ring_period": "разово",
+    "ring_hint": "Одноразова оплата on-chain RING",
+    "select_method": "Оберіть спосіб",
+    "plan_monthly_hint": "Щомісячна оплата",
+    "plan_annual_off": "−20% порівняно з місячною",
+    "eternal_nft": "Eternal Member NFT — {amount} {symbol}",
+    "eternal_hint": "Довічний доступ члена через NFT",
+    "nft_month": "NFT на 1 міс — {amount} {symbol}",
+    "nft_month_off": "−20% до фіатного місячного",
+    "nft_year": "NFT на 1 рік — {amount} {symbol}",
+    "nft_year_off": "−40% до фіатного річного",
+    "nft_need_token": "Потрібно більше {symbol}",
+    "native_insufficient_short": "Недостатньо {symbol}",
+    "no_token_has_credit": "Ще немає {symbol} — у вас {credit} {unit}. Обміняйте на Token Desk.",
+    "visit_desk": "Відкрити desk {symbol}",
+    "token_insufficient_buy_credit": "Мало {symbol}. Купіть кредит {unit}, потім обміняйте на desk.",
+    "buy_credit": "Купити {unit} / отримати {symbol}"
   }
 }

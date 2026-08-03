@@ -45,5 +45,5 @@ export default async function MyJobDetailPage({
   const users = await resolveCrmUserChips([order.userId])
   const buyer = users[order.userId] ?? null
 
-  return <OrderLabShell buyer={buyer} locale={locale} order={order} />
+  return <OrderLabShell buyer={buyer} isAdmin={admin} locale={locale} order={order} />
 }

@@ -20,7 +20,7 @@ import { connection } from 'next/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { logger } from '@/lib/logger'
-import { getVendorEntity } from '@/features/entities/services/vendor-entity'
+import { getVendorEntity, getVendorEntities } from '@/features/entities/services/vendor-entity'
 import { getVendorProfile } from '@/features/store/services/vendor-profile'
 import {
   getVendorDashboardStats,
@@ -29,7 +29,7 @@ import {
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { listOwnedGateAssets } from '@/features/nft-gates/purchase'
 import { listActiveStakes } from '@/features/nft-gates/gate-escrow'
-import { hasFeature } from '@/features/nft-gates/gate-resolver'
+import { hasFeatureForVendor } from '@/features/nft-gates/gate-resolver'
 
 export async function generateMetadata({
   params,
@@ -90,6 +90,8 @@ export default async function VendorDashboardPage({
       redirect(ROUTES.VENDOR_START(validLocale))
     }
 
+    const vendorEntities = await getVendorEntities(session.user.id)
+
     const [rawProfile, stats, ordersResult, ownedGates, gateStakes, dagiUnlocked] =
       await Promise.all([
         getVendorProfile(vendorEntity.id),
@@ -97,7 +99,7 @@ export default async function VendorDashboardPage({
         StoreOrdersService.listOrdersForVendor(vendorEntity.id, { limit: 5 }),
         listOwnedGateAssets(session.user.id),
         listActiveStakes(session.user.id),
-        hasFeature(session.user.id, 'vendor.dagi'),
+        hasFeatureForVendor(session.user.id, vendorEntity.id, 'vendor.dagi'),
       ])
 
     const vendor = withVendorProfileDefaults(rawProfile, vendorEntity.id, session.user.id)
@@ -143,8 +145,14 @@ export default async function VendorDashboardPage({
               userId={session.user.id}
               locale={validLocale}
               dagiUnlocked={dagiUnlocked}
+              vendorEntityId={vendorEntity.id}
+              vendorName={vendor.storeName || vendorEntity.name || vendorEntity.id}
               owned={ownedGates}
               stakes={gateStakes}
+              vendorEntities={vendorEntities.map((e) => ({
+                id: e.id,
+                name: e.name || e.id,
+              }))}
             />
           </Suspense>
 

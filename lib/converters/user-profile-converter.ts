@@ -8,10 +8,16 @@ import {
 import { UserRolesArray } from '@/features/auth/user-role';
 import { UserCreditBalance } from '@/lib/zod/credit-schemas';
 import { DEFAULT_LOCALE } from '@/lib/locale-config';
-import { getDefaultTheme } from '@/lib/ring-config-core';
+import { getDefaultTheme, getMainCurrencySymbol } from '@/lib/ring-config-core';
+import type { MembershipPaymentProvider } from '@/lib/ring-config-types';
 
 /**
- * Extended user profile interface with credit balance
+ * Firestore converter for user profiles (firebase-full backend mode).
+ *
+ * Ring production (k8s-postgres-fcm) does NOT use this path — DatabaseService /
+ * Postgres adapters own user docs. This converter remains for Firebase prototyping
+ * and must stay aligned with membership payment provider SSOT
+ * (`MembershipPaymentProvider` in ring-config-types), not a hardcoded stripe-only union.
  */
 export interface UserProfileWithCredits {
   // Unique user identifier
@@ -84,7 +90,7 @@ export interface UserProfileWithCredits {
     upgraded_at?: number;
     expires_at?: number;
     auto_renew: boolean;
-    payment_method?: 'stripe' | 'ring_credits' | 'crypto';
+    payment_method?: MembershipPaymentProvider | 'crypto';
   };
   
   // Wallet configuration (optional)
@@ -244,8 +250,8 @@ export const userProfileWithCreditsConverter: FirestoreDataConverter<UserProfile
       // Credit balance - properly handle missing keys and map timestamp properties to millis
       credit_balance: data.credit_balance ? {
         amount: data.credit_balance.amount ?? '0',
-        usd_equivalent: data.credit_balance.usd_equivalent ?? '0',
-        fiat_currency: data.credit_balance.fiat_currency ?? 'USD',
+        main_currency_equivalent: data.credit_balance.main_currency_equivalent ?? '0',
+        main_currency: data.credit_balance.main_currency ?? 'USD',
         last_updated: data.credit_balance.last_updated?.toMillis() || Date.now(),
         last_transaction_id: data.credit_balance.last_transaction_id,
         subscription_active: data.credit_balance.subscription_active ?? false,
@@ -298,8 +304,7 @@ export function createNewUserProfileWithCredits(
   role: UserRolesArray = UserRolesArray.visitor
 ): UserProfileWithCredits {
   const now = Date.now();
-  
-  // TODO: Consider using React's built-in hooks if integrating directly into components for SSR/ISR, and using Next.js 16 server actions for profile creation persistence.
+
   return {
     id,
     email,
@@ -309,11 +314,11 @@ export function createNewUserProfileWithCredits(
     updated_at: now,
     email_verified: false,
     
-    // Initialize with empty credit balance (defaults to USD, no subscription, 0s)
+    // Initialize with empty credit balance in the project main currency
     credit_balance: {
       amount: '0',
-      usd_equivalent: '0',
-      fiat_currency: 'USD',
+      main_currency_equivalent: '0',
+      main_currency: getMainCurrencySymbol(),
       last_updated: now,
       subscription_active: false,
     },
@@ -361,23 +366,26 @@ export function updateUserActivity(
   userProfile: UserProfileWithCredits,
   activityUpdate: Partial<UserProfileWithCredits['activity']>
 ): UserProfileWithCredits {
-  // Defensive: If activity object was missing, spread {} to prevent error and merge in update
+  // Counters are additive: `activityUpdate` carries deltas, not absolute values.
+  const previous = userProfile.activity;
   return {
     ...userProfile,
-    updated_at: Date.now(), // Always update modification timestamp
+    updated_at: Date.now(),
     activity: {
-      last_active: Date.now(),  // Always refresh last_active
-      login_count: (userProfile.activity?.login_count ?? 0) + 1,
-      entities_created: (userProfile.activity?.entities_created ?? 0) + (activityUpdate.entities_created ?? 0),
-      opportunities_created: (userProfile.activity?.opportunities_created ?? 0) + (activityUpdate.opportunities_created ?? 0),
-      messages_sent: (userProfile.activity?.messages_sent ?? 0) + (activityUpdate.messages_sent ?? 0),
-      ...(userProfile.activity ?? {}), // Preserve previous activity or default to empty object
-      ...activityUpdate,        // Overwrite with supplied field(s)
+      ...previous,
+      last_active: Date.now(),
+      login_count: (previous?.login_count ?? 0) + 1,
+      entities_created: (previous?.entities_created ?? 0) + (activityUpdate.entities_created ?? 0),
+      opportunities_created:
+        (previous?.opportunities_created ?? 0) + (activityUpdate.opportunities_created ?? 0),
+      messages_sent: (previous?.messages_sent ?? 0) + (activityUpdate.messages_sent ?? 0),
     },
   };
 }
 
-// TODO: 
-// - If you move parts of these utilities to a Next.js 16 app directory, consider converting helper functions (like createNewUserProfileWithCredits) into server actions for atomic db/server handling and  type inference based on RSC boundaries.
-// - If using forms on the client, consider leveraging React 19 useFormState and useOptimistic to simplify state management for user-profile upserts.
-// - For strict typing between server and client (especially with credit balances, timestamps), consider using zod validation on input and output boundaries via Next.js 16 Route Handlers.
+/**
+ * Persistence lives in Server Actions, not here:
+ * - profile edits → `updateProfile` (`app/_actions/profile.ts`, `useActionState`)
+ * - activity counters → `recordUserActivity` (same file)
+ * These converters stay pure so both the auth adapter and the actions can reuse them.
+ */

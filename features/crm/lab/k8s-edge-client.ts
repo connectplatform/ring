@@ -96,6 +96,33 @@ export async function getDeployment(
   return (await res.json()) as Record<string, unknown>
 }
 
+export async function ensureNamespace(edge: RingEdgeId, namespace: string): Promise<void> {
+  const path = `/api/v1/namespaces/${encodeURIComponent(namespace)}`
+  const existing = await k8sFetch(edge, path, { method: 'GET' })
+  if (existing.ok) return
+  if (existing.status !== 404) {
+    const text = await existing.text().catch(() => '')
+    throw new Error(`ensureNamespace get failed: ${existing.status} ${text.slice(0, 200)}`)
+  }
+  const res = await k8sFetch(edge, `/api/v1/namespaces`, {
+    method: 'POST',
+    body: JSON.stringify({
+      apiVersion: 'v1',
+      kind: 'Namespace',
+      metadata: {
+        name: namespace,
+        labels: {
+          'app.kubernetes.io/managed-by': 'ring-order-lab',
+        },
+      },
+    }),
+  })
+  if (!res.ok && res.status !== 409) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`ensureNamespace create failed: ${res.status} ${text.slice(0, 200)}`)
+  }
+}
+
 export async function upsertSecret(
   edge: RingEdgeId,
   namespace: string,
@@ -233,6 +260,156 @@ export async function setDeploymentImage(
   }
 }
 
+const FORGEJO_REGISTRY_HOSTS = ['registry.ringdom.org', 'forge.ringdom.org']
+
+/** True when image is hosted on Ringdom Forgejo OCI. */
+export function isForgejoRegistryImage(image: string): boolean {
+  return FORGEJO_REGISTRY_HOSTS.some(
+    (host) => image === host || image.startsWith(`${host}/`),
+  )
+}
+
+/**
+ * Merge imagePullSecrets onto a Deployment without dropping existing entries.
+ * Ring mesh SSOT pull secret is forgejo-registry (registry.ringdom.org).
+ * Uses JSON merge-patch with the full merged list so the array is set atomically.
+ */
+export async function ensureImagePullSecrets(
+  edge: RingEdgeId,
+  namespace: string,
+  deploymentName: string,
+  secretNames: string[],
+): Promise<void> {
+  const wanted = [...new Set(secretNames.filter(Boolean))]
+  if (!wanted.length) return
+
+  const current = await getDeployment(edge, namespace, deploymentName)
+  if (!current) {
+    throw new Error(
+      `ensureImagePullSecrets: deployment ${namespace}/${deploymentName} not found`,
+    )
+  }
+  const spec = (current.spec || {}) as {
+    template?: { spec?: { imagePullSecrets?: Array<{ name?: string }> } }
+  }
+  const existing = (spec.template?.spec?.imagePullSecrets || [])
+    .map((s) => s.name)
+    .filter((n): n is string => Boolean(n))
+  const merged = [...new Set([...existing, ...wanted])]
+  if (
+    merged.length === existing.length &&
+    merged.every((n) => existing.includes(n))
+  ) {
+    return
+  }
+
+  const mergePatch = {
+    spec: {
+      template: {
+        spec: {
+          imagePullSecrets: merged.map((name) => ({ name })),
+        },
+      },
+    },
+  }
+  const res = await k8sFetch(
+    edge,
+    `/apis/apps/v1/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(deploymentName)}`,
+    {
+      method: 'PATCH',
+      // merge-patch replaces the imagePullSecrets array with our full merged list
+      headers: { 'Content-Type': 'application/merge-patch+json' },
+      body: JSON.stringify(mergePatch),
+    },
+  )
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`ensureImagePullSecrets failed: ${res.status} ${text.slice(0, 200)}`)
+  }
+}
+
+/**
+ * Ensure dockerconfigjson pull secret exists for Forgejo registry (+ forge realm host).
+ * Credentials from RING_FORGEJO_PULL_USER + RING_FORGEJO_PULL_TOKEN (k8s-pull robot).
+ * Returns false when token is unset (caller must fail hard for Forgejo images).
+ */
+export async function ensureForgejoRegistryPullSecret(
+  edge: RingEdgeId,
+  namespace: string,
+  secretName = 'forgejo-registry',
+): Promise<boolean> {
+  const user = process.env.RING_FORGEJO_PULL_USER || 'k8s-pull'
+  const token = process.env.RING_FORGEJO_PULL_TOKEN
+  if (!token) {
+    logger.warn('RING_FORGEJO_PULL_TOKEN unset; cannot upsert forgejo-registry secret', {
+      edge,
+      namespace,
+    })
+    return false
+  }
+  const auth = Buffer.from(`${user}:${token}`).toString('base64')
+  const dockerconfig = {
+    auths: {
+      'registry.ringdom.org': { username: user, password: token, auth },
+      'forge.ringdom.org': { username: user, password: token, auth },
+    },
+  }
+  const path = `/api/v1/namespaces/${encodeURIComponent(namespace)}/secrets/${encodeURIComponent(secretName)}`
+  const existingRes = await k8sFetch(edge, path, { method: 'GET' })
+  if (existingRes.status === 404) {
+    const createBody = {
+      apiVersion: 'v1',
+      kind: 'Secret',
+      metadata: { name: secretName, namespace },
+      type: 'kubernetes.io/dockerconfigjson',
+      stringData: {
+        '.dockerconfigjson': JSON.stringify(dockerconfig),
+      },
+    }
+    const res = await k8sFetch(edge, `/api/v1/namespaces/${encodeURIComponent(namespace)}/secrets`, {
+      method: 'POST',
+      body: JSON.stringify(createBody),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(
+        `ensureForgejoRegistryPullSecret create failed: ${res.status} ${text.slice(0, 200)}`,
+      )
+    }
+    return true
+  }
+  if (!existingRes.ok) {
+    const text = await existingRes.text().catch(() => '')
+    throw new Error(
+      `ensureForgejoRegistryPullSecret get failed: ${existingRes.status} ${text.slice(0, 200)}`,
+    )
+  }
+  const existing = (await existingRes.json()) as {
+    metadata?: { resourceVersion?: string; name?: string }
+  }
+  const updateBody = {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata: {
+      name: secretName,
+      namespace,
+      resourceVersion: existing.metadata?.resourceVersion,
+    },
+    type: 'kubernetes.io/dockerconfigjson',
+    stringData: {
+      '.dockerconfigjson': JSON.stringify(dockerconfig),
+    },
+  }
+  const res = await k8sFetch(edge, path, { method: 'PUT', body: JSON.stringify(updateBody) })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(
+      `ensureForgejoRegistryPullSecret update failed: ${res.status} ${text.slice(0, 200)}`,
+    )
+  }
+  return true
+}
+
 export async function listPods(
   edge: RingEdgeId,
   namespace: string,
@@ -309,6 +486,80 @@ export async function deletePod(
   if (!res.ok && res.status !== 404) {
     const text = await res.text().catch(() => '')
     throw new Error(`deletePod failed: ${res.status} ${text.slice(0, 200)}`)
+  }
+}
+
+export type K8sJobStatus = {
+  name: string
+  active: number
+  succeeded: number
+  failed: number
+  completionTime?: string
+  startTime?: string
+  conditions?: Array<{ type?: string; status?: string; reason?: string; message?: string }>
+}
+
+/**
+ * Create a batch/v1 Job (e.g. BuildKit / clone scaffold on FI edge).
+ * Caller supplies full Job object (apiVersion/kind/metadata/spec).
+ */
+export async function createJob(
+  edge: RingEdgeId,
+  namespace: string,
+  job: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const meta = (job.metadata || {}) as Record<string, unknown>
+  const body = {
+    ...job,
+    apiVersion: 'batch/v1',
+    kind: 'Job',
+    metadata: { ...meta, namespace },
+  }
+  const res = await k8sFetch(
+    edge,
+    `/apis/batch/v1/namespaces/${encodeURIComponent(namespace)}/jobs`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`createJob failed: ${res.status} ${text.slice(0, 300)}`)
+  }
+  return (await res.json()) as Record<string, unknown>
+}
+
+export async function getJob(
+  edge: RingEdgeId,
+  namespace: string,
+  name: string,
+): Promise<K8sJobStatus | null> {
+  const res = await k8sFetch(
+    edge,
+    `/apis/batch/v1/namespaces/${encodeURIComponent(namespace)}/jobs/${encodeURIComponent(name)}`,
+  )
+  if (res.status === 404) return null
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`getJob failed: ${res.status} ${text.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as {
+    metadata?: { name?: string }
+    status?: {
+      active?: number
+      succeeded?: number
+      failed?: number
+      completionTime?: string
+      startTime?: string
+      conditions?: K8sJobStatus['conditions']
+    }
+  }
+  return {
+    name: json.metadata?.name || name,
+    active: json.status?.active || 0,
+    succeeded: json.status?.succeeded || 0,
+    failed: json.status?.failed || 0,
+    completionTime: json.status?.completionTime,
+    startTime: json.status?.startTime,
+    conditions: json.status?.conditions,
   }
 }
 

@@ -1,15 +1,20 @@
 'use client'
 
 /**
- * Home content preset registry (Tier-2 SSOT — see docs/en/customization/vertical-presets.mdx).
- * ring-config `home.preset` selects the landing; preset names live only here + config.
- * Platform default is statically imported; vertical landings load as separate chunks.
+ * Home content preset resolver (Tier-2 SSOT — docs/en/customization/vertical-presets.mdx).
+ *
+ * Selection is **only** `getHomePreset()` from ring-config:
+ * - `platform` → static PlatformHome
+ * - allowlisted kebab-case ids → dynamic `./home-presets/${preset}` (missing chunk → PlatformHome)
+ *
+ * Shared allowlist = `mvm-landing` + `${getOverlayFeature()}-landing` when a Tier-3 domain key is active.
+ * Do **not** hardcode clone product ids (no greenfood-live / bare n9life-landing forever).
  */
 
 import dynamic from 'next/dynamic'
 import type { Session } from 'next-auth'
 import PlatformHome from '@/components/pages/home'
-import { getHomePreset } from '@/lib/ring-config-core'
+import { getHomePreset, getOverlayFeature } from '@/lib/ring-config-core'
 
 export interface HomeContentProps {
   session: Session | null
@@ -17,18 +22,39 @@ export interface HomeContentProps {
 
 type HomeContentComponent = React.ComponentType<HomeContentProps>
 
-const MvmLanding = dynamic(() => import('./home-presets/mvm-landing'), {
-  ssr: true,
-}) as HomeContentComponent
+/** Shared landing presets that may ship on platform. */
+const SHARED_HOME_LANDING_PRESETS = ['mvm-landing'] as const
 
-/** Registered home landings — add new presets here only */
-export const HOME_PRESET_REGISTRY: Record<string, HomeContentComponent> = {
-  platform: PlatformHome as HomeContentComponent,
-  'mvm-landing': MvmLanding,
+export function getHomeLandingAllowlist(): readonly string[] {
+  const feature = getOverlayFeature()
+  if (feature) return [...SHARED_HOME_LANDING_PRESETS, `${feature}-landing`]
+  return [...SHARED_HOME_LANDING_PRESETS]
 }
 
-/** Active home content for this clone (ring-config home.preset, default "platform"). */
-const ActiveHomeContent: HomeContentComponent =
-  HOME_PRESET_REGISTRY[getHomePreset()] ?? (PlatformHome as HomeContentComponent)
+/** @deprecated Prefer getHomeLandingAllowlist() — kept for call-site familiarity. */
+export const HOME_LANDING_PRESET_ALLOWLIST = SHARED_HOME_LANDING_PRESETS
 
-export default ActiveHomeContent
+export type HomeLandingPresetId = string
+
+function isAllowlistedLandingPreset(preset: string): boolean {
+  return getHomeLandingAllowlist().includes(preset)
+}
+
+function resolveHomeContent(): HomeContentComponent {
+  const preset = getHomePreset()
+  if (preset === 'platform' || !isAllowlistedLandingPreset(preset)) {
+    return PlatformHome as HomeContentComponent
+  }
+
+  return dynamic(
+    () =>
+      import(`./home-presets/${preset}`)
+        .then((mod) => (mod.default ?? PlatformHome) as HomeContentComponent)
+        .catch(() => PlatformHome as HomeContentComponent),
+    { ssr: true },
+  ) as HomeContentComponent
+}
+
+const HomeContent = resolveHomeContent()
+
+export default HomeContent

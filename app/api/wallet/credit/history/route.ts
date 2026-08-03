@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
  * Query parameters:
  * - limit: number (1-100, default 50)
  * - after_id: string (pagination cursor)
- * - type: CreditTransactionType (filter by transaction type)
+ * - type: CreditBalanceTransactionType (filter by transaction type)
  * - start_date: number (timestamp filter)
  * - end_date: number (timestamp filter)
  */

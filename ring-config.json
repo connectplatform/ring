@@ -21,10 +21,11 @@
   ],
   "exchangeRates": {
     "USD": 1.0,
-    "UAH": 528.0,
-    "RING": 1.0
+    "UAH": 41.0,
+    "RING": 10.0
   },
   "nativeTokenPriceOracle": {
+    "defaultChain": 137,
     "solana": {
       "enabled": true,
       "provider": "pyth",
@@ -36,6 +37,24 @@
       "provider": "chainlink",
       "aggregatorAddress": "0x0000000000000000000000000000000000000000",
       "refreshIntervalSeconds": 60
+    },
+    "chains": {
+      "137": {
+        "chainlink": {
+          "enabled": false,
+          "feedAddress": "0x0000000000000000000000000000000000000000"
+        },
+        "fallbacks": {
+          "enabled": true,
+          "coingecko": true,
+          "coinmarketcap": false,
+          "binance": true
+        },
+        "cache": {
+          "enabled": true,
+          "ttl": 60000
+        }
+      }
     }
   },
   "clone": {
@@ -56,8 +75,8 @@
     "baseUrl": "https://ring-platform.org"
   },
   "credit": {
-    "creditUnitLabel": "points",
-    "unitToDefaultCurrency": 1,
+    "creditBalanceUnitLabel": "points",
+    "creditBalanceUnitToMainCurrency": 0.1,
     "rewards": {
       "minRole": "subscriber",
       "multipliers": {
@@ -161,7 +180,7 @@
       ],
       "quoteTtlSeconds": 60,
       "maxSlippageBps": 100,
-      "pointsPerNativeToken": 100
+      "creditBalanceUnitPerNativeToken": 100
     }
   },
   "tokens": {
@@ -243,14 +262,36 @@
       "enabled": true,
       "chainId": 137,
       "decimals": 18,
+      "tokenDecimals": 18,
       "address": "",
-      "legacyReferralRewards": true
+      "tokenAddress": "",
+      "treasuryAddress": "",
+      "legacyReferralRewards": true,
+      "treasurySwapPaused": false,
+      "treasurySwapMaxMainCurrencyPerTx": 5000,
+      "treasurySwapMaxMainCurrencyPerDay": 20000,
+      "treasurySwapAllowlist": [
+        {
+          "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+          "symbol": "USDC",
+          "decimals": 6,
+          "chainlinkFeed": "0xfE4A8cc5b5B2366C1B58Bea3858e81843581b2F7",
+          "enabled": true
+        },
+        {
+          "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+          "symbol": "USDT",
+          "decimals": 6,
+          "chainlinkFeed": "0x0A6513e14981487cE68797cF7018E1d5f0C1bbdd",
+          "enabled": true
+        }
+      ]
     },
     "base": {
       "enabled": false,
       "chainId": 8453,
       "decimals": 8,
-      "note": "US L2 mirror \u2014 Phase 1.5"
+      "note": "US L2 mirror — Phase 1.5"
     }
   },
   "features": {
@@ -434,27 +475,52 @@
   "publicPools": {
     "minGoalHours": 1,
     "ringPerMachineHour": 1,
-    "likeQueueThreshold": 100
+    "likeQueueThreshold": 100,
+    "platformFeePercentByRole": {
+      "visitor": 7,
+      "subscriber": 7,
+      "member": 7,
+      "confidential": 6,
+      "admin": 0,
+      "superadmin": 0
+    },
+    "autoPayoutOnGoalMet": true
   },
   "membership": {
     "tiers": {
       "subscriber": {
         "amount": 0,
-        "currency": "UAH",
+        "currency": "USD",
         "description": "Ring Platform Subscriber (Free)",
         "duration": "lifetime"
       },
       "member": {
-        "amount": 299,
-        "currency": "UAH",
-        "description": "Ring Platform Member Upgrade",
-        "duration": "1 month"
+        "amount": 10,
+        "currency": "USD",
+        "description": "Ring Platform Member Upgrade (1 RING)",
+        "duration": "1 month",
+        "pricedInNativeToken": true
+      },
+      "memberAnnual": {
+        "amount": 100,
+        "currency": "USD",
+        "description": "Ring Platform Member Upgrade Annual (10 RING)",
+        "duration": "1 year",
+        "pricedInNativeToken": true
       }
     },
     "ring": {
       "memberUpgradeAmount": 1,
-      "subscriptionRenewalAmount": 1
-    }
+      "subscriptionRenewalAmount": 1,
+      "annualUpgradeAmount": 10
+    },
+    "nativeToken": {
+      "memberUpgradeAmount": 1,
+      "subscriptionRenewalAmount": 1,
+      "annualUpgradeAmount": 10
+    },
+    "solanaSettlement": "treasury_transfer",
+    "pricedInNativeToken": true
   },
   "integrations": {
     "demoUserEmail": "vendor@ring-platform.org"
@@ -472,12 +538,12 @@
         {
           "uri": "https://github.com/connectplatform",
           "name": "ConnectPlatform",
-          "desc": "ConnectPlatform binary broker and Open-source Ring ecosystem on GitHub \u2014 digitalization for interest groups and communities since 2013."
+          "desc": "ConnectPlatform binary broker and Open-source Ring ecosystem on GitHub — digitalization for interest groups and communities since 2013."
         },
         {
           "uri": "https://sonoratek.com",
           "name": "Sonoratek LLC",
-          "desc": "Legal publisher of Ring Platform \u2014 IT pathfinding, automation, and cloud services in Tempe, Arizona since 2015."
+          "desc": "Legal publisher of Ring Platform — IT pathfinding, automation, and cloud services in Tempe, Arizona since 2015."
         },
         {
           "uri": "https://ringdom.org",
@@ -510,7 +576,7 @@
     "supportedMethods": [
       "wayforpay",
       "credit_balance",
-      "ring_token"
+      "native_token"
     ],
     "futureMethods": [
       "stripe",
@@ -534,7 +600,7 @@
         "feePercent": 0,
         "currency": "USD"
       },
-      "ring_token": {
+      "native_token": {
         "enabled": true,
         "feePercent": 0,
         "currency": "RING",
@@ -666,7 +732,8 @@
     "maxMintsPerCollection": 50
   },
   "store": {
-    "defaultCurrency": "USD",
+    "mainCurrency": "USD",
+    "mainCurrencyToUsd": 1,
     "promotions": {
       "specialOfferModalEnabled": true,
       "allowedProductPromotionTypes": [
@@ -683,5 +750,90 @@
   },
   "home": {
     "preset": "platform"
+  },
+  "emailCrm": {
+    "enabled": true,
+    "_comment": "Multi-mailbox CRM IMAP. Passwords via CRM_CHANNEL_<ID>_PASSWORD. AUTH SMTP remains SMTP_*/lib/mailer.",
+    "channels": [
+      {
+        "id": "primary",
+        "name": "Primary",
+        "enabled": true,
+        "flow": "standard",
+        "imap": {
+          "host": "mail.ringdom.org",
+          "port": 993,
+          "user": "info@ringdom.org",
+          "mailbox": "INBOX",
+          "tls": true
+        },
+        "smtp": {
+          "host": "mail.ringdom.org",
+          "port": 587,
+          "user": "info@ringdom.org",
+          "from": "Ring Support <info@ringdom.org>"
+        },
+        "secretEnvPrefix": "CRM_CHANNEL_PRIMARY"
+      }
+    ]
+  },
+  "opportunities": {
+    "enabledTypes": [
+      "offer",
+      "request",
+      "partnership",
+      "volunteer",
+      "mentorship",
+      "resource",
+      "event",
+      "cv",
+      "program",
+      "ring_customization",
+      "scheduled_services",
+      "collective_order",
+      "bounty",
+      "tender",
+      "asset_rental",
+      "job"
+    ],
+    "scheduledServices": {
+      "categories": [
+        "tutorship",
+        "consulting",
+        "health",
+        "beauty",
+        "trades",
+        "nursing",
+        "other"
+      ]
+    },
+    "collectiveOrder": {
+      "defaultRails": [
+        "credit_balance",
+        "card",
+        "paypal"
+      ],
+      "minSlots": 2,
+      "maxSlots": 1000
+    }
+  },
+  "supportedCurrencies": [
+    "USD",
+    "UAH"
+  ],
+  "fx": {
+    "byMainCurrency": {
+      "UAH": {
+        "provider": "nbu",
+        "enabled": true,
+        "refreshHours": 24
+      }
+    },
+    "default": {
+      "provider": "open_er_api",
+      "enabled": true,
+      "refreshHours": 24
+    },
+    "manualOverrides": {}
   }
 }

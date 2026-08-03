@@ -1,0 +1,226 @@
+---
+title: Ring Tasks
+description: Task-type chat messages with assignee lifecycle, credit escrow, /tasks tree, and convert-to-request opportunity
+last_modified: "2026-07-19"
+audience: both
+---
+
+# Ring Tasks
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Ring Tasks extend messaging with a structured **`task`** message type — not a separate CRM product (admin email CRM tasks at `/admin/crm/tasks` are unrelated).
+</Callout>
+
+Members send each other **tasks** inside chat: description, optional assignee, deadline, budget, and optional **credit escrow**. A global **/tasks** tree lists recent tasks across conversations. Reporters can convert a task into a personal **`request`** opportunity.
+
+| Layer | Where |
+|-------|--------|
+| Types | `features/chat/types/index.ts` — `Message.type: 'task'`, `TaskMetadata` |
+| Feature module | `features/tasks/**` |
+| Server actions | `app/_actions/tasks.ts` |
+| List APIs | `GET /api/tasks`, `GET /api/tasks/conversation/[id]` |
+| Pages | `/tasks`, `/tasks/[chatId]` |
+| Chat deep link | `/messages?c=<conversationId>` (no `/messages/[id]` segment) |
+
+## Status machine (shared)
+
+<Mermaid>
+{`stateDiagram-v2
+  [*] --> available: create_no_assignee
+  [*] --> in_progress: create_with_assignee
+  available --> requested: Request
+  available --> in_progress: Start
+  requested --> in_progress: reporter_approve
+  requested --> available: reporter_reject
+  in_progress --> completed: Done
+  completed --> accepted: Accept
+  completed --> disputed: Dispute
+  available --> canceled: Cancel
+  requested --> canceled: Cancel
+  in_progress --> canceled: Cancel
+`}
+</Mermaid>
+
+| Status | Meaning |
+|--------|---------|
+| `available` | Posted without assignee |
+| `requested` | Someone asked to be assignee |
+| `in_progress` | Assignee set |
+| `completed` | Done by reporter or assignee |
+| `accepted` | Reporter accepted work (releases escrow if held) |
+| `canceled` | Reporter canceled (refunds held escrow to credit balance) |
+| `disputed` | Reporter disputed after completed + held escrow |
+
+<Audience for="founder">
+
+## Why tasks matter for your clone
+
+Messages alone do not close work. Tasks turn a chat into a lightweight work agreement: who owns it, when it is due, and whether payment is held until acceptance.
+
+<Cards>
+  <Card title="Messaging" href="/docs/features/messaging">
+    Tasks appear as widgets inside the same conversation roster.
+  </Card>
+  <Card title="Opportunities" href="/docs/features/opportunities">
+    Convert a task into a public/private **request** when you need marketplace reach.
+  </Card>
+  <Card title="Wallet credits" href="/docs/features/wallet">
+    Escrow v1 holds and releases **credit balance** (points).
+  </Card>
+</Cards>
+
+### Typical scenarios
+
+1. **Direct chat** — You assign the counterparty a deliverable with a deadline; they mark Done; you Accept.
+2. **Group chat** — Post an unassigned task; any participant hits **Start** (or **Request** for approval).
+3. **Paid favor** — Attach a credit budget + escrow; funds hold until Accept; Cancel before accept refunds your credits.
+4. **Outgrow the chat** — Convert the task to a **request** opportunity so more people can apply.
+
+### Operator checklist
+
+- Members find Tasks next to Messages in the sidebar (`/tasks`).
+- Escrow supports **credit balance**, **fiat (WayForPay/Stripe)**, and **native token** via PaymentConductor (`PaymentPurpose.task_escrow`).
+- Admin dispute resolution: `/admin/crm/task-escrows` — release, refund, or force cancel held escrows.
+
+</Audience>
+
+<Audience for="developer">
+
+## Message type + metadata
+
+Extend the chat union (also allowlisted in `app/api/conversations/[id]/messages/route.ts`):
+
+`text` | `image` | `file` | `system` | `payment_request` | `env_request` | **`task`**
+
+`TaskMetadata` (`kind: 'task'`) holds reporter, assignee, status, deadline, budget, escrow stub, lifecycle timestamps, `opportunityId`, and `audit[]`.
+
+| Content rule | Detail |
+|--------------|--------|
+| `message.content` | Full description |
+| Widget title | First two non-empty lines |
+| Fallback | `Task: {firstLine}` |
+| Edit | Only when `status === 'available'` and escrow not `held`/`released` (task action, not the 15-minute text edit window) |
+| Versioning | Overwrite + `editedAt` + `audit[]` — no content `versions[]` |
+
+Widget render path mirrors payment/env requests in `features/chat/components/message-bubble.tsx` → `TaskMessageWidget`.
+
+## Module map
+
+| Module | Role |
+|--------|------|
+| `features/tasks/services/task-service.ts` | Status transitions + audit |
+| `features/tasks/services/task-query-service.ts` | Tree query (3/chat, max 21) + per-chat list |
+| `features/tasks/services/task-escrow-service.ts` | Credit / WFP / native hold, refund, release |
+| `features/tasks/services/notify.ts` | TASK_ASSIGNED / TASK_UPDATED notifications |
+| `app/api/tasks/escrow/[id]/checkout/route.ts` | PaymentConductor checkout for pending escrow |
+| `features/tasks/components/task-message-widget.tsx` | In-chat actions |
+| `features/tasks/components/task-compose-dialog.tsx` | Create UI from composer |
+| `features/tasks/components/tasks-tree.tsx` | `/tasks` filter tabs |
+| `app/_actions/tasks.ts` | Server actions |
+
+## Create + lifecycle actions
+
+```ts
+// app/_actions/tasks.ts (names)
+createTaskMessage
+startTask | requestTask | approveTaskRequest | rejectTaskRequest
+completeTask | acceptTask | disputeTask | cancelTask
+editTaskContent | deleteTask
+convertTaskToOpportunity
+```
+
+Notifications: `NotificationType.TASK_ASSIGNED`, `TASK_UPDATED`.
+
+## `/tasks` query contract
+
+| Endpoint | Behavior |
+|----------|----------|
+| `GET /api/tasks?filter=` | `all` \| `available` \| `in_progress` \| `completed` — up to **3** newest tasks per conversation, global cap **21** |
+| `GET /api/tasks/conversation/[id]` | All tasks in one chat |
+| Filter mapping | `available` → available+requested; `in_progress` → in_progress; `completed` → completed+accepted |
+
+Routes: `ROUTES.TASKS`, `ROUTES.TASK(chatId)` in `constants/routes.ts`.
+
+## Escrow (credit_balance · fiat · native_token)
+
+`PaymentPurpose` includes `task_escrow` (`lib/payments/conductor/types.ts`). Order references: `task_{escrowId}_{timestamp}`.
+
+| Event | Behavior |
+|-------|----------|
+| Fund on create (credit) | `creditBalanceService.spendCredits` → escrow doc `held` + message metadata |
+| Fund on create (fiat/native) | Pending escrow doc → `needsCheckout` → `POST /api/tasks/escrow/[id]/checkout` |
+| WFP/Stripe webhook / inline native | `markHeldFromPayment` → `held` + notify reporter |
+| Cancel before release | Credit: `addFiatUsd` desk_refund + stable `reference_id`; WFP: `refundStorePayment`; native: treasury→reporter **or credit equivalent fallback** (same as release) |
+| Accept after completed | Credit/fiat: `addFiatUsd` + `reference_id`; native: treasury→assignee or credit equivalent fallback |
+| Concurrent claim | **True CAS**: `db().transaction` + `FOR UPDATE` — only one of accept/cancel can claim `held` |
+| Admin dispute | `/admin/crm/task-escrows` — release / refund / cancel via `TaskEscrowService.adminResolve` |
+
+Collection: `task_escrows` (JSONB doc via DatabaseService). Stable ledger refs: `task_escrow_release_${id}`, `task_escrow_refund_${id}` (stored on claim before money move).
+
+### Native escrow ops checklist
+
+1. Desk buy health first (`SOLANA_TREASURY_PRIVATE_KEY`, `SOLANA_FEE_PAYER_PRIVATE_KEY`, RPC).
+2. Assignee/reporter must have a custodial native wallet for on-chain out; otherwise credit fallback runs.
+3. Mainnet hot-key blocks force credit fallback — expected, not a stuck `held` escrow.
+4. See `features/wallet/ops/TREASURY-SWAP-OPS.md` § Task escrow.
+
+## Convert → request opportunity
+
+`convertTaskToOpportunity` (reporter only, not canceled) calls `createOpportunity` with `type: 'request'`, `isPrivate: true`, provenance in `tags` (`sourceMessageId:…`, `sourceConversationId:…`), stores `opportunityId` on task metadata.
+
+## Integration steps
+
+<Steps>
+  <Step>
+    Create a task from the chat composer (ListTodo) — optional assignee, deadline, credit budget + escrow.
+  </Step>
+  <Step>
+    Counterparty Start / Request → Done → reporter Accept (or Dispute when escrow held).
+  </Step>
+  <Step>
+    Browse `/tasks` or `/tasks/[chatId]`; open chat via `/messages?c=`.
+  </Step>
+  <Step>
+    Optionally Convert to opportunity → `/opportunities` request listing.
+  </Step>
+</Steps>
+
+</Audience>
+
+## Backlog
+
+<FutureFeatureBacklog title="Backlog — Ring Tasks">
+
+<FutureFeatureWidget
+  name="Task message content version history"
+  description="Optional versions[] for dispute audit beyond editedAt overwrite + status audit[]."
+  implementationCost={48}
+  labels={['tasks', 'messaging']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>
+
+<RelatedDocs>
+
+<RelatedArticle
+  slug="features/messaging"
+  relation="Prerequisite: tasks are chat message widgets inside the same conversation roster."
+/>
+
+<RelatedArticle
+  slug="features/opportunities"
+  relation="Next-step: convert a task into a marketplace request opportunity."
+/>
+
+<RelatedArticle
+  slug="features/wallet"
+  relation="Depends-on: task escrow v1 holds and releases credit balance points."
+/>
+
+<RelatedArticle
+  slug="features/payment-conductor"
+  relation="Deep-dive: PaymentPurpose task_escrow reuses Conductor rails."
+/>
+
+</RelatedDocs>

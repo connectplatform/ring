@@ -1,7 +1,7 @@
 ---
 title: Ethereum гаманці (Wagmi v3)
 description: Конектори EVM, змінні середовища та підтримка клонів Ring — Wagmi без RainbowKit.
-last_modified: '2026-05-10'
+last_modified: '2026-07-19'
 tags: ['web3', 'wagmi', 'viem', 'walletconnect', 'ethereum']
 ---
 
@@ -14,6 +14,10 @@ tags: ['web3', 'wagmi', 'viem', 'walletconnect', 'ethereum']
 - `injected()`, `metaMask()` — потрібен peer **`@metamask/connect-evm`** для MetaMask-конектора.
 - `coinbaseWallet()` — peer **`@coinbase/wallet-sdk`**.
 - `walletConnect()` — peer **`@walletconnect/ethereum-provider`**, увімкнено лише за наявності **`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`** (інакше 403 / зайве навантаження).
+
+## RPC SSOT
+
+Не хардкодьте публічні Polygon RPC (`polygon-rpc.com`). Використовуйте `getPolygonRpcUrl()` / `getEvmRpcUrl()` — повний опис в англійській версії.
 
 ## SSR
 

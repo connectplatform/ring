@@ -1,11 +1,33 @@
 'use client'
 import React from 'react'
 import { useStore } from '@/features/store/context'
+import {
+  MAIN_CURRENCY,
+  useOptionalStorePaymentMethods,
+  type StorePaymentMethods,
+} from '@/features/store/currency-context'
 import { ReferralCheckoutBadge } from '@/components/refcodes/referral-checkout-badge'
 
-export function ReviewStep({ onPlaceOrder, submitting }: { onPlaceOrder: () => void, submitting: boolean }) {
+export function ReviewStep({
+  onPlaceOrder,
+  submitting,
+  asFormSubmit = false,
+}: {
+  onPlaceOrder?: () => void
+  submitting: boolean
+  /** When true, renders a submit button for progressive form actions. */
+  asFormSubmit?: boolean
+}) {
   const { cartItems, totalPriceByCurrency } = useStore()
-  
+  const storeCurrency = useOptionalStorePaymentMethods()
+  const formatPrice =
+    storeCurrency?.formatPrice ??
+    ((price: number, currency: StorePaymentMethods) => `${price.toFixed(2)} ${currency}`)
+
+  const totals = Object.entries(totalPriceByCurrency).filter(([, amount]) => amount > 0)
+  if (totals.length === 0) totals.push([MAIN_CURRENCY, 0])
+
+
   return (
     <div className="space-y-6">
       <ReferralCheckoutBadge />
@@ -52,18 +74,19 @@ export function ReviewStep({ onPlaceOrder, submitting }: { onPlaceOrder: () => v
         <div className="mt-6 pt-4 border-t flex items-center justify-between">
           <span className="font-semibold text-lg">Total:</span>
           <span className="font-bold text-xl text-primary">
-            {totalPriceByCurrency.DAAR || 0} DAAR
-            {(totalPriceByCurrency.DAAR && totalPriceByCurrency.DAARION) ? ' + ' : ''}
-            {totalPriceByCurrency.DAARION || 0} DAARION
+            {totals
+              .map(([currency, amount]) => formatPrice(amount, currency as StorePaymentMethods))
+              .join(' + ')}
           </span>
         </div>
       </div>
       
       {/* Place Order Button */}
       <button 
+        type={asFormSubmit ? 'submit' : 'button'}
         disabled={submitting} 
         className="w-full px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-        onClick={onPlaceOrder}
+        onClick={asFormSubmit ? undefined : onPlaceOrder}
       >
         {submitting ? 'Placing order...' : 'Place Order'}
       </button>

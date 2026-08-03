@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Paperclip, Image as ImageIcon, Smile, X, Loader2, Receipt } from 'lucide-react'
+import { Send, Paperclip, Image as ImageIcon, Smile, X, Loader2, Receipt, ListTodo, BarChart3, CalendarDays, Gamepad2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
@@ -18,6 +18,14 @@ interface MessageComposerProps {
   onSendMessageAction?: (content: string, options?: Partial<SendMessageRequest>) => Promise<Message | null>
   /** Opens native-token payment request flow (direct chats). */
   onRequestPaymentAction?: () => void
+  /** Opens task compose dialog for this conversation. */
+  onCreateTaskAction?: () => void
+  /** Opens poll compose dialog. */
+  onCreatePollAction?: () => void
+  /** Opens RSVP compose dialog when conversation has entity/group binding. */
+  onCreateRsvpAction?: () => void
+  /** Opens peer game challenge dialog (direct chats). */
+  onCreateGameAction?: () => void
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -42,6 +50,10 @@ export function MessageComposer({
   onMessageSentAction,
   onSendMessageAction,
   onRequestPaymentAction,
+  onCreateTaskAction,
+  onCreatePollAction,
+  onCreateRsvpAction,
+  onCreateGameAction,
   placeholder = "Type a message...",
   disabled = false,
   className,
@@ -439,6 +451,62 @@ export function MessageComposer({
                 title="Request Payment"
               >
                 <Receipt className="h-6 w-6" />
+              </Button>
+            ) : null}
+            {onCreateTaskAction ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCreateTaskAction}
+                disabled={disabled || isLoading}
+                className="h-11 w-11 p-0"
+                aria-label="Create task"
+                title="Create task"
+              >
+                <ListTodo className="h-6 w-6" />
+              </Button>
+            ) : null}
+            {onCreatePollAction ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCreatePollAction}
+                disabled={disabled || isLoading}
+                className="h-11 w-11 p-0"
+                aria-label="Create poll"
+                title="Create poll"
+              >
+                <BarChart3 className="h-6 w-6" />
+              </Button>
+            ) : null}
+            {onCreateRsvpAction ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCreateRsvpAction}
+                disabled={disabled || isLoading}
+                className="h-11 w-11 p-0"
+                aria-label="Create RSVP"
+                title="Create RSVP"
+              >
+                <CalendarDays className="h-6 w-6" />
+              </Button>
+            ) : null}
+            {onCreateGameAction ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCreateGameAction}
+                disabled={disabled || isLoading}
+                className="h-11 w-11 p-0"
+                aria-label="Challenge to a game"
+                title="Challenge to a game"
+              >
+                <Gamepad2 className="h-6 w-6" />
               </Button>
             ) : null}
             <Button

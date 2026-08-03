@@ -22,10 +22,16 @@
       "storeCategories": "Schwerpunkte",
       "storeCategoriesHint": "Alle passenden Kategorien auswählen",
       "storeLogo": "Store-Logo",
-      "storeLogoHint": "Quadratisches Bild, empfohlen 512×512 (JPG, PNG, WebP, max. 5 MB)",
+      "storeLogoHint": "Quadratisches Bild, empfohlen 512×512. Hochladen oder mit ImageConductor erzeugen.",
       "uploadLogo": "Logo hochladen",
+      "uploadAndGenerate": "Hochladen & Generieren",
       "changeLogo": "Logo ändern",
       "removeLogo": "Logo entfernen",
+      "existingStorefrontsTitle": "Ich verkaufe bereits auf",
+      "existingStorefrontsHint": "Links zu Ihren bestehenden Schaufenstern hinzufügen.",
+      "existingPagesUrls": "URLs bestehender Seiten",
+      "addUrl": "Weitere URL hinzufügen",
+      "removeUrl": "URL entfernen",
       "submit": "Publisher-Store anlegen",
       "submitting": "Store wird erstellt …"
     },
@@ -153,9 +159,17 @@
     },
     "dagi": {
       "title": "DAGI Vendor Agent",
-      "comingSoon": "Demnächst",
-      "description": "KI-Agent-Aktivierung und DAARION-Staking folgen hier. Store-Betrieb (Produkte, Bestellungen, Bestand, Einnahmen) ist jetzt über das Vendor-Menü verfügbar.",
-      "todoNote": "Provisioning-API und Wallet-Staking sind geplant — keine Mock-Aktivierung."
+      "comingSoon": "Gesperrt",
+      "unlocked": "Freigeschaltet",
+      "description": "Staken Sie einen vendor-dagi-key, um den ERP-Assistenten für diesen Store freizuschalten.",
+      "todoNote": "Provisioning-API und Wallet-Staking sind geplant — keine Mock-Aktivierung.",
+      "unlockHint": "Kaufen und staken Sie ein vendor-dagi-key NFT, um DAGI für einen Ihrer Vendor-Stores freizuschalten. Stake nutzt GateEscrow — handelbare Keys binden beim Stake an Ihren Store.",
+      "getKey": "DAGI-Key holen",
+      "chatIntro": "DAGI ist an diesen Store gebunden. Fragen Sie zu Produkten, Bestand oder Bestellungen — Tools laufen nur mit Ihrer Session.",
+      "chatTitle": "DAGI ERP-Chat",
+      "chatLoading": "DAGI wird geöffnet…",
+      "chatPlaceholder": "Fragen Sie DAGI zu Bestand, Bestellungen oder einem Produkt…",
+      "chatSend": "Senden"
     },
     "promotions": {
       "label": "Aktionen",
@@ -395,7 +409,10 @@
     "stock": "Bestand",
     "restock": "Auffüllen",
     "restocking": "Wird hinzugefügt…",
-    "quantity": "Menge"
+    "quantity": "Menge",
+    "bulkRestock": "Massenauffüllung",
+    "warehouse": "Lager",
+    "lowStock": "Niedriger Bestand"
   },
   "navbar": {
     "myStore": "Mein Store",

@@ -181,6 +181,43 @@ export async function ensureOrderLabForAssignee(
   }
 }
 
+/** Seed ringization playbook markdown into the order_lab thread (best-effort). */
+export async function seedRingizationPlaybookMessage(orderId: string): Promise<void> {
+  try {
+    const { formatPlaybookMarkdown, PLAYBOOK_SEED_MARKER } = await import(
+      '@/features/crm/lab/ringization-playbook'
+    )
+    const conversation = await conversationService.findOrderLabConversation(orderId)
+    if (!conversation) return
+
+    // Idempotent: skip if a prior assign already seeded the playbook
+    try {
+      const prior = await messageService.getMessages(
+        conversation.id,
+        RING_REGGIE_AGENT_ID,
+        { limit: 40 },
+      )
+      if (prior.some((m) => typeof m.content === 'string' && m.content.includes(PLAYBOOK_SEED_MARKER))) {
+        return
+      }
+    } catch {
+      // Access check can fail for edge agents — still attempt a single seed
+    }
+
+    await messageService.sendMessage(
+      {
+        conversationId: conversation.id,
+        content: `${PLAYBOOK_SEED_MARKER}\n${formatPlaybookMarkdown('integrator')}`,
+        type: 'system',
+      },
+      RING_REGGIE_AGENT_ID,
+      RING_REGGIE_AGENT_NAME,
+    )
+  } catch (error) {
+    logger.warn('seedRingizationPlaybookMessage failed', { orderId, error })
+  }
+}
+
 /**
  * Ensure a direct DM exists between two users (admin↔buyer or admin↔integrator).
  */
@@ -201,4 +238,59 @@ export async function getOrCreateCustomerConversation(
       ...(otherName ? { directUserName: otherName } : {}),
     },
   })
+}
+
+/**
+ * Post a share_card for an Order Source Editor commit into the order_lab room.
+ * Best-effort — never throws to the commit path.
+ */
+export async function postSourceCommitCard(opts: {
+  orderId: string
+  sha: string
+  path: string
+  message: string
+  actorUserId: string
+  actorName?: string | null
+  buyerId?: string | null
+  integratorId?: string | null
+}): Promise<void> {
+  try {
+    const conversation = await getOrCreateOrderLabConversation(opts.orderId, {
+      buyerId: opts.buyerId,
+      integratorId: opts.integratorId,
+      adminId: opts.actorUserId,
+    })
+    const sha7 = opts.sha.slice(0, 7)
+    const title = (opts.message || 'Source commit').trim().slice(0, 200)
+    const url = `/my-jobs/${encodeURIComponent(opts.orderId)}?source=${encodeURIComponent(opts.path)}&sha=${encodeURIComponent(opts.sha)}`
+    const meta = {
+      kind: 'share_card' as const,
+      targetType: 'source_commit' as const,
+      targetId: opts.sha,
+      title,
+      description: `${opts.path} @ ${sha7}`,
+      url,
+      commit: {
+        sha: opts.sha,
+        path: opts.path,
+        orderId: opts.orderId,
+      },
+    }
+    await messageService.sendMessage(
+      {
+        conversationId: conversation.id,
+        content: `${title}\n${opts.path} @ ${sha7}`,
+        type: 'share_card',
+        metadata: meta as unknown as Record<string, unknown>,
+      },
+      opts.actorUserId,
+      opts.actorName?.trim() || 'Order Lab',
+    )
+  } catch (error) {
+    logger.warn('postSourceCommitCard failed', {
+      orderId: opts.orderId,
+      path: opts.path,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
 }

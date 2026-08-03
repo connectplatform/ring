@@ -90,9 +90,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await publishToChannel(`conversation:${conversationId}`, 'call:invite', payload)
     await publishToUserTunnel(parsed.peerUserId, 'calls:incoming', payload)
 
+    let systemMessage = null
     if (!already) {
       try {
-        await conversationService.recordCallSystemMessage(
+        systemMessage = await conversationService.recordCallSystemMessage(
           conversationId,
           fromUserId,
           parsed.media === 'video' ? 'started a video call' : 'started an audio call',
@@ -104,7 +105,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       success: true,
-      data: { ...payload, deduped: already },
+      data: {
+        ...payload,
+        deduped: already,
+        message: already ? null : systemMessage,
+      },
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -87,8 +87,11 @@ export interface CommunicationChannels {
   phoneNumber?: string;
   whatsappNumber?: string;
   preferredContactMethod: 'email' | 'phone' | 'telegram' | 'whatsapp';
+  /** Display-only handle (@username); never sufficient for "linked". */
   telegramUsername?: string;
-  telegramId?: string; // Numeric Telegram Chat ID for Admin Bot integration
+  /** Verified numeric Telegram user id — SSOT for linked state / rewards / bots. */
+  telegramId?: string;
+  telegramLinkedAt?: string;
 }
 
 // Cultural & Geographic Context
@@ -173,7 +176,7 @@ export interface RoleUpgradeHistory {
   upgradedAt: Date;
   paymentReference: string;
   paymentAmount: number;
-  paymentCurrency: string;
+  mainCurrency: string;
 }
 
 // ============================================================================
@@ -382,6 +385,20 @@ export interface AuthUser extends GlobalUserIdentity {
 
   // Legacy fields (backward compatibility)
   bio?: string;
+  /**
+   * Personal page enabled — stored in users.data JSONB.
+   * Coerced from boolean or legacy string `'true'` / `'false'`.
+   */
+  publicProfile?: boolean;
+  /** Optional section keys shown on the public profile (granular toggles). */
+  publicProfileSections?: string[];
+  /**
+   * Nested field visibility under each section.
+   * Missing key = visible (opt-out). Sibling of publicProfileSections.
+   */
+  publicProfileFields?: import('@/features/auth/lib/personal-page-sections').PublicProfileFieldsMap;
+  /** When false, profile ContactForm / MessageUserButton are blocked. Default true. */
+  acceptProfileDms?: boolean;
   canPostconfidentialOpportunities: boolean;
   canViewconfidentialOpportunities: boolean;
   postedopportunities: string[];
@@ -395,6 +412,8 @@ export interface AuthUser extends GlobalUserIdentity {
   phoneNumber?: string;
   organization?: string;
   position?: string;
+  /** Expertise tags shown on public professional section when enabled. */
+  skills?: string[];
   lastRoleUpgrade?: RoleUpgradeHistory;
 
   // Metadata
@@ -462,6 +481,11 @@ export type VerificationDocument = {
  */
 export type ProfileFormData = Partial<ExtendedProfile> & Pick<AuthUser, 'name' | 'email' | 'role'> & {
   username?: string;
+  /** Personal page enabled flag (FormData may send `'true'` / `'false'`). */
+  publicProfile?: boolean | string;
+  publicProfileSections?: string[] | string;
+  publicProfileFields?: import('@/features/auth/lib/personal-page-sections').PublicProfileFieldsMap | string;
+  acceptProfileDms?: boolean | string;
   wallets?: Wallet[];
   photoURL?: string;
   lastLogin?: Date;

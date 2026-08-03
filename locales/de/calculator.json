@@ -463,7 +463,17 @@
       "restartPod": "Neustart",
       "projectRoom": "Projektraum",
       "noProjectRoom": "Projektraum nicht verfügbar",
-      "namespaceAdminLock": "Namespace und Edge setzt ein Admin im CRM — bitte nachfragen, falls das Feld leer ist."
+      "namespaceAdminLock": "Namespace und Edge setzt ein Admin im CRM — bitte nachfragen, falls das Feld leer ist.",
+      "ownerPrivate": "Eigentümer-Keys",
+      "missing": "Nicht gesetzt — Käufer anfragen",
+      "requestUpdate": "Update anfordern",
+      "requestSent": "Anfrage gesendet",
+      "requestFailed": "Senden fehlgeschlagen",
+      "gitUrl": "Forgejo Git",
+      "scaffoldClone": "Clone scaffolden",
+      "buildImage": "Image bauen",
+      "refreshJob": "Job aktualisieren",
+      "cloneBridgeFiHint": "Scaffold/Build benötigt RING_EDGE_FI_* (k3s-3 BuildKit)."
     },
     "buyerBadge": "Meine Projekte",
     "buyerTitle": "Meine Projektaufträge",
@@ -480,6 +490,28 @@
     "integratorLabel": "Integrator",
     "awaitingIntegrator": "Warte auf Integrator-Zuweisung",
     "filterPaid": "Bezahlt",
-    "kpiPaid": "Bezahlt"
+    "kpiPaid": "Bezahlt",
+    "secrets": {
+      "title": "Eigentümer-Geheimnisse",
+      "subtitle": "Firebase, RingBase und Storage — nur Sie und Admins. Wird beim nächsten Deploy angewendet.",
+      "savedBanner": "Gespeichert — wird beim nächsten Deploy angewendet.",
+      "save": "Geheimnisse speichern"
+    },
+    "projectConfig": {
+      "title": "Projektidentität",
+      "buyerSubtitle": "Name, Slogan und Logo. Wird beim nächsten Deploy angewendet.",
+      "integratorSubtitle": "Vollständige Order Project Config (Branding, SEO, Kontakt).",
+      "savedBanner": "Gespeichert — wird beim nächsten Deploy angewendet.",
+      "displayName": "Anzeigename",
+      "slogan": "Slogan",
+      "description": "Beschreibung",
+      "logoUrl": "Logo-URL",
+      "primaryColor": "Primärfarbe",
+      "accentColor": "Akzent",
+      "contactEmail": "Kontakt-E-Mail",
+      "seoTitle": "SEO-Suffix",
+      "ogImage": "OG-Bild",
+      "save": "Config speichern"
+    }
   }
 }

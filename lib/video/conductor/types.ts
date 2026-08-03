@@ -104,6 +104,8 @@ export interface GeneratedVideoRecord {
 
 export interface XaiVideoPollResult {
   status: string
+  /** Official xAI progress 0–100 (pending 0–99, done 100; omitted on failed). */
+  progress?: number | null
   video?: {
     url?: string
     duration?: number

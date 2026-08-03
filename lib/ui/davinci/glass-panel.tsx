@@ -6,7 +6,7 @@ import { BorderBeam } from './border-beam'
 import { davinciAuthButtonLift, davinciBeamInnerSurface, davinciGlassSurface } from './glass-surface'
 
 export interface DavinciGlassPanelProps {
-  title?: string
+  title?: ReactNode
   description?: string
   icon?: ReactNode
   children?: ReactNode
@@ -30,19 +30,19 @@ export function DavinciGlassPanel({
   return (
     <BorderBeam
       duration={beamDuration}
-      className={cn(davinciGlassSurface, davinciAuthButtonLift, 'rounded-2xl', className)}
+      className={cn(davinciGlassSurface, davinciAuthButtonLift, 'rounded-[15px]', className)}
       innerClassName={cn(davinciBeamInnerSurface, 'p-4', innerClassName)}
     >
       {(title || description) && (
         <div className="mb-3 space-y-1.5">
           {title ? (
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
               {icon ? (
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)] text-[var(--davinci-beam)]">
                   {icon}
                 </span>
               ) : null}
-              <span>{title}</span>
+              <span className="min-w-0 truncate">{title}</span>
             </div>
           ) : null}
           {description ? (

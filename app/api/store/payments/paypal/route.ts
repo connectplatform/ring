@@ -4,9 +4,8 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
-import {
-  getDefaultStoreCurrencySymbol,
-} from '@/lib/payments/payment.config'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
+import type { SupportedCurrencies } from '@/lib/ring-config-core'
 import {
   getPayPalGatewayCurrency,
   isPayPalGatewayEnabled,
@@ -24,7 +23,7 @@ const createPaymentSchema = z.object({
 
 /**
  * POST /api/store/payments/paypal
- * PayPal Orders v2 via PaymentConductor (store_order → merchant_redirect → processor paypal).
+ * PayPal Orders v2 via PaymentConductor (store_order → paypal rail).
  */
 export async function POST(request: NextRequest) {
   await connection()
@@ -108,11 +107,10 @@ export async function POST(request: NextRequest) {
       country: order.shippingInfo?.country || '',
     }
 
-    const currency = getPayPalGatewayCurrency() || getDefaultStoreCurrencySymbol()
-
+    const currency = (getPayPalGatewayCurrency() || getMainCurrencySymbol() as SupportedCurrencies)
     const result = await PaymentConductor.createCheckout({
       purpose: 'store_order',
-      rail: 'merchant_redirect',
+      rail: 'paypal',
       userId: session.user.id,
       userEmail: session.user.email || shippingInfo.email || '',
       entityId: order.id,

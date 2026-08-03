@@ -2,9 +2,9 @@
 import React, { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  DEFAULT_CURRENCY,
-  NATIVE_TOKEN_CURRENCY,
-  useOptionalStoreCurrency,
+  MAIN_CURRENCY,
+  NATIVE_TOKEN,
+  useOptionalStorePaymentMethods,
 } from '@/features/store/currency-context'
 
 export type SortKey = 'name' | 'price'
@@ -31,11 +31,11 @@ export function FilterBar({
   setSortDir: (v: SortDir) => void
 }) {
   const t = useTranslations('modules.store')
-  const storeCurrency = useOptionalStoreCurrency()
+  const storeCurrency = useOptionalStorePaymentMethods()
   const currencyOptions = useMemo(() => {
     const fromCtx = storeCurrency?.displayCurrencies
     if (fromCtx && fromCtx.length > 0) return fromCtx
-    return [DEFAULT_CURRENCY, NATIVE_TOKEN_CURRENCY]
+    return [MAIN_CURRENCY, NATIVE_TOKEN]
   }, [storeCurrency?.displayCurrencies])
 
   const options = useMemo(() => ([

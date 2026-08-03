@@ -1,112 +1,142 @@
 ---
 title: Commissions & Settlements
-description: Settlement flow, vendor-funded referral commission, ERP sales assists, and payout scheduling — dual-rail with refcodes token rewards
-last_modified: "2026-06-12"
+description: Settlements ledger, referral commission, hold/release, dry-run payouts — dual-rail with refcodes
+last_modified: "2026-07-23"
+audience: both
 ---
 
 # Commissions & Settlements
 
-`settlement.ts` calculates platform commission, optional **referral commission** (when order attribution exists), and custom splits from merchant configuration. This is the **vendor-funded rail**; platform-funded **token** rewards are handled by [refcodes](/docs/features/refcodes).
+`settlement.ts` calculates platform commission, optional **referral commission**, and merchant splits. This is the **vendor-funded** rail. Platform-funded **token** rewards live on [refcodes](/docs/features/refcodes).
 
 <Callout type="info" title="Dual-rail">
   Same `orderReference` should appear on `settlements`, `erp_sales_assists`, and `referral_rewards` for cross-audit. See [Affiliate enablement](/docs/features/affiliate-enablement).
 </Callout>
 
+<Audience for="founder">
+
+## Operator cockpit — `/admin/store/commissions`
+
+| Action | What it does |
+|--------|----------------|
+| Status filters | Pending / held / completed |
+| **Dry-run due payouts** | Counts due rows + net total — no money moved |
+| **Process due payouts** | Runs `processDueSettlements` for `scheduledFor <= now` and `status = pending` |
+| **Hold** | Blocks a pending settlement from payout (`status = held`) |
+| **Release** | Returns a held settlement to pending |
+| Referral rates table | Effective % per product with resolver source |
+
+Vendor view: `/vendor/earnings` — pending + history from the same `settlements` collection. Simulated payouts show a **Simulated** badge until on-chain mode is production-verified.
+
+</Audience>
+
+<Audience for="developer">
+
 ## Unified ledger flow
 
-Paid store orders (WayForPay webhook or credit rail) call `VendorSettlementService.processSettlements`, which delegates to `recordSettlementsForPaidOrder` in `settlement-pipeline.ts`. That invokes `createSettlement` per vendor slice and writes the **canonical** `settlements` table.
+Paid store orders call `VendorSettlementService.processSettlements` → `recordSettlementsForPaidOrder` → `createSettlement` per vendor slice into canonical `settlements`.
+
+Stock commit runs **alongside** (not inside) settlement: handlers call `commitSaleForOrder` then settlements.
 
 | Collection | Role |
 |------------|------|
-| `settlements` | Commission/payout ledger — admin Commissions tab, vendor Earnings, `processDueSettlements` |
-| `vendor_settlements` | Legacy processing log (no longer written on new paid orders) |
-| `payout_batches` | Batch runs from admin **Process due payouts** |
+| `settlements` | Commission/payout ledger — admin Commissions, vendor Earnings |
+| `payout_batches` | Batch runs from Process due payouts |
 | `erp_sales_assists` | Referral-attributed sale rows when `referralCode` is on the order |
+| `vendor_settlements` | Legacy log (not written on new paid orders) |
 
-Stock movements from `deductStockForOrder` include `referralCode`, `referrerUserId`, and `assisted: true` when attribution is present.
-
-<Mermaid title="Paid order → settlement + assists">
+<Mermaid title="Paid order stock commit then settlements">
 {`sequenceDiagram
-    participant WFP as WayForPay webhook
-    participant SO as store-order handler
-    participant VS as VendorSettlementService
-    participant SP as settlement-pipeline
-    participant ST as settlement.ts
-    participant ERP as erp-stock-service
-    participant DB as PostgreSQL
+  participant PC as PaymentConductor_handler
+  participant SALE as commitSaleForOrder
+  participant VS as VendorSettlementService
+  participant SP as settlement_pipeline
+  participant ST as settlement_ts
+  participant DB as PostgreSQL
 
-    WFP->>SO: Approved + isNew
-    SO->>VS: processSettlements
-    VS->>SP: recordSettlementsForPaidOrder
-    SP->>ST: createSettlement per vendor slice
-    ST->>DB: settlements + commissionBreakdown
-  par Referral metadata
-    SO->>ERP: deductStockForOrder(referralCode)
-    ERP->>DB: stock_movements + erp_sales_assists
-  end`}
+  PC->>SALE: paid isNew
+  SALE->>DB: stock_movements sale
+  PC->>VS: processSettlements
+  VS->>SP: recordSettlementsForPaidOrder
+  SP->>ST: createSettlement
+  ST->>DB: settlements
+`}
 </Mermaid>
+### Admin actions (verified)
 
-## Settlement record
-
-Each payout creates a row in the `settlements` collection with `vendorId`, `orderId`, `commission`, `netPayout`, `status`, and `scheduledFor`.
-
-## Admin commissions tab
-
-`/admin/store/commissions` (`admin-commissions-client.tsx`) provides:
-
-| View | Data source |
-|------|-------------|
-| Settlements table | `settlements` — commission, net payout, status, `scheduledFor` |
-| Product referral rates | Effective `referralCommission` per SKU with resolver tier |
-| **Process due payouts** | `processDueSettlements` when `scheduledFor <= now` and `status = pending` |
-| Batch payout | `payout_batches` audit trail |
-
-Referral-assisted sales also appear in `erp_sales_assists` (product, ref code, referrer, order id, qty).
+| Action | Path |
+|--------|------|
+| `processDueSettlementsAction` | `app/_actions/admin-store-erp.ts` |
+| `previewDueSettlementsAction` | dry-run preview |
+| `holdSettlementAction` / `releaseHeldSettlementAction` | wraps `holdSettlement` / `releaseHeldSettlement` |
+| Cron | ProcessConductor `settlement-payout` → `/api/cron/settlement-payout` |
 
 ## Referral commission hierarchy
 
-`resolveReferralCommissionPercent` in `features/store/lib/referral-commission.ts` is shared by ERP settlement and refcodes token rewards:
+Shared resolver `features/store/lib/referral-commission.ts`:
 
-| Priority | Source | Field |
-|----------|--------|-------|
-| 1 | Product override | `product.referralCommission` or `product.commissionStructure.referralCommission` |
-| 2 | Merchant config | `merchantConfig.commissionStructure.referralCommission` |
-| 3 | Platform constant | `DEFAULT_COMMISSION_STRUCTURE.referralCommission` (5%) |
-| 4 | Clone env fallback | `REFERRAL_REWARD_PERCENT` |
+| Priority | Source |
+|----------|--------|
+| 1 | Product `referralCommission` |
+| 2 | Merchant `commissionStructure.referralCommission` |
+| 3 | Platform default (5%) |
+| 4 | Env `REFERRAL_REWARD_PERCENT` |
 
-Mixed-rate carts use a **subtotal-weighted** effective percent. Vendors may set per-product overrides in the product editor; merchant-level rates are admin-managed (read-only on `/vendor/settings`). Admin **Commissions** tab lists effective rates per product with source tier.
+Optional clamp: `REFERRAL_COMMISSION_MAX_PERCENT` (default `50`).
 
-Optional env: `REFERRAL_COMMISSION_MAX_PERCENT` (default `50`) clamps all resolved values.
-
-## Payout currencies and modes
-
-RING, DAAR, and DAARION payouts route through merchant `walletId`.
+## Payout modes
 
 | `SETTLEMENT_PAYOUT_MODE` | Behavior |
 |--------------------------|----------|
-| `simulated` (default) | Completes with `metadata.simulated: true` and `sim_` transaction id — admin Commissions and vendor Earnings show a **Simulated** badge |
-| `onchain` | ERC20 transfer via treasury wallet (`SETTLEMENT_PAYOUT_PRIVATE_KEY`, `SETTLEMENT_PAYOUT_TOKEN_ADDRESS`, `POLYGON_RPC_URL`) |
-
-Use `simulated` until WayForPay/RING payout rails are production-verified.
+| `simulated` (default) | Completes with `metadata.simulated` / `sim_` id |
+| `onchain` | ERC20 via treasury (`SETTLEMENT_PAYOUT_PRIVATE_KEY`, token address, RPC) |
 
 ## Database
 
-Migration **`007_settlements_schema.sql`** creates `settlements`, `payout_batches`, `merchant_configs`, `vendor_settlements`, `stock_movements`, `erp_sales_assists`.
+Migration **`007_settlements_schema.sql`** (plus inventory tables in schema / `008_*`). Dev helper: `./scripts/apply-erp-migrations-dev.sh` when present on the clone.
 
-```bash
-# Dev (005 refcodes + 007 ERP)
-./scripts/apply-erp-migrations-dev.sh
+</Audience>
 
-# Prod (k8s jump host)
-K8S_NAMESPACE=ring-platform-org POSTGRES_DB=ring_platform POSTGRES_USER=ring_user \
-  ./scripts/apply-erp-migrations-prod.sh
-```
+<FutureFeatureBacklog title="Backlog — settlements">
+<FutureFeatureWidget
+  name="Settlement dispute state UX"
+  description="Beyond hold/release: disputed status with evidence links that blocks processDueSettlements."
+  implementationCost={48}
+  labels={['erp', 'settlements', 'p1']}
+/>
+<FutureFeatureWidget
+  name="Sales-assist operator list"
+  description="Surface recordErpSalesAssist rows in admin UI — pipeline already writes assists."
+  implementationCost={32}
+  labels={['erp', 'affiliate', 'p1']}
+/>
+<FutureFeatureWidget
+  name="Stripe/PayPal refund stock restore parity"
+  description="WFP Refunded/Voided restores stock; confirm and wire matching Stripe/PayPal refund events."
+  implementationCost={40}
+  labels={['erp', 'payments', 'p0-gap']}
+/>
+</FutureFeatureBacklog>
 
-Apply **`005_refcodes_schema.sql`** first on clones that lack refcodes tables.
-
-## Related
-
-- [Affiliate enablement](/docs/features/affiliate-enablement) — dual-rail overview and verification
-- [Referral codes](/docs/features/refcodes) — shared commission hierarchy and token rewards
-- [Vendor management](/docs/features/erp/vendor-management)
-- [Inventory](/docs/features/erp/inventory)
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/erp/inventory"
+    relation="Depends-on: stock commit before settlement side-effects on paid order."
+  />
+  <RelatedArticle
+    slug="features/affiliate-enablement"
+    relation="Same-workflow: dual-rail overview and verification checklist."
+  />
+  <RelatedArticle
+    slug="features/refcodes"
+    relation="See-also: platform-funded token rewards sharing commission resolver."
+  />
+  <RelatedArticle
+    slug="features/erp/vendor-management"
+    relation="Next-step: vendor earnings and merchant config context."
+  />
+  <RelatedArticle
+    slug="features/payment-conductor"
+    relation="Prerequisite: paid handlers trigger processSettlements."
+  />
+</RelatedDocs>

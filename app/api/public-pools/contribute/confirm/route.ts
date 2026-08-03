@@ -61,6 +61,24 @@ export async function POST(request: NextRequest) {
 
   await recomputePoolTotals(contribution.pool_id)
   const pool = await readPoolById(contribution.pool_id)
+  if (pool) {
+    try {
+      const { refreshOpenDaoJarMessages } = await import(
+        '@/features/chat/lib/refresh-open-dao-jar-messages'
+      )
+      await refreshOpenDaoJarMessages(pool.pool_slug, {
+        contributorUserId: session.user.id,
+        lastContribution: {
+          userId: session.user.id,
+          amountNativeToken: contribution.amount_native,
+          rail: 'native_token',
+          at: new Date().toISOString(),
+        },
+      })
+    } catch {
+      // Non-fatal snapshot sync
+    }
+  }
   const stats = pool
     ? await getPoolStatsBySlug(pool.pool_slug, session.user.id)
     : null

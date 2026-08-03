@@ -6,6 +6,12 @@ import {
   HandHeart,
   Package,
   Users2,
+  Clock,
+  ShoppingCart,
+  Trophy,
+  FileSearch,
+  KeyRound,
+  BadgeCheck,
 } from 'lucide-react'
 import {
   getOpportunityFormTypePreset,
@@ -31,6 +37,13 @@ const FEED_ICONS: Record<string, LucideIcon> = {
   event: Calendar,
   ring_customization: Briefcase,
   cv: GraduationCap,
+  program: Briefcase,
+  scheduled_services: Clock,
+  collective_order: ShoppingCart,
+  bounty: Trophy,
+  tender: FileSearch,
+  asset_rental: KeyRound,
+  job: BadgeCheck,
 }
 
 const SOLID: Record<string, string> = {
@@ -43,6 +56,13 @@ const SOLID: Record<string, string> = {
   event: 'bg-pink-500',
   ring_customization: 'bg-violet-500',
   cv: 'bg-indigo-500',
+  program: 'bg-indigo-500',
+  scheduled_services: 'bg-sky-500',
+  collective_order: 'bg-amber-500',
+  bounty: 'bg-yellow-500',
+  tender: 'bg-slate-500',
+  asset_rental: 'bg-emerald-500',
+  job: 'bg-blue-600',
 }
 
 export function getOpportunityFeedTypeTone(type: string): OpportunityFeedTypeTone {

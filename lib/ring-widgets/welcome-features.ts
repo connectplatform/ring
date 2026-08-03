@@ -74,7 +74,7 @@ const productOwnerEn: WelcomeFeatureSection[] = [
         id: 'wallet',
         emoji: '💰',
         title: 'Wallet & Payments',
-        description: 'RING credits, top-up, membership spend, and fiat rails.',
+        description: 'Credit balance, top-up, membership spend, and token swapdesk.',
         href: '/docs/features/wallet',
       },
       {
@@ -364,7 +364,7 @@ const copy = completeLocaleRecord<WelcomeFeatureExplorerCopy>({
             id: 'wallet',
             emoji: '💰',
             title: 'Гаманець і платежі',
-            description: 'RING credits, top-up, membership, fiat-рейки.',
+            description: 'Кредитний баланс, поповнення, членство, обмін.',
             href: '/docs/features/wallet',
           },
           {
@@ -643,7 +643,7 @@ const copy = completeLocaleRecord<WelcomeFeatureExplorerCopy>({
             id: 'wallet',
             emoji: '💰',
             title: 'Кошелёк и платежи',
-            description: 'RING credits, top-up, membership, fiat-рельсы.',
+            description: 'Кредитные баллы, пополнение, членство, обмен.',
             href: '/docs/features/wallet',
           },
           {

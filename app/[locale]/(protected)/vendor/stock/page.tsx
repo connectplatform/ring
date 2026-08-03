@@ -50,6 +50,9 @@ export default async function VendorStockPage({
             restock: t('restock'),
             restocking: t('restocking'),
             quantity: t('quantity'),
+            bulkRestock: t('bulkRestock'),
+            warehouse: t('warehouse'),
+            lowStock: t('lowStock'),
           }}
         />
       </div>

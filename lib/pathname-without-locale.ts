@@ -23,15 +23,17 @@ export function localeFromPathname(pathname: string | null): Locale {
     : DEFAULT_LOCALE
 }
 
-/** Routes that mount wagmi (wallet, checkout, login crypto, NFT). */
+/** Routes that mount wagmi (wallet, checkout, login crypto, NFT, admin web3). */
 export function pathNeedsWeb3(pathWithoutLocale: string): boolean {
   const p = pathWithoutLocale === '' ? '/' : pathWithoutLocale
   return (
-    p === '/login' ||
+    p.startsWith('/login') ||
     p.startsWith('/auth/wallet-connect') ||
     p.startsWith('/wallet') ||
     p.startsWith('/store/checkout') ||
     p.startsWith('/nft') ||
-    p.startsWith('/ai-web3')
+    p.startsWith('/ai-web3') ||
+    p.startsWith('/admin/nft') ||
+    p.startsWith('/admin/web3')
   )
 }

@@ -7,14 +7,19 @@
  *
  * PERFORMANCE: Singleton config at module scope avoids Strict Mode double-init
  * of WalletConnect.
+ *
+ * RPC SSOT: Polygon transport uses getEvmRpcUrl() (env → Ankr fallback).
+ * Default chain follows ring-config native EVM chainId when available.
  */
 
 import { createConfig, http, cookieStorage, createStorage } from 'wagmi'
 import { mainnet, polygon, arbitrum, optimism, base } from 'wagmi/chains'
 import { injected, metaMask, coinbaseWallet } from 'wagmi/connectors'
 import { walletConnect } from '@wagmi/connectors'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+const polygonRpc = getEvmRpcUrl()
 
 const getConnectors = () => {
   const baseConnectors = [
@@ -48,12 +53,13 @@ const getConnectors = () => {
   return baseConnectors
 }
 
+/** Multi-chain explorer set; Polygon is the Ring EVM default (native when chains.native=evm). */
 export const wagmiConfig = createConfig({
-  chains: [mainnet, polygon, arbitrum, optimism, base],
+  chains: [polygon, mainnet, arbitrum, optimism, base],
   connectors: getConnectors(),
   transports: {
+    [polygon.id]: http(polygonRpc),
     [mainnet.id]: http(),
-    [polygon.id]: http(),
     [arbitrum.id]: http(),
     [optimism.id]: http(),
     [base.id]: http(),
@@ -66,7 +72,6 @@ export const wagmiConfig = createConfig({
 
 export {
   WagmiProvider,
-  useAccount,
   useBalance,
   useChainId,
   useChains,

@@ -7,11 +7,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocale } from 'next-intl';
 import { CrmAdminShell } from '@/features/admin/crm/crm-admin-shell';
 import { 
   FileText, Check, X, Edit, Send, Eye, Clock, Sparkles,
   AlertTriangle, ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
+import type { Locale } from '@/i18n/shared';
 
 interface Draft {
   id: string;
@@ -35,11 +37,14 @@ const statusColors = {
 };
 
 export default function EmailDraftsPage() {
+  const locale = (useLocale() as Locale) || 'en';
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [sendNotice, setSendNotice] = useState<string | null>(null);
+  const [sendNoticeConvId, setSendNoticeConvId] = useState<string | null>(null);
 
   const loadDrafts = useCallback(async () => {
     setLoadError(null);
@@ -99,7 +104,18 @@ export default function EmailDraftsPage() {
   };
 
   const handleSend = async (draftId: string) => {
-    await fetch(`/api/admin/email/drafts/${draftId}/send`, { method: 'POST' });
+    setSendNotice(null);
+    setSendNoticeConvId(null);
+    const res = await fetch(`/api/admin/email/drafts/${draftId}/send`, { method: 'POST' });
+    const json = await res.json().catch(() => ({}));
+    if (json.skipped && json.reason === 'prefer_chat') {
+      setSendNotice(json.notice || 'Client prefers in-app support chat; email was not sent.');
+      if (typeof json.supportConversationId === 'string') {
+        setSendNoticeConvId(json.supportConversationId);
+      }
+    } else if (!res.ok) {
+      setSendNotice(json.error || `Send failed (${res.status})`);
+    }
     await loadDrafts();
   };
 
@@ -129,6 +145,35 @@ export default function EmailDraftsPage() {
             </div>
           </div>
         </div>
+
+        {sendNotice && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+            <p>{sendNotice}</p>
+            <div className="flex gap-2">
+              {sendNoticeConvId && (
+                <a
+                  href={`/${locale}/messages?c=${encodeURIComponent(sendNoticeConvId)}`}
+                  className="underline"
+                >
+                  Open chat
+                </a>
+              )}
+              <a href={`/${locale}/admin/crm/tasks`} className="underline">
+                CRM tasks
+              </a>
+              <button
+                type="button"
+                className="underline opacity-70"
+                onClick={() => {
+                  setSendNotice(null)
+                  setSendNoticeConvId(null)
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">

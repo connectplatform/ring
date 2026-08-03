@@ -1,7 +1,7 @@
 ---
 title: Real Time
 description: TunnelHub broker and native WSS client transport for Ring Platform realtime
-last_modified: "2026-07-07"
+last_modified: "2026-07-20"
 audience: both
 ---
 
@@ -81,12 +81,13 @@ Full route tables, env overrides, and boot-race SSOT: [Tunnel protocol](/docs/fe
 
 | Feature | Server publish | Client subscribe |
 |---------|----------------|------------------|
-| Notifications | `publishToUserTunnel` → `notifications:unread` | `NotificationProvider` → `useNotificationContext()` |
-| Credit balance | `publishToUserTunnel` → `credit:balance` | `CreditBalanceProvider` → `useCreditBalanceContext()` (bootstrap REST dedup + tunnel push) |
+| Notifications | `publishToUserTunnel` → `notifications:unread` / `notifications:inbox` | `NotificationProvider` → `useNotificationContext()` |
+| Credit balance | `publishToUserTunnel` → `credit:balance` (via `creditBalanceService.publishBalanceUpdate`) | `CreditBalanceProvider` → `useCreditBalanceContext()` (bootstrap REST dedup + tunnel push; 60s poll only if tunnel down) |
+| Wallet list / native balances | `publishWalletListUpdate` → `wallet:list` | `WalletListProvider` (`wallet-wrapper`) → `useTunnelChannel('wallet:list')` |
 | Account status | `publishToUserTunnel` → `account:status` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` |
 | Vendor sidebar gate | — (HTTP only) | `useVendorStatus()` → `GET /api/vendor/status` (30s TTL, single-flight) |
 | Chat | `publishToChannel` → `conversation:${id}` | `hooks/use-messaging.ts` → `useTunnelChannel` |
-| Discovery | `syncDiscovery` → `opportunities` / `entities` | Topic channel subscriptions |
+| Discovery | `syncDiscovery` → `opportunities` / `entities` | `use-realtime-opportunities.ts` / `use-realtime-entities.ts` |
 | Matcher | `publishToChannel` → `matcher` | Admin/matcher UI |
 | Collaboration (flagged) | `collab:${id}` binary CRDT frames | `useCollaboration` (requires WSS) |
 

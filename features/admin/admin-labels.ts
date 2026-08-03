@@ -2,10 +2,15 @@ import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
 import type { AdminNavLabelKey } from '@/features/admin/admin-nav-config'
 import { resolveAdminNavMessage } from '@/features/admin/admin-nav-message-paths'
 
-type AdminTranslationFn = (key: string, ...args: unknown[]) => string
+type AdminTranslationFn = {
+  (key: string, ...args: unknown[]): string
+  has?: (key: string) => boolean
+}
 
 const safeLabel = (t: AdminTranslationFn, key: string): string | undefined => {
   try {
+    // Prefer has() so next-intl does not emit MISSING_MESSAGE console errors
+    if (typeof t.has === 'function' && !t.has(key)) return undefined
     const value = t(key)
     return typeof value === 'string' ? value : undefined
   } catch {
@@ -32,6 +37,15 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     users: navLabel(t, 'users'),
     rewards: safeLabel(t, 'rewards'),
     news: navLabel(t, 'news'),
+    wiki: safeLabel(t, 'wiki') || 'Wiki',
+    wikiManagement: safeLabel(t, 'wiki') || 'Admin Wiki',
+    wikiDescription:
+      safeLabel(t, 'wikiDescription') ||
+      'Obsidian-like Markdown knowledge base with [[wikilinks]] for platform and project vaults',
+    wikiRailCrmOrders: safeLabel(t, 'crmOrders') || 'CRM project orders',
+    wikiRailNews: navLabel(t, 'news'),
+    wikiRailTasks: safeLabel(t, 'emailTasks') || 'CRM tasks',
+    wikiRailDocs: 'Wiki docs',
     dao: navLabel(t, 'dao'),
     analytics: navLabel(t, 'analytics'),
     moderation: navLabel(t, 'moderation'),
@@ -51,6 +65,7 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     emailAnalytics: safeLabel(t, 'emailAnalytics'),
     emailTasks: safeLabel(t, 'emailTasks'),
     crmOrders: safeLabel(t, 'crmOrders') ?? 'Custom orders',
+    crmTaskEscrows: safeLabel(t, 'crmTaskEscrows') ?? 'Task escrows',
     processes: navLabel(t, 'processes'),
     userManagement: safeLabel(t, 'userManagement'),
     quickNav: safeLabel(t, 'quickNav'),

@@ -101,7 +101,7 @@ Most tables are pure JSONB-in-`data`. **`platform_settings`** is the only hybrid
 | Module | Namespace examples | Path |
 |--------|-------------------|------|
 | Platform settings | `ai`, `branding`, matcher | `features/admin/platform-settings/platform-settings-service.ts` |
-| Ring token oracle | `web3` | `features/wallet/services/ring-token-oracle.ts` |
+| Ring token oracle | `web3` | `features/wallet/services/native-token-oracle.ts` |
 
 <Callout type="warning" title="Do not bypass db()">
   Never write raw SQL or instantiate a private `pg.Pool` for `platform_settings`. The adapter hybrid path is the only supported write surface.
@@ -241,26 +241,44 @@ Deep dive: `AI-CONTEXT/concepts/database/query-patterns.json` and [Discovery & m
 
 ## Related documentation
 
-<Cards>
-  <Card title="Data Validation" href="/docs/architecture/data-validation">
-    Zod schemas at the route boundary — how Ring ensures data integrity before it reaches the database.
-  </Card>
-  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
-    When Postgres is primary vs Firebase-full; shared pool SSOT and raw SQL escape hatch.
-  </Card>
-  <Card title="k8s-postgres-fcm" href="/docs/backend/k8s-postgres-fcm">
-    PostGIS setup, connection pool tuning, K8s deployment.
-  </Card>
-  <Card title="Authentication" href="/docs/architecture/authentication">
-    Auth.js tables in the same JSONB model.
-  </Card>
-  <Card title="PaymentConductor" href="/docs/architecture/payment-conductor">
-    Orders, payments JSONB, webhook idempotency.
-  </Card>
-  <Card title="Entities feature" href="/docs/features/entities">
-    Product-facing entity profiles and verification flows.
-  </Card>
-</Cards>
+<RelatedDocs>
+
+<RelatedArticle
+  slug="architecture/data-validation"
+  relation="Next-step: Zod schemas at the route boundary before JSONB lands."
+/>
+
+<RelatedArticle
+  slug="architecture/backend-modes-and-databases"
+  relation="Prerequisite: when Postgres is primary vs Firebase-full; shared pool SSOT."
+/>
+
+<RelatedArticle
+  slug="backend/k8s-postgres-fcm"
+  relation="Deep-dive: PostGIS setup, pool tuning, K8s deployment."
+/>
+
+<RelatedArticle
+  slug="architecture/authentication"
+  relation="Same-workflow: Auth.js tables live in the same JSONB model."
+/>
+
+<RelatedArticle
+  slug="architecture/payment-conductor"
+  relation="Depends-on: orders and payments JSONB plus webhook idempotency."
+/>
+
+<RelatedArticle
+  slug="features/entities"
+  relation="See-also: product-facing entity profiles on the same collection pattern."
+/>
+
+<RelatedArticle
+  slug="features/admin-wiki"
+  relation="Same-workflow: wiki_pages / wiki_links / wiki_events use id + data JSONB like other collections."
+/>
+
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — data model (TBD)">
 

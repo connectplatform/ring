@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import InstanceThemeStyle from '@/components/common/whitelabel/InstanceThemeStyle.server'
 import '@/styles/globals.css'
-import { SIDEBAR_COOKIE_NAME } from '@/lib/sidebar-pref'
+import { SIDEBAR_ASIDE_DEFAULT, SIDEBAR_ASIDE_MAX, SIDEBAR_COOKIE_NAME } from '@/lib/sidebar-pref'
 import { Inter } from 'next/font/google'
 import {
   AppClientShell,
@@ -72,7 +72,7 @@ const LOCALE_CONFIG_SCRIPT = `window.__RING_LOCALE_CONFIG__=${CLIENT_LOCALE_CONF
  * `--sidebar-aside-w` CSS custom property before first paint — prevents
  * layout flash for users with a collapsed/wide sidebar.
  */
-const SIDEBAR_COOKIE_SCRIPT = `(function(){try{var m=document.cookie.match(/${SIDEBAR_COOKIE_NAME}=([^;]+)/);if(!m)return;var s=JSON.parse(decodeURIComponent(m[1]));var w=s.collapsed?0:(typeof s.asideW==='number'?Math.min(320,Math.max(0,s.asideW)):270);document.documentElement.style.setProperty('--sidebar-aside-w',w+'px');}catch(e){}})();`
+const SIDEBAR_COOKIE_SCRIPT = `(function(){try{var m=document.cookie.match(/${SIDEBAR_COOKIE_NAME}=([^;]+)/);if(!m)return;var s=JSON.parse(decodeURIComponent(m[1]));var w=s.collapsed?0:(typeof s.asideW==='number'?Math.min(${SIDEBAR_ASIDE_MAX},Math.max(0,s.asideW)):${SIDEBAR_ASIDE_DEFAULT});document.documentElement.style.setProperty('--sidebar-aside-w',w+'px');}catch(e){}})();`
 
 /**
  * Legacy browser gate — detects ancient browsers and shows a friendly

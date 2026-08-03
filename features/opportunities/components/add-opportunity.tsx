@@ -53,7 +53,23 @@ const DeveloperCVForm = dynamic(() => import('./developer-cv-form'), {
 })
 
 interface AddOpportunityFormProps {
-  opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'cv' | 'resource' | 'event' | 'ring_customization'
+  opportunityType?:
+    | 'request'
+    | 'offer'
+    | 'partnership'
+    | 'volunteer'
+    | 'cv'
+    | 'resource'
+    | 'event'
+    | 'ring_customization'
+    | 'program'
+    | 'scheduled_services'
+    | 'collective_order'
+    | 'bounty'
+    | 'tender'
+    | 'asset_rental'
+    | 'job'
+    | 'mentorship'
   initialOpportunity?: SerializedOpportunity
 }
 
@@ -74,7 +90,7 @@ import {
   OpportunityFormSection,
 } from '@/components/opportunities/opportunity-form-shell'
 import { davinciCtaPrimary } from '@/lib/ui/davinci'
-import { getClientCreditFiatCurrency, getClientOpportunityBudgetCurrencies } from '@/lib/ring-config-client'
+import { getClientMainCurrency, getClientOpportunityBudgetCurrencies, getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 import type { SerializedOpportunity } from '@/features/opportunities/types'
 
 function toDateInputValue(iso?: string): string {
@@ -169,6 +185,60 @@ function getFormConfig(type: string) {
       showMaxApplicants: false,
       showApplicationDeadline: true,
     },
+    scheduled_services: {
+      requiresEntity: false,
+      showBudget: false,
+      showSkills: true,
+      showDeadline: true,
+      showPriority: false,
+      showMaxApplicants: true,
+      showApplicationDeadline: true,
+    },
+    collective_order: {
+      requiresEntity: true,
+      showBudget: false,
+      showSkills: false,
+      showDeadline: true,
+      showPriority: true,
+      showMaxApplicants: false,
+      showApplicationDeadline: false,
+    },
+    bounty: {
+      requiresEntity: false,
+      showBudget: false,
+      showSkills: true,
+      showDeadline: true,
+      showPriority: true,
+      showMaxApplicants: true,
+      showApplicationDeadline: true,
+    },
+    tender: {
+      requiresEntity: true,
+      showBudget: true,
+      showSkills: false,
+      showDeadline: true,
+      showPriority: true,
+      showMaxApplicants: false,
+      showApplicationDeadline: true,
+    },
+    asset_rental: {
+      requiresEntity: true,
+      showBudget: false,
+      showSkills: false,
+      showDeadline: true,
+      showPriority: false,
+      showMaxApplicants: false,
+      showApplicationDeadline: false,
+    },
+    job: {
+      requiresEntity: true,
+      showBudget: true,
+      showSkills: true,
+      showDeadline: true,
+      showPriority: true,
+      showMaxApplicants: true,
+      showApplicationDeadline: true,
+    },
   }
   return configs[type as keyof typeof configs] || configs.request
 }
@@ -222,7 +292,7 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
   const formConfig = getFormConfig(currentType)
   const budgetCurrencies = getClientOpportunityBudgetCurrencies()
   const defaultBudgetCurrency =
-    initialOpportunity?.budget?.currency || getClientCreditFiatCurrency()
+    initialOpportunity?.budget?.currency || getClientMainCurrency()
   const initialEntityId =
     initialOpportunity?.contactInfo?.linkedEntity || initialOpportunity?.organizationId || ''
   const initialDescription =
@@ -433,6 +503,156 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
                   <Input id="applicationUrl" name="applicationUrl" type="url" className="mt-2" placeholder="https://" />
                 </div>
                 <input type="hidden" name="geography" value="" />
+              </>
+            )}
+
+            {currentType === 'collective_order' && (
+              <>
+                <div className="md:col-span-2 rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+                  {t('form.collectiveJarPayoutNote', {
+                    nativeToken: getClientNativeTokenSymbol(),
+                  })}
+                </div>
+                <div>
+                  <Label htmlFor="slotCount">{t('form.slotCount')}</Label>
+                  <Input id="slotCount" name="slotCount" type="number" min={2} defaultValue={10} className="mt-2" required />
+                </div>
+                <div>
+                  <Label htmlFor="slotPrice">{t('form.slotPrice')}</Label>
+                  <Input id="slotPrice" name="slotPrice" type="number" min={0.01} step="0.01" className="mt-2" required />
+                </div>
+                <div>
+                  <Label htmlFor="slotCurrency">{t('form.slotCurrency')}</Label>
+                  <Input id="slotCurrency" name="slotCurrency" defaultValue="USD" className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="productSku">{t('form.productSku')}</Label>
+                  <Input id="productSku" name="productSku" className="mt-2" />
+                </div>
+              </>
+            )}
+
+            {currentType === 'scheduled_services' && (
+              <>
+                <div>
+                  <Label htmlFor="serviceCategory">{t('form.serviceCategory')}</Label>
+                  <Input id="serviceCategory" name="serviceCategory" className="mt-2" placeholder="tutorship, consulting…" />
+                </div>
+                <div>
+                  <Label htmlFor="durationMinutes">{t('form.durationMinutes')}</Label>
+                  <Input id="durationMinutes" name="durationMinutes" type="number" min={15} defaultValue={60} className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="pricePerSlot">{t('form.pricePerSlot')}</Label>
+                  <Input id="pricePerSlot" name="pricePerSlot" type="number" min={0} step="0.01" className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="bookingMode">{t('form.bookingMode')}</Label>
+                  <Select name="bookingMode" defaultValue="interest" disabled>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="interest">{t('form.bookingInterest')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <input type="hidden" name="bookingMode" value="interest" />
+                  <p className="mt-1 text-xs text-muted-foreground">{t('form.bookingHoldDeferred')}</p>
+                </div>
+              </>
+            )}
+
+            {currentType === 'bounty' && (
+              <>
+                <div>
+                  <Label htmlFor="prizeAmount">{t('form.prizeAmount')}</Label>
+                  <Input id="prizeAmount" name="prizeAmount" type="number" min={0} step="0.01" className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="maxWinners">{t('form.maxWinners')}</Label>
+                  <Input id="maxWinners" name="maxWinners" type="number" min={1} defaultValue={1} className="mt-2" />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="acceptanceCriteria">{t('form.acceptanceCriteria')}</Label>
+                  <Textarea id="acceptanceCriteria" name="acceptanceCriteria" rows={2} className="mt-2" />
+                </div>
+              </>
+            )}
+
+            {currentType === 'tender' && (
+              <>
+                <div>
+                  <Label htmlFor="budgetCap">{t('form.budgetCap')}</Label>
+                  <Input id="budgetCap" name="budgetCap" type="number" min={0} step="0.01" className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="responseDeadline">{t('form.responseDeadline')}</Label>
+                  <Input id="responseDeadline" name="responseDeadline" type="date" className="mt-2" />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="evaluationNotes">{t('form.evaluationNotes')}</Label>
+                  <Textarea id="evaluationNotes" name="evaluationNotes" rows={2} className="mt-2" />
+                </div>
+              </>
+            )}
+
+            {currentType === 'asset_rental' && (
+              <>
+                <div>
+                  <Label htmlFor="assetKind">{t('form.assetKind')}</Label>
+                  <Input id="assetKind" name="assetKind" className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="unitsAvailable">{t('form.unitsAvailable')}</Label>
+                  <Input id="unitsAvailable" name="unitsAvailable" type="number" min={1} defaultValue={1} className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="pricePerPeriod">{t('form.pricePerPeriod')}</Label>
+                  <Input id="pricePerPeriod" name="pricePerPeriod" type="number" min={0} step="0.01" className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="periodUnit">{t('form.periodUnit')}</Label>
+                  <Select name="periodUnit" defaultValue="day">
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hour">{t('form.periodHour')}</SelectItem>
+                      <SelectItem value="day">{t('form.periodDay')}</SelectItem>
+                      <SelectItem value="week">{t('form.periodWeek')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {currentType === 'job' && (
+              <>
+                <div>
+                  <Label htmlFor="employmentType">{t('form.employmentType')}</Label>
+                  <Select name="employmentType" defaultValue="full_time">
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full_time">{t('form.fullTime')}</SelectItem>
+                      <SelectItem value="part_time">{t('form.partTime')}</SelectItem>
+                      <SelectItem value="contract">{t('form.contract')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="remotePolicy">{t('form.remotePolicy')}</Label>
+                  <Input id="remotePolicy" name="remotePolicy" className="mt-2" placeholder="remote / hybrid / onsite" />
+                </div>
+                <div>
+                  <Label htmlFor="salaryMin">{t('form.salaryMin')}</Label>
+                  <Input id="salaryMin" name="salaryMin" type="number" min={0} className="mt-2" />
+                </div>
+                <div>
+                  <Label htmlFor="salaryMax">{t('form.salaryMax')}</Label>
+                  <Input id="salaryMax" name="salaryMax" type="number" min={0} className="mt-2" />
+                </div>
               </>
             )}
           </div>

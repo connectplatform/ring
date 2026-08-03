@@ -1,22 +1,54 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { EntityLogo, SafeImage } from '@/components/ui/safe-image'
 import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useSession, SessionProvider } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { SlidingPopup } from '@/components/common/widgets/modal'
 import { ContactForm } from '@/components/common/widgets/contact-form'
 import { Entity } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Lock, Building, Users, Calendar, MapPin, Phone, Mail, Globe, FileText } from 'lucide-react'
+import { ROUTES } from '@/constants/routes'
+import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
+import { useRealtimeEntities, useEntityUpdates } from '@/hooks/use-realtime-entities'
 
 function ConfidentialEntityDetailsContent({ initialEntity }: { initialEntity: Entity }) {
   const { data: session } = useSession()
   const t = useTranslations('modules.entities')
-  const [entity] = useState<Entity>(initialEntity)
+  const router = useRouter()
+  const locale = useLocale() as Locale
+  const [entity, setEntity] = useState<Entity>(initialEntity)
   const [isWebsitePopupOpen, setIsWebsitePopupOpen] = useState(false)
   const [isContactPopupOpen, setIsContactPopupOpen] = useState(false)
+  const entityIdRef = useRef(entity.id)
+  entityIdRef.current = entity.id
+
+  useRealtimeEntities({ autoConnect: Boolean(session), debug: false })
+  useEntityUpdates((update) => {
+    if (update.entityId !== entityIdRef.current) return
+    if (update.type === 'deleted') {
+      router.push(ROUTES.CONFIDENTIAL_ENTITIES(locale))
+      return
+    }
+    if (update.data) {
+      setEntity((prev) => ({ ...prev, ...(update.data as unknown as Partial<Entity>) }))
+      return
+    }
+    // No snippet — soft refetch
+    void fetch(`/api/entities/${entityIdRef.current}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload) => {
+        const next = payload?.data ?? payload
+        if (next?.id) setEntity(next as Entity)
+      })
+      .catch(() => {
+        /* best-effort */
+      })
+  })
 
   const handleCloseWebsitePopup = async () => {
     setIsWebsitePopupOpen(false)

@@ -55,7 +55,7 @@ function assertCanSignal(role: UserRolesArray | null | undefined): void {
 // Calculates and assembles pool stats response object for client-side widgets
 function buildStats(pool: PublicPoolDoc, userHasLiked: boolean): PublicPoolStatsResponse {
   const { likeQueueThreshold } = getPublicPoolConfig()
-  const fundingPct = fundingProgressPct(pool.pledged_ring, pool.goal_ring)
+  const fundingPct = fundingProgressPct(pool.pledged_native_token, pool.goal_native_token)
   // Clamp likes percentage for display (never more than 100)
   const likesPct = Math.min(
     100,
@@ -123,11 +123,11 @@ export async function ensureFutureFeaturePool(
     description: widget.description,
     labels: widget.labels ?? [],
     goal_hours: goalHours,
-    goal_ring: goalRing,
+    goal_native_token: goalRing,
     funding_mode: 'donation',
     status: 'open',
     like_count: 0,
-    pledged_ring: '0',
+    pledged_native_token: '0',
     doc_path: docPath,
     queued_at: null,
     completed_at: null,
@@ -217,7 +217,7 @@ export async function togglePoolLike(
   return buildStats(gated, active)
 }
 
-// Updates a pool's pledged_ring amount sum and checks queue eligibility
+// Updates a pool's pledged_native_token amount sum and checks queue eligibility
 export async function recomputePoolTotals(poolId: string): Promise<PublicPoolDoc> {
   const pool = await readPoolById(poolId)
   if (!pool) {
@@ -227,32 +227,35 @@ export async function recomputePoolTotals(poolId: string): Promise<PublicPoolDoc
   // Sum all "confirmed" contributions for this pool
   const pledged = await sumConfirmedContributions(pool.clone_id, poolId)
   // Patch new pledged total
-  const updated = await updatePoolFields(poolId, { pledged_ring: pledged })
+  const updated = await updatePoolFields(poolId, { pledged_native_token: pledged })
   // Re-check queue threshold since pledge may cross above 100%
   return evaluateQueueGate(updated)
 }
 
 // Evaluates whether a pool should be updated to queued based on stats
 export async function evaluateQueueGate(pool: PublicPoolDoc): Promise<PublicPoolDoc> {
-  // Only "open" pools should be auto-queued. Others are ignored.
+  // Funding 100% → complete + builder payout (donation path)
+  const fundingPct = fundingProgressPct(pool.pledged_native_token, pool.goal_native_token)
+  if (fundingPct >= 100 && pool.status !== 'completed' && pool.status !== 'cancelled') {
+    return maybeAutoCompleteOnFunding(pool)
+  }
+
+  // Only "open" pools should be auto-queued via likes. Others are ignored.
   if (pool.status !== 'open') {
     return pool
   }
 
   const { likeQueueThreshold } = getPublicPoolConfig()
-  const fundingPct = fundingProgressPct(pool.pledged_ring, pool.goal_ring)
   const likesMet = pool.like_count >= likeQueueThreshold
-  const fundingMet = fundingPct >= 100
 
-  // If either likes or funding have hit thresholds, mark as queued with timestamp
-  if (likesMet || fundingMet) {
+  if (likesMet) {
     return updatePoolFields(pool.id, {
       status: 'queued',
       queued_at: new Date().toISOString(),
     })
   }
 
-  return pool // No state change if threshold unmet
+  return pool
 }
 
 // Handles user contributions (donation/escrow) to a given pool
@@ -260,7 +263,7 @@ export async function contributeToPool(params: {
   poolSlug: string
   userId: string
   userRole: UserRolesArray | null | undefined
-  amountRing: string
+  amountNativeToken: string
   idempotencyKey: string
   fundingMode?: 'donation' | 'escrow'
 }): Promise<PublicPoolStatsResponse & { tx_hash: string }> {
@@ -277,13 +280,13 @@ export async function contributeToPool(params: {
   }
 
   // Validate amount can be parsed and is positive
-  const amount = parseRingDecimal(params.amountRing)
+  const amount = parseRingDecimal(params.amountNativeToken)
   if (amount <= 0) {
     throw new Error('Contribution amount must be positive')
   }
 
   // Don't allow user to overfund pool
-  const remaining = parseRingDecimal(pool.goal_ring) - parseRingDecimal(pool.pledged_ring)
+  const remaining = parseRingDecimal(pool.goal_native_token) - parseRingDecimal(pool.pledged_native_token)
   if (amount > remaining && remaining > 0) {
     throw new Error(`Maximum contribution is ${remaining} RING for this pool`)
   }
@@ -292,13 +295,32 @@ export async function contributeToPool(params: {
   const { txHash } = await executeNativePoolContribution({
     userId: params.userId,
     pool,
-    amountRing: params.amountRing,
+    amountNativeToken: params.amountNativeToken,
     idempotencyKey: params.idempotencyKey,
     fundingMode: params.fundingMode ?? 'donation',
   })
 
   // Refresh pool stats after contribution is processed and saved
   const refreshed = await recomputePoolTotals(pool.id)
+
+  // TD-UX-05: keep open dao_jar chat bubbles in sync with pool totals
+  try {
+    const { refreshOpenDaoJarMessages } = await import(
+      '@/features/chat/lib/refresh-open-dao-jar-messages'
+    )
+    await refreshOpenDaoJarMessages(params.poolSlug, {
+      contributorUserId: params.userId,
+      lastContribution: {
+        userId: params.userId,
+        amountNativeToken: params.amountNativeToken,
+        rail: 'native_token',
+        at: new Date().toISOString(),
+      },
+    })
+  } catch {
+    // Non-fatal — domain contribution already succeeded
+  }
+
   // Check like state after contribution for the calling user
   const signal = await findSignalForUser(cloneId, pool.id, params.userId)
 
@@ -326,7 +348,129 @@ export async function updatePoolStatus(
     patch.signal_at_completion = pool.like_count
   }
 
-  return updatePoolFields(poolId, patch)
+  const updated = await updatePoolFields(poolId, patch)
+
+  // TD-MONEY-02: optional accounting payout to builder wallet from clone treasury
+  if (status === 'completed') {
+    try {
+      await maybePayoutBuilderOnComplete(updated)
+    } catch (error) {
+      // Non-fatal for status transition — surface via logs; admin can retry
+      const { logger } = await import('@/lib/logger')
+      logger.error('Builder payout on complete failed', {
+        poolId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  return readPoolById(poolId).then((p) => p ?? updated)
+}
+
+/**
+ * Accounting payout: transfer (pledged − platform fee) RING from treasury to
+ * builder / opportunity-owner native wallet. Fee from publicPools.platformFeePercentByRole.
+ */
+async function maybePayoutBuilderOnComplete(pool: PublicPoolDoc): Promise<void> {
+  if (pool.payout_tx_hash) return
+
+  let walletAddress = pool.payout_wallet_address?.trim() || ''
+  const builderUserId = pool.builder_user_id?.trim() || ''
+
+  if (!walletAddress && builderUserId) {
+    const { getNativeWallet } = await import('@/lib/wallet/user-wallet-db')
+    const { getNativeChain } = await import('@/lib/ring-config-chain')
+    const wallet = await getNativeWallet(builderUserId, getNativeChain())
+    walletAddress = wallet?.address?.trim() || ''
+    if (walletAddress) {
+      await updatePoolFields(pool.id, { payout_wallet_address: walletAddress })
+    }
+  }
+  if (!walletAddress) return
+
+  const pledged = parseRingDecimal(pool.pledged_native_token)
+  if (pledged <= 0) return
+
+  let builderRole: string | null = null
+  if (builderUserId) {
+    try {
+      const { getUserRole } = await import('@/features/auth/services/user-management')
+      builderRole = await getUserRole(builderUserId)
+    } catch {
+      builderRole = null
+    }
+  }
+
+  const {
+    resolveBuilderPlatformFeePercent,
+    applyPlatformFeeToPledged,
+  } = await import('@/features/public-pools/lib/public-pool-platform-fee')
+  const feePercent = resolveBuilderPlatformFeePercent(builderRole)
+  const { net, fee } = applyPlatformFeeToPledged(pool.pledged_native_token, feePercent)
+  if (net <= 0) return
+
+  const netUi = net.toFixed(8)
+  const { nativeTokenUiToRaw } = await import('@/lib/wallet/native-token-amount')
+  const { transferTokenFromTreasury } = await import(
+    '@/features/wallet/chains/solana/treasury-transfer-service'
+  )
+  const { createWalletTransaction } = await import('@/lib/wallet/wallet-transaction-db')
+  const { getNativeChain, getNativeTokenSymbol } = await import('@/lib/ring-config-chain')
+
+  const amountRaw = nativeTokenUiToRaw(netUi)
+  if (amountRaw <= 0n) return
+
+  const { txHash, fromAddress } = await transferTokenFromTreasury(walletAddress, amountRaw)
+
+  await updatePoolFields(pool.id, {
+    payout_tx_hash: txHash,
+    payout_at: new Date().toISOString(),
+  })
+
+  await createWalletTransaction({
+    kind: 'public_pool_payout',
+    txHash,
+    userId: builderUserId || 'system',
+    fromAddress,
+    toAddress: walletAddress,
+    amount: netUi,
+    tokenSymbol: getNativeTokenSymbol(),
+    chain: getNativeChain(),
+    notes: `pool_payout:${pool.id};gross=${pool.pledged_native_token};fee=${fee.toFixed(8)};feePct=${feePercent}`,
+  })
+}
+
+/**
+ * When funding hits 100%: queue + optionally auto-complete with builder payout
+ * (donation accounting path — escrow finalize is on-chain).
+ */
+async function maybeAutoCompleteOnFunding(pool: PublicPoolDoc): Promise<PublicPoolDoc> {
+  const { autoPayoutOnGoalMet } = getPublicPoolConfig()
+  if (!autoPayoutOnGoalMet) return pool
+  if (pool.status === 'completed' || pool.status === 'cancelled') return pool
+
+  const fundingPct = fundingProgressPct(pool.pledged_native_token, pool.goal_native_token)
+  if (fundingPct < 100) return pool
+
+  const patch: Partial<PublicPool> = {
+    status: 'completed',
+    completed_at: new Date().toISOString(),
+    signal_at_completion: pool.like_count,
+  }
+  if (pool.status === 'open') {
+    patch.queued_at = pool.queued_at ?? new Date().toISOString()
+  }
+  const updated = await updatePoolFields(pool.id, patch)
+  try {
+    await maybePayoutBuilderOnComplete(updated)
+  } catch (error) {
+    const { logger } = await import('@/lib/logger')
+    logger.error('Auto builder payout on goal-met failed', {
+      poolId: pool.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+  return readPoolById(pool.id).then((p) => p ?? updated)
 }
 
 // Derives slug for manual pools from the given title unless explicit given
@@ -361,16 +505,20 @@ export async function createAdminPublicPool(
     description: input.description,
     labels: input.labels ?? [],
     goal_hours: input.goal_hours,
-    goal_ring: goalRing,
+    goal_native_token: goalRing,
     funding_mode: input.funding_mode ?? 'donation',
     status: input.status ?? 'open',
     like_count: 0,
-    pledged_ring: '0',
+    pledged_native_token: '0',
     doc_path: input.doc_path ?? null,
     queued_at: input.status === 'queued' ? new Date().toISOString() : null,
     completed_at: input.status === 'completed' ? new Date().toISOString() : null,
     on_chain: null,
     signal_at_completion: null,
+    builder_user_id: input.builder_user_id ?? null,
+    payout_wallet_address: input.payout_wallet_address ?? null,
+    payout_tx_hash: null,
+    payout_at: null,
   }
 
   return upsertPool(cloneId, poolSlug, payload)
@@ -396,11 +544,15 @@ export async function updateAdminPublicPool(
   if (input.labels !== undefined) patch.labels = input.labels
   if (input.doc_path !== undefined) patch.doc_path = input.doc_path
   if (input.funding_mode !== undefined) patch.funding_mode = input.funding_mode
+  if (input.builder_user_id !== undefined) patch.builder_user_id = input.builder_user_id
+  if (input.payout_wallet_address !== undefined) {
+    patch.payout_wallet_address = input.payout_wallet_address
+  }
 
   // If goal hours updates, also recalculate goal ring
   if (input.goal_hours !== undefined) {
     patch.goal_hours = input.goal_hours
-    patch.goal_ring = goalRingFromHours(input.goal_hours)
+    patch.goal_native_token = goalRingFromHours(input.goal_hours)
   }
 
   // Handle status changes: update timestamps appropriately
@@ -420,7 +572,18 @@ export async function updateAdminPublicPool(
     return pool
   }
 
-  return updatePoolFields(poolId, patch)
+  const updated = await updatePoolFields(poolId, patch)
+
+  if (input.status === 'completed') {
+    try {
+      await maybePayoutBuilderOnComplete(updated)
+    } catch {
+      // logged inside updatePoolStatus path; keep admin update resilient
+    }
+    return (await readPoolById(poolId)) ?? updated
+  }
+
+  return updated
 }
 
 // Admin-only: remove a public pool by id

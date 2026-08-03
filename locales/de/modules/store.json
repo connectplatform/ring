@@ -370,7 +370,9 @@
     "nativeTokenDescription": "Mit on-chain Native Token zahlen",
     "paypalPayment": "PayPal",
     "paypalPaymentDescription": "Mit PayPal zahlen (international)",
-    "paymentMethodNotAvailable": "Diese Zahlungsmethode ist noch nicht verfügbar."
+    "paymentMethodNotAvailable": "Diese Zahlungsmethode ist noch nicht verfügbar.",
+    "paymentCurrency": "Währung",
+    "noCurrencies": "Keine Währungen"
   },
   "loading": "Weitere Produkte werden geladen…",
   "shareEarnHint": "Andere einladen und Referral-Rewards verdienen"

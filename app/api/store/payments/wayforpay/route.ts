@@ -7,6 +7,7 @@ import {
 } from '@/lib/payments/wayforpay-store-service'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { getVendorProfile } from '@/features/store/services/vendor-profile'
 
@@ -130,13 +131,13 @@ export async function POST(request: NextRequest) {
 
     const result = await PaymentConductor.createCheckout({
       purpose: 'store_order',
-      rail: 'merchant_redirect',
+      rail: 'card',
       userId: session.user.id,
       userEmail: session.user.email || shippingInfo.email || '',
       entityId: order.id,
       orderId: order.id,
       amount: order.total || 0,
-      currency: 'UAH',
+      currency: getMainCurrencySymbol(),
       items: order.items,
       shippingInfo,
       returnUrl: returnUrl || defaultReturnUrl,
@@ -156,11 +157,12 @@ export async function POST(request: NextRequest) {
 
     try {
       await StoreOrdersService.updateOrderPaymentStatus(order.id, {
-        method: 'wayforpay',
+        method: 'card',
+        processor: 'wayforpay',
         status: 'pending',
         wayforpayOrderId: result.orderReference,
         amount: order.total || 0,
-        currency: 'UAH'
+        currency: getMainCurrencySymbol()
       })
 
       if (settlements.length > 0) {

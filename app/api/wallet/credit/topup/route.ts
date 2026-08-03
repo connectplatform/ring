@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse, connection } from 'next/server';
 import { auth } from '@/auth';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
-import { CreditTopUpRequestSchema } from '@/lib/zod/credit-schemas';
+import { CreditBalanceTopUpRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
-import { formatCreditAmount, getCreditUnitLabel, getFiatCreditAccountingRate } from '@/lib/payments/credit-currency';
+import { formatCreditAmount, getCreditUnitLabel, getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance';
 import { isPlatformAdmin } from '@/features/auth/user-role';
 import {
   isChainProofRequired,
@@ -14,8 +14,8 @@ import { getWalletAddressesForUser } from '@/features/refcodes/lib/user-wallets'
 
 /**
  * POST /api/wallet/credit/topup
- * Credit ledger credit (points). Accounting rate = getFiatCreditAccountingRate()
- * (credit.unitToDefaultCurrency). Native oracle is not used for ledger usd_equivalent —
+ * Credit ledger credit (points). Accounting rate = getMainCurrencyCreditAccountingRate()
+ * (credit.creditBalanceUnitToMainCurrency). Native oracle is not used for ledger main_currency_equivalent —
  * on-chain proof (when required) only verifies the transfer; Token Desk owns credit↔native FX.
  */
 export async function POST(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Validate request body shape and content
     let validatedRequest;
     try {
-      validatedRequest = CreditTopUpRequestSchema.parse(requestBody);
+      validatedRequest = CreditBalanceTopUpRequestSchema.parse(requestBody);
     } catch (validationError) {
       // Log malformed input for debugging/auditing
       logger.warn('Invalid credit top-up request', { 
@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
 
     // Security check: enforce min/max amount limits (amounts are credit units)
     const amount = parseFloat(validatedRequest.amount);
-    const creditUnit = getCreditUnitLabel();
+    const creditBalanceUnit = getCreditUnitLabel();
     const maxTopUpAmount = 10000; // TODO: move to config or env
     const minTopUpAmount = 0.01;
 
     if (amount > maxTopUpAmount) {
       // Reject too-large top up
       return NextResponse.json(
-        { error: `Maximum top-up amount is ${formatCreditAmount(maxTopUpAmount, creditUnit)}` },
+        { error: `Maximum top-up amount is ${formatCreditAmount(maxTopUpAmount, creditBalanceUnit)}` },
         { status: 400 }
       );
     }
@@ -72,13 +72,13 @@ export async function POST(request: NextRequest) {
     if (amount < minTopUpAmount) {
       // Reject tiny top up
       return NextResponse.json(
-        { error: `Minimum top-up amount is ${formatCreditAmount(minTopUpAmount, creditUnit)}` },
+        { error: `Minimum top-up amount is ${formatCreditAmount(minTopUpAmount, creditBalanceUnit)}` },
         { status: 400 }
       );
     }
 
-    // Credit units → store.defaultCurrency (SSOT). Not native-token oracle.
-    const creditUnitToDefaultCurrencyRate = getFiatCreditAccountingRate()
+    // Credit units → store.mainCurrency (SSOT). Not native-token oracle.
+    const creditBalanceUnitToDefaultCurrencyRate = getMainCurrencyCreditAccountingRate()
 
     // Prepare transaction type: support for top_up, bonus, admin/manual, etc.
     // TODO: Implement transaction type inference based on metadata or admin action
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       userId,
       validatedRequest,
       transactionType,
-      creditUnitToDefaultCurrencyRate,
+      creditBalanceUnitToDefaultCurrencyRate,
     );
 
     // Log successful credit event for audit/tracking
@@ -178,8 +178,8 @@ export async function POST(request: NextRequest) {
       transaction_id: result.transaction.id,
       new_balance: result.newBalance,
       amount_added: validatedRequest.amount,
-      usd_equivalent: result.transaction.usd_equivalent,
-      message: `Successfully added ${formatCreditAmount(validatedRequest.amount, creditUnit)} to your balance`,
+      main_currency_equivalent: result.transaction.main_currency_equivalent,
+      message: `Successfully added ${formatCreditAmount(validatedRequest.amount, creditBalanceUnit)} to your balance`,
     });
 
   } catch (error) {

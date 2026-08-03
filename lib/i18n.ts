@@ -112,8 +112,20 @@ async function importLocaleFile(
       return import(`@/locales/${targetLocale}/modules/messenger.json`)
         .then((m) => m.default)
         .catch(() => ({}))
+    case 'modGames':
+      return import(`@/locales/${targetLocale}/modules/games.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
+    case 'modTasks':
+      return import(`@/locales/${targetLocale}/modules/tasks.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
     case 'modContacts':
       return import(`@/locales/${targetLocale}/modules/contacts.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
+    case 'modFileCabinet':
+      return import(`@/locales/${targetLocale}/modules/fileCabinet.json`)
         .then((m) => m.default)
         .catch(() => ({}))
     case 'modWallet':
@@ -264,7 +276,10 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modEntities) modules.entities = loaded.modEntities
   if (loaded.modOpp) modules.opportunities = loaded.modOpp
   if (loaded.modMessenger) modules.messenger = loaded.modMessenger
+  if (loaded.modGames) modules.games = loaded.modGames
+  if (loaded.modTasks) modules.tasks = loaded.modTasks
   if (loaded.modContacts) modules.contacts = loaded.modContacts
+  if (loaded.modFileCabinet) modules.fileCabinet = loaded.modFileCabinet
   if (loaded.modWallet) modules.wallet = loaded.modWallet
   if (loaded.modStore) modules.store = loaded.modStore
   if (loaded.modProfile) modules.profile = loaded.modProfile
@@ -306,7 +321,14 @@ export async function buildMessages(
     fileIds.map(async (fileId) => [fileId, await importLocaleFile(loc, fileId)] as const),
   )
   const loaded = Object.fromEntries(entries) as Partial<Record<LocaleFileId, JsonRecord>>
-  return assembleMessages(loaded)
+  const messages = assembleMessages(loaded)
+  // Tier-3 clone overlays append via empty-on-platform registry (never import clone modules here)
+  const { loadOverlayMessages } = await import('@/lib/overlay/runtime')
+  const overlay = await loadOverlayMessages(loc)
+  if (overlay && typeof overlay === 'object') {
+    Object.assign(messages, overlay)
+  }
+  return messages
 }
 
 /** @deprecated Prefer `buildMessages(locale, scope)` — loads full corpus. */

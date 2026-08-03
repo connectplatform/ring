@@ -71,9 +71,9 @@ function tokenFromMetadata(metadata?: Record<string, unknown>): string {
   )
 }
 
-function creditUnitFromMetadata(metadata?: Record<string, unknown>): string {
-  if (typeof metadata?.creditUnit === 'string' && metadata.creditUnit) {
-    return metadata.creditUnit
+function creditBalanceUnitFromMetadata(metadata?: Record<string, unknown>): string {
+  if (typeof metadata?.creditBalanceUnit === 'string' && metadata.creditBalanceUnit) {
+    return metadata.creditBalanceUnit
   }
   return getClientCreditUnitLabel()
 }
@@ -115,7 +115,7 @@ export default function WalletTransactionRow({
   const debit = isCreditDebit(transaction)
   const counterparty = counterpartyFromMetadata(transaction.metadata)
   const token = tokenFromMetadata(transaction.metadata)
-  const creditUnit = creditUnitFromMetadata(transaction.metadata)
+  const creditBalanceUnit = creditBalanceUnitFromMetadata(transaction.metadata)
   const source = transaction.metadata?.source
   const [detailsOpen, setDetailsOpen] = useState(false)
 
@@ -126,20 +126,23 @@ export default function WalletTransactionRow({
   const isDeskBuy = kindKey === 'desk_buy'
   const isDeskSell = kindKey === 'desk_sell'
   const isDeskRefund = kindKey === 'desk_refund'
+  const isTreasurySwapIn = kindKey === 'treasury_swap_in'
 
   let kindLabel: string
   if (isNativeSend) {
     kindLabel = t('nativetoken_send', { token })
+  } else if (isTreasurySwapIn) {
+    kindLabel = t('treasury_swap_in', { token })
   } else if (isNativeReceive || (isDeskBuy && source === 'chain')) {
     kindLabel = t('nativetoken_receive', { token })
   } else if (isDeskBuy) {
-    kindLabel = t('desk_buy_spend_credit', { creditUnit })
+    kindLabel = t('desk_buy_spend_credit', { creditBalanceUnit })
   } else if (isDeskSell && source === 'chain') {
     kindLabel = t('desk_sell', { token })
   } else if (isDeskSell) {
-    kindLabel = t('desk_sell_credit', { creditUnit })
+    kindLabel = t('desk_sell_credit', { creditBalanceUnit })
   } else if (isDeskRefund) {
-    kindLabel = t('desk_refund', { creditUnit })
+    kindLabel = t('desk_refund', { creditBalanceUnit })
   } else if (kindKey === 'payment_request_sent') {
     kindLabel = t('payment_request_sent', { token })
   } else if (kindKey === 'payment_request_received') {
@@ -158,7 +161,7 @@ export default function WalletTransactionRow({
       'penalty',
     ])
     if (knownKinds.has(kindKey)) {
-      kindLabel = t(kindKey as 'payment', { token, creditUnit })
+      kindLabel = t(kindKey as 'payment', { token, creditBalanceUnit })
     } else {
       kindLabel = transaction.description?.trim() || transaction.type.replace(/_/g, ' ')
     }

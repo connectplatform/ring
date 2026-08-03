@@ -1,6 +1,6 @@
 {
   "title": "Ring ERP",
-  "description": "AI-driven inventory, vendor management, and commission settlement",
+  "description": "Stock invariant, paid commitSale, vendor ops, and settlements cockpit",
   "pages": [
     "index",
     "inventory",

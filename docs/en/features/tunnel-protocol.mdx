@@ -1,7 +1,7 @@
 ---
 title: Tunnel Protocol
 description: Realtime inbox and topic channels for Ring clones — SSOT subscriptions, transports, and publishing for founders and integrators
-last_modified: "2026-07-07"
+last_modified: "2026-07-24"
 audience: both
 ---
 
@@ -24,7 +24,7 @@ Pair with [Push notifications (FCM)](/docs/features/push-notifications-fcm) when
 | Root listeners | `components/providers/global-tunnel-listeners.tsx` | Single mount point for global tunnel side-effects (`AccountStatusTunnelListener`, …) |
 | HTTP dedup (non-tunnel) | `hooks/use-vendor-status.ts`, `hooks/use-credit-balance.ts` | Single-flight REST guards for sidebar Strict Mode / provider remounts |
 | Locale SSOT | `lib/pathname-without-locale.ts` | `localeFromPathname` for root shell (`next/navigation`, not `@/i18n/routing`) |
-| Campaign SSOT | `lib/tunnel/SUBSCRIPTION-SSOT.md` | Deprecated hooks removed, provider order, 2026-07-07 timing + queue parity |
+| Campaign SSOT | `lib/tunnel/SUBSCRIPTION-SSOT.md` | Deprecated hooks removed, provider order, 2026-07-07 timing + queue parity; **2026-07-20** credit publish + `wallet:list`; **2026-07-21** call system messages + discovery snippets + entity live surfaces |
 
 <Callout type="warning">
   Do **not** call `useTunnel().subscribe()` inside `useEffect` with `subscribe` in the dependency array. Use **`useTunnelChannel`** or **`useSync`** with `subscribeRef` pattern instead.
@@ -57,6 +57,9 @@ Your clone feels **alive**: unread badges update, chat messages appear, marketpl
   </Card>
   <Card title="Credit balance" href="/docs/features/store">
     Wallet and subscription UI reflects chip-ins and spend limits in real time on `credit:balance` — one shared subscription via `CreditBalanceProvider` inside `TunnelProvider`.
+  </Card>
+  <Card title="Custodial wallet list" href="/docs/features/wallet">
+    Native balances and primary wallet updates push on `wallet:list` so open `/wallet` tabs refresh without a 60s poll when Tunnel is connected.
   </Card>
 </Cards>
 
@@ -125,13 +128,29 @@ await publishToChannel(`conversation:${conversationId}`, 'message:new', message)
 await publishToChannel('opportunities', 'opportunity:created', { id })
 ```
 
-Per-user inbox (unread counts, credit balance):
+Per-user inbox (unread counts, credit balance, wallet list):
 
 ```typescript
 import { publishToUserTunnel } from '@/lib/tunnel/publisher'
 
 await publishToUserTunnel(userId, 'notifications:inbox', { action: 'notification', notification })
+await publishToUserTunnel(userId, 'credit:balance', balanceData)
+await publishToUserTunnel(userId, 'wallet:list', { action: 'updated', timestamp: Date.now() })
 ```
+
+<Callout type="warning">
+  **2026-07-20 remediation:** never call `publishToChannel(userId, 'credit:balance', data)` — that treats `userId` as the **channel name**. Credit and wallet-list pushes must use **`publishToUserTunnel`**. Clients subscribe to the base channel (`credit:balance`, `wallet:list`) with `userScoped: false`.
+</Callout>
+
+Wallet list helper (invalidate signal — client re-fetches `GET /api/wallet/list`):
+
+```typescript
+import { publishWalletListUpdate } from '@/lib/wallet/publish-wallet-list'
+
+await publishWalletListUpdate(userId, 'updated') // | 'refreshed' | 'provisioned'
+```
+
+Publish sites: `ensure-wallet.ts`, `refreshBalancesForUser`, `setPrimaryWallet`, `WalletConductor.transferNative`. Do **not** publish from `getCachedBalancesForUser` (read path — avoids fetch→publish loops).
 
 `lib/discovery/sync-discovery.ts` wraps `publishToChannel` for opportunity and entity CRUD — see [Discovery mutation sync](/docs/architecture/discovery-mutation-sync).
 
@@ -166,8 +185,8 @@ import type { TunnelMessage } from '@/lib/tunnel/types'
 
 export function OpportunityLiveListener() {
   const handleUpdate = useCallback((message: TunnelMessage) => {
-    const update = message.payload
-    // merge into list state or dispatch window event
+    // Prefer parseDiscoveryTunnelMessage(message) — syncDiscovery payload is { id, event, snippet? }
+    // Production: hooks/use-realtime-opportunities.ts
   }, [])
 
   useTunnelChannel({
@@ -190,7 +209,18 @@ useTunnelChannel<CreditBalanceData>({
 })
 ```
 
-Production uses **`CreditBalanceProvider`** (`components/providers/credit-balance-provider.tsx`) — one `useCreditBalance()` call, many context consumers.
+Production uses **`CreditBalanceProvider`** (`components/providers/credit-balance-provider.tsx`) — one `useCreditBalance()` call, many context consumers. Polling falls back to 60s **only when tunnel is disconnected**.
+
+Custodial wallet list (same poll-when-disconnected pattern):
+
+```typescript
+// components/providers/wallet-list-provider.tsx (mounted by wallet-wrapper)
+useTunnelChannel({
+  channel: 'wallet:list',
+  enabled: true,
+  onMessage: () => void fetchWallets(false), // invalidate → GET /api/wallet/list
+})
+```
 
 REST fetch + tunnel-driven refresh (notifications unread, entity lists):
 
@@ -311,11 +341,14 @@ Documented in `lib/tunnel/SUBSCRIPTION-SSOT.md` and `hooks/HOOKS-README.md` Prov
 | Pattern | Example | Publisher | Consumer hook / module |
 |---------|---------|-----------|------------------------|
 | Per-user inbox | `notifications:inbox` | `notification-service` | `use-notifications.ts`, `use-realtime.ts` |
-| Per-user inbox | `credit:balance` | `creditBalanceService` | `CreditBalanceProvider` → `use-credit-balance.ts` — bootstrap `fetchCreditBalanceBootstrap()` (5s TTL, `userId`-keyed); tunnel via `useTunnelChannel` (`userScoped: false`) |
+| Per-user inbox | `credit:balance` | `creditBalanceService.publishBalanceUpdate` → **`publishToUserTunnel`** | `CreditBalanceProvider` → `use-credit-balance.ts` — bootstrap `fetchCreditBalanceBootstrap()` (5s TTL); tunnel via `useTunnelChannel` (`userScoped: false`); 60s poll only if tunnel down |
+| Per-user inbox | `wallet:list` | `lib/wallet/publish-wallet-list.ts` | `WalletListProvider` → `useTunnelChannel('wallet:list')`; 60s poll only if tunnel down |
 | Per-user inbox | `account:status` | `app/_actions/admin-account-status.ts` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` (`userScoped: false`) |
 | HTTP (not tunnel) | vendor sidebar | — | `useVendorStatus()` → `GET /api/vendor/status` (30s TTL, single-flight) |
-| Conversation | `conversation:${id}` | chat services | `use-messaging.ts` |
-| Discovery | `opportunities`, `entities` | `sync-discovery.ts` | `use-realtime-opportunities.ts`, `useSync` |
+| Conversation | `conversation:${id}` | chat `MessageService` / `sendSystemMessage`; call-invite/call-event return `data.message` for local append; peer-games `game:invite|accept|decline|resign|move` | `use-messaging.ts` (`message:new` + `conversation-message` CustomEvent + quiet poll when tunnel down); peer-games banner/session hooks |
+| Peer games session | `game:${sessionId}` | `features/peer-games/service.ts` (`game:accept|decline|resign|move|expire|dc-signal`) | `use-peer-game-session` / mini-app hydrate then `useTunnelChannel` — **subscribe ACL participant-only (HTTP + native WS via `getSessionForParticipant`)** |
+| Peer games inbox | `games:incoming` | `publishToUserTunnel(peer, 'games:incoming', …)` | `IncomingGameBanner` on MessagesShell + `/games` layout |
+| Discovery | `opportunities`, `entities` | `sync-discovery.ts` (`{ id, event, snippet? }`) | `use-realtime-opportunities.ts`, `use-realtime-entities.ts` (+ `parseDiscoveryTunnelMessage`); entity-details / confidential / my-entities subscribed |
 | Matcher | `matcher` | matcher services | matcher moderation UI |
 
 Subscribe to the **base channel name** on the client. User scoping is enforced by server delivery (`publishToUserTunnel` / `TunnelHub.publishToUser`), not by suffixing `:userId` in `useTunnelChannel`.
@@ -337,22 +370,42 @@ The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSC
 - **Single-process hub** — `memory` and `k8s-postgres` use `InMemoryTunnelHub`; correct for **one replica**. Horizontal scale requires backlog hub modes below.
 - **Poll fan-out** — poll clients receive subscribed channel messages via the poll inbox; SSE is preferred when available.
 
-## Related
+## Related documentation
 
-<Cards>
-  <Card title="Realtime transport" href="/docs/architecture/real-time">
-    TunnelHub broker flow, offline queue drain, and feature publish/subscribe matrix.
-  </Card>
-  <Card title="Discovery mutation sync" href="/docs/architecture/discovery-mutation-sync">
-    Topic channel publishes after opportunity and entity CRUD.
-  </Card>
-  <Card title="Notifications API" href="/docs/api/notifications">
-    Inbox REST + `notifications:inbox` tunnel channel.
-  </Card>
-  <Card title="Messaging API" href="/docs/api/messaging">
-    `conversation:${id}` channel patterns for live chat.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="architecture/real-time"
+    relation="Deep-dive: TunnelHub broker flow, offline queue drain, and feature publish/subscribe matrix."
+  />
+  <RelatedArticle
+    slug="architecture/discovery-mutation-sync"
+    relation="Same-workflow: topic channel publishes after opportunity and entity CRUD."
+  />
+  <RelatedArticle
+    slug="api/wallet"
+    relation="Depends-on: wallet list + credit balance HTTP surface that tunnel invalidate signals refresh."
+  />
+  <RelatedArticle
+    slug="api/notifications"
+    relation="See-also: inbox REST + `notifications:inbox` / `notifications:unread` channels."
+  />
+  <RelatedArticle
+    slug="api/messaging"
+    relation="See-also: `conversation:${id}` channel patterns for live chat."
+  />
+  <RelatedArticle
+    slug="features/peer-games"
+    relation="Same-workflow: `game:{sessionId}` participant ACL, `games:incoming` (incl. terminal), and conversation `game:*` events."
+  />
+  <RelatedArticle
+    slug="features/webrtc-calls"
+    relation="Same-workflow: call signaling events on `conversation:${id}`."
+  />
+  <RelatedArticle
+    slug="features/file-cabinet"
+    relation="Same-workflow: desktop icon sync publishes on `file-cabinet:desktop-icons` via publishToUserTunnel."
+  />
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — tunnel protocol">
 
@@ -385,6 +438,14 @@ The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSC
   description="Ops endpoint exposing per-channel subscribe/unsubscribe counts and duplicate-subscribe warnings from channel-subscription-registry."
   implementationCost={24}
   labels={['tunnel', 'ops', 'observability']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Spectate ACL for game:* channels"
+  description="Read-only subscribe for non-participants on game:{sessionId} — participant ACL already ships on HTTP + native WS; spectate is P2 with Peer Games."
+  implementationCost={24}
+  labels={['tunnel', 'acl', 'peer-games', 'spectate']}
   voteCount={0}
 />
 

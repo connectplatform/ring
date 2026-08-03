@@ -40,12 +40,16 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { saveArticle, publishArticle, ArticleFormState } from '@/app/_actions/news';
 import { TipTapNewsEditor } from '@/features/news/components/editor/tiptap-news-editor';
+import { ArticleVersionSlider } from '@/features/news/components/article-version-slider';
 import { GenerateImageDialog } from '@/components/media/generate-image-dialog';
 import { GenerateArticleDialog } from '@/components/media/generate-article-dialog';
 import {
   coerceMediaImageAsset,
   type MediaImageAsset,
 } from '@/lib/file/media-asset';
+import type { ContentCommit } from '@/lib/versioning';
+
+const NEWS_DRAFT_KEY = (userId: string) => `news_draft_${userId}`;
 
 interface ArticleEditorProps {
   mode: 'create' | 'edit';
@@ -233,13 +237,102 @@ export function ArticleEditor({
   const [generateFeaturedOpen, setGenerateFeaturedOpen] = useState(false);
   const [generateGalleryOpen, setGenerateGalleryOpen] = useState(false);
   const [generateArticleOpen, setGenerateArticleOpen] = useState(false);
+  const versionCommits: ContentCommit[] = (article?.versions?.commits ?? []) as ContentCommit[];
+  const tipIndex = Math.max(0, versionCommits.length - 1);
+  const [viewingCommitIndex, setViewingCommitIndex] = useState(tipIndex);
+  const [localDraftHydrated, setLocalDraftHydrated] = useState(false);
+  const viewingHistorical =
+    versionCommits.length > 1 && viewingCommitIndex < tipIndex;
+
+  // Hydrate unsaved create draft from localStorage (not version history)
+  useEffect(() => {
+    if (mode !== 'create' || !session?.user?.id) return;
+    try {
+      const raw = localStorage.getItem(NEWS_DRAFT_KEY(session.user.id));
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Partial<ArticleEditorFormState>;
+      if (!draft.title && !draft.content && !draft.excerpt) return;
+      setFormData((prev) => ({
+        ...prev,
+        title: draft.title || prev.title,
+        slug: draft.slug || prev.slug,
+        content: draft.content || prev.content,
+        excerpt: draft.excerpt || prev.excerpt,
+        tags: Array.isArray(draft.tags) ? draft.tags : prev.tags,
+        category: (draft.category as NewsCategory) || prev.category,
+      }));
+      setLocalDraftHydrated(true);
+    } catch {
+      // ignore corrupt draft
+    }
+  }, [mode, session?.user?.id]);
+
+  // Persist create draft (debounced)
+  useEffect(() => {
+    if (mode !== 'create' || !session?.user?.id) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          NEWS_DRAFT_KEY(session.user.id),
+          JSON.stringify({
+            title: formData.title,
+            slug: formData.slug,
+            content: formData.content,
+            excerpt: formData.excerpt,
+            tags: formData.tags,
+            category: formData.category,
+          }),
+        );
+      } catch {
+        // quota / private mode
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [
+    mode,
+    session?.user?.id,
+    formData.title,
+    formData.slug,
+    formData.content,
+    formData.excerpt,
+    formData.tags,
+    formData.category,
+  ]);
+
+  const handleVersionSelect = (index: number) => {
+    setViewingCommitIndex(index);
+    const commit = versionCommits[index];
+    if (commit?.content != null) {
+      setFormData((prev) => ({ ...prev, content: commit.content }));
+    }
+  };
 
   // React 19 useActionState for draft saving
   const [draftState, draftAction] = useActionState<ArticleFormState | null, ArticleEditorFormState>(
     async (prevState: ArticleFormState | null, state: ArticleEditorFormState) => {
       const form = new FormData();
       appendArticleFormFields(form, mode, article?.id, locale, state, 'draft');
-      return saveArticle(prevState, form);
+      try {
+        const result = await saveArticle(prevState, form);
+        return result;
+      } catch (error: unknown) {
+        // Successful save redirects — clear local draft only then (not on validation failure)
+        const msg = error instanceof Error ? error.message : String(error);
+        const digest =
+          typeof error === 'object' && error && 'digest' in error
+            ? String((error as { digest?: string }).digest ?? '')
+            : '';
+        if (msg.includes('NEXT_REDIRECT') || digest.startsWith('NEXT_REDIRECT')) {
+          if (mode === 'create' && session?.user?.id) {
+            try {
+              localStorage.removeItem(NEWS_DRAFT_KEY(session.user.id));
+            } catch {
+              // ignore
+            }
+          }
+        }
+        throw error;
+      }
     },
     null
   );
@@ -249,7 +342,26 @@ export function ArticleEditor({
     async (prevState: ArticleFormState | null, state: ArticleEditorFormState) => {
       const form = new FormData();
       appendArticleFormFields(form, mode, article?.id, locale, state, 'published');
-      return publishArticle(prevState, form);
+      try {
+        const result = await publishArticle(prevState, form);
+        return result;
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        const digest =
+          typeof error === 'object' && error && 'digest' in error
+            ? String((error as { digest?: string }).digest ?? '')
+            : '';
+        if (msg.includes('NEXT_REDIRECT') || digest.startsWith('NEXT_REDIRECT')) {
+          if (mode === 'create' && session?.user?.id) {
+            try {
+              localStorage.removeItem(NEWS_DRAFT_KEY(session.user.id));
+            } catch {
+              // ignore
+            }
+          }
+        }
+        throw error;
+      }
     },
     null
   );
@@ -506,8 +618,29 @@ export function ArticleEditor({
 
               {/* Content — TipTap NewsEditor (slash /, embeds, mood player) */}
               <div className="space-y-2">
-                <Label htmlFor="content">Content *</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label htmlFor="content">Content *</Label>
+                  {localDraftHydrated ? (
+                    <Badge variant="secondary">{tNews('versions.localDraft')}</Badge>
+                  ) : null}
+                </div>
+                {versionCommits.length > 1 ? (
+                  <ArticleVersionSlider
+                    commits={versionCommits}
+                    selectedIndex={viewingCommitIndex}
+                    onSelect={handleVersionSelect}
+                  />
+                ) : null}
+                {viewingHistorical ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {tNews('versions.historicalBanner')}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
                 <TipTapNewsEditor
+                  key={`ver-${viewingCommitIndex}-${versionCommits[viewingCommitIndex]?.id ?? 'tip'}`}
                   content={formData.content}
                   onChange={(content) => handleInputChange('content', content)}
                   articleId={article?.id}

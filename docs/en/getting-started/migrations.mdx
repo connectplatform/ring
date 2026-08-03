@@ -69,7 +69,7 @@ Helper scripts: `./scripts/run-migration.sh`, `./scripts/apply-refcodes-migratio
 | `007_settlements_schema.sql` | ERP settlement pipeline | Yes |
 | `008_inventory_schema.sql` | `inventory_levels`, `inventory_reservations` | **Yes** (merged 2026-06-10) |
 | `009` / `010` | Email CRM JSONB | No — opt-in feature |
-| `011_platform_settings.sql` | `platform_settings` | Yes — runtime reads/writes via `db().*Doc` in `platform-settings-service.ts` and `ring-token-oracle.ts` (not raw SQL in feature modules) |
+| `011_platform_settings.sql` | `platform_settings` | Yes — runtime reads/writes via `db().*Doc` in `platform-settings-service.ts` and `native-token-oracle.ts` (not raw SQL in feature modules) |
 
 ## Ring clone databases (unified baseline)
 

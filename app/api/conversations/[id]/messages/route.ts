@@ -2,6 +2,16 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { MessageService } from '@/features/chat/services/message-service'
 import { SendMessageRequest, PaginationOptions } from '@/features/chat/types'
+import { MESSAGE_TYPE_ALLOWLIST } from '@/features/chat/lib/interactive-kind'
+import {
+  textHasProductCardMarkers,
+  resolveProductIdFromRef,
+} from '@/features/chat/lib/product-card-marker'
+import {
+  sendProductCardsFromText,
+  sendSingleProductCard,
+} from '@/features/chat/lib/product-card-send'
+import { resolveServerLocale } from '@/lib/i18n/resolve-server-locale'
 
 // Instantiate the message service used for fetching/sending messages
 const messageService = new MessageService()
@@ -133,7 +143,7 @@ export async function POST(
     }
 
     // Validate type if provided (must be one of known types)
-    const validTypes = ['text', 'image', 'file', 'system', 'payment_request']
+    const validTypes: readonly string[] = MESSAGE_TYPE_ALLOWLIST
     if (messageData.type && !validTypes.includes(messageData.type)) {
       return NextResponse.json(
         { error: 'Invalid message type' },
@@ -141,11 +151,84 @@ export async function POST(
       )
     }
 
+    const contentTrimmed = messageData.content.trim()
+    const resolvedType = messageData.type || 'text'
+
+    // Expand [product=…] on plain text sends (authenticated only — already gated above)
+    if (
+      resolvedType === 'text' &&
+      !messageData.attachments?.length &&
+      textHasProductCardMarkers(contentTrimmed)
+    ) {
+      const locale = await resolveServerLocale(request, { userId: session.user.id })
+      const expanded = await sendProductCardsFromText({
+        conversationId,
+        text: contentTrimmed,
+        locale,
+        senderId: session.user.id,
+        senderName: session.user.name,
+        senderAvatar: session.user.image || undefined,
+      })
+      const messages = [
+        ...(expanded.textMessage ? [expanded.textMessage] : []),
+        ...expanded.productCardMessages,
+      ]
+      if (messages.length === 0) {
+        return NextResponse.json(
+          { error: 'Could not resolve product cards', unresolved: expanded.unresolved },
+          { status: 400 },
+        )
+      }
+      // Prefer text as `data` for clients that only append one; full set in metadata.dataList
+      // (apiClient preserves metadata).
+      return NextResponse.json(
+        {
+          success: true,
+          data: messages[0],
+          metadata: {
+            dataList: messages,
+            unresolved: expanded.unresolved.length ? expanded.unresolved : undefined,
+          },
+        },
+        { status: 201 },
+      )
+    }
+
+    // product_card must be CRM-hydrated — never trust client price/title metadata
+    if (resolvedType === 'product_card') {
+      const locale = await resolveServerLocale(request, { userId: session.user.id })
+      const meta = messageData.metadata as Record<string, unknown> | undefined
+      const fromMeta =
+        typeof meta?.productId === 'string' ? meta.productId : ''
+      const productId =
+        resolveProductIdFromRef(fromMeta) ||
+        resolveProductIdFromRef(contentTrimmed)
+      if (!productId) {
+        return NextResponse.json(
+          { error: 'product_card requires a resolvable productId' },
+          { status: 400 },
+        )
+      }
+      const message = await sendSingleProductCard({
+        conversationId,
+        productId,
+        locale,
+        senderId: session.user.id,
+        senderName: session.user.name,
+        senderAvatar: session.user.image || undefined,
+        content: contentTrimmed.startsWith('Product:') ? contentTrimmed : undefined,
+      })
+      if (!message) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      }
+      return NextResponse.json({ success: true, data: message }, { status: 201 })
+    }
+
     // Compose full send request object, defaulting to 'text' if type is not set
     const sendRequest: SendMessageRequest = {
       conversationId,
-      content: messageData.content.trim(),
-      type: messageData.type || 'text',
+      content: contentTrimmed,
+      type: resolvedType,
       replyTo: messageData.replyTo,
       attachments: messageData.attachments,
       metadata:

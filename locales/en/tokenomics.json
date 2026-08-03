@@ -30,7 +30,7 @@
     "subtitle": "Subscriber+ exchanges credit points and native token at your live brand oracle. Desk conversion and everyday credit spend each keep their own clear rate path.",
     "oracle": {
       "title": "Brand oracle rates",
-      "description": "Credits-to-currency uses credit.unitToDefaultCurrency (usually 1). Token-to-credits uses platform_settings.web3.oracle.ringPerUsd on Token Desk. You set both — your rates, your economy."
+      "description": "Credits-to-currency uses credit.creditBalanceUnitToMainCurrency (usually 1). Token-to-credits uses platform_settings.web3.oracle.nativePerMainCurrency on Token Desk. You set both — your rates, your economy."
     },
     "firstSettler": {
       "title": "First-settler welcome",

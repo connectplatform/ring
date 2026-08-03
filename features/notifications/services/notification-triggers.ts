@@ -405,6 +405,63 @@ export async function notifyWalletTransaction(
   }
 }
 
+const REWARD_TRIGGER_LABELS: Record<string, string> = {
+  ringUsername: 'Add username',
+  addedBio: 'Add bio',
+  addedTelegram: 'Add Telegram',
+  addedWhatsapp: 'Add WhatsApp',
+  addedLocation: 'Add location',
+  addedWebsite: 'Add website',
+  profileCompleted: 'Complete profile',
+  adminVerify: 'Verify identity',
+  commentCreated: 'News comment',
+  requestCreated: 'Add request',
+  reviewCreated: 'Write a review',
+  newsStoryApproved: 'News story approved',
+}
+
+/**
+ * Notifies a user that reward credits were added to their balance (quest / action).
+ * Also drives client toast + celebration fs-modal via notifications:inbox tunnel.
+ */
+export async function notifyRewardCreditReceived(
+  userId: string,
+  amount: string,
+  trigger: string,
+  unitLabel: string,
+): Promise<void> {
+  const rewardAction = REWARD_TRIGGER_LABELS[trigger] ?? trigger
+  try {
+    const notificationRequest: CreateNotificationRequest = {
+      userId,
+      type: NotificationType.REWARD_CREDIT_RECEIVED,
+      priority: NotificationPriority.NORMAL,
+      title: `${unitLabel} received`,
+      body: `You received ${amount} ${unitLabel} for quest: ${rewardAction}`,
+      data: {
+        amount,
+        currency: unitLabel,
+        unitLabel,
+        rewardTrigger: trigger,
+        rewardAction,
+        actionUrl: `/profile`,
+        metadata: {
+          kind: 'reward_credit_received',
+          trigger,
+          openCelebrationModal: true,
+        },
+      },
+      channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
+      actionText: 'View profile',
+      actionUrl: `/profile`,
+    }
+
+    await createNotification(notificationRequest)
+  } catch (error) {
+    console.error('NotificationTriggers: Error notifying reward credit:', error)
+  }
+}
+
 // ------------------------------------------------------------------------------
 // System-related notification triggers
 // ------------------------------------------------------------------------------

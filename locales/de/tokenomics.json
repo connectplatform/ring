@@ -30,7 +30,7 @@
     "subtitle": "Subscriber+ tauscht Credit-Punkte und Nativtoken am Ihrem live Brand Oracle. Desk-Konversion und alltägliche Credit-Ausgaben haben jeweils ihren eigenen klaren Kurs.",
     "oracle": {
       "title": "Brand-Oracle-Kurse",
-      "description": "Credits-zu-Währung nutzt credit.unitToDefaultCurrency (meist 1). Token-zu-Credits nutzt platform_settings.web3.oracle.ringPerUsd am Token Desk. Sie setzen beides — Ihre Kurse, Ihre Ökonomie."
+      "description": "Credits-zu-Währung nutzt credit.creditBalanceUnitToMainCurrency (meist 1). Token-zu-Credits nutzt platform_settings.web3.oracle.nativePerMainCurrency am Token Desk. Sie setzen beides — Ihre Kurse, Ihre Ökonomie."
     },
     "firstSettler": {
       "title": "First-settler-Willkommen",

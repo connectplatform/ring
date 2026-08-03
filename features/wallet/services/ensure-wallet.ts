@@ -258,6 +258,8 @@ export async function ensureWallets(
       console.log(JSON.stringify({ level: 'info', tag: 'ensureWallets.write', userId, walletCount: normalized.length }))
     }
     await setUserWallets(userId, normalized)
+    const { publishWalletListUpdate } = await import('@/lib/wallet/publish-wallet-list')
+    await publishWalletListUpdate(userId, 'provisioned')
   }
 
   // ----- 6. Native wallet resolution + post-provision hook -----------------

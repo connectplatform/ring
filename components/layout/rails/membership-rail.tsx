@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Crown, Building2, Briefcase, Coins, CreditCard, HelpCircle, BookOpen, CheckCircle } from 'lucide-react'
-import { formatMembershipFiatAmount, getMemberFiatTier, getMembershipRingUpgradeAmount } from '@/lib/membership/pricing'
+import { formatMembershipMainCurrencyAmount, getMemberMainCurrencyTier, getMembershipRingUpgradeAmount } from '@/lib/membership/pricing'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
@@ -24,7 +24,7 @@ export interface MembershipRailProps {
 export function MembershipRail({ locale, onNavigate }: MembershipRailProps) {
   const router = useRouter()
   const t = useTranslations('modules.membership')
-  const fiatTier = getMemberFiatTier()
+  const fiatTier = getMemberMainCurrencyTier()
   const ringAmount = getMembershipRingUpgradeAmount()
   const localeKey = locale as Locale
 
@@ -78,7 +78,7 @@ export function MembershipRail({ locale, onNavigate }: MembershipRailProps) {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2"><CreditCard className="h-3.5 w-3.5" /> {fiatTier.currency}</span>
-            <span className="font-medium">{formatMembershipFiatAmount(fiatTier)}</span>
+            <span className="font-medium">{formatMembershipMainCurrencyAmount(fiatTier)}</span>
           </div>
           <p className="text-xs text-muted-foreground">{fiatTier.description}</p>
           <Badge variant="secondary" className="text-xs">{t('sidebar.pay_either')}</Badge>

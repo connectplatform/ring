@@ -123,7 +123,16 @@
       "invalid_amount": "Betrag muss zwischen 0,01 und 10000 RING liegen"
     },
     "proceed_card": "Zur Kartenzahlung",
-    "proceed_paypal": "Zu PayPal"
+    "proceed_paypal": "Zu PayPal",
+    "externalDescription": "Tauschen Sie Allowlist-Tokens aus Ihrem Anmelde-Wallet gegen custodial {symbol}.",
+    "externalNoAllowlist": "Noch keine Allowlist-Tokens für Treasury-Swap konfiguriert.",
+    "externalTreasuryMissing": "Treasury-Adresse noch nicht sichtbar. Setzen Sie chains.evm.treasuryAddress oder NEXT_PUBLIC_EVM_TREASURY_ADDRESS.",
+    "externalSelectToken": "Token",
+    "externalAmount": "Betrag",
+    "externalAvailable": "Verfügbar: {balance} {symbol}",
+    "externalYouReceive": "Sie erhalten ≈",
+    "oracleRateBubble": "Tokens are calculated in accordance with exchange rate: 1 {symbol} is {rate} {creditUnit}.",
+    "securePaymentBubble": "Payments are processed securely via {processor}. This is a non-refundable transaction."
   },
   "send": {
     "title": "RING senden",
@@ -196,7 +205,11 @@
   "balanceStale": "Guthaben möglicherweise veraltet — tippen Sie auf Aktualisieren",
   "autoRefreshEvery": "Automatische Aktualisierung alle 60 Sekunden",
   "topupTabs": {
-    "creditDesk": "Credit {creditUnit}"
+    "creditDesk": "{creditUnit}",
+    "creditNative": "{creditUnit} ↔ {symbol}",
+    "otherWallet": "Andere Wallet",
+    "creditCard": "Kreditkarte",
+    "paypal": "Paypal"
   },
   "transactionDetails": {
     "title": "Transaktionsdetails",
@@ -277,5 +290,12 @@
   "deskNoCreditTitle": "Keine Credit-Punkte",
   "deskNoCreditHint": "Seien Sie aktiv in {project}, um Credit {unit} zu verdienen",
   "deskNoCreditOr": "oder",
-  "deskBuyCreditUnit": "{unit} kaufen"
+  "deskBuyCreditUnit": "{unit} kaufen",
+  "signinWallet": "Anmelde-Wallet",
+  "signinWalletDisconnected": "Wallet verbinden, um mit Anmelde-Assets aufzuladen",
+  "swapForNative": "Gegen {symbol} tauschen",
+  "swapStubHint": "Treasury-Swap für Allowlist-Tokens ist noch nicht live. Sobald Treasury-Vertrag, Allowlist und Orakel-Feeds konfiguriert sind, können Sie Ihr custodial {symbol}-Wallet von diesem Anmelde-Wallet finanzieren.",
+  "swapComingSoon": "Demnächst",
+  "close": "Schließen",
+  "balanceStaleShort": "Guthaben möglicherweise veraltet"
 }

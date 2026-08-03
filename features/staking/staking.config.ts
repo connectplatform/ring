@@ -10,12 +10,14 @@
 import type { EvmAbi, EvmStakingConfig, EvmStakingSlotConfig } from './adapters/evm'
 import { buildEvmStakingConfigFromSSOT } from './adapters/evm'
 import { getEvmChainWalletSlot } from './slots'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
+import type { WalletClient } from 'viem'
 
 export type StakingEnvironment = 'development' | 'test' | 'staging' | 'production' | 'custom'
 
 export interface BuildAdapterOptions {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getSigner: () => Promise<any | null>
+  /** Legacy name — must return a viem WalletClient (wagmi), not ethers Signer. */
+  getSigner: () => Promise<WalletClient | null>
   aprStakingAbi: EvmAbi
   feeDistributorAbi: EvmAbi
   erc20Abi?: EvmAbi
@@ -60,6 +62,7 @@ export function buildEvmStakingConfig(options: BuildAdapterOptions): EvmStakingC
   })
 }
 
-export function getPolygonRpcUrl(): string | undefined {
-  return process.env.POLYGON_RPC_URL || process.env.NEXT_PUBLIC_POLYGON_RPC_URL
+/** EVM JSON-RPC via chain SSOT (`getEvmRpcUrl` — respects chains.evm.rpcUrlEnv). */
+export function getPolygonRpcUrl(): string {
+  return getEvmRpcUrl()
 }

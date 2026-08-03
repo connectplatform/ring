@@ -205,25 +205,33 @@ async function ensurePayPalMembershipProduct(): Promise<string> {
 async function ensurePayPalMembershipPlan(opts: {
   amount: number
   currency: string
+  /** MONTH (default) or YEAR — separate env cache keys. */
+  intervalUnit?: 'MONTH' | 'YEAR'
 }): Promise<string> {
-  const cached = process.env.PAYPAL_MEMBERSHIP_PLAN_ID?.trim()
-  if (cached) return cached
+  const intervalUnit = opts.intervalUnit ?? 'MONTH'
+  const cachedEnv =
+    intervalUnit === 'YEAR'
+      ? process.env.PAYPAL_MEMBERSHIP_PLAN_ID_YEARLY?.trim()
+      : process.env.PAYPAL_MEMBERSHIP_PLAN_ID?.trim()
+  if (cachedEnv) return cachedEnv
 
   const productId = await ensurePayPalMembershipProduct()
   const currency = opts.currency.toUpperCase()
   const value = formatPayPalAmountValue(opts.amount)
+  const periodLabel = intervalUnit === 'YEAR' ? 'yr' : 'mo'
+  const periodName = intervalUnit === 'YEAR' ? 'Yearly' : 'Monthly'
 
   const plan = await paypalApiFetch<{ id: string }>('/v1/billing/plans', {
     method: 'POST',
-    idempotencyKey: `ring-membership-plan-${currency}-${value}`,
+    idempotencyKey: `ring-membership-plan-${intervalUnit}-${currency}-${value}`,
     body: JSON.stringify({
       product_id: productId,
-      name: `Ring Membership ${currency} ${value}/mo`,
-      description: 'Monthly membership billing',
+      name: `Ring Membership ${currency} ${value}/${periodLabel}`,
+      description: `${periodName} membership billing`,
       status: 'ACTIVE',
       billing_cycles: [
         {
-          frequency: { interval_unit: 'MONTH', interval_count: 1 },
+          frequency: { interval_unit: intervalUnit, interval_count: 1 },
           tenure_type: 'REGULAR',
           sequence: 1,
           total_cycles: 0,
@@ -241,17 +249,21 @@ async function ensurePayPalMembershipPlan(opts: {
   })
 
   if (!plan.id) throw new Error('PayPal plan create returned no id')
-  logger.info('PayPal membership plan created — cache as PAYPAL_MEMBERSHIP_PLAN_ID', {
+  const cacheHint =
+    intervalUnit === 'YEAR' ? 'PAYPAL_MEMBERSHIP_PLAN_ID_YEARLY' : 'PAYPAL_MEMBERSHIP_PLAN_ID'
+  logger.info(`PayPal membership plan created — cache as ${cacheHint}`, {
     planId: plan.id,
     productId,
     currency,
     value,
+    intervalUnit,
   })
   return plan.id
 }
 
 /**
  * Create a PayPal Subscriptions v1 subscription and return approve URL + I-… id.
+ * SSOT: paypalApiFetch + extractPayPalApproveUrl (same as one-shot order approve flow).
  */
 export async function createPayPalBillingSubscription(opts: {
   amount: number
@@ -261,11 +273,14 @@ export async function createPayPalBillingSubscription(opts: {
   cancelUrl?: string
   userEmail?: string
   idempotencyKey?: string
+  /** MONTH (default) or YEAR plan. */
+  intervalUnit?: 'MONTH' | 'YEAR'
 }): Promise<{ subscriptionId: string; approveUrl: string; planId: string }> {
   const currency = opts.currency.toUpperCase()
   const planId = await ensurePayPalMembershipPlan({
     amount: opts.amount,
     currency,
+    intervalUnit: opts.intervalUnit ?? 'MONTH',
   })
 
   const returnUrl = opts.returnUrl
@@ -293,11 +308,19 @@ export async function createPayPalBillingSubscription(opts: {
     body: JSON.stringify(body),
   })
 
-  if (!sub.id) throw new Error('PayPal subscription create returned no id')
+  if (!sub.id) {
+    throw new Error('PayPal subscription create returned no id')
+  }
   const approveUrl = extractPayPalApproveUrl(sub.links)
-  if (!approveUrl) throw new Error('PayPal subscription missing approve link')
+  if (!approveUrl) {
+    throw new Error('PayPal subscription missing approve link')
+  }
 
-  return { subscriptionId: sub.id, approveUrl, planId }
+  return {
+    subscriptionId: sub.id,
+    approveUrl,
+    planId,
+  }
 }
 
 export async function cancelPayPalBillingSubscription(

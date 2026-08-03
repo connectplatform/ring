@@ -60,6 +60,11 @@ export interface NftStakeRecord {
   unstakedAt?: string
   expiresAt?: string
   features: NftGateFeature[]
+  /**
+   * Stake-time bind for tradeable vendor gates (e.g. vendor-dagi-key).
+   * Secondary market must rebind to the new owner's entity — never unlock prior vendor.
+   */
+  vendorEntityId?: string
 }
 
 export interface NftEntitlementCacheRecord {
@@ -69,6 +74,8 @@ export interface NftEntitlementCacheRecord {
   sourceAsset: string
   expiresAt: string
   createdAt: string
+  /** Scoped unlock — required for vendor.dagi ERP tools */
+  vendorEntityId?: string
 }
 
 export const ENTITLEMENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000

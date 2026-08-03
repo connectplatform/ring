@@ -80,5 +80,10 @@
     "autoSavedAt": "Auto-saved at {time}",
     "saving": "Saving…",
     "tipTapHint": "TipTap — type / for slash commands, paste URLs to embed, or insert Mood Player."
+  },
+  "versions": {
+    "localDraft": "Local draft",
+    "historicalBanner": "Editing historical version — Save creates a new latest version.",
+    "sliderLabel": "v{current} of {total}"
   }
 }

@@ -23,6 +23,7 @@ export const SUBSCRIPTION_PROVIDERS = [
   'native_token',
   'nft_gate',
   'paypal',
+  'telegram_stars',
 ] as const
 
 export const subscriptionProviderSchema = z.enum(SUBSCRIPTION_PROVIDERS)
@@ -59,13 +60,14 @@ export const subscriptionLedgerSchema = z.object({
   /** Human-readable gateway label (e.g. "Stripe", "WayForPay", "RING Tokens"). */
   gateway: z.string().min(1),
   /** Payment method: "card", "credit_balance", "crypto", "nft", "paypal" — for UI filtering. */
-  method: z.enum(['card', 'credit_balance', 'crypto', 'nft', 'paypal']),
+  method: z.enum(['card', 'credit_balance', 'crypto', 'nft', 'paypal', 'stars']),
 
   // Status
   status: subscriptionStatusSchema,
 
-  // Financials (minor units — cents for fiat, raw token amount for crypto)
+  // Financials (minor units — cents for main currency, raw token amount for crypto)
   amount: z.number().min(0),
+  /** Transaction currency — main currency code for fiat rails, token symbol for crypto. */
   currency: z.string().min(1),
   /** Gateway fee as percentage (e.g. 2.9). 0 for internal methods. */
   gateway_fee_percent: z.number().min(0).default(0),
@@ -80,6 +82,15 @@ export const subscriptionLedgerSchema = z.object({
   paypal_subscription_id: z.string().optional(),
   solana_tx_signature: z.string().optional(),
   nft_mint_address: z.string().optional(),
+  /**
+   * Telegram Stars invoice payload (`stars_<uuid>`) — equals ledger `id` on create.
+   * successful_payment.invoice_payload must match this for activation.
+   */
+  telegram_stars_payload: z.string().optional(),
+  /** createInvoiceLink URL returned by Bot API (navigate handoff). */
+  telegram_stars_invoice_link: z.string().optional(),
+  /** SuccessfulPayment.telegram_payment_charge_id — required for refundStarPayment. */
+  telegram_payment_charge_id: z.string().optional(),
 
   // Timing
   start_time: z.number().int().positive(),
@@ -111,7 +122,7 @@ export const subscriptionLedgerFilterSchema = z.object({
   user_id: z.string().optional(),
   provider: subscriptionProviderSchema.optional(),
   status: subscriptionStatusSchema.optional(),
-  method: z.enum(['card', 'credit_balance', 'crypto', 'nft', 'paypal']).optional(),
+  method: z.enum(['card', 'credit_balance', 'crypto', 'nft', 'paypal', 'stars']).optional(),
   due_before: z.number().int().optional(),   // next_payment_due < this
   due_after: z.number().int().optional(),     // next_payment_due > this
 })

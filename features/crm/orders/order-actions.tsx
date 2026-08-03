@@ -62,7 +62,7 @@ export function PayProjectOrderButtons({ orderId }: { orderId: string }) {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const pay = (rail?: 'merchant_redirect' | 'internal_credit') => {
+  const pay = (rail?: 'card' | 'credit_balance') => {
     setError(null)
     startTransition(async () => {
       try {
@@ -91,11 +91,11 @@ export function PayProjectOrderButtons({ orderId }: { orderId: string }) {
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
-      <Button disabled={pending} onClick={() => pay('merchant_redirect')} size="lg">
+      <Button disabled={pending} onClick={() => pay('card')} size="lg">
         {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
         {t('checkout.payCard', { defaultValue: 'Pay with card' })}
       </Button>
-      <Button disabled={pending} onClick={() => pay('internal_credit')} size="lg" variant="outline">
+      <Button disabled={pending} onClick={() => pay('credit_balance')} size="lg" variant="outline">
         {t('checkout.payCredit', { defaultValue: 'Pay with credits' })}
       </Button>
       {error ? <p className="w-full text-sm text-destructive">{error}</p> : null}

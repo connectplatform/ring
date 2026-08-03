@@ -1,13 +1,15 @@
 'use client'
 
 /**
- * Store category multi-select for vendor onboarding (Ring Marketplace categories).
+ * Store category multi-select — calculator-style Lucide tiles (DaVinci accents).
  */
 
 import React, { useTransition, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import { CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
 import {
   STORE_VENDOR_CATEGORY_IDS,
   STORE_VENDOR_CATEGORY_META,
@@ -44,69 +46,63 @@ export default function CategoryMultiSelect({
 
   return (
     <div className="space-y-3">
-      {/* Grid of category cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {STORE_VENDOR_CATEGORY_IDS.map((categoryId, index) => {
           const category = STORE_VENDOR_CATEGORY_META[categoryId]
+          const Icon = category.LucideIcon
           const isSelected = selectedCategories.includes(categoryId)
+          const color = category.accent
 
           return (
             <motion.div
               key={categoryId}
-              initial={{ opacity: 0, scale: 0.9 }}
+              className="h-full"
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.03 }}
+              transition={{ delay: index * 0.02 }}
             >
-              <label
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleToggle(categoryId)}
+                aria-pressed={isSelected}
                 className={cn(
-                  'relative group cursor-pointer block',
-                  'rounded-xl p-4',
-                  'border-2 transition-all duration-300',
-                  'bg-gradient-to-br backdrop-blur-sm',
-                  isSelected
-                    ? 'border-primary shadow-lg shadow-primary/20'
-                    : 'border-border hover:border-primary/40 hover:shadow-md',
-                  category.colorClass,
+                  'flex h-full min-h-[7.5rem] w-full flex-col items-start gap-2 rounded-xl border-2 p-3 text-left transition-all',
+                  'hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isSelected ? cn(davinciGlassSurface, 'shadow-sm') : 'border-border/80 bg-background/60',
                 )}
+                style={
+                  isSelected
+                    ? {
+                        borderColor: color,
+                        backgroundColor: category.soft,
+                        boxShadow: `0 0 0 1px ${color}33, 0 8px 24px -12px ${color}66`,
+                      }
+                    : { borderColor: `${color}33` }
+                }
               >
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex w-full shrink-0 items-start justify-between gap-2">
                   <div
                     className={cn(
-                      'text-3xl transition-transform duration-300',
-                      isSelected ? 'scale-110' : 'group-hover:scale-105',
+                      'flex size-10 shrink-0 items-center justify-center rounded-lg border',
+                      isSelected ? 'border-transparent' : 'border-border text-muted-foreground',
                     )}
+                    style={
+                      isSelected
+                        ? { backgroundColor: `${color}22`, color, borderColor: `${color}55` }
+                        : { color }
+                    }
                   >
-                    {category.icon}
+                    <Icon className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
                   </div>
-
-                  <span
-                    className={cn(
-                      'text-sm font-medium text-center leading-tight',
-                      isSelected ? 'text-primary' : 'text-foreground',
-                    )}
-                  >
-                    {t(`categories.${categoryId}`)}
-                  </span>
-
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleToggle(categoryId)}
-                    className="sr-only"
-                    disabled={isPending}
-                  />
-
-                  {isSelected && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center"
-                    >
-                      <span className="text-primary-foreground text-xs">✓</span>
-                    </motion.div>
-                  )}
+                  {isSelected ? (
+                    <CheckCircle className="size-4 shrink-0" style={{ color }} />
+                  ) : null}
                 </div>
-              </label>
+                <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight">
+                  {t(`categories.${categoryId}`)}
+                </div>
+              </button>
             </motion.div>
           )
         })}
@@ -122,7 +118,7 @@ export default function CategoryMultiSelect({
         )}
       </div>
 
-      {error && <p className="text-sm text-destructive text-center">{error}</p>}
+      {error ? <p className="text-sm text-destructive text-center">{error}</p> : null}
     </div>
   )
 }

@@ -33,5 +33,22 @@
   "promptPlaceholder": "Beschreiben Sie Ihre Medien im Detail…",
   "modeImage": "Bild",
   "modeVideo": "Video",
-  "modeVideoSoon": "Der Videomodus nutzt VideoConductor — demnächst in diesem Editor."
+  "modeVideoSoon": "Der Videomodus nutzt VideoConductor — demnächst in diesem Editor.",
+  "useThisVideo": "Dieses Video verwenden",
+  "saveToDesktop": "Auf Desktop speichern",
+  "savedToDesktop": "Auf Desktop gespeichert",
+  "saveDesktopFailed": "Speichern auf Desktop fehlgeschlagen",
+  "noUseTarget": "Kein Editor-Ziel — öffnen Sie einen Editor oder ein Medienfeld.",
+  "videoNeedsReference": "Referenzbild für die Videogenerierung anhängen oder einfügen.",
+  "generatingVideo": "Video wird generiert (kann einige Minuten dauern)…",
+  "referenceAttached": "Referenzbild",
+  "clearAttachment": "Anhang entfernen",
+  "pasteHint": "Eingefügtes / abgelegtes Bild wird als Referenz verwendet.",
+  "pasteOrDropHint": "Bild hier einfügen oder ablegen als Referenz.",
+  "attachTooLarge": "Anhang überschreitet das 20-MB-Limit.",
+  "generatingVideoProgress": "Video wird erzeugt…",
+  "videoStatus": "Status: {status}",
+  "videoProgressPct": "{pct}%",
+  "cancelGeneration": "Erzeugung abbrechen",
+  "videoCancelled": "Videoerzeugung abgebrochen"
 }

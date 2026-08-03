@@ -179,7 +179,8 @@
       "noErrors": "No se registraron errores en este período",
       "noTraffic": "Los datos de fuentes de tráfico aparecerán cuando se recopilen visitas a páginas",
       "noActivity": "La actividad reciente aparecerá a medida que se registren eventos",
-      "noDevices": "El desglose por dispositivo aparecerá cuando se rastreen sesiones"
+      "noDevices": "El desglose por dispositivo aparecerá cuando se rastreen sesiones",
+      "noPersonalPages": "Aún no hay visitas a páginas personales"
     },
     "overview": {
       "activeSessions": "Sesiones activas",
@@ -187,7 +188,15 @@
       "avgResponseTime": "Tiempo de respuesta prom.",
       "errorRate": "Tasa de errores",
       "fromYesterday": "desde ayer",
-      "thisWeek": "esta semana"
+      "thisWeek": "esta semana",
+      "personalPages": "Páginas personales",
+      "personalPagesSubtitle": "Visitantes únicos de perfiles públicos /username",
+      "personalUnique24h": "Únicos 24h",
+      "personalUniquePeriod": "Únicos (periodo)",
+      "personalVisits": "visitas",
+      "personalByRole": "Por rol",
+      "personalByRoleHint": "24h / periodo únicos",
+      "personalTopProfiles": "Perfiles top"
     },
     "webvitals": {
       "title": "Rendimiento de Core Web Vitals",
@@ -311,6 +320,8 @@
   "users": "Usuarios",
   "rewards": "Recompensas",
   "news": "Noticias",
+  "wiki": "Wiki",
+  "wikiDescription": "Base de conocimiento Markdown estilo Obsidian con [[wikilinks]] para vaults de plataforma y proyecto",
   "dao": "Pools públicos",
   "analytics": "Analítica",
   "moderation": "Moderación",
@@ -459,7 +470,36 @@
         "completed": "Completado",
         "canceled": "Cancelado"
       }
-    }
+    },
+    "hub": "Resumen",
+    "hubTitle": "Hub ERP de tienda",
+    "hubSubtitle": "Almacén {warehouse} ({warehouseId} / store {storeId}) — productos, stock, pedidos y liquidaciones",
+    "warehouseLabel": "{name} · {id} · store {storeId}",
+    "warehouse": "Almacén",
+    "reason": "Motivo",
+    "restock": "Reponer",
+    "adjustReasonPlaceholder": "Motivo del ajuste",
+    "adjustStockError": "Error al ajustar stock",
+    "filter": {
+      "all": "Todos",
+      "low": "Bajo",
+      "critical": "Crítico",
+      "out": "Agotado"
+    },
+    "settlementFilter": {
+      "all": "Todos",
+      "pending": "Pendiente",
+      "held": "Retenido",
+      "completed": "Completado"
+    },
+    "dryRunPayouts": "Simular pagos",
+    "dryRunResult": "Vencidos: {due} de {pending} · neto {total}",
+    "hold": "Retener",
+    "release": "Liberar",
+    "holdReasonPrompt": "Motivo de retención",
+    "holdError": "Error al retener",
+    "releaseError": "Error al liberar",
+    "actions": "Acciones"
   },
   "verificationQueue": {
     "pageTitle": "Verificación de identidad",
@@ -566,6 +606,11 @@
         "description": "Liberar reservas de inventario de tienda expiradas (TTL)",
         "schedule": "Cada 5–15 minutos"
       },
+      "inventory-drift": {
+        "label": "Detector de deriva de inventario",
+        "description": "Comprueba stock === available + reserved; informa sin auto-reparar",
+        "schedule": "Nocturno o cada hora"
+      },
       "cleanup-usernames": {
         "label": "Limpieza de reservas de nombres de usuario",
         "description": "Eliminar reservas de nombres de usuario expiradas",
@@ -610,6 +655,14 @@
         "label": "Vencimiento de NFT Gate",
         "description": "Verificar propiedad de NFT para suscriptores nft_gate (Fase S7)",
         "schedule": "Diario a las 4 a. m."
+      },
+      "close-expired-polls": {
+        "label": "Cerrar encuestas vencidas",
+        "description": "Cierra encuestas de chat tras closeAt"
+      },
+      "peer-game-session-expiry": {
+        "label": "Caducidad de sesiones de juegos",
+        "description": "Caducar invitaciones pendientes (15m), idle (2h), reclaim huérfanos"
       }
     },
     "nav": "Procesos en segundo plano"
@@ -772,5 +825,6 @@
     "title": "Monitoreo de recompensas",
     "subtitle": "Supervise la actividad de recompensas de crédito, volumen de mint y salud de entrega."
   },
-  "moderationTabReports": "Informes de usuarios"
+  "moderationTabReports": "Informes de usuarios",
+  "crmTaskEscrows": "Depósitos de tareas"
 }

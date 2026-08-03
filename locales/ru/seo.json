@@ -514,6 +514,10 @@
       "version"
     ],
     "ogTitle": "Журнал изменений — Ring Platform",
-    "ogDescription": "Заметки о релизах из CHANGELOG.md"
+    "ogDescription": "Заметки о релизах из docs changelog"
+  },
+  "fileCabinet": {
+    "title": "Файловый шкаф",
+    "description": "Ваш личный файловый менеджер Ring."
   }
 }

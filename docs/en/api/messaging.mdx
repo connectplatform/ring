@@ -113,7 +113,7 @@ Zod create schema (`app/api/conversations/route.ts`):
 | GET | `/api/conversations/[id]/messages` | Cursor pagination: `limit`, `cursor`, `direction` |
 | POST | `/api/conversations/[id]/messages` | Body: content + optional `type`, attachments, message `metadata` |
 
-Message `type` values in chat types: `text` | `image` | `file` | `system` | `payment_request`. Message `metadata.kind` (e.g. `payment_request`, `gallery_upload`) is a **different** namespace from conversation `metadata.kind`.
+Message `type` values in chat types: `text` | `image` | `file` | `system` | `payment_request` | `env_request` | `task` | `poll` | `rsvp` | `dao_jar` | `share_card` (SSOT: `MESSAGE_TYPE_ALLOWLIST` in `features/chat/lib/interactive-kind.ts`). Message `metadata.kind` (e.g. `payment_request`, `gallery_upload`) is a **different** namespace from conversation `metadata.kind`.
 
 ### Modules
 

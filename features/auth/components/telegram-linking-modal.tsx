@@ -1,130 +1,82 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { useTranslations } from 'next-intl'
+import { FsModal } from '@/components/ui/fs-modal'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/routing'
-import { Send, Loader2, ExternalLink, CheckCircle } from 'lucide-react'
-import { useSession } from 'next-auth/react'
+import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { signIn, useSession } from 'next-auth/react'
+import type { Locale } from '@/i18n/shared'
 
 interface TelegramLinkingModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+function TelegramGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden fill="currentColor">
+      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.064-1.226-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+    </svg>
+  )
+}
+
 /**
- * Telegram Account Linking Modal
- * 
- * Uses the Telegram Login Widget (redirect mode) to link a Telegram
- * account to the user's Ring profile.
- * 
- * Flow:
- * 1. User clicks "Link Telegram Account" in the Messengers tab
- * 2. Modal shows the Telegram Login Widget button
- * 3. User authorizes → redirects to /api/auth/telegram/callback
- * 4. Callback validates hash, saves Telegram ID to user profile
- * 5. User is redirected back to /profile with success param
+ * Telegram Account Linking Modal (FsModal)
+ *
+ * Primary: Auth.js Telegram OIDC (`signIn('telegram')`) after
+ * POST /api/auth/telegram/link/prepare sets a signed link-intent cookie so the
+ * OIDC callback attaches communication.telegramId to the current Ring user
+ * (and awards `addedTelegram` once via syncUserTelegramCommunication).
+ * Younger Telegram-OIDC-only shells merge into the linker (anti-hijack).
+ *
+ * Truth lens: telegram_login_widget_specialist + authjs_specialist
  */
 export default function TelegramLinkingModal({
   open,
   onOpenChange,
 }: TelegramLinkingModalProps) {
   const t = useTranslations('modules.profile')
+  const tCommon = useTranslations('common')
   const router = useRouter()
+  const locale = useLocale() as Locale
   const { update: updateSession } = useSession()
-  const widgetContainerRef = useRef<HTMLDivElement>(null)
-  const [loading, setLoading] = useState(true)
-  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [linked, setLinked] = useState(false)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
 
-  // Determine callback URL from current origin
-  const callbackUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/auth/telegram/callback`
-    : ''
-
-  // Load Telegram widget script when modal opens
   useEffect(() => {
     if (!open) return
 
-    setLoading(true)
+    setLoading(false)
     setLinked(false)
+    setErrorCode(null)
 
-    // Check if URL has success param
     const params = new URLSearchParams(window.location.search)
     if (params.get('telegram') === 'linked') {
       setLinked(true)
-      setLoading(false)
-      // Clean URL
       const url = new URL(window.location.href)
       url.searchParams.delete('telegram')
       window.history.replaceState({}, '', url.toString())
-      updateSession()
+      void updateSession()
       return
     }
 
-    // Check for error params
     const error = params.get('error')
-    if (error?.startsWith('telegram_')) {
-      setLoading(false)
+    if (
+      error?.startsWith('telegram_') ||
+      error === 'Configuration' ||
+      error === 'OAuthCallback' ||
+      error === 'AccessDenied'
+    ) {
+      setErrorCode(error)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('error')
+      window.history.replaceState({}, '', url.toString())
     }
-
-    // Load Telegram widget script
-    const loadWidget = () => {
-      if (typeof window !== 'undefined' && (window as any).TelegramLoginWidget) {
-        setScriptLoaded(true)
-        setLoading(false)
-        return
-      }
-
-      const script = document.createElement('script')
-      script.src = 'https://telegram.org/js/telegram-widget.js?22'
-      script.async = true
-      script.onload = () => {
-        setScriptLoaded(true)
-        setLoading(false)
-      }
-      script.onerror = () => {
-        setLoading(false)
-      }
-      document.body.appendChild(script)
-    }
-
-    // Small delay to ensure DOM is ready for widget placement
-    const timer = setTimeout(loadWidget, 100)
-    return () => clearTimeout(timer)
   }, [open, updateSession])
 
-  // Re-render widget when script loads and container is available
-  useEffect(() => {
-    if (!open || !scriptLoaded || !widgetContainerRef.current || linked) return
-
-    // Clear container
-    widgetContainerRef.current.innerHTML = ''
-
-    // Create widget container element
-    const widgetContainer = document.createElement('div')
-    widgetContainer.setAttribute('data-telegram-login', 'ringdom_bot')
-    widgetContainer.setAttribute('data-size', 'large')
-    widgetContainer.setAttribute('data-auth-url', callbackUrl)
-    widgetContainer.setAttribute('data-request-access', 'write')
-    widgetContainer.setAttribute('data-lang', 'en')
-    widgetContainerRef.current.appendChild(widgetContainer)
-
-    // Notify Telegram widget script to process new element
-    if ((window as any).TelegramLoginWidget) {
-      (window as any).TelegramLoginWidget.render()
-    }
-  }, [open, scriptLoaded, callbackUrl, linked])
-
-  // Check for success/error from URL when component mounts or focus returns
   useEffect(() => {
     if (!open) return
 
@@ -133,26 +85,19 @@ export default function TelegramLinkingModal({
       if (params.get('telegram') === 'linked') {
         setLinked(true)
         setLoading(false)
-        updateSession()
+        void updateSession()
         router.refresh()
-        // Clean URL
         const url = new URL(window.location.href)
         url.searchParams.delete('telegram')
         window.history.replaceState({}, '', url.toString())
       }
     }
 
-    // Check on visibility change (user returns from Telegram auth)
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        checkUrl()
-      }
+      if (document.visibilityState === 'visible') checkUrl()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-
-    // Also check on focus
     window.addEventListener('focus', checkUrl)
-
     checkUrl()
 
     return () => {
@@ -161,86 +106,139 @@ export default function TelegramLinkingModal({
     }
   }, [open, updateSession, router])
 
-  const handleClose = () => {
-    if (linked) {
-      router.refresh()
+  const startOidcLink = async () => {
+    if (loading) return
+    setLoading(true)
+    setErrorCode(null)
+    try {
+      const prep = await fetch('/api/auth/telegram/link/prepare', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (prep.status === 401) {
+        setErrorCode('telegram_auth_required')
+        setLoading(false)
+        return
+      }
+      if (!prep.ok) {
+        setErrorCode('telegram_server_error')
+        setLoading(false)
+        return
+      }
+      const callbackUrl = `/${locale}/profile?telegram=linked`
+      await signIn('telegram', { callbackUrl })
+    } catch (e) {
+      console.error('Telegram OIDC link error:', e)
+      setErrorCode('telegram_server_error')
+      setLoading(false)
     }
-    onOpenChange(false)
   }
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      if (linked) router.refresh()
+      onOpenChange(false)
+    } else {
+      onOpenChange(true)
+    }
+  }
+
+  const errorMessage = (() => {
+    switch (errorCode) {
+      case 'telegram_auth_required':
+        return t('linkTelegramErrorAuthRequired')
+      case 'telegram_already_linked':
+      case 'AccessDenied':
+        return t('linkTelegramErrorAlreadyLinked')
+      case 'telegram_server_error':
+        return t('linkTelegramErrorServer')
+      case 'Configuration':
+      case 'OAuthCallback':
+        return t('linkTelegramErrorMisconfigured')
+      default:
+        return errorCode
+    }
+  })()
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-sm:min-h-screen max-sm:rounded-none max-sm:pt-12">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="w-5 h-5 text-blue-500" />
-            {t('addTelegramAccount')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('linkTelegramDescription')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="py-6 flex flex-col items-center gap-4 min-h-[180px] justify-center">
-          {loading && (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Loading Telegram widget...</p>
+    <FsModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={t('addTelegramAccount')}
+      hideHeaderSeparator
+      className="max-sm:pt-0"
+      contentClassName="flex flex-col p-0 sm:px-0"
+    >
+      <div className="relative mx-auto w-full min-h-[min(72dvh,560px)] flex-1">
+        {linked ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-          )}
-
-          {linked && (
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+            <p className="font-medium text-green-600">{t('telegramConnected')}</p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {t('linkTelegramSuccessDetail')}
+            </p>
+            <Button
+              onClick={() => handleOpenChange(false)}
+              className="mt-2 w-full max-w-sm"
+            >
+              {tCommon('actions.continue')}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Logo + copy sit above the vertical midpoint */}
+            <div className="absolute inset-x-0 bottom-[calc(50%+2.75rem)] flex flex-col items-center gap-3 px-6">
+              <div className="flex w-[30%] max-w-[9rem] min-w-[4.5rem] aspect-square items-center justify-center text-[#229ED9]">
+                <TelegramGlyph className="h-full w-full" />
               </div>
-              <p className="font-medium text-green-600">{t('telegramConnected')}</p>
-              <p className="text-sm text-muted-foreground">
-                Your Telegram account has been linked successfully!
-              </p>
-            </div>
-          )}
-
-          {!loading && !linked && (
-            <>
-              {/* Telegram Login Widget renders here */}
-              <div ref={widgetContainerRef} className="min-h-[60px] flex items-center justify-center" />
-
-              {!scriptLoaded && (
-                <div className="flex flex-col items-center gap-2">
-                  <p className="text-sm text-muted-foreground">Could not load Telegram widget.</p>
-                  <a
-                    href={`https://t.me/ringdom_bot?start=auth_${Date.now()}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Open Telegram directly
-                  </a>
+              {errorCode ? (
+                <div className="flex max-w-sm flex-col items-center gap-2 text-center text-sm text-destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <p>{errorMessage}</p>
                 </div>
+              ) : (
+                <p className="max-w-sm text-center text-sm text-muted-foreground">
+                  {t('linkTelegramDescription')}
+                </p>
               )}
+            </div>
 
-              <p className="text-xs text-muted-foreground text-center max-w-sm">
-                By linking your Telegram account, you authorize Ring Platform to send you
-                notifications and manage your account via @ringdom_bot.
-              </p>
-            </>
-          )}
-        </div>
+            {/* Primary CTA centered in the widget */}
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-6">
+              <Button
+                type="button"
+                onClick={startOidcLink}
+                disabled={loading}
+                variant="default"
+                className="w-full min-h-12 font-medium"
+                aria-label={t('addTelegramAccount')}
+              >
+                {loading ? (
+                  <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin" aria-hidden />
+                ) : (
+                  <TelegramGlyph className="mr-2 h-5 w-5 shrink-0" />
+                )}
+                {t('addTelegramAccount')}
+              </Button>
+            </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          {linked ? (
-            <Button onClick={handleClose} className="w-full sm:w-auto">
-              {t('continue') || 'Continue'}
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
-              {t('cancel') || 'Cancel'}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {/* Cancel directly under primary — no footer separator */}
+            <div className="absolute inset-x-0 top-[calc(50%+2.75rem)] px-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                className="w-full"
+                disabled={loading}
+              >
+                {t('cancel')}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </FsModal>
   )
 }

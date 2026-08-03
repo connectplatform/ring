@@ -25,6 +25,10 @@ import { auth } from '@/auth'; // Auth.js v5 session handler
 import { isPlatformAdmin, resolvePersistedUserRole } from '@/features/auth/user-role';
 import { DEFAULT_LOCALE } from '@/lib/locale-config';
 import { getDefaultTheme } from '@/lib/ring-config-core';
+import {
+  acceptsProfileDms,
+  normalizePublicProfileFields,
+} from '@/features/auth/lib/personal-page-sections';
 
 /**
  * Process enhanced user profiling data from database JSONB format
@@ -72,6 +76,12 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     userData?.communication || userData?.telegram_username || userData?.whatsapp_number || userData?.preferred_contact_method ? {
     phoneNumber: commData?.phoneNumber || userData?.phoneNumber,
     telegramUsername: commData?.telegramUsername || userData?.telegram_username,
+    // Verified Telegram UID (Login Widget / OIDC / Mini App) — SSOT for "linked"
+    telegramId: commData?.telegramId
+      ? String(commData.telegramId)
+      : userData?.telegram_id
+        ? String(userData.telegram_id)
+        : undefined,
     whatsappNumber: commData?.whatsappNumber || userData?.whatsapp_number,
     preferredContactMethod: commData?.preferredContactMethod || userData?.preferred_contact_method || 'email'
   } : undefined;
@@ -162,6 +172,16 @@ function processEnhancedUserProfile(userData: any): AuthUser {
 
     // Backward compatibility and legacy profile fields
     bio: userData?.bio,
+    publicProfile:
+      userData?.publicProfile === true ||
+      userData?.publicProfile === 'true' ||
+      userData?.publicProfile === 1 ||
+      userData?.publicProfile === '1',
+    publicProfileSections: Array.isArray(userData?.publicProfileSections)
+      ? (userData.publicProfileSections as string[])
+      : undefined,
+    publicProfileFields: normalizePublicProfileFields(userData?.publicProfileFields),
+    acceptProfileDms: acceptsProfileDms(userData?.acceptProfileDms),
     canPostconfidentialOpportunities: userData?.canPostconfidentialOpportunities || false,
     canViewconfidentialOpportunities: userData?.canViewconfidentialOpportunities || false,
     postedopportunities: userData?.postedopportunities || [],

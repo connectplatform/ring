@@ -102,6 +102,31 @@ export class ApiClientError extends Error {
 }
 
 /**
+ * Resolve API base URL for RingApiClient.
+ * Browser same-origin → always relative (`''`) so PORT / AUTH_URL drift cannot
+ * cross-origin `/api/*` calls (Firefox NetworkError + missing session cookie).
+ * Absolute NEXT_PUBLIC_API_URL is kept only when it points at a different host.
+ */
+export function resolveApiBaseUrl(explicit?: string): string {
+  const fromEnv = (explicit ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim().replace(/\/$/, '')
+  if (typeof window === 'undefined') {
+    return fromEnv
+  }
+  if (!fromEnv) {
+    return ''
+  }
+  try {
+    const resolved = new URL(fromEnv, window.location.origin)
+    if (resolved.origin === window.location.origin) {
+      return ''
+    }
+    return fromEnv
+  } catch {
+    return ''
+  }
+}
+
+/**
  * API client class centralizing access to platform APIs.
  * Handles deduplication for concurrent GETs, timeout, retries, and unified error reporting.
  */
@@ -112,8 +137,7 @@ export class RingApiClient {
   private readonly pendingRequests: Map<string, Promise<ApiResponse<any>>>;
 
   constructor(baseUrl?: string) {
-    // Set baseUrl either via argument or env; fall back to empty string in local env.
-    this.baseUrl = baseUrl ?? (process.env.NEXT_PUBLIC_API_URL || '');
+    this.baseUrl = resolveApiBaseUrl(baseUrl);
     // JSON headers by default.
     this.defaultHeaders = { 'Content-Type': 'application/json' };
     // Default request timeout (ms)
@@ -210,6 +234,8 @@ export class RingApiClient {
           method: requestConfig.method,
           headers,
           signal: controller.signal,
+          // Required when NEXT_PUBLIC_API_URL is absolute (incl. same host different port).
+          credentials: 'include',
         };
 
         // Only set body on non-GET and non-DELETE requests.

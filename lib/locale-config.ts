@@ -181,24 +181,6 @@ export function getClientLocaleConfig(): {
   }
 }
 
-export function generateHreflangAlternates(pathname: string): Record<string, string> {
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
-  const map: Record<string, string> = {}
-  for (const loc of SUPPORTED_LOCALES) {
-    map[loc] = `/${loc}${normalized}`
-  }
-  return map
-}
-
-export function buildMetadataLanguageAlternates(pathSuffix: string): Record<string, string> {
-  const suffix = pathSuffix.startsWith('/') ? pathSuffix : `/${pathSuffix}`
-  const map: Record<string, string> = {}
-  for (const loc of SUPPORTED_LOCALES) {
-    map[loc] = `/${loc}${suffix === '/' ? '' : suffix}`
-  }
-  return map
-}
-
 export function localeDisplayLabel(code: string): string {
   return LOCALE_DISPLAY_LABELS[code] ?? code.toUpperCase()
 }

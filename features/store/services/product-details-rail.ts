@@ -4,6 +4,8 @@
 
 import 'server-only'
 
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
+
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { PostgreSQLStoreAdapter } from '@/features/store/postgresql-adapter'
@@ -49,7 +51,7 @@ function toCard(product: StoreProduct, locale: Locale): RailProductCard {
     name: product.name,
     image: images[0] || '/placeholder-product.png',
     price: parseFloat(product.price) || 0,
-    currency: product.currency || 'USD',
+    currency: product.currency || getMainCurrencySymbol(),
     rating: product.rating,
     reviewCount: product.reviewCount,
     inStock: product.inStock ?? (product.stock || 0) > 0,

@@ -1,15 +1,17 @@
 "use client"
-import React, { createContext, useContext, useEffect, useMemo, useState, useTransition, use } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition, use, useRef } from 'react'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import type { StoreProduct, CartItem, CheckoutInfo } from './types'
 import { getClientStoreService } from './client'
 import { generateProductEmbedding } from '@/lib/vector-search'
 import {
-  DEFAULT_CURRENCY,
+  MAIN_CURRENCY,
   resolveStorePriceCurrency,
-  type StoreCurrency,
+  type StorePaymentMethods,
 } from '@/features/store/currency-context'
+import { STORE_CART_UPDATED_EVENT } from '@/hooks/use-product-agent-chat'
 
 interface StoreContextType {
   // Legacy support
@@ -120,6 +122,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [service, setService] = useState<ReturnType<any> | null>(null)
   const [, startTransition] = useTransition()
   const pathname = usePathname()
+  const { status: authStatus } = useSession()
+  const skipNextServerPush = useRef(false)
   // Ring's own anti-pattern rule (AI-CONTEXT/concepts/frontend/state-management.json
   // pattern_4_minimal_global_state) disallows full entity catalogs in a global
   // client store. StoreProvider stays mounted globally (nav cart badge needs
@@ -127,6 +131,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // until the user is actually on a store route or already has cart items.
   const isStoreRoute = pathname.includes('/store')
   const shouldLoadProducts = isStoreRoute || rawCart.length > 0
+
+  const hydrateFromServer = useCallback(async () => {
+    if (authStatus !== 'authenticated') return
+    try {
+      const res = await fetch('/api/store/cart', { credentials: 'include' })
+      if (!res.ok) return
+      const json = (await res.json()) as {
+        data?: { items?: Array<{ id: string; qty: number }> }
+      }
+      const items = Array.isArray(json.data?.items) ? json.data!.items! : []
+      skipNextServerPush.current = true
+      setRawCart(
+        items
+          .filter((i) => i && typeof i.id === 'string' && Number.isFinite(i.qty))
+          .map((i) => ({ id: i.id, qty: Math.max(1, Math.floor(i.qty)) })),
+      )
+    } catch {
+      /* offline */
+    }
+  }, [authStatus, setRawCart])
+
+  // Authenticated: server cart wins on hydrate (agent tools + UI SSOT)
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return
+    void hydrateFromServer()
+  }, [authStatus, hydrateFromServer])
+
+  useEffect(() => {
+    const onUpdated = () => {
+      void hydrateFromServer()
+    }
+    window.addEventListener(STORE_CART_UPDATED_EVENT, onUpdated)
+    return () => window.removeEventListener(STORE_CART_UPDATED_EVENT, onUpdated)
+  }, [hydrateFromServer])
 
   useEffect(() => {
     let mounted = true
@@ -200,12 +238,85 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         id,
         name: 'Unknown',
         price: '0',
-        currency: DEFAULT_CURRENCY as StoreProduct['currency'],
+        currency: MAIN_CURRENCY as StoreProduct['currency'],
         inStock: false,
       },
       quantity: Math.max(0, Math.floor(qty)),
     }))
   }, [rawCart, products])
+
+  // Authenticated: soft-hold + push server cart mirror (skip one tick after hydrate).
+  // Use rawCart ids — never filter on product.name === 'Unknown' (products may still
+  // be loading; that filter emptied holds and wiped the server mirror).
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return
+    const timer = setTimeout(() => {
+      if (skipNextServerPush.current) {
+        skipNextServerPush.current = false
+        return
+      }
+
+      const lines = (Array.isArray(rawCart) ? rawCart : [])
+        .filter(
+          (entry) =>
+            entry &&
+            typeof entry.id === 'string' &&
+            entry.id &&
+            typeof entry.qty === 'number' &&
+            Number.isFinite(entry.qty) &&
+            entry.qty > 0,
+        )
+        .map((entry) => {
+          const product = cartItems.find((c) => c.product?.id === entry.id)?.product
+          return {
+            productId: entry.id,
+            quantity: Math.max(1, Math.floor(entry.qty)),
+            digitalProduct: product?.digitalProduct,
+            instantDelivery: product?.instantDelivery,
+          }
+        })
+
+      // Server cart write already syncs soft-holds — avoid double /hold race.
+      void fetch('/api/store/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: lines.map((l) => ({ id: l.productId, qty: l.quantity })),
+        }),
+        credentials: 'include',
+      }).catch(() => {
+        /* offline */
+      })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [rawCart, cartItems, authStatus])
+
+  // Guests: soft-hold attempt (401 ignored) — keep legacy path for unauthenticated
+  useEffect(() => {
+    if (authStatus === 'authenticated') return
+    const timer = setTimeout(() => {
+      const payload = {
+        items: cartItems
+          .filter((item) => item.product?.id && item.product.name !== 'Unknown')
+          .map((item) => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            isPreorder: item.isPreorder,
+            digitalProduct: item.product.digitalProduct,
+            instantDelivery: item.product.instantDelivery,
+          })),
+      }
+      void fetch('/api/store/cart/hold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      }).catch(() => {
+        /* guest / offline */
+      })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [cartItems, authStatus])
 
   const addToCart = (product: StoreProduct) => {
     setRawCart(prev => {
@@ -231,7 +342,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const totalPriceByCurrency = useMemo(() => {
     return cartItems.reduce<Record<string, number>>((acc, i) => {
       const price = parseFloat(i.product.price || '0') * i.quantity
-      const cur = resolveStorePriceCurrency(i.product.currency as StoreCurrency)
+      const cur = resolveStorePriceCurrency(i.product.currency as StorePaymentMethods)
       acc[cur] = (acc[cur] || 0) + price
       return acc
     }, {})

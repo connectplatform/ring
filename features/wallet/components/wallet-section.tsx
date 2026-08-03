@@ -37,7 +37,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { getClientCreditCurrencyCode } from '@/lib/payments/credit-currency-client'
+import { getClientCreditCurrencyCode } from '@/lib/payments/credit-balance-client'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
@@ -130,7 +130,7 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 <span className="text-sm font-normal text-muted-foreground">{creditCurrency}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ≈ ${creditBalance?.usd_equivalent || '0.00'} USD
+                ≈ ${creditBalance?.main_currency_equivalent || '0.00'} USD
               </p>
             </div>
           </div>

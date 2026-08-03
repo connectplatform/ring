@@ -514,6 +514,10 @@
       "version"
     ],
     "ogTitle": "Changelog — Ring Platform",
-    "ogDescription": "Release-Hinweise aus CHANGELOG.md"
+    "ogDescription": "Release-Hinweise aus docs changelog"
+  },
+  "fileCabinet": {
+    "title": "Akten-Schrank",
+    "description": "Ihr persönlicher Ring-Dateimanager."
   }
 }

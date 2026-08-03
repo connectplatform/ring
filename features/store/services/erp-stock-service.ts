@@ -22,10 +22,15 @@ import { publishEvent } from '@/lib/events/event-bus.server'
 import { StoreEvent } from '@/constants/store'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
 import {
+  DEFAULT_INVENTORY_STORE_ID,
   DEFAULT_WAREHOUSE_NAME,
+  shouldSkipPhysicalStock,
   STOCK_THRESHOLDS,
   ZERO_WAREHOUSE_ID,
 } from '@/features/store/constants/stock'
+import {
+  ensureInventoryLevel,
+} from '@/features/store/services/inventory-sync'
 import type {
   BatchAddStockResult,
   StockLevel,
@@ -34,6 +39,7 @@ import type {
 } from '@/features/store/types/erp-stock'
 
 export {
+  DEFAULT_INVENTORY_STORE_ID,
   DEFAULT_WAREHOUSE_NAME,
   STOCK_THRESHOLDS,
   ZERO_WAREHOUSE_ID,
@@ -64,18 +70,36 @@ export const ERPStockService = {
       const productData = result.data
       const stock = productData.stock ?? 0
       const reorderPoint = productData.reorderPoint ?? STOCK_THRESHOLDS.DEFAULT_REORDER_POINT
-      
+
+      // Sellable / reserved from inventory_levels (bootstrap if missing)
+      let availableQuantity = stock
+      let reservedQuantity = 0
+      try {
+        const level = await ensureInventoryLevel(productId, DEFAULT_INVENTORY_STORE_ID)
+        availableQuantity = level.available
+        reservedQuantity = level.reserved
+      } catch (levelError) {
+        logger.warn('[ERPStockService] getStockLevel levels fallback to product.stock', {
+          productId,
+          levelError,
+        })
+      }
+
       return {
         productId,
         warehouseId,
-        availableQuantity: stock,
-        reservedQuantity: 0, // Reserved items are tracked separately
+        availableQuantity,
+        reservedQuantity,
         totalQuantity: stock,
         lastUpdated: String(productData.updatedAt ?? new Date().toISOString()),
         reorderPoint,
-        isLowStock: stock <= STOCK_THRESHOLDS.LOW_STOCK && stock > STOCK_THRESHOLDS.CRITICAL_STOCK,
-        isCriticalStock: stock <= STOCK_THRESHOLDS.CRITICAL_STOCK && stock > STOCK_THRESHOLDS.OUT_OF_STOCK,
-        isOutOfStock: stock <= STOCK_THRESHOLDS.OUT_OF_STOCK
+        isLowStock:
+          availableQuantity <= STOCK_THRESHOLDS.LOW_STOCK &&
+          availableQuantity > STOCK_THRESHOLDS.CRITICAL_STOCK,
+        isCriticalStock:
+          availableQuantity <= STOCK_THRESHOLDS.CRITICAL_STOCK &&
+          availableQuantity > STOCK_THRESHOLDS.OUT_OF_STOCK,
+        isOutOfStock: availableQuantity <= STOCK_THRESHOLDS.OUT_OF_STOCK,
       }
     } catch (error) {
       logger.error('[ERPStockService] Error getting stock level:', error)
@@ -111,27 +135,73 @@ export const ERPStockService = {
         default:
           return { success: false, newQuantity: currentStock, error: 'Invalid operation' }
       }
-      
+
       const now = new Date().toISOString()
-      
-      const updateResult = await db().updateDoc('store_products', update.productId, {
-        stock: newStock,
-        inStock: newStock > 0,
-        updatedAt: now
-      })
-      
-      if (!updateResult.success) {
-        return { success: false, newQuantity: currentStock, error: 'Failed to update stock' }
+
+      try {
+        await db().transaction(async (transaction) => {
+          const inventoryId = `${update.productId}_${DEFAULT_INVENTORY_STORE_ID}`
+          const levelDoc = await transaction.read('inventory_levels', inventoryId)
+          const level = levelDoc?.data as
+            | { available: number; reserved: number; syncVersion: number }
+            | undefined
+          const reserved = level?.reserved ?? 0
+
+          if (update.operation === 'set' && newStock < reserved) {
+            throw new Error(
+              `Cannot set stock (${newStock}) below reserved (${reserved}) for product ${update.productId}`,
+            )
+          }
+
+          let available: number
+          if (!level) {
+            available = Math.max(0, newStock - reserved)
+          } else if (update.operation === 'add') {
+            available = level.available + update.quantityChange
+          } else if (update.operation === 'subtract') {
+            available = Math.max(0, level.available - update.quantityChange)
+          } else {
+            available = Math.max(0, newStock - reserved)
+          }
+
+          const levelPayload = {
+            productId: update.productId,
+            storeId: DEFAULT_INVENTORY_STORE_ID,
+            available,
+            reserved,
+            total: available + reserved,
+            lastUpdated: now,
+            syncVersion: (level?.syncVersion || 0) + 1,
+          }
+
+          if (level) {
+            await transaction.update('inventory_levels', inventoryId, levelPayload)
+          } else {
+            await transaction.create('inventory_levels', levelPayload, { id: inventoryId })
+          }
+
+          await transaction.update('store_products', update.productId, {
+            stock: newStock,
+            inStock: newStock > 0,
+            updatedAt: now,
+          })
+        })
+      } catch (txnError) {
+        return {
+          success: false,
+          newQuantity: currentStock,
+          error: txnError instanceof Error ? txnError.message : 'Failed to update stock',
+        }
       }
-      
-      // Log stock movement for audit trail
+
       await this.logStockMovement({
         id: `mov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         productId: update.productId,
-        warehouseId: update.warehouseId,
+        warehouseId: update.warehouseId || ZERO_WAREHOUSE_ID,
         movementType: update.orderId ? 'sale' : 'adjustment',
         quantityBefore: currentStock,
-        quantityChange: update.operation === 'subtract' ? -update.quantityChange : update.quantityChange,
+        quantityChange:
+          update.operation === 'subtract' ? -update.quantityChange : update.quantityChange,
         quantityAfter: newStock,
         orderId: update.orderId,
         userId: update.userId,
@@ -140,7 +210,7 @@ export const ERPStockService = {
         referralCode: update.referralCode,
         assisted: update.assisted,
       })
-      
+
       logger.info('[ERPStockService] Stock updated', {
         productId: update.productId,
         operation: update.operation,
@@ -148,27 +218,25 @@ export const ERPStockService = {
         previousStock: currentStock,
         newStock,
         reason: update.reason,
-        orderId: update.orderId
+        orderId: update.orderId,
       })
-      
-      // Publish stock update event
+
       await publishEvent({
         type: StoreEvent.INVENTORY_UPDATED,
         payload: {
           productId: update.productId,
-          warehouseId: update.warehouseId,
+          warehouseId: update.warehouseId || ZERO_WAREHOUSE_ID,
           previousStock: currentStock,
           newStock,
           operation: update.operation,
-          orderId: update.orderId
-        }
+          orderId: update.orderId,
+        },
       })
-      
-      // Check for low stock alerts
+
       if (newStock <= STOCK_THRESHOLDS.LOW_STOCK) {
         await this.triggerLowStockAlert(update.productId, newStock)
       }
-      
+
       return { success: true, newQuantity: newStock }
     } catch (error) {
       logger.error('[ERPStockService] Error updating stock:', error)
@@ -196,12 +264,14 @@ export const ERPStockService = {
     })
     
     for (const item of items) {
-      // Skip preorder items - they don't affect stock
-      if (item.isPreorder) {
-        logger.info('[ERPStockService] Skipping preorder item', {
+      if (shouldSkipPhysicalStock(item)) {
+        logger.info('[ERPStockService] Skipping non-physical stock item', {
           orderId,
           productId: item.product.id,
-          productName: item.product.name
+          productName: item.product.name,
+          isPreorder: item.isPreorder,
+          digitalProduct: item.product.digitalProduct,
+          instantDelivery: item.product.instantDelivery,
         })
         continue
       }

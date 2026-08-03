@@ -11,60 +11,30 @@ Comprehensive security framework with role-based access control, GDPR compliance
 
 Ring Platform implements a multi-layered security approach:
 
-- **Authentication**: Auth.js v5 with magic links and multi-provider OAuth
+- **Authentication**: Auth.js v5 with Ring Mailer (OTP / magic link) and multi-provider OAuth
 - **Authorization**: Hierarchical role-based access control (5-tier system)
 - **Data Protection**: GDPR/CCPA compliance with audit logging
 - **Compliance**: PCI DSS for payments, SOC 2 security standards
-- **Infrastructure**: Firebase security rules and encrypted data storage
+- **Infrastructure**: Encrypted data at rest; Firebase used for FCM when configured
 
 ## Authentication Security
 
-### Auth.js v5 Implementation
+### Auth.js v5 + Ring Mailer
 
-**Magic Link Authentication** - Primary authentication method:
+**Passwordless email** uses own SMTP via `lib/mailer.ts` — not Resend. See [Ring Mailer](/docs/features/ring-mailer).
 
-// lib/auth.ts - Auth.js v5 configuration
-
-<Code language="typescript" title="TypeScript">
-{`import NextAuth from 'next-auth'
-import { Resend } from 'next-auth/providers/resend'
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    Resend({
-      server: process.env.EMAIL_SERVER,
-      from: 'noreply@ring.ck.ua',
-      maxAge: 15 * 60, // 15 minutes
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    })
-  ],
-  pages: {
-    signIn: '/login',
-    error: '/auth/error',
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = await getUserRole(user.id)
-      }
-      return token
-    },
-    async session({ session, token }) {
-      session.user.role = token.role
-      return session
-    }
-  }
-})`}
+<Code language="typescript" title="Ring Mailer shape (see auth.ts)">
+{`// Credentials: email-otp | email-magic | credentials
+// Transport: lib/mailer.ts (SMTP_* or EMAIL_MODE=ethereal)
+// Tokens: email_login_tokens (migration 038) — hashed, rate-limited`}
 </Code>
 
 #### Security Features
-- **Time-limited tokens**: 15-minute expiration for magic links
-- **Single-use tokens**: Automatic invalidation after use
-- **Rate limiting**: 5 requests/minute per IP
-- **Email verification**: Required for account creation
+- **Time-limited tokens**: OTP ~10 minutes; magic / reset tokens hashed at rest
+- **Single-use tokens**: Marked used on successful Credentials authorize
+- **Hash-fragment links**: `/verify#token=…` avoids scanner auto-GET
+- **Rate limiting**: Per-email inserts via `assertUnderRateLimit`
+- **No email enumeration**: Generic success copy on request flows
 
 ### Multi-Provider OAuth
 

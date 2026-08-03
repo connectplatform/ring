@@ -1,7 +1,7 @@
 import type { StoreAdapter, StoreProduct, CartItem, CheckoutInfo } from './types'
-import { getDefaultStoreCurrencySymbol, getNativeTokenSymbol } from '@/lib/ring-config-core'
+import { getMainCurrencySymbol, getNativeTokenSymbol } from '@/lib/ring-config-core'
 
-const defaultCurrency = getDefaultStoreCurrencySymbol()
+const mainCurrency = getMainCurrencySymbol()
 const nativeToken = getNativeTokenSymbol()
 
 const MOCK_PRODUCTS: StoreProduct[] = [
@@ -18,7 +18,7 @@ const MOCK_PRODUCTS: StoreProduct[] = [
     name: 'Platform Tee',
     description: 'Soft cotton tee',
     price: '12',
-    currency: defaultCurrency as StoreProduct['currency'],
+    currency: mainCurrency as StoreProduct['currency'],
     inStock: true,
   },
   {
@@ -26,7 +26,7 @@ const MOCK_PRODUCTS: StoreProduct[] = [
     name: 'Sticker Pack',
     description: 'Laptop sticker set',
     price: '3',
-    currency: defaultCurrency as StoreProduct['currency'],
+    currency: mainCurrency as StoreProduct['currency'],
     inStock: true,
   },
   {
@@ -34,7 +34,7 @@ const MOCK_PRODUCTS: StoreProduct[] = [
     name: 'Ring Platform Organic Honey',
     description: 'Pure organic honey from sustainable apiaries',
     price: '14.99',
-    currency: defaultCurrency as StoreProduct['currency'],
+    currency: mainCurrency as StoreProduct['currency'],
     inStock: true,
   },
 ]
@@ -52,7 +52,7 @@ export class MockStoreAdapter implements StoreAdapter {
       name: productData.name || 'Mock Product',
       description: productData.description || '',
       price: productData.price?.toString() || '0',
-      currency: (productData.currency || defaultCurrency) as StoreProduct['currency'],
+      currency: (productData.currency || mainCurrency) as StoreProduct['currency'],
       inStock: productData.inStock ?? true,
       category: productData.category,
       tags: productData.tags || [],

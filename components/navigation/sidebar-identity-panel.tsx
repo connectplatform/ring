@@ -8,20 +8,21 @@ import { useSession } from 'next-auth/react'
 import {
   Bell,
   Heart,
+  ListTodo,
   MessageCircle,
+  Gamepad2,
   ShoppingCart,
   User,
   Wallet,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { ROUTES } from '@/constants/routes'
-import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
-import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
+import { NavCreditTrailing } from './nav-credit-trailing'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
   ssr: false,
@@ -40,14 +41,6 @@ interface IdentityRowData {
   href?: string
   rail: React.ReactNode
   aside: React.ReactNode
-}
-
-function formatBalance(balance: string | null) {
-  if (!balance || balance === '0') return '0.00'
-  const num = parseFloat(balance)
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`
-  if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`
-  return num.toFixed(2)
 }
 
 function countSuffix(count: number) {
@@ -103,14 +96,12 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
   const tStore = useTranslations('modules.store')
   const tFav = useTranslations('modules.store.favorites')
 
-  const { balance: tokenBalance, isLoading: balanceLoading } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
   const [messagesCount] = useState(0)
 
   const cartCount = store?.totalItems || 0
-  const displayBalance = formatBalance(tokenBalance?.amount)
 
   useEffect(() => {
     setMounted(true)
@@ -163,22 +154,18 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
             className="size-8"
           />
         ),
-        aside: <AsideLabel title={session.user.name || 'Anonymous'} />,
+        aside: (
+          <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-[13px]">
+            <span className="truncate font-medium">{session.user.name || 'Anonymous'}</span>
+            <NavCreditTrailing />
+          </div>
+        ),
       },
       {
         key: 'wallet',
         href: ROUTES.WALLET(locale),
         rail: <Wallet className="size-[18px]" strokeWidth={1.5} />,
-        aside: (
-          <div className="flex min-w-0 items-baseline gap-2 text-[13px]">
-            <span className="truncate font-semibold tabular-nums">
-              {balanceLoading ? '···' : displayBalance}
-            </span>
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {getClientCreditUnitLabel()}
-            </span>
-          </div>
-        ),
+        aside: <AsideLabel title={tNav('wallet')} />,
       },
       {
         key: 'notifications',
@@ -191,6 +178,18 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
         href: ROUTES.MESSAGES(locale),
         rail: <MessageCircle className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('messages')} count={messagesCount} />,
+      },
+      {
+        key: 'games',
+        href: ROUTES.GAMES(locale),
+        rail: <Gamepad2 className="size-[18px]" strokeWidth={1.5} />,
+        aside: <AsideLabel title={tNav('games')} />,
+      },
+      {
+        key: 'tasks',
+        href: ROUTES.TASKS(locale),
+        rail: <ListTodo className="size-[18px]" strokeWidth={1.5} />,
+        aside: <AsideLabel title={tNav('tasks')} />,
       },
       {
         key: 'cart',
@@ -206,9 +205,7 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
       },
     ]
   }, [
-    balanceLoading,
     cartCount,
-    displayBalance,
     favorites.length,
     locale,
     messagesCount,
@@ -220,11 +217,27 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
   ])
 
   if (!mounted) {
+    // Instant skeleton — do not leave Profile/credit blank during hydration
     return (
       <div
-        className={cn('shrink-0 border-b border-border/50', variant === 'rail' ? 'h-14' : 'h-12', className)}
+        className={cn(
+          'shrink-0 border-b border-border/50',
+          variant === 'rail' ? 'h-14 bg-[#090909]' : 'h-12 px-3',
+          className,
+        )}
         aria-hidden
-      />
+        data-testid="sidebar-identity-skeleton"
+      >
+        {variant !== 'rail' && (
+          <div className="flex h-full items-center justify-between gap-2">
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+            <div className="flex items-center gap-1">
+              <div className="size-3.5 animate-pulse rounded bg-muted" />
+              <div className="h-3.5 w-10 animate-pulse rounded bg-muted" />
+            </div>
+          </div>
+        )}
+      </div>
     )
   }
 

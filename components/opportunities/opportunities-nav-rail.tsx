@@ -21,6 +21,7 @@ import {
 import { Briefcase, Plus, Search, User } from 'lucide-react'
 import { useState } from 'react'
 import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
+import { requestOpportunityTypeSelector } from '@/lib/opportunities/request-opportunity-type-selector'
 
 interface OpportunitiesNavRailProps {
   locale: Locale
@@ -101,8 +102,13 @@ export default function OpportunitiesNavRail({ locale, onNavigate }: Opportuniti
             variant={isAdd || createOverlayOpen ? 'default' : 'outline'}
             className="h-9 w-full justify-start rounded-xl"
             onClick={() => {
+              // Mobile: open shared bottom-nav sheet, then close sidebar (sheet lives outside rail).
+              // Desktop: keep overlay mounted in this rail (do not navigate-away).
+              if (requestOpportunityTypeSelector()) {
+                onNavigate?.()
+                return
+              }
               setCreateOverlayOpen(true)
-              onNavigate?.()
             }}
           >
             <Plus className="mr-2 h-4 w-4" />

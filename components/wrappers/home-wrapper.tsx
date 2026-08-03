@@ -1,6 +1,6 @@
 'use client'
 
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import React, { Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import Script from 'next/script'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -14,6 +14,9 @@ import RightSidebar from '@/features/layout/components/right-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { DavinciRailLink, DavinciGlassStatBlock } from '@/lib/ui/davinci'
 import { davinciPanelSurface } from '@/lib/ui/davinci/glass-surface'
+import { DeploymentCalculatorCta } from '@/components/home/deployment-calculator-cta'
+import { getHomePreset } from '@/lib/ring-config-core'
+import { resolveOverlayHomeRail } from '@/lib/overlay/runtime'
 import { cn } from '@/lib/utils'
 
 function LoadingFallback() {
@@ -35,12 +38,43 @@ const STAT_KEYS: StatKey[] = ['oss', 'modules', 'matcher', 'ringdom', 'audience'
 /**
  * Right rail: Ring OSS marketplace + Ringdom ringization narrative (i18n: pages.home.rightRail).
  */
+
+/**
+ * Vertical home rail: Tier-3 overlay only (clone registers in lib/overlay/registry.ts).
+ * Platform never inlines Cosmic Mirror / n9life product UI.
+ */
+function OverlayHomeRightRailHost({ locale }: { locale: Locale }) {
+  const [Rail, setRail] = useState<ComponentType<{ locale: Locale }> | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void resolveOverlayHomeRail().then((Comp) => {
+      if (!cancelled) setRail(() => Comp)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!Rail) return null
+  return <Rail locale={locale} />
+}
+
 function HomeRightRail({ locale }: { locale: Locale }) {
+  if (getHomePreset() !== 'platform') {
+    return <OverlayHomeRightRailHost locale={locale} />
+  }
+  return <PlatformHomeRightRail locale={locale} />
+}
+
+function PlatformHomeRightRail({ locale }: { locale: Locale }) {
   const tRail = useTranslations('pages.home.rightRail')
   const tNav = useTranslations('navigation.sidebar')
 
   return (
     <div className="space-y-6">
+      <DeploymentCalculatorCta locale={locale} />
+
       <div className="space-y-4">
         <h3 className="font-semibold text-lg">{tRail('ecosystemTitle')}</h3>
         <div className="grid grid-cols-1 gap-3">

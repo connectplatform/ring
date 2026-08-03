@@ -5,6 +5,7 @@
  * Reference: Email Automation Specialist skillset
  */
 
+import { resolveModel } from '@/lib/ai/model-router'
 import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '@/lib/logger';
 
@@ -76,7 +77,7 @@ Respond in JSON only:
 
 export class IntentClassifier {
   private anthropic: Anthropic;
-  private model = 'claude-haiku-4-5-20250514';
+  private model = (() => { try { return resolveModel('email_intent').modelId } catch { return 'claude-haiku-4-5-20250514' } })();
   
   // Classification thresholds
   private thresholds = {

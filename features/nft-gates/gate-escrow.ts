@@ -50,9 +50,19 @@ export async function stakeGateAsset(params: {
   userId: string
   asset: string
   slug: NftGateSlug
+  /** Stake-time bind for vendor.dagi / tradeable vendor keys — required when slug grants vendor.dagi */
+  vendorEntityId?: string
 }): Promise<{ success: boolean; stake?: NftStakeRecord; error?: string }> {
   const template = getNftGateTemplate(params.slug)
   if (!template) return { success: false, error: 'Unknown gate template' }
+
+  const needsVendorBind = template.gateFeatures.includes('vendor.dagi')
+  if (needsVendorBind && !params.vendorEntityId) {
+    return {
+      success: false,
+      error: 'vendorEntityId required to stake DAGI — select an owned vendor store',
+    }
+  }
 
   const verified = await verifyAssetInCollection(params.asset)
   if (!verified.ok) {
@@ -86,7 +96,30 @@ export async function stakeGateAsset(params: {
   }
 
   const existing = (await listActiveStakes(params.userId)).find((s) => s.asset === params.asset)
-  if (existing) return { success: true, stake: existing }
+  if (existing) {
+    // Secondary / grandfather rebind: update vendorEntityId when staker selects a store
+    const nextVendor = params.vendorEntityId?.trim()
+    if (
+      needsVendorBind &&
+      nextVendor &&
+      existing.vendorEntityId !== nextVendor
+    ) {
+      await db().updateDoc('nft_stakes', existing.id, {
+        vendorEntityId: nextVendor,
+        updatedAt: nowIso(),
+      })
+      const rebound: NftStakeRecord = { ...existing, vendorEntityId: nextVendor }
+      await invalidateEntitlementsForAsset(params.userId, params.asset)
+      await grantEntitlements(params.userId, rebound)
+      logger.info('GateEscrow: rebound vendorEntityId', {
+        userId: params.userId,
+        asset: params.asset,
+        vendorEntityId: nextVendor,
+      })
+      return { success: true, stake: rebound }
+    }
+    return { success: true, stake: existing }
+  }
 
   const stakedAt = nowIso()
   let expiresAt: string | undefined
@@ -103,6 +136,7 @@ export async function stakeGateAsset(params: {
     stakedAt,
     expiresAt,
     features: [...template.gateFeatures],
+    ...(params.vendorEntityId ? { vendorEntityId: params.vendorEntityId } : {}),
   }
 
   const created = await db().createDoc('nft_stakes', stake, { id: stake.id })
@@ -142,18 +176,25 @@ async function grantEntitlements(userId: string, stake: NftStakeRecord) {
 
   for (const feature of stake.features) {
     const id = `ent_${userId}_${feature}_${stake.asset}`.slice(0, 255)
-    await db().createDoc(
-      'nft_entitlement_cache',
-      {
-        id,
-        userId,
-        feature,
-        sourceAsset: stake.asset,
-        expiresAt,
-        createdAt: nowIso(),
-      },
-      { id, merge: true },
-    )
+    const payload = {
+      id,
+      userId,
+      feature,
+      sourceAsset: stake.asset,
+      expiresAt,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      ...(stake.vendorEntityId ? { vendorEntityId: stake.vendorEntityId } : {}),
+    }
+    const existing = await db().findDocById('nft_entitlement_cache', id)
+    if (existing.success && existing.data) {
+      await db().updateDoc('nft_entitlement_cache', id, payload)
+    } else {
+      const created = await db().createDoc('nft_entitlement_cache', payload, { id })
+      if (!created.success) {
+        await db().updateDoc('nft_entitlement_cache', id, payload)
+      }
+    }
   }
 }
 
@@ -182,6 +223,7 @@ export const listEntitlementCache = cache(async (userId: string) => {
     feature: NftGateFeature
     sourceAsset: string
     expiresAt: string
+    vendorEntityId?: string
   }>({
     collection: 'nft_entitlement_cache',
     filters: [{ field: 'userId', operator: '==', value: userId }],

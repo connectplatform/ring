@@ -8,8 +8,8 @@
     "redirecting": "Перенаправление на панель управления...",
     "form": {
       "storeSlug": "URL-слаг магазина",
-      "storeUrlPrefix": "ring-platform.org/store/vendors/",
-      "storeSlugHint": "Идентификатор для URL (например, 'my-dev-shop')",
+      "storeUrlPrefix": "https://[slug].ring-platform.org",
+      "storeSlugHint": "Магазин будет по адресу https://[slug].ring-platform.org (напр. my-dev-shop)",
       "storeSlugPlaceholder": "zelenaya-dolina-ferma",
       "storeName": "Название магазина",
       "storeNameHint": "Название вашей фермы или бизнеса",
@@ -22,10 +22,16 @@
       "storeCategories": "Категории магазина",
       "storeCategoriesHint": "Выберите все категории, подходящие к вашим продуктам",
       "storeLogo": "Логотип магазина",
-      "storeLogoHint": "Квадратное изображение, рекомендуется 512x512 (JPG, PNG, WebP, макс. 5МБ)",
+      "storeLogoHint": "Квадратное изображение, рекомендуется 512×512. Загрузите или сгенерируйте через ImageConductor.",
       "uploadLogo": "Загрузить логотип",
+      "uploadAndGenerate": "Загрузить и сгенерировать",
       "changeLogo": "Изменить логотип",
       "removeLogo": "Удалить логотип",
+      "existingStorefrontsTitle": "Я уже продаю на",
+      "existingStorefrontsHint": "Добавьте ссылки на ваши существующие витрины.",
+      "existingPagesUrls": "URL существующих страниц",
+      "addUrl": "Добавить ещё URL",
+      "removeUrl": "Удалить URL",
       "submit": "Создать магазин продавца",
       "submitting": "Создание магазина..."
     },
@@ -154,9 +160,17 @@
     },
     "dagi": {
       "title": "DAGI агент продавца",
-      "comingSoon": "Скоро",
-      "description": "Активация AI-агента и стейкинг DAARION появятся здесь. Операции магазина уже доступны в меню продавца.",
-      "todoNote": "API провизионирования и стейкинг кошелька запланированы — без mock-активации."
+      "comingSoon": "Заблокировано",
+      "unlocked": "Разблокировано",
+      "description": "Застейкайте vendor-dagi-key, чтобы разблокировать ERP-ассистента для этого магазина.",
+      "todoNote": "API провизионирования и стейкинг кошелька запланированы — без mock-активации.",
+      "unlockHint": "Купите и застейкайте NFT vendor-dagi-key, чтобы разблокировать DAGI для одного из ваших магазинов. Стейк через GateEscrow — tradeable ключи привязываются к вашему магазину при стейке.",
+      "getKey": "Получить ключ DAGI",
+      "chatIntro": "DAGI привязан к этому магазину. Спрашивайте о товарах, складе или заказах — инструменты работают только с вашей сессией.",
+      "chatTitle": "DAGI ERP чат",
+      "chatLoading": "Открываем DAGI…",
+      "chatPlaceholder": "Спросите DAGI о складе, заказах или товаре…",
+      "chatSend": "Отправить"
     },
     "promotions": {
       "label": "Акции",
@@ -396,7 +410,10 @@
     "stock": "Остаток",
     "restock": "Пополнить",
     "restocking": "Добавление…",
-    "quantity": "Количество"
+    "quantity": "Количество",
+    "bulkRestock": "Массовое пополнение",
+    "warehouse": "Склад",
+    "lowStock": "Мало на складе"
   },
   "navbar": {
     "myStore": "Мой магазин",

@@ -17,18 +17,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { DEFAULT_LOCALE, type Locale } from '@/lib/locale-config'
-import { getDefaultTheme, getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { getDefaultTheme, getMainCurrencySymbol } from '@/lib/ring-config-core'
+import type { SupportedCurrencies } from '@/lib/ring-config-core'
 
 export interface UserPreferences {
   locale: Locale
-  currency: 'UAH' | 'DAAR'
+  currency: SupportedCurrencies
   theme: 'light' | 'dark' | 'system'
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   locale: DEFAULT_LOCALE,
-  currency: getDefaultStoreCurrencySymbol() as 'UAH' | 'DAAR',
-  theme: getDefaultTheme() as 'light' | 'dark' | 'system',
+  currency: getMainCurrencySymbol() as SupportedCurrencies,
+  theme: getDefaultTheme(),
 }
 
 const STORAGE_KEY = 'ring-user-preferences'

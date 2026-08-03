@@ -61,10 +61,10 @@
       "subtitlePrefix": "Organizations, opportunities, commerce, messaging, and Web3 in one white-label stack you can clone for free today from ",
       "subtitleLink": "GitHub",
       "subtitleSuffix": " and self-host, or become a Ringdom settler to deploy, manage and monitor your PaaS using AI.",
-      "pitch": "Ring Platform is the reference implementation behind every Ring-powered ring: verified Entities, tiered Opportunities, a multi-vendor Store, integrated wallet and payments, Messenger, News, and AI opportunity matching — built on React 19, Next.js 16, Auth.js v5, and a PostgreSQL-first data layer.",
-      "ringdomCta": "Explore Ringdom hosting",
+      "pitch": "Every Ring clone has verified Entities, tiered Opportunities, a multi-vendor Store, integrated wallet and payments, Messenger, News, and AI opportunity matching. Ring is built on React 19, Next.js 16, Auth.js v5, uses a data abstraction layer supporting PostgreSQL, Vercel and Firebase, modular i18n, and a RESTful API. All rings are powered by own native SPL tokens with card payments and ERP settlements.",
+      "ringdomCta": "Host securely with Ringdom",
       "ringdomUrl": "https://ringdom.org",
-      "appPublisher": "Published by Sonoratek LLC (Ringdom, Arizona) 🇺🇦 — our gift to the world, with gratitude for everyone who helped Ukraine prove its right to independence",
+      "appPublisher": "Published by Ray Sorkin: my gift to the world, with gratitude and hope for a better future",
       "description": "",
       "features": [
         "Store System — multi-vendor e-commerce with WayForPay, wallet rails, orders, and settlements",
@@ -78,7 +78,7 @@
         "ERP Systems — inventory, supply chain, vendor management, tokenization, commerce"
       ],
       "gitClone": "git clone https://github.com/connectplatform/ring",
-      "gitCloneText": "Start from source — free forever:",
+      "gitCloneText": "Clone source code from GitHub:",
       "featuresLabel": "What ships in the box",
       "cta": "Choose your path",
       "learnMore": "Learn More",
@@ -236,7 +236,7 @@
       }
     },
     "appPublisher": {
-      "title": "Sonoratek LLC — App publisher",
+      "title": "Connect Sofrware publisher",
       "heroLegalName": "Sonoratek LLC",
       "subtitle": "Sonoratek LLC (Tempe, Arizona) is the Ringdom legal entity that publishes Ring — with gratitude for everyone who helped Ukraine prove its right to independence 🇺🇦",
       "impactStats": {
@@ -247,36 +247,36 @@
       },
       "teamMembers": {
         "ray": {
-          "role": "Ringdom Emperor",
-          "specialty": "Visionary & Founder"
+          "role": "Founder",
+          "specialty": "CEO Visionary"
         },
         "max": {
-          "role": "Ringdom Treasurer",
-          "specialty": "Accounting & vaults"
+          "role": "Treasurer",
+          "specialty": "Trust & Accounting"
         },
         "dima": {
-          "role": "Ringdom Spirit Wizard",
-          "specialty": "Global strategy & development"
+          "role": "Wizard",
+          "specialty": "Latam Growth"
         }
       },
-      "mission": "Our Mission",
+      "mission": "Mission",
       "missionText": "Technology should unite, not divide. Ring enables anyone, anywhere to solve collective needs without expensive developers or vendor lock-in.",
-      "philosophy": "Our Philosophy",
+      "philosophy": "Ring Philosophy",
       "philosophyText": "Ukrainian farmers can deploy the same sophisticated platform as Silicon Valley startups. African artisans access the same AI-powered marketplace as Amazon.",
-      "originStory": "Our Origin Story",
-      "originSubtitle": "How Ringdom built Ring during Ukraine's struggle for independence",
+      "originStory": "Origin Story",
+      "originSubtitle": "How I built Ring during Ukraine's struggle for independence",
       "beginning": "The Beginning",
-      "beginningText": "As Russia invaded Ukraine, we witnessed how technology could be a weapon of oppression. Centralized platforms controlled by foreign entities could be shut down or manipulated. We decided to build something different.",
+      "beginningText": "Modern technology is a weapon of oppression. Centralized platforms controlled by foreign entities could be shut down or manipulated. I decided to build something different.",
       "building": "Building Ring",
-      "buildingText": "Working from basements and cafes during air raids, we developed Ring - a platform that puts power back in the hands of communities. No more vendor lock-in, no more expensive developers, no more centralized control.",
-      "impact": "Global Impact",
-      "impactText": "Ring deployments are helping communities worldwide. From agricultural cooperatives in Ukraine to artisan marketplaces in Kenya, Ring is proving that sophisticated technology can be accessible to everyone.",
+      "buildingText": "Working from basement during air raids in Ukraine, I developed Ring - a platform that puts power back in the hands of communities. No more vendor lock-in, no more expensive developers, no more centralized control.",
+      "impact": "Ring Difference",
+      "impactText": "Ring deployments are helping communities worldwide. From agricultural cooperatives to artisan marketplaces, Ring is proving that sophisticated technology can be accessible to everyone.",
       "globalImpact": "Global Impact",
       "globalImpactSubtitle": "Ring deployments around the world",
       "worldMapTitle": "Interactive World Map Coming Soon",
       "worldMapText": "See Ring deployments, use cases per region, and success metrics from live deployments worldwide.",
-      "futureVision": "Future Vision",
-      "futureQuote": "Imagine asking your Ring platform: 'Add a blockchain-verified certificate system for educational courses' - and watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform. This is our roadmap.",
+      "futureVision": "Talk to Your Ring",
+      "futureQuote": "Imagine asking your ring: 'Add a blockchain-verified certificate system for educational courses' - and watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform. This is our roadmap.",
       "roadmapPhase1Title": "Shipped baseline",
       "roadmapPhase2Title": "In development",
       "roadmapPhase3Title": "Next horizon",
@@ -296,32 +296,32 @@
         "oss": {
           "value": "OSS",
           "label": "Free forever",
-          "hint": "Clone, customize, self-host — no license fee"
+          "hint": "Clone, customize, self-host without a license fee"
         },
         "modules": {
-          "value": "20+",
+          "value": "40+",
           "label": "Platform modules",
-          "hint": "Entities, opportunities, store, wallet, NFT, messaging…"
+          "hint": "Messaging, opportunities, store, wallet, NFT, ERP,…"
         },
         "matcher": {
           "value": "AI",
           "label": "Opportunity matcher",
-          "hint": "Surfaces relevant listings; optional auto-approval gates"
+          "hint": "Notified with relevant listings; auto-approval gates"
         },
         "ringdom": {
-          "value": "⚡",
-          "label": "Ringdom ringization",
-          "hint": "LegioX-powered clone fitting & managed hosting"
+          "value": "SaaS",
+          "label": "Ringdom Hosting",
+          "hint": "LegioX-powered ringization & managed hosting"
         },
         "audience": {
-          "value": "🌍",
-          "label": "Global distribution",
-          "hint": "CEOs, CTOs, academia, enthusiasts, contractors"
+          "value": "SPL",
+          "label": "Native Token",
+          "hint": "Your own value in the community economy"
         }
       },
       "twoPaths": {
-        "title": "Two doors, one Ring ecosystem",
-        "platformTitle": "ring-platform.org — open marketplace",
+        "title": "Two paths, one Ring",
+        "platformTitle": "ring-platform.org — open-source marketplace",
         "platformBody": "The OSS reference app and public square. Clone Ring for free, publish customization requests as opportunities, and let registered contractors browse listings, apply, and get matched by AI.",
         "ringdomTitle": "Ringdom — hosted ringization",
         "ringdomBody": "The digital kingdom of the Machine Race: LegioX AI automates ring-platform fitting to your brief, plus enterprise hosting when you want turn-key delivery instead of DIY ops."

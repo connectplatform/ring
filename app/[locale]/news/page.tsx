@@ -154,7 +154,7 @@ async function getInitialNews(): Promise<NewsArticle[]> {
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
     const result = await db().queryDocs({
-      collection: 'newsCategories',
+      collection: 'news_categories',
       orderBy: [{ field: 'name', direction: 'asc' }],
     })
 

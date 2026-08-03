@@ -40,7 +40,7 @@ const planesEn: IntegrationPlane[] = [
     href: '/docs/features/authentication',
     nodes: [
       { id: 'oauth', label: 'Google · Apple · GitHub · Discord', href: '/docs/features/authentication' },
-      { id: 'magic', label: 'Resend magic links', href: '/docs/features/authentication' },
+      { id: 'magic', label: 'Ring Mailer OTP / magic links', href: '/docs/features/authentication' },
       { id: 'evm', label: 'Wagmi v3 · WalletConnect', href: '/docs/integrations/ethereum-wallets' },
     ],
   },
@@ -71,6 +71,7 @@ const planesEn: IntegrationPlane[] = [
     nodes: [
       { id: 'imap', label: 'IMAP ingest', href: '/docs/features/email-ai-crm' },
       { id: 'smtp', label: 'SMTP outbound', href: '/docs/features/email-ai-crm' },
+      { id: 'mailer', label: 'Ring Mailer auth', href: '/docs/features/ring-mailer' },
     ],
   },
   {
@@ -108,7 +109,7 @@ const copy = completeLocaleRecord<IntegrationHubCopy>({
         href: '/docs/features/authentication',
         nodes: [
           { id: 'oauth', label: 'Google · Apple · GitHub · Discord', href: '/docs/features/authentication' },
-          { id: 'magic', label: 'Resend magic links', href: '/docs/features/authentication' },
+          { id: 'magic', label: 'Ring Mailer OTP / magic links', href: '/docs/features/authentication' },
           { id: 'evm', label: 'Wagmi v3 · WalletConnect', href: '/docs/integrations/ethereum-wallets' },
         ],
       },
@@ -139,6 +140,7 @@ const copy = completeLocaleRecord<IntegrationHubCopy>({
         nodes: [
           { id: 'imap', label: 'IMAP ingest', href: '/docs/features/email-ai-crm' },
           { id: 'smtp', label: 'SMTP outbound', href: '/docs/features/email-ai-crm' },
+          { id: 'mailer', label: 'Ring Mailer auth', href: '/docs/features/ring-mailer' },
         ],
       },
       {
@@ -166,7 +168,7 @@ const copy = completeLocaleRecord<IntegrationHubCopy>({
         href: '/docs/features/authentication',
         nodes: [
           { id: 'oauth', label: 'Google · Apple · GitHub · Discord', href: '/docs/features/authentication' },
-          { id: 'magic', label: 'Resend magic links', href: '/docs/features/authentication' },
+          { id: 'magic', label: 'Ring Mailer OTP / magic links', href: '/docs/features/authentication' },
           { id: 'evm', label: 'Wagmi v3 · WalletConnect', href: '/docs/integrations/ethereum-wallets' },
         ],
       },
@@ -197,6 +199,7 @@ const copy = completeLocaleRecord<IntegrationHubCopy>({
         nodes: [
           { id: 'imap', label: 'IMAP ingest', href: '/docs/features/email-ai-crm' },
           { id: 'smtp', label: 'SMTP outbound', href: '/docs/features/email-ai-crm' },
+          { id: 'mailer', label: 'Ring Mailer auth', href: '/docs/features/ring-mailer' },
         ],
       },
       {

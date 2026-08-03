@@ -8,12 +8,19 @@
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { cache } from 'react'
+import { normalizePaymentRail } from '@/lib/payments/conductor/types'
+import type { SupportedCurrencies } from '@/lib/ring-config-core'
+import type { ShippingProvider } from '@/lib/zod'
+import type { StorePaymentRail } from '../types'
 
 export interface StoreUserPreferences {
   id?: string
   userId: string
-  preferredShippingMethod?: 'nova-post' | 'express' | 'standard' | 'pickup'
-  preferredPaymentMethod?: 'wayforpay' | 'card' | 'crypto' | 'stripe' | 'credit' | 'token' | 'paypal'
+  preferredShippingMethod?: ShippingProvider
+  /** Rail only — the Conductor resolves the PSP for the `card` rail. */
+  preferredPaymentMethod?: StorePaymentRail
+  /** Display currency for prices; falls back to the project main currency. */
+  preferredDisplayCurrency?: SupportedCurrencies
   lastUsedAddressId?: string
   defaultBillingAddressId?: string
   savePaymentMethods?: boolean
@@ -52,10 +59,7 @@ export const StoreUserPreferencesService = {
       }
 
       const preferredRaw = (storePrefs as { preferredPaymentMethod?: string }).preferredPaymentMethod
-      const preferredPaymentMethod =
-        preferredRaw === 'ring'
-          ? 'credit'
-          : (preferredRaw as StoreUserPreferences['preferredPaymentMethod'])
+      const preferredPaymentMethod = preferredRaw ? normalizePaymentRail(preferredRaw) : undefined
 
       return {
         id: 'checkout',
@@ -75,15 +79,13 @@ export const StoreUserPreferencesService = {
 
       const existing = await this.get(userId)
       const inboundMethod = (preferences as { preferredPaymentMethod?: string }).preferredPaymentMethod
-      const healedPrefs: Partial<StoreUserPreferences> = {
+      const normalizedPrefs: Partial<StoreUserPreferences> = {
         ...preferences,
-        ...(inboundMethod === 'ring'
-          ? { preferredPaymentMethod: 'credit' as const }
-          : {}),
+        ...(inboundMethod ? { preferredPaymentMethod: normalizePaymentRail(inboundMethod) } : {}),
       }
       const checkoutData = {
         ...existing,
-        ...healedPrefs,
+        ...normalizedPrefs,
         updatedAt: now,
         ...(existing ? {} : { createdAt: now })
       }
@@ -122,11 +124,14 @@ export const StoreUserPreferencesService = {
     userId: string,
     method: StoreUserPreferences['preferredPaymentMethod'] | string,
   ): Promise<void> {
-    const canonical =
-      method === 'ring'
-        ? 'credit'
-        : (method as StoreUserPreferences['preferredPaymentMethod'])
-    await this.upsert(userId, { preferredPaymentMethod: canonical })
+    await this.upsert(userId, { preferredPaymentMethod: normalizePaymentRail(method) })
+  },
+
+  async updateDisplayCurrencyPreference(
+    userId: string,
+    currency: SupportedCurrencies,
+  ): Promise<void> {
+    await this.upsert(userId, { preferredDisplayCurrency: currency })
   },
 
   async updateLastUsedAddress(userId: string, addressId: string): Promise<void> {

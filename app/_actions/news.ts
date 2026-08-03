@@ -51,6 +51,7 @@ export async function saveArticle(
     const userRole = assertKnownUserRole(session.user.role)
     const userId = session.user.id
     const isAdmin = isPlatformAdmin(userRole)
+    let existingVersions: NewsArticle['versions'] | undefined
 
     if (mode === 'create') {
       // Members+ / confidential / admins (see canCreateNewsArticle)
@@ -72,6 +73,7 @@ export async function saveArticle(
       }
 
       const existingArticle = mapNewsDocument(articleResult.data)
+      existingVersions = existingArticle.versions
       const isOwner = existingArticle.authorId === userId
       
       if (!isAdmin && !isOwner) {
@@ -179,6 +181,32 @@ export async function saveArticle(
     const blogUsername = username ? normalizeBlogHandle(username) : undefined
 
     // Construct payload for article creation or update
+    const {
+      appendCommit,
+      fromEmbeddedVersions,
+      toEmbeddedVersions,
+    } = await import('@/lib/versioning')
+
+    const versionLabel = status === 'published' ? 'Publish' : 'Save'
+
+    // Explicit Save = append immutable version commit (autosave/PATCH must not call this path)
+    // Edit: single write with tip content + new commit. Create: create row then attach commit0.
+    let versionsForEdit: NewsArticle['versions'] | undefined
+    if (mode === 'edit' && articleId) {
+      const { doc: nextVersionDoc } = appendCommit(
+        fromEmbeddedVersions('news_article', articleId, existingVersions ?? null),
+        {
+          entityType: 'news_article',
+          entityId: articleId,
+          createdBy: userId,
+          content: content.trim(),
+          contentFormat: 'html',
+          label: versionLabel,
+        },
+      )
+      versionsForEdit = toEmbeddedVersions(nextVersionDoc)
+    }
+
     const articleData = {
       title: title.trim(),
       slug: slug.trim(),
@@ -193,6 +221,7 @@ export async function saveArticle(
       visibility,
       featured: resolvedFeatured,
       seo,
+      ...(versionsForEdit ? { versions: versionsForEdit } : {}),
       ...(mode === 'create' && blogUsername ? { blogUsername } : {}),
       // If creating, initialize counters and createdAt
       ...(mode === 'create' && {
@@ -209,14 +238,44 @@ export async function saveArticle(
     // TODO: Consider native React19/Next16 Loading UI while awaiting import
     const { createNewsArticle, updateNewsArticle } = await import('@/features/news/services/news-service')
 
-    // Save or update the article
-    const result = mode === 'create' 
+    // Save or update the article tip content (+ versions on edit)
+    let result = mode === 'create' 
       ? await createNewsArticle(articleData)
       : await updateNewsArticle(articleId, articleData)
 
     if (!result.success) {
       return {
         error: result.error || 'Failed to save article'
+      }
+    }
+
+    // Create: attach commit0 after we have a stable article id
+    if (mode === 'create' && result.data?.id) {
+      const createdId = result.data.id
+      const { doc: commit0 } = appendCommit(null, {
+        entityType: 'news_article',
+        entityId: createdId,
+        createdBy: userId,
+        content: content.trim(),
+        contentFormat: 'html',
+        label: versionLabel,
+      })
+      const { db } = await import('@/lib/database')
+      const versionWrite = await db().updateDoc('news', createdId, {
+        versions: toEmbeddedVersions(commit0),
+      })
+      if (versionWrite.success && versionWrite.data) {
+        const { mapNewsDocument } = await import('@/lib/news/map-news-document')
+        result = {
+          success: true,
+          data: mapNewsDocument(versionWrite.data),
+          message: result.message,
+        }
+      } else {
+        console.error('Failed to attach initial article version commit', {
+          articleId: createdId,
+          error: versionWrite.error,
+        })
       }
     }
 

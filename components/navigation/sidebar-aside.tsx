@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, forwardRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, forwardRef } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -9,6 +9,7 @@ import {
   Copy,
   Check,
   Coins,
+  Crown,
   Globe,
   Zap,
   Rocket,
@@ -16,12 +17,17 @@ import {
   Map,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { hasMemberPrivileges } from '@/features/auth/user-role'
+import {
+  hasConfidentialAccess,
+  hasMemberPrivileges,
+  resolveSessionUserRole,
+} from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
+import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { AdminSupermenuToggle } from './admin-supermenu'
@@ -32,6 +38,7 @@ interface NavigationItem {
   label: string
   icon?: React.ReactNode
   badge?: string | number
+  trailing?: React.ReactNode
   requiresAuth?: boolean
   divider?: string
   /** Mirrored in sidebar rail — aside shows label only (no duplicate icon). */
@@ -45,6 +52,8 @@ interface SidebarAsideProps {
   showIdentityAside?: boolean
 }
 
+const ICON = 'size-[22px] shrink-0 text-[var(--color-contrast-medium)]'
+
 export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
   function SidebarAside({ className, overlayMode, showIdentityAside }, ref) {
     const pathname = usePathname()
@@ -56,7 +65,10 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const tNav = useTranslations('navigation')
     const [mounted, setMounted] = useState(false)
     const [copied, setCopied] = useState(false)
+    const nativeSymbol = getClientNativeTokenSymbol()
+    const userRole = resolveSessionUserRole(session?.user?.role)
     const showAdminToggle = hasMemberPrivileges(session?.user?.role)
+    const hideConcepts = hasConfidentialAccess(userRole)
 
     useEffect(() => {
       setMounted(true)
@@ -78,67 +90,85 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const formatAddress = (address: string) =>
       address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
 
-    const navigationItems: NavigationItem[] = [
-      {
-        href: ROUTES.ENTITIES(locale),
-        label: tEntities('title'),
-        badge: 'Hot',
-        railMirrored: true,
-      },
-      {
-        href: ROUTES.OPPORTUNITIES(locale),
-        label: tOpp('opportunities'),
-        badge: 'New',
-        railMirrored: true,
-      },
-      {
-        href: ROUTES.STORE(locale),
-        label: tStore('title'),
-        railMirrored: true,
-      },
-      {
-        href: ROUTES.DOCS(locale),
-        label: tNav('sidebar.documentation'),
-        railMirrored: true,
-      },
-      { divider: 'divider-concepts', href: '#', label: '', icon: null },
-      {
-        href: `/${locale}/docs/customization/token-economics`,
-        label: tNav('sidebar.ringEconomy'),
-        icon: <Coins className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-      {
-        href: `/${locale}/about-publisher`,
-        label: tNav('sidebar.appPublisher'),
-        icon: <Heart className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-      {
-        href: `/${locale}/global-impact`,
-        label: tNav('sidebar.globalImpact'),
-        icon: <Globe className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-      {
-        href: `/${locale}/ai-web3`,
-        label: tNav('sidebar.aiMeetsWeb3'),
-        icon: <Zap className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-      { divider: 'divider-docs', href: '#', label: '', icon: null },
-      {
-        href: `/${locale}/docs/getting-started`,
-        label: tNav('sidebar.quickStart'),
-        icon: <Rocket className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-      {
-        href: `/${locale}/calculator`,
-        label: tNav('sidebar.deploymentCalculator'),
-        icon: <Calculator className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-      {
-        href: `/${locale}/roadmap`,
-        label: tNav('sidebar.roadmap'),
-        icon: <Map className="size-[18px] shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
-      },
-    ]
+    const navigationItems: NavigationItem[] = useMemo(() => {
+      const items: NavigationItem[] = [
+        {
+          href: ROUTES.ENTITIES(locale),
+          label: tEntities('title'),
+          trailing: (
+            <Crown
+              className="ml-auto size-[22px] shrink-0 text-amber-500"
+              strokeWidth={1.5}
+              aria-label="Membership"
+            />
+          ),
+          railMirrored: true,
+        },
+        {
+          href: ROUTES.OPPORTUNITIES(locale),
+          label: tOpp('opportunities'),
+          badge: 'New',
+          railMirrored: true,
+        },
+        {
+          href: ROUTES.STORE(locale),
+          label: tStore('title'),
+          railMirrored: true,
+        },
+        {
+          href: ROUTES.DOCS(locale),
+          label: tNav('sidebar.documentation'),
+          railMirrored: true,
+        },
+      ]
+
+      if (!hideConcepts) {
+        items.push(
+          { divider: 'divider-concepts', href: '#', label: '', icon: null },
+          {
+            href: ROUTES.TOKEN_ECONOMY(locale),
+            label: `${nativeSymbol} ${tNav('sidebar.economics')}`,
+            icon: <Coins className={ICON} strokeWidth={1.5} />,
+          },
+          {
+            href: ROUTES.ABOUT_PUBLISHER(locale),
+            label: tNav('sidebar.appPublisher'),
+            icon: <Heart className={ICON} strokeWidth={1.5} />,
+          },
+          {
+            href: ROUTES.GLOBAL_IMPACT(locale),
+            label: tNav('sidebar.globalImpact'),
+            icon: <Globe className={ICON} strokeWidth={1.5} />,
+          },
+          {
+            href: ROUTES.AI_WEB3(locale),
+            label: tNav('sidebar.aiMeetsWeb3'),
+            icon: <Zap className={ICON} strokeWidth={1.5} />,
+          },
+        )
+      }
+
+      items.push(
+        { divider: 'divider-docs', href: '#', label: '', icon: null },
+        {
+          href: ROUTES.DOCS_GETTING_STARTED(locale),
+          label: tNav('sidebar.quickStart'),
+          icon: <Rocket className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          href: ROUTES.CALCULATOR(locale),
+          label: tNav('sidebar.calculatorCta'),
+          icon: <Calculator className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          href: ROUTES.ROADMAP(locale),
+          label: tNav('sidebar.roadmap'),
+          icon: <Map className={ICON} strokeWidth={1.5} />,
+        },
+      )
+
+      return items
+    }, [hideConcepts, locale, nativeSymbol, tEntities, tNav, tOpp, tStore])
 
     const isActive = (href: string) => {
       if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
@@ -158,7 +188,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     return (
       <aside
         className={cn(
-          'relative z-1 h-full shrink-0 overflow-hidden isolate text-[13px] font-medium',
+          'relative z-1 h-full shrink-0 overflow-hidden isolate text-[16px] font-medium',
           overlayMode && 'shadow-xl',
           className,
         )}
@@ -181,12 +211,13 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                         data-divider
                         className="h-px w-[calc(100%-32px)] mx-4 bg-border shadow-2xs shadow-white/80"
                       />
-                      <h2 className="text-[var(--color-contrast-low)] text-[11px] mb-1.5 mt-2 pl-4">
+                      <h2 className="text-[var(--color-contrast-low)] text-[12px] mb-1.5 mt-2 pl-4">
                         {dividerLabels[item.divider] ?? ''}
                       </h2>
                     </div>
                   )
                 }
+
                 const active = isActive(item.href)
                 const mirrored = Boolean(item.railMirrored)
                 const isDocs = item.href === ROUTES.DOCS(locale)
@@ -197,15 +228,16 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                       data-current={active ? '' : undefined}
                       className={cn(
                         'sidebar-nav-item flex items-center gap-2 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
-                        'h-10 min-h-10 px-2',
+                        'h-11 min-h-11 px-2',
                       )}
                     >
                       {!mirrored && item.icon && (
-                        <span className="flex w-5 shrink-0 items-center justify-center text-[var(--color-contrast-medium)]">
+                        <span className="flex w-6 shrink-0 items-center justify-center text-[var(--color-contrast-medium)]">
                           {item.icon}
                         </span>
                       )}
                       <span className={cn('flex-1 truncate', mirrored && 'pl-0.5')}>{item.label}</span>
+                      {item.trailing}
                       {item.badge && (
                         <Badge variant="secondary" className="ml-auto h-5 px-1.5 py-0 text-[10px]">
                           {item.badge}

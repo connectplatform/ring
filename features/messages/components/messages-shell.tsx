@@ -29,6 +29,7 @@ import { Card } from '@/components/ui/card'
 import { ConversationHeader } from '@/features/chat/components/conversation-header'
 import { CallOverlay } from '@/features/chat/components/call-overlay'
 import { IncomingCallBanner } from '@/features/chat/components/incoming-call-banner'
+import { IncomingGameBanner } from '@/features/peer-games/components/incoming-game-banner'
 import { GroupMembersDialog } from '@/features/chat/components/group-members-dialog'
 import { MessageThread } from '@/features/chat/components/message-thread'
 import { NewConversationDialog } from '@/features/chat/components/new-conversation-dialog'
@@ -39,6 +40,7 @@ import {
   useWebRtcCall,
   type IncomingCallInvite,
 } from '@/hooks/use-webrtc-call'
+import { usePeerGameBusy, setPeerCallBusy } from '@/features/peer-games/lib/peer-game-mutex'
 import { apiClient } from '@/lib/api-client'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
@@ -63,6 +65,7 @@ export default function MessagesShell() {
   const deepLinkHandledRef = useRef<string | null>(null)
   const userId = session?.user?.id ?? ''
   const { publish } = useTunnel({ autoConnect: false })
+  const gameBusy = usePeerGameBusy()
 
   const inbox = useConversations()
   const { refresh: refreshInbox, createConversation, conversations, clearUnread } = inbox
@@ -102,6 +105,14 @@ export default function MessagesShell() {
     injectedInvite,
     onInjectedInviteConsumed: () => setInjectedInvite(null),
   })
+
+  // Publish callBusy so /games layout + game_request widget share the mutex.
+  useEffect(() => {
+    void setPeerCallBusy(webrtcCall.phase !== 'idle')
+    return () => {
+      void setPeerCallBusy(false)
+    }
+  }, [webrtcCall.phase])
 
   useEffect(() => {
     if (paramC) setSelectedId(paramC)
@@ -371,9 +382,13 @@ export default function MessagesShell() {
     >
       <IncomingCallBanner
         activeConversationId={selectedId}
-        callBusy={webrtcCall.phase !== 'idle'}
+        callBusy={webrtcCall.phase !== 'idle' || gameBusy}
         onAcceptAction={handleGlobalAccept}
         onDeclineAction={handleGlobalDecline}
+      />
+      <IncomingGameBanner
+        callBusy={webrtcCall.phase !== 'idle'}
+        gameBusy={gameBusy}
       />
       <DavinciCenterPane
         className="h-[calc(100dvh-5.5rem)] min-h-0"
@@ -470,6 +485,14 @@ export default function MessagesShell() {
                 onAudioCallAction={
                   callPeer
                     ? async () => {
+                        if (gameBusy) {
+                          toast({
+                            title: tMessenger('actionFailed'),
+                            description: 'Finish your game before starting a call.',
+                            variant: 'destructive',
+                          })
+                          return
+                        }
                         const result = await webrtcCall.startCall('audio')
                         if (!result.ok) {
                           toast({
@@ -484,6 +507,14 @@ export default function MessagesShell() {
                 onVideoCallAction={
                   callPeer
                     ? async () => {
+                        if (gameBusy) {
+                          toast({
+                            title: tMessenger('actionFailed'),
+                            description: 'Finish your game before starting a call.',
+                            variant: 'destructive',
+                          })
+                          return
+                        }
                         const result = await webrtcCall.startCall('video')
                         if (!result.ok) {
                           toast({
@@ -511,6 +542,7 @@ export default function MessagesShell() {
                 userId={userId}
                 conversation={conversation}
                 className="min-h-0 flex-1"
+                callBusy={webrtcCall.phase !== 'idle'}
               />
             </div>
           )}

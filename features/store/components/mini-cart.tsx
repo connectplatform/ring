@@ -5,13 +5,17 @@ import { ShoppingCart } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/constants/routes'
 import { useOptionalStore } from '@/features/store/context'
-import { DEFAULT_CURRENCY, StoreCurrency, useOptionalStoreCurrency } from '@/features/store/currency-context'
+import {
+  MAIN_CURRENCY,
+  useOptionalStorePaymentMethods,
+  type StorePaymentMethods,
+} from '@/features/store/currency-context'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 
 export function MiniCart({ locale }: { locale: Locale }) {
   const store = useOptionalStore()
-  const storeCurrency = useOptionalStoreCurrency()
+  const storeCurrency = useOptionalStorePaymentMethods()
   const tCommon = useTranslations('common')
   const tStore = useTranslations('modules.store')
   const [open, setOpen] = useState(false)
@@ -19,9 +23,9 @@ export function MiniCart({ locale }: { locale: Locale }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
 
   // Currency formatting
-  const formatPrice = storeCurrency?.formatPrice || ((price: number, currency: StoreCurrency) => `${price.toFixed(2)} ${currency}`)
-  const convertPrice = storeCurrency?.convertPrice || ((price: number, from: StoreCurrency, to: StoreCurrency) => price)
-  const selectedCurrency = storeCurrency?.currency || DEFAULT_CURRENCY
+  const formatPrice = storeCurrency?.formatPrice || ((price: number, currency: StorePaymentMethods) => `${price.toFixed(2)} ${currency}`)
+  const convertPrice = storeCurrency?.convertPrice || ((price: number, from: StorePaymentMethods, to: StorePaymentMethods) => price)
+  const selectedCurrency = storeCurrency?.currency || MAIN_CURRENCY
 
   if (!store) { 
     return (
@@ -76,7 +80,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
                   <div className="text-sm font-medium mb-3">
                     {tStore('cart.total')}: {formatPrice(totalPriceByCurrency[selectedCurrency], selectedCurrency)} {store.cartItems.reduce((sum, item) => {
                       const price = item.finalPrice || parseFloat(item.product.price)
-                      const convertedPrice = convertPrice(price, DEFAULT_CURRENCY, selectedCurrency)
+                      const convertedPrice = convertPrice(price, MAIN_CURRENCY, selectedCurrency)
                       return sum + (convertedPrice * item.quantity)
                     }, 0)} ${selectedCurrency}
                   </div>

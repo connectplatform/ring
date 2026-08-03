@@ -1,397 +1,414 @@
 'use client'
 
 /**
- * Vendor Onboarding Form - Single Page (Emperor's Directive)
- * 
- * Simplified vendor registration with just 5 essential fields:
- * 1. Store Slug (auto-generated from name)
- * 2. Store Name
- * 3. Store Description
- * 4. Store Categories (multi-select)
- * 5. Store Logo (Vercel Blob upload)
- * 
- * Features:
- * - Agricultural glassmorphism theme
- * - React 19 useActionState
- * - Vercel Blob integration
- * - Real-time slug generation
- * - Form validation
- * - i18n support (en/uk/ru)
+ * Vendor onboarding form — DaVinci surfaces (no Card boundary).
+ * Existing storefront URLs + Upload & Generate logo (FsModal + gallery strip).
  */
 
 import React, { useState, useEffect, useTransition } from 'react'
 import { useActionState } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
-import { Store, Sparkles, ArrowRight, Loader2 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowRight, Loader2, Link2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import StoreLogoUploader from '@/components/vendor/store-logo-uploader'
+import { Switch } from '@/components/ui/switch'
 import CategoryMultiSelect from '@/components/vendor/category-multi-select'
+import { GenerativeGalleryStrip } from '@/features/generative-media/components/generative-gallery-strip'
+import { GenerativeMediaEditorFsModal } from '@/features/generative-media/components/generative-media-editor-fs-modal'
+import {
+  galleryFromUrlList,
+  primaryGalleryUrl,
+  type GalleryItem,
+  type GenerativeGalleryValue,
+} from '@/features/generative-media/types'
 import { createVendorStore } from '@/app/_actions/vendor-actions'
 import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
+import { davinciGlassSurface, davinciCtaPrimary } from '@/lib/ui/davinci'
 
 interface VendorOnboardingFormProps {
   locale: Locale
 }
 
-// Helper function to generate slug from store name
 function generateSlugFromName(name: string): string {
   return name
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/-+/g, '-') // Replace multiple hyphens with single
-    .slice(0, 50) // Max 50 chars
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 50)
 }
+
+const INSET = 'px-0'
 
 export default function VendorOnboardingForm({ locale }: VendorOnboardingFormProps) {
   const t = useTranslations('vendor.onboarding')
   const tForm = useTranslations('vendor.onboarding.form')
   const tValidation = useTranslations('vendor.onboarding.validation')
   const tStartPage = useTranslations('vendor.startPage')
-  const tBenefits = useTranslations('vendor.startWrapper.benefits')
 
   const [state, formAction, isPending] = useActionState(createVendorStore, null)
-
-  // React 19 useTransition for non-blocking slug generation
   const [isSlugPending, startSlugTransition] = useTransition()
 
-  // Form state
   const [storeName, setStoreName] = useState('')
   const [storeSlug, setStoreSlug] = useState('')
   const [storeDescription, setStoreDescription] = useState('')
   const [storeCategories, setStoreCategories] = useState<string[]>([])
-  const [storeLogo, setStoreLogo] = useState<File | null>(null)
+  const [logoGallery, setLogoGallery] = useState<GenerativeGalleryValue>(() =>
+    galleryFromUrlList([]),
+  )
   const [autoGenerateSlug, setAutoGenerateSlug] = useState(true)
-  
-  // Auto-generate slug from name (wrapped in useTransition for non-blocking updates)
+
+  const [sellElsewhere, setSellElsewhere] = useState(false)
+  const [existingUrls, setExistingUrls] = useState<string[]>([''])
+  const [logoEditorOpen, setLogoEditorOpen] = useState(false)
+
+  const addGeneratedLogo = (item: GalleryItem) => {
+    setLogoGallery({
+      items: [{ ...item, isPrimary: true, enabled: true }],
+    })
+  }
+
   useEffect(() => {
     if (autoGenerateSlug && storeName) {
       startSlugTransition(() => {
-        const generated = generateSlugFromName(storeName)
-        setStoreSlug(generated)
+        setStoreSlug(generateSlugFromName(storeName))
       })
     }
   }, [storeName, autoGenerateSlug, startSlugTransition])
 
   const handleSlugChange = (value: string) => {
     setStoreSlug(value)
-    setAutoGenerateSlug(false) // Disable auto-generation if user manually edits
+    setAutoGenerateSlug(false)
   }
 
+  const logoUrl = primaryGalleryUrl(logoGallery)
+
+  const cleanedExistingUrls = existingUrls
+    .map((u) => u.trim())
+    .filter((u) => u.length > 0)
+
+  const slugPreviewHost = 'ring-platform.org'
+  const slugPreviewUrl = storeSlug.trim()
+    ? `https://${storeSlug.trim()}.${slugPreviewHost}`
+    : `https://[slug].${slugPreviewHost}`
+
   return (
-    <div className="space-y-8">
-      {/* Progress Indicator */}
+    <div className={cn('space-y-8', INSET)}>
       <motion.div
-        className="flex items-center justify-center space-x-4 mb-8"
+        className="flex flex-wrap items-center justify-center gap-3 sm:gap-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-semibold text-sm">
-            ✓
-          </div>
-          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{tStartPage('progressSteps.account')}</span>
-        </div>
-        <div className="w-12 h-px bg-border"></div>
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-            2
-          </div>
-          <span className="text-sm font-medium text-foreground">{tStartPage('progressSteps.storeSetup')}</span>
-        </div>
-        <div className="w-12 h-px bg-border"></div>
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-semibold text-sm">
-            3
-          </div>
-          <span className="text-sm font-medium text-muted-foreground">{tStartPage('progressSteps.launch')}</span>
-        </div>
-      </motion.div>
-
-      {/* Header */}
-      <motion.div
-        className="text-center space-y-3"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-lime-600 flex items-center justify-center shadow-xl">
-            <Store className="w-8 h-8 text-white" />
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-lime-600 bg-clip-text text-transparent">
-          {t('title')}
-        </h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          {t('subtitle')}
-        </p>
-      </motion.div>
-
-      {/* Main Form Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <Card className="border-border shadow-lg">
-          <CardHeader className="bg-gradient-to-br from-emerald-500/5 via-green-500/5 to-lime-500/5">
+        {[
+          { n: '✓', label: tStartPage('progressSteps.account'), done: true },
+          { n: '2', label: tStartPage('progressSteps.storeSetup'), active: true },
+          { n: '3', label: tStartPage('progressSteps.launch'), muted: true },
+        ].map((step, i) => (
+          <React.Fragment key={step.label}>
+            {i > 0 ? <div className="hidden h-px w-8 bg-border sm:block" /> : null}
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-emerald-600" />
-              <CardTitle>{tForm('submit')}</CardTitle>
-            </div>
-            <CardDescription>
-              Fill in the essential information to create your vendor store
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="pt-6">
-            <form action={formAction} className="space-y-6">
-              {/* Hidden locale field */}
-              <input type="hidden" name="locale" value={locale} />
-
-              {/* Store Name */}
-              <div className="space-y-2">
-                <Label htmlFor="storeName" className="text-sm font-medium">
-                  {tForm('storeName')} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="storeName"
-                  name="storeName"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  placeholder={tForm('storeNamePlaceholder')}
-                  className="h-11"
-                  disabled={isPending}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">{tForm('storeNameHint')}</p>
-              </div>
-
-              {/* Store Slug (auto-generated with manual override) */}
-              <div className="space-y-2">
-                <Label htmlFor="storeSlug" className="text-sm font-medium">
-                  {tForm('storeSlug')} <span className="text-destructive">*</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{tForm('storeUrlPrefix')}</span>
-                  <Input
-                    id="storeSlug"
-                    name="storeSlug"
-                    value={storeSlug}
-                    onChange={(e) => handleSlugChange(e.target.value)}
-                    placeholder={tForm('storeSlugPlaceholder')}
-                    className="h-11 flex-1 font-mono"
-                    disabled={isPending}
-                    required
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">{tForm('storeSlugHint')}</p>
-              </div>
-
-              {/* Store Description */}
-              <div className="space-y-2">
-                <Label htmlFor="storeDescription" className="text-sm font-medium">
-                  {tForm('storeDescription')} <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="storeDescription"
-                  name="storeDescription"
-                  value={storeDescription}
-                  onChange={(e) => setStoreDescription(e.target.value)}
-                  placeholder={tForm('storeDescriptionPlaceholder')}
-                  className="min-h-[120px] resize-y"
-                  maxLength={500}
-                  disabled={isPending}
-                  required
-                />
-                <div className="flex items-center justify-between text-xs">
-                  <p className="text-muted-foreground">{tForm('storeDescriptionHint')}</p>
-                  <p className={cn(
-                    "font-mono",
-                    storeDescription.length > 450 ? "text-amber-600" : "text-muted-foreground"
-                  )}>
-                    {storeDescription.length}/500
-                  </p>
-                </div>
-              </div>
-
-              {/* Store Categories */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  {tForm('storeCategories')} <span className="text-destructive">*</span>
-                </Label>
-                <p className="text-xs text-muted-foreground mb-3">{tForm('storeCategoriesHint')}</p>
-                
-                <CategoryMultiSelect
-                  selectedCategories={storeCategories}
-                  onCategoriesChange={setStoreCategories}
-                  error={state?.error && storeCategories.length === 0 ? tValidation('categoriesRequired') : undefined}
-                />
-                
-                {/* Hidden input for form submission */}
-                <input type="hidden" name="storeCategories" value={JSON.stringify(storeCategories)} />
-              </div>
-
-              {/* Store Logo */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  {tForm('storeLogo')}
-                </Label>
-                <StoreLogoUploader
-                  onLogoChange={setStoreLogo}
-                  error={state?.error && storeLogo ? tValidation('logoInvalidType') : undefined}
-                />
-                
-                {/* Hidden file input for form submission */}
-                {storeLogo && (
-                  <input type="hidden" name="storeLogo" value="file-attached" />
+              <div
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                  step.done && 'bg-primary text-primary-foreground',
+                  step.active && !step.done && 'bg-primary text-primary-foreground',
+                  step.muted && 'bg-muted text-muted-foreground',
                 )}
+              >
+                {step.n}
               </div>
-
-              {/* Error Display */}
-              {state?.error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-destructive/10 border border-destructive/30 rounded-lg p-4"
-                >
-                  <p className="text-sm text-destructive font-medium">
-                    ⚠️ {state.error}
-                  </p>
-                </motion.div>
-              )}
-
-              {/* Submit Button */}
-              <div className="pt-4">
-                <Button
-                  type="submit"
-                  disabled={isPending || storeCategories.length === 0 || !storeName || !storeDescription}
-                  className={cn(
-                    "w-full h-12",
-                    "bg-primary hover:bg-primary/90",
-                    "text-primary-foreground font-semibold text-base",
-                    "shadow-sm hover:shadow-md",
-                    "transition-all duration-200",
-                    "disabled:opacity-50 disabled:cursor-not-allowed"
-                  )}
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      {tForm('submitting')}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      {tForm('submit')}
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {/* Trust indicators */}
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <span>🏪</span>
-                    <span>{tStartPage('trustIndicators.vendors') || '50+ Vendors'}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>⚡</span>
-                    <span>{tStartPage('trustIndicators.activation') || 'Instant Activation'}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>🛡️</span>
-                    <span>{tStartPage('trustIndicators.security') || 'Secure Platform'}</span>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+              <span
+                className={cn(
+                  'text-sm font-medium',
+                  step.muted ? 'text-muted-foreground' : 'text-foreground',
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+          </React.Fragment>
+        ))}
       </motion.div>
 
-      {/* Benefits Section - Only show on mobile/tablet, hidden on desktop with right sidebar */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className="grid md:grid-cols-2 gap-4 lg:hidden"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className={cn(davinciGlassSurface, 'rounded-2xl p-5 sm:p-6 space-y-6')}
       >
-        <Card className="border-emerald-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">🤖</span>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">{tBenefits('aiEnrichment.title')}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {tBenefits('aiEnrichment.description')}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <form action={formAction} className="space-y-6">
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="storeLogoUrl" value={logoUrl} />
+          <input
+            type="hidden"
+            name="existingStorefrontUrls"
+            value={JSON.stringify(sellElsewhere ? cleanedExistingUrls : [])}
+          />
 
-        <Card className="border-emerald-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-lime-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">💰</span>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">{tBenefits('automatedSettlements.title')}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {tBenefits('automatedSettlements.description')}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* 1. Store name */}
+          <div className="space-y-2">
+            <Label htmlFor="storeName" className="text-sm font-medium">
+              {tForm('storeName')} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="storeName"
+              name="storeName"
+              value={storeName}
+              onChange={(e) => setStoreName(e.target.value)}
+              placeholder={tForm('storeNamePlaceholder')}
+              className="h-11"
+              disabled={isPending}
+              required
+            />
+            <p className="text-xs text-muted-foreground">{tForm('storeNameHint')}</p>
+          </div>
 
-        <Card className="border-emerald-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">🍃</span>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">{tBenefits('ringRewards.title')}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {tBenefits('ringRewards.description')}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* 2. Categories (right below store name) */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              {tForm('storeCategories')} <span className="text-destructive">*</span>
+            </Label>
+            <p className="mb-3 text-xs text-muted-foreground">{tForm('storeCategoriesHint')}</p>
+            <CategoryMultiSelect
+              selectedCategories={storeCategories}
+              onCategoriesChange={setStoreCategories}
+              error={
+                state?.error && storeCategories.length === 0
+                  ? tValidation('categoriesRequired')
+                  : undefined
+              }
+            />
+            <input type="hidden" name="storeCategories" value={JSON.stringify(storeCategories)} />
+          </div>
 
-        <Card className="border-emerald-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">📊</span>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">{tBenefits('trustTier.title')}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {tBenefits('trustTier.description')}
+          {/* 3. I already sell at (right below categories) */}
+          <div className={cn('space-y-3 rounded-xl border border-border/60 p-4')}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <Label className="flex items-center gap-2 text-sm font-medium">
+                  <Link2 className="h-4 w-4 text-primary" />
+                  {tForm('existingStorefrontsTitle')}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {tForm('existingStorefrontsHint')}
                 </p>
               </div>
+              <Switch
+                checked={sellElsewhere}
+                onCheckedChange={setSellElsewhere}
+                aria-label={tForm('existingStorefrontsTitle')}
+              />
             </div>
-          </CardContent>
-        </Card>
+
+            {sellElsewhere ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-foreground">
+                  {tForm('existingPagesUrls')}
+                </p>
+                {existingUrls.map((url, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Input
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://shopify.com/store528"
+                      value={url}
+                      onChange={(e) => {
+                        const next = [...existingUrls]
+                        next[idx] = e.target.value
+                        setExistingUrls(next)
+                      }}
+                      className="h-10 font-mono text-sm"
+                      disabled={isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      disabled={existingUrls.length <= 1}
+                      onClick={() =>
+                        setExistingUrls((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                      aria-label={tForm('removeUrl')}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setExistingUrls((prev) => [...prev, ''])}
+                    disabled={isPending || existingUrls.length >= 8}
+                  >
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    {tForm('addUrl')}
+                  </Button>
+                  {/*
+                    TODO(wwwdata-conductor): Wire Save → wwwdata-conductor fetch of cleanedExistingUrls.
+                    Goals: detect primary language; extract applicable storefront data; TextConductor brief
+                    description → populate storeDescription when empty; if logo found, fetch → object
+                    storage → logoGallery. Do not block onboarding submit on this async path.
+                    UI Save button lands in Plan (Ring Vendor-Start Improvements).
+                  */}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* 4. Store slug — subdomain preview https://[slug].ring-platform.org */}
+          <div className="space-y-2">
+            <Label htmlFor="storeSlug" className="text-sm font-medium">
+              {tForm('storeSlug')} <span className="text-destructive">*</span>
+            </Label>
+            {/*
+              TODO(ingress): On vendor activation, provision wildcard/host ingress for
+              https://{storeSlug}.ring-platform.org → vendor storefront (k8s Ingress /
+              cert-manager / DNS). Preview below is the product URL contract; routing
+              must be wired before go-live of subdomain stores.
+            */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="shrink-0 text-sm text-muted-foreground font-mono">
+                https://
+              </span>
+              <Input
+                id="storeSlug"
+                name="storeSlug"
+                value={storeSlug}
+                onChange={(e) => handleSlugChange(e.target.value)}
+                placeholder={tForm('storeSlugPlaceholder')}
+                className="h-11 flex-1 font-mono"
+                disabled={isPending || isSlugPending}
+                required
+              />
+              <span className="shrink-0 text-sm text-muted-foreground font-mono">
+                .{slugPreviewHost}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {tForm('storeSlugHint')}{' '}
+              <span className="font-mono text-foreground/80">{slugPreviewUrl}</span>
+            </p>
+          </div>
+
+          {/* 5. Description */}
+          <div className="space-y-2">
+            <Label htmlFor="storeDescription" className="text-sm font-medium">
+              {tForm('storeDescription')} <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="storeDescription"
+              name="storeDescription"
+              value={storeDescription}
+              onChange={(e) => setStoreDescription(e.target.value)}
+              placeholder={tForm('storeDescriptionPlaceholder')}
+              className="min-h-[120px] resize-y"
+              maxLength={500}
+              disabled={isPending}
+              required
+            />
+            <div className="flex items-center justify-between text-xs">
+              <p className="text-muted-foreground">{tForm('storeDescriptionHint')}</p>
+              <p
+                className={cn(
+                  'font-mono',
+                  storeDescription.length > 450 ? 'text-amber-600' : 'text-muted-foreground',
+                )}
+              >
+                {storeDescription.length}/500
+              </p>
+            </div>
+          </div>
+
+          {/* 6. Logo */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">{tForm('storeLogo')}</Label>
+            <p className="text-xs text-muted-foreground">{tForm('storeLogoHint')}</p>
+            {logoUrl ? (
+              <div className="overflow-hidden rounded-xl border border-border/60 max-w-[12rem]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="aspect-square w-full object-cover"
+                />
+              </div>
+            ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              className={cn(davinciGlassSurface, 'h-11')}
+              onClick={() => setLogoEditorOpen(true)}
+              disabled={isPending}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {tForm('uploadAndGenerate')}
+            </Button>
+            {/* Pre-vendor: vendor:logo asserts ownership — nft:media until Plan adds onboarding purpose */}
+            <GenerativeGalleryStrip
+              scope="product"
+              pageSlug="vendor-start"
+              fieldId="store-logo"
+              value={logoGallery}
+              onChange={setLogoGallery}
+              maxItems={1}
+              uploadPurpose="nft:media"
+            />
+            <GenerativeMediaEditorFsModal
+              open={logoEditorOpen}
+              onOpenChange={setLogoEditorOpen}
+              scope="product"
+              pageSlug="vendor-start"
+              fieldId="store-logo"
+              purpose="vendor:store-logo"
+              context={{
+                name: storeName || 'Vendor store',
+                description: storeDescription,
+                category: storeCategories[0],
+              }}
+              referenceImageUrl={logoUrl || undefined}
+              onUseImage={addGeneratedLogo}
+            />
+          </div>
+
+          {state?.error ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+              <p className="text-sm font-medium text-destructive">{state.error}</p>
+            </div>
+          ) : null}
+
+          {state?.success ? (
+            <div className="rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm">
+              {t('success')} {t('redirecting')}
+            </div>
+          ) : null}
+
+          <Button
+            type="submit"
+            disabled={isPending || storeCategories.length === 0}
+            className={cn(davinciCtaPrimary, 'h-11 w-full sm:w-auto')}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {tForm('submitting')}
+              </>
+            ) : (
+              <>
+                {tForm('submit')}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </form>
       </motion.div>
     </div>
   )
 }
-

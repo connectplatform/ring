@@ -2,6 +2,7 @@
 
 import 'katex/dist/katex.min.css'
 import { BlockMath, InlineMath } from 'react-katex'
+import { DiagramViewer } from '@/components/docs/diagram-viewer'
 
 export interface MathProps {
   children: string
@@ -13,9 +14,17 @@ export function Math({ children, display = false }: MathProps) {
   if (!tex) return null
   if (display) {
     return (
-      <div className="my-6 overflow-x-auto rounded-lg border border-border bg-muted/30 p-4 [&_.katex]:text-foreground">
-        <BlockMath math={tex} />
-      </div>
+      <DiagramViewer
+        diagramLabel="Formula"
+        copyText={tex}
+        copyLabel="Copy"
+        compact
+        className="[&_.katex]:text-foreground"
+      >
+        <div className="w-full min-w-0 overflow-x-auto px-2 py-4 text-center">
+          <BlockMath math={tex} />
+        </div>
+      </DiagramViewer>
     )
   }
   return (

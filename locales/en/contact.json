@@ -29,5 +29,16 @@
     "needHelpDesc": "Most answers are in /docs. For anything else, use the form on this page.",
     "documentation": "Documentation →",
     "contactSupport": "Contact Support →"
+  },
+  "form": {
+    "name": "Name",
+    "email": "Email",
+    "message": "Message",
+    "send": "Send",
+    "sending": "Sending…",
+    "success": "Thank you for your message!",
+    "openMessages": "Open conversation",
+    "messageSent": "Message sent!",
+    "notAcceptingMessages": "This member is not accepting profile messages"
   }
 }

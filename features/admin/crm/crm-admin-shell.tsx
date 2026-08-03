@@ -19,6 +19,7 @@ export type CrmPageContext = Extract<
   | 'crm-contacts'
   | 'crm-analytics'
   | 'crm-tasks'
+  | 'crm-task-escrows'
 >
 
 const CRM_TABS: Array<{ id: CrmPageContext; href: (locale: Locale) => string; labelKey: string }> = [
@@ -27,6 +28,7 @@ const CRM_TABS: Array<{ id: CrmPageContext; href: (locale: Locale) => string; la
   { id: 'crm-drafts', href: ROUTES.ADMIN_CRM_DRAFTS, labelKey: 'emailDrafts' },
   { id: 'crm-contacts', href: ROUTES.ADMIN_CRM_CONTACTS, labelKey: 'emailContacts' },
   { id: 'crm-tasks', href: ROUTES.ADMIN_CRM_TASKS, labelKey: 'emailTasks' },
+  { id: 'crm-task-escrows', href: ROUTES.ADMIN_CRM_TASK_ESCROWS, labelKey: 'crmTaskEscrows' },
   { id: 'crm-analytics', href: ROUTES.ADMIN_CRM_ANALYTICS, labelKey: 'emailAnalytics' },
 ]
 

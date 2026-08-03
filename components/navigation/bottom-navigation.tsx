@@ -21,12 +21,12 @@ import {
   Bell,
   Settings,
   ChevronRight,
-  Languages,
   Moon,
   Sun,
   LogIn,
   CircleEllipsis,
 } from 'lucide-react'
+import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 
 import { ROUTES } from '@/constants/routes'
 import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
@@ -37,16 +37,6 @@ import { useVendorStatus } from '@/hooks/use-vendor-status'
 import { AdminSupermenuMobile } from '@/components/navigation/admin-supermenu'
 import type { Locale } from '@/i18n/shared'
 import { useRouter as useNextRouter } from 'next/navigation'
-import {
-  useRouter as useIntlRouter,
-  usePathname as useIntlPathname,
-  replaceLocalePath,
-} from '@/i18n/routing'
-import {
-  localeDisplayLabel,
-  nextLocaleInRoutingOrder,
-  persistRingLocalePreference,
-} from '@/lib/locale-pref'
 import { signIn } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
@@ -273,10 +263,7 @@ function BottomNavFullscreenMenu({
   brandTitle,
   brandSubtitle,
 }: BottomNavFullscreenMenuProps) {
-  const intlRouter = useIntlRouter()
-  const intlPathname = useIntlPathname()
   const nextRouter = useNextRouter()
-  const locale = useLocale() as Locale
   const t = useTranslations('navigation')
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
@@ -309,15 +296,6 @@ function BottomNavFullscreenMenu({
       eventBus.emit('modal:closed', { modalId: 'bottom-nav-fullscreen-menu' })
     }
   }, [isOpen, onClose])
-
-  const switchLocale = useCallback(
-    (newLocale: Locale) => {
-      persistRingLocalePreference(newLocale)
-      replaceLocalePath(intlRouter, intlPathname, newLocale)
-      onClose()
-    },
-    [intlPathname, intlRouter, onClose]
-  )
 
   const handleItemClick = (href: string) => {
     nextRouter.push(href)
@@ -446,15 +424,11 @@ function BottomNavFullscreenMenu({
           style={{ transitionDelay: prefersReducedMotion ? '0ms' : '500ms' }}
         >
           <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
-            <button
-              type="button"
-              onClick={() => switchLocale(nextLocaleInRoutingOrder(locale))}
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10"
-              title={localeDisplayLabel(locale)}
-              aria-label={`Switch locale (${localeDisplayLabel(locale)})`}
-            >
-              <Languages className="h-4 w-4 text-primary" />
-            </button>
+            <LocaleCodeMenu
+              variant="icon"
+              align="start"
+              onLocaleChange={() => onClose()}
+            />
             <NavLegalFooter
               density="comfortable"
               align="center"
@@ -644,6 +618,13 @@ export default function BottomNavigation() {
   const closeOpportunitySelector = useCallback(() => {
     setShowOpportunitySelector(false)
   }, [])
+
+  // Empty-state / right-rail Create Opportunity → same mobile-sheet as the '+' button
+  useEffect(() => {
+    return eventBus.on('opportunity:open-type-selector', () => {
+      openAddOpportunity()
+    })
+  }, [openAddOpportunity])
 
   /**
    * Base navigation items: opportunities, entities, docs|admin, ring menu.

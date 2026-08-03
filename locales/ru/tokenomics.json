@@ -30,7 +30,7 @@
     "subtitle": "Subscriber+ обменивает кредитные баллы и нативный токен по вашему живому brand oracle. Конверсия на Desk и повседневные траты кредитов имеют каждый свой чёткий курс.",
     "oracle": {
       "title": "Курсы brand oracle",
-      "description": "Кредиты к валюте используют credit.unitToDefaultCurrency (обычно 1). Токен к кредитам использует platform_settings.web3.oracle.ringPerUsd на Token Desk. Вы задаёте оба — ваши курсы, ваша экономика."
+      "description": "Кредиты к валюте используют credit.creditBalanceUnitToMainCurrency (обычно 1). Токен к кредитам использует platform_settings.web3.oracle.nativePerMainCurrency на Token Desk. Вы задаёте оба — ваши курсы, ваша экономика."
     },
     "firstSettler": {
       "title": "Приветствие first-settler",

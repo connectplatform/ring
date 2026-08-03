@@ -43,6 +43,17 @@ export function VendorStartRail({ locale, progressPercent = 75, onNavigate }: Ve
 
   return (
     <div className="flex flex-col min-h-0 text-foreground space-y-6">
+      <section className="space-y-2">
+        <h1 className="text-xl font-semibold tracking-tight leading-snug">
+          {t('startPage.title')}
+        </h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {t('startPage.subtitle')}
+        </p>
+      </section>
+
+      <Separator />
+
       <section className="space-y-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <TrendingUp className="h-5 w-5 shrink-0" />

@@ -76,7 +76,7 @@ export class UserMigrationService {
         wallets: [],
         credit_balance: {
           amount: '0',
-          usd_equivalent: '0',
+          main_currency_equivalent: '0',
           last_updated: Date.now(),
           subscription_active: false,
         },

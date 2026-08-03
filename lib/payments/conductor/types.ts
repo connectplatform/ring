@@ -7,15 +7,87 @@ export type PaymentPurpose =
   | 'native_token_onramp'
   /** Calculator ringization deposit → CRM project_orders. */
   | 'project_order'
+  /** Chat task escrow hold / release. */
+  | 'task_escrow'
+  /** Collective-order prepaid slot (Groupon-style). */
+  | 'collective_order_slot'
+  /** Scheduled-services paid slot hold (after collective_order path is green). */
+  | 'scheduled_service_slot'
+  /** Fiat/card chip-in to public pool (DAO jar) — bumps pledged_native_token; not native donate. */
+  | 'public_pool_contribution'
 
-export type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
+/**
+ * **Rail** — the user-facing payment choice. This is what the buyer picks and what
+ * we persist on the order. A rail is never a PSP id: `card` may settle through
+ * WayForPay or Stripe depending on `payment.cardPaymentProcessor` / purpose env.
+ */
+export type PaymentRail = 'card' | 'paypal' | 'credit_balance' | 'native_token'
 
+/** Card-rail PSPs — resolved by `getPaymentProvider(purpose)`, never shown in UI. */
+export type PaymentCardProcessorId = 'wayforpay' | 'stripe'
+
+/**
+ * External PSPs that expose webhook endpoints (`/api/payments/{id}/webhook`).
+ * Subset of PaymentProcessorId — excludes internal rails that settle in-process.
+ */
+export type ExternalPaymentProcessorId = PaymentCardProcessorId | 'paypal'
+
+/**
+ * **Processor** — who actually moves the money, persisted on the ledger row.
+ * External PSPs for the `card` / `paypal` rails; the internal rails settle
+ * synchronously inside `createCheckout` and record themselves as the processor.
+ */
 export type PaymentProcessorId =
-  | 'wayforpay'
-  | 'stripe'
-  | 'internal-credit'
-  | 'native-token'
-  | 'paypal'
+  | ExternalPaymentProcessorId
+  | 'credit_balance'
+  | 'native_token'
+
+export const PAYMENT_RAILS: readonly PaymentRail[] = [
+  'card',
+  'paypal',
+  'credit_balance',
+  'native_token',
+] as const
+
+/**
+ * Coerce any historical/UI payment id into a rail.
+ * PSP ids (`wayforpay`, `stripe`) collapse into `card`; the processor is resolved
+ * by the Conductor, never by the caller. `ring`/`crypto` are pre-SSOT aliases.
+ */
+export function normalizePaymentRail(value: unknown, fallback: PaymentRail = 'card'): PaymentRail {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  switch (raw) {
+    case 'card':
+      return 'card'
+    case 'paypal':
+      return 'paypal'
+    case 'credit_balance':
+      return 'credit_balance'
+    case 'native_token':
+      return 'native_token'
+    // A PSP id arriving where a rail is expected always means the card rail.
+    case 'wayforpay':
+    case 'stripe':
+      return 'card'
+    default:
+      return fallback
+  }
+}
+
+/** Processor persisted alongside the rail when the caller already knows the PSP. */
+export function normalizePaymentProcessor(value: unknown): PaymentProcessorId | undefined {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  switch (raw) {
+    case 'wayforpay':
+    case 'stripe':
+    case 'paypal':
+    case 'credit_balance':
+    case 'native_token':
+      return raw
+    default:
+      return undefined
+  }
+}
 
 export type PaymentTransactionStatus =
   | 'created'
@@ -62,6 +134,15 @@ export interface CreateCheckoutContext {
   articleId?: string
   /** Calculator / CRM project order */
   projectOrderId?: string
+  /** Chat task escrow document id */
+  taskEscrowId?: string
+  /** Collective-order slot escrow document id */
+  collectiveOrderEscrowId?: string
+  /** Public pool (DAO jar) card contribution */
+  publicPoolId?: string
+  publicPoolSlug?: string
+  /** RING units to credit to pledged_native_token (may differ from fiat amount) */
+  amountNativeToken?: string
 }
 
 export interface CreateCheckoutResult {

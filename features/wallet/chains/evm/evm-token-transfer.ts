@@ -15,7 +15,7 @@ import {
 import { polygon } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { Wallet } from '@/features/auth/types'
-import { getNativeChainConfig, getNativeTokenDecimals } from '@/lib/ring-config-chain'
+import { getNativeTokenDecimals, getEvmRpcUrl, getEvmChainId, getEvmTokenAddress } from '@/lib/ring-config-chain'
 import { decryptUserWalletPrivateKey } from '@/lib/wallet/decrypt-user-wallet'
 import { logger } from '@/lib/logger'
 import { cache } from 'react'
@@ -34,24 +34,8 @@ function viemChainById(chainId: number): Chain {
 }
 
 function getEvmChainTokenAddress(): Address | null {
-  const addr = getNativeChainConfig().evm?.tokenAddress
-  if (!addr || addr === '0x0000000000000000000000000000000000000000' || addr.trim() === '') {
-    return null
-  }
-  return addr as Address
-}
-
-function getEvmChainId(): number {
-  return getNativeChainConfig().evm?.chainId ?? 137
-}
-
-function getEvmRpcUrl(): string {
-  const rpcUrlEnv = getNativeChainConfig().evm?.rpcUrlEnv
-  if (rpcUrlEnv && process.env[rpcUrlEnv]) {
-    return process.env[rpcUrlEnv]!
-  }
-  // Legacy fallback: the well-known Polygon RPC env var
-  return process.env.POLYGON_RPC_URL || process.env.NEXT_PUBLIC_POLYGON_RPC_URL || 'https://rpc.ankr.com/polygon'
+  const addr = getEvmTokenAddress()
+  return addr ? (addr as Address) : null
 }
 
 function getEvmTokenDecimals(): number {
@@ -80,7 +64,14 @@ export const getEvmTokenBalanceCached = cache(async (walletAddress: string): Pro
 })
 
 /**
- * Fetch the native token balance (ERC20) for an EVM wallet address.
+ * Fetch the configured EVM RING ERC-20 balance for a wallet address.
+ *
+ * This is NOT the platform-native balance when `chains.native === 'solana'`.
+ * Platform-native SSOT is `getNativeTokenBalanceForUser()` → solana SPL or EVM
+ * based on `getNativeChain()`. Use this helper only for:
+ *   - custodial EVM/Base wallets (wallet.chain === 'evm'|'base')
+ *   - EVM RING token when `chains.evm.tokenAddress` is set
+ *
  * Resolves token address, decimals, chain, and RPC from ring-config SSOT.
  */
 export async function getEvmTokenBalance(walletAddress: string): Promise<string> {
@@ -115,12 +106,168 @@ export async function getEvmTokenBalance(walletAddress: string): Promise<string>
   return formatUnits(balance, decimals)
 }
 
+/**
+ * ERC-20 balanceOf for an arbitrary allowlisted token (treasury swap, diversify).
+ * For the configured RING ERC-20 on this EVM chain, prefer getEvmTokenBalance().
+ * For platform-native RING (Solana or EVM per chains.native), use
+ * getNativeTokenBalanceForUser() in native-token-transfer-service.
+ */
+export async function getEvmErc20Balance(
+  tokenAddress: string,
+  walletAddress: string,
+  decimals = 18,
+): Promise<string> {
+  if (!tokenAddress || !walletAddress) return '0'
+  const raw = await getEvmErc20BalanceRaw(tokenAddress, walletAddress)
+  return formatUnits(raw, decimals)
+}
+
+export async function getEvmErc20BalanceRaw(
+  tokenAddress: string,
+  walletAddress: string,
+): Promise<bigint> {
+  if (!tokenAddress || !walletAddress) return 0n
+  const client = getPublicClient()
+  const callData = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [walletAddress as Address],
+  })
+  const result = await client.call({ to: tokenAddress as Address, data: callData })
+  return decodeFunctionResult({
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    data: result.data ?? '0x0',
+  }) as bigint
+}
+
+/**
+ * Verify an ERC-20 Transfer in a mined tx: from → to, matching token + min amount.
+ */
+export async function verifyErc20TransferInTx(params: {
+  txHash: `0x${string}`
+  tokenAddress: Address
+  fromAddress: Address
+  toAddress: Address
+  minAmountRaw: bigint
+}): Promise<{ ok: true; amountRaw: bigint; blockNumber: bigint } | { ok: false; error: string }> {
+  const client = getPublicClient()
+  const receipt = await client.getTransactionReceipt({ hash: params.txHash })
+  if (!receipt || receipt.status !== 'success') {
+    return { ok: false, error: 'transaction_not_successful' }
+  }
+
+  const { parseEventLogs } = await import('viem')
+  const transfers = parseEventLogs({
+    abi: erc20Abi,
+    eventName: 'Transfer',
+    logs: receipt.logs,
+  })
+
+  const fromLower = params.fromAddress.toLowerCase()
+  const toLower = params.toAddress.toLowerCase()
+  const tokenLower = params.tokenAddress.toLowerCase()
+
+  for (const ev of transfers) {
+    if (ev.address.toLowerCase() !== tokenLower) continue
+    const { from, to, value } = ev.args as {
+      from: Address
+      to: Address
+      value: bigint
+    }
+    if (from.toLowerCase() !== fromLower || to.toLowerCase() !== toLower) continue
+    if (value < params.minAmountRaw) {
+      return { ok: false, error: 'transfer_amount_too_low' }
+    }
+    return { ok: true, amountRaw: value, blockNumber: receipt.blockNumber }
+  }
+
+  return { ok: false, error: 'transfer_log_not_found' }
+}
+
+/**
+ * Custodial ERC-20 transfer for an arbitrary token (ops/treasury settlement helper).
+ */
+export async function transferEvmErc20Tokens(params: {
+  senderWallet: Wallet
+  tokenAddress: string
+  toAddress: string
+  amount: string
+  decimals: number
+  encryptionKey?: string
+}): Promise<{ txHash: string }> {
+  const encryptionKey = params.encryptionKey ?? process.env.WALLET_ENCRYPTION_KEY
+  if (!encryptionKey) {
+    throw new Error('WALLET_ENCRYPTION_KEY not configured')
+  }
+
+  const token = params.tokenAddress as Address
+  const value = parseUnits(params.amount, params.decimals)
+  const privateKey = decryptUserWalletPrivateKey(
+    params.senderWallet.encryptedPrivateKey,
+    encryptionKey,
+  )
+  const account = privateKeyToAccount(privateKey as `0x${string}`)
+  const chainId = getEvmChainId()
+
+  const walletClient = createWalletClient({
+    account,
+    chain: viemChainById(chainId),
+    transport: http(getEvmRpcUrl()),
+  })
+
+  const { request } = await getPublicClient().simulateContract({
+    account,
+    address: token,
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [params.toAddress as Address, value],
+  })
+
+  const txHash = await walletClient.writeContract(request)
+  return { txHash }
+}
+
+/**
+ * Ops/treasury send of configured RING ERC-20 (raw amount).
+ * Used when chains.native=evm for treasury-swap settlement.
+ * Requires EVM_TREASURY_PRIVATE_KEY + chains.evm.tokenAddress.
+ */
+export async function transferEvmRingRawFromOpsKey(params: {
+  toAddress: string
+  amountRaw: bigint
+}): Promise<{ txHash: string; fromAddress: string }> {
+  const opsKey = process.env.EVM_TREASURY_PRIVATE_KEY
+  if (!opsKey) {
+    throw new Error('evm_treasury_private_key_not_configured')
+  }
+  const token = getTransferTokenAddress()
+  const account = privateKeyToAccount(
+    (opsKey.startsWith('0x') ? opsKey : `0x${opsKey}`) as `0x${string}`,
+  )
+  const chainId = getEvmChainId()
+  const walletClient = createWalletClient({
+    account,
+    chain: viemChainById(chainId),
+    transport: http(getEvmRpcUrl()),
+  })
+  const { request } = await getPublicClient().simulateContract({
+    account,
+    address: token,
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [params.toAddress as Address, params.amountRaw],
+  })
+  const txHash = await walletClient.writeContract(request)
+  return { txHash, fromAddress: account.address }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Transfer (unchanged below — uses private key, still Polygon-specific for the
 // custodial send path; chain-configurable abstraction is TODO.)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Placeholder: get the Polygon token address for the transfer path. */
+/** Resolve configured EVM RING ERC-20 for custodial/ops transfers. */
 function getTransferTokenAddress(): Address {
   const addr = getEvmChainTokenAddress()
   if (!addr) throw new Error('EVM token address not configured for transfers')
@@ -131,8 +278,8 @@ function getTransferTokenAddress(): Address {
 // (moved up to line 77)
 
 /**
- * Transfers native EVM tokens from the user's wallet to a destination address.
- * Uses the decrypted private key to sign the transaction.
+ * Transfers configured EVM RING ERC-20 from a custodial user wallet (UI amount string).
+ * Platform-native when chains.native is evm/base — not used for Solana SPL.
  */
 export async function transferEvmTokens(params: {
   senderWallet: Wallet

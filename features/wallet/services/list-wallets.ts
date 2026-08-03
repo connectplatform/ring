@@ -6,7 +6,7 @@ import { getUserWallets } from '@/lib/wallet/user-wallet-db'
 import { getCachedBalancesForUser } from '@/lib/wallet/wallet-balance-cache'
 import { getNativeTokenSymbol, SupportedChains } from '@/lib/ring-config-chain'
 import { DEFAULT_WALLET_CHAIN } from '@/features/wallet/types/wallet'
-import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { toIsoDate } from '@/lib/serialization/to-iso-date'
 import { logger } from '@/lib/logger'
 
@@ -17,9 +17,9 @@ export interface WalletInfo {
   createdAt?: string
   /** Cached or freshly-fetched on-chain native token balance (formatted string). */
   balance?: string
-  nativeBalance?: string
+  nativeTokenBalance?: string
   tokenSymbol?: string
-  creditFiatCurrency?: string
+  mainCurrency?: string
   chain?: SupportedChains
   balanceUpdatedAt?: number
 }
@@ -51,12 +51,12 @@ export async function listWallets(): Promise<WalletInfo[]> {
 
   const defaultWallet = selectDefaultWallet(wallets)
   const tokenSymbol = getNativeTokenSymbol()
-  const creditFiatCurrency = getDefaultStoreCurrencySymbol()
+  const mainCurrency = getMainCurrencySymbol()
 
   const walletsInfo = wallets.map((wallet) => {
     const chain = wallet.chain ?? DEFAULT_WALLET_CHAIN
     const cached = balanceCache.get(wallet.address)
-    const nativeBalance = cached?.balance ?? wallet.balance ?? '0'
+    const nativeTokenBalance = cached?.balance ?? wallet.balance ?? '0'
 
     return {
       address: wallet.address,
@@ -64,9 +64,9 @@ export async function listWallets(): Promise<WalletInfo[]> {
       label: wallet.label,
       createdAt: toIsoDate(wallet.createdAt),
       balance: wallet.balance,
-      nativeBalance,
+      nativeTokenBalance,
       tokenSymbol,
-      creditFiatCurrency,
+      mainCurrency,
       chain,
       balanceUpdatedAt: wallet.balanceUpdatedAt,
     }

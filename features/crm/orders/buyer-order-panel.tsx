@@ -9,7 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Avatar } from '@/components/ui/avatar'
-import { LabThread } from '@/features/crm/lab/order-lab-chat-rail'
+import { EmbeddedConversation } from '@/features/crm/lab/order-lab-chat-rail'
+import { OwnerSecretsPanel } from '@/features/crm/orders/owner-secrets-panel'
+import { ProjectConfigPanel } from '@/features/crm/orders/project-config-panel'
+import { RingizationPlaybookPanel } from '@/features/crm/lab/ringization-playbook-panel'
+import { OrderSourcePanel } from '@/features/crm/lab/order-source/order-source-panel'
+import { WikiDeskPanel } from '@/features/wiki/components/wiki-desk-panel'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { ProjectOrder } from '@/features/crm/orders/types'
@@ -185,6 +190,12 @@ export function BuyerOrderPanel({
         </CardContent>
       </Card>
 
+      <RingizationPlaybookPanel locale={locale} role="buyer" />
+      <ProjectConfigPanel mode="buyer" orderId={order.id} />
+      <OwnerSecretsPanel orderId={order.id} />
+      <OrderSourcePanel orderId={order.id} role="buyer" />
+      <WikiDeskPanel orderId={order.id} locale={locale} />
+
       <Card>
         <CardHeader className="flex flex-row items-center gap-2 space-y-0">
           <FlaskConical className="h-4 w-4 text-amber-600" />
@@ -196,7 +207,11 @@ export function BuyerOrderPanel({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             </div>
           ) : labId ? (
-            <LabThread conversationId={labId} userId={userId} />
+            <EmbeddedConversation
+              conversationId={labId}
+              userId={userId}
+              variant="order_lab"
+            />
           ) : (
             <p className="p-4 text-sm text-muted-foreground">{t('order.lab.noProjectRoom')}</p>
           )}

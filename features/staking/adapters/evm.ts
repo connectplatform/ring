@@ -25,9 +25,9 @@
  *    distributeRewards(recipients[], amounts[]) once per epoch — there is NO
  *    user claim method. claimByPool('DAARION_DISTRIBUTOR') therefore resolves
  *    to txHash '' unless ring-config declares a claim method override.
- * 2. Signer: on the client, obtain an ethers v6 BrowserProvider signer from the
- *    connected wallet (wagmi/EIP-1193): `getSigner: () => provider.getSigner()`.
- *    Never instantiate signers inside this module — inject via overrides.
+ * 2. Wallet: on the client, inject a viem WalletClient from wagmi
+ *    (`getWalletClient` / connector). Never use ethers — app runtime is wagmi+viem only.
+ *    `getSigner` override name is legacy; it must return a viem WalletClient (or null).
  * 3. Config: call buildEvmStakingConfigFromSSOT({ getSigner, abis, ... }) on the
  *    client boundary. It throws StakingConfigError with precise messages —
  *    surface `err.code` to i18n, log `err.message` for ops.
@@ -51,12 +51,19 @@ import {
 import { parseTokenAmount } from '../../evm/utils'
 import { getEvmChainWalletSlot } from '../slots'
 import type { EvmChainConfig } from '@/lib/ring-config-chain'
+import {
+  type Abi,
+  type WalletClient,
+  createPublicClient,
+  http,
+  parseAbi,
+  getAddress,
+} from 'viem'
+import { polygon } from 'viem/chains'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
-// Type aliases for Ethers.js contract and signer objects.
-// TODO(agent:evm-client): replace with `import type { Contract, Signer } from 'ethers'`
-// once ethers v6 becomes a direct dependency of the client bundle.
-type EthersLikeContract = any
-type EthersLikeSigner = any
+/** Injected wallet — viem WalletClient (wagmi). Legacy name: getSigner. */
+type StakingWalletClient = WalletClient
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Address / ABI brands + runtime guards
@@ -201,27 +208,67 @@ export interface EvmStakingConfig {
   methods?: Readonly<Record<string, string>>
   /** Pool-id → token-symbol mapping (cross-validated against `tokens`). */
   poolToToken?: Readonly<Partial<Record<StakingPool, string>>>
-  /** Signer factory — injected by the "ring-wallet" slot, NEVER hardcoded here. */
-  getSigner: () => Promise<EthersLikeSigner | null>
+  /** WalletClient factory — injected by the wallet UI (wagmi). Legacy name: getSigner. */
+  getSigner: () => Promise<StakingWalletClient | null>
   /** Optional server-side/cached position reader. */
   readPositions?: (address: string) => Promise<StakingPosition[]>
 }
 
-// Minimal ERC20 fragments needed for the approval flow
-const MINIMAL_ERC20_ABI: EvmAbi = [
+// Minimal ERC20 fragments needed for the approval flow (viem human-readable)
+const MINIMAL_ERC20_ABI = [
   'function approve(address spender, uint256 value) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
   'function balanceOf(address account) view returns (uint256)',
-]
+] as const
 
-/**
- * Instantiate an ethers Contract. Kept require()-based to avoid a hard
- * compile-time dependency; the client agent may swap to `await import('ethers')`.
- */
-function toContract(address: EvmAddress, abi: EvmAbi, signer: EthersLikeSigner): EthersLikeContract {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { Contract } = require('ethers')
-  return new Contract(address, abi, signer)
+function toViemAbi(abi: EvmAbi): Abi {
+  if (abi.length > 0 && abi.every((x) => typeof x === 'string')) {
+    return parseAbi(abi as readonly string[])
+  }
+  return abi as Abi
+}
+
+async function writeStakingMethod(
+  client: StakingWalletClient,
+  address: EvmAddress,
+  abi: EvmAbi,
+  functionName: string,
+  args: unknown[] = []
+): Promise<{ txHash: string }> {
+  if (!METHOD_NAME_RE.test(functionName)) {
+    throw new StakingError('METHOD_UNAVAILABLE', `Invalid contract method "${functionName}"`)
+  }
+  if (!client.account) {
+    throw new StakingError('WALLET_NOT_CONNECTED', 'Wallet account missing on WalletClient')
+  }
+  const hash = await client.writeContract({
+    address: getAddress(address),
+    abi: toViemAbi(abi),
+    functionName,
+    args,
+    account: client.account,
+    chain: client.chain ?? null,
+  } as never)
+  return { txHash: hash as `0x${string}` }
+}
+
+async function readStakingMethod(
+  address: EvmAddress,
+  abi: EvmAbi,
+  functionName: string,
+  args: unknown[] = []
+): Promise<unknown> {
+  const client = createPublicClient({
+    chain: polygon,
+    transport: http(getEvmRpcUrl()),
+  })
+  // Dynamic ABIs from ring-config — loosen viem generics
+  return client.readContract({
+    address: getAddress(address),
+    abi: toViemAbi(abi),
+    functionName,
+    args,
+  } as never)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,7 +280,8 @@ function toContract(address: EvmAddress, abi: EvmAbi, signer: EthersLikeSigner):
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface BuildEvmStakingConfigOverrides {
-  getSigner: () => Promise<EthersLikeSigner | null>
+  /** Legacy name — must return a viem WalletClient (wagmi), not ethers Signer. */
+  getSigner: () => Promise<StakingWalletClient | null>
   abis: { aprStaking: EvmAbi; feeDistributor: EvmAbi; erc20?: EvmAbi }
   /** Injectable slot for tests; defaults to the live ring-config slot. */
   chainSlot?: EvmChainConfig
@@ -297,7 +345,7 @@ export function buildEvmStakingConfigFromSSOT(
 
   // ---- Signer injection ----
   if (typeof overrides.getSigner !== 'function') {
-    throw new StakingConfigError('getSigner must be a function returning Promise<Signer | null>')
+    throw new StakingConfigError('getSigner must be a function returning Promise<WalletClient | null>')
   }
   const getSigner = overrides.getSigner
 
@@ -480,10 +528,10 @@ export function buildEvmStakingConfigFromSSOT(
 export function createEvmStakingAdapter(config: EvmStakingConfig): StakingAdapter {
   const { tokens, contracts, methods = {}, poolToToken } = config
 
-  async function withSigner<T>(fn: (signer: EthersLikeSigner) => Promise<T>): Promise<T> {
-    const signer = await config.getSigner()
-    if (!signer) throw new StakingError('WALLET_NOT_CONNECTED', 'Wallet not connected')
-    return fn(signer)
+  async function withWallet<T>(fn: (client: StakingWalletClient) => Promise<T>): Promise<T> {
+    const client = await config.getSigner()
+    if (!client) throw new StakingError('WALLET_NOT_CONNECTED', 'Wallet not connected')
+    return fn(client)
   }
 
   function requireAmount(amount: string): void {
@@ -493,29 +541,23 @@ export function createEvmStakingAdapter(config: EvmStakingConfig): StakingAdapte
     }
   }
 
-  /** Resolve a method on a contract instance, guarding dynamic dispatch. */
-  function contractMethod(contract: EthersLikeContract, method: string) {
-    if (typeof contract[method] !== 'function') {
-      throw new StakingError('METHOD_UNAVAILABLE', `Contract method "${method}" not found on ABI — check chains.evm.staking.methods overrides`)
-    }
-    return contract[method].bind(contract)
-  }
-
   /** Ensure ERC20 allowance covers the stake amount; approve when short. */
   async function ensureApproval(
-    signer: EthersLikeSigner,
+    client: StakingWalletClient,
     tokenAddress: EvmAddress,
     spender: EvmAddress,
     amountRaw: string
   ): Promise<void> {
-    const owner = await signer.getAddress()
-    const erc20Abi = contracts.erc20?.abi ?? MINIMAL_ERC20_ABI
-    const erc20 = toContract(tokenAddress, erc20Abi, signer)
-    const current = await erc20.allowance(owner, spender)
+    const owner = client.account?.address
+    if (!owner) throw new StakingError('WALLET_NOT_CONNECTED', 'Wallet account missing')
+    const erc20Abi = (contracts.erc20?.abi ?? MINIMAL_ERC20_ABI) as EvmAbi
+    const current = await readStakingMethod(tokenAddress, erc20Abi, 'allowance', [
+      owner,
+      spender,
+    ])
     const currentBig = typeof current === 'bigint' ? current : BigInt(String(current))
     if (currentBig >= BigInt(amountRaw)) return
-    const tx = await erc20.approve(spender, amountRaw)
-    await tx.wait()
+    await writeStakingMethod(client, tokenAddress, erc20Abi, 'approve', [spender, amountRaw])
   }
 
   /** Pool → token symbol. Fail-fast: no silent pool-as-token casting. */
@@ -546,66 +588,49 @@ export function createEvmStakingAdapter(config: EvmStakingConfig): StakingAdapte
   return {
     async getPositions(address: string): Promise<StakingPosition[]> {
       if (config.readPositions) return config.readPositions(address)
-      // No on-chain fallback reader configured — return empty rather than lying.
-      // TODO(agent:evm-client): wire features/staking/server/read-positions.ts
-      // through overrides.readPositions for cached server-side reads.
       return []
     },
 
     async stake(token: StakingToken, amount: string): Promise<StakeTxResult> {
       requireAmount(amount)
-      return withSigner(async (signer) => {
+      return withWallet(async (client) => {
         const cfg = tokenCfg(token)
         const amountRaw = parseTokenAmount(amount, cfg.tokenDecimals)
         const target = stakingTarget()
-        await ensureApproval(signer, cfg.tokenAddress, target.address, amountRaw)
+        await ensureApproval(client, cfg.tokenAddress, target.address, amountRaw)
         const method = methods[`stake${String(token)}`] ?? `stake${String(token)}`
-        const contract = toContract(target.address, target.abi, signer)
-        const tx = await contractMethod(contract, method)(amountRaw)
-        const receipt = await tx.wait()
-        return { txHash: receipt?.hash || tx.hash }
+        return writeStakingMethod(client, target.address, target.abi, method, [amountRaw])
       })
     },
 
     async unstake(token: StakingToken, amount: string): Promise<StakeTxResult> {
       requireAmount(amount)
-      return withSigner(async (signer) => {
+      return withWallet(async (client) => {
         const cfg = tokenCfg(token)
         const amountRaw = parseTokenAmount(amount, cfg.tokenDecimals)
         const target = stakingTarget()
         const method = methods[`unstake${String(token)}`] ?? `unstake${String(token)}`
-        const contract = toContract(target.address, target.abi, signer)
-        const tx = await contractMethod(contract, method)(amountRaw)
-        const receipt = await tx.wait()
-        return { txHash: receipt?.hash || tx.hash }
+        return writeStakingMethod(client, target.address, target.abi, method, [amountRaw])
       })
     },
 
-    /**
-     * Claim rewards. APRStaking.claimReward() pays accumulated rewards from
-     * BOTH APR pools in one tx (see APRStaking.sol). Distributor rewards are
-     * owner-pushed per epoch — claim resolves to txHash '' unless a claim
-     * method override is configured.
-     */
     async claimRewards(token: StakingToken): Promise<StakeTxResult> {
-      return withSigner(async (signer) => {
-        tokenCfg(token) // validate symbol before any dispatch
+      return withWallet(async (client) => {
+        tokenCfg(token)
         if (contracts.aprStaking) {
           const method = methods[`claim${String(token)}`] ?? methods.claimReward ?? 'claimReward'
-          const contract = toContract(contracts.aprStaking.address, contracts.aprStaking.abi, signer)
-          const tx = await contractMethod(contract, method)()
-          const receipt = await tx.wait()
-          return { txHash: receipt?.hash || tx.hash }
+          return writeStakingMethod(client, contracts.aprStaking.address, contracts.aprStaking.abi, method, [])
         }
         const claimOverride = methods[`claim${String(token)}`]
         if (contracts.feeDistributor && claimOverride) {
-          const contract = toContract(contracts.feeDistributor.address, contracts.feeDistributor.abi, signer)
-          const tx = await contractMethod(contract, claimOverride)()
-          const receipt = await tx.wait()
-          return { txHash: receipt?.hash || tx.hash }
+          return writeStakingMethod(
+            client,
+            contracts.feeDistributor.address,
+            contracts.feeDistributor.abi,
+            claimOverride,
+            []
+          )
         }
-        // Distributor pools are owner-distributed each epoch — nothing to submit.
-        // UI SPEC: render "auto-distributed each epoch" state when txHash === ''.
         return { txHash: '' }
       })
     },
@@ -620,18 +645,20 @@ export function createEvmStakingAdapter(config: EvmStakingConfig): StakingAdapte
 
     async claimByPool(pool: StakingPool): Promise<StakeTxResult> {
       const token = tokenFromPool(pool)
-      // Distributor pool: claim only via explicit feeDistributor method override.
       if (pool === 'DAARION_DISTRIBUTOR' && contracts.feeDistributor) {
         const claimOverride = methods[`claim${String(token)}`]
         if (claimOverride) {
-          return withSigner(async (signer) => {
-            const contract = toContract(contracts.feeDistributor!.address, contracts.feeDistributor!.abi, signer)
-            const tx = await contractMethod(contract, claimOverride)()
-            const receipt = await tx.wait()
-            return { txHash: receipt?.hash || tx.hash }
-          })
+          return withWallet(async (client) =>
+            writeStakingMethod(
+              client,
+              contracts.feeDistributor!.address,
+              contracts.feeDistributor!.abi,
+              claimOverride,
+              []
+            )
+          )
         }
-        return { txHash: '' } // owner-pushed epoch distribution — auto-distributed
+        return { txHash: '' }
       }
       return this.claimRewards(token)
     },

@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, Wallet, ExternalLink } from 'lucide-react'
 import { shortenAddress } from '@/features/evm/utils'
-import CryptoOnboardingForm from '@/features/auth/components/crypto-onboarding-form'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import {
   getMetaMaskDappDeepLink,
@@ -103,28 +102,23 @@ export function WalletConnectAuth({ locale, from }: WalletConnectAuthProps) {
 
   useEffect(() => {
     if (sessionStatus !== 'authenticated' || !session?.user) return
-    if (session.user.needsOnboarding) return
     if (redirectStarted.current) return
     redirectStarted.current = true
+    if (session.user.needsOnboarding) {
+      const qs = new URLSearchParams()
+      if (from) qs.set('callbackUrl', from)
+      const q = qs.toString()
+      router.replace(
+        q ? `${ROUTES.LOGIN_ONBOARDING(locale)}?${q}` : ROUTES.LOGIN_ONBOARDING(locale),
+      )
+      return
+    }
     router.replace(redirectTarget)
-  }, [sessionStatus, session, router, redirectTarget])
-
-  const handleOnboardingComplete = useCallback(async () => {
-    redirectStarted.current = true
-    router.replace(redirectTarget)
-  }, [router, redirectTarget])
+  }, [sessionStatus, session, router, redirectTarget, from, locale])
 
   const showOpenInMetaMask = isMobile && !injectedAvailable && !isConnected
 
-  if (sessionStatus === 'authenticated' && session?.user?.needsOnboarding) {
-    return (
-      <div className="w-full max-w-md mx-auto">
-        <CryptoOnboardingForm onComplete={handleOnboardingComplete} />
-      </div>
-    )
-  }
-
-  if (sessionStatus === 'authenticated' && !session?.user?.needsOnboarding) {
+  if (sessionStatus === 'authenticated') {
     return (
       <div className="flex flex-col items-center gap-3 py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

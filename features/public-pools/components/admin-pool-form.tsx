@@ -247,6 +247,33 @@ export function AdminPoolForm({
         />
       </div>
 
+      {/* TD-MONEY-02 builder payout targets */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="builder_user_id">{t('builderUserIdLabel')}</Label>
+          <Input
+            id="builder_user_id"
+            name="builder_user_id"
+            placeholder={t('builderUserIdPlaceholder')}
+            defaultValue={pool?.builder_user_id ?? ''}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="payout_wallet_address">{t('payoutWalletLabel')}</Label>
+          <Input
+            id="payout_wallet_address"
+            name="payout_wallet_address"
+            placeholder={t('payoutWalletPlaceholder')}
+            defaultValue={pool?.payout_wallet_address ?? ''}
+          />
+        </div>
+      </div>
+      {mode === 'edit' && pool?.payout_tx_hash ? (
+        <p className="text-xs text-muted-foreground">
+          {t('payoutTxHash', { hash: pool.payout_tx_hash })}
+        </p>
+      ) : null}
+
       {/* Optional labels, entered as a comma-separated string */}
       <div className="space-y-2">
         <Label htmlFor="labels">{t('labelsLabel')}</Label>
@@ -266,8 +293,8 @@ export function AdminPoolForm({
           {/* Pool funding pledge summary */}
           <p>
             {t('pledgedSummary', {
-              pledged: pool.pledged_ring,
-              goal: pool.goal_ring,
+              pledged: pool.pledged_native_token,
+              goal: pool.goal_native_token,
               token: nativeToken,
             })}
           </p>

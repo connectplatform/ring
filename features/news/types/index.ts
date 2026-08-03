@@ -90,6 +90,19 @@ export interface NewsArticle {
   // Soft-delete forensics
   deletedAt?: Timestamp;
   deletedBy?: string;
+  /** Author Save history (immutable commits). Orthogonal to community news_revisions. */
+  versions?: {
+    tipCommitId: string;
+    commits: Array<{
+      id: string;
+      parentId: string | null;
+      createdAt: string;
+      createdBy: string;
+      label?: string;
+      content: string;
+      contentFormat: 'html' | 'text' | 'json';
+    }>;
+  };
 }
 
 export interface NewsStatusHistoryEntry {
@@ -175,6 +188,8 @@ export interface NewsFormData {
   promoteToMainPage?: boolean;
   locale?: string;
   deletedAt?: Date;
+  /** Author version history tip + commits (Save-only; not autosave). */
+  versions?: NewsArticle['versions'];
 }
 
 // News query filters

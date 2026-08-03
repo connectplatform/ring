@@ -8,8 +8,11 @@ import {
   VendorAcceptedPaymentMethods, 
   VendorMerchantPayoutRailType,
 } from '@/lib/ring-config-types'
-import type { SupportedCurrencies, SupportedTokens } from '@/lib/ring-config-types'
+import type { SupportedCurrencies, SupportedCrypto } from '@/lib/ring-config-types'
+import type { PaymentProcessorId, PaymentRail } from '@/lib/payments/conductor/types'
 import type { GenerativeGalleryValue } from '@/features/generative-media/types'
+import type { ProductResearchMediaRef } from '@/features/store/lib/product-cabinet-media'
+import type { WebProductFieldSuggestions } from '@/lib/web'
 
 // Inventory Sync Configuration
 export interface InventorySync {
@@ -62,9 +65,12 @@ export interface ProductCompliance {
   intellectualPropertyStatus?: 'owned' | 'licensed' | 'pending' | 'none'
 }
 
-export type StoreFiatCurrencies = SupportedCurrencies
-export type StoreCryptoCurrencies = SupportedTokens
-export type StoreCurrency = StoreFiatCurrencies | StoreCryptoCurrencies
+/**
+ * Codes a store product / cart line may be priced or displayed in.
+ * Fiat = SupportedCurrencies (ring-config currencies / supportedCurrencies);
+ * crypto = SupportedCrypto (tokens.supported). Distinct from PaymentRail.
+ */
+export type StorePaymentMethods = SupportedCurrencies | SupportedCrypto
 
 // Product Variant Types
 export interface VariantOption {
@@ -84,19 +90,42 @@ export interface ProductVariant {
 export type VendorTier = 'NEW' | 'BASIC' | 'VERIFIED' | 'TRUSTED' | 'PREMIUM'
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
+/** Admin Wiki pointer for full product NODUS (AGENT-PRODUCT-SCHEMA). */
+export interface ProductNodusWikiRef {
+  wikiPageId: string
+  wikiVaultKey?: string
+  title?: string
+  updatedAt?: string
+  /** Optional small cache; authoritative NODUS body lives in wiki. */
+  nodusPreview?: Record<string, unknown>
+}
 
 export interface StoreProduct {
   id: string
   name: string
   description?: string
   price: string
-  currency: StoreCurrency
+  currency: StorePaymentMethods
   inStock: boolean
 
   // P0 Critical Fields (Phase 2: Multi-vendor marketplace - 2025-11-04)
   sku?: string // Stock Keeping Unit (inventory tracking, barcode scanning)
   slug?: string // SEO-friendly URL
   longDescription?: string // Rich product content for detail pages
+  /**
+   * Human-friendly markdown sales knowledge for the product agent (TextConductor Research output).
+   * Flat key on store_products.data JSONB.
+   */
+  productAgent?: string
+  /**
+   * Pointer (+ optional cached nodus) to Admin Wiki page holding the full product NODUS.
+   * Full sometimes-1000-line nodus lives in wiki body; CRM keeps the link.
+   */
+  productNodusWiki?: ProductNodusWikiRef
+  /** WebConductor suggestions and cabinet-owned alternative media. */
+  productResearchFields?: WebProductFieldSuggestions
+  productResearchMedia?: ProductResearchMediaRef[]
+  productNodusDraft?: Record<string, unknown>
   reorderPoint?: number // Auto-reorder trigger level
   vendorTier?: VendorTier // Vendor trust tier
   commissionRate?: number // Platform commission % (12-20)
@@ -191,14 +220,27 @@ export interface CheckoutInfo {
   country?: string
 }
 
-// Payment-related types
-export type PaymentMethod = 'wayforpay' | 'stripe' | 'crypto' | 'credit' | 'paypal' | 'card' | 'token'
+/**
+ * Store payment taxonomy — mirrors `@/lib/payments/conductor/types`.
+ *
+ * - **rail** is what the buyer picked and what the UI renders
+ * - **processor** is the PSP that moved the money; ops/reporting only
+ *
+ * PSP ids must never leak into a rail union: `card` settles through WayForPay or
+ * Stripe depending on `payment.cardPaymentProcessor`.
+ */
+export type StorePaymentRail = PaymentRail
+export type StorePaymentProcessor = PaymentProcessorId
+
 export type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'partially_refunded'
 export type RefundStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
 export type DisputeStatus = 'open' | 'investigating' | 'resolved' | 'closed' | 'escalated'
 
 export interface StorePayment {
-  method: PaymentMethod
+  /** User-facing rail (never a PSP id). */
+  method: StorePaymentRail
+  /** PSP that settled the payment — set for `card` / `paypal` rails. */
+  processor?: StorePaymentProcessor
   status: PaymentStatus
   wayforpayOrderId?: string
   wayforpayTransactionId?: string
@@ -250,26 +292,6 @@ export interface VendorSettlement {
   payoutReference?: string
 }
 
-export interface PaymentTransaction {
-  id: string
-  orderId: string
-  userId: string
-  vendorId?: string
-  gatewayId: 'wayforpay' | 'stripe' | 'crypto'
-  gatewayTransactionId: string
-  amount: number
-  currency: string
-  status: PaymentStatus
-  method: PaymentMethod
-  cardLast4?: string
-  cardType?: string
-  refundedAmount?: number
-  disputeStatus?: DisputeStatus
-  metadata?: Record<string, any>
-  createdAt: string
-  updatedAt?: string
-}
-
 export interface Refund {
   id: string
   transactionId: string
@@ -319,7 +341,10 @@ export interface StoreAdapter {
 
 // Extended order-related types (P0)
 export interface PaymentInfo {
-  method: 'stripe' | 'crypto' | 'cod'
+  /** User-facing rail (never a PSP id). */
+  method: StorePaymentRail
+  /** PSP that settled the payment — set for `card` / `paypal` rails. */
+  processor?: StorePaymentProcessor
   status: 'pending' | 'paid' | 'failed'
   txHash?: string
   stripeSessionId?: string
@@ -342,7 +367,7 @@ export interface OrderItem {
   productId: string
   name: string
   price: string
-  currency: StoreCurrency
+  currency: StorePaymentMethods
   quantity: number
   // Multi-vendor fields
   vendorId?: string

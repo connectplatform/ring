@@ -1,149 +1,203 @@
 ---
-title: Messaging
-description: Messaging documentation for Ring Platform
+title: Real-Time Messaging
+description: Conversations REST + Tunnel Protocol — channel types, tool-chat subtypes, and live deal chat without page reloads
+last_modified: "2026-07-24"
+audience: both
 ---
 
-# Real-time Messaging
+# Real-Time Messaging
 
-Advanced communication system with **Tunnel Transport** abstraction, WebSocket support, and Edge Runtime compatibility.
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. This article is the SSOT for **Conversation.type** (channel) vs **metadata.kind** (subtype) and inbox hygiene for tool chats.
+</Callout>
 
-## Overview
+Ring messaging combines **REST conversations** with **Tunnel Protocol** fan-out so members chat in context of opportunities, entities, and store deals without refreshing the page.
 
-Ring Platform messaging provides seamless real-time communication between entities, opportunity applicants, and platform users with multi-transport reliability.
+| Layer | Where |
+|-------|--------|
+| REST | `app/api/conversations/**` |
+| Realtime | Tunnel channels `conversation:{id}` — see [Tunnel Protocol](/docs/features/tunnel-protocol) |
+| UI | `features/chat`, `features/messages` |
+| Types | `features/chat/types/index.ts` |
+| API reference | [Messaging API](/docs/api/messaging) |
 
-## Transport Architecture
+## Channel vs subtype (shared)
 
-### Tunnel Transport Abstraction
-Intelligent transport selection for optimal performance:
+Ring does **not** invent a new top-level conversation type for every feature. Two layers stay separate:
 
-// Automatic transport selection
+| Field | Meaning | Example |
+|-------|---------|---------|
+| `Conversation.type` | **Channel / domain routing** — where the thread lives in the messaging system | `direct`, `entity`, `opportunity`, `product`, `group` |
+| `metadata.kind` | **Optional subtype** within that channel | `generative_gallery` |
+| `metadata.hiddenFromInbox` | **Inbox contract** — hide from Messages list | `true` for tool editors |
 
-<Code language="typescript" title="TypeScript">
-{`const transport = new TunnelTransport({
-  primary: 'websocket',
-  fallbacks: ['sse', 'longpolling']
-})`}
-</Code>
+Verified channel enum (TypeScript + create zod in `app/api/conversations/route.ts`):
 
-### Transport Options
+`direct` | `entity` | `opportunity` | `product` | `group`
 
-#### WebSocket (Primary)
-- **Real-time bidirectional** communication
-- **Low latency** message delivery
-- **Connection persistence** across sessions
-- **Optimal for** desktop and mobile apps
+<Callout type="warning">
+  Do **not** add `type: 'generative'`. Generative Gallery reuses `type: 'product'` plus `kind: 'generative_gallery'` and `hiddenFromInbox: true`. Extending the channel enum for one feature breaks product lookup helpers and invents parallel plumbing.
+</Callout>
 
-#### Server-Sent Events (SSE)
-- **Edge Runtime compatible** fallback
-- **Unidirectional** server-to-client messaging
-- **HTTP/2 multiplexing** support
-- **Optimal for** Vercel Edge deployments
+<Mermaid>
+{`flowchart TB
+  subgraph channel [Conversation.type]
+    direct
+    entity
+    opportunity
+    product
+    group
+  end
+  subgraph subtype [metadata.kind]
+    generative_gallery
+  end
+  product --> generative_gallery
+  product --> storeAgent[Store product agent]
+  generative_gallery --> hide[hiddenFromInbox]
+  storeAgent --> inbox[Messages visible]
+  hide --> noInbox[Hidden from Messages]
+`}
+</Mermaid>
 
-#### Long-polling (Universal)
-- **Universal compatibility** fallback
-- **HTTP-based** communication
-- **Works everywhere** including restricted networks
-- **Optimal for** maximum compatibility
+Same `product` channel, different visibility:
 
-## Features
+| Use | `type` | Metadata highlights | Messages inbox |
+|-----|--------|---------------------|----------------|
+| Store product agent (DAGI) | `product` | real `productId`, no tool `kind` | Visible |
+| Generative Gallery tool chat | `product` | `kind: 'generative_gallery'`, `hiddenFromInbox: true`, `productId`/`subject` = `genmedia:…` | Hidden |
 
-### Real-time Messaging
-- **Instant delivery** of messages
-- **Typing indicators** and presence
-- **Read receipts** and message status
-- **File attachments** and media sharing
+Conversation `metadata.kind` is **not** the same namespace as **message** `metadata.kind` (e.g. `payment_request`, `env_request`, `task`, `poll`, `rsvp`, `dao_jar`, `share_card`, `gallery_upload`, `ghost_write_result`, `game_request`).
 
-### Conversation Management
-- **Group conversations** for team collaboration
-- **Direct messaging** between users
-- **Conversation history** and search
-- **Message threading** for organized discussions
+Interactive types share one lifecycle kit (`features/chat/lib/interactive-kind.ts` + bubble registry + notify helper): server-action create → dual-gate widget (`type` OR `metadata.kind`) → `updateMessage` / tunnel `message:update` → typed notify. Domain owns money for `dao_jar` via public-pools: **native** treasury chip-in (`contributeToPool`) **and** card/PayPal (`public_pool_contribution` → desk-oracle FX). Chat owns the snapshot — always `refreshOpenDaoJarMessages` after totals change. `share_card` reuses `MESSAGE_RECEIVED` + `data.kind`. Tier A interactive UX is remediated (2026-07-21); see [Public Pools & DAO Jars](/docs/features/public-pools).
 
-### Cross-platform Support
-- **Web applications** with full features
-- **Mobile apps** with push notifications
-- **Desktop clients** with native integration
-- **API access** for custom implementations
+**Peer games** add `game_request` (allowlisted in `interactive-kind.ts`): session SSOT in `PeerGameService.createInvite`, Tunnel `game:invite` / `games:incoming` (incl. terminal clear), and `IncomingGameBanner` on Messages + `/games`. Titles: tic-tac-toe · chess · checkers. Direct conversations only. See [Peer Games](/docs/features/peer-games).
+
+Structured work inside a thread: [Ring Tasks](/docs/features/tasks) (`type: 'task'` + `/tasks` tree).
+
+<Audience for="founder">
+
+## Why messaging matters for your clone
+
+Instant conversation shortens the path from match → trust → deal. Members stay inside your Ring instead of dropping to email or third-party chat. Tool editors (image generation history) stay out of the main inbox so operators are not flooded with system threads.
+
+<Cards>
+  <Card title="Tunnel Protocol" href="/docs/features/tunnel-protocol">
+    How live updates reach the browser (WSS / SSE / poll).
+  </Card>
+  <Card title="Generative Gallery" href="/docs/features/generative-media">
+    Upload \| Generate media — history in a hidden product-tool chat.
+  </Card>
+  <Card title="WebRTC Calls & STUNner" href="/docs/features/webrtc-calls">
+    1:1 audio/video in direct chats — ICE + TURN.
+  </Card>
+  <Card title="Messaging API" href="/docs/api/messaging">
+    Integrator contracts for conversations and typing.
+  </Card>
+</Cards>
+
+### Typical scenarios
+
+- Two matched professionals open a **direct** conversation from an opportunity — it appears in Messages.
+- A buyer asks a store **product agent** a question — that product chat stays visible in Messages.
+- A vendor or member generates NFT/product art in Generative Gallery — history lives in a **hidden** tool chat, not the inbox.
+- Typing indicators and read state keep negotiations moving on mobile PWA.
+
+</Audience>
+
+<Audience for="developer">
 
 ## Implementation
 
-### Basic Messaging
+### Verified routes
 
-<Code language="typescript" title="TypeScript">
-{`import { useMessaging } from '@/hooks/useMessaging'
-export function ChatComponent() {
-  const { 
-    conversations, 
-    sendMessage, 
-    markAsRead,
-    isTyping 
-  } = useMessaging()
+| Method | Path | Role |
+|--------|------|------|
+| GET, POST | `/api/conversations` | List / create conversations |
+| GET | `/api/conversations/[id]` | Conversation detail |
+| POST | `/api/conversations/[id]/typing` | Typing signal |
+| POST | `/api/conversations/[id]/read` | Mark read |
+| POST | `/api/conversations/upload` | Attachment upload |
+| MCP | `/api/mcp/v1/messaging/conversations` | Agent tooling |
 
-  const handleSendMessage = async (conversationId: string, content: string) => {
-    await sendMessage(conversationId, {
-      content,
-      type: 'text'
-    })
-  }
+After writes, publish on Tunnel channel `conversation:{id}` via `publishToChannel` — clients subscribe with **`useTunnelChannel`** (not raw `useTunnel().subscribe()` in effects).
 
-  return (
-    <div className="chat-interface">
-      {conversations.map(conversation => (
-        <ConversationView 
-          key={conversation.id}
-          conversation={conversation}
-          onSendMessage={handleSendMessage}
-        />
-      ))}
-    </div>
-  )
-}`}
-</Code>
+Create body `type` must be one of: `direct` | `entity` | `opportunity` | `product` | `group` (`z.enum` in `app/api/conversations/route.ts`). Optional metadata includes `productId`, `groupName`, `kind`, `hiddenFromInbox`, and domain ids (`entityId`, `opportunityId`, …).
 
-### Real-time Updates
+### Inbox hide contract
 
-<Code language="typescript" title="import { useEffect } from 'react'">
-{`import { messagingService } from '@/services/messaging'
+`ConversationService.getConversations` skips rows where `isHiddenToolConversation` is true (`features/chat/services/conversation-service.ts`):
 
-export function useRealTimeMessages(conversationId: string) {
-  useEffect(() => {
-    const unsubscribe = messagingService.subscribe(conversationId, {
-      onMessage: (message) => {
-        // Handle new message
-        console.log('New message:', message)
-      },
-      onTyping: (userId) => {
-        // Handle typing indicator
-        console.log('User typing:', userId)
-      },
-      onRead: (messageId) => {
-        // Handle read receipt
-        console.log('Message read:', messageId)
-      }
-    })
+1. `metadata.hiddenFromInbox === true` (preferred long-term gate)
+2. `metadata.kind === 'generative_gallery'`
+3. Legacy: `productId` or `subject` starts with `genmedia:` or `imggen:`
 
-    return unsubscribe
-  }, [conversationId])
-}`}
-</Code>
+### Modules
 
-## Performance Optimizations
+| Path | Responsibility |
+|------|----------------|
+| `features/chat/types/index.ts` | `Conversation`, `CreateConversationRequest`, filters |
+| `features/chat/services/conversation-service.ts` | CRUD + `isHiddenToolConversation` |
+| `features/chat/`, `features/messages/` | Chat UI |
+| `features/generative-media/service.ts` | Creates hidden `product` + `generative_gallery` chats |
+| `features/store/services/product-agent-service.ts` | Creates visible `product` agent chats |
+| `lib/tunnel/` | Hub, publisher, transports |
+| `hooks/use-tunnel-channel.ts` | Stable channel subscribe |
 
-### Message Caching
-- **Local storage** for offline access
-- **Intelligent prefetching** of conversation history
-- **Memory management** for large conversations
+### Transports
 
-### Connection Management
-- **Automatic reconnection** on network issues
-- **Heartbeat monitoring** for connection health
-- **Graceful degradation** across transports
+- **k8s / self-hosted:** native WSS `/api/tunnel/ws` primary
+- **Vercel:** SSE + long-poll (`/api/tunnel/poll`)
+- Optional Supabase Realtime when configured
 
-### Scalability Features
-- **Message pagination** for large conversations
-- **Lazy loading** of conversation history
-- **Efficient updates** with minimal data transfer
+Full endpoint samples: [Messaging API](/docs/api/messaging). Architecture: [Real-time](/docs/architecture/real-time).
 
----
+</Audience>
 
-*Ready to implement messaging? Check our [API Reference](/ru/docs/api/messaging) for technical details.*
+## Related
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/tunnel-protocol"
+    relation="Depends-on: live message and jar updates publish on conversation tunnel channels."
+  />
+  <RelatedArticle
+    slug="features/public-pools"
+    relation="Same-workflow: dao_jar money, dual-currency contribute, and jar refresh after chip-in."
+  />
+  <RelatedArticle
+    slug="features/generative-media"
+    relation="See-also: product-channel tool chats stay hidden from the Messages inbox."
+  />
+  <RelatedArticle
+    slug="features/store"
+    relation="See-also: product agent chats share type product but stay inbox-visible."
+  />
+  <RelatedArticle
+    slug="features/webrtc-calls"
+    relation="Next-step: 1:1 audio/video in direct chats."
+  />
+  <RelatedArticle
+    slug="features/peer-games"
+    relation="Same-workflow: game_request interactive type, IncomingGameBanner, and call/game mutex."
+  />
+  <RelatedArticle
+    slug="api/messaging"
+    relation="Deep-dive: REST + tunnel contracts for conversations."
+  />
+  <RelatedArticle
+    slug="features/push-notifications-fcm"
+    relation="Next-step: reach members when the tab is closed."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — Messaging taxonomy">
+
+<FutureFeatureWidget
+  name="Typed ConversationKind / MessageMetaKind unions"
+  description="Today metadata.kind is an open string on conversations, and message metadata kinds (payment_request, gallery_upload, etc.) live in a separate namespace. Close both with dedicated TypeScript unions and prefer hiddenFromInbox as the primary inbox gate so new tool kinds do not need prefix heuristics (genmedia:/imggen:)."
+  implementationCost={32}
+  labels={['messaging', 'types', 'ssot', 'inbox']}
+  poolSlug="messaging-conversation-kind-unions"
+/>
+
+</FutureFeatureBacklog>

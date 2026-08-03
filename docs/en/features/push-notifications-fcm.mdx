@@ -1,7 +1,7 @@
 ---
 title: Push Notifications with FCM (Ring-Powered)
 description: Implement web and cross-platform push notifications using Firebase Cloud Messaging with Ring's Server Action token flow, shared DB layer, lifecycle management, and the FirebaseAdapter FCM Admin bridge.
-last_modified: "2026-07-01"
+last_modified: "2026-07-24"
 audience: both
 ---
 
@@ -326,7 +326,8 @@ Split configuration so that only public, safe values are exposed to the client.
 ## See Also
 
 <Cards>
-  <Card href="/docs/features/notifications" title="Notifications" description="Overview of notification types, channels, and preferences." />
+  <Card href="/docs/features/notifications" title="Notifications" description="Overview of notification types, channels, and preferences — includes GAME_REQUEST / GAME_UPDATED." />
+  <Card href="/docs/features/peer-games" title="Peer Games" description="createInvite FCM GAME_REQUEST after ~500ms Tunnel presence grace when peer still offline." />
   <Card href="/docs/api/notifications" title="Notifications API" description="FCM register/unregister endpoints and realtime tunnel delivery." />
   <Card href="/docs/backend/firebase" title="Firebase integration" description="Full Firebase 14 Enterprise stack — Admin SDK, adapter, SSOT helpers, FCM Admin bridge, AI Logic." />
   <Card href="/docs/backend/k8s-postgres-fcm" title="k8s-postgres-fcm mode" description="FCM token model in PostgreSQL — recommended production mode." />

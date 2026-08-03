@@ -6,11 +6,14 @@ import authConfig from "./auth.config"
 import GoogleProvider from "next-auth/providers/google"
 import AppleProvider from "next-auth/providers/apple"
 import CredentialsProvider from "next-auth/providers/credentials"
-import Resend from "next-auth/providers/resend"
 import {
   normalizeWalletStorageId,
   verifyWalletNonceSignature,
 } from "@/features/wallet/services/verify-wallet-signature"
+import { consumeMagicToken, consumeOtpCode } from "@/features/auth/services/email-login-tokens"
+import { ensureEmailAuthUser } from "@/features/auth/services/ensure-email-auth-user"
+import { verifyPassword } from "@/lib/auth/email-tokens"
+import { isRingMailerConfigured } from "@/lib/mailer"
 import { OAuth2Client } from 'google-auth-library'
 import { generateInternalJWT } from "@/lib/auth/generate-jwt"
 import { randomUUID } from "node:crypto"
@@ -29,6 +32,7 @@ import {
   findUserByEmail,
   normalizeAuthEmail,
   resolveCanonicalUser,
+  resolveOrCreateTelegramUser,
 } from "@/features/auth/services/user-resolve"
 import {
   isAccountLoginAllowed,
@@ -40,6 +44,18 @@ import {
   accountStatusFromJwt,
   suspensionReasonFromJwt,
 } from "@/lib/auth/session-user-status"
+import {
+  isTelegramOidcConfigured,
+  mapTelegramClaimsToProfile,
+  normalizeTelegramAccountId,
+  TelegramOidcProvider,
+  type TelegramIdTokenClaims,
+} from "@/lib/auth/telegram-oidc"
+import {
+  getTelegramMiniAppBotToken,
+  isTelegramMiniAppAuthDateFresh,
+  verifyTelegramMiniAppInitData,
+} from "@/lib/auth/telegram-miniapp-initdata"
 
 // Auth.js v5 + Next.js 16: handlers live at app/api/auth/[...nextauth]/route.ts;
 // mutations that need UI state go through Server Actions + useActionState.
@@ -89,19 +105,11 @@ const usePostgreSQL = !useFirebase
 
 // Feature toggling for providers requiring backend persistence
 const hasAdapter = !!authAdapter
-const hasResendKey = process.env.AUTH_RESEND_KEY;
+const ringMailerReady = isRingMailerConfigured()
 
-// Warn in case misconfiguration is detected (skipped during build)
-if (!hasAdapter && hasResendKey && !shouldSkipDatabaseConnect()) {
-  // Warn if magic email auth can't be enabled due to missing DB adapter
-  console.warn(
-    "AUTH_RESEND_KEY is set but no Auth.js database adapter is available. Magic link authentication will be disabled.",
-  )
-}
-if (hasAdapter && !hasResendKey && !shouldSkipDatabaseConnect()) {
-  // Info if Resend (magic link) can't be enabled because key is missing
+if (!shouldSkipDatabaseConnect() && !ringMailerReady) {
   console.info(
-    "AUTH_RESEND_KEY not set. Magic link authentication will be disabled. Set AUTH_RESEND_KEY to enable email authentication.",
+    "Ring Mailer: SMTP_* (or EMAIL_MODE=ethereal) not set. Email OTP / magic-link sign-in will fail until configured.",
   )
 }
 
@@ -115,27 +123,130 @@ const nextAuthApp = NextAuth({
     updateAge: 24 * 60 * 60,   // 24 hours, session token will refresh if accessed
   },
   trustHost: true, // Next.js deployment best practice for Vercel/self-hosted
-  useSecureCookies: process.env.NODE_ENV === "production", // Secure for prod, relaxed for dev
-  cookies: {
-    sessionToken: {
-      // Use __Secure- prefix for secure cookies in prod
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      }
+  // Secure cookies only on real HTTPS (or AUTH_USE_SECURE_COOKIES=true).
+  // `npm run start` sets NODE_ENV=production but local AUTH_URL is often http://localhost —
+  // Firefox will not send `__Secure-` / Secure cookies over HTTP → /api/* 401 + client NetworkError.
+  ...(() => {
+    const authUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || ''
+    const useSecureCookies =
+      process.env.AUTH_USE_SECURE_COOKIES === 'true'
+        ? true
+        : process.env.AUTH_USE_SECURE_COOKIES === 'false'
+          ? false
+          : process.env.NODE_ENV === 'production' && authUrl.startsWith('https://')
+    return {
+      useSecureCookies,
+      cookies: {
+        sessionToken: {
+          name: `${useSecureCookies ? '__Secure-' : ''}next-auth.session-token`,
+          options: {
+            httpOnly: true,
+            sameSite: 'lax' as const,
+            path: '/',
+            secure: useSecureCookies,
+          },
+        },
+      },
     }
-  },
+  })(),
   providers: [
-    // Email-based authentication with Resend (magic link, if enabled)
-    ...(hasAdapter && hasResendKey ? [
-      Resend({
-        // Email magic link via Resend.io
-        from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org",
-      })
-    ] : []),
+    // Ring Mailer — OTP one-time code (own SMTP via lib/mailer)
+    CredentialsProvider({
+      id: 'email-otp',
+      name: 'Email OTP',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        code: { label: 'Code', type: 'text' },
+      },
+      async authorize(credentials) {
+        const email = normalizeAuthEmail(String(credentials?.email || ''))
+        const code = String(credentials?.code || '').trim()
+        if (!email || !code) return null
+        try {
+          const consumed = await consumeOtpCode({ email, code })
+          if (!consumed) return null
+          const user = await ensureEmailAuthUser(consumed.email)
+          return {
+            id: user.id,
+            email: normalizeAuthEmail(String(user.email || consumed.email)),
+            name: user.name ? String(user.name) : null,
+            image: user.image ? String(user.image) : null,
+            emailVerified: new Date(),
+            role: (user.role as UserRolesArray) || UserRolesArray.visitor,
+          }
+        } catch (error) {
+          authLog('email-otp authorize failed', error)
+          return null
+        }
+      },
+    }),
+
+    // Ring Mailer — magic link / email verify (token consumed here; never on GET)
+    CredentialsProvider({
+      id: 'email-magic',
+      name: 'Email Magic Link',
+      credentials: {
+        token: { label: 'Token', type: 'text' },
+      },
+      async authorize(credentials) {
+        const token = String(credentials?.token || '').trim()
+        if (!token) return null
+        try {
+          const consumed = await consumeMagicToken({
+            rawToken: token,
+            flowTypes: ['magic_link', 'email_verify'],
+          })
+          if (!consumed) return null
+          const user = await ensureEmailAuthUser(consumed.email)
+          return {
+            id: user.id,
+            email: normalizeAuthEmail(String(user.email || consumed.email)),
+            name: user.name ? String(user.name) : null,
+            image: user.image ? String(user.image) : null,
+            emailVerified: new Date(),
+            role: (user.role as UserRolesArray) || UserRolesArray.visitor,
+          }
+        } catch (error) {
+          authLog('email-magic authorize failed', error)
+          return null
+        }
+      },
+    }),
+
+    // Email + password (after register / reset via Ring Mailer)
+    CredentialsProvider({
+      id: 'credentials',
+      name: 'Email Password',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        const email = normalizeAuthEmail(String(credentials?.email || ''))
+        const password = String(credentials?.password || '')
+        if (!email || !password) return null
+        try {
+          const user = await findUserByEmail(email)
+          if (!user) return null
+          const hash =
+            (user as { passwordHash?: string }).passwordHash ||
+            (user as { password_hash?: string }).password_hash
+          if (!hash || typeof hash !== 'string') return null
+          const ok = await verifyPassword(password, hash)
+          if (!ok) return null
+          return {
+            id: user.id,
+            email: normalizeAuthEmail(String(user.email || email)),
+            name: user.name ? String(user.name) : null,
+            image: user.image ? String(user.image) : null,
+            role: (user.role as UserRolesArray) || UserRolesArray.visitor,
+          }
+        } catch (error) {
+          authLog('credentials authorize failed', error)
+          return null
+        }
+      },
+    }),
 
     // Standard Google OAuth provider (interactive consent flow, for full user experience)
     GoogleProvider({
@@ -175,6 +286,83 @@ const nextAuthApp = NextAuth({
     // Apple OAuth provider for Apple SSO
     AppleProvider({
       allowDangerousEmailAccountLinking: true,
+    }),
+
+    // Telegram Web Login OIDC (oauth.telegram.org) — only when BotFather Client ID/Secret set
+    ...(isTelegramOidcConfigured()
+      ? [
+          TelegramOidcProvider({
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
+
+    // Telegram Mini App initData (WebAppData HMAC) — signIn('telegram-miniapp', { initData })
+    CredentialsProvider({
+      id: "telegram-miniapp",
+      name: "Telegram Mini App",
+      credentials: {
+        initData: { label: "Telegram initData", type: "text" },
+      },
+      async authorize(credentials) {
+        const initData = String(credentials?.initData || "").trim()
+        if (!initData) return null
+
+        const botToken = getTelegramMiniAppBotToken()
+        if (!botToken) {
+          authLog("telegram-miniapp: bot token missing")
+          return null
+        }
+
+        const parsed = verifyTelegramMiniAppInitData(initData, botToken)
+        if (!parsed?.user?.id) {
+          authLog("telegram-miniapp: initData HMAC failed")
+          return null
+        }
+        if (!isTelegramMiniAppAuthDateFresh(parsed.authDate)) {
+          authLog("telegram-miniapp: auth_date stale")
+          return null
+        }
+
+        const telegramId = normalizeTelegramAccountId(parsed.user.id)
+        if (!telegramId) return null
+
+        const displayName = [parsed.user.first_name, parsed.user.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim()
+
+        try {
+          const resolved = await resolveOrCreateTelegramUser({
+            telegramId,
+            name: displayName || parsed.user.username || `Telegram ${telegramId}`,
+            image: parsed.user.photo_url || null,
+            username: parsed.user.username || null,
+          })
+
+          return {
+            id: resolved.userId,
+            email: normalizeAuthEmail(
+              (resolved.userRow.email as string | undefined) || "",
+            ) || "",
+            name:
+              (resolved.userRow.name as string | null | undefined) ||
+              displayName ||
+              null,
+            image:
+              (resolved.userRow.image as string | null | undefined) ||
+              parsed.user.photo_url ||
+              null,
+            role:
+              (resolved.userRow.role as UserRolesArray) ||
+              UserRolesArray.subscriber,
+            telegramId,
+          } as any
+        } catch (error) {
+          console.error("telegram-miniapp authorize failed:", error)
+          return null
+        }
+      },
     }),
 
     // Crypto Wallet authentication via EVM signature (MetaMask, WalletConnect, etc)
@@ -271,6 +459,12 @@ const nextAuthApp = NextAuth({
         if (clientPhotoPatch) {
           token.photoURL = clientPhotoPatch
         }
+        if (
+          typeof (session as { needsOnboarding?: boolean } | undefined)?.needsOnboarding ===
+          'boolean'
+        ) {
+          token.needsOnboarding = (session as { needsOnboarding: boolean }).needsOnboarding
+        }
       }
 
       // Decide if we need to fetch/update fresh user data from DB. This keeps JWT stateless but up-to-date.
@@ -360,11 +554,47 @@ const nextAuthApp = NextAuth({
           }
           token.refreshToken = account.refresh_token
           token.provider = account.provider
+          if (account.provider === 'telegram') {
+            const fromUser = (user as { telegramId?: string }).telegramId
+            const fromAccount = account.providerAccountId
+            token.telegramId = normalizeTelegramAccountId(fromUser || fromAccount)
+          }
         }
-        // If wallet user has no email, need onboarding
-        if (account?.provider === "crypto-wallet" && !user.email) {
+        // Shared vitals gate: email magic/OTP + crypto-wallet/wagmi
+        const { userNeedsVitalsOnboarding, isVitalsGatedProvider } = await import(
+          '@/features/auth/lib/vitals-onboarding'
+        )
+        if (
+          account?.provider &&
+          userNeedsVitalsOnboarding(
+            {
+              name: user.name,
+              email: user.email,
+              image: user.image,
+              photoURL: (user as { photoURL?: string | null }).photoURL,
+            },
+            account.provider,
+          )
+        ) {
           token.needsOnboarding = true
+        } else if (account?.provider && isVitalsGatedProvider(account.provider)) {
+          token.needsOnboarding = false
         }
+      }
+
+      // Recompute vitals gate on session.update using JWT provider + token profile fields
+      if (trigger === 'update' && token.provider) {
+        const { userNeedsVitalsOnboarding: needsVitals } = await import(
+          '@/features/auth/lib/vitals-onboarding'
+        )
+        token.needsOnboarding = needsVitals(
+          {
+            name: token.name as string | undefined,
+            email: token.email as string | undefined,
+            photoURL: token.photoURL as string | undefined,
+          },
+          token.provider as string,
+        )
       }
 
       // Authenticated JWTs must never carry visitor (guest-only label).
@@ -418,6 +648,10 @@ const nextAuthApp = NextAuth({
         if (token.photoURL) {
           session.user.image = token.photoURL as string
           session.user.photoURL = token.photoURL as string
+        }
+        if (token.telegramId) {
+          ;(session.user as { telegramId?: string }).telegramId =
+            token.telegramId as string
         }
         // Expose JWTs/tokens for use in websocket, API calls
         session.accessToken = token.accessToken as string
@@ -508,6 +742,132 @@ const nextAuthApp = NextAuth({
             // JWT or token verification failed
             console.error('🔵 Google token verification failed in signIn callback:', error)
             console.error('🔵 Error details:', (error as any).message)
+            return false
+          }
+        }
+
+        // Telegram OIDC — resolve by telegram id / accounts; sync communication.telegramId
+        if (account?.provider === 'telegram') {
+          const claims = (profile || {}) as TelegramIdTokenClaims
+          const mapped = mapTelegramClaimsToProfile(claims)
+          const telegramId =
+            normalizeTelegramAccountId(account.providerAccountId) ||
+            mapped.telegramId
+          if (!telegramId) {
+            console.error('Telegram signIn: missing telegram id / sub')
+            return false
+          }
+
+          // Profile Messengers tab: attach Telegram to the already-signed-in Ring user
+          let linkUserId: string | null = null
+          try {
+            const { consumeTelegramLinkIntent } = await import(
+              '@/lib/auth/telegram-link-intent'
+            )
+            linkUserId = await consumeTelegramLinkIntent()
+          } catch (intentReadError) {
+            console.warn('Telegram link intent cookie read failed:', intentReadError)
+          }
+
+          if (linkUserId) {
+            try {
+              const { linkTelegramToExistingUser } = await import(
+                '@/features/auth/services/user-resolve'
+              )
+              const { getDatabaseService, initializeDatabase } = await import(
+                '@/lib/database/DatabaseService'
+              )
+              await initializeDatabase()
+              const db = getDatabaseService()
+              const existing = await db.findById('users', linkUserId)
+              if (!existing.success || !existing.data) {
+                console.error('Telegram link intent: user not found', linkUserId)
+                return false
+              }
+              try {
+                const linked = await linkTelegramToExistingUser({
+                  targetUserId: linkUserId,
+                  telegramId,
+                  telegramUsername: mapped.username,
+                  idToken: account.id_token,
+                })
+                authLog('Telegram OIDC linked to existing session user:', {
+                  userId: linkUserId,
+                  telegramId,
+                  newlyLinked: linked.newlyLinked,
+                  mergedFromUserId: linked.mergedFromUserId,
+                })
+              } catch (syncErr) {
+                const msg =
+                  syncErr instanceof Error ? syncErr.message : String(syncErr)
+                if (
+                  msg.includes('already linked') ||
+                  msg.includes('older or equal-age') ||
+                  msg.includes('non-shell account')
+                ) {
+                  console.warn('Telegram link intent denied:', msg)
+                  return false
+                }
+                throw syncErr
+              }
+              user.id = linkUserId
+              user.name =
+                (existing.data as { name?: string | null }).name ||
+                mapped.name ||
+                user.name
+              user.email =
+                normalizeAuthEmail(
+                  (existing.data as { email?: string }).email || user.email,
+                ) || ''
+              user.image =
+                (existing.data as { image?: string | null }).image ||
+                mapped.image ||
+                user.image
+              ;(user as { telegramId?: string }).telegramId = telegramId
+              ;(user as { role?: UserRolesArray }).role =
+                ((existing.data as { role?: UserRolesArray }).role as UserRolesArray) ||
+                UserRolesArray.subscriber
+              return true
+            } catch (linkIntentError) {
+              console.error('Telegram link intent failed:', linkIntentError)
+              return false
+            }
+          }
+
+          try {
+            const resolved = await resolveOrCreateTelegramUser({
+              telegramId,
+              name: mapped.name || user.name,
+              image: mapped.image || user.image,
+              username: mapped.username,
+              phoneNumber: mapped.phoneNumber,
+              phoneNumberVerified: !!claims.phone_number_verified,
+              idToken: account.id_token,
+            })
+            user.id = resolved.userId
+            user.name = resolved.userRow.name
+              ? String(resolved.userRow.name)
+              : mapped.name
+            user.image =
+              (resolved.userRow.image as string | null | undefined) ||
+              mapped.image ||
+              null
+            // Empty email is intentional for Telegram-only accounts (partial unique index).
+            user.email =
+              normalizeAuthEmail(
+                (resolved.userRow.email as string | undefined) || user.email,
+              ) || ''
+            ;(user as { telegramId?: string }).telegramId = telegramId
+            ;(user as { role?: UserRolesArray }).role =
+              (resolved.userRow.role as UserRolesArray) ||
+              UserRolesArray.subscriber
+            authLog('Telegram OIDC resolved user:', {
+              userId: user.id,
+              telegramId,
+              created: resolved.created,
+            })
+          } catch (telegramError) {
+            console.error('Telegram signIn resolve failed:', telegramError)
             return false
           }
         }

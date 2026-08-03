@@ -51,7 +51,9 @@ import { stripeSubscriptionProvider } from '@/lib/payments/subscription/provider
 import { wayforpaySubscriptionProvider } from '@/lib/payments/subscription/providers/wayforpay-subscription'
 import { nftGateSubscriptionProvider } from '@/lib/payments/subscription/providers/nft-gate-subscription'
 import { paypalSubscriptionProvider } from '@/lib/payments/subscription/providers/paypal-subscription'
+import { telegramStarsSubscriptionProvider } from '@/lib/payments/subscription/providers/telegram-stars-subscription'
 // paypalSubscriptionProvider — Subscriptions v1 (recurring) + Orders v2 one-shot
+// telegramStarsSubscriptionProvider — Telegram Stars (XTR) Mini App invoices
 
 /**
  * Provider registry: map provider identifier (string) to
@@ -65,6 +67,7 @@ const providerRegistry = new Map<SubscriptionProvider, SubscriptionProviderModul
   ['wayforpay', wayforpaySubscriptionProvider],
   ['nft_gate', nftGateSubscriptionProvider], // Metaplex Core + GateEscrow (MVP-A)
   ['paypal', paypalSubscriptionProvider],    // PaymentConductor Orders v2 + webhook capture
+  ['telegram_stars', telegramStarsSubscriptionProvider],
 ])
 
 /**
@@ -87,7 +90,12 @@ const COLLECTION = 'subscription_ledger'
 async function insertLedgerRow(
   input: CreateSubscriptionInput,
   gatewayReference?: string,
-  options?: { status?: SubscriptionLedgerStatus },
+  options?: {
+    status?: SubscriptionLedgerStatus
+    /** Prefer provider-issued id (e.g. Stars invoice payload `stars_<uuid>`). */
+    preferredId?: string
+    extraFields?: Partial<Record<string, string>>
+  },
 ): Promise<SubscriptionLedgerRow> {
   const now = Date.now()
   const period = 30 * 24 * 60 * 60 * 1000 // 30 days — mirrors Membership.sol
@@ -117,16 +125,24 @@ async function insertLedgerRow(
   }
 
   // Build a unique id for this subscription.
-  const id = `sub_${now}_${input.userId.slice(-8)}`
+  // Stars: use invoice payload as ledger id so successful_payment can find the row.
+  const preferred = options?.preferredId?.trim()
+  const id =
+    preferred && preferred.length > 0
+      ? preferred
+      : `sub_${now}_${input.userId.slice(-8)}`
   // Compose row with possible gateway reference (for Stripe, WayForPay, PayPal etc.).
+  const gatewayFields = gatewayReference
+    ? gatewayRefToField(input.provider, gatewayReference)
+    : {}
+  const extra = options?.extraFields ?? {}
   const result = await db().createDoc(
     COLLECTION,
     {
       ...row,
       id,
-      ...(gatewayReference
-        ? gatewayRefToField(input.provider, gatewayReference)
-        : {}),
+      ...gatewayFields,
+      ...extra,
     },
     { id },
   )
@@ -135,7 +151,12 @@ async function insertLedgerRow(
     throw result.error ?? new Error('Failed to create subscription_ledger row')
   }
 
-  return { id, ...row, ...(gatewayReference ? gatewayRefToField(input.provider, gatewayReference) : {}) } as SubscriptionLedgerRow
+  return {
+    id,
+    ...row,
+    ...gatewayFields,
+    ...extra,
+  } as SubscriptionLedgerRow
 }
 
 /**
@@ -158,6 +179,12 @@ function gatewayRefToField(
       return { nft_mint_address: ref }
     case 'paypal':
       return { paypal_subscription_id: ref }
+    case 'telegram_stars':
+      // Prefer storing invoice payload when ref looks like stars_*; otherwise invoice URL.
+      if (ref.startsWith('stars_')) {
+        return { telegram_stars_payload: ref }
+      }
+      return { telegram_stars_invoice_link: ref }
     // STUB: Add more mappings as providers are implemented.
     default:
       return {}
@@ -278,9 +305,32 @@ export const SubscriptionConductor = {
       (input.metadata?.recToken ? String(input.metadata.recToken) : undefined)
     const ledgerStatus = result.ledgerStatus ?? 'active'
 
+    // Stars: invoice payload (`stars_<uuid>`) is the ledger id + lookup key for successful_payment.
+    const starsPayload =
+      input.provider === 'telegram_stars' &&
+      typeof result.subscriptionId === 'string' &&
+      result.subscriptionId.startsWith('stars_')
+        ? result.subscriptionId
+        : undefined
+    const starsInvoiceUrl =
+      starsPayload
+        ? result.redirect?.url || result.redirectUrl || undefined
+        : undefined
+
     try {
       // Persist the subscription in the ledger (SSOT)
-      const row = await insertLedgerRow(input, gatewayReference, { status: ledgerStatus })
+      const row = await insertLedgerRow(input, gatewayReference, {
+        status: ledgerStatus,
+        preferredId: starsPayload,
+        extraFields: starsPayload
+          ? {
+              telegram_stars_payload: starsPayload,
+              ...(starsInvoiceUrl
+                ? { telegram_stars_invoice_link: starsInvoiceUrl }
+                : {}),
+            }
+          : undefined,
+      })
       logger.info('SubscriptionConductor: subscription created', {
         userId: input.userId,
         provider: input.provider,
@@ -289,7 +339,7 @@ export const SubscriptionConductor = {
         gatewayReference: result.gatewayReference,
       })
 
-      // Promote user to MEMBER only when ledger is active (not pending redirect flows)
+      // Promote user to member only when ledger is active (not pending redirect flows)
       if (ledgerStatus === 'active') {
         await upgradeUserRoleOnSubscription(
           input.userId,
@@ -546,6 +596,119 @@ export const SubscriptionConductor = {
   },
 
   /**
+   * Look up Telegram Stars pending/active row by invoice payload (`stars_<uuid>`).
+   * Primary key is the payload (ledger id); falls back to telegram_stars_payload field.
+   */
+  async findByTelegramStarsPayload(
+    invoicePayload: string,
+  ): Promise<SubscriptionLedgerRow | null> {
+    const payload = String(invoicePayload || '').trim()
+    if (!payload.startsWith('stars_')) return null
+
+    const byId = await db().readDoc<Record<string, unknown>>(COLLECTION, payload)
+    if (byId.success && byId.data) {
+      const parsed = subscriptionLedgerSchema.safeParse(byId.data)
+      if (parsed.success) return parsed.data
+    }
+
+    const result = await db().queryDocs<Record<string, unknown>>({
+      collection: COLLECTION,
+      filters: [
+        { field: 'telegram_stars_payload', operator: '==', value: payload },
+      ],
+      pagination: { limit: 1 },
+    })
+    if (!result.success || !result.data?.length) return null
+    const parsed = subscriptionLedgerSchema.safeParse(result.data[0])
+    return parsed.success ? parsed.data : null
+  },
+
+  /**
+   * Activate a pending telegram_stars ledger after SuccessfulPayment.
+   * Idempotent on telegram_payment_charge_id. Upgrades user to MEMBER.
+   */
+  async activateTelegramStarsPayment(params: {
+    invoicePayload: string
+    telegramPaymentChargeId: string
+    totalAmount?: number
+    currency?: string
+  }): Promise<{ ok: boolean; alreadyActive?: boolean; reason?: string }> {
+    const payload = String(params.invoicePayload || '').trim()
+    const chargeId = String(params.telegramPaymentChargeId || '').trim()
+    if (!payload.startsWith('stars_') || !chargeId) {
+      return { ok: false, reason: 'invalid_payload_or_charge_id' }
+    }
+
+    const row = await this.findByTelegramStarsPayload(payload)
+    if (!row) {
+      logger.warn('SubscriptionConductor: Stars activate — no ledger row', { payload })
+      return { ok: false, reason: 'ledger_not_found' }
+    }
+
+    if (row.provider !== 'telegram_stars') {
+      return { ok: false, reason: 'wrong_provider' }
+    }
+
+    if (
+      row.status === 'active' &&
+      row.telegram_payment_charge_id &&
+      row.telegram_payment_charge_id === chargeId
+    ) {
+      return { ok: true, alreadyActive: true }
+    }
+
+    if (row.status === 'active' && row.telegram_payment_charge_id) {
+      // Different charge against already-active row — treat as renewal-ish idempotent ack
+      logger.info('SubscriptionConductor: Stars charge on already-active row', {
+        ledgerId: row.id,
+        chargeId,
+        existingCharge: row.telegram_payment_charge_id,
+      })
+      return { ok: true, alreadyActive: true }
+    }
+
+    const now = Date.now()
+    const period = 30 * 24 * 60 * 60 * 1000
+    const amount =
+      typeof params.totalAmount === 'number' && params.totalAmount > 0
+        ? params.totalAmount
+        : Number(row.amount) || 0
+    const currency = String(params.currency || row.currency || 'XTR').toUpperCase()
+
+    const updateResult = await db().updateDoc(COLLECTION, row.id, {
+      status: 'active',
+      telegram_payment_charge_id: chargeId,
+      telegram_stars_payload: payload,
+      next_payment_due: now + period,
+      payments_count: Math.max(1, Number(row.payments_count) || 0),
+      total_paid: String(amount),
+      failed_attempts: 0,
+      currency,
+      updated_at: now,
+    })
+
+    if (!updateResult.success) {
+      logger.error('SubscriptionConductor: Stars activate update failed', {
+        ledgerId: row.id,
+        error: updateResult.error,
+      })
+      return { ok: false, reason: 'update_failed' }
+    }
+
+    await upgradeUserRoleOnSubscription(row.user_id, row.id, amount, currency)
+
+    logger.info('SubscriptionConductor: Stars payment activated', {
+      userId: row.user_id,
+      ledgerId: row.id,
+      chargeId,
+      amount,
+      currency,
+    })
+
+    return { ok: true }
+  },
+
+  /**
    * Get the latest subscription ledger row for a user.
    * Used for showing active subscription or for mutation lookups.
    */
@@ -621,6 +784,7 @@ export const SubscriptionConductor = {
         native_token: 0,
         nft_gate: 0,
         paypal: 0,
+        telegram_stars: 0,
       },
       by_method: {},
     }

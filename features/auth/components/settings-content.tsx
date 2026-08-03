@@ -38,10 +38,20 @@ import {
   Zap,
   Eye,
   EyeOff,
+  Banknote,
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
+import {
+  MAIN_CURRENCY,
+  useOptionalStorePaymentMethods,
+} from '@/features/store/currency-context'
+import { getSupportedCurrencies } from '@/lib/ring-config-core'
+import type { SupportedCurrencies } from '@/lib/ring-config-types'
+import { updateDisplayCurrencyPreference } from '@/app/_actions/store-preferences-actions'
+
+const FIAT_DISPLAY_OPTIONS: SupportedCurrencies[] = getSupportedCurrencies()
 
 /**
  * Response type for the updateSettings function
@@ -122,6 +132,27 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   const { theme, setTheme } = useTheme()
   const { data: session, status } = useSession()
   const router = useRouter()
+  const storeCurrency = useOptionalStorePaymentMethods()
+  const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrencies>(
+    () => {
+      const current = storeCurrency?.currency
+      if (current && FIAT_DISPLAY_OPTIONS.includes(current as SupportedCurrencies)) {
+        return current as SupportedCurrencies
+      }
+      return (MAIN_CURRENCY as SupportedCurrencies) || FIAT_DISPLAY_OPTIONS[0]
+    },
+  )
+
+  const handleDisplayCurrencyChange = (code: SupportedCurrencies) => {
+    setDisplayCurrency(code)
+    storeCurrency?.setCurrency(code)
+    if (status === 'authenticated') {
+      updateDisplayCurrencyPreference(code).catch(() => {
+        /* cookie/localStorage already updated via setCurrency */
+      })
+    }
+  }
+
   const [settings, setSettings] = useState<UserSettings | null>(initialSettings)
   const [error, setError] = useState<string | null>(initialError)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -314,6 +345,29 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                 <SelectItem value="en">🇺🇸 English</SelectItem>
                 <SelectItem value="uk">🇺🇦 Українська</SelectItem>
                 <SelectItem value="ru">🇷🇺 Русский</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Display currency (fiat presentment pool) */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-muted sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <Banknote className="h-4 w-4" />
+              <span className="text-sm">{tp('displayCurrency') || 'Display currency'}</span>
+            </div>
+            <Select
+              value={displayCurrency}
+              onValueChange={(v) => handleDisplayCurrencyChange(v as SupportedCurrencies)}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FIAT_DISPLAY_OPTIONS.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {code}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

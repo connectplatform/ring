@@ -1,5 +1,6 @@
 import presets from '@/lib/video/video-presets.json'
 import type { VideoQualityMode } from '@/lib/video/conductor/types'
+import { resolveKeyForModel, resolveModel } from '@/lib/ai/model-router'
 
 export type VideoPreset = {
   model: string
@@ -77,8 +78,25 @@ export function getXaiVideoConfig(ctx: {
 }) {
   const mode = ctx.qualityMode ?? resolveQualityMode()
   const preset = getVideoPreset(mode)
-  const apiKey = process.env.XAI_API_KEY?.trim() ?? ''
-  const baseUrl = (process.env.XAI_API_BASE_URL?.trim() || 'https://api.x.ai/v1').replace(/\/$/, '')
+
+  let apiKey = process.env.XAI_API_KEY?.trim() ?? ''
+  let baseUrl = (process.env.XAI_API_BASE_URL?.trim() || 'https://api.x.ai/v1').replace(/\/$/, '')
+  try {
+    const modelId = ctx.model?.trim() || process.env.XAI_VIDEO_MODEL?.trim() || preset.model
+    try {
+      const keyed = resolveKeyForModel('xai', modelId)
+      apiKey = keyed.apiKey
+      baseUrl = keyed.baseUrl
+    } catch {
+      const resolved = resolveModel(mode.includes('i2v') ? 'video_i2v' : 'video_generate')
+      if (resolved.provider === 'xai') {
+        apiKey = resolved.apiKey
+        baseUrl = resolved.endpoint.baseUrl
+      }
+    }
+  } catch {
+    // leave env defaults
+  }
 
   const duration = clampDuration(
     ctx.duration ?? Number.parseInt(process.env.XAI_VIDEO_DEFAULT_DURATION ?? String(presets.defaults.duration), 10),

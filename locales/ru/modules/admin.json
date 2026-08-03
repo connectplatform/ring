@@ -179,7 +179,8 @@
       "noErrors": "Ошибок за этот период не зафиксировано",
       "noTraffic": "Источники трафика появятся после сбора просмотров страниц",
       "noActivity": "Недавняя активность появится после записи событий",
-      "noDevices": "Распределение устройств появится после отслеживания сессий"
+      "noDevices": "Распределение устройств появится после отслеживания сессий",
+      "noPersonalPages": "Пока нет посещений личных страниц"
     },
     "overview": {
       "activeSessions": "Активные сессии",
@@ -187,7 +188,15 @@
       "avgResponseTime": "Сред. время ответа",
       "errorRate": "Частота ошибок",
       "fromYesterday": "с вчера",
-      "thisWeek": "за эту неделю"
+      "thisWeek": "за эту неделю",
+      "personalPages": "Личные страницы",
+      "personalPagesSubtitle": "Уникальные посетители публичных /username профилей",
+      "personalUnique24h": "Уникальные 24ч",
+      "personalUniquePeriod": "Уникальные (период)",
+      "personalVisits": "визиты",
+      "personalByRole": "По ролям",
+      "personalByRoleHint": "24ч / период уникальные",
+      "personalTopProfiles": "Топ профилей"
     },
     "webvitals": {
       "title": "Производительность Core Web Vitals",
@@ -311,6 +320,8 @@
   "users": "Пользователи",
   "rewards": "Награды",
   "news": "Новости",
+  "wiki": "Вики",
+  "wikiDescription": "Markdown-база знаний в стиле Obsidian с [[wikilinks]] для платформы и проектных хранилищ",
   "dao": "Публичные пулы",
   "analytics": "Аналитика",
   "moderation": "Модерация",
@@ -459,7 +470,36 @@
         "completed": "Завершён",
         "canceled": "Отменён"
       }
-    }
+    },
+    "hub": "Обзор",
+    "hubTitle": "ERP хаб магазина",
+    "hubSubtitle": "Склад {warehouse} ({warehouseId} / store {storeId}) — товары, остатки, заказы и расчёты",
+    "warehouseLabel": "{name} · {id} · store {storeId}",
+    "warehouse": "Склад",
+    "reason": "Причина",
+    "restock": "Пополнить",
+    "adjustReasonPlaceholder": "Причина корректировки",
+    "adjustStockError": "Не удалось изменить остаток",
+    "filter": {
+      "all": "Все",
+      "low": "Низкий",
+      "critical": "Критический",
+      "out": "Нет"
+    },
+    "settlementFilter": {
+      "all": "Все",
+      "pending": "Ожидает",
+      "held": "Удержано",
+      "completed": "Завершено"
+    },
+    "dryRunPayouts": "Проверка выплат",
+    "dryRunResult": "К выплате: {due} из {pending} · сумма {total}",
+    "hold": "Удержать",
+    "release": "Освободить",
+    "holdReasonPrompt": "Причина удержания",
+    "holdError": "Не удалось удержать",
+    "releaseError": "Не удалось освободить",
+    "actions": "Действия"
   },
   "verificationQueue": {
     "pageTitle": "Верификация личности",
@@ -566,6 +606,11 @@
         "description": "Освобождение просроченных резервов товаров (TTL)",
         "schedule": "Каждые 5–15 минут"
       },
+      "inventory-drift": {
+        "label": "Детектор дрейфа запасов",
+        "description": "Проверка stock === available + reserved; отчёт без авто-ремонта",
+        "schedule": "Еженочно или ежечасно"
+      },
       "cleanup-usernames": {
         "label": "Очистка резервов имён пользователей",
         "description": "Удаление просроченных резервов username",
@@ -610,6 +655,14 @@
         "label": "Истечение NFT Gate",
         "description": "Проверка владения NFT для подписчиков nft_gate (Phase S7)",
         "schedule": "Ежедневно в 4:00"
+      },
+      "close-expired-polls": {
+        "label": "Закрыть просроченные опросы",
+        "description": "Автозакрытие опросов после closeAt"
+      },
+      "peer-game-session-expiry": {
+        "label": "Истечение сессий peer-игр",
+        "description": "Истечение pending (15м), idle active (2ч), orphan reclaim"
       }
     },
     "nav": "Фоновые процессы"
@@ -772,5 +825,6 @@
     "title": "Мониторинг наград",
     "subtitle": "Отслеживайте активность кредитных наград, объём mint и состояние доставки."
   },
-  "moderationTabReports": "Жалобы пользователей"
+  "moderationTabReports": "Жалобы пользователей",
+  "crmTaskEscrows": "Эскроу задач"
 }

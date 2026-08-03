@@ -15,11 +15,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
-import PaymentRequestMessageWidget from '@/features/wallet/components/payment-request-message-widget'
+import {
+  hidesInteractiveTextBody,
+  renderInteractiveWidget,
+} from '@/features/chat/components/interactive-registry'
 
 interface MessageBubbleProps {
   message: Message
   isOwn: boolean
+  currentUserId?: string
   showAvatar?: boolean
   onEditAction?: (messageId: string) => void
   onDeleteAction?: (messageId: string) => void
@@ -84,6 +88,7 @@ const MessageReactions = ({
 export function MessageBubble({
   message,
   isOwn,
+  currentUserId,
   showAvatar = true,
   onEditAction,
   onDeleteAction,
@@ -165,16 +170,14 @@ export function MessageBubble({
           >
             {/* Message content */}
             <div className="pr-6">
-              {/* Payment request widget */}
-              {(message.type === 'payment_request' ||
-                message.metadata?.kind === 'payment_request') && (
-                <PaymentRequestMessageWidget message={message} isOwn={isOwn} />
-              )}
+              {renderInteractiveWidget({
+                message,
+                isOwn,
+                currentUserId,
+              })}
 
-              {/* Text content (skip when payment_request already rendered body) */}
-              {message.content &&
-                message.type !== 'payment_request' &&
-                message.metadata?.kind !== 'payment_request' && (
+              {/* Text content (skip when structured widgets already rendered body) */}
+              {message.content && !hidesInteractiveTextBody(message) && (
                 <div className="mb-2">
                   {message.content}
                 </div>

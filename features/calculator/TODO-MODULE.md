@@ -26,7 +26,7 @@ cp "$CANON/locales/ru/calculator.json" "$TARGET/locales/ru/calculator.json"
 
 Set `"enabled": false` to hide the route (returns 404). Presets live under `features/calculator/presets/`.
 
-- **project** (default on platform): founder Ring Project Calculator — niche packs, modules, Ringdom externals; prices in credit points converted via `credit.unitToDefaultCurrency` + `credit.desk.pointsPerNativeToken`
+- **project** (default on platform): founder Ring Project Calculator — niche packs, modules, Ringdom externals; prices in credit points converted via `credit.creditBalanceUnitToMainCurrency` + `credit.desk.creditBalanceUnitPerNativeToken`
 - **deployment** (legacy): hours/region estimator constants retained for compatibility
 
 Gate must read `config.calculator?.enabled` — **not** `config.features.calculator`. Hosting selector is `self_host` | `ringdom` (not a delivery/philosophy triad).

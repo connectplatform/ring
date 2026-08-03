@@ -27,6 +27,8 @@ import {
   Heart,
   ShoppingCart,
   MessageCircle,
+  ListTodo,
+  Gamepad2,
   User,
   Wallet,
   X,
@@ -192,10 +194,10 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   
   const cartCount = store?.totalItems || 0
   const [messagesCount] = useState(0) // TODO: Implement
-  const creditUnitLabel = getClientCreditUnitLabel()
+  const creditBalanceUnitLabel = getClientCreditUnitLabel()
   const nativeSymbol = getClientNativeTokenSymbol()
   const {
-    nativeBalance,
+    nativeTokenBalance,
     loading: nativeLoading,
     error: nativeError,
   } = usePrimaryNativeBalance({ enabled: isOpen && Boolean(session?.user?.id) })
@@ -283,14 +285,14 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   }
 
   const walletDescription = (() => {
-    const creditPart = `${formatBalance(tokenBalance?.amount ?? null)} ${creditUnitLabel}`
-    if (nativeLoading && nativeBalance === null) {
+    const creditPart = `${formatBalance(tokenBalance?.amount ?? null)} ${creditBalanceUnitLabel}`
+    if (nativeLoading && nativeTokenBalance === null) {
       return `${creditPart} · …`
     }
-    if (nativeError && nativeBalance === null) {
+    if (nativeError && nativeTokenBalance === null) {
       return `${creditPart} · — ${nativeSymbol}`
     }
-    const nativePart = `${formatNativeBalance(nativeBalance ?? '0')} ${nativeSymbol}`
+    const nativePart = `${formatNativeBalance(nativeTokenBalance ?? '0')} ${nativeSymbol}`
     return `${creditPart} · ${nativePart}`
   })()
 
@@ -341,9 +343,23 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       count: messagesCount,
       label: 'Messages', 
       description: 'Direct chats',
-      href: ROUTES.PROFILE(locale) + '?tab=messages',
+      href: ROUTES.MESSAGES(locale),
       color: '#F97316',
-    }
+    },
+    {
+      icon: <Gamepad2 className="w-6 h-6 text-white" />,
+      label: 'Games',
+      description: 'Peer mini-games',
+      href: ROUTES.GAMES(locale),
+      color: '#8B5CF6',
+    },
+    {
+      icon: <ListTodo className="w-6 h-6 text-white" />,
+      label: 'Tasks',
+      description: 'Chat tasks',
+      href: ROUTES.TASKS(locale),
+      color: '#0EA5E9',
+    },
   ]
 
   return (

@@ -1,6 +1,6 @@
 ---
 title: Примеры аутентификации
-description: Шаблоны многопровайдерной аутентификации Auth.js v5 — Google OAuth, Google One Tap, Apple Sign-In, магические ссылки через Resend и аутентификация через криптокошелек с адаптерами PostgreSQL или Firebase.
+description: Шаблоны многопровайдерной аутентификации Auth.js v5 — Google OAuth, Google One Tap, Apple Sign-In, магические ссылки через Ring Mailer и аутентификация через криптокошелек с адаптерами PostgreSQL или Firebase.
 last_modified: "2026-06-28"
 audience: both
 ---
@@ -23,7 +23,7 @@ Ring Platform поддерживает пять провайдеров ауте�
 |----------|----------------|
 | **Google OAuth** | Традиционное OAuth перенаправление + Google One Tap (клиентское GIS окно с серверной JWT верификацией) |
 | **Apple Sign-In** | Вход через OAuth перенаправление для iOS/macOS |
-| **Resend (Magic Links)** | Вход без пароля через email. Срок действия токена 24 часа, одноразовое использование. Требует `AUTH_RESEND_KEY` |
+| **Ring Mailer** | Вход без пароля через email. Срок действия токена 24 часа, одноразовое использование. Требует SMTP_* или EMAIL_MODE=ethereal |
 | **Crypto Wallet** | Верификация подписи через nonce с помощью Viem (Ethereum, Polygon, Arbitrum, Optimism, Base) |
 | **Internal JWT** | Токены machine-to-machine для аутентификации WebSocket и MCP шлюза |
 
@@ -43,13 +43,10 @@ import { getAuthAdapter } from "@/lib/auth-adapter-singleton"
 import authConfig from "./auth.config"
 import GoogleProvider from "next-auth/providers/google"
 import AppleProvider from "next-auth/providers/apple"
-import Resend from "next-auth/providers/resend"
 import CredentialsProvider from "next-auth/providers/credentials"
 
 const authAdapter = getAuthAdapter()
 const hasAdapter = !!authAdapter
-const hasResendKey = process.env.AUTH_RESEND_KEY
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   ...(hasAdapter && { adapter: authAdapter }),
@@ -60,10 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   trustHost: true,
   providers: [
-    // Magic Links via Resend (requires adapter + AUTH_RESEND_KEY)
-    ...(hasAdapter && hasResendKey
-      ? [Resend({ from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org" })]
-      : []),
+    // Ring Mailer: email-otp / email-magic Credentials — see EN /docs/features/ring-mailer
 
     // Google OAuth
     GoogleProvider({
@@ -219,8 +213,8 @@ AUTH_APPLE_ID=your_apple_client_id
 AUTH_APPLE_SECRET=your_apple_private_key
 
 # Magic Links
-AUTH_RESEND_KEY=your_resend_api_key
-AUTH_RESEND_FROM=noreply@ring-platform.org
+# Ring Mailer: EMAIL_MODE=ethereal or SMTP_HOST / SMTP_USER / SMTP_PASSWORD
+# OTP_HMAC_SECRET=
 
 # Firebase Admin (для режима firebase-full)
 AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
@@ -229,7 +223,7 @@ AUTH_FIREBASE_PRIVATE_KEY=your_firebase_private_key
 ```
 
 <Callout type="tip">
-  Auth.js v5 автоматически читает `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_APPLE_ID`, `AUTH_APPLE_SECRET` и `AUTH_RESEND_KEY` из переменных среды — не требует ручной настройки `clientId` / `clientSecret` в конструкторе провайдера.
+  Auth.js v5 автоматически читает `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_APPLE_ID`, `AUTH_APPLE_SECRET`  (Ring Mailer SMTP) из переменных среды — не требует ручной настройки `clientId` / `clientSecret` в конструкторе провайдера.
 </Callout>
 
 ## Защита маршрутов через middleware

@@ -3,7 +3,7 @@ import 'server-only'
 import { auth } from '@/auth'
 import { createHash } from 'crypto'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
-import { getClientCreditFiatCurrency } from '@/lib/ring-config-client'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
 import {
   assertTokenDeskSubscriberAccess,
 } from '@/lib/payments/confidential-token-onramp'
@@ -62,18 +62,29 @@ export const WalletConductor = {
         return { error: 'Authentication required' }
       }
 
-      const amountRaw = String(formData.get('amount') ?? '')
-      const amount = Math.floor(parseFloat(amountRaw))
+      const { parseFormData, walletTopupFormSchema } = await import(
+        '@/lib/zod/wallet-store-schemas'
+      )
+      const parsed = parseFormData(walletTopupFormSchema, formData)
+      if (parsed.success === false) {
+        return { error: parsed.error }
+      }
+
+      const amount = Math.floor(parseFloat(parsed.data.amount))
       if (!Number.isFinite(amount) || amount < 25 || amount > 2000) {
         return { error: 'Amount must be between 25 and 2000' }
       }
 
-      const locale = String(formData.get('locale') ?? 'en')
+      const locale = parsed.data.locale ?? 'en'
       const returnUrl =
-        String(formData.get('returnUrl') ?? '') ||
+        parsed.data.returnUrl ||
         `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${locale}/wallet`
-      const source = String(formData.get('source') ?? 'credit_add_fs_modal')
-      const processorRaw = String(formData.get('processor') ?? '').toLowerCase()
+      const source = parsed.data.source ?? 'credit_add_fs_modal'
+      const processorRaw = (
+        parsed.data.processor ||
+        parsed.data.provider ||
+        ''
+      ).toLowerCase()
       const processor =
         processorRaw === 'paypal' || processorRaw === 'stripe' || processorRaw === 'wayforpay'
           ? processorRaw
@@ -85,7 +96,7 @@ export const WalletConductor = {
         userEmail: session.user.email || '',
         entityId: session.user.id,
         amount,
-        currency: getClientCreditFiatCurrency(),
+        currency: getClientMainCurrency(),
         returnUrl,
         locale,
         metadata: {
@@ -148,7 +159,7 @@ export const WalletConductor = {
         userEmail: session.user.email || '',
         entityId: session.user.id,
         amount,
-        currency: getClientCreditFiatCurrency(),
+        currency: getClientMainCurrency(),
         returnUrl,
         locale,
         metadata: {
@@ -204,6 +215,49 @@ export const WalletConductor = {
       userId: params.userId,
       idempotencyKey: params.idempotencyKey,
       quoteToken: params.quoteToken,
+    })
+  },
+
+  /**
+   * Wagmi treasury swap quote — subscriber+.
+   * Separate from Solana desk (credit→native); this is ERC-20 → custodial RING.
+   */
+  async quoteTreasurySwap(params: {
+    userId: string
+    role: unknown
+    fromTokenAddress: string
+    amountIn: string
+    signInAddress: string
+  }) {
+    assertTokenDeskSubscriberAccess(params.role)
+    const { quoteTreasurySwap } = await import(
+      '@/features/wallet/services/treasury-swap-service'
+    )
+    return quoteTreasurySwap({
+      userId: params.userId,
+      fromTokenAddress: params.fromTokenAddress,
+      amountIn: params.amountIn,
+      signInAddress: params.signInAddress,
+    })
+  },
+
+  /** Wagmi treasury swap execute after on-chain deposit — subscriber+. */
+  async executeTreasurySwap(params: {
+    userId: string
+    role: unknown
+    quoteToken: string
+    depositTxHash: `0x${string}`
+    signInAddress: string
+  }) {
+    assertTokenDeskSubscriberAccess(params.role)
+    const { executeTreasurySwap } = await import(
+      '@/features/wallet/services/treasury-swap-service'
+    )
+    return executeTreasurySwap({
+      userId: params.userId,
+      quoteToken: params.quoteToken,
+      depositTxHash: params.depositTxHash,
+      signInAddress: params.signInAddress,
     })
   },
 
@@ -306,6 +360,10 @@ export const WalletConductor = {
         const match = list.find((c) => c.contactUserId === params.contactUserId)
         if (match) await contacts.touchLastUsed(params.userId, match.id)
       }
+
+      // Invalidate wallet list UIs (other tabs / nav) — balances changed on-chain
+      const { publishWalletListUpdate } = await import('@/lib/wallet/publish-wallet-list')
+      await publishWalletListUpdate(params.userId, 'updated')
 
       return {
         success: true,
@@ -419,7 +477,7 @@ export const WalletConductor = {
         priceRing: listing.priceRing,
         feeRaw: listing.feeRaw ?? '0',
         sellerProceedsRaw: listing.sellerProceedsRaw ?? listing.priceRaw,
-        currency: 'RING' as const,
+        currency: getNativeTokenSymbol(),
         createdAt,
         updatedAt: createdAt,
       }
@@ -531,7 +589,7 @@ export const WalletConductor = {
       if (!hasBalance) {
         return { success: false, error: 'Insufficient credit balance' }
       }
-      const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
+      const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
       const result = await creditBalanceService.spendCredits(
         params.userId,
         {
@@ -542,14 +600,14 @@ export const WalletConductor = {
           metadata: params.metadata,
         },
         params.type || 'purchase',
-        params.usdRate || getFiatCreditAccountingRate(),
+        params.usdRate || getMainCurrencyCreditAccountingRate(),
       )
       return {
         success: true,
         message: `Spent ${params.amount} credits successfully`,
         newBalance: result.newBalance,
         transactionId: result.transaction.id,
-        usdEquivalent: result.transaction.usd_equivalent,
+        usdEquivalent: result.transaction.main_currency_equivalent,
       }
     } catch (error) {
       logger.error('WalletConductor.spendCredits failed', { error })

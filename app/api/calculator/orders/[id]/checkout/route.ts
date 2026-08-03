@@ -9,7 +9,7 @@ import { withLocale } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
 const schema = z.object({
-  rail: z.enum(['merchant_redirect', 'internal_credit']).optional(),
+  rail: z.enum(['card', 'credit_balance']).optional(),
   locale: z.string().optional(),
   processor: z.enum(['wayforpay', 'stripe', 'paypal']).optional(),
 })

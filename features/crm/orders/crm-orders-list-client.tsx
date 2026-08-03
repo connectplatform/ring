@@ -18,6 +18,7 @@ import type { Locale } from '@/i18n/shared'
 import type { ProjectOrder } from '@/features/crm/orders/types'
 import { PROJECT_WORK_STATUSES } from '@/features/crm/orders/types'
 import type { CrmUserChip } from '@/features/crm/orders/resolve-users'
+import { AdminCustomOrderCreateForm } from '@/features/crm/orders/admin-custom-order-create-form'
 
 export function CrmOrdersListClient({
   orders,
@@ -45,6 +46,7 @@ export function CrmOrdersListClient({
 
   return (
     <div className="space-y-4">
+      <AdminCustomOrderCreateForm locale={locale} />
       <div className="flex flex-wrap items-center gap-3">
         <Select disabled={pending} value={currentWorkStatus || 'all'} onValueChange={onFilter}>
           <SelectTrigger className="w-[220px]">

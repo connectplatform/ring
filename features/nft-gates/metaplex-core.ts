@@ -96,6 +96,13 @@ export async function verifyAssetInCollection(asset: string): Promise<{
     return { ok: false, error: 'collectionMint unset and asset is not ledger-dev' }
   }
 
+  // Ops smoke hatch: when ALLOW_LEDGER_NFT_MINT=1, accept ledger-dev gate_* even if
+  // collectionMint is configured (prod Metaplex path otherwise rejects them).
+  // Do not leave this env enabled long-term on public clusters.
+  if (asset.startsWith('gate_') && process.env.ALLOW_LEDGER_NFT_MINT === '1') {
+    return { ok: true }
+  }
+
   try {
     const { verifyMetaplexCoreCollection } = await import('./metaplex-core-onchain')
     return await verifyMetaplexCoreCollection({ asset, collectionMint })

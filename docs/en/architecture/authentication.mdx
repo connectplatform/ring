@@ -1,7 +1,7 @@
 ---
 title: Authentication Architecture
-description: Auth.js v5 multi-provider authentication — Google OAuth, Apple Sign-In, Magic Links, Crypto Wallets, with PostgreSQL or Firebase backends.
-last_modified: "2026-06-28"
+description: Auth.js v5 multi-provider authentication — Google, Telegram OIDC + Mini App initData, Apple, Ring Mailer SMTP, crypto wallets, with PostgreSQL or Firebase backends.
+last_modified: "2026-07-20"
 audience: both
 ---
 
@@ -17,11 +17,15 @@ audience: both
 | Provider | Flow | Auth.js provider |
 |----------|------|-----------------|
 | **Google OAuth** | Full OAuth 2.0 redirect + Google Identity Services (GIS) One Tap | `GoogleProvider` + `CredentialsProvider("google-one-tap")` |
+| **Telegram (web)** | OIDC Authorization Code + PKCE (`oauth.telegram.org`) | Custom `TelegramOidcProvider` (`id: "telegram"`) when env set |
+| **Telegram Mini App** | WebApp `initData` HMAC (`WebAppData` secret) | `CredentialsProvider("telegram-miniapp")` |
 | **Apple Sign-In** | OAuth redirect, native iOS/macOS | `AppleProvider` |
-| **Magic Links** | Email via Resend, 24-hour token expiry | `Resend` |
+| **Ring Mailer** | OTP + magic link / verify / reset via own SMTP (`lib/mailer.ts`) | Credentials `email-otp` / `email-magic` / `credentials` |
 | **Crypto Wallet** | Nonce-signature verification (MetaMask, WalletConnect) | `CredentialsProvider("crypto-wallet")` |
 
 Configuration lives in `auth.ts` and `auth.config.ts` at the project root. Auth.js v5 splits edge-safe config (`auth.config.ts` — no providers, minimal callbacks) from full server config (`auth.ts` — all providers, database adapters).
+
+Product overview and BotFather checklist: [Authentication](/docs/features/authentication).
 
 <Audience for="founder">
 
@@ -30,8 +34,8 @@ Configuration lives in `auth.ts` and `auth.config.ts` at the project root. Auth.
 Auth.js v5 manages the entire authentication flow — the platform does not use Firebase Auth directly. Firebase Admin SDK is used only for **server-side token verification** and **user document lookups** in `firebase-full` mode.
 
 **Session flow:**
-1. User signs in via Google, Apple, email link, or crypto wallet
-2. Auth.js v5 handles OAuth token exchange and verification
+1. User signs in via Google, Telegram (web OIDC or Mini App initData), Apple, Ring Mailer (OTP / magic link / password), or crypto wallet
+2. Auth.js v5 handles OAuth/OIDC exchange or Credentials authorize
 3. JWT session is created on the server, stored in an HTTP-only cookie
 4. PostgreSQL adapter persists user/account/session records when `DB_BACKEND_MODE` is PostgreSQL-based
 5. Firebase adapter persists to Firestore when `DB_BACKEND_MODE=firebase-full`
@@ -39,8 +43,9 @@ Auth.js v5 manages the entire authentication flow — the platform does not use 
 **Key design decisions:**
 - JWT strategy (no database session store) for edge-compatible deployment
 - 30-day session max age with 24-hour update window
-- Identity is always a platform UUID (`users.id`), never Google `sub` or Apple `sub`
-- Email-based account linking across providers (same email = same user)
+- Identity is always a platform UUID (`users.id`), never Google `sub`, Apple `sub`, or Telegram id alone as the session primary key
+- Email-based account linking across providers when email exists; Telegram can create users without email
+- Telegram Login (OIDC), Mini App initData, Login Widget linking, and the [admin Telegram bot](/docs/features/manage-via-telegram) use **different** secrets / crypto — see the surface table on [Authentication](/docs/features/authentication)
 
 </Audience>
 
@@ -53,8 +58,12 @@ auth.config.ts          — Edge-compatible config (empty providers, authorized 
 auth.ts                 — Full server config (all providers, database adapter, JWT/session callbacks)
 lib/auth-adapter-singleton.ts  — Cached adapter: PostgreSQLAdapter or FirestoreAdapter
 lib/auth/postgres-adapter.ts   — Custom PostgreSQL adapter for Auth.js v5
+lib/auth/telegram-oidc.ts      — Telegram OIDC provider + claim helpers
+lib/auth/telegram-miniapp-initdata.ts — Mini App WebAppData HMAC + getTelegramMiniAppBotToken
+lib/auth/telegram-login-widget-hash.ts — Legacy Login Widget HMAC
 lib/firebase-admin.server.ts   — Firebase Admin SDK instance (getAdminAuth, getAdminDb)
 app/api/auth/[...nextauth]/route.ts  — Auth.js API route handler
+app/api/auth/telegram/callback/route.ts — Session-required profile linking (widget)
 ```
 
 ## Provider configuration
@@ -94,6 +103,35 @@ The GIS JWT is verified server-side in the `signIn` callback using `google-auth-
 })`}
 </Code>
 
+### Telegram OIDC
+
+Registered only when `AUTH_TELEGRAM_ID` and `AUTH_TELEGRAM_SECRET` are set:
+
+<Code language="typescript" title="auth.ts">
+{`...(isTelegramOidcConfigured()
+  ? [TelegramOidcProvider({ allowDangerousEmailAccountLinking: true })]
+  : [])`}
+</Code>
+
+- Discovery: `https://oauth.telegram.org/.well-known/openid-configuration`
+- Soft-launch scopes: `openid profile`
+- Token auth method: `client_secret_basic`
+- Checks: `pkce`, `state`
+- Profile from **id_token** claims (Telegram has no UserInfo endpoint)
+- Resolve: `resolveOrCreateTelegramUser` in `features/auth/services/user-resolve.ts`
+- Callback URI: `{origin}/api/auth/callback/telegram` (Auth.js) — do not confuse with `/api/auth/telegram/callback` (widget linking)
+
+### Telegram Mini App initData
+
+Always registered as Credentials `id: "telegram-miniapp"` in `auth.ts`. Authorize:
+
+1. `getTelegramMiniAppBotToken()` — prefer `TELEGRAM_MINI_APP_BOT_TOKEN`, then `TELEGRAM_BOT_TOKEN`, `ADMIN_BOT_TOKEN`, `TELEGRAM_LOGIN_BOT_TOKEN`, `N9LIFE_BOT_TOKEN`
+2. `verifyTelegramMiniAppInitData(initData, botToken)` — secret key material is HMAC with key **`WebAppData`** (not `SHA256(bot_token)`)
+3. `isTelegramMiniAppAuthDateFresh` — default max age **86400** seconds
+4. `resolveOrCreateTelegramUser` with Telegram id / name / username / photo from parsed `user` JSON
+
+Client shape: `signIn('telegram-miniapp', { initData, redirect: false })`. Tests: `__tests__/auth/telegram-miniapp-initdata.test.ts`.
+
 ### Apple Sign-In
 
 <Code language="typescript" title="auth.ts">
@@ -102,17 +140,17 @@ The GIS JWT is verified server-side in the `signIn` callback using `google-auth-
 })`}
 </Code>
 
-### Magic Links (Resend)
+### Ring Mailer (OTP / magic link)
 
-Requires `AUTH_RESEND_KEY` env var and an active database adapter (for token storage):
+Own SMTP via `lib/mailer.ts`. Tokens live in Postgres `email_login_tokens` (migration `038`). Magic links use hash URLs (`/verify#token=…`) and are consumed only in Credentials `authorize` — never on GET.
 
-<Code language="typescript" title="auth.ts">
-{`Resend({
-  from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org",
-})`}
+<Code language="typescript" title="auth.ts (shape)">
+{`CredentialsProvider({ id: 'email-otp', /* email + code */ })
+CredentialsProvider({ id: 'email-magic', /* token */ })
+CredentialsProvider({ id: 'credentials', /* email + password */ })`}
 </Code>
 
-24-hour token expiry (maxAge in Resend provider), single-use, automatic invalidation.
+Server Actions: `app/_actions/auth-email-actions.ts`. Full setup: [Ring Mailer](/docs/features/ring-mailer).
 
 ### Crypto Wallet
 
@@ -203,13 +241,20 @@ AUTH_TRUST_HOST=true
 AUTH_GOOGLE_ID=your_google_client_id
 AUTH_GOOGLE_SECRET=your_google_client_secret
 
+# Telegram Web Login OIDC (BotFather → Web Login)
+AUTH_TELEGRAM_ID=your_telegram_oidc_client_id
+AUTH_TELEGRAM_SECRET=your_telegram_oidc_client_secret
+# ADMIN_BOT_TOKEN=...   # Login Widget hash / admin bot API
+# TELEGRAM_MINI_APP_BOT_TOKEN=...  # Mini App initData HMAC (+ Stars invoices)
+
 # Apple Sign-In
 AUTH_APPLE_ID=your_apple_client_id
 AUTH_APPLE_SECRET=your_apple_private_key
 
-# Magic Links
-AUTH_RESEND_KEY=your_resend_api_key
-AUTH_RESEND_FROM=noreply@ring-platform.org
+# Ring Mailer (no AUTH_RESEND_*)
+# EMAIL_MODE=ethereal
+# SMTP_HOST= / SMTP_USER= / SMTP_PASSWORD= / SMTP_FROM=
+# OTP_HMAC_SECRET=
 
 # Firebase (for firebase-full mode only)
 AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
@@ -224,8 +269,29 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
 
 ## Related documentation
 
-<Cards>
-  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="How DB_BACKEND_MODE affects adapter selection and Firebase usage." />
-  <Card href="/docs/deployment/environment" title="Environment variables" description="Complete env var reference including Auth.js and Firebase." />
-  <Card href="/docs/customization/database-selection" title="Database selection" description="Choosing PostgreSQL vs Firebase for your clone." />
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/authentication"
+    relation="Prerequisite: product overview, BotFather checklist, Mini App, and Telegram surface boundary."
+  />
+  <RelatedArticle
+    slug="examples/authentication"
+    relation="Next-step: integrator snippets for OIDC and telegram-miniapp Credentials."
+  />
+  <RelatedArticle
+    slug="architecture/backend-modes-and-databases"
+    relation="Depends-on: how DB_BACKEND_MODE picks the Auth.js adapter."
+  />
+  <RelatedArticle
+    slug="deployment/environment"
+    relation="Same-workflow: complete AUTH_* and SMTP env blocks for clones."
+  />
+  <RelatedArticle
+    slug="features/manage-via-telegram"
+    relation="See-also: admin bot whitelist — not member OIDC or Mini App Login."
+  />
+  <RelatedArticle
+    slug="features/subscriptions"
+    relation="See-also: telegram_stars reuses getTelegramMiniAppBotToken for XTR invoices."
+  />
+</RelatedDocs>

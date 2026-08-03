@@ -613,6 +613,30 @@
     "program": {
       "title": "Programm / Investment",
       "description": "Institutionsangebot für Community-Prüfung und CRM-Routing."
+    },
+    "scheduled_services": {
+      "title": "Scheduled Services",
+      "description": "Offer calendar-slot services such as tutoring, consulting, or appointments."
+    },
+    "collective_order": {
+      "title": "Collective Order",
+      "description": "Groupon-style bulk offer with prepaid escrow slots until filled."
+    },
+    "bounty": {
+      "title": "Bounty",
+      "description": "Post a prize for a deliverable or solved problem."
+    },
+    "tender": {
+      "title": "Tender / RFQ",
+      "description": "Buyer request for proposals — sellers bid or propose."
+    },
+    "asset_rental": {
+      "title": "Asset Rental",
+      "description": "Rent equipment, space, or licenses by hour, day, or week."
+    },
+    "job": {
+      "title": "Job Listing",
+      "description": "Employment or hire listing with salary band and remote policy."
     }
   },
   "form": {
@@ -633,7 +657,15 @@
       "mentorship": "Titel der Mentorship-Opportunity",
       "resource": "Titel der Resource-Opportunity",
       "event": "Event-Titel",
-      "ring_customization": "Titel des Customization-Projekts"
+      "ring_customization": "Titel des Customization-Projekts",
+      "scheduled_services": "Service offer title (e.g. 1:1 tutoring)",
+      "collective_order": "Collective buy title",
+      "bounty": "Bounty title",
+      "tender": "Tender / RFQ title",
+      "asset_rental": "What are you renting out?",
+      "job": "Job title",
+      "program": "Program or investment title",
+      "cv": "Your professional headline"
     },
     "budgetLabels": {
       "request": "Budget",
@@ -643,7 +675,15 @@
       "mentorship": "Vergütung (optional)",
       "resource": "Wert / Budget",
       "event": "Event-Budget",
-      "ring_customization": "Projektbudget"
+      "ring_customization": "Projektbudget",
+      "scheduled_services": "Indicative rate",
+      "collective_order": "Slot price (see slots)",
+      "bounty": "Prize budget",
+      "tender": "Budget cap",
+      "asset_rental": "Rental rate",
+      "job": "Salary range",
+      "program": "Program budget",
+      "cv": "Expected compensation"
     },
     "programSubtype": "Subtyp",
     "selectProgramSubtype": "Programm oder Investment",
@@ -651,7 +691,39 @@
     "subtypeInvestment": "Investment",
     "instrument": "Finanzierungsinstrument",
     "eligibility": "Berechtigung",
-    "applicationUrl": "Bewerbungs-URL"
+    "applicationUrl": "Bewerbungs-URL",
+    "slotCount": "Number of slots",
+    "slotPrice": "Price per slot",
+    "slotCurrency": "Slot currency",
+    "productSku": "Product SKU",
+    "serviceCategory": "Service category",
+    "durationMinutes": "Duration (minutes)",
+    "pricePerSlot": "Price per slot",
+    "bookingMode": "Booking mode",
+    "bookingInterest": "Interest / request",
+    "bookingHold": "Paid hold",
+    "prizeAmount": "Prize amount",
+    "maxWinners": "Max winners",
+    "acceptanceCriteria": "Acceptance criteria",
+    "budgetCap": "Budget cap",
+    "responseDeadline": "Response deadline",
+    "evaluationNotes": "Evaluation notes",
+    "assetKind": "Asset kind",
+    "unitsAvailable": "Units available",
+    "pricePerPeriod": "Price per period",
+    "periodUnit": "Period unit",
+    "periodHour": "Hour",
+    "periodDay": "Day",
+    "periodWeek": "Week",
+    "employmentType": "Employment type",
+    "fullTime": "Full time",
+    "partTime": "Part time",
+    "contract": "Contract",
+    "remotePolicy": "Remote policy",
+    "salaryMin": "Salary min",
+    "salaryMax": "Salary max",
+    "bookingHoldDeferred": "Paid hold booking ships after collective-order escrow is stable — interest requests only for now.",
+    "collectiveJarPayoutNote": "Wenn das Jar voll ist, senden wir {nativeToken} (abzgl. Plattformgebühr) an deine primäre Native-Wallet."
   },
   "formRail": {
     "backToBrowse": "Zurück zur Übersicht",
@@ -727,5 +799,54 @@
       "check1": "Passenden Typ gewählt",
       "check2": "Zugriffsanforderungen verstanden"
     }
+  },
+  "liveUpdatesActive": "Live-Updates aktiv",
+  "offlineMode": "Offline-Modus",
+  "lastUpdate": "Letztes Update: {time}",
+  "viaProvider": "über {provider}",
+  "deadlineExpired": "Abgelaufen",
+  "deadlineToday": "Heute",
+  "deadlineTomorrow": "Morgen",
+  "deadlineDays": "{days} Tage",
+  "deadlineWeeks": "{weeks} Wochen",
+  "deadlineMonths": "{months} Monate",
+  "deadlineTodayBadge": "Frist heute",
+  "applicantsApplied": "{count} Bewerbungen",
+  "verified": "Verifiziert",
+  "trustScore": "Trust: {score}/100",
+  "fullDescription": "Vollständige Beschreibung",
+  "requested": "Angefragt",
+  "requestAction": "Anfragen",
+  "requestFailed": "Anfrage fehlgeschlagen",
+  "scheduled_services": "Geplante Dienste",
+  "collective_order": "Sammelbestellung",
+  "bounty": "Bounty",
+  "tender": "Ausschreibung",
+  "asset_rental": "Asset-Miete",
+  "job": "Stelle",
+  "collectiveOrder": {
+    "title": "Collective order slots",
+    "open": "Open",
+    "closed": "Filled / closed",
+    "progress": "{filled}/{total} slots · {price} {currency} each",
+    "buySlot": "Buy slot",
+    "buyFailed": "Could not reserve slot",
+    "missingMetadata": "This collective order is missing slot configuration.",
+    "rail": {
+      "credit_balance": "Credits",
+      "card": "Card",
+      "paypal": "PayPal"
+    }
+  },
+  "scheduledServices": {
+    "title": "Available slots",
+    "summary": "{duration} min · {price} · {mode}",
+    "modeInterest": "request interest",
+    "modeHold": "paid hold",
+    "noSlots": "No availability windows listed — contact the broker.",
+    "book": "Request slot",
+    "requested": "Requested",
+    "bookFailed": "Could not book slot",
+    "holdDeferred": "Paid hold coming soon — contact broker"
   }
 }

@@ -1,15 +1,25 @@
 'use client'
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { CreditCard, Wallet, Coins, Smartphone } from 'lucide-react'
 import { CompactSecurityBadges } from './security-badges'
-import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import {
+  getClientCardPaymentProcessor,
+  getClientCreditUnitLabel,
+  getClientNativeTokenSymbol,
+  getClientStorePaymentRails,
+  type ClientStorePaymentRailId,
+} from '@/lib/ring-config-client'
 
-export type PaymentMethod = 'wayforpay' | 'card' | 'crypto' | 'stripe' | 'credit' | 'token' | 'paypal'
+/**
+ * UI selects rails only — never PSP ids. The Conductor resolves which processor
+ * settles the `card` rail (WayForPay or Stripe).
+ */
+export type PaymentMethod = ClientStorePaymentRailId
 
 interface PaymentOption {
-  id: PaymentMethod
+  id: ClientStorePaymentRailId
   name: string
   description: string
   icon: React.ReactNode
@@ -18,72 +28,66 @@ interface PaymentOption {
 }
 
 interface PaymentStepProps {
-  method: PaymentMethod
-  setMethod: (method: PaymentMethod) => void
+  method: ClientStorePaymentRailId
+  setMethod: (method: ClientStorePaymentRailId) => void
 }
 
 export function PaymentStep({ method, setMethod }: PaymentStepProps) {
   const t = useTranslations('modules.store.checkout')
   const nativeSymbol = getClientNativeTokenSymbol()
+  const cardProcessor = getClientCardPaymentProcessor()
+  const creditUnitLabel = getClientCreditUnitLabel()
+  const rails = useMemo(() => getClientStorePaymentRails(), [])
 
-  const paymentOptions: PaymentOption[] = [
-    {
-      id: 'card',
-      name: t('cardPayment', { default: 'Card' }),
-      description: t('cardPaymentDescription', {
-        default: 'Pay by card (WayForPay or Stripe via PaymentConductor)',
-      }),
-      icon: <CreditCard className="h-5 w-5" />,
-      enabled: true,
-      badges: ['Visa', 'Mastercard', 'Apple Pay', 'Google Pay'],
-    },
-    {
-      id: 'credit',
-      name: t('creditBalance', { default: 'Credit balance' }),
-      description: t('creditBalanceDescription', {
-        default: 'Pay with account credit units (points)',
-      }),
-      icon: <Coins className="h-5 w-5" />,
-      enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_CREDIT !== 'false',
-      badges: ['points'],
-    },
-    {
-      id: 'token',
-      name: t('nativeToken', { default: 'Native token' }),
-      description: t('nativeTokenDescription', {
-        default: 'Pay with on-chain native token',
-      }),
-      icon: <Wallet className="h-5 w-5" />,
-      enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN === 'true',
-      badges: [nativeSymbol],
-    },
-    {
-      id: 'paypal',
-      name: t('paypalPayment', { default: 'PayPal' }),
-      description: t('paypalPaymentDescription', {
-        default: 'Pay with PayPal (international)',
-      }),
-      icon: <Smartphone className="h-5 w-5" />,
-      enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL === 'true',
-      badges: ['PayPal'],
-    },
-    {
-      id: 'crypto',
-      name: t('cryptoPayment'),
-      description: t('cryptoPaymentDescription'),
-      icon: <Wallet className="h-5 w-5" />,
-      enabled: false,
-      badges: [nativeSymbol],
-    },
-    {
-      id: 'stripe',
-      name: t('stripePayment'),
-      description: t('stripePaymentDescription'),
-      icon: <Smartphone className="h-5 w-5" />,
-      enabled: false,
-      badges: ['Test Mode'],
-    },
-  ]
+  const paymentOptions: PaymentOption[] = rails.map((rail) => {
+    const id = rail.id
+    switch (rail.id) {
+      case 'card':
+        return {
+          id,
+          name: t('cardPayment', { default: 'Card' }),
+          description: t('cardPaymentDescription', {
+            default: `Pay by card (${cardProcessor} via PaymentConductor)`,
+          }),
+          icon: <CreditCard className="h-5 w-5" />,
+          enabled: rail.enabled,
+          badges: ['Visa', 'Mastercard', 'Apple Pay', 'Google Pay'],
+        }
+      case 'credit_balance':
+        return {
+          id,
+          name: t('creditBalance', { default: 'Credit balance' }),
+          description: t('creditBalanceDescription', {
+            default: `Pay with account credit balance (${creditUnitLabel})`,
+          }),
+          icon: <Coins className="h-5 w-5" />,
+          enabled: rail.enabled,
+          badges: [creditUnitLabel],
+        }
+      case 'native_token':
+        return {
+          id,
+          name: t('nativeToken', { default: 'Native token' }),
+          description: t('nativeTokenDescription', {
+            default: 'Pay with on-chain native token',
+          }),
+          icon: <Wallet className="h-5 w-5" />,
+          enabled: rail.enabled,
+          badges: [nativeSymbol],
+        }
+      case 'paypal':
+        return {
+          id,
+          name: t('paypalPayment', { default: 'PayPal' }),
+          description: t('paypalPaymentDescription', {
+            default: 'Pay with PayPal (international)',
+          }),
+          icon: <Smartphone className="h-5 w-5" />,
+          enabled: rail.enabled,
+          badges: ['PayPal'],
+        }
+    }
+  })
 
   return (
     <div className="space-y-4">
@@ -121,7 +125,7 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
                     {option.badges.map((badge) => (
                       <span
                         key={badge}
-                        className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground"
+                        className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground"
                       >
                         {badge}
                       </span>

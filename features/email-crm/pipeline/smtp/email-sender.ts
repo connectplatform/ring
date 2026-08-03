@@ -14,17 +14,25 @@ export interface SendReplyParams {
   html?: string
   inReplyTo?: string | null
   references?: string[]
+  /** CRM thread id — stamped into body + X-Ring-Support-Thread header */
+  threadId?: string
   /** Channel SMTP from loadCrmChannels(); falls back to primary CRM channel. */
   smtpConfig?: EmailConfig['smtp']
 }
 
 export class EmailSenderService {
   async sendReply(params: SendReplyParams): Promise<{ messageId: string }> {
+    const { appendThreadMarker, formatThreadMarker, RING_THREAD_HEADER } = await import(
+      '@/features/email-crm/lib/thread-marker'
+    )
     const refs = params.references?.filter(Boolean) ?? []
     const headers: Record<string, string> = {}
     if (params.inReplyTo) {
       headers['In-Reply-To'] = params.inReplyTo
       headers.References = refs.length > 0 ? refs.join(' ') : params.inReplyTo
+    }
+    if (params.threadId) {
+      headers[RING_THREAD_HEADER] = params.threadId
     }
 
     const smtp = params.smtpConfig || getPrimaryEmailConfig().smtp
@@ -40,12 +48,21 @@ export class EmailSenderService {
     })
 
     const from = smtp.from || smtp.auth.user
+    const text = params.threadId
+      ? appendThreadMarker(params.text, params.threadId)
+      : params.text
+    const html = params.html
+      ? params.threadId
+        ? `${params.html}<pre style="font-size:11px;color:#888">${formatThreadMarker(params.threadId).trim()}</pre>`
+        : params.html
+      : undefined
+
     const result = await transport.sendMail({
       from,
       to: params.to,
       subject: params.subject.startsWith('Re:') ? params.subject : `Re: ${params.subject}`,
-      text: params.text,
-      html: params.html,
+      text,
+      html,
       headers,
     })
 
@@ -55,6 +72,7 @@ export class EmailSenderService {
       messageId,
       smtpHost: smtp.host,
       from,
+      threadId: params.threadId,
     })
     return { messageId }
   }

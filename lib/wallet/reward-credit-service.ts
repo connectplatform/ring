@@ -29,7 +29,7 @@ import {
   getRewardMultiplierForRole,
   getRewardDailyEarnCap,
 } from '@/lib/ring-config-chain'
-import { getFiatCreditAccountingRate } from '@/lib/payments/credit-currency'
+import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
 import { computeRewardFinalAmount } from '@/lib/wallet/reward-credit-math'
 import {
   ROLE_LEVEL,
@@ -233,7 +233,7 @@ export async function enqueueRewardCreditAddEvent(params: {
   }
 
   try {
-    const fiatRate = getFiatCreditAccountingRate()
+    const mainCurrencyRate = getMainCurrencyCreditAccountingRate()
     const result = await creditBalanceService.addCredits(
       params.userId,
       {
@@ -242,7 +242,7 @@ export async function enqueueRewardCreditAddEvent(params: {
         metadata,
       },
       'reward_credit_add',
-      fiatRate,
+      mainCurrencyRate,
     )
 
     await updateRewardCreditAddEventStatus(jobId, 'completed', {
@@ -274,6 +274,21 @@ export async function enqueueRewardCreditAddEvent(params: {
       })
     } catch {
       // non-blocking audit
+    }
+
+    try {
+      const { notifyRewardCreditReceived } = await import(
+        '@/features/notifications/services/notification-triggers'
+      )
+      const { getCreditUnitLabel } = await import('@/lib/payments/credit-balance')
+      await notifyRewardCreditReceived(
+        params.userId,
+        amount,
+        params.trigger,
+        getCreditUnitLabel(),
+      )
+    } catch {
+      // non-blocking notify — balance already credited + published via credit:balance
     }
 
     return { status: 'completed', jobId, amount }

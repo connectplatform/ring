@@ -20,7 +20,7 @@ import { useCreditBalance } from '@/hooks/use-credit-balance'
 interface CreditBalanceData {
   balance: {
     amount: string
-    usd_equivalent: string
+    main_currency_equivalent: string
     last_updated: number
   }
   subscription: {

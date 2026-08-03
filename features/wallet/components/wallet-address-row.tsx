@@ -15,7 +15,7 @@ interface WalletAddressRowProps {
   address: string // The wallet address to display and copy
   label?: string // Optional label/description for the address
   chain?: NativeChain // Optional blockchain chain name/id
-  nativeBalance?: number // Optional address' native token balance
+  nativeTokenBalance?: number // Optional address' native token balance
   tokenSymbol?: string // Optional override of the token symbol string
   isPrimary?: boolean // Optional: is this the primary user address?
   primaryLabel: string // Label to use if isPrimary is true
@@ -34,7 +34,7 @@ export default function WalletAddressRow({
   address,
   label,
   chain,
-  nativeBalance,
+  nativeTokenBalance,
   tokenSymbol = getClientNativeTokenSymbol(), // Default to app-configured token symbol
   isPrimary,
   primaryLabel,
@@ -45,7 +45,7 @@ export default function WalletAddressRow({
   formatAddress = (a) => `${a.slice(0, 8)}...${a.slice(-6)}`, // Default address-truncating formatting
 }: WalletAddressRowProps) {
   // Format the balance to two decimals if present; returns a string or undefined
-  const formattedNativeBalance = nativeBalance?.toFixed(2)
+  const formattedNativeBalance = nativeTokenBalance?.toFixed(2)
   // Bail out: if there's no balance provided, render nothing (could improve for list virtualization/UX)
   if (!formattedNativeBalance) return null
 
@@ -94,7 +94,7 @@ export default function WalletAddressRow({
           )}
         </div>
         {/* Native balance and token symbol, if present */}
-        {nativeBalance !== undefined && (
+        {nativeTokenBalance !== undefined && (
           <p className="mt-1 text-sm font-medium text-[var(--davinci-beam)]">
             {formattedNativeBalance} {tokenSymbol}
           </p>

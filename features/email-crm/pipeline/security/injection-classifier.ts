@@ -6,6 +6,7 @@
  * Reference: Prompt Injection Prevention Specialist skillset
  */
 
+import { resolveModel } from '@/lib/ai/model-router'
 import Anthropic from '@anthropic-ai/sdk';
 import { SanitizationResult } from './input-sanitizer';
 import { logger } from '@/lib/logger';
@@ -63,7 +64,7 @@ Respond in JSON format only:
 
 export class InjectionClassifier {
   private anthropic: Anthropic;
-  private model = 'claude-haiku-4-5-20250514'; // Fast model for classification
+  private model = (() => { try { return resolveModel('email_injection_classify').modelId } catch { return 'claude-haiku-4-5-20250514' } })(); // Fast model for classification
   
   constructor() {
     this.anthropic = new Anthropic({

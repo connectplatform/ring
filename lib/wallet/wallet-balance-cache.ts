@@ -250,6 +250,8 @@ export async function refreshBalancesForUser(
 
   if (dirty) {
     await setUserWallets(userId, wallets)
+    const { publishWalletListUpdate } = await import('@/lib/wallet/publish-wallet-list')
+    await publishWalletListUpdate(userId, 'refreshed')
   }
 
   return results

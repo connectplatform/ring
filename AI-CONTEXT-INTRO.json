@@ -173,7 +173,7 @@
       "providers": {
         "google": {"modes": ["Traditional OAuth", "GIS One Tap"], "features": ["Theme-aware buttons", "Automatic email linking"]},
         "apple": {"integration": "iOS/macOS native + Web", "features": ["Automatic email linking", "Privacy protection"]},
-        "magic_links": {"provider": "Resend", "features": ["15-min expiration", "One-time use", "GDPR compliant"]},
+        "magic_links": {"provider": "Ring Mailer", "features": ["15-min expiration", "One-time use", "GDPR compliant"]},
         "crypto_wallets": {
           "connectors": ["MetaMask", "WalletConnect", "Coinbase Wallet"],
           "chains": ["Ethereum Mainnet", "Polygon", "Arbitrum", "Optimism", "Base"],
@@ -371,7 +371,7 @@
       "database": "PostgreSQL 15 at postgres.ring-platform-org.svc.cluster.local:5432",
       "push_notifications": "Firebase FCM + Apple APNs",
       "ssl": "Let's Encrypt via cert-manager",
-      "image": "ghcr.io/connectplatform/ring:v1.50-project-amd64",
+      "image": "registry.ringdom.org/ringdom-clones/ring:v1.50-project-amd64",
       "pods": "2 replicas for high availability",
       "performance": "<10ms queries, 1.5s page load"
     },
@@ -619,9 +619,9 @@
       "database": "PostgreSQL at localhost:5432"
     },
     "production_deployment": {
-      "build": "docker build --platform linux/amd64 -t ghcr.io/connectplatform/ring:v{version}-{clone}-amd64 .",
-      "push": "docker push ghcr.io/connectplatform/ring:v{version}-{clone}-amd64",
-      "deploy": "kubectl -n {namespace} set image deployment/ring-platform ring-platform=ghcr.io/connectplatform/ring:v{version}-{clone}-amd64",
+      "build": "docker build --platform linux/amd64 -t registry.ringdom.org/ringdom-clones/ring:v{version}-{clone}-amd64 .",
+      "push": "docker push registry.ringdom.org/ringdom-clones/ring:v{version}-{clone}-amd64",
+      "deploy": "kubectl -n {namespace} set image deployment/ring-platform ring-platform=registry.ringdom.org/ringdom-clones/ring:v{version}-{clone}-amd64",
       "verify": "kubectl -n {namespace} rollout status deployment/ring-platform"
     },
     "health_checks": {

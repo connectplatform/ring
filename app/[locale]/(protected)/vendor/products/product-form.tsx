@@ -51,10 +51,12 @@ import {
   primaryGalleryUrl,
   type GenerativeGalleryValue,
 } from '@/features/generative-media/types'
-import { useStoreCurrency } from '@/features/store/currency-context'
-import { displayPriceFromUah, getCurrencySymbol } from '@/lib/zod/store-product'
+import { ProductAgentKnowledgeSection } from '@/features/store/components/product-agent-knowledge-section'
+import type { ProductResearchMediaRef } from '@/features/store/lib/product-cabinet-media'
+import { useStorePaymentMethods } from '@/features/store/currency-context'
+import { displayPriceFromMainCurrency, getCurrencySymbol } from '@/lib/zod/store-product'
 import { getProductFieldsPreset } from '@/lib/ring-config-core'
-import type { StoreCurrency } from '@/lib/zod/store-product'
+import type { StorePaymentMethods } from '@/lib/zod/store-product'
 
 interface ProductFormProps {
   mode: 'create' | 'edit'
@@ -84,8 +86,8 @@ export default function ProductForm({
   const tAdminForm = useTranslations('modules.admin.storeHub.productsPage.form')
   const tCat = useTranslations('vendor.onboarding.categories')
   const router = useRouter()
-  const { currency, convertPrice, formatPrice: formatCurrencyPrice } = useStoreCurrency()
-  const currencySymbol = getCurrencySymbol(currency as StoreCurrency)
+  const { currency, convertPrice, formatPrice: formatCurrencyPrice } = useStorePaymentMethods()
+  const currencySymbol = getCurrencySymbol(currency as StorePaymentMethods)
 
   const pageTitle =
     variant === 'admin'
@@ -148,18 +150,45 @@ export default function ProductForm({
   const [submitToMainStore, setSubmitToMainStore] = useState(false)
   const [productAudience, setProductAudience] = useState<'public' | 'member'>(existingProduct?.productAudience ?? existingProduct?.audience ?? 'public')
   const [selectedCategory, setSelectedCategory] = useState<string>(existingProduct?.category || '')
+  const [nameInput, setNameInput] = useState<string>(existingProduct?.name || '')
+  const [descriptionInput, setDescriptionInput] = useState<string>(
+    existingProduct?.description || '',
+  )
   const [repUsername, setRepUsername] = useState<string>(existingProduct?.rep ?? '')
   const [customFields, setCustomFields] = useState<Array<{ id: string; fieldName: string; fieldValue: string; fieldType: string }>>([])
   const [priceInput, setPriceInput] = useState(() => {
     if (!existingProduct?.price) return ''
-    return String(displayPriceFromUah(Number(existingProduct.price), currency))
+    return String(displayPriceFromMainCurrency(Number(existingProduct.price), currency))
   })
 
   React.useEffect(() => {
     if (existingProduct?.price) {
-      setPriceInput(String(displayPriceFromUah(Number(existingProduct.price), currency)))
+      setPriceInput(String(displayPriceFromMainCurrency(Number(existingProduct.price), currency)))
     }
   }, [currency, existingProduct?.price])
+
+  const useResearchImage = React.useCallback((media: ProductResearchMediaRef) => {
+    setGallery((current) => {
+      if (current.items.some((item) => item.originalUrl === media.storageUrl)) return current
+      if (current.items.length >= 5) return current
+      const hasPrimary = current.items.some((item) => item.isPrimary)
+      return {
+        items: [
+          ...current.items,
+          {
+            id: media.storageFileId || media.id,
+            originalUrl: media.storageUrl,
+            contentType: media.mime,
+            source: 'upload',
+            enabled: true,
+            isPrimary: !hasPrimary,
+            fileId: media.storageFileId,
+            createdAt: media.createdAt,
+          },
+        ],
+      }
+    })
+  }, [])
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -319,7 +348,8 @@ export default function ProductForm({
               <Input
                 id="name"
                 name="name"
-                defaultValue={existingProduct?.name || ''}
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
                 placeholder={tForm('namePlaceholder')}
                 disabled={isPending}
                 required
@@ -329,14 +359,15 @@ export default function ProductForm({
             {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">{tForm('category')} *</Label>
+              {/* Hidden input: Radix Select value="" is invalid; guarantee FormData category on submit */}
+              <input type="hidden" name="category" value={selectedCategory} required />
               <Select
-                name="category"
-                defaultValue={existingProduct?.category || selectedCategory || ''}
+                value={selectedCategory || undefined}
                 disabled={isPending}
                 required
                 onValueChange={(val) => setSelectedCategory(val)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="category">
                   <SelectValue placeholder={tForm('categoryPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -443,13 +474,13 @@ export default function ProductForm({
             {/* Price and Stock */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="priceUAH">
+                <Label htmlFor="price">
                   {tForm('priceLabel', { currency })}
                 </Label>
                 <div className="relative">
                   <Input
-                    id="priceUAH"
-                    name="priceUAH"
+                    id="price"
+                    name="price"
                     type="number"
                     step="0.01"
                     min="0"
@@ -499,12 +530,55 @@ export default function ProductForm({
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={existingProduct?.description || ''}
+                value={descriptionInput}
+                onChange={(event) => setDescriptionInput(event.target.value)}
                 placeholder={tForm('descriptionPlaceholder')}
                 maxLength={200}
                 disabled={isPending}
               />
             </div>
+
+            {/* Agent Knowledge + WebConductor — works before and after product creation. */}
+            <ProductAgentKnowledgeSection
+              productId={existingProduct?.id ? String(existingProduct.id) : undefined}
+              vendorEntityId={String(selectedVendorId || vendorEntity?.id || '')}
+              productName={nameInput}
+              categoryName={selectedCategory}
+              description={descriptionInput}
+              initialProductAgent={String(
+                existingProduct?.productAgent ||
+                  existingProduct?.longDescription ||
+                  '',
+              )}
+              initialNodusWiki={existingProduct?.productNodusWiki || null}
+              disabled={isPending || !(selectedVendorId || vendorEntity?.id)}
+              onUseResearchImage={useResearchImage}
+              onUpdated={(next) => {
+                if (!next.fields) return
+                if (next.fields.name) setNameInput(next.fields.name)
+                if (
+                  next.fields.category &&
+                  PRODUCT_CATEGORIES.includes(
+                    next.fields.category as (typeof PRODUCT_CATEGORIES)[number],
+                  )
+                ) {
+                  setSelectedCategory(next.fields.category)
+                }
+                if (next.fields.shortDescription) {
+                  setDescriptionInput(next.fields.shortDescription.slice(0, 200))
+                }
+                if (next.fields.specifications.length) {
+                  setCustomFields(
+                    next.fields.specifications.map((spec) => ({
+                      id: crypto.randomUUID(),
+                      fieldName: spec.name,
+                      fieldValue: spec.value,
+                      fieldType: 'text',
+                    })),
+                  )
+                }
+              }}
+            />
 
             {/* Toggles */}
             <div className="space-y-4 pt-4 border-t">

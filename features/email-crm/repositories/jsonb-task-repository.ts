@@ -1,14 +1,14 @@
 import 'server-only'
 
 import { randomUUID } from 'crypto'
-import {
+import type {
   TaskRepository,
   TaskCreateInput,
   TaskUpdateInput,
   TaskCompleteInput,
   TaskSearchParams,
   EmailTask,
-} from '@/services/email/crm/task-service'
+} from '@/features/email-crm/types/task'
 import { parseIsoDate, queryDocs, readDoc, upsertDoc, deleteDoc } from '@/features/email-crm/lib/jsonb-collection'
 
 const COLLECTION = 'email_tasks'

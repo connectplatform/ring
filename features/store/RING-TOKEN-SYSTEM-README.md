@@ -54,7 +54,7 @@ The Ring Platform now features a complete RING token-based membership payment sy
   - `processBatchPayments(batchSize)` - Process due payments
 
 #### PriceOracleService
-- **File**: `ring/features/wallet/services/native-token-price-oracle.ts`
+- **File**: `ring/features/wallet/services/native-token-chainlink-oracle.ts`
 - **Purpose**: Multi-source native token/USD price feeds with caching
 - **Price Sources**: Chainlink (primary), CoinGecko, CoinMarketCap, Binance
 - **Key Methods**:
@@ -94,7 +94,7 @@ The Ring Platform now features a complete RING token-based membership payment sy
 ```typescript
 interface UserCreditBalance {
   amount: string;                              // native token tokens as string for precision
-  usd_equivalent: string;                      // USD equivalent
+  main_currency_equivalent: string;                      // USD equivalent
   last_updated: number;                        // Timestamp
   subscription_active: boolean;                // Has active subscription
   subscription_contract_address?: string;      // Smart contract address
@@ -109,8 +109,8 @@ interface CreditTransaction {
   user_id: string;                            // User ID
   type: CreditTransactionType;                // Transaction type
   amount: string;                             // Amount (negative for debits)
-  usd_rate: string;                           // USD exchange rate at time
-  usd_equivalent: string;                     // USD equivalent amount
+  main_currency_rate: string;                           // USD exchange rate at time
+  main_currency_equivalent: string;                     // USD equivalent amount
   balance_after: string;                      // Balance after transaction
   timestamp: number;                          // Transaction timestamp
   description: string;                        // Human-readable description
@@ -188,7 +188,7 @@ POLYGONSCAN_API_KEY=your_api_key        # For contract verification
 ```typescript
 import { creditBalanceService } from '@/services/wallet/credit-balance-service';
 import { subscriptionService } from '@/services/membership/subscription-service';
-import { priceOracleService } from '@/features/wallet/services/native-token-price-oracle';
+import { nativeTokenChainlinkOracleService } from '@/features/wallet/services/native-token-chainlink-oracle';
 
 // Check user credit balance
 const balance = await creditBalanceService.getUserCreditBalance(userId);
@@ -197,7 +197,7 @@ const balance = await creditBalanceService.getUserCreditBalance(userId);
 const subscription = await subscriptionService.createSubscription(userId);
 
 // Get current RING price
-const priceData = await priceOracleService.getNativeTokenUsdPrice();
+const priceData = await nativeTokenChainlinkOracleService.getNativeTokenUsdPrice();
 ```
 
 ### API Usage Examples

@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge'
 import { Building2, Sparkles, X } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { entityTypeConfigs } from '@/components/entities/entity-type-icons'
+import { MemberUpgradeGate } from '@/components/membership/member-upgrade-gate'
 
 const DEFAULT_LOCALE = 'en' as const
 
@@ -118,22 +119,7 @@ function AddEntityFormContent({ locale }: { locale: Locale } = { locale: DEFAULT
   }
 
   if (session?.user?.role === UserRolesArray.subscriber as UserRolesArray) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8 space-y-4 text-center">
-        <Alert>
-          <AlertTitle>{t('upgradeToMemberToCreateEntities')}</AlertTitle>
-          <AlertDescription>{t('subscriberUpgradeMessage')}</AlertDescription>
-        </Alert>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale))}>
-            {t('upgradeToBeMember')}
-          </Button>
-          <Button variant="outline" onClick={() => router.push(ROUTES.ENTITIES(locale))}>
-            {t('backToEntities')}
-          </Button>
-        </div>
-      </div>
-    )
+    return <MemberUpgradeGate returnTo="/entities/add" />
   }
 
   return (

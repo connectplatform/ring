@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       poolSlug: slug,
       userId: session.user.id,
       userRole: session.user.role,
-      amountRing: parsed.data.amount_ring,
+      amountNativeToken: parsed.data.amount_native,
       idempotencyKey: parsed.data.idempotency_key,
       fundingMode: parsed.data.funding_mode,
     })

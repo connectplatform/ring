@@ -27,15 +27,16 @@ export function NavLegalFooter({
   align = 'start',
 }: NavLegalFooterProps) {
   const t = useTranslations('navigation')
-  const textSize = density === 'comfortable' ? 'text-xs' : 'text-[10px]'
-  const gap = density === 'comfortable' ? 'gap-1.5' : 'gap-1'
+  // 1.5× prior compact/comfortable type (10px→15px, 12px→18px)
+  const textSize = density === 'comfortable' ? 'text-lg' : 'text-[15px]'
+  const gap = density === 'comfortable' ? 'gap-2' : 'gap-1.5'
   const rowAlign = align === 'center' ? 'justify-center text-center' : 'justify-start text-left'
 
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col leading-none text-muted-foreground',
-        density === 'comfortable' ? 'gap-1.5' : 'gap-1',
+        'flex min-w-0 flex-col leading-tight text-muted-foreground',
+        density === 'comfortable' ? 'gap-2' : 'gap-1.5',
         textSize,
         className,
       )}

@@ -114,7 +114,12 @@
     "browseCatalog": "Explorar catálogo",
     "verifiedPublishers": "Editores verificados",
     "newListings": "Nuevos listados",
-    "bundlesAndStacks": "Paquetes y stacks"
+    "bundlesAndStacks": "Paquetes y stacks",
+    "supermenuFilter": "Filtrar menú…",
+    "economics": "Economía",
+    "calculateYourProject": "Calcula tu proyecto",
+    "calculateYourProjectDesc": "Elige opciones para tu clon de proyecto con IA; paga con {token} o tarjeta.",
+    "calculatorCta": "Calculadora"
   },
   "userRole": {
     "superadmin": "Superadministrador",
@@ -264,10 +269,13 @@
   "myProjectOrders": "Mis proyectos",
   "changelog": {
     "title": "Registro de cambios",
-    "subtitle": "Notas de versión desde CHANGELOG.md (v{version})",
+    "subtitle": "Notas de versión desde docs changelog (v{version})",
     "project": "Proyecto",
     "publisher": "Editor",
     "reportErrors": "Informar errores",
-    "publisherPage": "Página del editor"
-  }
+    "publisherPage": "Página del editor",
+    "empty": "Aún no hay entradas en el changelog."
+  },
+  "games": "Juegos",
+  "tasks": "Tareas"
 }

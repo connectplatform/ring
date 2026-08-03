@@ -29,5 +29,16 @@
     "needHelpDesc": "Die meisten Antworten stehen in /docs. Für alles andere das Formular auf dieser Seite nutzen.",
     "documentation": "Dokumentation →",
     "contactSupport": "Support kontaktieren →"
+  },
+  "form": {
+    "name": "Name",
+    "email": "E-Mail",
+    "message": "Nachricht",
+    "send": "Senden",
+    "sending": "Senden…",
+    "success": "Danke für deine Nachricht!",
+    "openMessages": "Unterhaltung öffnen",
+    "messageSent": "Nachricht gesendet!",
+    "notAcceptingMessages": "Dieses Mitglied akzeptiert keine Profilnachrichten"
   }
 }

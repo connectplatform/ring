@@ -137,7 +137,7 @@
 @layer base {
   :root {
     --sidebar-rail-w: 64px;
-    --sidebar-aside-w: 270px;
+    --sidebar-aside-w: 230px;
     --sidebar-total-w: calc(var(--sidebar-rail-w) + clamp(0px, var(--sidebar-aside-w), 320px));
     /* Lab01 app shell — canvas / frame / content panel */
     --app-canvas: 210 16% 88%;

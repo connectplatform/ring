@@ -83,6 +83,7 @@ function chainDirection(kind: string): 'in' | 'out' {
     kind === 'nativetoken_receive' ||
     kind === 'native_token_receive' ||
     kind === 'desk_buy' ||
+    kind === 'treasury_swap_in' ||
     kind === 'payment_request_received'
   ) {
     return 'in'
@@ -129,7 +130,7 @@ export async function getWalletActivityFeed(
   const limit = options?.limit ?? 50
   const walletAddress = options?.walletAddress?.toLowerCase()
 
-  const creditUnit = getClientCreditUnitLabel()
+  const creditBalanceUnit = getClientCreditUnitLabel()
   const tokenSymbol = getNativeTokenSymbol()
 
   const rows: WalletActivityRow[] = []
@@ -181,7 +182,7 @@ export async function getWalletActivityFeed(
         source: 'credit',
         kind: tx.type,
         amount: tx.amount,
-        currency: creditUnit,
+        currency: creditBalanceUnit,
         direction: creditDirection(tx),
         createdAt: new Date(tx.timestamp).getTime()
           ? new Date(tx.timestamp).toISOString()
@@ -189,7 +190,7 @@ export async function getWalletActivityFeed(
         description: tx.description,
         metadata: {
           ...tx.metadata,
-          creditUnit,
+          creditBalanceUnit,
           tokenSymbol,
           detailId: tx.id,
           detailSource: 'credit',

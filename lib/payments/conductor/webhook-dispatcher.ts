@@ -1,4 +1,5 @@
 import { parseOrderReference } from '@/lib/payments/order-reference'
+import { getPayPalGatewayCurrency } from '@/lib/payments/processors/paypal-client'
 import {
   verifyWayForPayGenericWebhook,
   verifyWayForPayStoreWebhook,
@@ -15,6 +16,19 @@ import {
   handleProjectOrderWayForPayWebhook,
   handleProjectOrderStripeWebhook,
 } from '@/lib/payments/conductor/handlers/project-order'
+import {
+  handleTaskEscrowWayForPayWebhook,
+  handleTaskEscrowStripeWebhook,
+} from '@/lib/payments/conductor/handlers/task-escrow'
+import {
+  handleCollectiveOrderSlotWayForPayWebhook,
+  handleCollectiveOrderSlotStripeWebhook,
+} from '@/lib/payments/conductor/handlers/collective-order-slot'
+import {
+  handlePublicPoolContributionWayForPayWebhook,
+  handlePublicPoolContributionStripeWebhook,
+} from '@/lib/payments/conductor/handlers/public-pool-contribution'
+import { handleCollectiveOrderSlotPayPalCapture } from '@/lib/payments/conductor/handlers/collective-order-slot-paypal'
 import { verifyStripeWebhook } from '@/lib/payments/processors/stripe.processor'
 import { handleNewsStripeWebhook } from '@/lib/payments/conductor/handlers/news-promotion'
 import { handleMembershipStripeWebhook } from '@/lib/payments/conductor/handlers/membership-upgrade-stripe'
@@ -89,6 +103,21 @@ export async function dispatchWayForPayWebhook(
     return { success: processed, purpose: 'project_order' }
   }
 
+  if (parsed.purpose === 'task_escrow') {
+    const processed = await handleTaskEscrowWayForPayWebhook(payload)
+    return { success: processed, purpose: 'task_escrow' }
+  }
+
+  if (parsed.purpose === 'collective_order_slot') {
+    const processed = await handleCollectiveOrderSlotWayForPayWebhook(payload)
+    return { success: processed, purpose: 'collective_order_slot' }
+  }
+
+  if (parsed.purpose === 'public_pool_contribution') {
+    const processed = await handlePublicPoolContributionWayForPayWebhook(payload)
+    return { success: processed, purpose: 'public_pool_contribution' }
+  }
+
   return { success: false, error: 'Unhandled purpose' }
 }
 
@@ -141,6 +170,32 @@ export async function dispatchStripeWebhook(
       return { success: processed, purpose: 'project_order' }
     }
 
+    case 'task_escrow': {
+      const processed = await handleTaskEscrowStripeWebhook(event)
+      return { success: processed, purpose: 'task_escrow' }
+    }
+
+    case 'collective_order_slot': {
+      const processed = await handleCollectiveOrderSlotStripeWebhook(event)
+      return { success: processed, purpose: 'collective_order_slot' }
+    }
+
+    case 'public_pool_contribution': {
+      if (event.type !== 'checkout.session.completed') {
+        return { success: true, purpose: 'public_pool_contribution' }
+      }
+      const processed = await handlePublicPoolContributionStripeWebhook(session)
+      return { success: processed, purpose: 'public_pool_contribution' }
+    }
+
+    case 'scheduled_service_slot': {
+      logger.warn('Stripe webhook: scheduled_service_slot not implemented yet', {
+        type: event.type,
+        metadata,
+      })
+      return { success: false, purpose: 'scheduled_service_slot', error: 'Not implemented' }
+    }
+
     case 'news_promotion':
     default: {
       // Legacy: also handle checkout.session.completed without explicit purpose
@@ -183,7 +238,7 @@ function extractPayPalCaptureAmount(event: Record<string, unknown>): {
   const resource = (event.resource ?? {}) as Record<string, unknown>
   const amountObj = (resource.amount ?? {}) as Record<string, unknown>
   const value = Number(amountObj.value ?? 0)
-  const currency = String(amountObj.currency_code ?? 'USD').toUpperCase()
+  const currency = String(amountObj.currency_code ?? getPayPalGatewayCurrency()).toUpperCase()
   return { amount: Number.isFinite(value) ? value : 0, currency }
 }
 
@@ -264,7 +319,7 @@ export async function dispatchPayPalWebhook(
   const { amount, currency } = extractPayPalCaptureAmount(event)
   const paidAmount =
     amount > 0 ? amount : typeof tx?.amount_minor === 'number' ? tx.amount_minor / 100 : 0
-  const paidCurrency = currency || tx?.currency?.toUpperCase() || 'USD'
+  const paidCurrency = currency || tx?.currency?.toUpperCase() || getPayPalGatewayCurrency()
 
   switch (purpose) {
     case 'store_order': {
@@ -304,6 +359,23 @@ export async function dispatchPayPalWebhook(
       })
       return { success: processed, purpose: 'news_promotion' }
     }
+    case 'collective_order_slot': {
+      const processed = await handleCollectiveOrderSlotPayPalCapture({
+        orderReference,
+        processorPayload: event,
+      })
+      return { success: processed, purpose: 'collective_order_slot' }
+    }
+    case 'scheduled_service_slot':
+    case 'task_escrow': {
+      // Explicit no-op: PayPal capture not wired for these purposes yet (avoid silent ack)
+      logger.warn('PayPal webhook: purpose not implemented for capture fulfillment', {
+        purpose,
+        orderReference,
+        eventType,
+      })
+      return { success: false, error: `PayPal fulfillment not implemented for ${purpose}` }
+    }
     default:
       logger.warn('PayPal webhook: unhandled purpose', { purpose, orderReference, eventType })
       return { success: true }
@@ -314,6 +386,9 @@ function parsePurposeFromReference(orderReference: string): PaymentPurpose | und
   if (orderReference.startsWith('store_')) return 'store_order'
   if (orderReference.startsWith('membership_')) return 'membership_upgrade'
   if (orderReference.startsWith('project_')) return 'project_order'
+  if (orderReference.startsWith('task_')) return 'task_escrow'
+  if (orderReference.startsWith('coslot_')) return 'collective_order_slot'
+  if (orderReference.startsWith('ssslot_')) return 'scheduled_service_slot'
   if (orderReference.startsWith('wallet_') || orderReference.startsWith('topup_') || orderReference.startsWith('wallettopup_')) {
     return 'wallet_topup'
   }

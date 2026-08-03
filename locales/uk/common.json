@@ -115,5 +115,20 @@
     "title": "Несанкціонований доступ",
     "message": "У вас немає дозволу переглядати цю сторінку.",
     "returnHome": "На головну"
+  },
+  "davinciDroplist": {
+    "selectTitle": "Оберіть {scope}",
+    "filterPlaceholder": "Фільтр…",
+    "noResults": "Нічого не знайдено.",
+    "detecting": "Визначення…",
+    "clearSelection": "Очистити вибір",
+    "searchHintMinChars": "Введіть щонайменше {count} символи для пошуку.",
+    "scopes": {
+      "country": "країну",
+      "timezone": "часовий пояс",
+      "representative": "представника",
+      "vendor": "вендора"
+    },
+    "searching": "Пошук…"
   }
 }

@@ -1,14 +1,14 @@
 ---
 title: RingFileBase (object storage API)
 description: Self-hosted upload API for Ring clones — file() → RingBaseAdapter → MinIO/RGW, {fileId}_v_* derivatives, push-only geo
-last_modified: "2026-07-15"
+last_modified: "2026-07-21"
 audience: both
 ---
 
 # RingFileBase (object storage API)
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Pair with [Ring CDN](/docs/integrations/ring-cdn) for public delivery of uploaded objects.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Pair with [Ring CDN](/docs/integrations/ring-cdn) for public delivery of uploaded objects. [Ring File Cabinet](/docs/features/file-cabinet) is a first-class `file()` consumer (`getCabinetStorageConfig()`, gallery `derivativesProfile`).
 </Callout>
 
 **RingFileBase** is Ring’s self-hosted object-storage plane: an Express API (`ring-filebase-api`) that accepts authenticated multipart uploads and writes to **S3-compatible** storage (MinIO or Ceph RGW). Ring apps never talk to MinIO from the browser — they call `file().upload(...)`, which selects `RingBaseAdapter` when the storage provider is `ring_filebase`.
@@ -52,6 +52,9 @@ Product images, KYC scans, chat attachments, and ImageConductor outputs all need
   </Card>
   <Card title="Production marketplace" href="/docs/features/store">
     Set `ring_filebase`, point `RINGBASE_API_URL` at the in-cluster API, publish URLs via Ring CDN (see Related below).
+  </Card>
+  <Card title="File Cabinet" href="/docs/features/file-cabinet">
+    Member uploads call `file()` with cabinet MIME/25MB limits; public gallery items reuse CDN `/files/{uuid}`.
   </Card>
   <Card title="Managed Ringdom hosting" href="/docs/development/oss-vs-enterprise">
     Operators deploy `ring-filebase` + `ring-filebase-minio` namespaces; your clone only needs ConfigMap/Secret wiring.
@@ -248,17 +251,31 @@ Browser forms should use `POST /api/uploads` (unified upload core), not call Rin
 
 ## Related documentation
 
-<Cards>
-  <Card title="Ring CDN" href="/docs/integrations/ring-cdn">
-    Public `/files/...` edge, host→bucket map, geo edges.
-  </Card>
-  <Card title="Environment configuration" href="/docs/deployment/environment">
-    Storage env block and generative conductor prerequisites.
-  </Card>
-  <Card title="Backup & recovery" href="/docs/deployment/backup">
-    Object store is a separate backup asset from Postgres.
-  </Card>
-  <Card title="Integrations hub" href="/docs/integrations">
-    Full integration catalog.
-  </Card>
-</Cards>
+<RelatedDocs>
+
+<RelatedArticle
+  slug="integrations/ring-cdn"
+  relation="Next-step: public /files/... edge, host→bucket map, and geo delivery for uploaded objects."
+/>
+
+<RelatedArticle
+  slug="features/file-cabinet"
+  relation="Same-workflow: member /file-cabinet uploads via file() + getCabinetStorageConfig; gallery uses derivativesProfile gallery; subscriber+ /profile/shared is ACL-only (no own uploads)."
+/>
+
+<RelatedArticle
+  slug="deployment/environment"
+  relation="Depends-on: storage env block (RINGBASE_*) and generative conductor prerequisites."
+/>
+
+<RelatedArticle
+  slug="deployment/backup"
+  relation="See-also: object store is a separate backup asset from Postgres."
+/>
+
+<RelatedArticle
+  slug="integrations"
+  relation="See-also: full integration catalog hub."
+/>
+
+</RelatedDocs>

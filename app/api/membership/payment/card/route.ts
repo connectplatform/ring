@@ -4,23 +4,19 @@ import { auth } from '@/auth'
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
 import { logger } from '@/lib/logger'
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
-import { getMembershipRingUpgradeAmount, getMembershipRingRenewalAmount } from '@/lib/membership/pricing'
+import { getMembershipRingRenewalAmount } from '@/lib/membership/pricing'
+import {
+  getLiveMemberMainCurrencyTierForPeriod,
+  getLiveMembershipMainCurrencyAmountForNative,
+} from '@/lib/membership/pricing-live'
 import { getCardPaymentProcessor } from '@/lib/payments/subscription/subscription-config'
+import { membershipApiPaymentBodySchema } from '@/lib/zod/membership-schemas'
 
 // ==========================
 // CARD PAYMENT API ENDPOINTS
 // ==========================
 
-// -----------
-// Schema
-// -----------
-// Defines shape of card payment POST requests for zod validation
-const CardPaymentRequestSchema = z.object({
-  type: z.enum(['membership_upgrade', 'subscription_renewal', 'membership_fee']),
-  amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid positive number').optional(),
-  provider: z.enum(['stripe', 'wayforpay']).optional(), // Defaults to ring-config cardPaymentProcessor
-  auto_subscribe: z.boolean().default(true), // Card payments default to subscription
-})
+const CardPaymentRequestSchema = membershipApiPaymentBodySchema
 type CardPaymentRequest = z.infer<typeof CardPaymentRequestSchema>
 
 /**
@@ -93,26 +89,28 @@ export async function POST(request: NextRequest) {
     // -------------------------
     // Pricing & Fee Calculation
     // -------------------------
-    const defaultUpgradeAmount = getMembershipRingUpgradeAmount()
-    const defaultRenewalAmount = getMembershipRingRenewalAmount()
+    // Card charges are always the live desk main-currency price derived on the
+    // server. The client-sent `amount` is advisory display only — never trusted.
+    const upgradeTier = await getLiveMemberMainCurrencyTierForPeriod('monthly')
+    const paymentAmount =
+      type === 'subscription_renewal'
+        ? await getLiveMembershipMainCurrencyAmountForNative(getMembershipRingRenewalAmount())
+        : upgradeTier.amount
+    const paymentCurrency = upgradeTier.currency
+    const membershipFee = paymentAmount.toFixed(2)
 
-    // Pick amount: use request-specified or fallback to context-based default
-    // membership_fee: always uses defaultUpgrade; sub renewals use renewal price
-    const membershipFee =
-      amount ??
-      (type === 'subscription_renewal'
-        ? defaultRenewalAmount.toString()
-        : defaultUpgradeAmount.toString())
+    if (amount !== undefined && Math.abs(parseFloat(amount) - paymentAmount) > 0.01) {
+      logger.warn('Card membership: client amount differs from live desk price', {
+        userId,
+        clientAmount: amount,
+        serverAmount: paymentAmount,
+        currency: paymentCurrency,
+      })
+    }
 
-    // Convert validated string to float for boundary check
-    const paymentAmount = parseFloat(membershipFee)
-
-    // Validate that the amount is within defined bounds
-    if (paymentAmount <= 0 || paymentAmount > 100) {
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0 || paymentAmount > 1_000_000) {
       return NextResponse.json(
-        {
-          error: `Invalid payment amount. Must be between 0.01 and 100 USD`,
-        },
+        { error: 'Invalid payment amount' },
         { status: 400 }
       )
     }
@@ -151,7 +149,7 @@ export async function POST(request: NextRequest) {
             gateway: cardProvider === 'stripe' ? 'Stripe' : 'WayForPay',
             method: 'card',
             amount: paymentAmount,
-            currency: 'USD',
+            currency: paymentCurrency,
             gatewayFeePercent: cardProvider === 'stripe' ? 2.9 : 2.7, // Stripe/WayForPay fee
             gatewayFeeFixed: cardProvider === 'stripe' ? 0.30 : 0,
             metadata: {
@@ -220,7 +218,7 @@ export async function POST(request: NextRequest) {
             gateway: cardProvider === 'stripe' ? 'Stripe' : 'WayForPay',
             method: 'card',
             amount: paymentAmount,
-            currency: 'USD',
+            currency: paymentCurrency,
             gatewayFeePercent: cardProvider === 'stripe' ? 2.9 : 2.7,
             gatewayFeeFixed: cardProvider === 'stripe' ? 0.30 : 0,
             metadata: {
@@ -269,7 +267,7 @@ export async function POST(request: NextRequest) {
       payment: {
         type: type,
         amount_paid: membershipFee,
-        currency: 'USD',
+        currency: paymentCurrency,
         provider: cardProvider,
         method: 'card',
         timestamp: Date.now(), // TODO: Use serverTime() for consistency/platform audit
@@ -340,8 +338,10 @@ export async function GET(request: NextRequest) {
       )
     }
     const userId = session.user.id
-    // Compute base membership fee (upgrade pricing)
-    const membershipFee = getMembershipRingUpgradeAmount()
+    // Live desk main-currency price for display — matches what POST charges.
+    const upgradeTier = await getLiveMemberMainCurrencyTierForPeriod('monthly')
+    const membershipFee = upgradeTier.amount
+    const feeCurrency = upgradeTier.currency
 
     // Load latest subscription data for this user
     // TODO: Use loading/cache state where possible (API routes currently re-evaluate on each request)
@@ -359,7 +359,7 @@ export async function GET(request: NextRequest) {
         description: 'One-time upgrade with automatic monthly billing',
         cost: {
           amount: membershipFee.toFixed(2),
-          currency: 'USD',
+          currency: feeCurrency,
         },
         available: true,
         benefits: [
@@ -381,7 +381,7 @@ export async function GET(request: NextRequest) {
         description: 'Renew your membership for another month',
         cost: {
           amount: membershipFee.toFixed(2),
-          currency: 'USD',
+          currency: feeCurrency,
         },
         available: true,
         benefits: [
@@ -398,8 +398,8 @@ export async function GET(request: NextRequest) {
       title: 'One-time Payment',
       description: 'Pay membership fee with automatic subscription',
       cost: {
-        amount: '1.0', // NOTE: Consider using membershipFee.toFixed(2) for consistency? (TODO)
-        currency: 'USD',
+        amount: membershipFee.toFixed(2),
+        currency: feeCurrency,
       },
       available: true,
       benefits: [
@@ -423,7 +423,7 @@ export async function GET(request: NextRequest) {
       pricing: {
         membership_fee: {
           amount: membershipFee.toFixed(2),
-          currency: 'USD',
+          currency: feeCurrency,
         },
         discounts: [], // TODO: Supply bulk/discount tiers when rolling out annual/long-term
         fees: {

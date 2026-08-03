@@ -82,9 +82,9 @@ docker run -p 3000:3000 \
 {`docker build --platform linux/amd64 \
   --build-arg AUTH_SECRET="your-secret" \
   --build-arg DB_HOST="postgres.ring-platform-org.svc.cluster.local" \
-  -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 .
+  -t registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 .
 
-docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64`}
+docker push registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64`}
 </Code>
 
 ## ☸️ Kubernetes Deployment

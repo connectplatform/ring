@@ -19,7 +19,7 @@ import { TunnelConnectionState, type TunnelMessage } from '@/lib/tunnel/types'
 export interface UseTunnelChannelOptions<T> {
   /** Base channel name (e.g. `notifications:inbox`, `credit:balance`). */
   channel: string
-  /** When true, subscribes to `${channel}:${userId}` (credit balance pattern). */
+  /** When true, subscribes to `${channel}:${userId}` (rare; prefer publishToUserTunnel + plain channel). */
   userScoped?: boolean
   enabled?: boolean
   onMessage?: (payload: T, message: TunnelMessage) => void

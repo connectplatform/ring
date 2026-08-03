@@ -29,6 +29,7 @@ import { EmailThreadService } from '@/features/email-crm/services/email-thread-s
 import { EmailMessageService } from '@/features/email-crm/services/email-message-service';
 import { EmailApiUsageService } from '@/features/email-crm/services/email-api-usage-service';
 import { sendDraftReply } from '@/features/email-crm/services/email-send-orchestrator';
+import { extractThreadMarker, RING_THREAD_HEADER } from '@/features/email-crm/lib/thread-marker';
 import { wireEmailNotifications } from './wire-email-notifications';
 import { logger } from '@/lib/logger';
 
@@ -97,6 +98,14 @@ export class EmailProcessor extends EventEmitter {
   // State
   private isRunning = false;
   private processedCount = 0;
+  /** Consecutive pre-persist failures keyed by IMAP uid (or messageId). */
+  private prePersistFailCounts = new Map<string, number>();
+  private static readonly QUARANTINE_FOLDER =
+    process.env.EMAIL_CRM_QUARANTINE_FOLDER || 'CRM.Quarantine';
+  private static readonly QUARANTINE_AFTER = Math.max(
+    1,
+    parseInt(process.env.EMAIL_CRM_QUARANTINE_AFTER || '3', 10) || 3,
+  );
   
   // Configuration
   private config = {
@@ -261,7 +270,7 @@ export class EmailProcessor extends EventEmitter {
       generation: 0,
     };
     
-    logger.info('[EmailProcessor] Processing email', {
+    logger.debug('[EmailProcessor] Processing email', {
       messageId: event.messageId,
       from: event.from,
       subject: event.subject,
@@ -281,6 +290,7 @@ export class EmailProcessor extends EventEmitter {
     const runTasks = this.config.createTasks && flow !== 'ingest_only'
     const runGeneration =
       this.config.generateResponses && flow === 'standard'
+    let persistedMessage = false
     
     try {
       // Step 1: Parse email
@@ -314,11 +324,23 @@ export class EmailProcessor extends EventEmitter {
           riskLevel: security.riskLevel,
           riskScore: security.totalRiskScore,
         });
+        try {
+          const { emailCrmMetrics } = await import('./metrics')
+          emailCrmMetrics.sanitizerRiskSpike(security.totalRiskScore)
+        } catch {
+          /* optional */
+        }
         
         this.emit('email:blocked', { parsed, security });
         
         await this.markSeenIfImap(event.uid, options);
         return;
+      }
+      try {
+        const { emailCrmMetrics } = await import('./metrics')
+        emailCrmMetrics.sanitizerRiskSpike(security.totalRiskScore)
+      } catch {
+        /* optional */
       }
       
       // Step 3: AI Analysis
@@ -397,6 +419,9 @@ export class EmailProcessor extends EventEmitter {
           sentiment,
           channelMeta,
         );
+        persistedMessage = true
+        const failKey = event.uid > 0 ? `uid:${event.uid}` : `mid:${event.messageId}`
+        this.prePersistFailCounts.delete(failKey)
       } catch (err) {
         logger.error('[EmailProcessor] Message persist failed', {
           messageId: parsed.messageId,
@@ -440,6 +465,20 @@ export class EmailProcessor extends EventEmitter {
         logger.info('[EmailProcessor] Ingest-only channel complete', {
           messageId: event.messageId,
           channelId: event.channelId,
+          totalTimeMs: timing.total,
+        })
+        return
+      }
+
+      // Client prefers in-app support chat — mirror email into chat, skip AI draft burn
+      const preferChatActive = await this.mirrorInboundToSupportChat(threadId, parsed, contact)
+      if (preferChatActive) {
+        await this.markSeenIfImap(event.uid, options)
+        timing.total = Date.now() - startTime
+        this.processedCount++
+        logger.info('[EmailProcessor] preferChat path complete (no email draft)', {
+          messageId: event.messageId,
+          threadId,
           totalTimeMs: timing.total,
         })
         return
@@ -544,7 +583,14 @@ export class EmailProcessor extends EventEmitter {
         
         if (this.config.autoSendEnabled && draftResult.shouldAutoSend) {
           try {
-            const { messageId: sentMessageId } = await sendDraftReply({
+            const existingThread = await EmailThreadService.getThread(threadId)
+            if (existingThread?.preferChat) {
+              logger.info('[EmailProcessor] Auto-send skipped — preferChat (support chat active)', {
+                threadId,
+                draftId: draftResult.draft.id,
+              })
+            } else {
+            const sendResult = await sendDraftReply({
               draftId: draftResult.draft.id,
               toEmail: parsed.from.email,
               subject: parsed.subject,
@@ -555,16 +601,25 @@ export class EmailProcessor extends EventEmitter {
               channelId: event.channelId,
             });
 
+            if (sendResult.skipped) {
+              logger.info('[EmailProcessor] Auto-send skipped — preferChat', {
+                draftId: draftResult.draft.id,
+                threadId,
+                notice: sendResult.notice,
+              });
+            } else {
             logger.info('[EmailProcessor] Auto-sent response', {
               draftId: draftResult.draft.id,
               confidence: generation.confidenceScore,
-              sentMessageId,
+              sentMessageId: sendResult.messageId,
             });
 
             this.emit('draft:auto_sent', {
               draft: draftResult,
-              messageId: sentMessageId,
+              messageId: sendResult.messageId,
             });
+            }
+            }
           } catch (sendErr) {
             logger.error('[EmailProcessor] Auto-send failed', {
               draftId: draftResult.draft.id,
@@ -597,6 +652,12 @@ export class EmailProcessor extends EventEmitter {
       
       this.emit('email:processed', result);
       this.processedCount++;
+      try {
+        const { emailCrmMetrics } = await import('./metrics')
+        emailCrmMetrics.processed()
+      } catch {
+        /* optional */
+      }
       
       logger.info('[EmailProcessor] Email processed', {
         messageId: event.messageId,
@@ -609,9 +670,83 @@ export class EmailProcessor extends EventEmitter {
       logger.error('[EmailProcessor] Processing failed', {
         messageId: event.messageId,
         error: (error as Error).message,
+        persistedMessage,
+        willRetry: !persistedMessage,
       });
+
+      try {
+        const { emailCrmMetrics } = await import('./metrics')
+        if (!persistedMessage) {
+          emailCrmMetrics.prePersistFailure()
+          emailCrmMetrics.willRetry()
+        }
+      } catch {
+        /* optional */
+      }
+
+      // Durable ingest succeeded — mark seen so poison AI/downstream failures
+      // do not re-enter the UNSEEN backlog every cron tick.
+      if (persistedMessage) {
+        await this.markSeenIfImap(event.uid, options);
+      } else {
+        await this.handlePrePersistFailure(event, options);
+      }
       
       this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Pre-persist poison: after N consecutive failures, move to CRM.Quarantine.
+   * Until then leave UNSEEN for retry.
+   */
+  private async handlePrePersistFailure(
+    event: EmailReceivedEvent,
+    options: { skipMarkSeen?: boolean; imapListener?: ImapListener } = {},
+  ): Promise<void> {
+    const key = event.uid > 0 ? `uid:${event.uid}` : `mid:${event.messageId}`
+    const next = (this.prePersistFailCounts.get(key) || 0) + 1
+    this.prePersistFailCounts.set(key, next)
+
+    if (next < EmailProcessor.QUARANTINE_AFTER) {
+      logger.warn('[EmailProcessor] Pre-persist failure — will retry', {
+        key,
+        attempt: next,
+        quarantineAfter: EmailProcessor.QUARANTINE_AFTER,
+      })
+      return
+    }
+
+    const listener = options.imapListener || this.imapListener
+    if (options.skipMarkSeen || event.uid <= 0 || !listener.isConnected()) {
+      logger.error('[EmailProcessor] Quarantine threshold hit but IMAP unavailable', {
+        key,
+        attempt: next,
+      })
+      return
+    }
+
+    try {
+      await listener.ensureFolder(EmailProcessor.QUARANTINE_FOLDER)
+      await listener.moveToFolder(event.uid, EmailProcessor.QUARANTINE_FOLDER)
+      this.prePersistFailCounts.delete(key)
+      try {
+        const { emailCrmMetrics } = await import('./metrics')
+        emailCrmMetrics.quarantined()
+      } catch {
+        /* optional */
+      }
+      logger.error('[EmailProcessor] Quarantined after pre-persist failures', {
+        uid: event.uid,
+        messageId: event.messageId,
+        folder: EmailProcessor.QUARANTINE_FOLDER,
+        attempts: next,
+      })
+    } catch (err) {
+      logger.error('[EmailProcessor] Quarantine move failed', {
+        uid: event.uid,
+        error: (err as Error).message,
+      })
     }
   }
   
@@ -643,9 +778,118 @@ export class EmailProcessor extends EventEmitter {
     });
   }
   
-  /** Stable thread key from parsed headers (References / In-Reply-To / Message-ID). */
+  /** Prefer Ring-Support-Thread marker (header → body → subject), then References / In-Reply-To / Message-ID. */
   private resolveThreadId(parsed: ParsedEmail): string {
+    const headerKey = Object.keys(parsed.rawHeaders || {}).find(
+      (k) => k.toLowerCase() === RING_THREAD_HEADER.toLowerCase(),
+    )
+    const fromHeader = headerKey
+      ? extractThreadMarker(`[Ring-Support-Thread: ${parsed.rawHeaders[headerKey]}]`) ||
+        String(parsed.rawHeaders[headerKey] || '').trim()
+      : null
+    if (fromHeader) return fromHeader
+
+    const fromBody =
+      extractThreadMarker(parsed.bodyText) ||
+      extractThreadMarker(parsed.bodyTextClean) ||
+      extractThreadMarker(parsed.bodyHtml)
+    if (fromBody) return fromBody
+    const fromSubject = extractThreadMarker(parsed.subject)
+    if (fromSubject) return fromSubject
     return parsed.externalThreadId || parsed.inReplyTo || parsed.messageId;
+  }
+
+  /**
+   * When client opted into support chat (preferChat), mirror inbound email into that chat.
+   * Returns true only when preferChat is active (caller should skip AI email drafts).
+   */
+  private async mirrorInboundToSupportChat(
+    threadId: string,
+    parsed: ParsedEmail,
+    contact: EmailContact,
+  ): Promise<boolean> {
+    try {
+      const thread = await EmailThreadService.getThread(threadId)
+      if (!thread?.preferChat) return false
+
+      const { ConversationService } = await import(
+        '@/features/chat/services/conversation-service'
+      )
+      const { MessageService } = await import('@/features/chat/services/message-service')
+      const conversationService = new ConversationService()
+      const messageService = new MessageService()
+
+      let conversation = await conversationService.findSupportConversation(threadId)
+
+      if (!conversation && thread.supportConversationId) {
+        const { db } = await import('@/lib/database')
+        const read = await db().readDoc<{
+          id: string
+          type: string
+          metadata?: { requesterUserId?: string }
+          participants?: Array<{ userId: string }>
+        }>('conversations', thread.supportConversationId)
+        if (read.success && read.data?.type === 'support') {
+          conversation = read.data as never
+        }
+      }
+
+      if (!conversation) {
+        logger.info('[EmailProcessor] preferChat set but no support conversation yet', {
+          threadId,
+        })
+        return true
+      }
+
+      const requesterId =
+        (conversation as { metadata?: { requesterUserId?: string } }).metadata
+          ?.requesterUserId ||
+        contact.ringUserId ||
+        conversation.participants?.[0]?.userId
+
+      if (!requesterId) return true
+
+      const body =
+        parsed.bodyTextClean ||
+        parsed.bodyText ||
+        parsed.subject ||
+        '(empty email)'
+
+      await messageService.sendMessage(
+        {
+          conversationId: conversation.id,
+          content: body.slice(0, 8000),
+          type: 'text',
+          metadata: {
+            kind: 'email_mirror',
+            supportRequestId: threadId,
+            source: 'inbound_email',
+            emailMessageId: parsed.messageId,
+          },
+        },
+        requesterId,
+        contact.name || parsed.from.name || parsed.from.email,
+      )
+
+      logger.info('[EmailProcessor] Mirrored inbound email into support chat', {
+        threadId,
+        conversationId: conversation.id,
+        messageId: parsed.messageId,
+      })
+      return true
+    } catch (error) {
+      logger.warn('[EmailProcessor] Support-chat mirror failed', {
+        threadId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      // Still skip drafts if preferChat was the intent — re-check thread
+      try {
+        const thread = await EmailThreadService.getThread(threadId)
+        return Boolean(thread?.preferChat)
+      } catch {
+        return false
+      }
+    }
   }
 
   private async markSeenIfImap(
@@ -662,6 +906,12 @@ export class EmailProcessor extends EventEmitter {
         uid,
         error: (err as Error).message,
       });
+      try {
+        const { emailCrmMetrics } = await import('./metrics')
+        emailCrmMetrics.markSeenFailed()
+      } catch {
+        /* optional */
+      }
     }
   }
 

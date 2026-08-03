@@ -12,6 +12,7 @@ import {
   type ReferralCommissionSource,
 } from '@/features/store/lib/referral-commission'
 import { getMerchantConfigByEntityId } from '@/features/store/lib/merchant-config'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import type { MerchantConfiguration } from '@/features/store/types/vendor'
 import type { Settlement } from '@/features/store/services/settlement'
 import { resolveApprovalStatus, resolveVendorEntityId, resolveListStores, buildMainStoreListingPatch, flattenProductDocumentForWrite, MAIN_STORE_ID } from '@/features/store/lib/product-document'
@@ -26,6 +27,8 @@ import {
 } from '@/lib/zod'
 import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
 import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
+import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
+import { createProductNodusWikiFromDraft } from '@/features/store/lib/product-nodus-wiki'
 
 // Interface for a row of product referral rate details
 export interface ProductReferralRateRow {
@@ -174,7 +177,7 @@ export async function listAdminStoreProducts(
     name: String(row.name ?? row.id),
     vendorEntityId: resolveVendorEntityId(row) || '—',
     price: String(row.price ?? '0'),
-    currency: String(row.currency ?? 'UAH'),
+    currency: String(row.currency ?? getMainCurrencySymbol()),
     stock: Number(row.stock ?? row.stock_quantity ?? 0),
     status: row.status != null ? String(row.status) : undefined,
     approvalStatus: resolveApprovalStatus(row),
@@ -309,6 +312,7 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
     // Parse form data according to schema
     const fields = parseStoreProductFormData(formData)
     const vendorEntityId = String(formData.get('vendorEntityId') ?? '')
+    const researchForm = parseProductResearchFormData(formData)
     adminStoreProductCreateSchema.parse({ ...fields, vendorEntityId })
 
     // Must check vendor existence and status
@@ -319,6 +323,12 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
 
     // Key: generate product ID (with timestamp/random for uniqueness)
     const productId = `product_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+    const productNodusWiki = await createProductNodusWikiFromDraft({
+      productId,
+      productName: fields.name,
+      productAgent: researchForm.productAgent,
+      nodusJson: researchForm.nodusDraft,
+    })
     // Upload and aggregate product photo URLs
     const uploadedPhotos = await uploadProductPhotosFromForm(formData, productId)
     const photoUrls = uploadedPhotos.photoUrls
@@ -358,6 +368,20 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       createdByAdmin: session.user.id,
+      ...(researchForm.productAgent
+        ? {
+            productAgent: researchForm.productAgent,
+            longDescription: researchForm.productAgent,
+          }
+        : {}),
+      ...(researchForm.nodusDraft ? { productNodusDraft: researchForm.nodusDraft } : {}),
+      ...(productNodusWiki ? { productNodusWiki } : {}),
+      ...(researchForm.researchFields
+        ? { productResearchFields: researchForm.researchFields }
+        : {}),
+      ...(researchForm.researchMedia.length
+        ? { productResearchMedia: researchForm.researchMedia }
+        : {}),
       ...listingPatch,
     }
 
@@ -377,6 +401,7 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
     // Revalidate caches/pages
     revalidatePath('/admin/store/products')
     revalidatePath('/store')
+    revalidatePath('/admin/wiki')
     return { success: true, productId }
   } catch (error) {
     // TODO: Use server actions error boundaries in React 19 for concise error propagation
@@ -418,6 +443,13 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
       return { error: 'At least one photo is required' }
     }
 
+    // Agent Knowledge (optional hidden fields from ProductAgentKnowledgeSection)
+    const productAgentRaw = String(formData.get('productAgent') ?? '').trim()
+    const productNodusWikiPageId = String(formData.get('productNodusWikiPageId') ?? '').trim()
+    const existingWiki = existingResult.data.productNodusWiki as
+      | { wikiPageId?: string; wikiVaultKey?: string; title?: string }
+      | undefined
+
     // Merge update with validated/changed fields and uploaded images
     const update = flattenProductDocumentForWrite(existingResult.data, {
       ...listingPatch,
@@ -440,6 +472,17 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
         ? { referralCommission: fields.referralCommission }
         : {}),
       ...(fields.rep ? { rep: fields.rep } : { rep: undefined }),
+      ...(productAgentRaw ? { productAgent: productAgentRaw } : {}),
+      ...(productNodusWikiPageId
+        ? {
+            productNodusWiki: {
+              wikiPageId: productNodusWikiPageId,
+              wikiVaultKey: existingWiki?.wikiVaultKey,
+              title: existingWiki?.title,
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        : {}),
     })
 
     // Write changes to DB
@@ -531,17 +574,41 @@ async function uploadProductPhotosFromForm(
 }
 
 // Add to current stock for vendor product (call from vendor portal)
-// TODO: Validate that user is allowed to restock this specific product. Allow React 19 server actions mutate advance.
 export async function restockVendorProduct(productId: string, quantity: number) {
   const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
   }
 
-  // Call ERP stock service to add quantity
+  const productResult = await db().findDocById<Record<string, unknown>>('store_products', productId)
+  if (!productResult.success || !productResult.data) {
+    throw new Error('Product not found')
+  }
+
+  const isAdmin = isPlatformAdmin(session.user.role)
+  if (!isAdmin) {
+    const { getVendorEntity } = await import('@/features/entities/services/vendor-entity')
+    const vendorEntity = await getVendorEntity(session.user.id)
+    if (!vendorEntity) {
+      throw new Error('Vendor profile required')
+    }
+    const ownerId = resolveVendorEntityId(productResult.data as never)
+    const productOwner = String(
+      (productResult.data as { productOwner?: string }).productOwner ?? '',
+    )
+    const allowed =
+      ownerId === vendorEntity.id ||
+      productOwner === vendorEntity.id ||
+      productOwner === session.user.id
+    if (!allowed) {
+      throw new Error('Not allowed to restock this product')
+    }
+  }
+
+  const { ZERO_WAREHOUSE_ID } = await import('@/features/store/constants/stock')
   const result = await ERPStockService.updateStock({
     productId,
-    warehouseId: 'zero-warehouse', // TODO: Allow user to pick/see warehouse
+    warehouseId: ZERO_WAREHOUSE_ID,
     quantityChange: quantity,
     operation: 'add',
     reason: 'Vendor restock',
@@ -549,5 +616,66 @@ export async function restockVendorProduct(productId: string, quantity: number) 
   })
 
   revalidatePath('/vendor/stock')
+  revalidatePath('/admin/store/stock')
+  return result
+}
+
+/** Admin: hold a settlement (blocks payout). */
+export async function holdSettlementAction(settlementId: string, reason: string) {
+  await assertAdmin()
+  const { holdSettlement } = await import('@/features/store/services/settlement')
+  await holdSettlement(settlementId, reason || 'Admin hold')
+  revalidatePath('/admin/store/commissions')
+  return { success: true }
+}
+
+/** Admin: release a held settlement back to pending. */
+export async function releaseHeldSettlementAction(settlementId: string) {
+  await assertAdmin()
+  const { releaseHeldSettlement } = await import('@/features/store/services/settlement')
+  await releaseHeldSettlement(settlementId)
+  revalidatePath('/admin/store/commissions')
+  return { success: true }
+}
+
+/** Dry-run preview of due settlements (no payout). */
+export async function previewDueSettlementsAction() {
+  await assertAdmin()
+  const result = await db().queryDocs<Settlement & Record<string, unknown>>({
+    collection: 'settlements',
+    filters: [{ field: 'status', operator: '=', value: 'pending' }],
+    orderBy: [{ field: 'scheduledFor', direction: 'asc' }],
+    pagination: { limit: 100 },
+  })
+  const rows = (result.success && result.data ? result.data : []) as Settlement[]
+  const now = Date.now()
+  const due = rows.filter((s) => new Date(s.scheduledFor).getTime() <= now)
+  return {
+    success: true,
+    dueCount: due.length,
+    pendingCount: rows.length,
+    totalNet: due.reduce((sum, s) => sum + (s.netPayout || 0), 0),
+    due,
+  }
+}
+
+/** Admin adjust stock with reason (add/subtract/set). */
+export async function adjustProductStockAction(params: {
+  productId: string
+  quantity: number
+  operation: 'add' | 'subtract' | 'set'
+  reason: string
+}) {
+  const session = await assertAdmin()
+  const { ZERO_WAREHOUSE_ID } = await import('@/features/store/constants/stock')
+  const result = await ERPStockService.updateStock({
+    productId: params.productId,
+    warehouseId: ZERO_WAREHOUSE_ID,
+    quantityChange: params.quantity,
+    operation: params.operation,
+    reason: params.reason || 'Admin adjustment',
+    userId: session.user!.id,
+  })
+  revalidatePath('/admin/store/stock')
   return result
 }

@@ -82,6 +82,24 @@ export class ConversationService {
     return result.data[0];
   }
 
+  async findSupportConversation(supportRequestId: string): Promise<Conversation | null> {
+    const result = await db().queryDocs<Conversation>({
+      collection: 'conversations',
+      filters: [
+        { field: 'type', operator: '==', value: 'support' },
+        { field: 'metadata', operator: 'jsonb-contains', value: { supportRequestId } },
+      ],
+      orderBy: [{ field: 'updated_at', direction: 'desc' }],
+      pagination: { limit: 1 },
+    });
+
+    if (!result.success || !result.data?.length) {
+      return null;
+    }
+
+    return result.data[0];
+  }
+
   async createConversation(data: CreateConversationRequest): Promise<Conversation> {
     const now = new Date();
 
@@ -119,6 +137,13 @@ export class ConversationService {
 
     if (data.type === 'order_lab' && data.metadata?.orderId) {
       const existing = await this.findOrderLabConversation(data.metadata.orderId);
+      if (existing) {
+        return existing;
+      }
+    }
+
+    if (data.type === 'support' && data.metadata?.supportRequestId) {
+      const existing = await this.findSupportConversation(data.metadata.supportRequestId);
       if (existing) {
         return existing;
       }
@@ -590,7 +615,10 @@ export class ConversationService {
     return countResult.data ?? 0;
   }
 
-  private async sendSystemMessage(conversationId: string, content: string): Promise<void> {
+  private async sendSystemMessage(
+    conversationId: string,
+    content: string,
+  ): Promise<Message | null> {
     const now = new Date();
 
     const message: Omit<Message, 'id'> = {
@@ -612,23 +640,26 @@ export class ConversationService {
       } catch {
         /* non-fatal */
       }
+      return createResult.data as Message;
     }
+    return null;
   }
 
   /**
    * Public wrapper for call lifecycle system lines (invite / ended).
+   * Returns the persisted Message so HTTP callers can append locally (mirrors sendMessage).
    * UPGRADE: localize content server-side via next-intl once call i18n keys are shared.
    */
   async recordCallSystemMessage(
     conversationId: string,
     actorUserId: string,
     actionPhrase: string,
-  ): Promise<void> {
+  ): Promise<Message | null> {
     const conversation = await this.getConversationById(conversationId, actorUserId);
-    if (!conversation) return;
+    if (!conversation) return null;
     const actor =
       conversation.participants.find((p) => p.userId === actorUserId)?.displayName ||
       'Someone';
-    await this.sendSystemMessage(conversationId, `${actor} ${actionPhrase}`);
+    return this.sendSystemMessage(conversationId, `${actor} ${actionPhrase}`);
   }
 }

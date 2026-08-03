@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, use, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, use, useMemo, useRef, useEffectEvent } from 'react'
 import { useSession } from 'next-auth/react'
 import { logger } from '@/lib/logger'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
@@ -9,7 +9,7 @@ import { useTunnelChannel } from './use-tunnel-channel'
 interface CreditBalanceData {
   balance: {
     amount: string
-    usd_equivalent: string
+    main_currency_equivalent: string
     last_updated: number
   }
   subscription: {
@@ -111,42 +111,34 @@ export function useCreditBalance(): UseCreditBalanceReturn {
   const [error, setError] = useState<string | null>(null)
   const [lastRefreshed, setLastRefreshed] = useState<number | null>(null)
   const initialFetchDone = useRef(false)
+  const sessionRef = useRef(session)
+  sessionRef.current = session
+  const statusRef = useRef(status)
+  statusRef.current = status
 
-  // Stable callback for tunnel messages - uses ref pattern to avoid re-subscriptions
-  const handleTunnelMessage = useCallback((newData: CreditBalanceData) => {
+  // React 19.2: useEffectEvent keeps tunnel handler fresh without re-subscribe churn
+  const onTunnelMessage = useEffectEvent((newData: CreditBalanceData) => {
     setData(newData)
     setLastRefreshed(Date.now())
     logger.info('Credit balance updated via tunnel', {
       amount: newData.balance.amount,
-      subscriptionActive: newData.subscription.active
+      subscriptionActive: newData.subscription.active,
     })
-  }, [])
+  })
 
-  // Subscribe to tunnel for real-time balance updates
-  // Note: onMessage is now a stable reference to prevent re-subscription loops
-  const {
-    data: tunnelData,
-    isConnected: isTunnelConnected,
-    error: tunnelError,
-  } = useTunnelChannel<CreditBalanceData>({
+  const { isConnected: isTunnelConnected, error: tunnelError } = useTunnelChannel<CreditBalanceData>({
     channel: 'credit:balance',
     userScoped: false,
     enabled: status === 'authenticated' && !!session?.user,
-    onMessage: handleTunnelMessage,
+    onMessage: onTunnelMessage,
   })
 
-  // Update data when tunnel pushes updates
-  useEffect(() => {
-    if (tunnelData) {
-      setData(tunnelData)
-      setLastRefreshed(Date.now())
-    }
-  }, [tunnelData])
-
   const fetchBalance = useCallback(async (isRefresh = false) => {
-    // Only fetch if user is authenticated
-    if (status !== 'authenticated' || !session?.user) {
-      logger.debug('Skipping balance fetch - user not authenticated', { status, hasSession: !!session })
+    if (statusRef.current !== 'authenticated' || !sessionRef.current?.user) {
+      logger.debug('Skipping balance fetch - user not authenticated', {
+        status: statusRef.current,
+        hasSession: !!sessionRef.current,
+      })
       return
     }
 
@@ -159,10 +151,9 @@ export function useCreditBalance(): UseCreditBalanceReturn {
 
       setError(null)
 
-      // Use API client with wallet domain configuration (15s timeout, 2 retries)
       const response: ApiResponse<CreditBalanceData> = await apiClient.get('/api/wallet/credit/balance', {
-        timeout: 15000, // 15 second timeout for wallet operations
-        retries: 2 // Retry twice for network resilience
+        timeout: 15000,
+        retries: 2,
       })
 
       if (response.success && response.data) {
@@ -173,33 +164,27 @@ export function useCreditBalance(): UseCreditBalanceReturn {
           amount: response.data.balance.amount,
           subscriptionActive: response.data.subscription.active,
           isRefresh,
-          tunnelConnected: isTunnelConnected
         })
       } else {
         throw new Error(response.error || 'Failed to fetch balance')
       }
-
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.message)
-        
-        // Log with structured context
         logger.error('Credit balance fetch failed:', {
           endpoint: '/api/wallet/credit/balance',
           statusCode: err.statusCode,
           message: err.message,
           context: err.context,
           cause: err.cause,
-          isRefresh
+          isRefresh,
         })
       } else {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
         setError(errorMessage)
-        
         logger.error('Unexpected error fetching credit balance', { error: err, isRefresh })
       }
-      
-      // Don't clear data on refresh errors, keep showing stale data
+
       if (!isRefresh) {
         setData(null)
       }
@@ -207,7 +192,7 @@ export function useCreditBalance(): UseCreditBalanceReturn {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [isTunnelConnected, session?.user, status])
+  }, [])
 
   const refresh = useCallback(async () => {
     await fetchBalance(true)
@@ -233,17 +218,15 @@ export function useCreditBalance(): UseCreditBalanceReturn {
           setIsLoading(false)
         })
     } else if (status === 'unauthenticated') {
-      // Reset data when user becomes unauthenticated
       setData(null)
       setError(null)
       setLastRefreshed(null)
       initialFetchDone.current = false
     }
-  }, [fetchBalance, status, session?.user])
+  }, [status, session?.user?.id])
 
-  // FALLBACK: Only poll if tunnel is NOT connected (every 60s instead of 30s)
+  // FALLBACK: Only poll if tunnel is NOT connected
   useEffect(() => {
-    // Skip polling if tunnel is connected - tunnel will push updates
     if (isTunnelConnected) {
       logger.debug('Tunnel connected - polling disabled')
       return
@@ -252,10 +235,10 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     if (!data || status !== 'authenticated' || !session?.user) return
 
     logger.debug('Tunnel not connected - falling back to polling')
-    
+
     const interval = setInterval(() => {
-      fetchBalance(true)
-    }, 60000) // 60 seconds fallback polling (was 30s)
+      void fetchBalance(true)
+    }, 60000)
 
     return () => clearInterval(interval)
   }, [data, fetchBalance, isTunnelConnected, status, session?.user])
@@ -269,7 +252,7 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     error: error ?? (data ? null : tunnelError),
     refresh,
     lastRefreshed,
-    isTunnelConnected
+    isTunnelConnected,
   }
 }
 

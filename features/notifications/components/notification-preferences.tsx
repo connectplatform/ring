@@ -28,6 +28,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useTranslations } from 'next-intl';
 import { NotificationType, DetailedNotificationPreferences } from '@/features/notifications/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,7 @@ const notificationTypeGroups = {
     NotificationType.WALLET_TRANSACTION,
     NotificationType.WALLET_BALANCE_LOW,
     NotificationType.PAYMENT_REQUEST,
+    NotificationType.ENV_REQUEST,
   ],
   'System': [
     NotificationType.SYSTEM_MAINTENANCE,
@@ -78,7 +80,16 @@ const notificationTypeGroups = {
   'Social': [
     NotificationType.MESSAGE_RECEIVED,
     NotificationType.MENTION_RECEIVED,
-    NotificationType.FOLLOW_REQUEST
+    NotificationType.FOLLOW_REQUEST,
+    NotificationType.TASK_ASSIGNED,
+    NotificationType.TASK_UPDATED,
+    NotificationType.POLL_CREATED,
+    NotificationType.POLL_CLOSED,
+    NotificationType.RSVP_INVITE,
+    NotificationType.RSVP_UPDATED,
+    NotificationType.DAO_JAR_UPDATE,
+    NotificationType.GAME_REQUEST,
+    NotificationType.GAME_UPDATED,
   ],
   'KYC & Verification': [
     NotificationType.KYC_REQUIRED,
@@ -108,11 +119,21 @@ const typeLabels = {
   [NotificationType.WALLET_TRANSACTION]: 'Transaction confirmations',
   [NotificationType.WALLET_BALANCE_LOW]: 'Low balance alerts',
   [NotificationType.PAYMENT_REQUEST]: 'Native-token payment requests in chat',
+  [NotificationType.ENV_REQUEST]: 'Order Lab key update requests from your integrator',
   [NotificationType.SYSTEM_MAINTENANCE]: 'Maintenance notifications',
   [NotificationType.SYSTEM_UPDATE]: 'System updates and new features',
   [NotificationType.MESSAGE_RECEIVED]: 'New messages',
   [NotificationType.MENTION_RECEIVED]: 'When you\'re mentioned',
   [NotificationType.FOLLOW_REQUEST]: 'New follow requests',
+  [NotificationType.TASK_ASSIGNED]: 'When you are assigned a chat task',
+  [NotificationType.TASK_UPDATED]: 'Updates on tasks you report or work on',
+  [NotificationType.POLL_CREATED]: 'New polls in your chats',
+  [NotificationType.POLL_CLOSED]: 'When a poll you follow closes',
+  [NotificationType.RSVP_INVITE]: 'RSVP invites in chat',
+  [NotificationType.RSVP_UPDATED]: 'Updates on RSVPs you joined',
+  [NotificationType.DAO_JAR_UPDATE]: 'DAO jar posts and contribution updates',
+  [NotificationType.GAME_REQUEST]: 'Game challenges in chat',
+  [NotificationType.GAME_UPDATED]: 'Updates when a game is accepted or finished',
   [NotificationType.KYC_REQUIRED]: 'KYC verification required',
   [NotificationType.KYC_APPROVED]: 'KYC verification approved',
   [NotificationType.KYC_REJECTED]: 'KYC verification rejected',
@@ -121,10 +142,32 @@ const typeLabels = {
 
 export function NotificationPreferences({ className }: NotificationPreferencesProps) {
   const { preferences, updatePreferences, updatingPreferences, fetchPreferences } = useNotifications();
-  
+  const tTypeLabels = useTranslations('modules.notifications.typeLabels')
+
   const [localPreferences, setLocalPreferences] = useState<Partial<DetailedNotificationPreferences>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const interactiveTypeLabelKeys = new Set([
+    NotificationType.POLL_CREATED,
+    NotificationType.POLL_CLOSED,
+    NotificationType.RSVP_INVITE,
+    NotificationType.RSVP_UPDATED,
+    NotificationType.DAO_JAR_UPDATE,
+    NotificationType.GAME_REQUEST,
+    NotificationType.GAME_UPDATED,
+  ])
+
+  const labelForType = (type: NotificationType) => {
+    if (interactiveTypeLabelKeys.has(type)) {
+      try {
+        return tTypeLabels(type)
+      } catch {
+        return typeLabels[type] ?? type
+      }
+    }
+    return typeLabels[type] ?? type
+  }
 
   // Initialize local preferences when data loads
   useEffect(() => {
@@ -377,7 +420,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                         {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </Label>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {typeLabels[type]}
+                        {labelForType(type)}
                       </p>
                     </div>
                     <Switch

@@ -6,6 +6,10 @@ import { logger } from '@/lib/logger'
 import type { Locale } from '@/i18n/shared'
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
 import { getCardPaymentProcessor, getSupportedPaymentMethods } from '@/lib/payments/subscription/subscription-config'
+import {
+  initiateMembershipPaymentSchema,
+  parseMembershipForm,
+} from '@/lib/zod/membership-schemas'
 
 export interface MembershipPaymentFormState {
   success?: boolean
@@ -23,80 +27,52 @@ export interface MembershipPaymentFormState {
 }
 
 /**
- * Initiates a membership upgrade payment process.
- * Main entrypoint: Handles user session, role validation, and payment initiation via credit or card.
- *
- * @param prevState - Previous form state (for server actions patterns, not currently used)
- * @param formData - Incoming form data with membership/payment fields
- * @param locale - Current UI locale
- * @returns A promise of the new membership payment form state with either error, redirect, or success keys
+ * Initiates membership upgrade — useActionState compatible.
+ * Validates FormData with shared Zod (`initiateMembershipPaymentSchema`).
  */
-// TODO: If using React 19 Server Actions (Next 16), migrate this to a server action signature, 
-//   e.g. `export const initiateMembershipPayment = async ...`, and use input types direct from React.
-//   - Also use typed form values instead of extracting from generic FormData.
 export async function initiateMembershipPayment(
   prevState: MembershipPaymentFormState | null,
   formData: FormData,
   locale: Locale
 ): Promise<MembershipPaymentFormState> {
-  // TODO: Use Zod for validation and structure error and fieldErrors for better client feedback
+  void prevState
 
-  // 1. Ensure the user is authenticated and session exists
   const session = await auth()
-
   if (!session?.user?.id) {
-    // User not logged in; block payment initiation
-    return {
-      error: 'You must be logged in to upgrade your membership'
-    }
+    return { error: 'You must be logged in to upgrade your membership' }
   }
 
-  // 2. Gather input values from form
-  const targetRole = formData.get('targetRole') as UserRolesArray[number]
-  const returnUrl = formData.get('returnUrl') as string
-
-  if (!targetRole) {
-    // Form missing required value: membership tier
-    return {
-      error: 'Target membership role is required'
-    }
+  const parsed = parseMembershipForm(initiateMembershipPaymentSchema, formData)
+  if (parsed.success === false) {
+    return { error: parsed.error }
   }
 
-  // 3. Check role is valid and included in our list
+  const targetRole = parsed.data.targetRole as UserRolesArray[number]
+  const returnUrl = parsed.data.returnUrl
+  const paymentMethod = parsed.data.paymentMethod || 'credit_balance'
+  const billingPeriod = parsed.data.billingPeriod || 'monthly'
+
   if (!Object.values(UserRolesArray).includes(targetRole as UserRolesArray)) {
-    return {
-      error: 'Invalid membership role selected'
-    }
+    return { error: 'Invalid membership role selected' }
   }
 
-  // 4. Determine user's current role; default to visitor if not set
-  const currentRole = (session.user as any)?.role as UserRolesArray[number] || UserRolesArray.visitor
+  const currentRole =
+    ((session.user as { role?: UserRolesArray[number] })?.role as UserRolesArray[number]) ||
+    UserRolesArray.visitor
   const currentRoleLevel = getRoleLevel(currentRole)
   const targetRoleLevel = getRoleLevel(targetRole)
 
-  // Only allow upgrades to roles explicitly allowed for self-service upgrade
   if (!UPGRADEABLE_ROLES.includes(targetRole as UserRolesArray)) {
-    return {
-      error: 'This membership tier cannot be purchased online',
-    }
+    return { error: 'This membership tier cannot be purchased online' }
   }
-
-  // Disallow downgrades, same-level, or lateral role moves
   if (targetRoleLevel <= currentRoleLevel) {
-    return {
-      error: 'You can only upgrade to a higher membership level'
-    }
+    return { error: 'You can only upgrade to a higher membership level' }
   }
-
-  // Restrict admin or platform staff roles to backoffice only
   if (isPlatformAdmin(targetRole as UserRolesArray)) {
-    return {
-      error: 'Platform admin roles cannot be purchased',
-    }
+    return { error: 'Platform admin roles cannot be purchased' }
   }
 
   try {
-    // 5. Prepare user/session data for payment logic
     const userId = session.user.id
     const userEmail = session.user.email || ''
 
@@ -104,52 +80,91 @@ export async function initiateMembershipPayment(
       userId,
       currentRole,
       targetRole,
-      userEmail
+      paymentMethod,
+      billingPeriod,
     })
 
-    // 6. Determine payment method; fallback to credit_balance by default
-    const paymentMethod = formData.get('paymentMethod') as string || 'credit_balance'
-
-    // 7. Build return/redirect URLs for after payment
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const successReturnUrl = returnUrl || `${baseUrl}/${locale}/profile/membership/success`
-    // NOTE: failureReturnUrl is reserved for future extensibility
-    const failureReturnUrl = `${baseUrl}/${locale}/profile/membership/failure`
 
-    // 8. Fetch pricing config from the Single Source of Truth
-    // TODO: If pricing will change by input (custom plans, coupons, region), pass args to this ssot helper
-    const { getMemberFiatTier } = await import('@/lib/membership/pricing')
-    const tierConfig = getMemberFiatTier()
+    const { getMembershipCreditAmountForPeriod, getMembershipRingAmountForPeriod } = await import(
+      '@/lib/membership/pricing'
+    )
+    const { getLiveMemberMainCurrencyTierForPeriod } = await import(
+      '@/lib/membership/pricing-live'
+    )
+    const { getCreditUnitLabel } = await import('@/lib/payments/credit-balance')
+    // Live desk price so the charge equals what the desk quotes right now.
+    const tierConfig = await getLiveMemberMainCurrencyTierForPeriod(billingPeriod)
     if (!tierConfig) {
-      // STUB: Could fetch customized configs here in future—add handling for productId, etc.
       return { error: 'This membership tier cannot be purchased online' }
     }
+    const creditAmount = getMembershipCreditAmountForPeriod(billingPeriod)
+    const ringAmount = getMembershipRingAmountForPeriod(billingPeriod)
 
-    // 9. Process payment by detected method
     if (paymentMethod === 'credit_balance') {
-      // ---- Credit Balance (Native Token) Payment Path ----
-      // Implementation: Deduct user's balance, record payment, and return redirect or error
-      const success = await initiateCreditBalancePayment(userId, tierConfig, successReturnUrl)
+      const success = await initiateCreditBalancePayment(
+        userId,
+        {
+          amount: creditAmount,
+          currency: getCreditUnitLabel(),
+          ringAmount,
+          mainCurrencyAmount: tierConfig.amount,
+          mainCurrency: tierConfig.currency,
+        },
+        successReturnUrl,
+      )
       if (success) {
-        // Payment initiation succeeded
         return {
           success: true,
           message: 'Payment initiated successfully. You will be upgraded to Member.',
-          redirectUrl: successReturnUrl
+          redirectUrl: successReturnUrl,
         }
       }
-      // If balance insufficient or payment failed
       return { error: 'Failed to process credit balance payment' }
     }
 
-    // ---- Card-Based Processor Payment Path (PaymentConductor SSOT) ----
-    if (paymentMethod === 'card' || paymentMethod === 'stripe' || paymentMethod === 'wayforpay') {
+    if (
+      paymentMethod === 'card' ||
+      paymentMethod === 'stripe' ||
+      paymentMethod === 'wayforpay'
+    ) {
       const cardProcessor = getCardPaymentProcessor()
       const supportedMethods = getSupportedPaymentMethods()
 
       if (!supportedMethods.includes(cardProcessor)) {
         return {
-          error: `${cardProcessor} is not currently supported. Please use credit balance.`
+          error: `${cardProcessor} is not currently supported. Please use credit balance.`,
+        }
+      }
+
+      const sub = await SubscriptionConductor.createSubscription({
+        userId,
+        userEmail,
+        provider: cardProcessor as 'wayforpay' | 'stripe',
+        gateway: cardProcessor,
+        method: 'card',
+        amount: tierConfig.amount,
+        currency: tierConfig.currency,
+        gatewayFeePercent: 0,
+        gatewayFeeFixed: 0,
+        returnUrl: successReturnUrl,
+        metadata: {
+          source: 'membership_action',
+          targetRole,
+          billingPeriod,
+          type: 'membership_upgrade',
+        },
+      })
+
+      if (sub.success && (sub.redirectUrl || sub.paymentFields || sub.redirect)) {
+        return {
+          success: true,
+          message: 'Payment initiated successfully. You will be redirected to the payment page.',
+          redirect: sub.redirect,
+          paymentUrl: sub.redirectUrl ?? sub.redirect?.url,
+          paymentFields: sub.paymentFields ?? sub.redirect?.fields,
+          redirectUrl: sub.redirectUrl ?? sub.redirect?.url,
         }
       }
 
@@ -164,17 +179,21 @@ export async function initiateMembershipPayment(
         returnUrl: successReturnUrl,
         locale,
         targetRole,
-        metadata: { source: 'membership_action', targetRole },
+        metadata: {
+          source: 'membership_action',
+          targetRole,
+          billingPeriod,
+        },
       })
 
       if (!result.success) {
         logger.error('Membership payment: PaymentConductor failed', {
           userId,
           targetRole,
-          error: result.error,
+          error: result.error || sub.error,
         })
         return {
-          error: result.error || 'Failed to initiate payment. Please try again.'
+          error: result.error || sub.error || 'Failed to initiate payment. Please try again.',
         }
       }
 
@@ -196,73 +215,126 @@ export async function initiateMembershipPayment(
       }
     }
 
-    // Handle unhandled/unknown payment methods gracefully
-    return {
-      error: `Unknown payment method: ${paymentMethod}`
+    if (paymentMethod === 'paypal') {
+      const sub = await SubscriptionConductor.createSubscription({
+        userId,
+        userEmail,
+        provider: 'paypal',
+        gateway: 'PayPal',
+        method: 'paypal',
+        amount: tierConfig.amount,
+        currency: tierConfig.currency,
+        gatewayFeePercent: 0,
+        gatewayFeeFixed: 0,
+        returnUrl: successReturnUrl,
+        metadata: {
+          source: 'membership_action',
+          targetRole,
+          billingPeriod,
+          type: 'membership_upgrade',
+        },
+      })
+
+      if (sub.success && (sub.redirectUrl || sub.redirect)) {
+        return {
+          success: true,
+          message: 'Redirecting to PayPal…',
+          redirect: sub.redirect,
+          paymentUrl: sub.redirectUrl ?? sub.redirect?.url,
+          redirectUrl: sub.redirectUrl ?? sub.redirect?.url,
+        }
+      }
+
+      const { PaymentConductor } = await import('@/lib/payments/conductor/payment-conductor')
+      const result = await PaymentConductor.createCheckout({
+        purpose: 'membership_upgrade',
+        rail: 'card',
+        userId,
+        userEmail,
+        entityId: userId,
+        amount: tierConfig.amount,
+        currency: tierConfig.currency,
+        returnUrl: successReturnUrl,
+        locale,
+        targetRole,
+        metadata: {
+          source: 'membership_action',
+          targetRole,
+          billingPeriod,
+          processor: 'paypal',
+        },
+      })
+
+      if (!result.success) {
+        return {
+          error: result.error || sub.error || 'Failed to initiate PayPal payment',
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Redirecting to PayPal…',
+        redirect: result.redirect,
+        paymentUrl: result.paymentUrl,
+        paymentFields: result.paymentFields,
+        redirectUrl: result.paymentUrl ?? result.redirect?.url,
+      }
     }
 
+    return { error: `Unknown payment method: ${paymentMethod}` }
   } catch (error) {
-    // Catch-all for unexpected errors; redact sensitive detail for prod logs
     logger.error('Membership payment: Unexpected error:', error)
-    return {
-      error: 'An unexpected error occurred. Please try again later.'
-    }
+    return { error: 'An unexpected error occurred. Please try again later.' }
   }
 }
 
 /**
  * Internal helper: process credit-balance payment for membership upgrade.
- * Deducts funds, confirms price, triggers subscription creation.
+ * Deducts credit **points** (desk SSOT: 100 points = 1 RING), then registers subscription.
  */
 async function initiateCreditBalancePayment(
   userId: string,
-  tierConfig: any,
+  pricing: {
+    amount: number
+    currency: string
+    ringAmount: number
+    mainCurrencyAmount: number
+    mainCurrency: string
+  },
   returnUrl: string
 ): Promise<boolean> {
   try {
-    // Dynamically import credit-balance and pricing services (to reduce cold start cost)
-    const { creditBalanceService } = await import('@/features/wallet/services/credit-balance-service')
-    const { NativeTokenPriceOracleService } = await import('@/features/wallet/services/native-token-price-oracle')
-    // Fetch the current USD price for accurate deduction (for crypto tokens)
-    const priceOracleService = NativeTokenPriceOracleService.getInstance()
-    const priceData = await priceOracleService.getNativeTokenUsdPrice()
-
-    // Deduct membership fee using user's available balance 
-    const result = await creditBalanceService.processMembershipFee(
-      userId,
-      tierConfig.amount.toString(),
-      priceData.price
-    )
-
-    if (!result.success) {
-      // Insufficient funds or deduction failed
-      logger.warn('Membership payment: Insufficient credit balance', { userId })
-      return false
-    }
-
-    // STUB: If discounts or tierConfig parameterization is implemented, extend this logic to account for them
-    // TODO: If tierConfig can contain discounts, refactor here (step: fetch user-specific price, run calculation, update deduction).
-
-    // Ensure we have up-to-date email (optionally optimize by using upstream value)
+    // Single charge via credit provider inside Conductor — do not pre-deduct.
     const session = await auth()
     const userEmail = session?.user?.email || ''
 
-    // Call conductor to register subscription/upgrade after balance withdrawal
-    await SubscriptionConductor.createSubscription({
+    const sub = await SubscriptionConductor.createSubscription({
       userId,
       userEmail,
       provider: 'credit_balance',
       gateway: 'Credit Balance',
       method: 'credit_balance',
-      amount: tierConfig.amount,
-      currency: tierConfig.currency,
+      amount: pricing.amount,
+      currency: pricing.currency,
       gatewayFeePercent: 0,
       gatewayFeeFixed: 0,
       returnUrl,
-      metadata: { source: 'credit_balance_action' },
+      metadata: {
+        source: 'credit_balance_action',
+        ringAmount: pricing.ringAmount,
+        mainCurrencyAmount: pricing.mainCurrencyAmount,
+        mainCurrency: pricing.mainCurrency,
+      },
     })
 
-    // Return true if everything went through
+    if (!sub.success) {
+      logger.warn('Membership payment: credit Conductor failed', {
+        userId,
+        error: sub.error,
+      })
+      return false
+    }
+
     return true
   } catch (error) {
     logger.error('Credit balance payment failed', { userId, error })

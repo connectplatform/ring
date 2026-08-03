@@ -30,7 +30,7 @@
     "subtitle": "Subscriber+ intercambia puntos de crédito y token nativo en su brand oracle en vivo. La conversión en desk y el gasto cotidiano de créditos mantienen cada uno su propia ruta de tasa clara.",
     "oracle": {
       "title": "Tasas del brand oracle",
-      "description": "Créditos-a-moneda usa credit.unitToDefaultCurrency (normalmente 1). Token-a-créditos usa platform_settings.web3.oracle.ringPerUsd en Token Desk. Usted fija ambos — sus tasas, su economía."
+      "description": "Créditos-a-moneda usa credit.creditBalanceUnitToMainCurrency (normalmente 1). Token-a-créditos usa platform_settings.web3.oracle.nativePerMainCurrency en Token Desk. Usted fija ambos — sus tasas, su economía."
     },
     "firstSettler": {
       "title": "Bienvenida first-settler",

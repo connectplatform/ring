@@ -12,6 +12,7 @@ import type { OpportunityInput, AutoFillAnalysis, EnrichedOpportunity } from '@/
 import { createLLMClientAsync, isLLMAvailableAsync } from '@/lib/ai/llm-client';
 import { AIOperationError } from '@/lib/ai/types';
 import { logger } from '@/lib/logger';
+import { getMainCurrencySymbol } from '@/lib/ring-config-core';
 
 export interface AutoFillResult {
   enrichedOpportunity: EnrichedOpportunity;
@@ -186,7 +187,7 @@ Return JSON format:
         estimatedBudget: parsed.estimatedBudget ? {
           min: parsed.estimatedBudget.min || 0,
           max: parsed.estimatedBudget.max || 0,
-          currency: parsed.estimatedBudget.currency || 'USD',
+          currency: parsed.estimatedBudget.currency || getMainCurrencySymbol(),
           reasoning: parsed.estimatedBudget.reasoning || 'Market-based estimation'
         } : undefined,
         requiredSkills: parsed.requiredSkills || [],
@@ -422,12 +423,12 @@ Return JSON format:
   private estimateBudget(text: string, type: string): AutoFillAnalysis['estimatedBudget'] {
     // Simple budget estimation based on keywords
     if (text.includes('complex') || text.includes('enterprise')) {
-      return { min: 10000, max: 50000, currency: 'USD', reasoning: 'Complex project estimation' };
+      return { min: 10000, max: 50000, currency: getMainCurrencySymbol(), reasoning: 'Complex project estimation' };
     }
     if (text.includes('simple') || text.includes('basic')) {
-      return { min: 1000, max: 5000, currency: 'USD', reasoning: 'Simple project estimation' };
+      return { min: 1000, max: 5000, currency: getMainCurrencySymbol(), reasoning: 'Simple project estimation' };
     }
-    return { min: 5000, max: 15000, currency: 'USD', reasoning: 'Standard project estimation' };
+    return { min: 5000, max: 15000, currency: getMainCurrencySymbol(), reasoning: 'Standard project estimation' };
   }
 
   private detectExperienceLevel(text: string): string {

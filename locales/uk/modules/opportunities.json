@@ -613,6 +613,30 @@
     "program": {
       "title": "Program / investment",
       "description": "Institution offering for community review and CRM routing."
+    },
+    "scheduled_services": {
+      "title": "Scheduled Services",
+      "description": "Offer calendar-slot services such as tutoring, consulting, or appointments."
+    },
+    "collective_order": {
+      "title": "Collective Order",
+      "description": "Groupon-style bulk offer with prepaid escrow slots until filled."
+    },
+    "bounty": {
+      "title": "Bounty",
+      "description": "Post a prize for a deliverable or solved problem."
+    },
+    "tender": {
+      "title": "Tender / RFQ",
+      "description": "Buyer request for proposals — sellers bid or propose."
+    },
+    "asset_rental": {
+      "title": "Asset Rental",
+      "description": "Rent equipment, space, or licenses by hour, day, or week."
+    },
+    "job": {
+      "title": "Job Listing",
+      "description": "Employment or hire listing with salary band and remote policy."
     }
   },
   "form": {
@@ -633,7 +657,15 @@
       "mentorship": "Назва програми менторства",
       "resource": "Назва ресурсу або обладнання",
       "event": "Назва події",
-      "ring_customization": "Назва проєкту кастомізації Ring"
+      "ring_customization": "Назва проєкту кастомізації Ring",
+      "scheduled_services": "Service offer title (e.g. 1:1 tutoring)",
+      "collective_order": "Collective buy title",
+      "bounty": "Bounty title",
+      "tender": "Tender / RFQ title",
+      "asset_rental": "What are you renting out?",
+      "job": "Job title",
+      "program": "Program or investment title",
+      "cv": "Your professional headline"
     },
     "budgetLabels": {
       "request": "Доступний бюджет",
@@ -643,7 +675,15 @@
       "mentorship": "Плата (за наявності)",
       "resource": "Вартість/плата",
       "event": "Вартість квитка",
-      "ring_customization": "Бюджет проєкту"
+      "ring_customization": "Бюджет проєкту",
+      "scheduled_services": "Indicative rate",
+      "collective_order": "Slot price (see slots)",
+      "bounty": "Prize budget",
+      "tender": "Budget cap",
+      "asset_rental": "Rental rate",
+      "job": "Salary range",
+      "program": "Program budget",
+      "cv": "Expected compensation"
     },
     "programSubtype": "Subtype",
     "selectProgramSubtype": "Program or investment",
@@ -651,7 +691,39 @@
     "subtypeInvestment": "Investment",
     "instrument": "Funding instrument",
     "eligibility": "Eligibility",
-    "applicationUrl": "Application URL"
+    "applicationUrl": "Application URL",
+    "slotCount": "Number of slots",
+    "slotPrice": "Price per slot",
+    "slotCurrency": "Slot currency",
+    "productSku": "Product SKU",
+    "serviceCategory": "Service category",
+    "durationMinutes": "Duration (minutes)",
+    "pricePerSlot": "Price per slot",
+    "bookingMode": "Booking mode",
+    "bookingInterest": "Interest / request",
+    "bookingHold": "Paid hold",
+    "prizeAmount": "Prize amount",
+    "maxWinners": "Max winners",
+    "acceptanceCriteria": "Acceptance criteria",
+    "budgetCap": "Budget cap",
+    "responseDeadline": "Response deadline",
+    "evaluationNotes": "Evaluation notes",
+    "assetKind": "Asset kind",
+    "unitsAvailable": "Units available",
+    "pricePerPeriod": "Price per period",
+    "periodUnit": "Period unit",
+    "periodHour": "Hour",
+    "periodDay": "Day",
+    "periodWeek": "Week",
+    "employmentType": "Employment type",
+    "fullTime": "Full time",
+    "partTime": "Part time",
+    "contract": "Contract",
+    "remotePolicy": "Remote policy",
+    "salaryMin": "Salary min",
+    "salaryMax": "Salary max",
+    "bookingHoldDeferred": "Paid hold booking ships after collective-order escrow is stable — interest requests only for now.",
+    "collectiveJarPayoutNote": "Коли банка заповнена, ми надсилаємо {nativeToken} (за вирахуванням комісії платформи) на ваш основний native-гаманець."
   },
   "formRail": {
     "backToBrowse": "Назад до можливостей",
@@ -727,5 +799,55 @@
       "check1": "Обрано тип співпраці",
       "check2": "Перевірено роль облікового запису"
     }
+  },
+  "liveUpdatesActive": "Живі оновлення активні",
+  "offlineMode": "Офлайн режим",
+  "lastUpdate": "Останнє оновлення: {time}",
+  "viaProvider": "через {provider}",
+  "deadlineExpired": "Закінчився",
+  "deadlineToday": "Сьогодні",
+  "deadlineTomorrow": "Завтра",
+  "deadlineDays": "{days} дн.",
+  "deadlineWeeks": "{weeks} тиж.",
+  "deadlineMonths": "{months} міс.",
+  "deadlineTodayBadge": "Дедлайн сьогодні",
+  "applicantsApplied": "{count} заявок",
+  "verified": "Перевірено",
+  "trustScore": "Довіра: {score}/100",
+  "fullDescription": "Повний опис",
+  "requested": "Запитано",
+  "requestAction": "Запит",
+  "requestProjectOrderHint": "Integrate this Ring customization — overlay playbook is in the description.",
+  "requestFailed": "Помилка запиту",
+  "scheduled_services": "Заплановані послуги",
+  "collective_order": "Колективне замовлення",
+  "bounty": "Баунті",
+  "tender": "Тендер",
+  "asset_rental": "Оренда активу",
+  "job": "Вакансія",
+  "collectiveOrder": {
+    "title": "Collective order slots",
+    "open": "Open",
+    "closed": "Filled / closed",
+    "progress": "{filled}/{total} slots · {price} {currency} each",
+    "buySlot": "Buy slot",
+    "buyFailed": "Could not reserve slot",
+    "missingMetadata": "This collective order is missing slot configuration.",
+    "rail": {
+      "credit_balance": "Credits",
+      "card": "Card",
+      "paypal": "PayPal"
+    }
+  },
+  "scheduledServices": {
+    "title": "Available slots",
+    "summary": "{duration} min · {price} · {mode}",
+    "modeInterest": "request interest",
+    "modeHold": "paid hold",
+    "noSlots": "No availability windows listed — contact the broker.",
+    "book": "Request slot",
+    "requested": "Requested",
+    "bookFailed": "Could not book slot",
+    "holdDeferred": "Paid hold coming soon — contact broker"
   }
 }

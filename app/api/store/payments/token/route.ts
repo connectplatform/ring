@@ -4,10 +4,9 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
-import { isRailEnabled, getDefaultStoreCurrencySymbol } from '@/lib/payments/payment.config'
-import { ReferralRewardService } from '@/features/refcodes/services/referral-reward-service'
-import { VendorSettlementService } from '@/features/store/services/vendor-settlement'
-import { ERPStockService } from '@/features/store/services/erp-stock-service'
+import { isRailEnabled } from '@/lib/payments/payment.config'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
+import { fulfillStoreOrderPaid } from '@/lib/payments/conductor/fulfill-store-order-paid'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 
 const schema = z.object({
@@ -58,8 +57,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order already paid' }, { status: 400 })
     }
 
-    const currency =
-      (order.currency || order.payment?.currency || getDefaultStoreCurrencySymbol()).toUpperCase()
+    const currency = (
+      order.currency ||
+      order.payment?.currency ||
+      getMainCurrencySymbol()
+    ).toUpperCase()
     const result = await PaymentConductor.createCheckout({
       purpose: 'store_order',
       rail: 'native_token',
@@ -84,54 +86,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await StoreOrdersService.updateOrderPaymentStatus(body.orderId, {
-      method: 'crypto',
-      status: 'paid',
+    await fulfillStoreOrderPaid({
+      orderId: body.orderId,
+      orderReference: result.orderReference ?? '',
       amount: order.total ?? 0,
       currency,
-      paidAt: new Date().toISOString(),
-      cryptoTxHash: result.txHash,
+      rail: 'native_token',
+      processor: 'native_token',
+      processorPayload: { orderReference: result.orderReference, txHash: result.txHash },
+      paymentDetails: { cryptoTxHash: result.txHash },
+      source: 'Store native token',
     })
-    await StoreOrdersService.adminUpdateOrderStatus(body.orderId, 'paid')
-
-    const paidOrder = await StoreOrdersService.getOrderWithPaymentDetails(body.orderId)
-    if (paidOrder) {
-      if (paidOrder.items?.length) {
-        try {
-          await ERPStockService.deductStockForOrder(body.orderId, paidOrder.items, paidOrder.userId, {
-            referralCode: paidOrder.referralCode,
-            assisted: Boolean(paidOrder.referralCode),
-          })
-        } catch (stockError) {
-          logger.error('Store token: stock deduction failed', { orderId: body.orderId, stockError })
-        }
-      }
-
-      if (paidOrder.vendorSettlements?.length && result.orderReference) {
-        try {
-          await VendorSettlementService.processSettlements(body.orderId, {
-            paymentMethod: 'crypto',
-            transactionId: result.orderReference,
-            amount: paidOrder.total ?? 0,
-            currency,
-          })
-        } catch (settlementError) {
-          logger.error('Store token: settlement failed', { orderId: body.orderId, settlementError })
-        }
-      }
-
-      if (result.orderReference) {
-        try {
-          await ReferralRewardService.onOrderPaid({
-            order: paidOrder,
-            orderReference: result.orderReference,
-            rail: 'crypto',
-          })
-        } catch (referralError) {
-          logger.error('Store token: referral reward failed', { orderId: body.orderId, referralError })
-        }
-      }
-    }
 
     return NextResponse.json({
       success: true,

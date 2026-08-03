@@ -1,249 +1,322 @@
 ---
 title: Authentication
-description: Auth.js v5 with slim proxy, layout-level protection, client login redirect, and Resend magic links (v1.6.4)
-last_modified: "2026-06-13"
+description: Auth.js v5 sessions — Ring Mailer, Google, Telegram OIDC + Mini App initData, Apple, wallet credentials, vitals onboarding gate
+last_modified: "2026-07-21"
+audience: both
 ---
 
-# Authentication System
+# Authentication
 
-Auth.js v5 multi-provider authentication with magic links, OAuth providers, crypto wallets, and GDPR compliance.
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
+</Callout>
 
-## v1.6.4 protection model
+<Callout type="success" title="Executive summary">
+Ring uses **Auth.js v5** for JWT sessions and OAuth. Members can sign in with **Ring Mailer** (OTP / magic link / password), **Google**, **Telegram** (web OIDC **or** Mini App `initData`), **Apple**, or a **crypto wallet**. Email is **not** Resend — see [Ring Mailer & RingdomX Mail](/docs/features/ring-mailer).
+</Callout>
+
+## Protection model
 
 | Layer | Role |
 |-------|------|
-| `proxy.ts` | Locale rewrite + optimistic redirect to `ROUTES.LOGIN(locale)` (cookie presence only — not session validity) |
+| `proxy.ts` | Locale rewrite + optimistic redirect to `ROUTES.LOGIN(locale)` (cookie presence only) |
+| `proxy.ts` soft-gate | If JWT `needsOnboarding === true`, redirect to `/{locale}/login/onboarding` (exempt: `/login*`, `/auth*`, `/register*`, home `/`) |
 | `(authenticated)/[locale]/layout.tsx` | `await auth()` — canonical session gate |
-| `(admin)/[locale]/layout.tsx` | Role check (admin/superadmin) |
-| `/login` | `LoginAuthenticatedRedirect` — client `useSession` bounce when genuinely authenticated (avoids stale-cookie loops; skips during OAuth callback query params) |
+| `(admin)/[locale]/layout.tsx` | Role check (admin / superadmin) |
+| `/login` | `LoginAuthenticatedRedirect` — client `useSession` bounce (skips during OAuth callback params) |
+| `/register` | **Redirects to `/login`** (password signup demoted; OTP/magic is the product surface) |
 | API routes | Per-handler `auth()` |
 
-OAuth and Google One Tap use `/api/auth/*` (excluded from intl middleware). See [Proxy and intl](/docs/architecture/proxy-and-intl).
+OAuth callbacks live under `/api/auth/*` (excluded from intl middleware). See [Proxy and intl](/docs/architecture/proxy-and-intl).
 
-Login canonical pattern: `ROUTES.LOGIN(locale)` with unified `from` / `callbackUrl` / `returnTo` query params. Implementation: `features/auth/components/login-authenticated-redirect.tsx`.
+Login path SSOT: `ROUTES.LOGIN(locale)` with unified `from` / `callbackUrl` / `returnTo` (`features/auth/components/login-authenticated-redirect.tsx`).
 
-## Overview
+### Vitals onboarding gate
 
-Ring Platform uses Auth.js v5 to provide seamless authentication across multiple providers while maintaining security and user privacy.
+After first sign-in, some providers require profile vitals (name, etc.) before the rest of the app. `isVitalsGatedProvider()` in `features/auth/lib/vitals-onboarding.ts` includes:
 
-## Authentication Providers
+| Provider id | Gated? |
+|-------------|--------|
+| `google`, `google-one-tap`, `apple` | Yes |
+| `email-otp`, `email-magic`, `telegram`, `crypto-wallet` | Yes |
+| Others | Not in the shared gate set |
 
-### Magic Links
-- **Passwordless Authentication** - Email-based secure login
-- **One-click Access** - No password required
-- **Secure Tokens** - Time-limited access tokens
-- **GDPR Compliant** - Privacy-first approach
+Incomplete vitals set JWT/session `needsOnboarding`. Client redirects (`email-login-form`, `verify-client`, wallet-connect) and the proxy soft-gate both honor it. Own profile Avatar uses `editable={true}` so members can finish photo vitals on `/profile`.
 
-### OAuth Providers
-- **Google** - Primary OAuth provider for web and mobile
-- **Apple** - iOS/macOS native integration with Sign in with Apple
-- **GitHub** - Developer-focused authentication
-- **Discord** - Community platform integration
+## Providers (shipped)
 
-#### Apple Sign-in Integration
+| Provider | How members sign in |
+|----------|---------------------|
+| **Ring Mailer** | OTP, magic link (`/verify#token=…`), or password — Credentials `email-otp` / `email-magic` / `credentials` |
+| **Google** | OAuth redirect + Google One Tap (GIS JWT verified server-side) |
+| **Telegram (web)** | OIDC Authorization Code + PKCE at `oauth.telegram.org` — `signIn('telegram')` |
+| **Telegram Mini App** | Credentials `telegram-miniapp` — `signIn('telegram-miniapp', { initData, redirect: false })` |
+| **Apple** | Sign in with Apple OAuth |
+| **Crypto wallet** | Nonce + signature (`crypto-wallet` Credentials) |
 
-Ring Platform supports seamless **Sign in with Apple** integration using Auth.js v5.
+GitHub/Discord OAuth are **not** in the default `auth.ts` provider list.
 
-##### Prerequisites
+### Telegram surfaces (do not mix crypto)
 
-Before setting up Apple Sign-in, ensure you have:
+| Surface | Purpose | Crypto / secret |
+|---------|---------|-----------------|
+| **Login via Telegram** (web) | Unauthenticated member opens a Ring session in the browser | OIDC `id_token` — `AUTH_TELEGRAM_ID` / `AUTH_TELEGRAM_SECRET` |
+| **Mini App initData** | Silent session inside a Telegram WebApp client | HMAC with secret key `WebAppData` — bot API token (`TELEGRAM_MINI_APP_BOT_TOKEN` preferred) |
+| **Link Telegram** (profile) | Already logged-in member binds Telegram id | Login Widget HMAC `SHA256(bot_token)` — `ADMIN_BOT_TOKEN` / `TELEGRAM_LOGIN_BOT_TOKEN` |
+| **Admin bot** | Platform admins moderate from chat | Bot API + whitelist — [Manage via Telegram](/docs/features/manage-via-telegram) |
+| **Stars membership** | Recurring / one-shot XTR invoice via SubscriptionConductor | Same Mini App bot token family — [SubscriptionConductor](/docs/features/subscriptions) |
 
-1. **Apple Developer Account** - Paid developer account ($99/year)
-2. **App ID** - Registered app identifier (e.g., `com.yourcompany.yourapp`)
-3. **Service ID** - For web authentication (e.g., `com.yourcompany.auth`)
-4. **Private Key** - Generated from Apple Developer portal
-5. **Team ID** - From your Apple Developer account
+Do **not** reuse Mini App `initData` (WebAppData) HMAC for Login Widget linking, and do **not** use Login Widget `SHA256(bot_token)` math for Mini App auth.
 
-##### Apple Developer Portal Setup
+<Mermaid>
+{`flowchart TB
+  subgraph web [Browser login]
+    LoginUI["TelegramSignInButton"]
+    OIDC["signIn telegram → oauth.telegram.org"]
+  end
+  subgraph mini [Telegram WebApp client]
+    InitData["window.Telegram.WebApp.initData"]
+    Creds["signIn telegram-miniapp"]
+  end
+  Resolve["resolveOrCreateTelegramUser"]
+  Session["JWT session cookie"]
 
-1. **Create App ID**:
-   - Go to [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
-   - Click **+** → Choose **App IDs**
-   - Register your app with bundle ID (e.g., `com.sonoratek.ring`)
-   - Enable **Sign in with Apple** capability
+  LoginUI --> OIDC --> Resolve --> Session
+  InitData --> Creds --> Resolve`}
+</Mermaid>
 
-2. **Create Service ID**:
-   - Under **Identifiers** → Click **+** → Choose **Services IDs**
-   - Create service ID (e.g., `com.sonoratek.ring-auth`)
-   - Enable **Sign in with Apple**
-   - Configure **Return URLs** (your app's callback URLs)
+<Cards>
+  <Card title="Ring Mailer & RingdomX" href="/docs/features/ring-mailer">
+    SMTP setup, Ethereal, calculator mail add-on, token migration 038.
+  </Card>
+  <Card title="Architecture" href="/docs/architecture/authentication">
+    Adapter selection, JWT callbacks, Telegram OIDC modules.
+  </Card>
+  <Card title="Examples" href="/docs/examples/authentication">
+    Integrator snippets for providers and mailer flows.
+  </Card>
+</Cards>
 
-3. **Generate Private Key**:
-   - Go to **Keys** → Click **+**
-   - Name your key (e.g., "Auth Key for Ring Platform")
-   - Enable **Sign in with Apple**
-   - Select your **App ID**
-   - Download the `.p8` private key file (keep it secure!)
+<Audience for="founder">
 
-##### Environment Configuration
+## What operators need
 
-Add these variables to your `.env.local`:
+- **At least one** working sign-in path for testers (Google, Telegram, Apple, or Ring Mailer SMTP / Ethereal).
+- For white-label production, prefer **domain-branded** auth mail via Ring Mailer or [RingdomX Mail](/docs/features/ring-mailer).
+- Sessions are platform UUIDs (`users.id`); email can link accounts across providers when Auth.js linking is enabled. Telegram-only users may have an empty email (allowed by the partial unique index).
 
-Apple Sign-in Configuration
+### Enable Telegram Login — web OIDC (BotFather checklist)
 
-<Code language="bash" title="terminal">
-{`AUTH_APPLE_ID=com.sonoratek.ring-auth
-AUTH_APPLE_SECRET=<JWT_TOKEN_GENERATED_FROM_PRIVATE_KEY>`}
-</Code>
+1. Open **@BotFather** → your bot → **Bot Settings → Web Login**.
+2. Add **Allowed URLs**: site origin (e.g. `https://your.domain`) and OIDC callback `https://your.domain/api/auth/callback/telegram`.
+3. Copy **Client ID** and **Client Secret** into cluster secrets / `.env.local` as `AUTH_TELEGRAM_ID` / `AUTH_TELEGRAM_SECRET`.
+4. Keep the **bot API token** (`ADMIN_BOT_TOKEN` or `TELEGRAM_LOGIN_BOT_TOKEN`) for profile “Link Telegram” widget hash — it is **not** the OIDC client secret.
+5. Confirm login page shows **Continue with Telegram** and a successful redirect lands on profile (or your `from` URL).
 
-##### JWT Generation
+### Enable Telegram Mini App auth (operator view)
 
-Apple requires a JWT signed with your private key. Use this Node.js script:
+1. Create or reuse a bot that hosts the Mini App (can be the same bot as admin/login, or a dedicated one).
+2. Set `TELEGRAM_MINI_APP_BOT_TOKEN` to that bot’s API token (preferred). Fallbacks used by `getTelegramMiniAppBotToken()`: `TELEGRAM_BOT_TOKEN` → `ADMIN_BOT_TOKEN` → `TELEGRAM_LOGIN_BOT_TOKEN` → `N9LIFE_BOT_TOKEN`.
+3. Your Mini App client must call `signIn('telegram-miniapp', { initData, redirect: false })` with `Telegram.WebApp.initData` — platform ships the Credentials provider; a stock `/tg-mini-app` shell page is **not** on the main platform clone (white-labels may add their own).
+4. Same resolver as OIDC: members get a platform UUID via `resolveOrCreateTelegramUser` (accounts + `communication.telegramId`).
 
-<Code language="javascript" title="import jwt from 'jsonwebtoken';">
-{`import fs from 'fs';
-
-const privateKey = fs.readFileSync('AuthKey_YD444LWM9J.p8');
-const teamId = 'X9EQDPCJU6'; // Your Team ID
-const keyId = 'YD444LWM9J'; // From your key filename
-const serviceId = 'com.sonoratek.ring-auth';
-
-const token = jwt.sign(
-  {
-    iss: teamId,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 15777000, // 6 months
-    aud: 'https://appleid.apple.com',
-    sub: serviceId,
-  },
-  privateKey,
-  {
-    algorithm: 'ES256',
-    keyid: keyId,
-  }
-);
-
-console.log(token); // Use this as AUTH_APPLE_SECRET`}
-</Code>
-
-##### Auth.js v5 Configuration
-
-Apple Sign-in is automatically configured in your `auth.config.ts`:
-
-import AppleProvider from 'next-auth/providers/apple'
-
-<Code language="typescript" title="TypeScript">
-{`export default {
-  providers: [
-    AppleProvider({
-      // Uses AUTH_APPLE_ID and AUTH_APPLE_SECRET from environment
-      allowDangerousEmailAccountLinking: true,
-    }),
-    // ... other providers
-  ]
-}`}
-</Code>
-
-##### Usage in Components
-
-<Code language="typescript" title="'use client'">
-{`import { signIn } from 'next-auth/react'
-
-export function AppleSignInButton() {
-  return (
-    <button
-      onClick={() => signIn('apple')}
-      className="apple-signin-button"
-    >
-      <AppleIcon />
-      Continue with Apple
-    </button>
-  )
-}`}
-</Code>
-
-##### User Experience Features
-
-- **One-tap authentication** on Apple devices
-- **Privacy-focused** - No email collection without user consent
-- **Secure token exchange** - Server-side validation
-- **Account linking** - Connect with existing accounts
-- **Cross-platform support** - Works on web and mobile
-
-##### Security Considerations
-
-- **Private key protection** - Never commit `.p8` files to version control
-- **JWT expiration** - Regenerate tokens every 6 months
-- **Environment isolation** - Use different keys for dev/staging/production
-- **Audit logging** - Track authentication events
-- **Rate limiting** - Protect against abuse
-
-##### Troubleshooting
-
-**Common Issues:**
-
-- **"Invalid client" error**: Verify `AUTH_APPLE_ID` matches your Service ID
-- **"Invalid JWT" error**: Check JWT generation and expiration
-- **"Domain verification failed"**: Ensure return URLs are properly configured
-- **"Key not found" error**: Verify private key is accessible and correct
-
-**Debug Tips:**
-
-- Check server logs for detailed error messages
-- Verify JWT payload structure and signature
-- Test with Apple's developer tools
-- Ensure proper domain verification in Apple Developer portal
-
-### Crypto Wallets
-- **MetaMask** - Ethereum wallet authentication
-- **WalletConnect** - Multi-wallet support
-- **Coinbase Wallet** - Mainstream crypto wallet
-- **Trust Wallet** - Mobile-first wallet integration
-
-## Implementation
-
-### Authentication Setup
-<Code language="typescript" title="TypeScript">
-{`import { auth } from '@/auth'
-import { signIn, signOut } from 'next-auth/react'
-
-// Server-side authentication
-export default async function ProtectedPage() {
-  const session = await auth()
-  
-  if (!session) {
-    return <LoginRequired />
-  }
-  
-  return <Dashboard user={session.user} />
-}
-
-// Client-side authentication
-export function LoginButton() {
-  return (
-    <button onClick={() => signIn('google')}>
-      Sign in with Google
-    </button>
-  )
-}`}
-</Code>
-
-### Role-Based Access
-// Check user role
-
-<Code language="typescript" title="TypeScript">
-{`const hasAccess = (session: Session, requiredRole: Role) => {
-  const roleHierarchy = ['VISITOR', 'SUBSCRIBER', 'MEMBER', 'CONFIDENTIAL', 'ADMIN']
-  const userRoleIndex = roleHierarchy.indexOf(session.user.role)
-  const requiredRoleIndex = roleHierarchy.indexOf(requiredRole)
-  
-  return userRoleIndex >= requiredRoleIndex
-}
-
-// Protect API routes
-export async function GET(request: Request) {
-  const session = await auth()
-  
-  if (!session || !hasAccess(session, 'MEMBER')) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-  
-  // Handle authenticated request
-}`}
-</Code>
-
----
-
-<Callout type="development" title="Documentation in progress">
-Complete authentication documentation is being expanded.
+<Callout type="tip" title="Privacy copy">
+  Soft-launch OIDC scopes are `openid profile` — Ring reads Telegram **id**, **name**, **username**, and **photo**. Phone is not requested until you opt into the `phone` scope later. Mini App auth only uses fields present in verified `initData` (no phone by default).
 </Callout>
+
+<Callout type="warning" title="Resend removed">
+  Do not create a Resend API key. `AUTH_RESEND_KEY` is deprecated. Configure Auth `SMTP_*` or `EMAIL_MODE=ethereal` instead. CRM inbox SMTP is a separate channel plane — see [Email AI-CRM](/docs/features/email-ai-crm).
+</Callout>
+
+<Callout type="tip" title="/register retired">
+  Bookmarks to `/register` land on `/login` (locale + `from` / `callbackUrl` preserved). `EmailSignupForm` is removed from the auth barrel — use OTP / magic on the login form.
+</Callout>
+
+### Typical scenarios
+
+<Cards>
+  <Card title="Community portal" description="Google + Telegram + email OTP for members who refuse browser OAuth." />
+  <Card title="UA / diaspora product" description="Telegram-first acquisition (web OIDC); email collected later in vitals onboarding if needed." />
+  <Card title="In-Telegram product" description="Mini App silent auth + optional Stars membership — see SubscriptionConductor." />
+  <Card title="iOS-heavy brand" description="Apple Sign-In + Ring Mailer fallback — Apple is vitals-gated like Google." />
+  <Card title="Web3 community" description="Wallet credentials + optional email for recovery; incomplete vitals soft-gate to onboarding." />
+</Cards>
+
+</Audience>
+
+<Audience for="developer">
+
+## Auth.js layout
+
+| File | Role |
+|------|------|
+| `auth.config.ts` | Edge-safe config (minimal callbacks; **no** providers) |
+| `auth.ts` | Full providers + adapter + JWT/session/`signIn` callbacks |
+| `lib/auth/telegram-oidc.ts` | `TelegramOidcProvider`, claim map, lazy JWKS verify |
+| `lib/auth/telegram-miniapp-initdata.ts` | WebAppData HMAC parse/verify + `getTelegramMiniAppBotToken` |
+| `lib/auth/telegram-login-widget-hash.ts` | Legacy widget HMAC + `auth_date` window |
+| `features/auth/services/user-resolve.ts` | `resolveOrCreateTelegramUser`, `syncUserTelegramCommunication`, `unlinkTelegramCommunication` |
+| `features/auth/components/telegram-signin-button.tsx` | Same-tab `signIn('telegram')` |
+| `lib/auth/session-user-status.ts` | `applyUserRowToJwt` — rehydrates `telegramId` from communication |
+| `app/api/auth/[...nextauth]/route.ts` | Auth.js handlers (includes `/api/auth/callback/telegram`) |
+| `app/api/auth/telegram/callback/route.ts` | **Linking only** — requires existing session |
+| `app/api/telegram/stars-bot/webhook/route.ts` | Stars `pre_checkout_query` + `successful_payment` |
+
+OIDC registers only when `AUTH_TELEGRAM_ID` and `AUTH_TELEGRAM_SECRET` are both set (`isTelegramOidcConfigured()`). Mini App Credentials `telegram-miniapp` is always registered; authorize fails closed if the bot token is missing or HMAC fails.
+
+### Telegram OIDC flow (web)
+
+1. UI: `TelegramSignInButton` → `signIn('telegram', { callbackUrl })` (same-tab redirect, matches Google GIS UX).
+2. Auth.js: Authorization Code + PKCE + `state` against `https://oauth.telegram.org`.
+3. Token exchange: Basic auth with Client ID/Secret; profile from **id_token** (no UserInfo endpoint).
+4. `signIn` callback: `resolveOrCreateTelegramUser` — prefer `accounts` (`provider: telegram`), then `communication.telegramId`; optional verified-phone link when `phone` scope is used later.
+5. Persist: `accounts` row + `users.data.communication.telegramId` (indexed); JWT/session may expose `telegramId`.
+6. JWT refresh: `applyUserRowToJwt` rehydrates (or clears) `token.telegramId` from `communication.telegramId` on every session update — link/unlink without re-login.
+
+### Telegram Login Widget (profile linking)
+
+1. Env: `NEXT_PUBLIC_TELEGRAM_LOGIN_BOT_USERNAME` (no `@`) **must** match the bot whose token verifies the widget hash (`TELEGRAM_LOGIN_BOT_TOKEN` or `ADMIN_BOT_TOKEN`).
+2. BotFather → Domain: host must match the site origin that embeds the widget.
+3. UI: `TelegramLinkingModal` → official `telegram-widget.js` → `POST /api/auth/telegram/callback` (session required).
+4. Callback calls `syncUserTelegramCommunication` — stores numeric **UID** (SSOT), optional `@username` for display, awards `addedTelegram` once on newly linked.
+5. Unlink: profile **Unlink Telegram** → `unlinkTelegramAccount` → clears `communication.telegramId` + invalidates admin-bot whitelist cache; next `session.update()` clears JWT `telegramId`.
+
+**UID SSOT:** `isTelegramLinked` requires a numeric `telegramId`. Username alone is never sufficient for rewards, whitelist, or “linked” UI.
+
+### Telegram Mini App initData flow
+
+1. Client (inside Telegram WebApp): read `window.Telegram.WebApp.initData`.
+2. `signIn('telegram-miniapp', { initData, redirect: false })`.
+3. `authorize` in `auth.ts`: `getTelegramMiniAppBotToken()` → `verifyTelegramMiniAppInitData` → `isTelegramMiniAppAuthDateFresh` (max age **86400s**).
+4. HMAC algorithm (Telegram WebApps docs): `secret_key = HMAC_SHA256(key="WebAppData", message=bot_token)`; compare hex digest of sorted `key=value` lines (excluding `hash`).
+5. Resolve user with `resolveOrCreateTelegramUser` (same path as OIDC).
+
+Tests: `__tests__/auth/telegram-miniapp-initdata.test.ts` (WebAppData HMAC vectors). Widget crypto remains in `__tests__/auth/telegram-login-crypto.test.ts`.
+
+### Ring Mailer (email)
+
+Wire Auth `SMTP_*` or `EMAIL_MODE=ethereal`, apply `038_email_login_tokens.sql`, then:
+
+- `requestLoginCode` / magic-link actions in `app/_actions/auth-email-actions.ts`
+- `signIn('email-otp' | 'email-magic' | 'credentials')`
+- Token cleanup: `/api/cron/cleanup-email-tokens` (Bearer `CRON_SECRET`, fail-closed)
+
+`/register` redirects to `/login`. Do not import `EmailSignupForm` from the auth barrel.
+
+Full env and CRM separation: [Ring Mailer](/docs/features/ring-mailer), [Email AI-CRM](/docs/features/email-ai-crm).
+
+### Vitals + proxy soft-gate
+
+| Module | Role |
+|--------|------|
+| `features/auth/lib/vitals-onboarding.ts` | `isVitalsGatedProvider` — google, google-one-tap, apple, email-otp/magic, telegram, crypto-wallet |
+| `app/[locale]/login/onboarding/page.tsx` | Vitals form; clears `needsOnboarding` via session `update` |
+| `proxy.ts` | Soft redirect when `getToken().needsOnboarding` on protected app routes |
+
+### Google / Apple
+
+- Google: `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` → `{origin}/api/auth/callback/google`
+- Apple: `AUTH_APPLE_ID` / `AUTH_APPLE_SECRET` — see [Apple Sign-in Integration](/docs/examples/apple-signin-integration)
+
+### Minimum env
+
+<Code language="bash" title=".env.local">
+{`AUTH_SECRET=...
+AUTH_TRUST_HOST=true
+
+# At least one social / mailer path:
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+AUTH_TELEGRAM_ID=
+AUTH_TELEGRAM_SECRET=
+# AUTH_APPLE_ID= / AUTH_APPLE_SECRET=
+
+# Legacy Login Widget hash (profile linking):
+# ADMIN_BOT_TOKEN=...
+# TELEGRAM_LOGIN_BOT_TOKEN=...
+# NEXT_PUBLIC_TELEGRAM_LOGIN_BOT_USERNAME=YourBotUsername
+
+# Mini App initData HMAC (+ Stars invoices share this token helper):
+# TELEGRAM_MINI_APP_BOT_TOKEN=...
+# TELEGRAM_BOT_TOKEN=...
+# Stars webhook: POST /api/telegram/stars-bot/webhook
+# TELEGRAM_STARS_WEBHOOK_SECRET=...
+
+# Ring Mailer (no AUTH_RESEND_*):
+EMAIL_MODE=ethereal
+# or SMTP_HOST / SMTP_USER / SMTP_PASSWORD / SMTP_FROM
+# OTP_HMAC_SECRET=`}
+</Code>
+
+<Callout type="development" title="COOP">
+  Primary Telegram **web** path is **redirect**. Login routes set `Cross-Origin-Opener-Policy: same-origin-allow-popups` so optional `telegram-login.js` popups are not blocked. Strict `same-origin` COOP breaks Telegram’s popup library. Mini App auth does not use popups — it posts `initData` to Credentials authorize. Profile linking uses the redirect Login Widget (no COOP change required on `/profile`).
+</Callout>
+
+### Tests
+
+- Mini App: `__tests__/auth/telegram-miniapp-initdata.test.ts`
+- Login Widget / claim helpers: `__tests__/auth/telegram-login-crypto.test.ts`
+
+</Audience>
+
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="architecture/authentication"
+    relation="Deep-dive: Auth.js file split, adapters, OIDC + Mini App modules."
+  />
+  <RelatedArticle
+    slug="examples/authentication"
+    relation="Next-step: copy-paste signIn('telegram') and signIn('telegram-miniapp') snippets."
+  />
+  <RelatedArticle
+    slug="features/ring-mailer"
+    relation="Same-workflow: email OTP / magic link when members skip social login."
+  />
+  <RelatedArticle
+    slug="features/email-ai-crm"
+    relation="See-also: community inbox SMTP is a separate plane from Auth Ring Mailer."
+  />
+  <RelatedArticle
+    slug="features/manage-via-telegram"
+    relation="See-also: admin Telegram bot — different token and RBAC from member Login."
+  />
+  <RelatedArticle
+    slug="features/subscriptions"
+    relation="Next-step: telegram_stars SubscriptionConductor provider (XTR invoices)."
+  />
+  <RelatedArticle
+    slug="deployment/environment"
+    relation="Depends-on: full AUTH_* and SMTP env reference for clones."
+  />
+  <RelatedArticle
+    slug="api/authentication"
+    relation="See-also: Auth.js session endpoints and role hierarchy."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — Telegram auth">
+
+<FutureFeatureWidget
+  name="Platform Mini App shell route"
+  description="Stock /tg-mini-app (or equivalent) page on ring-platform.org that boots Telegram.WebApp and calls signIn('telegram-miniapp'). Auth Credentials are shipped; the product shell stayed on white-label clones (e.g. n9life)."
+  implementationCost={24}
+  labels={["telegram", "mini-app", "ui"]}
+/>
+
+<FutureFeatureWidget
+  name="OIDC phone + bot_access scopes"
+  description="Request phone / telegram:bot_access behind feature flags; safe verified-phone account linking already stubbed in resolveOrCreateTelegramUser."
+  implementationCost={16}
+  labels={["telegram", "oidc", "privacy"]}
+/>
+
+<FutureFeatureWidget
+  name="Link Telegram via OIDC account linking"
+  description="Migrate telegram-linking-modal from legacy widget to signIn with link intent so one crypto path remains."
+  implementationCost={24}
+  labels={["telegram", "linking"]}
+/>
+
+</FutureFeatureBacklog>

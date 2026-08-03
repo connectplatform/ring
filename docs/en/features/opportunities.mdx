@@ -1,6 +1,8 @@
 ---
 title: Opportunities
-description: Transform your talent acquisition and partnership strategies with Ring Platform's revolutionary dual-nature marketplace
+description: Dual-nature marketplace for offers and requests — Matcher-driven discovery, collective jars via Public Pools, and verified API surfaces
+last_modified: "2026-07-22"
+audience: both
 ---
 
 # 🚀 Opportunities Marketplace
@@ -27,21 +29,11 @@ Ring eliminates the fundamental problem of missed opportunities through AI-power
 
 **Ring Platform:** Post opportunity → AI analyzes 160+ data points → Instantly notifies interested parties with personalized 160-char explanations → Direct connections happen
 
-## 💰 Business Impact & ROI
+## Money & matching (verified)
 
-### Measurable Results
-- **75% Faster Time-to-Hire** through AI-powered candidate matching
-- **60% Cost Reduction** in recruitment expenses vs traditional methods
-- **40% Increase** in successful partnership formations
-- **$2.3M+** in transaction volume through integrated Web3 payments
-- **95% User Satisfaction** with platform matching accuracy
+Opportunities connect supply and demand (offer/request and specialized types). Matching uses the **Matcher** module (score thresholds from `ring-config` / admin settings) — there is **no** published kingdom-wide “95% accuracy” KPI in product telemetry; treat older marketing percentages as **deprecated**.
 
-### Competitive Advantages
-- **Dual-Nature System**: Post both what you offer AND what you need
-- **Confidential Access**: Exclusive opportunities for high-value positions
-- **Real-time Matching**: Instant notifications for perfect matches
-- **Integrated Payments**: Seamless RING token transactions
-- **Advanced Analytics**: Data-driven insights for better decisions
+Collective / builder funding jars: when a related public pool fills, builders receive **net** native token (role fee from `publicPools.platformFeePercentByRole`) to their primary Solana wallet. See [Public Pools & DAO Jars](/docs/features/public-pools). Donation treasury path is live; on-chain escrow is gated.
 
 ## 🤖 AI-Powered Matching System
 
@@ -211,7 +203,7 @@ Access the exact resources and talent required for your success:
 ## 💡 Smart Features & Intelligence
 
 ### AI-Powered Matching
-- **Skill Matching**: 95% accuracy in candidate-job matching
+- **Skill Matching**: Configurable score-threshold matching (see Matcher / opportunities search)
 - **Behavioral Analysis**: Personality and cultural fit assessment
 - **Network Intelligence**: Leverage professional connections
 - **Success Prediction**: Likelihood of successful partnerships
@@ -297,20 +289,9 @@ const searchResults = await searchOpportunities({
 
 When **Platform Settings → AI → Matcher → Auto-approve** is enabled, new opportunities in `pending` status can be promoted to `active` after LLM matching passes score and confidence gates (`features/opportunities/services/auto-approval-service.ts`). Configure defaults in `ring-config.json` → `matcher` and override per tenant in `platform_settings`.
 
-## 📊 Success Metrics & Benchmarks
+## Metrics (no fabricated kingdom KPIs)
 
-### Industry Benchmarks
-- **Average Time-to-Hire**: 42 days (vs industry average of 52 days)
-- **Cost-per-Hire**: $4,200 (vs industry average of $7,500)
-- **Offer Acceptance Rate**: 85% (vs industry average of 65%)
-- **Employee Retention**: 92% (vs industry average of 78%)
-
-### Platform Performance
-- **8,765+ Active Opportunities** across all categories
-- **15,420+ Registered Users** actively participating
-- **3,456 Verified Entities** posting opportunities
-- **95% Match Accuracy** through AI-powered algorithms
-- **$2.3M+ Transaction Volume** through integrated payments
+Use live admin analytics and Matcher auto-approval settings for real numbers. Older marketing benchmarks (time-to-hire, cost-per-hire, “95% accuracy”, fixed user counts) are **deprecated**. Collective jar money SSOT: [Public Pools & DAO Jars](/docs/features/public-pools).
 
 ## 🎯 Who Benefits Most
 
@@ -329,9 +310,9 @@ When **Platform Settings → AI → Matcher → Auto-approve** is enabled, new o
 
 ## 🔄 Integration Ecosystem
 
-### Seamless Platform Integration
+### Platform Integration
 - **Entities System**: Post opportunities as verified organizations
-- **Wallet Integration**: Seamless RING token payments and escrow
+- **Wallet Integration**: Credit / native rails via WalletConductor; collective jars pay builders through [Public Pools](/docs/features/public-pools) (donation path live; on-chain escrow gated)
 - **Messaging System**: Direct communication with applicants
 - **Notification System**: Real-time updates and alerts
 - **Analytics Dashboard**: Comprehensive reporting and insights
@@ -350,13 +331,13 @@ POST   /api/opportunities/upload       // Attachments
 // UI forms may still use createOpportunity Server Action (app/_actions/opportunities.ts)`}
 </Code>
 
-## 🏆 Why Choose Ring Platform?
+## Why Ring Opportunities
 
 ### vs Traditional Job Boards
 - ✅ **Dual-Nature System**: Post needs, not just offers
 - ✅ **Confidential Access**: Executive and sensitive positions
-- ✅ **Integrated Payments**: Seamless financial transactions
-- ✅ **AI Matching**: 95% accuracy vs 15% on traditional platforms
+- ✅ **Integrated Payments**: Credit, native token, and PaymentConductor card rails (see [Payments](/docs/features/payments))
+- ✅ **AI Matching**: Score-threshold matching via Matcher settings (not a fixed marketing accuracy %)
 - ✅ **Real-time Communication**: Direct applicant interaction
 
 ### vs LinkedIn/Indeed

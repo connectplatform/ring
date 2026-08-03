@@ -10,13 +10,14 @@ import { ROUTES } from '@/constants/routes'
 import { useTranslations, useLocale } from 'next-intl'
 import { useState } from 'react'
 import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
+import { requestOpportunityTypeSelector } from '@/lib/opportunities/request-opportunity-type-selector'
 import { cn } from '@/lib/utils'
 
 interface AddOpportunityButtonProps {
   locale?: Locale
   className?: string
   /**
-   * overlay — open center-pane type picker in place (default for authenticated creators)
+   * overlay — open center-pane type picker on desktop; mobile delegates to bottom-nav sheet
    * navigate — classic Link to /opportunities/add
    */
   mode?: 'overlay' | 'navigate'
@@ -76,13 +77,15 @@ export function AddOpportunityButton({
 
   const selectorRole = hasMemberPrivileges(role) ? 'member' : 'subscriber'
 
+  const openSelector = () => {
+    // Mobile: shared bottom-nav sheet (same as '+'). Desktop: local center-pane overlay.
+    if (requestOpportunityTypeSelector()) return
+    setOverlayOpen(true)
+  }
+
   return (
     <>
-      <Button
-        type="button"
-        className={cn(className)}
-        onClick={() => setOverlayOpen(true)}
-      >
+      <Button type="button" className={cn(className)} onClick={openSelector}>
         <Plus className="mr-2 h-4 w-4" />
         {t('addOpportunity')}
       </Button>

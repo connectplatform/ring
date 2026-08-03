@@ -10,17 +10,27 @@ import { encodePoolSlugForRoute } from '@/lib/public-pools/pool-slug'
 import { fundingProgressPct } from '@/lib/public-pools/goal-ring'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Coins, Loader2, ThumbsUp } from 'lucide-react'
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
 import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
+import { ShareToChatButton } from '@/features/chat/interactive/share-to-chat-button'
+import { PostDaoJarToChatButton } from '@/features/public-pools/components/post-dao-jar-to-chat-button'
 
 const PAGE_LIMIT = 24
 
 /**
  * DaoListClient — public pools grid with useCursorFeed infinite scroll.
+ * TD-UX-02: Share / Post jar on card footer without navigating into detail.
  */
 export function DaoListClient({
   pools: initialPools,
@@ -91,11 +101,11 @@ export function DaoListClient({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {pools.map((pool) => {
           const href = toAppHref(ROUTES.DAO_POOL(pool.pool_slug, locale))
-          const fundingPct = fundingProgressPct(pool.pledged_ring, pool.goal_ring)
+          const fundingPct = fundingProgressPct(pool.pledged_native_token, pool.goal_native_token)
 
           return (
-            <Link key={pool.id} href={href} className="block h-full">
-              <Card className="h-full transition-colors hover:border-primary/40 hover:bg-muted/20">
+            <Card key={pool.id} className="flex h-full flex-col transition-colors hover:border-primary/40 hover:bg-muted/20">
+              <Link href={href} className="block min-w-0 flex-1">
                 <CardHeader className="space-y-2 pb-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary" className="text-[10px] uppercase">
@@ -117,8 +127,8 @@ export function DaoListClient({
                     <span className="inline-flex items-center gap-1">
                       <Coins className="h-3.5 w-3.5" aria-hidden />
                       {t('fundingSummary', {
-                        pledged: pool.pledged_ring,
-                        goal: pool.goal_ring,
+                        pledged: pool.pledged_native_token,
+                        goal: pool.goal_native_token,
                         token: nativeToken,
                       })}
                     </span>
@@ -130,8 +140,22 @@ export function DaoListClient({
                     />
                   </div>
                 </CardContent>
-              </Card>
-            </Link>
+              </Link>
+              <CardFooter
+                className="flex flex-wrap gap-2 border-t border-border/40 pt-3"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <ShareToChatButton
+                  targetType="dao_pool"
+                  targetId={pool.pool_slug}
+                  title={pool.title}
+                  description={pool.description}
+                  url={ROUTES.DAO_POOL(pool.pool_slug, locale)}
+                />
+                <PostDaoJarToChatButton poolSlug={pool.pool_slug} />
+              </CardFooter>
+            </Card>
           )
         })}
       </div>

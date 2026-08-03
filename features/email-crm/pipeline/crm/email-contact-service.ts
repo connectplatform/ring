@@ -78,6 +78,20 @@ export class EmailContactService {
   }
   
   /**
+   * Get contact by id
+   */
+  async findById(id: string): Promise<EmailContact | null> {
+    return this.repository.findById(id);
+  }
+
+  /**
+   * Get contact by email
+   */
+  async findByEmail(email: string): Promise<EmailContact | null> {
+    return this.repository.findByEmail(email.toLowerCase());
+  }
+
+  /**
    * Update contact information
    */
   async updateContact(id: string, input: ContactUpdateInput): Promise<EmailContact> {

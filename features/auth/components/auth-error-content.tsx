@@ -39,11 +39,22 @@ export default function AuthErrorContent() {
       case 'SignInError':
         return 'There was an error signing in. Please try again.'
       case 'Configuration':
-        return 'There is a problem with the server configuration. Please contact support.'
+        return 'Sign-in was interrupted or the auth session expired. Please try signing in again.'
+      case 'OAuthCallback':
+      case 'OAuthSignin':
+      case 'Callback':
+        return 'Google or Telegram sign-in did not complete. If you pressed Back during login, start again from the login page.'
       case 'AccessDenied':
         return 'Access denied. You do not have permission to access this resource.'
       case 'Verification':
         return 'The verification token has expired or has already been used. Please request a new one.'
+      case 'telegram_auth_required':
+        return 'Sign in to Ring first to link your Telegram account.'
+      case 'telegram_cancelled':
+      case 'OAuthAccountNotLinked':
+        return 'Telegram sign-in was cancelled or could not be linked. Please try again.'
+      case 'Default':
+        return 'Sign-in could not be completed. Please try again.'
       default:
         return 'An unknown error occurred. Please try again or contact support.'
     }
@@ -58,7 +69,7 @@ export default function AuthErrorContent() {
         <CardContent className="space-y-4">
           <p className="text-destructive text-center">{getErrorMessage(error)}</p>
           <p className="text-muted-foreground text-center">
-            If this problem persists, please contact our support team.
+            If you cancelled Google or Telegram sign-in or hit Back mid-flow, that is expected — use Try Again.
           </p>
           <div className="flex justify-center space-x-4">
             <Link href={ROUTES.LOGIN(routing.defaultLocale)}>

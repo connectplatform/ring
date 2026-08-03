@@ -1,7 +1,7 @@
 "use client"
 
 import marketAbi from '@/features/nft-market/abi/market.json'
-import { createEvmMarketplaceAdapter } from '@/features/nft-market/adapters/evm'
+import { createEvmMarketplaceAdapter, getNftMarketChainId } from '@/features/nft-market/adapters/evm'
 import { DEFAULT_MARKET_CONFIG } from '@/features/nft-market/market.config'
 import { toWeiDecimal } from '@/features/nft-market/utils'
 
@@ -13,22 +13,26 @@ export async function createListingOnChainAndActivateClient(
   const adapter = createEvmMarketplaceAdapter({
     marketContract: { address: DEFAULT_MARKET_CONFIG.addresses.MARKET, abi: marketAbi as any[] },
     getSigner: async () => {
-      // Wagmi handles signer automatically through hooks
-      // This adapter now uses wagmi's writeContract directly
-      return null // Not needed with wagmi
-    }
+      return null
+    },
   })
 
   const valueWei = await toWeiDecimal(priceAmount, 18)
-  const res = await adapter.list({ address: item.address, tokenId: String(item.tokenId), standard: item.standard, chainId: 137 }, valueWei)
+  const res = await adapter.list(
+    {
+      address: item.address,
+      tokenId: String(item.tokenId),
+      standard: item.standard,
+      chainId: getNftMarketChainId(),
+    },
+    valueWei
+  )
 
   await fetch('/api/nft-market/listings/activate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: draftId, txHash: res.txHash })
+    body: JSON.stringify({ id: draftId, txHash: res.txHash }),
   })
 
   return { txHash: res.txHash }
 }
-
-

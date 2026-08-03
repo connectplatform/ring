@@ -25,7 +25,7 @@ export function DavinciCtaLink({
         : {})}
       className={cn(
         davinciCtaPrimary,
-        'flex items-center justify-center gap-2 rounded-[inherit] px-6 py-4 text-center text-sm sm:text-base',
+        'flex items-center justify-center gap-2 rounded-[99px] px-6 py-4 text-center text-sm sm:text-base',
         className
       )}
     >

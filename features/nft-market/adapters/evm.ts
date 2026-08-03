@@ -12,12 +12,18 @@ export interface EvmMarketplaceConfig {
 
 import { createPublicClient, http } from 'viem'
 import { polygon } from 'viem/chains'
+import { getEvmRpcUrl, getEvmChainId } from '@/lib/ring-config-chain'
 
-// Public client for read operations
+// Public client for read operations — RPC SSOT via getEvmRpcUrl
 const publicClient = createPublicClient({
   chain: polygon,
-  transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+  transport: http(getEvmRpcUrl()),
 })
+
+/** Configured EVM chain id for listings (defaults to Polygon). */
+export function getNftMarketChainId(): number {
+  return getEvmChainId()
+}
 
 // Read operations using viem (server-safe)
 async function executeContractRead(config: {

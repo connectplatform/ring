@@ -49,7 +49,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
-import { useStoreCurrency } from '@/features/store/currency-context'
+import { useStorePaymentMethods } from '@/features/store/currency-context'
 import { calculateProject } from './engine'
 import type { CalculatorInputs, CalculatorResults } from './types'
 import { OrderThisBuildButton } from '@/features/crm/orders/order-actions'
@@ -59,7 +59,7 @@ import {
   PROJECT_EXTERNAL_COLORS,
   PROJECT_EXTERNAL_IDS,
   PROJECT_EXTERNAL_ICONS,
-  PROJECT_EXTERNAL_USD_MONTHLY,
+  PROJECT_EXTERNAL_MAIN_CURRENCY,
   PROJECT_HOSTING_IDS,
   PROJECT_MODULE_DOMAIN,
   PROJECT_MODULE_ICONS,
@@ -76,7 +76,7 @@ import {
   type ProjectNicheId,
   type ProjectScaleId,
 } from './presets/project'
-import { pointsToFiat, type CalculatorRates, usdCatalogToPoints } from './rates'
+import { creditBalanceUnitToMainCurrency, type CalculatorRates, mainCurrencyToCreditBalanceUnit } from './rates'
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Store,
@@ -210,25 +210,32 @@ function getTimelineTasks(t: CalcT, complexity: 'simple' | 'medium' | 'complex')
   }
 }
 
-export function CalculatorEngine({ rates }: { rates: CalculatorRates }) {
+export function CalculatorEngine({
+  rates,
+  initialHosting,
+}: {
+  rates: CalculatorRates
+  /** Deep-link from roadmap / marketing — preselect hosting (`ringdom` | `self_host`). */
+  initialHosting?: ProjectHostingId
+}) {
   const t = useTranslations('calculator')
   const locale = useLocale()
-  // Same SSOT as /store: left-rail + mobile modal RING ↔ fiat toggle
+  // Same SSOT as /store: left-rail + mobile modal NativeToken ↔ MainCurrency toggle
   const {
     currency,
     displayPrice,
     equivalentCurrency,
     formatPrice,
     convertPrice,
-    defaultCurrency,
-  } = useStoreCurrency()
+    mainCurrency,
+  } = useStorePaymentMethods()
 
   const [inputs, setInputs] = useState<CalculatorInputs>({
     niche: '',
     scale: '',
     modules: [],
     externals: [],
-    hosting: '',
+    hosting: initialHosting && PROJECT_HOSTING_IDS.includes(initialHosting) ? initialHosting : '',
     branding: true,
     needHumanDev: false,
   })
@@ -295,15 +302,15 @@ export function CalculatorEngine({ rates }: { rates: CalculatorRates }) {
 
   const display = livePreview
 
-  /** Catalog points → store.defaultCurrency → active rail currency (RING/USD/…). */
+  /** Catalog points → store.mainCurrency → active rail currency (RING/USD/…). */
   const fmt = (points: number) => {
-    const fiat = pointsToFiat(points, rates)
-    return displayPrice(fiat, defaultCurrency)
+    const maincurrency = creditBalanceUnitToMainCurrency(points, rates)
+    return displayPrice(maincurrency, mainCurrency)
   }
 
   const fmtEquivalent = (points: number) => {
-    const fiat = pointsToFiat(points, rates)
-    return formatPrice(convertPrice(fiat, defaultCurrency, equivalentCurrency), equivalentCurrency)
+    const maincurrency = creditBalanceUnitToMainCurrency(points, rates)
+    return formatPrice(convertPrice(maincurrency, mainCurrency, equivalentCurrency), equivalentCurrency)
   }
 
   return (
@@ -316,11 +323,11 @@ export function CalculatorEngine({ rates }: { rates: CalculatorRates }) {
         <p className="mx-auto max-w-2xl text-muted-foreground">{t('hero.subtitle')}</p>
         <p className="text-xs text-muted-foreground">
           {t('results.rateDetail', {
-            pointsPerToken: String(rates.pointsPerNativeToken),
+            pointsPerToken: String(rates.creditBalanceUnitPerNativeToken),
             token: rates.nativeTokenSymbol,
-            currency: rates.defaultCurrency,
-            unitRate: String(rates.unitToDefaultCurrency),
-            creditUnit: rates.creditUnitLabel,
+            currency: rates.mainCurrency,
+            unitRate: String(rates.creditBalanceUnitToMainCurrency),
+            creditBalanceUnit: rates.creditBalanceUnitLabel,
           })}
         </p>
       </header>
@@ -398,7 +405,7 @@ export function CalculatorEngine({ rates }: { rates: CalculatorRates }) {
             {PROJECT_EXTERNAL_IDS.map((id) => {
               const Icon = ICON_MAP[PROJECT_EXTERNAL_ICONS[id]] ?? Globe
               const colors = PROJECT_EXTERNAL_COLORS[id]
-              const pts = usdCatalogToPoints(PROJECT_EXTERNAL_USD_MONTHLY[id], rates)
+              const pts = mainCurrencyToCreditBalanceUnit(PROJECT_EXTERNAL_MAIN_CURRENCY[id], rates)
               return (
                 <ToggleTile
                   key={id}
@@ -622,7 +629,7 @@ function EstimatePanel({
 }) {
   const rates = display.rates
   return (
-    <section className={cn('space-y-6 rounded-2xl border p-5', davinciGlassSurface)}>
+    <section className={cn('space-y-6 rounded-[15px] border p-5', davinciGlassSurface)}>
       <h2 className="text-lg font-semibold">{t('results.title')}</h2>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -680,11 +687,11 @@ function EstimatePanel({
             <dt className="font-medium">{t('results.rate')}</dt>
             <dd className="text-muted-foreground">
               {t('results.rateDetail', {
-                pointsPerToken: String(rates.pointsPerNativeToken),
+                pointsPerToken: String(rates.creditBalanceUnitPerNativeToken),
                 token: rates.nativeTokenSymbol,
-                currency: rates.defaultCurrency,
-                unitRate: String(rates.unitToDefaultCurrency),
-                creditUnit: rates.creditUnitLabel,
+                currency: rates.mainCurrency,
+                unitRate: String(rates.creditBalanceUnitToMainCurrency),
+                creditBalanceUnit: rates.creditBalanceUnitLabel,
               })}
             </dd>
           </div>
@@ -769,7 +776,12 @@ function EstimatePanel({
       <div className="space-y-4 rounded-xl border p-5">
         <h3 className="text-base font-semibold">{t('results.nextSteps')}</h3>
         <OrderThisBuildButton inputs={inputs} />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <Button asChild variant="secondary">
+            <Link href={`/${locale}/docs/customization/ringization-playbook`}>
+              {t('actions.selfBuildPlaybook')}
+            </Link>
+          </Button>
           <Button asChild>
             <Link href={`/${locale}/contact`}>{t('actions.contact')}</Link>
           </Button>

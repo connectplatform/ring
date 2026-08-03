@@ -11,17 +11,17 @@ interface XaiImageResponse {
  * Reference format: data URI or HTTPS URL per docs.x.ai images/edits.
  */
 export async function generateXaiImages(ctx: GenerateImageContext): Promise<ProviderImageOutput[]> {
-  const config = getXaiConfig(ctx)
-  if (!config.apiKey) {
-    throw new Error('XAI_API_KEY is not configured')
-  }
-
   const refs = (ctx.referenceImages ?? [])
     .map((r) => r.url?.trim())
     .filter((url): url is string => Boolean(url))
     .slice(0, 3)
 
   const useEdits = refs.length > 0
+  const config = getXaiConfig({ ...ctx, edit: useEdits })
+  if (!config.apiKey) {
+    throw new Error('XAI_IMAGE_API_KEY / XAI_API_KEY is not configured')
+  }
+
   const endpoint = useEdits ? '/images/edits' : '/images/generations'
 
   const body: Record<string, unknown> = {

@@ -142,7 +142,6 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'project_wallet_transactions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'ring_contacts', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'desk_orders', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
-      { collection: 'airdrop_jobs', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'compliance_events', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'events', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'nft_listings', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
@@ -160,8 +159,13 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'user_device_telemetry', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'store_products', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'store_orders', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'store_user_carts', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'orders', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'project_orders', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'project_deployments', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'wiki_pages', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'wiki_links', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'wiki_events', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'user_addresses', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'nft_gates', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'nft_stakes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
@@ -188,11 +192,15 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'verification_tokens', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'verification_procedures', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       // Actively-queried collections that were missing from route table
-      { collection: 'credit_add_event', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // FIX 2026-07-07: was 'credit_add_event' (singular) — SQL schema and all
+      // code use 'credit_add_events' (plural). Singular route caused "relation
+      // does not exist" when PostgreSQL adapter used route name as table name.
       { collection: 'credit_add_events', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'task_escrows', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'collective_order_escrows', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'refcodes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'notification_preferences', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
-      { collection: 'subscriptions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'subscription_ledger', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'public_pools', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'vendor_profiles', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'vendors', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
@@ -200,6 +208,44 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'products', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'inventory_levels', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'inventory_reservations', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Actively-queried via db() abstraction (must be registered to avoid infinite recursion)
+      { collection: 'product_custom_fields', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'subscription_ledger', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'wallet_access_tokens', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'entity_reports', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Email CRM collections — queried via db() abstraction (jsonb-collection.ts)
+      { collection: 'email_threads', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'email_messages', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'email_tasks', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'email_drafts', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'email_contacts', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'email_api_usage', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Telegram admin audit — queried via db() abstraction
+      { collection: 'telegram_admin_audit', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Actively-queried via db() abstraction (comprehensive sweep 2026-07-07)
+      // newsCategories fixed to news_categories in code — no route needed for camelCase variant.
+      { collection: 'ring_subscriptions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'subscription_ledger', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // NFT module collections
+      { collection: 'nft_ownership', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'nft_stakes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'nft_member_collections', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'nft_entitlement_cache', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'nft_market_collections', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // User social features
+      { collection: 'user_favorites', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'user_project_notifications', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // Media / meetups
+      { collection: 'generative_usage', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'meetups', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'comment_likes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      // User behavior tracking
+      { collection: 'user_cart_history', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'user_content_engagement', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'user_product_interactions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'user_project_sessions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'user_search_history', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'contactForms', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
     ];
 
     // Apply custom routes

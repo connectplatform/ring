@@ -334,7 +334,12 @@ export async function getPlatformAnalyticsSummary(options: {
 
   const pageViews = periodEvents.filter((row) => {
     const type = row.eventType as string | undefined
-    if (type === 'app_load' || type === 'page_view' || type === 'docs_page_view') {
+    if (
+      type === 'app_load' ||
+      type === 'page_view' ||
+      type === 'docs_page_view' ||
+      type === 'personal_page_view'
+    ) {
       return true
     }
     const payload = row.payload as Record<string, unknown> | undefined

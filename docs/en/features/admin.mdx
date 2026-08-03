@@ -1,7 +1,7 @@
 ---
 title: Admin console
 description: Role-aware three-pane admin navigation — section hubs in main menus, in-module submenus in the right rail, Security hub tabs, and shared SSOT config
-last_modified: "2026-07-17"
+last_modified: "2026-07-20"
 audience: both
 ---
 
@@ -208,20 +208,34 @@ const groups = filterAdminNavByRole(session?.user?.role)`}
 
 ## Related documentation
 
-<Cards>
-  <Card title="Admin API" href="/docs/api/admin">
-    Verified `/api/admin/*` routes and access tiers.
-  </Card>
-  <Card title="Architecture — security" href="/docs/architecture/security">
-    RBAC layers and confidential tiers.
-  </Card>
-  <Card title="Email AI-CRM" href="/docs/features/email-ai-crm">
-    Inbox CRM admin UI and ingest.
-  </Card>
-  <Card title="Whitelabel navigation" href="/docs/development/whitelabel-navigation">
-    Clone-level nav customization patterns.
-  </Card>
-</Cards>
+<RelatedDocs>
+
+<RelatedArticle
+  slug="api/admin"
+  relation="Deep-dive: verified `/api/admin/*` routes and access tiers for console work."
+/>
+
+<RelatedArticle
+  slug="architecture/security"
+  relation="Depends-on: RBAC layers and confidential tiers that gate AdminWrapper."
+/>
+
+<RelatedArticle
+  slug="features/email-ai-crm"
+  relation="Same-workflow: CRM admin UI under `/admin/crm/*` shares the operator desk model."
+/>
+
+<RelatedArticle
+  slug="features/admin-wiki"
+  relation="Next-step: store compounding project knowledge in the Admin Wiki vault beside News."
+/>
+
+<RelatedArticle
+  slug="development/whitelabel-navigation"
+  relation="See-also: clone-level nav customization when forking admin menus."
+/>
+
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — admin console (TBD)">
 

@@ -36,7 +36,7 @@ export default function VendorStartWrapper({
       contentClassName="pb-24 lg:pb-8"
       flushCenterPane
     >
-      <DavinciCenterPane>
+      <DavinciCenterPane contentClassName="!p-0">
         {children}
       </DavinciCenterPane>
     </RingRightRailLayout>

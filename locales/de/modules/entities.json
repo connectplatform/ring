@@ -1,7 +1,7 @@
 {
   "title": "Organisationen",
   "subtitle": "Organisationen im Connect.Software- und Ring-Ökosystem",
-  "browseEntities": "Entities durchsuchen",
+  "browseEntities": "Organisationen durchsuchen",
   "myEntities": "Meine Organisationen",
   "entitiesTitle": "Organisationsverzeichnis",
   "confidentialEntitiesTitle": "Vertrauliche Organisationen",
@@ -463,7 +463,7 @@
   "public": "Öffentlich",
   "markAsConfidential": "Als vertraulich markieren",
   "saving": "Speichern…",
-  "save": "Entity speichern",
+  "save": "Organisation speichern",
   "loading": "Laden…",
   "redirecting": "Weiterleitung…",
   "error": "Fehler",

@@ -1,5 +1,11 @@
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
+import {
+  convertToMainCurrency,
+  getExchangeRates,
+  getMainCurrencySymbol,
+} from '@/lib/ring-oracle'
+import type { SupportedCurrencies } from '@/lib/ring-config-types'
 import type {
   PaymentProcessorId,
   PaymentPurpose,
@@ -16,11 +22,24 @@ export interface PaymentTransactionRecord {
   entity_type: string
   entity_id: string
   user_id?: string
+  /** Charged amount in minor units of `currency` (e.g. cents). */
   amount_minor?: number
+  /** Charged / presentment currency code (fiat or token symbol). */
   currency?: string
+  /** Project main currency at transaction time (SSOT: store.mainCurrency). */
+  main_currency?: SupportedCurrencies
+  /** Charged amount converted to main currency minor units at transaction FX. */
+  main_currency_amount_minor?: number
+  /**
+   * Charged units per 1 main-currency unit at transaction time
+   * (same semantics as exchangeRates[currency] / exchangeRates[main]).
+   */
+  fx_rate?: number
   status: PaymentTransactionStatus
   status_history: Array<{ status: PaymentTransactionStatus; at: string; meta?: Record<string, unknown> }>
   processor_payload?: Record<string, unknown>
+  /** Checkout metadata (poolSlug, amountNativeToken, …) */
+  metadata?: Record<string, unknown>
   paid_at?: string
   created_at: string
   updated_at: string
@@ -28,6 +47,47 @@ export interface PaymentTransactionRecord {
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+/** Stamp main-currency equivalent + FX rate for ledger audit. */
+function stampMainCurrencyFx(input: {
+  amountMinor?: number
+  currency?: string
+}): {
+  main_currency: SupportedCurrencies
+  main_currency_amount_minor?: number
+  fx_rate?: number
+} {
+  const main = getMainCurrencySymbol()
+  const code = (input.currency || main).trim().toUpperCase() || main
+  const rates = getExchangeRates()
+  const mainRate = rates[main]
+  const chargedRate = rates[code]
+
+  let fx_rate: number | undefined
+  if (
+    typeof chargedRate === 'number' &&
+    chargedRate > 0 &&
+    typeof mainRate === 'number' &&
+    mainRate > 0
+  ) {
+    fx_rate = chargedRate / mainRate
+  } else if (code === main) {
+    fx_rate = 1
+  }
+
+  let main_currency_amount_minor: number | undefined
+  if (typeof input.amountMinor === 'number' && Number.isFinite(input.amountMinor)) {
+    if (code === main) {
+      main_currency_amount_minor = Math.round(input.amountMinor)
+    } else {
+      const major = input.amountMinor / 100
+      const mainMajor = convertToMainCurrency(major, code)
+      main_currency_amount_minor = Math.round(mainMajor * 100)
+    }
+  }
+
+  return { main_currency: main, main_currency_amount_minor, fx_rate }
 }
 
 export const paymentTransactionService = {
@@ -52,12 +112,17 @@ export const paymentTransactionService = {
     userId?: string
     amountMinor?: number
     currency?: string
+    metadata?: Record<string, unknown>
   }): Promise<PaymentTransactionRecord> {
     const existing = await this.findByOrderReference(input.orderReference)
     if (existing) return existing
 
     const id = `pay-${input.orderReference}`.slice(0, 255)
     const ts = nowIso()
+    const fx = stampMainCurrencyFx({
+      amountMinor: input.amountMinor,
+      currency: input.currency,
+    })
     const record: PaymentTransactionRecord = {
       id,
       purpose: input.purpose,
@@ -69,8 +134,10 @@ export const paymentTransactionService = {
       user_id: input.userId,
       amount_minor: input.amountMinor,
       currency: input.currency,
+      ...fx,
       status: 'created',
       status_history: [{ status: 'created', at: ts }],
+      metadata: input.metadata,
       created_at: ts,
       updated_at: ts,
     }
@@ -118,12 +185,42 @@ export const paymentTransactionService = {
     processorPayload?: Record<string, unknown>
   ): Promise<boolean> {
     const row = await this.findByOrderReference(orderReference)
-    if (row?.status === 'paid') return false
+    if (!row?.id) return false
+    if (row.status === 'paid') return false
 
-    await this.appendStatus(orderReference, 'paid', {
-      processor_payload: processorPayload,
+    return db().transaction(async (txn) => {
+      const locked = await txn.read('payment_transactions', row.id)
+      if (!locked) return false
+
+      const current = {
+        id: locked.id,
+        ...(locked.data as Omit<PaymentTransactionRecord, 'id'>),
+      } as PaymentTransactionRecord
+
+      if (current.status === 'paid') return false
+
+      const ts = nowIso()
+      const history = [
+        ...(current.status_history || []),
+        {
+          status: 'paid' as const,
+          at: ts,
+          meta: processorPayload ? { processor_payload: processorPayload } : undefined,
+        },
+      ]
+
+      await txn.update('payment_transactions', row.id, {
+        ...current,
+        status: 'paid',
+        status_history: history,
+        updated_at: ts,
+        paid_at: ts,
+        ...(processorPayload
+          ? { processor_payload: processorPayload as Record<string, unknown> }
+          : {}),
+      })
+      return true
     })
-    return true
   },
 
   /**

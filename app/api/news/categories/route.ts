@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       .trim() as NewsCategory;
 
     // Check if category already exists — must happen before write
-    const existingCategory = await getCachedDocument('newsCategories', categoryId);
+    const existingCategory = await getCachedDocument('news_categories', categoryId);
     if (existingCategory && existingCategory.exists) {
       return NextResponse.json(
         { success: false, error: 'Category with this name already exists' },
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     // Defer DB write — respond immediately, category creation is non-blocking
     after(async () => {
       await createDocument(
-        'newsCategories',
+        'news_categories',
         {
           ...categoryData,
           createdAt: FieldValue.serverTimestamp(),

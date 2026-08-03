@@ -28,7 +28,8 @@
     },
     "contactUsPrivacy": {
       "title": "Kontakt Datenschutz",
-      "content": "Bei Fragen zu dieser Datenschutzerklärung erreichen Sie uns unter privacy@connect.software"
+      "content": "Bei Fragen zu dieser Datenschutzerklärung wenden Sie sich bitte an unser Team.",
+      "contactStaff": "Team kontaktieren"
     }
   }
 }

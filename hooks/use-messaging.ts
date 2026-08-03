@@ -6,6 +6,11 @@ import { useTunnelChannel } from '@/hooks/use-tunnel-channel'
 import { useTunnel } from '@/hooks/use-tunnel'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 import { normalizeMessagePayload } from '@/features/chat/lib/normalize-message'
+import { getMessageTimeMs } from '@/features/chat/lib/message-time'
+import {
+  CONVERSATION_MESSAGE_EVENT,
+  type ConversationMessageDetail,
+} from '@/features/chat/lib/conversation-message-events'
 import type { TunnelMessage } from '@/lib/tunnel/types'
 import {
   Conversation,
@@ -35,6 +40,28 @@ function mergeUniqueById<T extends { id: string }>(prev: T[], next: T[]): T[] {
   const ids = new Set(prev.map((item) => item.id))
   const appended = next.filter((item) => !ids.has(item.id))
   return appended.length === 0 ? prev : [...prev, ...appended]
+}
+
+/** Soft catch-up: add missing rows from a latest-page fetch without wiping older pages. */
+function mergeCatchUpMessages(prev: Message[], latestPage: Message[]): Message[] {
+  if (latestPage.length === 0) return prev
+  const byId = new Map(prev.map((m) => [m.id, m]))
+  let changed = false
+  for (const m of latestPage) {
+    if (!byId.has(m.id)) {
+      byId.set(m.id, m)
+      changed = true
+    }
+  }
+  if (!changed) return prev
+  return Array.from(byId.values()).sort(
+    (a, b) => getMessageTimeMs(a.timestamp) - getMessageTimeMs(b.timestamp),
+  )
+}
+
+function appendMessageIfNew(prev: Message[], incoming: Message): Message[] {
+  if (prev.some((p) => p.id === incoming.id)) return prev
+  return [...prev, incoming]
 }
 
 export type UseConversationsResult = {
@@ -376,15 +403,36 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
   }, [conversationId])
 
   const fetchMessages = useCallback(
-    async (reset = false) => {
+    async (reset = false, options?: { quiet?: boolean }) => {
       if (!session?.user?.id || !conversationId) {
         setLoading(false)
         return
       }
 
+      const quiet = Boolean(options?.quiet)
+
       try {
-        setLoading(true)
-        setError(null)
+        if (!quiet) {
+          setLoading(true)
+          setError(null)
+        }
+
+        // Quiet catch-up always reads the latest page (no cursor) and merges — never wipe history.
+        if (quiet) {
+          const params = new URLSearchParams()
+          params.set('limit', String(limit))
+          if (direction) params.set('direction', direction)
+
+          const response: ApiResponse<Message[]> = await apiClient.get(
+            `${API_BASE}/conversations/${conversationId}/messages?${params}`,
+            { timeout: 8000, retries: 1 },
+          )
+          if (response.success) {
+            const list = Array.isArray(response.data) ? response.data : []
+            setMessages((prev) => mergeCatchUpMessages(prev, list))
+          }
+          return
+        }
 
         if (reset) {
           cursorRef.current = null
@@ -422,6 +470,10 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
           throw new Error(response.error || 'Failed to fetch messages')
         }
       } catch (err) {
+        if (quiet) {
+          // Tunnel-down catch-up is best-effort — do not surface transient errors.
+          return
+        }
         if (err instanceof ApiClientError) {
           setError(err.message)
           console.error('Messages fetch failed:', {
@@ -435,7 +487,9 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
           console.error('Unexpected error fetching messages:', err)
         }
       } finally {
-        setLoading(false)
+        if (!quiet) {
+          setLoading(false)
+        }
       }
     },
     [session?.user?.id, conversationId, limit, direction],
@@ -451,10 +505,7 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
     if (event === 'message:new' && msg.payload) {
       const incoming = normalizeMessagePayload(msg.payload, cid)
       if (!incoming) return
-      setMessages((prev) => {
-        if (prev.some((p) => p.id === incoming.id)) return prev
-        return [...prev, incoming]
-      })
+      setMessages((prev) => appendMessageIfNew(prev, incoming))
       return
     }
     if (event === 'message:deleted' && msg.payload && typeof msg.payload === 'object') {
@@ -478,11 +529,34 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
     }
   }, [])
 
-  useTunnelChannel({
+  const { isConnected: isTunnelConnected } = useTunnelChannel({
     channel: `conversation:${conversationId}`,
     enabled: Boolean(session?.user?.id && conversationId),
     onTunnelMessage: handleConversationMessage,
   })
+
+  // Local append from call-invite / call-event HTTP (when tunnel fan-out is missed)
+  useEffect(() => {
+    const onLocal = (event: Event) => {
+      const detail = (event as CustomEvent<ConversationMessageDetail>).detail
+      if (!detail?.message?.id) return
+      if (detail.conversationId !== conversationIdRef.current) return
+      const incoming = normalizeMessagePayload(detail.message, conversationIdRef.current)
+      if (!incoming) return
+      setMessages((prev) => appendMessageIfNew(prev, incoming))
+    }
+    window.addEventListener(CONVERSATION_MESSAGE_EVENT, onLocal)
+    return () => window.removeEventListener(CONVERSATION_MESSAGE_EVENT, onLocal)
+  }, [])
+
+  // Tunnel-down safety net — quiet catch-up merges latest page; never wipes loaded history
+  useEffect(() => {
+    if (!session?.user?.id || !conversationId || isTunnelConnected) return
+    const id = window.setInterval(() => {
+      void fetchMessages(false, { quiet: true })
+    }, 12_000)
+    return () => window.clearInterval(id)
+  }, [session?.user?.id, conversationId, isTunnelConnected, fetchMessages])
 
   const sendMessage = useCallback(
     async (content: string, options?: Partial<SendMessageRequest>): Promise<Message | null> => {
@@ -494,6 +568,7 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
           type: options?.type || 'text',
           replyTo: options?.replyTo,
           attachments: options?.attachments,
+          ...(options?.metadata ? { metadata: options.metadata } : {}),
         }
 
         const response: ApiResponse<Message> = await apiClient.post(
@@ -506,12 +581,12 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
         )
 
         if (response.success && response.data) {
-          const sent = response.data
-          setMessages((prev) => {
-            if (prev.some((p) => p.id === sent.id)) return prev
-            return [...prev, sent]
-          })
-          return sent
+          const listFromMeta = response.metadata?.dataList
+          const list: Message[] = Array.isArray(listFromMeta)
+            ? (listFromMeta as Message[])
+            : [response.data]
+          setMessages((prev) => list.reduce((acc, msg) => appendMessageIfNew(acc, msg), prev))
+          return list[list.length - 1] ?? response.data
         }
 
         throw new Error(response.error || 'Failed to send message')
@@ -630,9 +705,22 @@ export function useTyping(conversationId: string) {
     }
 
     const cid = conversationId
+    return () => {
+      void apiClient.post(
+        `${API_BASE}/conversations/${cid}/typing`,
+        { isTyping: false },
+        { timeout: 3000, retries: 0 },
+      )
+    }
+  }, [conversationId, session?.user?.id])
+
+  // HTTP typing poll only when tunnel is down — tunnel channel owns live updates otherwise.
+  useEffect(() => {
+    if (!conversationId || !session?.user?.id || isConnected) return
+
+    const cid = conversationId
     let cancelled = false
     const poll = async () => {
-      if (isConnected) return
       try {
         const res: ApiResponse<{ typingUsers: TypingIndicator[] }> = await apiClient.get(
           `${API_BASE}/conversations/${cid}/typing`,
@@ -648,15 +736,10 @@ export function useTyping(conversationId: string) {
       }
     }
     void poll()
-    const id = setInterval(poll, isConnected ? 8000 : 2000)
+    const id = setInterval(poll, 2000)
     return () => {
       cancelled = true
       clearInterval(id)
-      void apiClient.post(
-        `${API_BASE}/conversations/${cid}/typing`,
-        { isTyping: false },
-        { timeout: 3000, retries: 0 },
-      )
     }
   }, [conversationId, session?.user?.id, isConnected])
 

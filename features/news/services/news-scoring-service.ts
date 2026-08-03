@@ -67,9 +67,21 @@ export async function scoreNewsForMainPage(params: {
   let merit = 0.5
   let blockReason: string | undefined
 
-  // Choose OpenRouter model (primary, or fallback to default Claude Sonnet)
-  const model =
-    process.env.OPENROUTER_MODEL_PRIMARY ?? 'anthropic/claude-sonnet-4-5'
+  // Choose OpenRouter / router model for news moderation scoring
+  let model = process.env.OPENROUTER_MODEL_PRIMARY ?? 'anthropic/claude-sonnet-4-5'
+  let fallbackModel = process.env.OPENROUTER_MODEL_FALLBACK ?? 'openai/gpt-4o-mini'
+  try {
+    const { resolveModel, listCandidates } = await import('@/lib/ai/model-router')
+    const resolved = resolveModel('news_moderation_score')
+    model = process.env.OPENROUTER_MODEL_PRIMARY || resolved.modelId
+    const alts = listCandidates('news_moderation_score')
+    fallbackModel =
+      process.env.OPENROUTER_MODEL_FALLBACK ||
+      alts.find((c) => c.modelId !== model)?.modelId ||
+      fallbackModel
+  } catch {
+    /* keep defaults */
+  }
 
   const apiKey = process.env.OPENROUTER_API_KEY
   // If there is an OpenRouter API key, attempt AI scoring
@@ -80,7 +92,7 @@ export async function scoreNewsForMainPage(params: {
         model,
         models: [
           model,
-          process.env.OPENROUTER_MODEL_FALLBACK ?? 'openai/gpt-4o-mini',
+          fallbackModel,
         ],
         messages: [
           {

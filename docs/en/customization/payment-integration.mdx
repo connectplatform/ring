@@ -1,14 +1,14 @@
 ---
 title: Payment Gateway Integration
-description: Operator guide — PaymentConductor, WayForPay, Stripe, PayPal, and internal credit for store, membership, news promotion, and wallet top-up
-last_modified: "2026-07-16"
+description: Operator guide — PaymentConductor, WayForPay, Stripe, PayPal, and internal credit for store, membership, news, wallet top-up, and public-pool card jars
+last_modified: "2026-07-22"
 audience: both
 ---
 
 # Payment Gateway Integration
 
 <Callout type="success" title="Executive summary">
-  Ring routes card and credit flows through **PaymentConductor** — one ledger (`payment_transactions`), one webhook dispatcher, config-driven processors. Operators configure env vars and PSP dashboards; developers read [PaymentConductor architecture](/docs/architecture/payment-conductor).
+  Ring routes card and credit flows through **PaymentConductor** — one ledger (`payment_transactions`), one webhook dispatcher, config-driven processors. Operators configure env vars and PSP dashboards; developers read [PaymentConductor architecture](/docs/architecture/payment-conductor). DAO jar card chip-ins use purpose **`public_pool_contribution`** ([Public Pools](/docs/features/public-pools)) — not WayForPay/Stripe/PayPal hosted “donation” products.
 </Callout>
 
 <Callout type="info">
@@ -18,6 +18,9 @@ audience: both
 <Cards>
   <Card title="PaymentConductor feature" href="/docs/features/payment-conductor">
     Purposes, rails, env overview
+  </Card>
+  <Card title="Public Pools & DAO Jars" href="/docs/features/public-pools">
+    Desk-oracle card jar, fees, escrow gate
   </Card>
   <Card title="Architecture deep dive" href="/docs/architecture/payment-conductor">
     Handlers, ledger, idempotency, API routes
@@ -35,7 +38,7 @@ audience: both
   participant PSP as WayForPay / Stripe
   participant DB as payment_transactions
 
-  U->>R: Checkout / upgrade / promotion / top-up
+  U->>R: Checkout / upgrade / promotion / top-up / jar chip-in
   R->>PC: createCheckout(purpose)
   PC->>DB: createPending(orderReference)
   PC->>PSP: redirect URL
@@ -54,10 +57,11 @@ audience: both
 | `membership_upgrade` | SUBSCRIBER → MEMBER | `conductor/handlers/membership-upgrade.ts` |
 | `news_promotion` | News Kingdom paid promotion | `conductor/handlers/news-promotion.ts` |
 | `wallet_topup` | Wallet credit top-up (card) | `conductor/handlers/wallet-topup.ts` |
+| `public_pool_contribution` | Public pool / DAO jar card or PayPal | `conductor/handlers/public-pool-contribution.ts` |
 
-**Processors:** WayForPay (default), Stripe, internal credit, native token, **PayPal** (Orders for store/wallet; Subscriptions v1 for recurring membership — see [SubscriptionConductor](/docs/features/subscriptions)).
+**Processors:** WayForPay (default), Stripe, internal credit, native token, **PayPal** (Orders for store/wallet/jars; Subscriptions v1 for recurring membership — see [SubscriptionConductor](/docs/features/subscriptions)).
 
-**Rails:** `merchant_redirect` · `internal_credit` (`PAYMENT_STORE_ALLOW_CREDIT`) · `native_token` (`PAYMENT_STORE_ALLOW_TOKEN`).
+**Rails:** `merchant_redirect` · `credit_balance` (`PAYMENT_STORE_ALLOW_CREDIT`) · `native_token` (`PAYMENT_STORE_ALLOW_TOKEN`).
 
 Apply `data/migrations/004_payment_transactions.sql` before production payments.
 
@@ -73,6 +77,7 @@ PAYMENT_STORE_PROCESSOR=wayforpay
 PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay
 PAYMENT_NEWS_PROCESSOR=wayforpay
 PAYMENT_WALLET_TOPUP_PROCESSOR=wayforpay
+# Optional: PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR=wayforpay
 WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
 WAYFORPAY_SECRET_KEY=your_secret
 WAYFORPAY_MERCHANT_PASSWORD=your_password

@@ -2,6 +2,7 @@
   "title": "Contactos del proyecto",
   "description": "Tus contactos Ring en este proyecto — envía mensajes o tokens a personas que conoces.",
   "savedContacts": "Contactos guardados",
+  "notYourContacts": "No son tus contactos",
   "searchToAdd": "Busca por nombre de usuario o nombre para añadir un contacto",
   "addContact": "Añadir contacto",
   "addContactTitle": "Añadir contacto Ring",

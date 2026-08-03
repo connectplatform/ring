@@ -2,15 +2,22 @@ import { NextResponse } from 'next/server'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-export const runtime = 'nodejs'
-
 /**
  * Stable KEYS collection metadata JSON for Metaplex Core / Explorer Symbol.
  * Also reachable via rewrite: /nft/gates/collection.json
+ *
+ * Note: do not set `export const runtime` — incompatible with nextConfig.cacheComponents.
+ * Node APIs (fs) already pin this route to the Node.js runtime.
  */
 export async function GET() {
   try {
-    const filePath = path.join(process.cwd(), 'public', 'nft', 'gates', 'collection.json')
+    const filePath = path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      'public',
+      'nft',
+      'gates',
+      'collection.json',
+    )
     const body = await readFile(filePath, 'utf8')
     JSON.parse(body) // validate
     return new NextResponse(body, {

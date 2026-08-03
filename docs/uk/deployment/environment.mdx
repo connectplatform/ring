@@ -122,8 +122,8 @@ AUTH_APPLE_ID=your_apple_client_id
 AUTH_APPLE_SECRET=your_apple_private_key
 
 # Magic links (опціонально — використовує Resend)
-AUTH_RESEND_KEY=your_resend_api_key
-AUTH_RESEND_FROM=noreply@ring-platform.org
+# Ring Mailer: EMAIL_MODE=ethereal or SMTP_HOST / SMTP_USER / SMTP_PASSWORD
+# OTP_HMAC_SECRET=
 ```
 
 Auth.js v5 читає змінні з префіксом `AUTH_*` автоматично для кожного провайдера. Див. [Архітектура аутентифікації](/docs/architecture/authentication).

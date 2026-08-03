@@ -104,6 +104,36 @@ export function attachTunnelWss(server: HttpServer, options: AttachTunnelWssOpti
 
       switch (frame.op) {
         case 'subscribe': {
+          // Deny-by-default for game:{sessionId} — match HTTP /api/tunnel/subscribe ACL.
+          if (
+            typeof frame.channel === 'string' &&
+            frame.channel.startsWith('game:') &&
+            !frame.channel.slice('game:'.length).includes(':')
+          ) {
+            const sessionId = frame.channel.slice('game:'.length).trim();
+            if (!sessionId) {
+              sendJson(ws, { op: 'error', code: 'FORBIDDEN', message: 'Invalid game channel' });
+              break;
+            }
+            try {
+              const { getSessionForParticipant } = await import(
+                '@/features/peer-games/service'
+              );
+              const game = await getSessionForParticipant(sessionId, session.userId);
+              if (!game) {
+                sendJson(ws, {
+                  op: 'error',
+                  code: 'FORBIDDEN',
+                  message: 'Not a game participant',
+                });
+                break;
+              }
+            } catch (err) {
+              console.error('tunnel ws: game subscribe ACL failed', err);
+              sendJson(ws, { op: 'error', code: 'FORBIDDEN', message: 'Subscribe denied' });
+              break;
+            }
+          }
           session.subscriptions.add(frame.channel);
           hub.subscribeChannel(session.userId, frame.channel);
           if (classifyUserQueueChannel(frame.channel) === 'sideEffect') {

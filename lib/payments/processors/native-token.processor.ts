@@ -9,13 +9,15 @@ import {
   transferNativeTokenForUser,
 } from '@/features/wallet/chains/native-token-transfer-service'
 import { getNativeTokenTreasuryAddress, getNativeTokenSymbol } from '@/lib/ring-config-chain'
-import { getRingPerUsdRate } from '@/features/wallet/services/ring-token-oracle'
+import { mainCurrencyToNativeTokenUi, convertToMainCurrency } from '@/lib/ring-oracle'
 import { logger } from '@/lib/logger'
 
 /**
- * Resolve fiat order total → native token amount.
- * Prefer explicit metadata.tokenAmount; else convert via RING/USD oracle
- * (same desk convention: 1 fiat unit ≈ 1 USD until FX engine ships).
+ * Resolve an order total → native token amount.
+ *
+ * Prefer an explicit `metadata.tokenAmount`. Otherwise bridge the order currency
+ * into the main currency via ring-oracle `convertToMainCurrency`, then apply the desk
+ * oracle: `nativeOut = mainCurrencyAmount / nativePerMainCurrency`.
  */
 async function resolveTokenAmount(ctx: CreateCheckoutContext): Promise<{
   tokenAmount: string
@@ -35,13 +37,8 @@ async function resolveTokenAmount(ctx: CreateCheckoutContext): Promise<{
   }
 
   try {
-    const ringPerUsd = Number(await getRingPerUsdRate())
-    if (!Number.isFinite(ringPerUsd) || ringPerUsd <= 0) {
-      return { tokenAmount: '0', error: 'Native token oracle rate unavailable' }
-    }
-    // Desk SSOT: nativeOut = fiatPoints / ringPerUsd (POINT_FIAT_VALUE=1).
-    // Example: 100 USD-equivalent points at ringPerUsd=100 → 1 RING.
-    const tokenAmount = (ctx.amount / ringPerUsd).toFixed(6)
+    const mainCurrencyAmount = convertToMainCurrency(ctx.amount, ctx.currency)
+    const tokenAmount = await mainCurrencyToNativeTokenUi(mainCurrencyAmount)
     return { tokenAmount }
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Oracle conversion failed'
@@ -88,7 +85,7 @@ export async function createNativeTokenCheckout(
 
   await paymentTransactionService.createPending({
     purpose: ctx.purpose,
-    processor: 'native-token',
+    processor: 'native_token',
     rail: 'native_token',
     orderReference,
     entityType: ctx.purpose,
@@ -122,8 +119,8 @@ export async function createNativeTokenCheckout(
       toAddress: treasuryAddress,
       tokenAmount,
       tokenSymbol,
-      fiatAmount: ctx.amount,
-      fiatCurrency: ctx.currency,
+      mainCurrencyAmount: ctx.amount,
+      mainCurrency: ctx.currency,
       contractAddress: getNativeTokenConfig().contractAddress,
     })
 

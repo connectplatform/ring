@@ -48,9 +48,10 @@ async function uploadMoodFile(
 
 type PlaylistEditorProps = {
   playlist: MoodPlaylist
+  onSaved?: () => void
 }
 
-export function PlaylistEditor({ playlist }: PlaylistEditorProps) {
+export function PlaylistEditor({ playlist, onSaved }: PlaylistEditorProps) {
   const [title, setTitle] = useState(playlist.title)
   const [description, setDescription] = useState(playlist.description || '')
   const [visibility, setVisibility] = useState(playlist.visibility)
@@ -100,6 +101,18 @@ export function PlaylistEditor({ playlist }: PlaylistEditorProps) {
       })
     )
   }, [genState])
+
+  useEffect(() => {
+    if (saveState?.success) onSaved?.()
+  }, [saveState?.success, onSaved])
+
+  useEffect(() => {
+    setTitle(playlist.title)
+    setDescription(playlist.description || '')
+    setVisibility(playlist.visibility)
+    setIsPrimary(Boolean(playlist.isPrimary))
+    setSongs(playlist.songs || [])
+  }, [playlist.id, playlist.updatedAt])
 
   const runGenerate = (opts: {
     songId: string
@@ -314,7 +327,7 @@ export function PlaylistEditor({ playlist }: PlaylistEditorProps) {
             disabled={visibility !== 'public'}
           />
           <Label htmlFor="isPrimary" className={visibility !== 'public' ? 'text-muted-foreground' : undefined}>
-            Primary public playlist for /[username]/songs
+            Primary public playlist for /[username]/player
             {visibility !== 'public' ? ' (requires Public visibility)' : ''}
           </Label>
         </div>

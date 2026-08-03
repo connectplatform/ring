@@ -18,6 +18,7 @@ import type { MyEntitiesCounts, MyEntitiesView } from '@/features/entities/lib/m
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import EntitiesBrowseRail from '@/components/entities/entities-browse-rail'
+import { useRealtimeEntities, useEntityUpdates, applyEntityListUpdate } from '@/hooks/use-realtime-entities'
 
 interface MyEntitiesWrapperProps {
   locale: Locale
@@ -51,6 +52,7 @@ export default function MyEntitiesWrapper({
 
   const [view, setView] = useState<MyEntitiesView>(initialView)
   const [searchQuery, setSearchQuery] = useState('')
+  const [entities, setEntities] = useState<SerializedEntity[]>(initialEntities)
   const [filteredEntities, setFilteredEntities] = useState<SerializedEntity[]>(initialEntities)
 
   const routerRef = useRef(router)
@@ -58,12 +60,29 @@ export default function MyEntitiesWrapper({
   const startTransitionRef = useRef(startTransition)
   startTransitionRef.current = startTransition
 
+  useRealtimeEntities({ autoConnect: Boolean(session), debug: false })
+  useEntityUpdates((update) => {
+    if (update.type === 'deleted' || update.data) {
+      setEntities((prev) => {
+        const next = applyEntityListUpdate(prev, update)
+        return next.kind === 'next' ? next.entities : prev
+      })
+      return
+    }
+    // No snippet — soft refresh via router
+    routerRef.current.refresh()
+  })
+
   useEffect(() => {
     setView(initialView)
   }, [initialView])
 
   useEffect(() => {
-    let filtered = [...initialEntities]
+    setEntities(initialEntities)
+  }, [initialEntities])
+
+  useEffect(() => {
+    let filtered = [...entities]
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -74,7 +93,7 @@ export default function MyEntitiesWrapper({
       )
     }
     setFilteredEntities(filtered)
-  }, [initialEntities, searchQuery])
+  }, [entities, searchQuery])
 
   const pushView = useCallback((nextView: MyEntitiesView) => {
     startTransitionRef.current(() => setView(nextView))

@@ -194,7 +194,7 @@ export default function AdminDaoClient({
                 // Map each pool to a row
                 pools.map((pool) => {
                   // Calculate funding progress as a percent
-                  const fundingPct = fundingProgressPct(pool.pledged_ring, pool.goal_ring)
+                  const fundingPct = fundingProgressPct(pool.pledged_native_token, pool.goal_native_token)
                   return (
                     <TableRow key={pool.id}>
                       {/* Pool title and slug */}
@@ -211,7 +211,7 @@ export default function AdminDaoClient({
                       {/* Funding progress: pledged/goal, token, and percent */}
                       <TableCell>
                         <span className="text-xs tabular-nums">
-                          {pool.pledged_ring}/{pool.goal_ring} {nativeToken} ({fundingPct}%)
+                          {pool.pledged_native_token}/{pool.goal_native_token} {nativeToken} ({fundingPct}%)
                         </span>
                       </TableCell>
                       {/* Status dropdown for changing pool status */}

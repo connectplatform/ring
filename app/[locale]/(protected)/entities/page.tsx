@@ -28,19 +28,34 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
-  // params is a promise to a params object with {locale}
   const { locale: localeParam } = await params
-  // Validate and normalize locale, fall back to default if needed
   const locale = routing.locales.includes(localeParam as Locale)
     ? (localeParam as Locale)
     : routing.defaultLocale
-  // Set the detected locale for this request, for use by all nested intl-using components
   setRequestLocale(locale)
-  // Build and return i18n-aware SEO metadata for this route
+
+  let count = 0
+  try {
+    const session = await auth()
+    if (session?.user) {
+      const userRole = resolveSessionUserRole(session.user.role)
+      const effectiveUserRole = assertKnownUserRole(userRole as UserRolesArray)
+      const { getEntitiesForRole } = await import('@/features/entities/services/get-entities')
+      const result = await getEntitiesForRole({
+        userRole: effectiveUserRole,
+        limit: 1,
+      })
+      count = result.totalCount ?? result.entities.length ?? 0
+    }
+  } catch {
+    count = 0
+  }
+
   return buildLocalizedMetadata({
     locale,
     path: 'entities.list',
     pathname: '/entities',
+    variables: { count },
     robots: { index: false, follow: false },
   })
 }

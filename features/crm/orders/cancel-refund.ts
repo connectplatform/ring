@@ -7,7 +7,20 @@ import {
   closeProjectOrderOpportunity,
   ProjectOrderService,
 } from '@/features/crm/orders/project-order-service'
+import { revokeOrderSourceToken } from '@/features/crm/lab/order-source-auth-service'
 import { logger } from '@/lib/logger'
+
+/** Best-effort: revoke per-order Forgejo PAT. Never blocks cancel/refund. Robot GC is separate. */
+async function revokeSourceAuthBestEffort(orderId: string): Promise<void> {
+  try {
+    await revokeOrderSourceToken(orderId)
+  } catch (error) {
+    logger.warn('Order source PAT revoke on cancel failed (non-blocking)', {
+      orderId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
 
 /**
  * Cancel a paid project order and refund (WFP / credit). Marks work canceled.
@@ -20,12 +33,15 @@ export async function cancelAndRefundProjectOrder(
   if (!order) return { success: false, error: 'Order not found' }
 
   if (order.workStatus === 'canceled' && order.paymentStatus === 'refunded') {
+    // Idempotent revoke for legacy rows canceled before revoke wiring
+    await revokeSourceAuthBestEffort(orderId)
     return { success: true }
   }
 
   if (order.paymentStatus !== 'paid' && order.paymentStatus !== 'pending_payment') {
     await ProjectOrderService.setWorkStatus(orderId, 'canceled')
     await closeProjectOrderOpportunity(order.opportunityId)
+    await revokeSourceAuthBestEffort(orderId)
     return { success: true }
   }
 
@@ -36,7 +52,7 @@ export async function cancelAndRefundProjectOrder(
     const tx = await paymentTransactionService.findByOrderReference(orderReference)
     const processor = tx?.processor
 
-    if (processor === 'internal-credit') {
+    if (processor === 'credit_balance') {
       try {
         await creditBalanceService.addFiatUsd(
           order.userId,
@@ -82,5 +98,6 @@ export async function cancelAndRefundProjectOrder(
 
   await ProjectOrderService.markRefunded(orderId, refundReference)
   await closeProjectOrderOpportunity(order.opportunityId)
+  await revokeSourceAuthBestEffort(orderId)
   return { success: true }
 }

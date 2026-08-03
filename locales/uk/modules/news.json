@@ -80,5 +80,10 @@
     "autoSavedAt": "Автозбережено о {time}",
     "saving": "Збереження…",
     "tipTapHint": "TipTap — введіть / для команд, вставте URL для вбудовування або додайте Mood Player."
+  },
+  "versions": {
+    "localDraft": "Local draft",
+    "historicalBanner": "Editing historical version — Save creates a new latest version.",
+    "sliderLabel": "v{current} of {total}"
   }
 }

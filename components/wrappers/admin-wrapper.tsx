@@ -39,6 +39,13 @@ export type ModulesAdminLabels = Partial<{
   users: string
   rewards: string
   news: string
+  wiki: string
+  wikiManagement: string
+  wikiDescription: string
+  wikiRailCrmOrders: string
+  wikiRailNews: string
+  wikiRailTasks: string
+  wikiRailDocs: string
   dao: string
   analytics: string
   moderation: string
@@ -56,6 +63,7 @@ export type ModulesAdminLabels = Partial<{
   emailAnalytics: string
   emailTasks: string
   crmOrders: string
+  crmTaskEscrows: string
   processes: string
   subscriptions: string
   web3: string

@@ -3,6 +3,7 @@ import 'server-only'
 import type { RewardCreditAddEventTrigger } from '@/lib/zod/credit-reward-schemas'
 import { enqueueRewardCreditAddEvent } from '@/lib/wallet/reward-credit-service'
 import { db } from '@/lib/database'
+import { isTelegramLinked } from '@/lib/auth/telegram-profile'
 
 type LooseUser = Record<string, unknown>
 
@@ -18,14 +19,16 @@ function nonEmpty(value: unknown): boolean {
   return Boolean(value)
 }
 
+/**
+ * Telegram "set" for rewards/completeness = verified UID only.
+ * Username-only must not award credits (spoofable).
+ */
 function getTelegram(user: LooseUser): string | null {
   const comm = user.communication as Record<string, unknown> | undefined
-  const v =
-    (comm?.telegramUsername as string) ||
-    (comm?.telegram as string) ||
-    (user.telegram_username as string) ||
-    (user.telegramUsername as string)
-  return typeof v === 'string' && v.trim() ? v.trim() : null
+  if (isTelegramLinked(comm as { telegramId?: string })) {
+    return String(comm?.telegramId).trim()
+  }
+  return null
 }
 
 function getWhatsapp(user: LooseUser): string | null {

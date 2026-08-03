@@ -35,7 +35,7 @@ export async function getProductAgentWelcome(locale: string, productName: string
   const mod = await loadStoreModule(loc)
   const template =
     mod.product?.agentWelcome ??
-    'Hi! I can help with questions about {name}. Ask about features, sizing, shipping, or how to order.'
+    'Good day! Ready to tell you all I know about {name}. Feel free to ask any questions.'
 
   return interpolate(template, { name: productName })
 }

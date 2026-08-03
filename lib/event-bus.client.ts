@@ -14,6 +14,9 @@ type EventMap = {
   'modal:opened': { modalId: string; zIndex: number };
   'modal:closed': { modalId: string };
   'popup:close-all': { };
+
+  /** Open opportunity type picker — BottomNavigation owns the mobile-sheet host. */
+  'opportunity:open-type-selector': Record<string, never>;
 };
 
 type EventKey = keyof EventMap;

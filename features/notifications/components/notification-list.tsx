@@ -256,6 +256,7 @@ export function NotificationList({ className }: NotificationListProps) {
     { value: NotificationType.OPPORTUNITY_CREATED, label: 'Opportunities', count: 0 },
     { value: NotificationType.ENTITY_VERIFIED, label: 'Entities', count: 0 },
     { value: NotificationType.WALLET_TRANSACTION, label: 'Wallet', count: 0 },
+    { value: NotificationType.REWARD_CREDIT_RECEIVED, label: 'Rewards', count: 0 },
     { value: NotificationType.SYSTEM_MAINTENANCE, label: 'System', count: 0 }
   ];
 

@@ -34,11 +34,16 @@ export async function publishToChannel(
   }
 }
 
+export type PublishToUserTunnelResult = {
+  /** True when an active SSE or WS socket received the message immediately. */
+  deliveredLive: boolean
+}
+
 export async function publishToUserTunnel(
   userId: string,
   channel: string,
   data: unknown,
-): Promise<void> {
+): Promise<PublishToUserTunnelResult> {
   try {
     const event = 'update';
 
@@ -63,7 +68,7 @@ export async function publishToUserTunnel(
           `TunnelPublisher: Queued for user ${userId} on channel ${channel} (no live socket yet)`,
         );
       }
-      return;
+      return { deliveredLive };
     }
 
     const manager = getTunnelTransportManager({
@@ -72,12 +77,14 @@ export async function publishToUserTunnel(
 
     if (!manager.isConnected()) {
       console.log(`TunnelPublisher: Client not connected, skipping publish for ${userId}`);
-      return;
+      return { deliveredLive: false };
     }
 
     await manager.publish(channel, event, data);
+    return { deliveredLive: true };
   } catch (error) {
     console.error('TunnelPublisher: Failed to publish message:', error);
+    return { deliveredLive: false };
   }
 }
 

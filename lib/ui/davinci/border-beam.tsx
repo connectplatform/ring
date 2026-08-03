@@ -10,11 +10,17 @@ export interface BorderBeamProps extends React.HTMLAttributes<HTMLDivElement> {
   duration?: string
   /** Disable beam (static glass only) */
   disabled?: boolean
+  /**
+   * Show the traveling gradient on the border ring only
+   * (no animated fill behind transparent content).
+   */
+  borderOnly?: boolean
 }
 
 /**
  * Grok Build–inspired traveling conic-gradient border overlay.
  * Outer glow ring + opaque inner surface masks the gradient center.
+ * Use `borderOnly` when the inner surface is transparent.
  */
 export function BorderBeam({
   children,
@@ -22,6 +28,7 @@ export function BorderBeam({
   innerClassName,
   duration = '4s',
   disabled = false,
+  borderOnly = false,
   style,
   ...props
 }: BorderBeamProps) {
@@ -40,12 +47,15 @@ export function BorderBeam({
         <div
           aria-hidden
           className={cn(
-            'davinci-border-beam-glow animate-davinci-border-beam',
-            'pointer-events-none absolute -inset-px rounded-[inherit]'
+            borderOnly
+              ? 'davinci-border-beam-glow-ring animate-davinci-border-beam'
+              : 'davinci-border-beam-glow animate-davinci-border-beam',
+            // Explicit radius — inherit often fails on absolute beam overlays
+            'pointer-events-none absolute -inset-px rounded-[15px]',
           )}
         />
       )}
-      <div className={cn('relative rounded-[inherit]', innerClassName)}>{children}</div>
+      <div className={cn('relative rounded-[15px]', innerClassName)}>{children}</div>
     </div>
   )
 }

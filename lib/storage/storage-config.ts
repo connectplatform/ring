@@ -181,6 +181,35 @@ export function getKYCStorageConfig(): StorageConfig {
 }
 
 /**
+ * Personal File Cabinet storage — docs + images + zip/text (25MB).
+ */
+export function getCabinetStorageConfig(): StorageConfig {
+  const config = getStorageConfig()
+  return {
+    ...config,
+    maxFileSize: 25 * 1024 * 1024,
+    allowedTypes: [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
+      'text/csv',
+      'text/markdown',
+      'application/zip',
+      'application/x-zip-compressed',
+      'video/mp4',
+      'video/webm',
+    ],
+  }
+}
+
+/**
  * Validate file against storage config
  */
 export function validateFile(

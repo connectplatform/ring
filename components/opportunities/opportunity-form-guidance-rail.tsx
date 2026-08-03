@@ -34,6 +34,18 @@ export type OpportunityFormRailType =
   | 'offer'
   | 'cv'
   | 'ring_customization'
+  | 'program'
+  | 'scheduled_services'
+  | 'collective_order'
+  | 'bounty'
+  | 'tender'
+  | 'asset_rental'
+  | 'job'
+  | 'partnership'
+  | 'volunteer'
+  | 'mentorship'
+  | 'resource'
+  | 'event'
   | undefined
 
 interface OpportunityFormGuidanceRailProps {

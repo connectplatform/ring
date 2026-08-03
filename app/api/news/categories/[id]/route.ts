@@ -19,7 +19,7 @@ export async function GET(
   const { id } = await context.params
 
   try {
-    const categoryResult = await db().readDoc<CategoryRow>('newsCategories', id)
+    const categoryResult = await db().readDoc<CategoryRow>('news_categories', id)
 
     if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(
@@ -88,7 +88,7 @@ const { name, description, color, icon } = await request.json()
       updatedAt: new Date(),
     }
 
-    const updateResult = await db().updateDoc('newsCategories', id, updateData)
+    const updateResult = await db().updateDoc('news_categories', id, updateData)
     if (!updateResult.success) {
       return NextResponse.json(
         { success: false, error: 'Failed to update category' },
@@ -144,7 +144,7 @@ export async function DELETE(
       )
     }
 // Check if category exists
-    const categoryResult = await db().readDoc<CategoryRow>('newsCategories', id)
+    const categoryResult = await db().readDoc<CategoryRow>('news_categories', id)
     if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
@@ -170,7 +170,7 @@ export async function DELETE(
     }
 
     // Delete the category (MUTATION - NO CACHE!)
-    const deleteResult = await db().deleteDoc('newsCategories', id)
+    const deleteResult = await db().deleteDoc('news_categories', id)
     if (!deleteResult.success) {
       throw deleteResult.error || new Error('Failed to delete category')
     }

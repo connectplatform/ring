@@ -1,213 +1,125 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { nativeTokenPriceOracleService } from '@/features/wallet/services/native-token-price-oracle';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { logger } from '@/lib/logger'
+import {
+  mainCurrencyToNativeTokenUi,
+  getNativeTokenToMainCurrencyRate,
+  mainTokenToMainCurrencyUi,
+  getNativeTokenSymbol,
+} from '@/lib/ring-oracle'
 
-// TODO: Native Next.js 13/14/16 API routes now support automatic type validation via `zod` and request helpers. 
-// Consider using `next/headers` and `NextRequest.json()` for more idiomatic typed request handling, and moving validation logic
-// into reusable middlewares or route helpers for per-route-reuse.
-
-// Schema for price conversion requests. Ensures that the structure and values are as expected.
-const ConversionRequestSchema = z.object({
-  // Must be a string matching a positive number (integer or decimal).
-  amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid positive number'),
-  // From and to must be one of the supported enumerated values.
-  from: z.enum(['RING', 'USD']),
-  to: z.enum(['RING', 'USD']),
-});
-
-// Type derived from schema for type safety.
-type ConversionRequest = z.infer<typeof ConversionRequestSchema>;
+const ConversionRequestSchema = z
+  .object({
+    amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid positive number'),
+    from: z.enum(['native_token', 'main_currency']),
+    to: z.enum(['native_token', 'main_currency']),
+  })
+  .refine((data) => data.from !== data.to, {
+    message: 'Cannot convert between the same denomination',
+    path: ['to'],
+  })
 
 /**
- * POST /api/prices/conversion
- * Handles conversion between RING and USD. Expects a JSON body with amount, from, to.
+ * POST /api/prices/conversion — native ↔ main via ring-oracle desk SSOT.
+ * Denominations: ValueDenomination `native_token` | `main_currency`
+ * (credit_balance uses the credit accounting rate surface, not this route).
  */
 export async function POST(request: NextRequest) {
   try {
-    // Parse JSON body from request
-    const requestBody = await request.json();
-
-    // Validate request body using zod schema
-    let validatedRequest: ConversionRequest;
-    try {
-      validatedRequest = ConversionRequestSchema.parse(requestBody);
-    } catch (validationError) {
-      // Log validation issues and return 400 for invalid input
-      logger.warn('Invalid conversion request', { 
-        requestBody, 
-        validationError 
-      });
-
+    const requestBody = await request.json()
+    const validated = ConversionRequestSchema.safeParse(requestBody)
+    if (!validated.success) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: validationError },
-        { status: 400 }
-      );
+        { error: 'Invalid request data', details: validated.error.flatten() },
+        { status: 400 },
+      )
     }
 
-    const { amount, from, to } = validatedRequest;
+    const { amount, from, to } = validated.data
 
-    // Disallow conversions between the same currency, as it's a noop
-    if (from === to) {
-      return NextResponse.json(
-        { error: 'Cannot convert between the same currency' },
-        { status: 400 }
-      );
+    const amountNumber = parseFloat(amount)
+    if (amountNumber > 1_000_000 || amountNumber < 0.000001) {
+      return NextResponse.json({ error: 'Amount out of allowed range' }, { status: 400 })
     }
 
-    // Validate amount range
-    const amountNumber = parseFloat(amount);
-    const maxAmount = 1000000; // Maximum allowed
-    const minAmount = 0.000001; // Minimum allowed
-
-    if (amountNumber > maxAmount) {
-      return NextResponse.json(
-        { error: `Maximum conversion amount is ${maxAmount.toLocaleString()}` },
-        { status: 400 }
-      );
-    }
-
-    if (amountNumber < minAmount) {
-      return NextResponse.json(
-        { error: `Minimum conversion amount is ${minAmount}` },
-        { status: 400 }
-      );
-    }
-
-    // Perform the conversion according to direction
-    let conversionResult;
-    if (from === 'RING' && to === 'USD') {
-      // Calls oracle service to convert RING to USD
-      // Assumes: { usd_amount: string, rate: string, timestamp: number, confidence: number }
-      conversionResult = await nativeTokenPriceOracleService.convertNativeTokenToUsd(amount);
-    } else if (from === 'USD' && to === 'RING') {
-      // Calls oracle service to convert USD to RING
-      // Assumes: { ring_amount: string, rate: string, timestamp: number, confidence: number }
-      conversionResult = await nativeTokenPriceOracleService.convertUsdToNativeToken(amount);
+    const { nativePerMainCurrency, source, mainCurrency } = await getNativeTokenToMainCurrencyRate()
+    const nativeSymbol = getNativeTokenSymbol()
+    let toAmount: string
+    if (from === 'native_token' && to === 'main_currency') {
+      toAmount = String(await mainTokenToMainCurrencyUi(amountNumber))
     } else {
-      // Should never happen due to enum guard above, but safe to check
-      return NextResponse.json(
-        { error: 'Invalid currency conversion pair' },
-        { status: 400 }
-      );
+      toAmount = await mainCurrencyToNativeTokenUi(amountNumber)
     }
 
-    // STUB: Fee is hardcoded as '0' -- Replace with dynamic fee when business logic is complete
-    // STUB: Fees feature should be implemented using config from fee management microservice or static module
-    const conversionFee = '0'; // No fees currently (STUB)
-    const finalAmount = conversionResult.usd_amount || conversionResult.ring_amount;
+    const confidence = source === 'desk_oracle' ? 0.95 : 0.85
+    const now = Date.now()
+    const fromCurrency = from === 'native_token' ? nativeSymbol : mainCurrency
+    const toCurrency = to === 'native_token' ? nativeSymbol : mainCurrency
 
-    const response = {
+    return NextResponse.json({
       conversion: {
-        from_currency: from,
-        to_currency: to,
+        from_denomination: from,
+        to_denomination: to,
+        from_currency: fromCurrency,
+        to_currency: toCurrency,
         from_amount: amount,
-        to_amount: finalAmount,
-        exchange_rate: conversionResult.rate,
-        rate_timestamp: conversionResult.timestamp,
-        confidence: conversionResult.confidence,
+        to_amount: toAmount,
+        exchange_rate: String(nativePerMainCurrency),
+        rate_timestamp: now,
+        confidence,
       },
       fees: {
-        conversion_fee: conversionFee,
-        fee_currency: to,
-        net_amount: finalAmount, // No fees deducted yet (STUB)
+        conversion_fee: '0',
+        fee_currency: toCurrency,
+        net_amount: toAmount,
       },
       metadata: {
-        // Use timestamp and random suffix to generate pseudo-unique conversion ID
-        conversion_id: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: Date.now(),
-        rate_age_seconds: Math.floor((Date.now() - conversionResult.timestamp) / 1000),
-        warning: conversionResult.confidence < 0.7 ? 'Conversion based on low confidence rate' : undefined,
+        conversion_id: `conv_${now}_${Math.random().toString(36).slice(2, 11)}`,
+        timestamp: now,
+        source,
       },
-    };
-
-    // Logging for observability/auditing
-    logger.info('Currency conversion performed', {
-      from,
-      to,
-      fromAmount: amount,
-      toAmount: finalAmount,
-      rate: conversionResult.rate,
-      confidence: conversionResult.confidence,
-    });
-
-    return NextResponse.json(response);
-
+    })
   } catch (error) {
-    // Log as error and return 500 for internal failures
-    logger.error('Failed to perform currency conversion', { error });
-
+    logger.error('Failed to perform currency conversion', { error })
     return NextResponse.json(
       { error: 'Failed to perform currency conversion' },
-      { status: 500 }
-    );
+      { status: 500 },
+    )
   }
 }
 
-/**
- * GET /api/prices/conversion
- * Returns supported currency pairs and real-time rates + metadata.
- */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Parse query params (if present; may support future pair expansion)
-    const { searchParams } = new URL(request.url);
-    const pair = searchParams.get('pair') || '{native_token}_USD'; // TODO: Expand multi-currency support
+    const symbol = getNativeTokenSymbol()
+    const { nativePerMainCurrency, source, mainCurrency } = await getNativeTokenToMainCurrencyRate()
+    const now = Date.now()
+    const rate = String(nativePerMainCurrency)
+    const inverse = (1 / nativePerMainCurrency).toFixed(8)
 
-    // STUB: Only supports native_token <=> USD
-    // Fetch spot price and metadata from the native token price oracle
-    const priceData = await nativeTokenPriceOracleService.getNativeTokenUsdPrice();
-
-    // Compose both forward and inverse rates for client
-    const nativeTokenToUsd = {
-      from: '{native_token}',
-      to: 'USD',
-      rate: priceData.price,
-      inverse_rate: (1 / parseFloat(priceData.price)).toFixed(8),
-    };
-
-    const usdToNativeToken = {
-      from: 'USD',
-      to: '{native_token}',
-      rate: nativeTokenToUsd.inverse_rate,
-      inverse_rate: priceData.price,
-    };
-
-    const response = {
+    return NextResponse.json({
+      denominations: ['native_token', 'main_currency'] as const,
       supported_pairs: [
-        { from: '{native_token}', to: 'USD' },
-        { from: 'USD', to: '{native_token}' },
-        // TODO: Add other supported pairs when more tokens/currencies onboarded
+        { from: 'native_token', to: 'main_currency', from_currency: symbol, to_currency: mainCurrency },
+        { from: 'main_currency', to: 'native_token', from_currency: mainCurrency, to_currency: symbol },
       ],
-      current_rates: [nativeTokenToUsd, usdToNativeToken],
+      current_rates: [
+        { from: symbol, to: mainCurrency, rate, inverse_rate: inverse },
+        { from: mainCurrency, to: symbol, rate: inverse, inverse_rate: rate },
+      ],
       rate_metadata: {
-        timestamp: priceData.timestamp,
-        source: priceData.source,
-        confidence: priceData.confidence,
-        age_seconds: Math.floor((Date.now() - priceData.timestamp) / 1000),
+        timestamp: now,
+        source,
+        confidence: source === 'desk_oracle' ? 0.95 : 0.85,
+        age_seconds: 0,
       },
       conversion_limits: {
         min_amount: '0.000001',
         max_amount: '1000000',
         precision: '8',
       },
-      // STUB: Fees are static for now, should be loaded from config or dynamic fee schedule
-      fees: {
-        conversion_fee_rate: '0%',
-        minimum_fee: '0',
-        maximum_fee: '0',
-      },
-    };
-
-    return NextResponse.json(response);
-
+    })
   } catch (error) {
-    // Log issue and return 500 error if price service fails
-    logger.error('Failed to get conversion rates', { error });
-
-    return NextResponse.json(
-      { error: 'Failed to retrieve conversion rates' },
-      { status: 500 }
-    );
+    logger.error('Failed to get conversion rates', { error })
+    return NextResponse.json({ error: 'Failed to get rates' }, { status: 500 })
   }
 }

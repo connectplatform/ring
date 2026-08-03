@@ -3,7 +3,8 @@ import type { NftGateSlug } from '@/features/nft-gates/types'
 export type NftListingStatus = 'draft' | 'active' | 'sold' | 'cancelled' | 'expired'
 export type NftListingMode = 'ledger-dev' | 'metaplex-core'
 export type NftChainFamily = 'solana' | 'evm'
-export type NftSettlementCurrency = 'RING'
+/** NFT market settles only in the project native token (tokens.nativeToken.symbol). */
+export type NftSettlementCurrency = string
 /** Exhibition lane: KEYS vendor gates vs member-created collections. */
 export type NftMarketLane = 'keys' | 'member'
 

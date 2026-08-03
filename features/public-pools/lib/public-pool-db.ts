@@ -61,7 +61,7 @@ export async function upsertPool(
       clone_id: cloneId,
       pool_slug: poolSlug,
       like_count: existing.like_count,
-      pledged_ring: existing.pledged_ring,
+      pledged_native_token: existing.pledged_native_token,
       status: existing.status,
       queued_at: existing.queued_at,
       completed_at: existing.completed_at,
@@ -203,7 +203,7 @@ export async function sumConfirmedContributions(
 
   let total = 0
   for (const row of result.data) {
-    total += parseFloat(row.amount_ring) || 0
+    total += parseFloat(row.amount_native) || 0
   }
 
   return total.toFixed(8).replace(/\.?0+$/, '') || '0'

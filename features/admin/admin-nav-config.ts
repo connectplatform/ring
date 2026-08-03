@@ -16,6 +16,7 @@ export type AdminPageContext =
   | 'users'
   | 'rewards'
   | 'news'
+  | 'wiki'
   | 'dao'
   | 'analytics'
   | 'moderation'
@@ -32,6 +33,7 @@ export type AdminPageContext =
   | 'crm-contacts'
   | 'crm-analytics'
   | 'crm-tasks'
+  | 'crm-task-escrows'
   | 'crm-orders'
   | 'processes'
   | 'subscriptions'
@@ -66,6 +68,7 @@ export type AdminNavLabelKey =
   | 'users'
   | 'rewards'
   | 'news'
+  | 'wiki'
   | 'dao'
   | 'analytics'
   | 'moderation'
@@ -86,6 +89,11 @@ export type AdminNavLabelKey =
   | 'navGroupEmail'
   | 'navGroupPlatformOps'
   | 'newsManagement'
+  | 'wikiManagement'
+  | 'wikiRailCrmOrders'
+  | 'wikiRailNews'
+  | 'wikiRailDocs'
+  | 'wikiRailTasks'
   | 'newsRailArticles'
   | 'newsRailCategories'
   | 'newsRailAnalytics'
@@ -111,6 +119,7 @@ export type AdminNavLabelKey =
   | 'emailContacts'
   | 'emailAnalytics'
   | 'emailTasks'
+  | 'crmTaskEscrows'
   | 'crmOrders'
   | 'web3Settings'
   | 'web3Overview'
@@ -150,6 +159,7 @@ export interface AdminRailLink {
 /** Hub sections that show in-module submenu first in the right rail. */
 export type AdminRailSectionId =
   | 'news'
+  | 'wiki'
   | 'store'
   | 'security'
   | 'email'
@@ -220,6 +230,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         icon: 'FileText',
         href: ROUTES.ADMIN_NEWS,
         pageContext: 'news',
+        minRole: 'admin',
+      },
+      {
+        id: 'wiki',
+        labelKey: 'wiki',
+        icon: 'Database',
+        href: ROUTES.ADMIN_WIKI,
+        pageContext: 'wiki',
         minRole: 'admin',
       },
       {
@@ -367,6 +385,8 @@ export function resolveRailSection(pageContext: AdminPageContext): AdminRailSect
   switch (pageContext) {
     case 'news':
       return 'news'
+    case 'wiki':
+      return 'wiki'
     case 'store':
       return 'store'
     case 'security':
@@ -378,6 +398,7 @@ export function resolveRailSection(pageContext: AdminPageContext): AdminRailSect
     case 'crm-contacts':
     case 'crm-analytics':
     case 'crm-tasks':
+    case 'crm-task-escrows':
     case 'crm-orders':
       return 'email'
     case 'dao':
@@ -437,6 +458,37 @@ export function getRailSubmenu(
           href: ROUTES.ADMIN_NEWS_BULK,
           icon: 'Archive',
           isActive: (p) => p.includes('/admin/news/bulk'),
+        },
+      ]
+    case 'wiki':
+      return [
+        {
+          id: 'wiki-crm-orders',
+          labelKey: 'wikiRailCrmOrders',
+          href: ROUTES.ADMIN_CRM_ORDERS,
+          icon: 'Package',
+          isActive: (p) => p.includes('/admin/crm/orders'),
+        },
+        {
+          id: 'wiki-news',
+          labelKey: 'wikiRailNews',
+          href: ROUTES.ADMIN_NEWS,
+          icon: 'FileText',
+          isActive: (p) => p.includes('/admin/news'),
+        },
+        {
+          id: 'wiki-tasks',
+          labelKey: 'wikiRailTasks',
+          href: ROUTES.ADMIN_CRM_TASKS,
+          icon: 'ListTodo',
+          isActive: (p) => p.includes('/admin/crm/tasks'),
+        },
+        {
+          id: 'wiki-docs',
+          labelKey: 'wikiRailDocs',
+          href: (loc) => `${ROUTES.DOCS(loc)}/features/admin-wiki`,
+          icon: 'Database',
+          isActive: (p) => p.includes('/docs/') && p.includes('admin-wiki'),
         },
       ]
     case 'store':
@@ -558,7 +610,14 @@ export function getRailSubmenu(
           labelKey: 'emailTasks',
           href: ROUTES.ADMIN_CRM_TASKS,
           icon: 'ListTodo',
-          isActive: (p) => p.includes('/admin/crm/tasks'),
+          isActive: (p) => p.includes('/admin/crm/tasks') && !p.includes('/task-escrows'),
+        },
+        {
+          id: 'task-escrows',
+          labelKey: 'crmTaskEscrows',
+          href: ROUTES.ADMIN_CRM_TASK_ESCROWS,
+          icon: 'Shield',
+          isActive: (p) => p.includes('/admin/crm/task-escrows'),
         },
       ]
     case 'dao':
@@ -736,7 +795,9 @@ export function getRelatedHubs(
     case 'rewards':
       return pick(['users', 'refcodes', 'subscriptions', 'analytics'])
     case 'news':
-      return pick(['store', 'dao', 'analytics', 'moderation'])
+      return pick(['wiki', 'store', 'dao', 'analytics', 'moderation'])
+    case 'wiki':
+      return pick(['news', 'crm-orders', 'users', 'analytics'])
     case 'dao':
       return pick(['users', 'store', 'web3'])
     case 'moderation':
@@ -766,6 +827,7 @@ export function getRelatedHubs(
     case 'crm-contacts':
     case 'crm-analytics':
     case 'crm-tasks':
+    case 'crm-task-escrows':
     case 'crm-orders':
       return pick(['users', 'analytics'])
     case 'web3':
@@ -786,6 +848,8 @@ export function getSectionTitleKey(sectionId: AdminRailSectionId): AdminNavLabel
   switch (sectionId) {
     case 'news':
       return 'newsManagement'
+    case 'wiki':
+      return 'wikiManagement'
     case 'store':
       return 'store'
     case 'security':

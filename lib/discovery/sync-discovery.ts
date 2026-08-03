@@ -26,16 +26,23 @@ export function resolveDiscoveryTunnelEvent(
  * Shared Tunnel publish for post-mutation discovery sync.
  * Domain helpers (`syncOpportunityDiscovery`, `syncEntityDiscovery`) also handle
  * `revalidateTag` and `revalidatePath`; this module owns the realtime fan-out only.
+ *
+ * Optional `snippet` enables optimistic list/detail patches without a full reload.
  */
 export async function syncDiscovery(params: {
   channel: DiscoveryChannel
   resourceId: string
   event: DiscoveryMutationEvent
+  snippet?: Record<string, unknown> | null
 }): Promise<void> {
-  const { channel, resourceId, event } = params
+  const { channel, resourceId, event, snippet } = params
   try {
     const tunnelEvent = resolveDiscoveryTunnelEvent(channel, event)
-    await publishToChannel(channel, tunnelEvent, { id: resourceId, event })
+    const payload: Record<string, unknown> = { id: resourceId, event }
+    if (snippet && typeof snippet === 'object') {
+      payload.snippet = snippet
+    }
+    await publishToChannel(channel, tunnelEvent, payload)
   } catch (error) {
     logger.warn('syncDiscovery: tunnel publish failed', { channel, resourceId, event, error })
   }

@@ -1,14 +1,14 @@
 ---
 title: Wallet API
-description: Server actions and HTTP routes for custodial wallets, native-token transfers, fiat credit ledger, and Solana desk quotes — with credit.unitToDefaultCurrency as fiat spend SSOT
-last_modified: "2026-07-14"
+description: Server actions and HTTP routes for custodial wallets, native-token transfers, fiat credit ledger, and Solana desk quotes — with credit.creditBalanceUnitToMainCurrency as fiat spend SSOT
+last_modified: "2026-07-21"
 audience: both
 ---
 
 # Wallet API
 
 <Callout type="info">
-  Filter with **Founder** / **Developer** in the docs sidebar. Prefer **Server Actions** for UI. HTTP routes remain for MCP, webhooks, and non-React clients. Desk oracle rate lives in `platform_settings` / `web3` via `ring-token-oracle.ts` — separate from fiat credit accounting.
+  Filter with **Founder** / **Developer** in the docs sidebar. Prefer **Server Actions** for UI. HTTP routes remain for MCP, webhooks, and non-React clients. Desk oracle rate lives in `platform_settings` / `web3` via `native-token-oracle.ts` — separate from fiat credit accounting.
 </Callout>
 
 Ring Platform wallet operations use two layers:
@@ -27,7 +27,7 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
     Dashboard, fiat credit points, Token Desk conversion, gasless native sends.
   </Card>
   <Card title="Store & credits" href="/docs/features/store">
-    Store checkout debits credit points via PaymentConductor `internal_credit` (same fiat rate SSOT).
+    Store checkout debits credit points via PaymentConductor `credit_balance` (same fiat rate SSOT).
   </Card>
   <Card title="Authentication" href="/docs/api/authentication">
     Social sign-in provisions custodial wallets automatically.
@@ -41,11 +41,11 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
 
 | Rate | Config | Used for |
 |------|--------|----------|
-| **Fiat credit accounting** | `ring-config.json` → `credit.unitToDefaultCurrency` (usually `1`) | Debiting/crediting **points** vs store `defaultCurrency` |
-| **Token Desk oracle** | `platform_settings.web3.oracle.ringPerUsd` | Converting **points ↔ native token** on the desk |
+| **Fiat credit accounting** | `ring-config.json` → `credit.creditBalanceUnitToMainCurrency` (usually `1`) | Debiting/crediting **points** vs store `mainCurrency` |
+| **Token Desk oracle** | `platform_settings.web3.oracle.nativePerMainCurrency` | Converting **points ↔ native token** on the desk |
 
 <Callout type="tip">
-  Keep `credit.unitToDefaultCurrency` at `1` unless you intentionally scale points vs fiat. Changing the desk oracle (`ringPerUsd`) never changes store or ad-hoc credit spend math.
+  Keep `credit.creditBalanceUnitToMainCurrency` at `1` unless you intentionally scale points vs fiat. Changing the desk oracle (`nativePerMainCurrency`) never changes store or ad-hoc credit spend math.
 </Callout>
 
 ### Typical member flows
@@ -56,10 +56,10 @@ Browser calls use **Auth.js session cookies** on the same origin — see [API re
 - **Top up credits (card / PayPal)** — `initiateCreditTopupPayment` → `WalletConductor.initiateTopUp` → PaymentConductor `wallet_topup` → UI `followCheckoutResult(redirect)` → webhook credits ledger. Card uses env processor; PayPal tab sends `processor=paypal`.
 - **Top up credits (chain proof)** — `topUpCredits` / `verifyTopUpTransaction`.
 - **Pay with credits (ad-hoc)** — `spendCredits` Server Action or `POST /api/wallet/credit/spend`.
-- **Pay in store** — checkout rail `internal_credit` (PaymentConductor), not a raw UI call to `/credit/spend`.
+- **Pay in store** — checkout rail `credit_balance` (PaymentConductor), not a raw UI call to `/credit/spend`.
 
 <Callout type="warning">
-  **Custodial model:** Ring signs transfers server-side for social-auth wallets. External wallets (MetaMask via RainbowKit) connect client-side — they do not use custodial server actions.
+  **Custodial model:** Ring signs transfers server-side for social-auth wallets. External wallets (MetaMask, Coinbase Wallet, WalletConnect via the Wagmi v3 connector picker) connect client-side — they do not use custodial server actions.
 </Callout>
 
 </Audience>
@@ -88,12 +88,12 @@ Fiat ledger debits must use the config multiplier — never the desk oracle.
 
 <Mermaid title="Fiat credit accounting rate">
 {`flowchart LR
-  CFG["ring-config credit.unitToDefaultCurrency"]
-  GET["getCreditUnitToDefaultCurrencyRate()"]
-  FIAT["getFiatCreditAccountingRate()"]
+  CFG["ring-config credit.creditBalanceUnitToMainCurrency"]
+  GET["getCreditUnitToMainCurrencyRate()"]
+  FIAT["getMainCurrencyCreditAccountingRate()"]
   API["POST /api/wallet/credit/spend"]
   SA["spendCredits Server Action"]
-  IC["internal-credit.processor"]
+  IC["credit-balance.processor"]
   WC["WalletConductor.spendCredits"]
   CBS["CreditBalanceService.spendCredits"]
   CFG --> GET
@@ -108,13 +108,13 @@ Fiat ledger debits must use the config multiplier — never the desk oracle.
 
 | Fact | Truth |
 |------|--------|
-| SSOT | `ring-config.json` → `credit.unitToDefaultCurrency` (usually `1`) |
-| Helpers | `getCreditUnitToDefaultCurrencyRate` / `getFiatCreditAccountingRate` in `lib/ring-config-core.ts` + `lib/payments/credit-currency.ts` |
-| Fallback | `exchangeRates[defaultCurrency]`, then `1` |
+| SSOT | `ring-config.json` → `credit.creditBalanceUnitToMainCurrency` (usually `1`) |
+| Helpers | `getCreditUnitToMainCurrencyRate` / `getMainCurrencyCreditAccountingRate` in `lib/ring-config-core.ts` + `lib/payments/credit-balance.ts` |
+| Fallback | `exchangeRates[mainCurrency]`, then `1` |
 | Ad-hoc debit | `WalletConductor.spendCredits` (Server Action omits `usdRate` → conductor defaults to fiat helper) |
-| Store checkout | PaymentConductor `internal_credit` → `internal-credit.processor.ts` (also calls `getFiatCreditAccountingRate`) |
-| Never | `platform_settings.web3.oracle.ringPerUsd` / `getRingPerUsdRate` for fiat `usdRate` |
-| Desk only | `ring-token-oracle` / `pointsPerNativeToken` for points ↔ RING |
+| Store checkout | PaymentConductor `credit_balance` → `credit-balance.processor.ts` (also calls `getMainCurrencyCreditAccountingRate`) |
+| Never | `platform_settings.web3.oracle.nativePerMainCurrency` / `getNativeTokenPerMainCurrencyRate` for fiat `usdRate` |
+| Desk only | `native-token-oracle` / `creditBalanceUnitPerNativeToken` for points ↔ RING |
 
 <Callout type="warning">
   Document **POST** `/api/wallet/credit/spend` only. A GET stub may return **410** in code — it is not a capability. Use `getSpendSummary` or `GET /api/wallet/credit/history` for reads.
@@ -144,8 +144,8 @@ Fiat ledger debits must use the config multiplier — never the desk oracle.
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/api/wallet/list` | `{ wallets }` via `listWallets()` |
-| POST | `/api/wallet/ensure` | Idempotent create-if-missing |
+| GET | `/api/wallet/list` | `{ wallets }` via `listWallets()` — `?refresh=true` force on-chain via `refreshBalancesForUser` (publishes `wallet:list`) |
+| POST | `/api/wallet/ensure` | Idempotent create-if-missing — `ensureWallets` publishes `wallet:list` when provisioning changes |
 | GET | `/api/wallet/balance` | Default wallet native-token balance |
 
 ### Native-token operations
@@ -166,10 +166,10 @@ Fiat ledger debits must use the config multiplier — never the desk oracle.
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/api/wallet/credit/balance` | Balance + spend limits |
+| GET | `/api/wallet/credit/balance` | Balance + spend limits — live UI via Tunnel `credit:balance` (`publishToUserTunnel` after ledger mutations) |
 | PUT | `/api/wallet/credit/balance` | Admin airdrop `{ user_id, amount, reason }` |
 | POST | `/api/wallet/credit/topup` | Optional `tx_hash` verification |
-| POST | `/api/wallet/credit/spend` | Direct fiat debit via `WalletConductor.spendCredits` + `unitToDefaultCurrency` |
+| POST | `/api/wallet/credit/spend` | Direct fiat debit via `WalletConductor.spendCredits` + `creditBalanceUnitToMainCurrency` |
 | GET | `/api/wallet/credit/history` | Paginated ledger |
 
 Schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/credit-balance-service.ts`.
@@ -187,11 +187,11 @@ Schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/credit-
 |---------|------|-------------|
 | Credit CRUD | `features/wallet/services/credit-balance-service.ts` | `addCredits`, `spendCredits`, `getCreditHistory` |
 | Conductor | `features/wallet/conductor/wallet-conductor.ts` | `spendCredits`, `ensureNativeWallet` |
-| Fiat rate | `lib/ring-config-core.ts` / `lib/payments/credit-currency.ts` | `getCreditUnitToDefaultCurrencyRate`, `getFiatCreditAccountingRate` |
-| Store credit checkout | `lib/payments/processors/internal-credit.processor.ts` | `createInternalCreditCheckout` |
+| Fiat rate | `lib/ring-config-core.ts` / `lib/payments/credit-balance.ts` | `getCreditUnitToMainCurrencyRate`, `getMainCurrencyCreditAccountingRate` |
+| Store credit checkout | `lib/payments/processors/credit-balance.processor.ts` | `createInternalCreditCheckout` |
 | Gasless transfers | `features/wallet/chains/native-token-transfer-service.ts` | `transferNativeTokenForUser` |
 | Desk trades | `features/wallet/chains/solana/desk-service.ts` | `quoteDesk`, `executeDesk` |
-| Native oracle | `features/wallet/services/ring-token-oracle.ts` | `getRingPerUsdRate`, `setRingPerUsdRate` |
+| Native oracle | `features/wallet/services/native-token-oracle.ts` | `getNativeTokenPerMainCurrencyRate`, `setNativeTokenPerMainCurrencyRate` |
 | Wallet DB | `lib/wallet/user-wallet-db.ts` | `getUserWallets`, `getNativeWallet` |
 | PIN tokens | `lib/wallet/pin-access-token-db.ts` | `issueAccessToken`, `consumeAccessToken` |
 
@@ -203,7 +203,7 @@ Schemas: `lib/zod/credit-schemas.ts`. Service: `features/wallet/services/credit-
 
 **Prefer Server Action (React UI)**
 
-Form fields: `amount` (required), `description` (optional — defaults to `Credit spend`), `orderId` (optional). Conductor applies `getFiatCreditAccountingRate()` when `usdRate` is omitted.
+Form fields: `amount` (required), `description` (optional — defaults to `Credit spend`), `orderId` (optional). Conductor applies `getMainCurrencyCreditAccountingRate()` when `usdRate` is omitted.
 
 <Code language="typescript">{`import { spendCredits } from '@/app/_actions/wallet'
 
@@ -229,7 +229,7 @@ const result = await spendCredits(formData)
 
 **Store checkout (do not call spend HTTP from store UI)**
 
-PaymentConductor rail `internal_credit` → `internal-credit.processor.ts` → `creditBalanceService.spendCredits` with the same fiat rate helper.
+PaymentConductor rail `credit_balance` → `credit-balance.processor.ts` → `creditBalanceService.spendCredits` with the same fiat rate helper.
 
 </Step>
 
@@ -252,45 +252,55 @@ PaymentConductor rail `internal_credit` → `internal-credit.processor.ts` → `
 <Mermaid title="Desk oracle read path">
 {`sequenceDiagram
   participant A as Desk / admin
-  participant O as ring-token-oracle.ts
+  participant O as native-token-oracle.ts
   participant D as db()
   participant P as platform_settings/web3
-  A->>O: getRingPerUsdRate()
+  A->>O: getNativeTokenPerMainCurrencyRate()
   alt PLATFORM_SETTINGS_DISABLE_DB=true
     O-->>A: RING_ORACLE_DEFAULT_RATE
   else DB enabled
     O->>D: readDoc(platform_settings, web3)
-    D->>P: oracle.ringPerUsd
+    D->>P: oracle.nativePerMainCurrency
     P-->>A: rate
   end`}
 </Mermaid>
 
-Admin write: `setRingPerUsdRate` or `POST /api/admin/web3/settings`.
+Admin write: `setNativeTokenPerMainCurrencyRate` or `POST /api/admin/web3/settings`.
 
 </Audience>
 
 ## Related documentation
 
-<Cards>
-  <Card title="Wallet feature" href="/docs/features/wallet">
-    Architecture, credit vs native, desk widget.
-  </Card>
-  <Card title="API index" href="/docs/api">
-    Session auth model and domain map.
-  </Card>
-  <Card title="Authentication API" href="/docs/api/authentication">
-    Crypto wallet provider + social login.
-  </Card>
-  <Card title="Admin API — Web3" href="/docs/api/admin">
-    Oracle rate, gas reserve, desk audit.
-  </Card>
-  <Card title="Store feature" href="/docs/features/store">
-    Credit checkout rail.
-  </Card>
-  <Card title="Token economics" href="/docs/customization/token-economics">
-    Desk oracle, transfer tax, first-settler discounts.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/tunnel-protocol"
+    relation="Depends-on: `credit:balance` and `wallet:list` Tunnel channels that refresh this API's UI consumers."
+  />
+  <RelatedArticle
+    slug="architecture/wallet-conductor"
+    relation="Deep-dive: facade methods that publish wallet-list updates after transferNative / ensure."
+  />
+  <RelatedArticle
+    slug="features/wallet"
+    relation="Next-step: member-facing wallet dashboard and credit vs native rails."
+  />
+  <RelatedArticle
+    slug="api"
+    relation="See-also: session auth model and domain API map."
+  />
+  <RelatedArticle
+    slug="api/authentication"
+    relation="Prerequisite: crypto wallet provider + social login that provisions custodial wallets."
+  />
+  <RelatedArticle
+    slug="customization/token-economics"
+    relation="See-also: desk oracle, transfer tax, first-settler discounts."
+  />
+  <RelatedArticle
+    slug="integrations/ethereum-wallets"
+    relation="See-also: Wagmi pathNeedsWeb3 and getWalletBalance live in app/_actions/wallet.ts (dead get-wallet-balance.ts removed)."
+  />
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — wallet API">
 

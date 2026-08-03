@@ -1,8 +1,9 @@
 # Ring Platform - Docker Ignore File
 # Optimize Docker build context by excluding unnecessary files
 
-# Dependencies
+# Dependencies (root + nested package trees that must not enter build context)
 node_modules
+**/node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -98,11 +99,11 @@ Dockerfile*
 docker-compose*.yml
 .dockerignore
 
-# Documentation
+# Documentation (CHANGELOG.md must ship for /changelog Shiki render)
 README.md
-CHANGELOG.md
 LICENSE
 *.md
+!CHANGELOG.md
 
 # Test files
 __tests__/
@@ -160,3 +161,11 @@ yarn.lock
 infrastructure/*
 k8s/*
 scripts/*
+
+# Solana / Hardhat build artifacts (never needed in Next image)
+solana/target/
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+**/*.rlib
+**/*.rmeta

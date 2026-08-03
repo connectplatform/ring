@@ -21,7 +21,7 @@ interface UserProfile {
   // ... existing fields
   credit_balance?: {
     amount: string;        // RING tokens (as string for precision)
-    usd_equivalent: string; // USD equivalent at last transaction
+    main_currency_equivalent: string; // USD equivalent at last transaction
     last_updated: Timestamp;
     transaction_history: CreditTransaction[];
   }
@@ -31,7 +31,7 @@ interface CreditTransaction {
   id: string;
   type: 'payment' | 'airdrop' | 'reimbursement' | 'purchase' | 'membership_fee';
   amount: string;
-  usd_rate: string;
+  main_currency_rate: string;
   timestamp: Timestamp;
   description: string;
   tx_hash?: string; // For blockchain transactions
@@ -109,7 +109,7 @@ export class creditBalanceService {
 ### Phase 3: RING/USD Conversion Service (P0)
 
 #### 3.1 Price Oracle Integration
-**File**: `ring/features/wallet/services/native-token-price-oracle.ts`
+**File**: `ring/features/wallet/services/native-token-chainlink-oracle.ts`
 ```typescript
 export class PriceOracleService {
   // Integrate with Chainlink price feeds
@@ -260,7 +260,7 @@ graph TD
   // ... existing user fields
   credit_balance: {
     amount: "0",
-    usd_equivalent: "0",
+    main_currency_equivalent: "0",
     last_updated: serverTimestamp(),
     subscription_active: false,
     subscription_contract_address: null,
@@ -275,8 +275,8 @@ graph TD
   id: string;
   type: 'payment' | 'airdrop' | 'reimbursement' | 'purchase' | 'membership_fee';
   amount: string;
-  usd_rate: string;
-  usd_equivalent: string;
+  main_currency_rate: string;
+  main_currency_equivalent: string;
   timestamp: Timestamp;
   description: string;
   tx_hash?: string;

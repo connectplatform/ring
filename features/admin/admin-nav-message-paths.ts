@@ -28,11 +28,12 @@ type AdminTranslationFn = (key: string, ...args: unknown[]) => string
 
 /** Resolve a nav label via SSOT path; returns undefined if missing or non-string. */
 export function resolveAdminNavMessage(
-  t: AdminTranslationFn,
+  t: AdminTranslationFn & { has?: (key: string) => boolean },
   labelKey: string,
 ): string | undefined {
   const path = resolveAdminNavMessagePath(labelKey)
   try {
+    if (typeof t.has === 'function' && !t.has(path)) return undefined
     const value = t(path)
     return typeof value === 'string' && value.length > 0 ? value : undefined
   } catch {

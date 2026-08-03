@@ -1,30 +1,22 @@
 ---
 title: Email AI-CRM developer guide
-description: Local .env.local setup, migrations, cron poll, SMTP smoke test, and production cron
-last_modified: "2026-07-17"
+description: Local multi-mailbox env, migrations, cron poll, CRM SMTP smoke test, and production cron
+last_modified: "2026-07-21"
+audience: both
 ---
 
 # Email AI-CRM developer guide
 
-Set up the Email AI-CRM module on a **local or self-hosted** Ring clone: configure `.env.local`, apply JSONB migrations when using Postgres, then verify ingest and draft send from the admin CRM UI (`/admin/crm/*`).
+Set up the Email AI-CRM module on a **local or self-hosted** Ring clone: configure channel secrets (or legacy IMAP_*), apply JSONB migrations when using Postgres, then verify ingest and draft send from the admin CRM UI (`/admin/crm/*`).
 
 ## 1. Local environment
 
-Copy the **EMAIL CRM** block from `env.local.template` into `.env.local`:
+Prefer **`ring-config.emailCrm.channels`** + channel secrets. Copy the **EMAIL CRM** block from `env.local.template`:
 
 ```bash
-# .env.local
-IMAP_HOST=mail.example.com
-IMAP_PORT=993
-IMAP_TLS=true
-IMAP_USER=info@example.com
-IMAP_PASSWORD=
-
-SMTP_HOST=mail.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=info@example.com
-SMTP_PASSWORD=
+# .env.local — multi-mailbox (recommended)
+CRM_CHANNEL_PRIMARY_PASSWORD=
+# CRM_CHANNEL_PRIMARY_SMTP_PASSWORD=
 
 ANTHROPIC_API_KEY=
 
@@ -32,10 +24,29 @@ CRON_SECRET=generate-a-long-random-string
 EMAIL_AUTO_SEND_ENABLED=false
 WEBHOOK_EMAIL_SECRET=              # optional: webhook ingest instead of IMAP
 EMAIL_CRM_PERSISTENCE=memory       # quick start without DB tables
+
+# Auth OTP stays separate (lib/mailer.ts) — do not reuse for CRM replies:
+# EMAIL_MODE=ethereal
+# or SMTP_HOST / SMTP_USER / SMTP_PASSWORD for noreply@
+
+# Legacy single-mailbox fallback (only when emailCrm.channels empty):
+# IMAP_HOST=mail.example.com
+# IMAP_PORT=993
+# IMAP_TLS=true
+# IMAP_USER=info@example.com
+# IMAP_PASSWORD=
+# SMTP_HOST=mail.example.com
+# SMTP_PORT=587
+# SMTP_USER=info@example.com
+# SMTP_PASSWORD=
 ```
 
 <Callout type="info" title="Postgres-backed dev">
 Remove `EMAIL_CRM_PERSISTENCE=memory` and apply migrations below so threads and drafts persist across restarts.
+</Callout>
+
+<Callout type="warning" title="Auth vs CRM SMTP">
+Auth login mail uses `SMTP_*` / `lib/mailer.ts`. CRM draft send uses `EmailSenderService` + `CRM_CHANNEL_*`. See [Ring Mailer](/docs/features/ring-mailer).
 </Callout>
 
 ## 2. Database migrations
@@ -49,7 +60,7 @@ psql "$DATABASE_URL" -c "\dt email_*"
 ```
 
 <Callout type="warning" title="Do not use 001_email_crm_schema.sql">
-`001_email_crm_schema.sql` is **deprecated** (column-model CRM). Always apply **009 + 010** only. If old column tables exist **with data**, migrate rows into JSONB `data` documents before `009` (which drops empty legacy tables only). ring-ringdom-org keeps the file under `data/migrations/_deprecated/` for archaeology.
+`001_email_crm_schema.sql` is **deprecated**. Always apply **009 + 010** only.
 </Callout>
 
 ## 3. Trigger ingest (local)
@@ -75,13 +86,14 @@ curl -X POST "http://localhost:3000/api/webhooks/email/inbound" \
   -d "$BODY"
 ```
 
-## 4. SMTP smoke test
+## 4. CRM SMTP smoke test
 
-1. Send a test message to your configured inbox (`IMAP_USER`).
-2. Run cron `poll` (or use the webhook example above).
-3. Open **Admin → CRM Inbox** (`/admin/crm/inbox`) — thread should appear.
-4. Open **CRM Drafts** (`/admin/crm/drafts`) — approve a draft, click send.
-5. Confirm reply in the sender mailbox and an outbound row in `email_messages`.
+1. Ensure channel passwords resolve (`GET /api/admin/email/channels` as admin → `hasImapPassword` / `hasSmtpPassword`).
+2. Send a test message to the channel inbox (or use the webhook).
+3. Run cron `poll`.
+4. Open **Admin → CRM Inbox** (`/admin/crm/inbox`) — optional channel filter.
+5. Open **CRM Drafts** — approve and send.
+6. Confirm reply in the sender mailbox and an outbound row in `email_messages`.
 
 Only then set `EMAIL_AUTO_SEND_ENABLED=true`.
 
@@ -89,7 +101,7 @@ Only then set `EMAIL_AUTO_SEND_ENABLED=true`.
 
 | Page | URL | Expect |
 |------|-----|--------|
-| Inbox | `/{locale}/admin/crm/inbox` | Live threads from API |
+| Inbox | `/{locale}/admin/crm/inbox` | Live threads; channel filter; channel status chips |
 | Thread | `/{locale}/admin/crm/inbox/<threadId>` | Message timeline |
 | Drafts | `/{locale}/admin/crm/drafts` | Approve / reject / send |
 | Contacts | `/{locale}/admin/crm/contacts` | CRM from processor |
@@ -97,7 +109,7 @@ Only then set `EMAIL_AUTO_SEND_ENABLED=true`.
 | Tasks | `/{locale}/admin/crm/tasks` | Auto-created follow-ups |
 | Orders | `/{locale}/admin/crm/orders` | Project orders desk (Owner Project Lab) |
 
-All seven CRM pages use `CrmAdminShell` (horizontal tabs; no right rail). APIs remain `/api/admin/email/*`.
+All CRM pages use `CrmAdminShell` (horizontal tabs; no right rail). APIs remain `/api/admin/email/*`.
 
 ## 6. Production cron
 
@@ -112,20 +124,42 @@ curl -sS -X POST "$BASE_URL/api/cron/email-processor" \
 
 Optional analytics snapshot: `GET $BASE_URL/api/cron/email-analytics` with the same Bearer token.
 
+Ops: `data/migrations/EMAIL-CRM-OPS.md`.
+
 ## Troubleshooting
 
 | Symptom | Check |
 |---------|--------|
 | Empty inbox | Migrations applied (or `EMAIL_CRM_PERSISTENCE=memory`)? Cron `poll` returning `processed > 0`? |
+| Channel status red | `CRM_CHANNEL_PRIMARY_PASSWORD` set? `ring-config.emailCrm.enabled` true? |
 | No AI draft | `ANTHROPIC_API_KEY` set? Security pipeline blocked? Check server logs. |
 | Duplicate processing | Should not occur — `email_messages` Message-ID dedup |
-| Draft send fails | `SMTP_*` credentials, port 587 STARTTLS, firewall to `SMTP_HOST` |
+| Draft send fails | Channel SMTP password / host (`EmailSenderService`), not Auth `SMTP_*` |
 | Auto-send silent | `EMAIL_AUTO_SEND_ENABLED=true` and confidence rules met |
 | 401 on cron | `CRON_SECRET` matches `Authorization: Bearer` header |
+| Jsonb / circular require | Types in `features/email-crm/types/*`; no CJS `require()` of Jsonb repos |
 
-## Related
+## Related documentation
 
-- [Email AI-CRM feature](/docs/features/email-ai-crm)
-- [Email AI-CRM API](/docs/api/email-ai-crm)
-- [Migrations](/docs/getting-started/migrations)
-- [Environment](/docs/deployment/environment#email-ai-crm)
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/email-ai-crm"
+    relation="Prerequisite: feature overview and Auth vs CRM SMTP rules."
+  />
+  <RelatedArticle
+    slug="api/email-ai-crm"
+    relation="Deep-dive: channels route and cron action contracts."
+  />
+  <RelatedArticle
+    slug="architecture/email-ai-crm"
+    relation="Deep-dive: EmailProcessor and persistence layout."
+  />
+  <RelatedArticle
+    slug="features/ring-mailer"
+    relation="See-also: Auth SMTP and cleanup-email-tokens."
+  />
+  <RelatedArticle
+    slug="getting-started/migrations"
+    relation="Same-workflow: kingdom migration order and run-migration.sh."
+  />
+</RelatedDocs>

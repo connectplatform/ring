@@ -1,0 +1,234 @@
+---
+title: Public Pools & DAO Jars
+description: Community funding jars — dual-currency contribute, desk-oracle card rail, role-based builder payout, and gated on-chain escrow scaffold
+last_modified: "2026-07-22"
+audience: both
+---
+
+# Public Pools & DAO Jars
+
+Public pools are **community funding jars** per clone. Members like and chip in toward a native-token goal; docs embed the same jar via `<FutureFeatureWidget />`. Product routes live under **`/dao`** (not `/pools`). Money SSOT for card/PayPal chip-ins is PaymentConductor purpose **`public_pool_contribution`** — not PSP “donation product” APIs.
+
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Sidebar visibility is controlled by `lib/docs/audience-curated-docs.ts`.
+</Callout>
+
+<Callout type="warning" title="Not PSP donation jars">
+  WayForPay hosted **Донати**, Stripe Checkout `submit_type=donate`, and PayPal Donate SDK are **not** the Ring jar SSOT. Ring card/PayPal chip-ins use **`PaymentConductor.createCheckout({ purpose: 'public_pool_contribution' })`** via `POST /api/public-pools/[slug]/card-checkout`. Native chip-ins use treasury SPL transfer (`contributeToPool`) — outside Conductor.
+</Callout>
+
+## What shipped (2026-07-21)
+
+| Track | Status | Truth |
+|-------|--------|-------|
+| Tier A interactive chat | **Live** | `poll`, `rsvp`, `dao_jar`, `share_card` remediated (jar refresh, meetup RSVP, poll `closeAt` cron, locked votes) |
+| TD-MONEY-01 Card jar | **Live** | Purpose `public_pool_contribution`; settle bumps `pledged_native_token` via **desk oracle** FX |
+| TD-MONEY-02 Builder payout | **Live** | On ≥100% funding: auto-complete + treasury pays **net** (pledged − role fee) to builder’s primary Solana wallet |
+| TD-MONEY-03 Escrow | **Partial** | Anchor program at `solana/programs/public-pool` (init/contribute/finalize/refund). **Donation path live**; on-chain escrow contribute needs deploy + IDL wire |
+| Dual-currency CTA | **Live** | `PoolContributePanel` — fiat for card/PayPal; native symbol for chip-in; shows credit + native balances |
+
+<Callout type="error" title="Do not claim">
+  Card jar is **not** 1:1 fiat↔RING. PublicPool escrow is **not** production-live. Builder payout is **not** always full pledged (fee 0 only for admin/superadmin roles by default).
+</Callout>
+
+## Money paths (shared)
+
+<Mermaid title="Public pool money paths">
+{`flowchart LR
+  UI["PoolContributePanel\\n/dao · dao_jar · FutureFeature"]
+  UI -->|native| NAT["contributeToPool\\nSPL → treasury"]
+  UI -->|fiat card/PayPal| CARD["POST .../card-checkout\\npurpose public_pool_contribution"]
+  CARD --> FX["desk oracle\\nnativeUi = fiatMajor / nativePerMainCurrency"]
+  CARD --> WH["PSP webhook → settlePublicPoolCardContribution"]
+  NAT --> TOT["recomputePoolTotals\\npledged_native_token"]
+  WH --> TOT
+  TOT -->|funding ≥ 100%| PAY["maybePayoutBuilderOnComplete\\nnet = pledged − fee%"]
+  ESC["Anchor PublicPool\\ngated by PROGRAM_ID"] -.->|not prod-wired| UI`}
+</Mermaid>
+
+**FX SSOT (same as Token Desk):** `nativeUi = fiatMajor / nativePerMainCurrency` via `getNativeTokenPerMainCurrencyRate` / `features/public-pools/lib/public-pool-desk-fx.ts`.
+
+**Platform fee SSOT:** `ring-config.json` → `publicPools.platformFeePercentByRole` (defaults: admin/superadmin **0%**, confidential **6%**, member **7%**).
+
+<Audience for="founder">
+
+## Why jars matter for your clone
+
+Members fund features and collective goals in **your** native token (and card fiat converted at the **live desk rate**). When a jar fills, the opportunity owner receives **net** native token to their primary custodial Solana wallet — minus your configured role fee. Collective-order forms show this clearly (`collectiveJarPayoutNote` in opportunities locales).
+
+<Cards>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    Card/PayPal purpose `public_pool_contribution` shares the same ledger and webhooks as store and wallet.
+  </Card>
+  <Card title="Wallet & Token Desk" href="/docs/features/wallet">
+    Desk oracle rate is the same FX used when card chip-ins become pledged native units.
+  </Card>
+  <Card title="Messaging" href="/docs/features/messaging">
+    `dao_jar` chat widgets refresh after contribute; post jars from docs or `/dao`.
+  </Card>
+  <Card title="Opportunities" href="/docs/features/opportunities">
+    Collective / builder jars pay the opportunity owner’s primary native wallet when full.
+  </Card>
+</Cards>
+
+### Operator checklist
+
+1. Enable public pools in clone config (`publicPools` in `ring-config.json`) — fee map + `autoPayoutOnGoalMet`.
+2. Configure Solana treasury (`SOLANA_RPC_URL`, `SOLANA_TREASURY_PRIVATE_KEY`) so **native** chip-ins and builder payouts can move SPL.
+3. Keep Token Desk / web3 oracle healthy — card settle needs `getNativeTokenPerMainCurrencyRate`.
+4. Do **not** turn on escrow UX until you deploy `solana/programs/public-pool` and set `NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID`.
+5. Test a small card chip-in on `/dao/[slug]` and confirm pledged native rises by **desk-converted** units, not 1:1 fiat.
+
+### Typical scenarios
+
+- Docs backlog item with `<FutureFeatureWidget poolSlug="…" />` — members like + chip in from the page.
+- Chat `dao_jar` — same panel; totals refresh via `refreshOpenDaoJarMessages`.
+- Collective opportunity jar fills → status `completed` → treasury pays **net** RING to builder wallet.
+
+</Audience>
+
+<Audience for="developer">
+
+## Implementation
+
+### Surfaces
+
+| Surface | Path |
+|---------|------|
+| Public list / detail | `/[locale]/dao`, `/[locale]/dao/[slug]` |
+| Admin | `/[locale]/admin/dao` |
+| Docs widget | `components/docs/future-feature-widget.tsx` → `PoolContributePanel` |
+| Chat jar | `features/public-pools/components/dao-jar-message-widget.tsx` |
+| Dual CTA | `features/public-pools/components/pool-contribute-panel.tsx` |
+
+### Verified HTTP / settle
+
+| Method | Path | Role |
+|--------|------|------|
+| GET/POST | `/api/public-pools` | List / upsert future_feature stats |
+| POST | `/api/public-pools/signal` | Like toggle |
+| POST | `/api/public-pools/contribute` | Native initiate |
+| POST | `/api/public-pools/contribute/confirm` | Native confirm + jar refresh |
+| POST | `/api/public-pools/[slug]/card-checkout` | Conductor card/PayPal checkout |
+| * | `/api/admin/public-pools…` | Admin CRUD + status |
+
+Settle: `lib/payments/conductor/handlers/public-pool-contribution.ts` → `settlePublicPoolCardContribution` (idempotent on `orderReference`). Webhooks: WayForPay / Stripe / PayPal dispatcher branches on `purpose === 'public_pool_contribution'`.
+
+Optional processor override: `PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR` (`lib/payments/payment.config.ts`).
+
+### Modules
+
+| Module | Responsibility |
+|--------|----------------|
+| `features/public-pools/services/public-pool-service.ts` | Totals, queue gate, auto-complete, builder payout |
+| `features/public-pools/services/public-pool-contribute.ts` | Native treasury chip-in |
+| `features/public-pools/lib/public-pool-desk-fx.ts` | Desk-oracle FX |
+| `features/public-pools/lib/public-pool-platform-fee.ts` | Role fee map |
+| `features/public-pools/lib/public-pool-escrow-gate.ts` | `NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID` / `PUBLIC_POOL_PROGRAM_ID` |
+| `lib/payments/conductor/settle-public-pool-contribution.ts` | Card settle → `pledged_native_token` |
+| `features/chat/lib/refresh-open-dao-jar-messages.ts` | Chat snapshot sync |
+| `solana/programs/public-pool` | Anchor: `init_pool` / `contribute` / `finalize_success` / `refund_contributor` |
+
+### Desk FX (verified)
+
+```ts
+// features/public-pools/lib/public-pool-desk-fx.ts
+// nativeUi = fiatMajor / nativePerMainCurrency
+// nativePerMainCurrency from getNativeTokenPerMainCurrencyRate() — same SSOT as Token Desk
+```
+
+Card checkout accepts `amount_fiat` **or** `amount_native` and always stores both + `nativePerMainCurrency` on payment metadata before redirect.
+
+### Builder payout (verified)
+
+When `autoPayoutOnGoalMet` and funding ≥ 100%:
+
+1. Pool → `completed`
+2. Resolve `payout_wallet_address` or builder’s primary native wallet
+3. `feePercent = resolveBuilderPlatformFeePercent(builderRole)`
+4. `net = pledged − fee`; `transferTokenFromTreasury(wallet, net)`
+5. Ledger note `public_pool_payout` with gross/fee/feePct
+
+Collective-order copy: `locales/*/modules/opportunities.json` → `collectiveJarPayoutNote`.
+
+### Escrow gate (not production-live)
+
+```ts
+// features/public-pools/lib/public-pool-escrow-gate.ts
+isPublicPoolEscrowDeployed() // true only when PROGRAM_ID env is set
+```
+
+Donation mode (treasury SPL) is the live path. Escrow contribute requires: deploy program → set `NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID` → IDL client wire → store `on_chain { pool_pda, vault_ata }` per jar. **Do not document escrow as live in production.**
+
+### Env (traced)
+
+| Var | Use |
+|-----|-----|
+| `SOLANA_RPC_URL` | Chain RPC |
+| `SOLANA_TREASURY_PRIVATE_KEY` | Native chip-in + builder payout |
+| `NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID` / `PUBLIC_POOL_PROGRAM_ID` | Escrow gate (optional; not yet in `env.local.template`) |
+| `PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR` | Optional per-purpose PSP override |
+| Standard WFP / Stripe / PayPal secrets | Same Conductor webhooks as other purposes |
+
+### Collections
+
+`public_pools`, `public_pool_signals`, `public_pool_contributions` (clone-scoped via `getPublicPoolConfig().cloneId`).
+
+### Interactive chat (Tier A)
+
+Domain owns money; chat owns `dao_jar` snapshot. After totals change, always `refreshOpenDaoJarMessages`. Scorecard: AI-CONTEXT `concepts/chat-interactive-type-debt.json` — Tier A **CLOSED**; TD-MONEY-01/02 **CLOSED**; TD-MONEY-03 **PARTIAL**.
+
+</Audience>
+
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/payment-conductor"
+    relation="Depends-on: card/PayPal jar settle uses PaymentPurpose public_pool_contribution and shared webhooks."
+  />
+  <RelatedArticle
+    slug="features/wallet"
+    relation="Depends-on: desk oracle nativePerMainCurrency is the FX SSOT for fiat→pledged native."
+  />
+  <RelatedArticle
+    slug="features/messaging"
+    relation="Same-workflow: dao_jar widgets and PostDaoJarToChatButton after contribute refresh."
+  />
+  <RelatedArticle
+    slug="features/opportunities"
+    relation="Next-step: collective jars pay the opportunity builder wallet when funding hits 100%."
+  />
+  <RelatedArticle
+    slug="architecture/payment-conductor"
+    relation="Deep-dive: conductor types, ledger, and webhook dispatcher."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — Public pools">
+
+<FutureFeatureWidget
+  name="On-chain PublicPool escrow contribute (IDL wire)"
+  description="Deploy solana/programs/public-pool, pin NEXT_PUBLIC_PUBLIC_POOL_PROGRAM_ID, wire IDL client for contribute/finalize/refund, and persist on_chain pool_pda + vault_ata. Donation treasury path stays live until then."
+  implementationCost={120}
+  labels={['public-pools', 'solana', 'escrow', 'td-money-03']}
+  poolSlug="public-pool-escrow-idl-wire"
+/>
+
+<FutureFeatureWidget
+  name="City DAO / civic jar families"
+  description="Geo-scoped city_dao subtypes (fix-local-issue, improve-area, organize-event) on top of the shared public_pools collections."
+  implementationCost={80}
+  labels={['public-pools', 'dao', 'civic']}
+  poolSlug="public-pools-city-dao"
+/>
+
+<FutureFeatureWidget
+  name="Class-action & mutual-aid pool families"
+  description="Planned pool_kind families (collective-purchase, bulk-buy, emergency-relief, member-hardship, etc.) beyond future_feature docs jars."
+  implementationCost={96}
+  labels={['public-pools', 'governance']}
+  poolSlug="public-pools-class-action-mutual-aid"
+/>
+
+</FutureFeatureBacklog>

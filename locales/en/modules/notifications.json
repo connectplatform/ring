@@ -114,5 +114,14 @@
     "description": "Get real-time updates about collaborations, comments, and publication status.",
     "enable": "Enable",
     "notNow": "Not now"
+  },
+  "typeLabels": {
+    "poll_created": "New polls in your chats",
+    "poll_closed": "When a poll you follow closes",
+    "rsvp_invite": "RSVP invites in chat",
+    "rsvp_updated": "Updates on RSVPs you joined",
+    "dao_jar_update": "DAO jar posts and contribution updates",
+    "game_request": "Game challenges in chat",
+    "game_updated": "Updates when a game is accepted or finished"
   }
 }

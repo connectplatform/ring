@@ -20,6 +20,8 @@ const patchSchema = z.object({
   progress: z.number().min(0).max(100).optional(),
   integratorId: z.string().nullable().optional(),
   cancelAndRefund: z.boolean().optional(),
+  markPaid: z.boolean().optional(),
+  orderReference: z.string().optional(),
 })
 
 export async function GET(
@@ -65,6 +67,13 @@ export async function PATCH(
 
   let order = await ProjectOrderService.getById(id)
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  if (body.markPaid) {
+    const ref =
+      body.orderReference?.trim() ||
+      `admin_comp_${session.user.id.slice(0, 8)}_${Date.now()}`
+    order = await ProjectOrderService.markPaid(id, ref)
+  }
 
   if (typeof body.progress === 'number') {
     order = await ProjectOrderService.patch(id, { progress: body.progress })

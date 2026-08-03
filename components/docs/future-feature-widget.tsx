@@ -15,12 +15,18 @@ import { useDocsPoolPath } from '@/components/docs/docs-pool-context'
 import { deriveFutureFeaturePoolSlug } from '@/lib/public-pools/pool-slug'
 import type { PublicPoolStatsResponse } from '@/lib/zod/public-pool-schemas'
 import {
-  contributeToPoolClient,
   ensureFutureFeaturePoolClient,
   likeActionReducer,
   type LikeActionState,
 } from '@/features/public-pools/actions/public-pool-client'
+import { PoolContributePanel } from '@/features/public-pools/components/pool-contribute-panel'
+import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 import { Button } from '@/components/ui/button'
+import { ShareToChatButton } from '@/features/chat/interactive/share-to-chat-button'
+import { PostDaoJarToChatButton } from '@/features/public-pools/components/post-dao-jar-to-chat-button'
+import { ROUTES } from '@/constants/routes'
+import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 
 export type FutureFeatureWidgetProps = FutureFeatureWidgetData
 
@@ -60,6 +66,7 @@ export function FutureFeatureWidget({
   labels = [],
   poolSlug: poolSlugProp,
 }: FutureFeatureWidgetProps) {
+  const locale = useLocale() as Locale
   const docPath = useDocsPoolPath()
   const resolvedSlug =
     poolSlugProp?.trim() || deriveFutureFeaturePoolSlug(docPath, name)
@@ -67,9 +74,7 @@ export function FutureFeatureWidget({
   const [stats, setStats] = useState<PublicPoolStatsResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [chipOpen, setChipOpen] = useState(false)
-  const [chipAmount, setChipAmount] = useState('1')
-  const [chipPending, setChipPending] = useState(false)
-  const [chipError, setChipError] = useState<string | null>(null)
+  const tokenSymbol = getClientNativeTokenSymbol()
 
   const [optimisticLiked, setOptimisticLiked] = useOptimistic(
     stats?.user_has_liked ?? false,
@@ -138,26 +143,11 @@ export function FutureFeatureWidget({
     setOptimisticLikes,
   ])
 
-  const handleChipIn = useCallback(async () => {
-    setChipError(null)
-    setChipPending(true)
-    try {
-      const idempotencyKey = crypto.randomUUID()
-      const result = await contributeToPoolClient(resolvedSlug, chipAmount, idempotencyKey)
-      setStats(result)
-      setChipOpen(false)
-    } catch (error) {
-      setChipError(error instanceof Error ? error.message : 'Chip-in failed')
-    } finally {
-      setChipPending(false)
-    }
-  }, [chipAmount, resolvedSlug])
-
   const displayStats = stats
   const likeCount = likePending ? optimisticLikes : (displayStats?.pool.like_count ?? optimisticLikes)
   const userLiked = likePending ? optimisticLiked : (displayStats?.user_has_liked ?? optimisticLiked)
-  const pledged = displayStats?.pool.pledged_ring ?? '0'
-  const goalRing = displayStats?.pool.goal_ring ?? String(Math.max(implementationCost, 1))
+  const pledged = displayStats?.pool.pledged_native_token ?? '0'
+  const goalRing = displayStats?.pool.goal_native_token ?? String(Math.max(implementationCost, 1))
   const fundingPct = displayStats?.funding_progress_pct ?? 0
   const likesPct = displayStats?.likes_progress_pct ?? 0
   const isQueued =
@@ -208,7 +198,7 @@ export function FutureFeatureWidget({
                 'bg-[color-mix(in_oklch,var(--davinci-beam)_8%,transparent)]',
                 'text-[var(--davinci-beam)]',
               )}
-              title="Estimated implementation effort (1h = 1 RING)"
+              title={`Estimated implementation effort (1h = 1 ${tokenSymbol})`}
             >
               <Clock className="h-3 w-3" aria-hidden />
               ~{displayStats?.pool.goal_hours ?? Math.max(implementationCost, 1)}h
@@ -235,7 +225,7 @@ export function FutureFeatureWidget({
         {!loadError && displayStats ? (
           <div className="space-y-2">
             <ProgressTrack
-              label="RING pledged"
+              label={`${tokenSymbol} pledged`}
               value={pledged}
               max={goalRing}
               pct={fundingPct}
@@ -263,48 +253,48 @@ export function FutureFeatureWidget({
               onClick={() => setChipOpen((v) => !v)}
             >
               <Coins className="h-3.5 w-3.5" aria-hidden />
-              Chip in RING
+              Chip in {tokenSymbol}
             </Button>
+            <ShareToChatButton
+              targetType="future_feature"
+              targetId={resolvedSlug}
+              title={name}
+              description={description}
+              url={ROUTES.DAO_POOL(resolvedSlug, locale)}
+            />
+            <PostDaoJarToChatButton poolSlug={resolvedSlug} />
+          </div>
+        ) : !loadError ? (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <ShareToChatButton
+              targetType="future_feature"
+              targetId={resolvedSlug}
+              title={name}
+              description={description}
+              url={ROUTES.DAO_POOL(resolvedSlug, locale)}
+            />
+            <PostDaoJarToChatButton poolSlug={resolvedSlug} />
           </div>
         ) : null}
 
         {chipOpen ? (
-          <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-            <label className="block text-[11px] font-medium text-muted-foreground">
-              Amount (native RING)
-            </label>
-            <input
-              type="number"
-              min="0.00000001"
-              step="any"
-              value={chipAmount}
-              onChange={(e) => setChipAmount(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            />
-            {chipError ? <p className="text-[11px] text-destructive">{chipError}</p> : null}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={chipPending}
-                onClick={() => void handleChipIn()}
-              >
-                {chipPending ? 'Sending…' : 'Donate to pool'}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setChipOpen(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              Donations are non-refundable (best-effort delivery). Escrow refunds ship with the
-              Solana PublicPool program.
-            </p>
-          </div>
+          <PoolContributePanel
+            poolSlug={resolvedSlug}
+            locale={locale}
+            needSummary={name}
+            onCancel={() => setChipOpen(false)}
+            onNativeTokenSuccess={async () => {
+              try {
+                const { fetchPoolStats } = await import(
+                  '@/features/public-pools/actions/public-pool-client'
+                )
+                const next = await fetchPoolStats(resolvedSlug)
+                if (next) setStats(next)
+              } catch {
+                /* non-fatal */
+              }
+            }}
+          />
         ) : null}
 
         {labels.length > 0 && (

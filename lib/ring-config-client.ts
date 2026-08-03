@@ -2,17 +2,28 @@
  * Client-safe ring-config accessors (reads ring-config.json via ring-config-core).
  * Use instead of hardcoding USD / RING in wallet UI components.
  *
- * NOTE: The following accessors are designed to provide safe and convenient retrieval
- *       of config values for frontend consumption.
+ * ## React `use()` guidance (legiox react_19_specialist + RSC architect)
+ * Ring-config snapshot accessors are **synchronous** (imported JSON / cached
+ * getters). Do **NOT** wrap them in `use()` — `use()` is for Promises/context.
+ * Prefer:
+ * - Server Components: call accessors directly (or `cache()`-wrapped helpers)
+ * - Client islands: call sync getters as today; for async desk rates use
+ *   Suspense + server-fetched props or `use()` only around a real Promise
+ *   (e.g. fetch desk quote once). Prefer `@/lib/ring-oracle`
+ *   on the server for FX — never block desktop nav on wagmi.
  *
  * TODO:
- *   - Consider leveraging React 19's new use() hook and Next 16's Server Actions
- *     for config loading/state, if/when codebase migrates to full React/Next support.
- *   - See: https://react.dev/reference/react/use
- *   - Consider transforming module-level accessors into composable hooks or Server Components (future refactor).
+ *   - Prefer Suspense-streamed server props over client useEffect for balances
+ *   - Keep useActionState + Zod for mutative forms
  */
 
-import { getDefaultStoreCurrencySymbol, getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import {
+  getCreditUnitLabel,
+  getCreditUnitToMainCurrencyRate,
+  getMainCurrencySymbol,
+  getSystemConfigSnapshot,
+} from '@/lib/ring-config-core'
+import type { SupportedCurrencies } from '@/lib/ring-config-core'
 import { getNativeTokenSymbol, isNativeTokenOnrampEnabled as isNativeTokenOnrampEnabledServer } from '@/lib/ring-config-chain'
 
 /**
@@ -34,36 +45,33 @@ export function isNativeTokenOnrampEnabled(): boolean {
 }
 
 /**
- * Returns the configured fiat currency for credits in the system,
- * preferring 'fiatUnit', then 'unit', then defaulting to 'USD'
- * 
- * // TODO: This function is marked for potential refactor or deprecation.
- *         Consider removing or integrating into a composable context/hook.
- *         - Check all usage for type safety and server/client boundaries.
+ * Project main currency symbol for client surfaces.
+ * SSOT: ring-config.json → `store.mainCurrency` (same value as the server accessor).
  */
-export function getClientCreditFiatCurrency(): string {
-  const credits = getSystemConfigSnapshot().credits
-  return credits?.fiatUnit ?? credits?.unit ?? 'USD'
+export function getClientMainCurrency(): SupportedCurrencies {
+  return getMainCurrencySymbol()
 }
 
-/** Display label for platform credit points (ring-config.json → credit.creditUnitLabel). */
+/** Display label for the credit balance unit (ring-config.json → credit.creditBalanceUnitLabel). */
 export function getClientCreditUnitLabel(): string {
-  const snapshot = getSystemConfigSnapshot() as { credit?: { creditUnitLabel?: string } }
-  return snapshot.credit?.creditUnitLabel ?? 'points'
+  return getCreditUnitLabel()
 }
 
 /**
  * Client-side desk buy preview: points → native token.
  * Prefer live quote from `/api/wallet/desk/quote`; this is a fallback estimate.
- * Formula matches desk-service: nativeOut = points / ringPerUsd (rate 100 → 100 points = 1 RING).
+ * Matches desk-service: nativeOut = (points × creditBalanceUnitToMainCurrency) / nativePerMainCurrency.
+ * SSOT: 100 points × 0.1 USD/point / $10/RING = 1 RING.
  */
 export function previewNativeTokenFromCreditPoints(
   points: number,
-  ringPerUsd = Number(process.env.NEXT_PUBLIC_RING_ORACLE_DEFAULT_RATE ?? 100),
+  nativePerMainCurrency = getClientNativePerMainCurrencyDefault(),
 ): string {
-  if (points <= 0 || !Number.isFinite(ringPerUsd) || ringPerUsd <= 0) return '0'
-  const ringUi = points / ringPerUsd
-  return ringUi.toFixed(8).replace(/\.?0+$/, '')
+  if (points <= 0 || !Number.isFinite(nativePerMainCurrency) || nativePerMainCurrency <= 0) return '0'
+  const unit = getCreditUnitToMainCurrencyRate()
+  const mainCurrencyAmount = points * (unit > 0 ? unit : 0.1)
+  const nativeUi = mainCurrencyAmount / nativePerMainCurrency
+  return nativeUi.toFixed(8).replace(/\.?0+$/, '')
 }
 
 /**
@@ -96,6 +104,162 @@ export function getClientNativeTokenDecimals(chain?: 'solana' | 'evm'): number {
 }
 
 /**
+ * Client-safe treasury swap allowlist (chains.evm.treasurySwapAllowlist).
+ */
+export function getClientTreasurySwapAllowlist(): Array<{
+  tokenAddress: `0x${string}`
+  address: `0x${string}`
+  symbol: string
+  decimals: number
+  enabled: boolean
+  chainlinkFeed?: string
+}> {
+  const evm = getSystemConfigSnapshot().chains?.evm as
+    | {
+        treasurySwapAllowlist?: Array<{
+          address?: string
+          symbol?: string
+          decimals?: number
+          enabled?: boolean
+          chainlinkFeed?: string
+        }>
+      }
+    | undefined
+  const list = Array.isArray(evm?.treasurySwapAllowlist) ? evm.treasurySwapAllowlist : []
+  return list
+    .filter((e) => e.enabled !== false && Boolean(e.address) && Boolean(e.symbol))
+    .map((e) => {
+      const address = e.address as `0x${string}`
+      return {
+        tokenAddress: address,
+        address,
+        symbol: e.symbol!,
+        decimals: typeof e.decimals === 'number' ? e.decimals : 18,
+        enabled: true,
+        chainlinkFeed: e.chainlinkFeed,
+      }
+    })
+}
+
+export function getClientEvmTreasuryAddress(): string | null {
+  const fromConfig = (getSystemConfigSnapshot().chains?.evm as { treasuryAddress?: string } | undefined)
+    ?.treasuryAddress
+    ?.trim()
+  const fromPublic = process.env.NEXT_PUBLIC_EVM_TREASURY_ADDRESS?.trim()
+  const addr = fromConfig || fromPublic
+  if (!addr || addr === '0x0000000000000000000000000000000000000000') return null
+  return addr
+}
+
+/** Fiat → credit points via card (wallet_topup). SSOT: payment.cardPaymentProcessor + gateways. */
+export function isClientFiatCardTopupEnabled(): boolean {
+  const payment = getSystemConfigSnapshot().payment as
+    | {
+        cardPaymentProcessor?: string
+        gateways?: Record<string, { enabled?: boolean }>
+      }
+    | undefined
+  const proc = (payment?.cardPaymentProcessor ?? 'wayforpay').toLowerCase()
+  if (proc === 'wayforpay') return payment?.gateways?.wayforpay?.enabled !== false
+  if (proc === 'stripe') return payment?.gateways?.stripe?.enabled === true
+  return Boolean(payment?.gateways?.[proc]?.enabled)
+}
+
+/** Fiat onramp umbrella (card rails available for wallet credit top-up). */
+export function isClientFiatOnrampEnabled(): boolean {
+  return isClientFiatCardTopupEnabled()
+}
+
+/** PayPal → credit when gateway enabled and fiat onramp is on. */
+export function isClientFiatPaypalTopupEnabled(): boolean {
+  if (!isClientFiatOnrampEnabled()) return false
+  const payment = getSystemConfigSnapshot().payment as
+    | { gateways?: Record<string, { enabled?: boolean }> }
+    | undefined
+  return payment?.gateways?.paypal?.enabled === true
+}
+
+/** Hosted checkout brand for card top-up copy. */
+export function getClientWalletTopupProcessorLabel(): string {
+  const payment = getSystemConfigSnapshot().payment as
+    | { cardPaymentProcessor?: string }
+    | undefined
+  const proc = (payment?.cardPaymentProcessor ?? 'wayforpay').toLowerCase()
+  if (proc === 'stripe') return 'Stripe'
+  if (proc === 'paypal') return 'PayPal'
+  return 'WayForPay'
+}
+
+/** Card PSP for store/membership checkout. SSOT: payment.cardPaymentProcessor. */
+export function getClientCardPaymentProcessor(): 'wayforpay' | 'stripe' {
+  const payment = getSystemConfigSnapshot().payment as
+    | { cardPaymentProcessor?: string }
+    | undefined
+  const proc = (payment?.cardPaymentProcessor ?? 'wayforpay').toLowerCase()
+  return proc === 'stripe' ? 'stripe' : 'wayforpay'
+}
+
+/**
+ * Default native-token price in main-currency units (main per 1 native).
+ * SSOT: exchangeRates[nativeTokenSymbol] → NEXT_PUBLIC_RING_ORACLE_DEFAULT_RATE → 10.
+ */
+export function getClientNativePerMainCurrencyDefault(): number {
+  const rates = getSystemConfigSnapshot().exchangeRates as Record<string, number> | undefined
+  const fromConfig = rates?.[getNativeTokenSymbol()]
+  if (typeof fromConfig === 'number' && Number.isFinite(fromConfig) && fromConfig > 0) {
+    return fromConfig
+  }
+  const fromEnv = Number(process.env.NEXT_PUBLIC_RING_ORACLE_DEFAULT_RATE ?? NaN)
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 10
+}
+
+export type ClientStorePaymentRailId = 'card' | 'credit_balance' | 'native_token' | 'paypal'
+
+export interface ClientStorePaymentRail {
+  id: ClientStorePaymentRailId
+  /** API path under /api/store/payments/ */
+  api: 'card' | 'credit_balance' | 'native_token' | 'paypal'
+  enabled: boolean
+  recommended?: boolean
+}
+
+/**
+ * Store checkout rails for UI — mirrors PaymentConductor store_order rails.
+ * Card always on. Credit/token/paypal gated by env + payment.gateways.
+ */
+export function getClientStorePaymentRails(): ClientStorePaymentRail[] {
+  const payment = getSystemConfigSnapshot().payment as
+    | {
+        gateways?: Record<string, { enabled?: boolean }>
+      }
+    | undefined
+  const gateways = payment?.gateways ?? {}
+
+  // Store rails: PaymentConductor isRailEnabled + payment.gateways (not membership.supportedMethods).
+  const creditEnabled =
+    process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_CREDIT !== 'false' &&
+    gateways.credit_balance?.enabled !== false
+
+  const tokenEnabled =
+    process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN === 'true' &&
+    gateways.native_token?.enabled !== false
+
+  const paypalEnabled =
+    process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL === 'true' &&
+    gateways.paypal?.enabled === true
+
+  const cardProcessor = getClientCardPaymentProcessor()
+  const cardEnabled = gateways[cardProcessor]?.enabled !== false
+
+  return [
+    { id: 'card', api: 'card', enabled: cardEnabled, recommended: true },
+    { id: 'credit_balance', api: 'credit_balance', enabled: creditEnabled },
+    { id: 'native_token', api: 'native_token', enabled: tokenEnabled },
+    { id: 'paypal', api: 'paypal', enabled: paypalEnabled },
+  ]
+}
+
+/**
  * Returns array of currencies for opportunity budget (select input: fiat & token).
  * Model: [{ value: symbol, label: symbol }, ...]
  *
@@ -114,7 +278,7 @@ export function getClientSiteName(): string {
 
 export function getClientOpportunityBudgetCurrencies(): Array<{ value: string; label: string }> {
   // Get the default (store) fiat symbol from config
-  const fiat = getDefaultStoreCurrencySymbol()
+  const fiat = getMainCurrencySymbol()
   // Get the current native token symbol from ring-config-chain abstraction
   const token = getNativeTokenSymbol()
   // Return two options for UI select/dropdown etc.

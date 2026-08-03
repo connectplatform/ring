@@ -10,9 +10,11 @@ const AnimatedLogoInner = dynamic(() => import('./animated-logo-content'), {
 export interface AnimatedLogoProps {
   size?: number
   className?: string
+  /** Full-spectrum hyperspace swirl (roadmap warp finale). */
+  vibrant?: boolean
 }
 
-export default function AnimatedLogo({ size, className }: AnimatedLogoProps) {
+export default function AnimatedLogo({ size, className, vibrant }: AnimatedLogoProps) {
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function AnimatedLogo({ size, className }: AnimatedLogoProps) {
 
   return (
     <div className={className}>
-      <AnimatedLogoInner size={size} />
+      <AnimatedLogoInner size={size} vibrant={vibrant} />
     </div>
   )
 }

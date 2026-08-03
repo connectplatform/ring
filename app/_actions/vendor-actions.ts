@@ -25,7 +25,8 @@ import { db } from '@/lib/database'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { createVendorProfile } from '@/features/store/services/vendor-lifecycle'
 import { buildMainStoreListingPatch, flattenProductDocumentForWrite, resolveVendorEntityId } from '@/features/store/lib/product-document'
-import { normalizePriceToUah, type StoreCurrency } from '@/lib/zod/store-product'
+import { normalizePriceToMainCurrency, type StorePaymentMethods } from '@/lib/zod/store-product'
+import { convertFromMainCurrency, getMainCurrencySymbol } from '@/lib/ring-oracle'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale } from '@/i18n/shared'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
@@ -37,6 +38,8 @@ import type {
   ProductPromotion,
   VendorStorePromotions,
 } from '@/features/store/types/promotions'
+import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
+import { createProductNodusWikiFromDraft } from '@/features/store/lib/product-nodus-wiki'
 
 function parseProductPromotionsFromForm(formData: FormData): ProductPromotion[] {
   const raw = (formData.get('promotionsJson') as string)?.trim()
@@ -109,11 +112,16 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       return { error: 'Please select at least one category' }
     }
 
-    // Handle store logo upload (if provided)
+    // Handle store logo — prefer GenerativeMedia URL; legacy File upload still supported
     let logoUrl: string | null = null
+    const logoUrlField = (formData.get('storeLogoUrl') as string | null)?.trim()
+    if (logoUrlField && /^https?:\/\//i.test(logoUrlField)) {
+      logoUrl = logoUrlField
+    }
+
     const logoFile = formData.get('storeLogo') as File | null
     
-    if (logoFile && logoFile.size > 0) {
+    if (!logoUrl && logoFile && logoFile.size > 0) {
       // Validate logo
       if (logoFile.size > 5 * 1024 * 1024) {
         return { error: 'Logo file size must be less than 5MB' }
@@ -156,6 +164,24 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       logoUrl = result.url
     }
 
+    // Existing live storefront URLs (optional) — feed future wwwdata-conductor
+    let existingStorefrontUrls: string[] = []
+    try {
+      const raw = formData.get('existingStorefrontUrls') as string | null
+      const parsed = raw ? JSON.parse(raw) : []
+      if (Array.isArray(parsed)) {
+        existingStorefrontUrls = parsed
+          .map((u) => String(u || '').trim())
+          .filter((u) => /^https?:\/\//i.test(u))
+          .slice(0, 8)
+      }
+    } catch {
+      existingStorefrontUrls = []
+    }
+    // TODO(wwwdata-conductor): enqueue existingStorefrontUrls after entity create —
+    // fetch AI-filtered assets into vendor files (/files/{storeSlug}/), TextConductor
+    // description draft. Do not block this action on the async pipeline.
+
     // Create vendor Entity
     const entityId = `entity_vendor_${Date.now()}`
     
@@ -177,6 +203,7 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       storeSlug: storeSlug,
       storeCategories: storeCategories,
       storeLogo: logoUrl,
+      existingStorefrontUrls,
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -309,13 +336,13 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     }
 
     // Extract form data — using centralized schema from store-product
-    const { isStoreCurrency } = await import('@/lib/zod/store-product')
+    const { isStorePaymentMethods } = await import('@/lib/zod/store-product')
     const name = (formData.get('name') as string)?.trim()
     const category = formData.get('category') as string
-    const currencyRaw = (formData.get('currency') as string)?.trim() || 'UAH'
-    const currency = isStoreCurrency(currencyRaw) ? currencyRaw : 'UAH'
-    const rawPrice = parseFloat(formData.get('priceUAH') as string)
-    const priceUAH = normalizePriceToUah(rawPrice, currency)
+    const currencyRaw = (formData.get('currency') as string)?.trim() || getMainCurrencySymbol()
+    const currency = isStorePaymentMethods(currencyRaw) ? currencyRaw : getMainCurrencySymbol()
+    const rawPrice = parseFloat(formData.get('price') as string)
+    const priceMain = normalizePriceToMainCurrency(rawPrice, currency)
     const stock = parseInt(formData.get('stock') as string, 10)
     const daarPrice = formData.get('daarPrice') ? parseFloat(formData.get('daarPrice') as string) : null
     const description = (formData.get('description') as string)?.trim() || ''
@@ -325,6 +352,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     const productAudience = (formData.get('productAudience') as string) || 'public'
     const locale = (formData.get('locale') as Locale) || defaultLocale as Locale
     const referralCommissionRaw = (formData.get('referralCommission') as string)?.trim()
+    const researchForm = parseProductResearchFormData(formData)
     let referralCommission: number | undefined
     if (referralCommissionRaw) {
       referralCommission = parseFloat(referralCommissionRaw)
@@ -340,7 +368,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     if (!category) {
       return { error: 'Category is required' }
     }
-    if (isNaN(priceUAH) || priceUAH <= 0) {
+    if (isNaN(priceMain) || priceMain <= 0) {
       return { error: 'Price must be a positive number' }
     }
     if (isNaN(stock) || stock < 0) {
@@ -366,6 +394,12 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
 
     // Create product ID
     const productId = `product_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+    const productNodusWiki = await createProductNodusWikiFromDraft({
+      productId,
+      productName: name,
+      productAgent: researchForm.productAgent,
+      nodusJson: researchForm.nodusDraft,
+    })
 
     // Prefer GenerativeMediaField pre-uploaded URLs (SSOT); fall back to legacy File photo-*
     const resolved = resolveProductImagesFromForm(formData)
@@ -492,10 +526,11 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       perishable: formData.get('perishable') === 'on' || true
     }
 
-    // Auto-calculate DAAR/DAARION prices
-    const calculatedDaarPrice = daarPrice || priceUAH * 10 // 1 UAH ≈ 10 DAAR
-    const daarionPrice = priceUAH * 0.5 // 1 UAH ≈ 0.5 DAARION
-    const usdtPrice = priceUAH / 41 // 1 USD ≈ 41 UAH
+    // Token/USD equivalents come from ring-config `exchangeRates`, so a clone
+    // in any main currency prices its own tokens correctly.
+    const calculatedDaarPrice = daarPrice || convertFromMainCurrency(priceMain, 'DAAR')
+    const daarionPrice = convertFromMainCurrency(priceMain, 'DAARION')
+    const usdtPrice = convertFromMainCurrency(priceMain, 'USD')
 
     const tokenEconomy = {
       daarPrice: daarPrice,
@@ -517,7 +552,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       id: productId,
       name,
       description,
-      price: priceUAH,
+      price: priceMain,
       currency,
       category,
       images: photoUrls,
@@ -535,7 +570,16 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       ...(generativeGallery ? { generativeGallery } : {}),
       activeInVendorStore: activeInMyStore,
       slug: `${(vendorEntity as any).storeSlug ?? vendorEntity.id}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-      longDescription: '',
+      longDescription: researchForm.productAgent || '',
+      ...(researchForm.productAgent ? { productAgent: researchForm.productAgent } : {}),
+      ...(researchForm.nodusDraft ? { productNodusDraft: researchForm.nodusDraft } : {}),
+      ...(productNodusWiki ? { productNodusWiki } : {}),
+      ...(researchForm.researchFields
+        ? { productResearchFields: researchForm.researchFields }
+        : {}),
+      ...(researchForm.researchMedia.length
+        ? { productResearchMedia: researchForm.researchMedia }
+        : {}),
       tags: [],
       agriculturalData,
       certifications,
@@ -621,11 +665,11 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     // Extract updated data
     const name = (formData.get('name') as string)?.trim()
     const category = formData.get('category') as string
-    const { isStoreCurrency } = await import('@/lib/zod/store-product')
-    const currencyRaw = (formData.get('currency') as string)?.trim() || 'UAH'
-    const currency = isStoreCurrency(currencyRaw) ? currencyRaw : 'UAH'
-    const rawPrice = parseFloat(formData.get('priceUAH') as string)
-    const priceUAH = normalizePriceToUah(rawPrice, currency)
+    const { isStorePaymentMethods } = await import('@/lib/zod/store-product')
+    const currencyRaw = (formData.get('currency') as string)?.trim() || getMainCurrencySymbol()
+    const currency = isStorePaymentMethods(currencyRaw) ? currencyRaw : getMainCurrencySymbol()
+    const rawPrice = parseFloat(formData.get('price') as string)
+    const priceMain = normalizePriceToMainCurrency(rawPrice, currency)
     const stock = parseInt(formData.get('stock') as string, 10)
     const daarPrice = formData.get('daarPrice') ? parseFloat(formData.get('daarPrice') as string) : null
     const description = (formData.get('description') as string)?.trim() || ''
@@ -649,7 +693,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     if (!category) {
       return { error: 'Category is required' }
     }
-    if (isNaN(priceUAH) || priceUAH <= 0) {
+    if (isNaN(priceMain) || priceMain <= 0) {
       return { error: 'Price must be a positive number' }
     }
     if (isNaN(stock) || stock < 0) {
@@ -778,10 +822,10 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       perishable: formData.has('perishable') ? formData.get('perishable') === 'on' : existingProduct.data?.freshness?.perishable || true
     }
 
-    // Recalculate token prices
-    const recalculatedDaarPrice = daarPrice || priceUAH * 10
-    const recalculatedDaarionPrice = priceUAH * 0.5
-    const recalculatedUsdtPrice = priceUAH / 41
+    // Recalculate token prices from ring-config `exchangeRates`.
+    const recalculatedDaarPrice = daarPrice || convertFromMainCurrency(priceMain, 'DAAR')
+    const recalculatedDaarionPrice = convertFromMainCurrency(priceMain, 'DAARION')
+    const recalculatedUsdtPrice = convertFromMainCurrency(priceMain, 'USD')
 
     const tokenEconomy = {
       ...(existingProduct.data?.tokenEconomy || {}),
@@ -800,10 +844,16 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       existing: existingProduct,
     })
 
+    const productAgentRaw = String(formData.get('productAgent') ?? '').trim()
+    const productNodusWikiPageId = String(formData.get('productNodusWikiPageId') ?? '').trim()
+    const existingWiki = existingProduct.productNodusWiki as
+      | { wikiPageId?: string; wikiVaultKey?: string; title?: string }
+      | undefined
+
     const updatedData = flattenProductDocumentForWrite(existingProduct, {
       name,
       description,
-      price: priceUAH,
+      price: priceMain,
       currency,
       category,
       images: photoUrls,
@@ -828,6 +878,17 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
           : {}),
       ...(rep ? { rep } : { rep: undefined }),
       ...(productAudience ? { productAudience } : {}),
+      ...(productAgentRaw ? { productAgent: productAgentRaw } : {}),
+      ...(productNodusWikiPageId
+        ? {
+            productNodusWiki: {
+              wikiPageId: productNodusWikiPageId,
+              wikiVaultKey: existingWiki?.wikiVaultKey,
+              title: existingWiki?.title,
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        : {}),
     })
 
     const updateResult = await db().updateDoc('store_products', productId, updatedData)

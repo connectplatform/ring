@@ -20,6 +20,10 @@ import {
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
+import {
+  formatMembershipMainCurrencyAmount,
+  getMemberMainCurrencyTier,
+} from '@/lib/membership/pricing'
 
 interface MembershipUpsellCardProps {
   className?: string
@@ -178,7 +182,9 @@ export default function MembershipUpsellCard({
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="font-semibold text-foreground">Premium Plan</div>
-              <div className="text-sm text-muted-foreground">Starting from $29/month</div>
+              <div className="text-sm text-muted-foreground">
+                Starting from {formatMembershipMainCurrencyAmount(getMemberMainCurrencyTier())}/month
+              </div>
             </div>
             <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700">
               Most Popular

@@ -99,13 +99,11 @@ function NotificationSettings() {
 |------|------|------------------|
 | `useCreditBalance` | `use-credit-balance.ts` | **`CreditBalanceProvider`** — use `useCreditBalanceContext()` in UI |
 | `useCreditHistory` | `use-credit-history.ts` | **`CreditHistoryProvider`** (wallet shell) — use `useCreditHistoryContext()` in UI |
-| `usePrimaryNativeBalance` | `use-primary-native-balance.ts` | Client SSOT for custodial primary native RING via `GET /api/wallet/list` (profile + mobile widget) |
-| `useTokenBalance` | `use-token-balance.ts` | **`@deprecated`** alias → `usePrimaryNativeBalance` (do not use in new code) |
+| `usePrimaryNativeBalance` | `use-primary-native-balance.ts` | Client SSOT for custodial primary native token via `GET /api/wallet/list` (profile + mobile widget) |
 | `useWalletActions` | `use-wallet-actions.ts` | wallet mutations |
 
-> **Note:** There is no `useNativeTokenBalance` / `useWalletBalance` React hook in this tree.
-> Server on-chain reads use `getNativeTokenBalance` / `getNativeTokenBalanceForUser`;
-> UI credit balances use `useCreditBalanceContext()`.
+> **Connected browser wallet (wagmi):** use `useConnection` / `useBalance` from `@/lib/wagmi-config` on routes where `pathNeedsWeb3` mounts `Web3Provider` (e.g. `/wallet`).  
+> **Server on-chain custodial reads:** `getNativeTokenBalance` / `getEvmTokenBalance` / `getNativeTokenBalanceForUser`.
 
 ---
 

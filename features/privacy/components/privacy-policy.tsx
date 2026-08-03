@@ -1,16 +1,22 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
+import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
+import { Button } from '@/components/ui/button'
+import { FsModal } from '@/components/ui/fs-modal'
+import { ContactForm } from '@/components/common/widgets/contact-form'
 
 /** Horizontal inset for text — mirrors about-publisher's compact form/legal recipe. */
 const INSET = 'px-4 sm:px-5 lg:px-6'
 
 export default function PrivacyPolicy() {
   const t = useTranslations('privacy')
+  const { data: session } = useSession()
+  const [contactOpen, setContactOpen] = useState(false)
 
   return (
     <motion.div
@@ -81,11 +87,30 @@ export default function PrivacyPolicy() {
           <h2 className="mb-3 text-xl font-semibold sm:text-2xl">
             {t('privacyPolicyText.contactUsPrivacy.title')}
           </h2>
-          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+          <p className="mb-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t('privacyPolicyText.contactUsPrivacy.content')}
           </p>
+          <Button type="button" onClick={() => setContactOpen(true)}>
+            {t('privacyPolicyText.contactUsPrivacy.contactStaff')}
+          </Button>
         </div>
       </div>
+
+      <FsModal
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        title={t('privacyPolicyText.contactUsPrivacy.contactStaff')}
+        description={t('privacyPolicyText.contactUsPrivacy.content')}
+      >
+        <ContactForm
+          entityId="privacy_page"
+          entityName="Privacy Policy"
+          initialUserInfo={{
+            name: session?.user?.name || '',
+            email: session?.user?.email || '',
+          }}
+        />
+      </FsModal>
     </motion.div>
   )
 }

@@ -8,7 +8,7 @@ import type { StoreProduct } from '@/features/store'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
 import { pickGalleryDisplayUrl } from '@/features/generative-media/types'
 import { useStore } from '@/features/store/context'
-import { useStoreCurrency, resolveStorePriceCurrency, type StoreCurrency } from '@/features/store/currency-context'
+import { useStorePaymentMethods, resolveStorePriceCurrency, type StorePaymentMethods } from '@/features/store/currency-context'
 import type { Locale } from '@/i18n/shared'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
@@ -36,16 +36,16 @@ export function ProductCard({
   // Get cart mutation from store context
   const { addToCart } = useStore()
 
-  // Currency state/formatter and conversion (SSOT: StoreCurrencyProvider)
+  // Currency state/formatter and conversion (SSOT: StorePaymentMethodsProvider)
   const {
     currency,
     convertPrice,
     formatPrice,
     equivalentCurrency,
-    defaultCurrency,
-  } = useStoreCurrency()
+    mainCurrency,
+  } = useStorePaymentMethods()
 
-  const fromCurrency = resolveStorePriceCurrency(product.currency || defaultCurrency)
+  const fromCurrency = resolveStorePriceCurrency(product.currency || mainCurrency)
   const priceAmount = Number(product.price)
   const primaryPrice = formatPrice(
     convertPrice(priceAmount, fromCurrency, currency),

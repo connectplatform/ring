@@ -189,7 +189,11 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     }
 
     console.log(`Services: createEntity - Entity created successfully with ID: ${entityId}`);
-    await syncEntityDiscovery({ entityId, event: 'created' })
+    const { mapDbDocumentToSerializedEntity } = await import('@/features/entities/lib/entity-db-mapper')
+    const snippet = mapDbDocumentToSerializedEntity(
+      createdEntity as unknown as Record<string, unknown> & { id: string },
+    ) as unknown as Record<string, unknown>
+    await syncEntityDiscovery({ entityId, event: 'created', snippet })
     return createdEntity;
 
   } catch (error) {

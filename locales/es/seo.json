@@ -514,6 +514,10 @@
       "version"
     ],
     "ogTitle": "Registro de cambios — Ring Platform",
-    "ogDescription": "Notas de versión desde CHANGELOG.md"
+    "ogDescription": "Notas de versión desde docs changelog"
+  },
+  "fileCabinet": {
+    "title": "Archivador",
+    "description": "Tu gestor de archivos personal de Ring."
   }
 }

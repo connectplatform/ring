@@ -3,22 +3,16 @@ import { z } from 'zod'
 import { auth } from '@/auth'
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
 import { logger } from '@/lib/logger'
-import { getMembershipRingUpgradeAmount, getMembershipRingRenewalAmount } from '@/lib/membership/pricing'
+import type { MembershipBillingPeriod } from '@/lib/membership/pricing'
+import { getLiveMemberMainCurrencyTierForPeriod } from '@/lib/membership/pricing-live'
+import { getPayPalGatewayCurrency } from '@/lib/payments/processors/paypal-client'
+import { convertFromMainCurrency } from '@/lib/ring-oracle'
+import { membershipApiPaymentBodySchema } from '@/lib/zod/membership-schemas'
 
 /**
- * PayPal payment request schema.
- *
- * Handles PayPal payments for membership tiers.
- * For fiat USD credit balance payments, use /api/membership/payment/credit.
- * For on-chain native token payments, use /api/membership/payment/token.
- * For card payments, use /api/membership/payment/card.
+ * PayPal membership payment — shared membership API body schema.
  */
-const PayPalPaymentRequestSchema = z.object({
-  type: z.enum(['membership_upgrade', 'subscription_renewal', 'membership_fee']),
-  amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid positive number').optional(),
-  auto_subscribe: z.boolean().default(true), // PayPal payments default to subscription
-})
-
+const PayPalPaymentRequestSchema = membershipApiPaymentBodySchema
 type PayPalPaymentRequest = z.infer<typeof PayPalPaymentRequestSchema>
 
 /**
@@ -58,25 +52,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { type, amount, auto_subscribe } = validatedRequest
+    const { type, amount, auto_subscribe, billingPeriod } = validatedRequest
+    const period = billingPeriod as MembershipBillingPeriod
+    const currency = getPayPalGatewayCurrency()
 
-    const defaultUpgradeAmount = getMembershipRingUpgradeAmount()
-    const defaultRenewalAmount = getMembershipRingRenewalAmount()
-    const membershipFee =
-      amount ??
-      (type === 'subscription_renewal'
-        ? defaultRenewalAmount.toString()
-        : defaultUpgradeAmount.toString())
-    const paymentAmount = parseFloat(membershipFee)
+    // Price is always server-derived from the live desk oracle; the client-sent
+    // `amount` is advisory display only and must never set what we charge.
+    const fiatTier = await getLiveMemberMainCurrencyTierForPeriod(period)
+    const paymentAmount = Number(convertFromMainCurrency(fiatTier.amount, currency).toFixed(2))
 
-    // Validate payment amount
-    if (paymentAmount <= 0 || paymentAmount > 100) {
-      return NextResponse.json(
-        {
-          error: `Invalid payment amount. Must be between 0.01 and 100 USD`,
-        },
-        { status: 400 }
-      )
+    if (amount !== undefined && Math.abs(parseFloat(amount) - paymentAmount) > 0.01) {
+      logger.warn('PayPal membership: client amount differs from live desk price', {
+        userId,
+        clientAmount: amount,
+        serverAmount: paymentAmount,
+        currency,
+      })
+    }
+
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0 || paymentAmount > 1_000_000) {
+      return NextResponse.json({ error: 'Invalid payment amount' }, { status: 400 })
     }
 
     // SSOT: PaymentConductor paypal processor + SubscriptionConductor paypal provider
@@ -105,7 +100,6 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ring-platform.org'
     const returnUrl = `${baseUrl}/membership/manage?status=paypal_return`
 
-    // Prefer SubscriptionConductor (creates PaymentConductor checkout once via paypal provider)
     const sub = await SubscriptionConductor.createSubscription({
       userId,
       userEmail,
@@ -113,7 +107,7 @@ export async function POST(request: NextRequest) {
       gateway: 'paypal',
       method: 'paypal',
       amount: paymentAmount,
-      currency: 'USD',
+      currency,
       gatewayFeePercent: 2.9,
       gatewayFeeFixed: 0.3,
       returnUrl,
@@ -122,22 +116,22 @@ export async function POST(request: NextRequest) {
         type,
         auto_subscribe,
         returnUrl,
+        billingPeriod: period,
       },
     })
 
     if (!sub.success || !sub.redirectUrl) {
-      // Fallback: direct PaymentConductor if provider path failed
       const { PaymentConductor } = await import('@/lib/payments/conductor/payment-conductor')
       const checkout = await PaymentConductor.createCheckout({
         purpose: 'membership_upgrade',
-        rail: 'merchant_redirect',
+        rail: 'paypal',
         userId,
         userEmail,
         entityId: userId,
         amount: paymentAmount,
-        currency: 'USD',
+        currency,
         returnUrl,
-        metadata: { processor: 'paypal', type, auto_subscribe },
+        metadata: { processor: 'paypal', type, auto_subscribe, billingPeriod: period },
       })
 
       if (!checkout.success || !checkout.paymentUrl) {
@@ -191,7 +185,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const membershipFee = getMembershipRingUpgradeAmount()
+    const paypalCurrency = getPayPalGatewayCurrency()
+    const fiatTier = await getLiveMemberMainCurrencyTierForPeriod('monthly')
 
     const { isPayPalCredentialsConfigured } = await import('@/lib/payments/processors/paypal-client')
     const live = isPayPalCredentialsConfigured()
@@ -202,7 +197,7 @@ export async function GET(request: NextRequest) {
         ? 'PayPal Orders v2 via PaymentConductor is available'
         : 'Set PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET (and WEBHOOK_ID) to enable PayPal',
       conductor: {
-        payment: 'PaymentConductor.createCheckout({ rail: merchant_redirect, metadata.processor: paypal })',
+        payment: 'PaymentConductor.createCheckout({ rail: paypal })',
         subscription: 'SubscriptionConductor provider paypal',
         webhook: 'POST /api/payments/paypal/webhook',
       },
@@ -213,8 +208,8 @@ export async function GET(request: NextRequest) {
       },
       pricing: {
         membership_fee: {
-          amount: membershipFee.toFixed(2),
-          currency: 'USD',
+          amount: convertFromMainCurrency(fiatTier.amount, paypalCurrency).toFixed(2),
+          currency: paypalCurrency,
         },
         fees: {
           processing_fee: '2.9% + $0.30 (ring-config payment.gateways.paypal)',

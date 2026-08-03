@@ -49,7 +49,12 @@
       "createPool": "Create pool",
       "saveChanges": "Save changes",
       "cancel": "Cancel",
-      "saveFailed": "Save failed"
+      "saveFailed": "Save failed",
+      "builderUserIdLabel": "Builder user ID (optional)",
+      "builderUserIdPlaceholder": "Ring user id for ledger attribution",
+      "payoutWalletLabel": "Builder payout wallet",
+      "payoutWalletPlaceholder": "Solana address for accounting payout on completed",
+      "payoutTxHash": "Payout tx: {hash}"
     },
     "create": {
       "title": "Create public pool",
@@ -72,5 +77,11 @@
       "completed": "Completed",
       "cancelled": "Cancelled"
     }
-  }
+  },
+  "shareToChat": "Share",
+  "postJarToChat": "Post jar card",
+  "postJarPickContacts": "Post funding jar to contacts",
+  "postJarConfirm": "Post jar",
+  "postJarSuccess": "Jar card posted",
+  "postJarFailed": "Could not post jar"
 }

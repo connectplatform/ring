@@ -4,11 +4,21 @@
  */
 
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { parse } from 'node:url';
 import next from 'next';
 import { getDeployTarget } from './lib/tunnel/deploy-target';
 import { getTunnelHub } from './lib/tunnel/hub';
 import { attachTunnelWss } from './lib/tunnel/native-ws/attach';
+
+// @next/env is CJS-only. Named ESM import `{ loadEnvConfig }` fails under
+// `node --import tsx` (Node 25 + Next 16). createRequire is the stable interop.
+const { loadEnvConfig } = createRequire(import.meta.url)('@next/env') as typeof import('@next/env');
+
+// Load .env* before reading PORT — otherwise `PORT=` in .env.local is ignored and
+// the server binds :3000 while NEXT_PUBLIC_* still point at another port.
+const projectDir = process.cwd();
+loadEnvConfig(projectDir);
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME ?? 'localhost';

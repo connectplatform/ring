@@ -28,7 +28,8 @@
     },
     "contactUsPrivacy": {
       "title": "Contact Us",
-      "content": "If you have any questions about this Privacy Policy, please contact us at privacy@ring.ck.ua"
+      "content": "If you have any questions about this Privacy Policy, please contact our staff.",
+      "contactStaff": "Contact Staff"
     }
   }
 }

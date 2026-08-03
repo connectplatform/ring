@@ -28,8 +28,8 @@ import { useCreditBalanceContext } from '@/components/providers/credit-balance-p
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import {
-  DEFAULT_CURRENCY,
-  useStoreCurrency,
+  MAIN_CURRENCY,
+  useStorePaymentMethods,
   resolveStorePriceCurrency,
 } from '@/features/store/currency-context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
@@ -393,7 +393,7 @@ function FavoritesWidget() {
                           {p.price && (
                             <div className="text-xs text-muted-foreground mt-1">
                               {typeof p.price === 'number' ? p.price.toFixed(2) : p.price}{' '}
-                            {p.currency || DEFAULT_CURRENCY}
+                            {p.currency || MAIN_CURRENCY}
                             </div>
                           )}
                         </div>
@@ -437,7 +437,7 @@ function FavoritesWidget() {
 function CartWidget() {
   const locale = useLocale() as Locale
   const store = useOptionalStore()
-  const { currency, convertPrice, formatPrice, defaultCurrency } = useStoreCurrency()
+  const { currency, convertPrice, formatPrice, mainCurrency } = useStorePaymentMethods()
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -469,11 +469,11 @@ function CartWidget() {
     const total = cartItems.reduce((sum, item) => {
       const priceDefaultCurrency =
         item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price || '0')
-      const from = resolveStorePriceCurrency(item.product.currency || defaultCurrency)
+      const from = resolveStorePriceCurrency(item.product.currency || mainCurrency)
       return sum + convertPrice(priceDefaultCurrency, from, currency) * item.quantity
     }, 0)
     return formatPrice(total, currency)
-  }, [cartItems, convertPrice, currency, defaultCurrency, formatPrice])
+  }, [cartItems, convertPrice, currency, mainCurrency, formatPrice])
 
   return (
     <div className="relative" ref={containerRef}>

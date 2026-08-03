@@ -1,17 +1,17 @@
 ---
 title: Payments Overview
-description: PaymentConductor with WayForPay, Stripe, PayPal, and internal credit — store, membership, news promotion, and wallet top-up. Links to deep-dive articles.
-last_modified: "2026-07-16"
+description: PaymentConductor with WayForPay, Stripe, PayPal, and internal credit — store, membership, news, wallet top-up, and public-pool (DAO jar) card chip-ins. Links to deep-dive articles.
+last_modified: "2026-07-22"
 audience: both
 ---
 
 # Payments Overview
 
-Ring Platform routes card, credit, token, and PayPal flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe and PayPal cover international rails. Wallet credit top-up is a live `wallet_topup` purpose (Card via env processor; optional PayPal tab). Membership recurring PayPal uses [SubscriptionConductor](/docs/features/subscriptions) (Subscriptions v1).
+Ring Platform routes card, credit, token, and PayPal flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe and PayPal cover international rails. Wallet credit top-up is a live `wallet_topup` purpose. **Public pool / DAO jar** card and PayPal chip-ins use purpose **`public_pool_contribution`** (desk-oracle FX — not 1:1 fiat↔native). Membership recurring PayPal uses [SubscriptionConductor](/docs/features/subscriptions) (Subscriptions v1).
 
 Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/architecture/payment-conductor) · [WayForPay HPP](/docs/features/wayforpay-integration).
 
-> **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor) · [WayForPay](/docs/features/wayforpay-integration) · [SubscriptionConductor](/docs/features/subscriptions)
+> **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor) · [Public Pools & DAO Jars](/docs/features/public-pools) · [WayForPay](/docs/features/wayforpay-integration) · [SubscriptionConductor](/docs/features/subscriptions)
 
 <Callout type="info">
   Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
@@ -25,18 +25,24 @@ Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/arc
 | `membership_upgrade` | Role upgrade (e.g. SUBSCRIBER → MEMBER) | WayForPay / Stripe / native token / PayPal |
 | `news_promotion` | News Kingdom sponsored articles | WayForPay / Stripe |
 | `wallet_topup` | Fiat credit top-up (Card / PayPal tabs) | WayForPay **or** Stripe (`PAYMENT_WALLET_TOPUP_PROCESSOR`); PayPal when `processor=paypal` |
+| `public_pool_contribution` | DAO jar / public-pool card or PayPal chip-in | WayForPay / Stripe / PayPal → desk oracle → `pledged_native_token` |
 | Internal credit | Spend existing credit balance | Internal |
 | RING token | On-chain native-token payments | RING |
+
+<Callout type="warning" title="Not PSP donation products">
+  WayForPay hosted Донати, Stripe `submit_type=donate`, and PayPal Donate SDK are **not** Ring jar SSOT. See [Public Pools](/docs/features/public-pools).
+</Callout>
 
 <Audience for="founder">
 
 ## What founders get
 
-- **One ledger** — `payment_transactions` for store, membership, news, and wallet top-up.
-- **Config-driven gateways** — `PAYMENT_DEFAULT_PROCESSOR` plus per-purpose overrides (`PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`).
+- **One ledger** — `payment_transactions` for store, membership, news, wallet top-up, **and** public-pool card chip-ins.
+- **Config-driven gateways** — `PAYMENT_DEFAULT_PROCESSOR` plus per-purpose overrides (including optional `PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR`).
 - **Admin visibility** — Payments tab on the user detail sheet lists membership and wallet top-up rows.
 - **Membership UI** — PaymentModal: native-token, card, and PayPal (when `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true`). Manage cancel/history at `/membership/manage`.
 - **Store PayPal** — optional checkout rail with the same public flag + `PAYPAL_*` credentials.
+- **DAO jars** — dual-currency chip-in on `/dao` and docs FutureFeature widgets; builder payout when the jar fills ([Public Pools](/docs/features/public-pools)).
 
 ### `ring-config.json` payment section
 
@@ -56,6 +62,8 @@ Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/arc
 }
 ```
 
+Jar fee map (separate key): `publicPools.platformFeePercentByRole` — see [Public Pools](/docs/features/public-pools).
+
 </Audience>
 
 <Audience for="developer">
@@ -67,7 +75,7 @@ Checkout / upgrade / promotion / wallet top-up
         ↓
 lib/payments/conductor/payment-conductor.ts
         ↓
-Processors: wayforpay.processor | stripe.processor | internal-credit.processor | native-token.processor | paypal.processor
+Processors: wayforpay.processor | stripe.processor | credit-balance.processor | native-token.processor | paypal.processor
         ↓
 payment_transactions (PostgreSQL, migration 004)
         ↓
@@ -80,9 +88,9 @@ lib/payments/conductor/webhook-dispatcher.ts → handlers/* (+ PayPal Subscripti
 |--------|------|------|
 | Conductor | `lib/payments/conductor/payment-conductor.ts` | Routes by purpose + processor |
 | Config | `lib/payments/payment.config.ts` | Config + env overrides |
-| WayForPay | `lib/payments/processors/wayforpay.processor.ts` | HMAC, form/redirect, all four purposes |
+| WayForPay | `lib/payments/processors/wayforpay.processor.ts` | HMAC, form/redirect, Conductor purposes including public pools |
 | Stripe | `lib/payments/processors/stripe.processor.ts` | Checkout + webhook verify |
-| Internal credit | `lib/payments/processors/internal-credit.processor.ts` | Credit deduction |
+| Internal credit | `lib/payments/processors/credit-balance.processor.ts` | Credit deduction |
 | PayPal | `lib/payments/processors/paypal.processor.ts` | Orders v2 + webhook verify |
 | Dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Purpose routing + Subscriptions events |
 | Webhooks | `app/api/payments/{wayforpay,stripe,paypal}/webhook` | Canonical PSP callbacks |
@@ -117,20 +125,29 @@ Apply `data/migrations/004_payment_transactions.sql` before enabling the conduct
 
 ## Related
 
-<Cards>
-  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
-    Purposes, rails, and module paths.
-  </Card>
-  <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
-    Env SSOT, HMAC, regularApi, orderReference.
-  </Card>
-  <Card title="Wallet & Credits" href="/docs/features/wallet">
-    Add Credit Card / PayPal → `wallet_topup` ledger credit.
-  </Card>
-  <Card title="SubscriptionConductor" href="/docs/features/subscriptions">
-    Membership PayPal Subscriptions v1 + manage page.
-  </Card>
-  <Card title="Payment integration (ops)" href="/docs/customization/payment-integration">
-    Operator PSP setup checklist.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/payment-conductor"
+    relation="Deep-dive: purposes, rails, and module paths including public_pool_contribution."
+  />
+  <RelatedArticle
+    slug="features/public-pools"
+    relation="Same-workflow: DAO jar card chip-ins, desk FX, and builder payout."
+  />
+  <RelatedArticle
+    slug="features/wayforpay-integration"
+    relation="Depends-on: WayForPay HPP env SSOT and HMAC for card jars."
+  />
+  <RelatedArticle
+    slug="features/wallet"
+    relation="See-also: wallet_topup fiat ledger vs desk oracle for jars."
+  />
+  <RelatedArticle
+    slug="features/subscriptions"
+    relation="See-also: membership PayPal Subscriptions v1."
+  />
+  <RelatedArticle
+    slug="customization/payment-integration"
+    relation="Next-step: operator PSP setup checklist."
+  />
+</RelatedDocs>

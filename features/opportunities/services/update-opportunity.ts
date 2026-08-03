@@ -93,19 +93,20 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
         throw new Error(updateResult.error?.message || 'Failed to update opportunity');
       }
 
-      console.log('Services: updateOpportunity - Opportunity updated successfully');
-
-      await syncOpportunityDiscovery({
-        opportunityId: id,
-        event: 'updated',
-      })
-
       // Step 7: Fetch and return the updated opportunity
       const updatedResult = await db().findDocById<Record<string, unknown> & { id: string }>('opportunities', id)
 
       if (!updatedResult.success || !updatedResult.data) {
-        throw new Error('Failed to retrieve updated opportunity');
+        throw new Error('Failed to fetch updated opportunity')
       }
+
+      await syncOpportunityDiscovery({
+        opportunityId: id,
+        event: 'updated',
+        snippet: updatedResult.data as unknown as Record<string, unknown>,
+      })
+
+      console.log('Services: updateOpportunity - Opportunity updated successfully');
 
       return mapDbDocumentToOpportunity(updatedResult.data)
     }

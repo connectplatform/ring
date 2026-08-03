@@ -179,7 +179,8 @@
       "noErrors": "No errors recorded for this period",
       "noTraffic": "Traffic source data will appear once page views are collected",
       "noActivity": "Recent activity will appear as events are recorded",
-      "noDevices": "Device breakdown will appear once sessions are tracked"
+      "noDevices": "Device breakdown will appear once sessions are tracked",
+      "noPersonalPages": "No personal page visits yet"
     },
     "overview": {
       "activeSessions": "Active Sessions",
@@ -187,7 +188,15 @@
       "avgResponseTime": "Avg. Response Time",
       "errorRate": "Error Rate",
       "fromYesterday": "from yesterday",
-      "thisWeek": "this week"
+      "thisWeek": "this week",
+      "personalPages": "Personal pages",
+      "personalPagesSubtitle": "Unique visitors to public /username profiles",
+      "personalUnique24h": "Unique 24h",
+      "personalUniquePeriod": "Unique (period)",
+      "personalVisits": "visits",
+      "personalByRole": "By role",
+      "personalByRoleHint": "24h / period unique",
+      "personalTopProfiles": "Top profiles"
     },
     "webvitals": {
       "title": "Core Web Vitals Performance",
@@ -311,6 +320,8 @@
   "users": "Users",
   "rewards": "Rewards",
   "news": "News",
+  "wiki": "Wiki",
+  "wikiDescription": "Obsidian-like Markdown knowledge base with [[wikilinks]] for platform and project vaults",
   "dao": "Public pools",
   "analytics": "Analytics",
   "moderation": "Moderation",
@@ -324,6 +335,7 @@
   "emailAnalytics": "Email Analytics",
   "emailTasks": "Email Tasks",
   "crmOrders": "Custom orders",
+  "crmTaskEscrows": "Task escrows",
   "matcherModeration": {
     "tab": "Entity moderation",
     "title": "Reported entities",
@@ -459,7 +471,36 @@
         "completed": "Completed",
         "canceled": "Canceled"
       }
-    }
+    },
+    "hub": "Overview",
+    "hubTitle": "Store ERP Hub",
+    "hubSubtitle": "Warehouse {warehouse} ({warehouseId} / store {storeId}) — products, stock, orders, and settlements",
+    "warehouseLabel": "{name} · {id} · store {storeId}",
+    "warehouse": "Warehouse",
+    "reason": "Reason",
+    "restock": "Restock",
+    "adjustReasonPlaceholder": "Adjustment reason",
+    "adjustStockError": "Failed to adjust stock",
+    "filter": {
+      "all": "All",
+      "low": "Low",
+      "critical": "Critical",
+      "out": "Out"
+    },
+    "settlementFilter": {
+      "all": "All",
+      "pending": "Pending",
+      "held": "Held",
+      "completed": "Completed"
+    },
+    "dryRunPayouts": "Dry-run due payouts",
+    "dryRunResult": "Due: {due} of {pending} pending · net {total}",
+    "hold": "Hold",
+    "release": "Release",
+    "holdReasonPrompt": "Hold reason",
+    "holdError": "Failed to hold settlement",
+    "releaseError": "Failed to release settlement",
+    "actions": "Actions"
   },
   "verificationQueue": {
     "pageTitle": "Identity Verification",
@@ -526,7 +567,7 @@
     "noHistory": "No runs recorded yet.",
     "dashboardTitle": "Background Processes",
     "dashboardDescription": "Monitor cron jobs, view run history, and trigger pipelines manually",
-    "dashboardStats": "13 cron pipelines · run ledger · SUPERADMIN",
+    "dashboardStats": "15 cron pipelines · run ledger · SUPERADMIN",
     "categories": {
       "email": "Email",
       "cleanup": "Cleanup",
@@ -548,7 +589,7 @@
     "pipelines": {
       "email-processor": {
         "label": "Email Processor",
-        "description": "Poll inbound IMAP mailbox and process email batches",
+        "description": "Poll all enabled CRM IMAP channels and process inbound batches (sourceChannel labeled)",
         "schedule": "Every 1–5 minutes (external cron)"
       },
       "email-analytics": {
@@ -565,6 +606,11 @@
         "label": "Inventory Reservation Cleanup",
         "description": "Release expired store inventory reservations (TTL)",
         "schedule": "Every 5–15 minutes"
+      },
+      "inventory-drift": {
+        "label": "Inventory Drift Detector",
+        "description": "Assert stock === available + reserved; report mismatches (no auto-repair)",
+        "schedule": "Nightly or hourly"
       },
       "cleanup-usernames": {
         "label": "Username Reservation Cleanup",
@@ -610,6 +656,19 @@
         "label": "NFT Gate Expiry",
         "description": "Check NFT ownership for nft_gate subscribers (Phase S7)",
         "schedule": "Daily at 4am"
+      },
+      "cleanup-email-tokens": {
+        "label": "Email Login Token Cleanup",
+        "description": "Delete expired email_login_tokens (OTP / magic / reset) past grace window",
+        "schedule": "Daily (or hourly)"
+      },
+      "close-expired-polls": {
+        "label": "Close expired polls",
+        "description": "Auto-close chat polls past closeAt"
+      },
+      "peer-game-session-expiry": {
+        "label": "Peer game session expiry",
+        "description": "Expire pending invites (15m), idle active games (2h), reclaim orphan pending sessions"
       }
     },
     "nav": "Background Processes"
@@ -772,5 +831,11 @@
     "title": "Reward Monitoring",
     "subtitle": "Monitor credit reward activity, mint volume, and delivery health."
   },
-  "moderationTabReports": "User reports"
+  "moderationTabReports": "User reports",
+  "diversifyTreasury": "Diversify",
+  "diversifyTreasuryHint": "Equalize treasury balances across allowlisted swap currencies (oracle-priced).",
+  "diversifyComingSoon": "Diversify (waiting on feeds)",
+  "diversifyRun": "Run diversify plan",
+  "diversifyPlanRecorded": "Equal-weight plan recorded (router auto-exec not configured).",
+  "diversifyExecuted": "Diversify executed"
 }

@@ -36,6 +36,25 @@ export enum NotificationType {
   WALLET_TRANSACTION = 'wallet_transaction',
   WALLET_BALANCE_LOW = 'wallet_balance_low',
   PAYMENT_REQUEST = 'payment_request',
+  /** Order Lab — integrator requested buyer update owner_private env keys */
+  ENV_REQUEST = 'env_request',
+  /** Chat task assigned or updated */
+  TASK_ASSIGNED = 'task_assigned',
+  TASK_UPDATED = 'task_updated',
+  /** Chat poll created / closed */
+  POLL_CREATED = 'poll_created',
+  POLL_CLOSED = 'poll_closed',
+  /** Chat RSVP invite / response update */
+  RSVP_INVITE = 'rsvp_invite',
+  RSVP_UPDATED = 'rsvp_updated',
+  /** DAO jar posted or contribution snapshot updated */
+  DAO_JAR_UPDATE = 'dao_jar_update',
+  /** Peer game challenge in chat */
+  GAME_REQUEST = 'game_request',
+  /** Peer game accepted / move / completed */
+  GAME_UPDATED = 'game_updated',
+  /** Quest / action reward credited to user credit-balance */
+  REWARD_CREDIT_RECEIVED = 'reward_credit_received',
 
   // System
   SYSTEM_MAINTENANCE = 'system_maintenance',
@@ -144,6 +163,11 @@ export interface NotificationData {
   transactionHash?: string;
   amount?: string;
   currency?: string;
+  /** Reward quest trigger id (e.g. ringUsername) */
+  rewardTrigger?: string;
+  /** Human-readable quest label for UI */
+  rewardAction?: string;
+  unitLabel?: string;
   
   // System-related data
   maintenanceWindow?: string;

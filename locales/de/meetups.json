@@ -169,5 +169,10 @@
     "waitlistPromoted": "Sie wurden von der Warteliste nachgerückt: {{title}}",
     "reminderOneDayBefore": "Erinnerung: Morgen Treffen – {{title}}",
     "reminderOneHourBefore": "Erinnerung: Treffen in 1 Stunde – {{title}}"
-  }
+  },
+  "inviteRsvp": "RSVP einladen",
+  "inviteRsvpPickContacts": "Kontakte zum RSVP einladen",
+  "inviteRsvpConfirm": "RSVP senden",
+  "inviteRsvpSuccess": "RSVP-Einladungen gesendet",
+  "inviteRsvpFailed": "RSVP-Einladungen konnten nicht gesendet werden"
 }

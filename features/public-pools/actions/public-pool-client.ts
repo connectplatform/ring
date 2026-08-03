@@ -68,7 +68,7 @@ export async function togglePoolLikeClient(slug: string): Promise<PublicPoolStat
 
 export async function contributeToPoolClient(
   slug: string,
-  amountRing: string,
+  amountNativeToken: string,
   idempotencyKey: string,
   fundingMode: 'donation' | 'escrow' = 'donation',
 ): Promise<PublicPoolStatsResponse & { tx_hash: string }> {
@@ -77,7 +77,7 @@ export async function contributeToPoolClient(
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({
-      amount_ring: amountRing,
+      amount_native: amountNativeToken,
       idempotency_key: idempotencyKey,
       funding_mode: fundingMode,
     }),
@@ -85,6 +85,47 @@ export async function contributeToPoolClient(
   const json = await res.json()
   if (!res.ok) {
     throw new Error(json.error ?? 'Contribution failed')
+  }
+  return json
+}
+
+/** Start card/fiat PaymentConductor checkout for a pool (desk-oracle FX). */
+export async function contributeToPoolCardClient(
+  slug: string,
+  amountNativeToken: string,
+  opts?: { amountMainCurrency?: number; locale?: string; processor?: 'wayforpay' | 'stripe' | 'paypal' },
+): Promise<{
+  success: boolean
+  redirect?: import('@/lib/payments/conductor/types').CheckoutRedirect
+  paymentUrl?: string
+  paymentFields?: Record<string, string | string[]>
+  orderReference?: string
+  amountNativeToken?: string
+  amountMainCurrency?: number
+  mainCurrency?: string
+  error?: string
+}> {
+  const body: Record<string, unknown> = {
+    locale: opts?.locale,
+    processor: opts?.processor,
+  }
+  if (opts?.amountMainCurrency != null && opts.amountMainCurrency > 0) {
+    body.amount_main_currency = opts.amountMainCurrency
+  } else if (amountNativeToken && parseFloat(amountNativeToken) > 0) {
+    body.amount_native = amountNativeToken
+  } else {
+    return { success: false, error: 'Provide fiat or native amount' }
+  }
+
+  const res = await fetch(`/api/public-pools/${encodedSlug(slug)}/card-checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  const json = await res.json()
+  if (!res.ok) {
+    return { success: false, error: json.error ?? 'Card checkout failed' }
   }
   return json
 }

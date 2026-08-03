@@ -2,6 +2,8 @@
 
 import { z } from 'zod';
 
+import { normalizePaymentRail, normalizePaymentProcessor } from '@/lib/payments/conductor/types';
+
 export const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string()
@@ -19,7 +21,8 @@ export const orderItemSchema = z.object({
   productId: z.string(),
   name: z.string(),
   price: z.union([z.string().regex(/^\d+(\.\d+)?$/), z.number()]),
-  currency: z.enum(['DAAR', 'DAARION', 'UAH', 'USD', 'EUR', 'RING']),
+  /** Main currency code or native token symbol — validated against ring-config at service level. */
+  currency: z.string().min(1),
   quantity: z.number().int().positive(),
   selectedVariants: z.record(z.string(), z.string()).optional(),
   finalPrice: z.number().optional(),
@@ -40,6 +43,16 @@ export const checkoutInfoSchema = z.object({
   location: z.unknown().optional(),
 })
 
+/** SSOT for shipping providers — UI, prefs and order payload all derive from here. */
+export const shippingProviderSchema = z.enum([
+  'nova-post',
+  'manual',
+  'pickup',
+  'express',
+  'standard',
+])
+export type ShippingProvider = z.infer<typeof shippingProviderSchema>
+
 export const shippingLocationSchema = z.object({
   id: z.union([z.string(), z.number()]),
   name: z.string(),
@@ -55,23 +68,27 @@ export const orderCreateSchema = z.object({
   shippingInfo: checkoutInfoSchema.optional(),
   billingInfo: z.unknown().optional(),
   // Legacy / alternate path
-  totals: z
-    .object({
-      DAAR: z.number().nonnegative().optional(),
-      DAARION: z.number().nonnegative().optional(),
-      UAH: z.number().nonnegative().optional(),
-      USD: z.number().nonnegative().optional(),
-    })
-    .optional(),
+  /** Per-currency totals keyed by currency code / native token symbol. */
+  totals: z.record(z.string(), z.number().nonnegative()).optional(),
   checkoutInfo: checkoutInfoSchema.optional(),
   shipping: z
     .object({
-      provider: z.enum(['nova-post', 'manual', 'pickup', 'express', 'standard']),
+      provider: shippingProviderSchema,
       location: shippingLocationSchema.nullable().optional(),
     })
     .optional(),
   payment: z.object({
-    method: z.enum(['wayforpay', 'stripe', 'crypto', 'credit', 'token', 'paypal', 'card']),
+    /** Rail only — PSP ids (`wayforpay`, `stripe`) collapse to `card`; Conductor picks the processor. */
+    method: z.preprocess(
+      (v) => normalizePaymentRail(v),
+      z.enum(['card', 'paypal', 'credit_balance', 'native_token']),
+    ),
+    processor: z
+      .preprocess(
+        (v) => normalizePaymentProcessor(v),
+        z.enum(['wayforpay', 'stripe', 'paypal', 'credit_balance', 'native_token']),
+      )
+      .optional(),
     status: z.enum(['pending', 'paid', 'failed', 'processing']),
   }),
   status: z.enum(['new', 'paid', 'processing', 'shipped', 'completed', 'canceled']),

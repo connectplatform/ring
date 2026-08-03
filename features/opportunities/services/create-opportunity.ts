@@ -116,6 +116,12 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
         'mentorship',
         'resource',
         'event',
+        'ring_customization',
+        'program',
+        'collective_order',
+        'tender',
+        'asset_rental',
+        'job',
       ]);
       if (linkedEntityRequired.has(opportunityType) && !data.contactInfo?.linkedEntity) {
         validationContext.opportunityType = opportunityType;
@@ -261,6 +267,7 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
     await syncOpportunityDiscovery({
       opportunityId: createdOpportunity.id,
       event: 'created',
+      snippet: createdOpportunity as unknown as Record<string, unknown>,
     })
 
     // Credit reward for requests (and first-class contribution quests)

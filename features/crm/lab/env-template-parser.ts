@@ -1,12 +1,19 @@
 import 'server-only'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import {
+  getEnvKeyOwner,
+  isBrandMirrorEnvKey,
+  type EnvKeyOwner,
+} from '@/features/crm/lab/env-key-ownership'
 
 export type EnvKeyClass = 'public' | 'secret'
+export type { EnvKeyOwner }
 
 export interface EnvTemplateKey {
   key: string
   class: EnvKeyClass
+  owner: EnvKeyOwner
   /** Raw comment lines above the key in the template */
   comment?: string
   /** Default / example value from template (may be empty) */
@@ -117,10 +124,11 @@ export function parseEnvTemplate(raw: string): EnvTemplateManifest {
       const key = keyMatch[2]
       const example = keyMatch[3] ?? ''
       // Skip duplicates within group
-      if (!current.keys.some((k) => k.key === key)) {
+      if (!current.keys.some((k) => k.key === key) && !isBrandMirrorEnvKey(key)) {
         current.keys.push({
           key,
           class: classifyKey(key),
+          owner: getEnvKeyOwner(key),
           comment: pendingComments.length ? pendingComments.join('\n') : undefined,
           example: example || undefined,
           optional,

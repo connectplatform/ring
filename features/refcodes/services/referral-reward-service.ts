@@ -3,13 +3,12 @@ import 'server-only' // Ensures this code is only executed on the server side
 import { parseUnits } from 'viem'
 import { db } from '@/lib/database' // Custom DB abstraction; assumed to be async
 import { logger } from '@/lib/logger'
-import { nativeTokenPriceOracleService } from '@/features/wallet/services/native-token-price-oracle'
+import { mainCurrencyToNativeTokenUi, convertToMainCurrency, getMainCurrencySymbol } from '@/lib/ring-oracle'
 import {
   REFERRAL_CHAIN_ID,
   REFCODE_COLLECTION,
   REFERRAL_REWARDS_COLLECTION,
   REFERRAL_REWARD_PERCENT,
-  REFERRAL_UAH_PER_USD,
 } from '@/features/refcodes/constants'
 import {
   computeWeightedReferralPercentFromCart,
@@ -22,20 +21,6 @@ import { mintReferralReward } from '@/features/refcodes/services/reward-minter'
 import type { StoreOrder } from '@/features/store/types'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
 import { getNativeTokenDecimals } from '@/lib/ring-config-chain'
-
-/**
- * Converts an order total to USD based on the given currency.
- * @param total Amount in original currency
- * @param currency Currency code (e.g., USD, UAH)
- * @returns Equivalent amount in USD
- */
-function orderTotalToUsd(total: number, currency: string): number {
-  const cur = currency.toUpperCase()
-  // If already in USD-pegged or dollar-stable currency, no conversion needed
-  if (cur === 'USD' || cur === 'USDT' || cur === 'USDC') return total
-  if (cur === 'UAH') return total / REFERRAL_UAH_PER_USD // Convert UAH to USD
-  return total // Fallback: just return original total (may not be correct for all currencies)
-}
 
 /**
  * Loads and returns a map of merchant config for a list of entityIds.
@@ -74,22 +59,15 @@ async function computeRewardTokenAmount(
   currency: string,
   rewardPercent: number,
 ): Promise<{ amount: string; amountWei: string }> {
-  // Convert order total to USD, then apply referral percentage
-  const usdValue = orderTotalToUsd(orderTotal, currency) * (rewardPercent / 100);
+  // Normalize into main currency first — the desk oracle quotes native per main.
+  const mainCurrencyValue =
+    convertToMainCurrency(orderTotal, currency) * (rewardPercent / 100);
 
   // Get token decimals; may be async/variable per network
   const decimals = getNativeTokenDecimals();
 
-  // Query price oracle to get how much native token is equivalent to usdValue
-  // Price oracle may return string or number, handle both cases
-  const conversion = await nativeTokenPriceOracleService.convertUsdToNativeToken(
-    usdValue.toString(),
-  );
-
-  // Do not round or reduce precision before on-chain conversion
-  const amount = typeof conversion.token_amount === 'number'
-    ? conversion.token_amount.toString()
-    : conversion.token_amount;
+  // Desk oracle SSOT: main-currency amount → native token UI amount
+  const amount = await mainCurrencyToNativeTokenUi(mainCurrencyValue);
 
   // Convert raw token amount to Wei units (BigInt as string)
   const amountWei = parseUnits(amount, decimals).toString();
@@ -174,12 +152,12 @@ export const ReferralRewardService = {
     // Calculate the reward (token/Wei) for this order and percent
     const { amount, amountWei } = await computeRewardTokenAmount(
       order.total,
-      order.payment?.currency || 'UAH',
+      order.payment?.currency || getMainCurrencySymbol(),
       rewardPercent,
     )
 
-    // rail: if 'fiat' → pending_approval, otherwise use 'approved'
-    const status: ReferralRewardStatus = rail === 'fiat' ? 'pending_approval' : 'approved'
+    // Card/PayPal settlements need admin approval; internal rails are already trusted.
+    const status: ReferralRewardStatus = rail === 'main_currency' ? 'pending_approval' : 'approved'
     const now = new Date().toISOString()
     // TODO: Replace rewardId logic with a collision-resistant UUID or nanoid
     const rewardId = `refreward_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
@@ -191,8 +169,10 @@ export const ReferralRewardService = {
       referrerUserId: order.referrerUserId,
       referrerWallet: order.referrerWallet,
       refereeUserId: order.userId,
-      orderTotal: order.total,
-      currency: order.payment?.currency || 'UAH',
+      orderAmount: order.total,
+      currencyType: rail,
+      currencyCode: (order.payment?.currency || getMainCurrencySymbol()).toUpperCase().trim(),
+      displayUnit: rail,
       rewardToken: REFERRAL_REWARD_TOKEN_ADDRESS,
       rewardAmount: amount,
       rewardAmountWei: amountWei,
@@ -273,14 +253,16 @@ export const ReferralRewardService = {
       referrerUserId: referred.referrerUserId,
       referrerWallet: referred.referrerWallet,
       refereeUserId: userId,
-      orderTotal: amount,
-      currency,
+      orderAmount: amount,
+      currencyType: 'main_currency',
+      currencyCode: currency,
+      displayUnit: 'main_currency',
       rewardToken: REFERRAL_REWARD_TOKEN_ADDRESS,
       rewardAmount: tokenAmount,
       rewardAmountWei: amountWei,
       rewardPercent,
       chainId: REFERRAL_CHAIN_ID,
-      rail: 'fiat',
+      rail: 'main_currency',
       status,
       createdAt: now,
     }

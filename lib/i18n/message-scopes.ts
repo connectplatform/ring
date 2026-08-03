@@ -46,7 +46,10 @@ export type LocaleFileId =
   | 'modEntities'
   | 'modOpp'
   | 'modMessenger'
+  | 'modGames'
+  | 'modTasks'
   | 'modContacts'
+  | 'modFileCabinet'
   | 'modWallet'
   | 'modStore'
   | 'modProfile'
@@ -83,6 +86,7 @@ const PUBLIC_HOME: LocaleFileId[] = [
   // keep admin + news label SSOT available on every route scope that extends PUBLIC_HOME.
   'modAdmin',
   'modNews',
+  'modGames',
 ]
 
 const PUBLIC_CONTENT: LocaleFileId[] = [
@@ -101,6 +105,7 @@ const PUBLIC_CONTENT: LocaleFileId[] = [
   'docs',
   'modDao',
   'modMoodPlayer',
+  'modFileCabinet',
 ]
 
 const PUBLIC_STORE_EXTRA: LocaleFileId[] = ['vendor']
@@ -114,12 +119,15 @@ const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'modAccount',
   'modRefcodes',
   'modMessenger',
+  'modTasks',
   'modContacts',
+  'modFileCabinet',
   'modNft',
   'modGenerativeMedia',
   'modMoodPlayer',
   'modNotifications',
   'modNews',
+  'modGames',
   'vendor',
   'editor',
   'meetups',
@@ -164,7 +172,10 @@ const ALL_FILES: LocaleFileId[] = [
   'modEntities',
   'modOpp',
   'modMessenger',
+  'modGames',
+  'modTasks',
   'modContacts',
+  'modFileCabinet',
   'modWallet',
   'modStore',
   'modProfile',
@@ -236,7 +247,7 @@ export function resolveMessageScope(pathname: string): MessageScope {
     return 'authenticated'
   }
   if (normalized === '/') return 'public-home'
-  if (normalized.startsWith('/store')) return 'public-store'
+  if (normalized.startsWith('/store') || normalized.startsWith('/marketplace')) return 'public-store'
   if (normalized.startsWith('/news')) return 'public-news'
   if (normalized.startsWith('/dao')) return 'public'
   return 'public'

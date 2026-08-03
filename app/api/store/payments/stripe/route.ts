@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { getPaymentProvider } from '@/lib/payments/payment.config'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import {
   calculateVendorSettlements,
 } from '@/lib/payments/wayforpay-store-service'
@@ -19,7 +20,7 @@ const createPaymentSchema = z.object({
 
 /**
  * POST /api/store/payments/stripe
- * Initiates Stripe Checkout via PaymentConductor (store_order → merchant_redirect).
+ * Initiates Stripe Checkout via PaymentConductor (store_order → card rail).
  * Processor is forced to stripe for this route; also used when PAYMENT_STORE_PROCESSOR=stripe.
  */
 export async function POST(request: NextRequest) {
@@ -95,13 +96,13 @@ export async function POST(request: NextRequest) {
 
     const result = await PaymentConductor.createCheckout({
       purpose: 'store_order',
-      rail: 'merchant_redirect',
+      rail: 'card',
       userId: session.user.id,
       userEmail: session.user.email || shippingInfo.email || '',
       entityId: order.id,
       orderId: order.id,
       amount: order.total || 0,
-      currency: 'uah',
+      currency: getMainCurrencySymbol(),
       items: order.items,
       shippingInfo,
       returnUrl: returnUrl || defaultReturnUrl,
@@ -123,11 +124,12 @@ export async function POST(request: NextRequest) {
 
     try {
       await StoreOrdersService.updateOrderPaymentStatus(order.id, {
-        method: 'stripe',
+        method: 'card',
+        processor: 'stripe',
         status: 'pending',
         stripeSessionId: result.orderReference,
         amount: order.total || 0,
-        currency: 'UAH',
+        currency: getMainCurrencySymbol(),
       })
 
       if (settlements.length > 0) {

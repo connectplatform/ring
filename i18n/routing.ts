@@ -2,6 +2,7 @@ import { defineRouting } from 'next-intl/routing'
 import { createNavigation } from 'next-intl/navigation'
 import type { ComponentProps } from 'react'
 import { defaultLocale, sharedPathnames, supportedLocales } from './shared'
+import { stripLocalePrefix } from '@/lib/pathname-without-locale'
 
 export const routing = defineRouting({
   locales: supportedLocales,
@@ -16,11 +17,14 @@ export type Locale = (typeof routing.locales)[number]
 
 export type AppHref = ComponentProps<typeof Link>['href']
 
-/** Strip optional locale prefix from ROUTES.withLocale strings for next-intl Link/router. */
+/**
+ * Strip optional locale prefix from ROUTES.withLocale strings for next-intl Link/router.
+ * Must cover all SUPPORTED_LOCALES (en/uk/ru/es/de) — hardcoding en|uk|ru caused /de/de and /es/es.
+ */
 export function toAppHref(href: string): AppHref {
-  const match = href.match(/^\/(en|uk|ru)(?=\/|$)/)
-  const path = match ? href.slice(match[0].length) || '/' : href
-  return path as AppHref
+  const [pathPart, query = ''] = href.split('?')
+  const path = stripLocalePrefix(pathPart || '/')
+  return (query ? `${path}?${query}` : path) as AppHref
 }
 
 export type AppRouter = ReturnType<typeof useRouter>

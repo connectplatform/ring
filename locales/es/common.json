@@ -115,5 +115,20 @@
     "title": "Acceso no autorizado",
     "message": "No tiene permiso para ver esta página.",
     "returnHome": "Volver al inicio"
+  },
+  "davinciDroplist": {
+    "selectTitle": "Seleccionar {scope}",
+    "filterPlaceholder": "Filtrar…",
+    "noResults": "No se encontraron resultados.",
+    "detecting": "Detectando…",
+    "clearSelection": "Borrar selección",
+    "searchHintMinChars": "Escribe al menos {count} caracteres para buscar.",
+    "scopes": {
+      "country": "país",
+      "timezone": "zona horaria",
+      "representative": "representante",
+      "vendor": "vendedor"
+    },
+    "searching": "Buscando…"
   }
 }

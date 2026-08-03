@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
-import { usePathname, useRouter, replaceLocalePath } from '@/i18n/routing'
+import { usePathname } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
@@ -19,14 +19,10 @@ import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
-import {
-  localeDisplayLabel,
-  localeNativeTitle,
-  nextLocaleInRoutingOrder,
-  persistRingLocalePreference,
-} from '@/lib/locale-pref'
-import { useStoreCurrency } from '@/features/store/currency-context'
+import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
+import { useStorePaymentMethods } from '@/features/store/currency-context'
 import { AdminSupermenuToggle } from './admin-supermenu'
+
 const railLinkClass =
   'sidebar-rail-link group relative flex justify-center items-center rounded-lg size-10 text-white hover:not-data-current:bg-white/10 data-current:bg-[#333333] data-current:inset-ring-1 data-current:inset-ring-white/3 data-current:bg-radial-[at_0%_0%] data-current:from-white/10 data-current:to-transparent'
 
@@ -69,12 +65,10 @@ interface SidebarRailProps {
 
 export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailProps) {
   const pathname = usePathname()
-  const router = useRouter()
   const locale = useLocale() as Locale
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
-  const { currency, toggleCurrency, nativeTokenCurrency, defaultCurrency } = useStoreCurrency()
-  const nextLocale = nextLocaleInRoutingOrder(locale)
+  const { currency, toggleCurrency, nativeTokenCurrency, mainCurrency } = useStorePaymentMethods()
   const tEntities = useTranslations('modules.entities')
   const tOpp = useTranslations('modules.opportunities')
   const tStore = useTranslations('modules.store')
@@ -85,12 +79,6 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
     setMounted(true)
   }, [])
 
-
-  const switchLocale = useCallback(() => {
-    persistRingLocalePreference(nextLocale)
-    replaceLocalePath(router, pathname, nextLocale)
-  }, [nextLocale, pathname, router])
-
   const isActive = (href: string) => {
     if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
     if (href === ROUTES.DOCS(locale)) {
@@ -100,10 +88,26 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
   }
 
   const primaryItems = [
-    { href: ROUTES.ENTITIES(locale), label: tEntities('title'), icon: <Users className="size-[18px]" strokeWidth={1.5} /> },
-    { href: ROUTES.OPPORTUNITIES(locale), label: tOpp('opportunities'), icon: <Briefcase className="size-[18px]" strokeWidth={1.5} /> },
-    { href: ROUTES.STORE(locale), label: tStore('title'), icon: <Store className="size-[18px]" strokeWidth={1.5} /> },
-    { href: ROUTES.DOCS(locale), label: tNav('sidebar.documentation'), icon: <FileText className="size-[18px]" strokeWidth={1.5} /> },
+    {
+      href: ROUTES.ENTITIES(locale),
+      label: tEntities('title'),
+      icon: <Users className="size-[22px]" strokeWidth={1.5} />,
+    },
+    {
+      href: ROUTES.OPPORTUNITIES(locale),
+      label: tOpp('opportunities'),
+      icon: <Briefcase className="size-[22px]" strokeWidth={1.5} />,
+    },
+    {
+      href: ROUTES.STORE(locale),
+      label: tStore('title'),
+      icon: <Store className="size-[22px]" strokeWidth={1.5} />,
+    },
+    {
+      href: ROUTES.DOCS(locale),
+      label: tNav('sidebar.documentation'),
+      icon: <FileText className="size-[22px]" strokeWidth={1.5} />,
+    },
   ]
 
   const showAdminToggle = hasMemberPrivileges(session?.user?.role)
@@ -145,18 +149,10 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
             title="Open navigation panel"
             aria-label="Open navigation panel"
           >
-            <FileText className="size-[18px]" strokeWidth={1.5} />
+            <FileText className="size-[22px]" strokeWidth={1.5} />
           </button>
         )}
-        <button
-          type="button"
-          onClick={switchLocale}
-          className={cn(railLinkClass, 'border-0 bg-transparent cursor-pointer text-xs font-semibold uppercase')}
-          title={`Switch to ${localeNativeTitle(nextLocale)}`}
-          aria-label={`Switch to ${localeNativeTitle(nextLocale)}`}
-        >
-          {localeDisplayLabel(locale)}
-        </button>
+        <LocaleCodeMenu variant="rail" />
         {toggleCurrency && (
           <button
             type="button"
@@ -164,12 +160,12 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
             className={cn(railLinkClass, 'border-0 bg-transparent cursor-pointer text-xs font-semibold')}
             title={
               currency === nativeTokenCurrency
-                ? `Switch to ${defaultCurrency}`
+                ? `Switch to ${mainCurrency}`
                 : `Switch to ${nativeTokenCurrency}`
             }
             aria-label={
               currency === nativeTokenCurrency
-                ? `Switch to ${defaultCurrency}`
+                ? `Switch to ${mainCurrency}`
                 : `Switch to ${nativeTokenCurrency}`
             }
           >
@@ -185,11 +181,11 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
           suppressHydrationWarning
         >
           {!mounted ? (
-            <Sun className="size-[18px]" strokeWidth={1.5} />
+            <Sun className="size-[22px]" strokeWidth={1.5} />
           ) : resolvedTheme === 'dark' ? (
-            <Moon className="size-[18px]" strokeWidth={1.5} />
+            <Moon className="size-[22px]" strokeWidth={1.5} />
           ) : (
-            <Sun className="size-[18px]" strokeWidth={1.5} />
+            <Sun className="size-[22px]" strokeWidth={1.5} />
           )}
         </button>
       </div>

@@ -1,182 +1,131 @@
 {
   "title": "Ring Platform Roadmap",
-  "description": "Wo Ring heute steht und wohin es geht — für Gründer und CTOs, die eine White-Label-Plattform und die RING-Token-Ökonomie bewerten.",
+  "description": "Ziehen Sie die Rakete durch veröffentlichte Releases und künftige Meilensteine — echte Changelog-Historie und der Weg voraus.",
   "hero": {
-    "badge": "Gründer & CTOs",
-    "subtitle": "Sehen Sie, was auf Flagship-Rings heute läuft, was als Nächstes kommt und wie RING Builder mit Plattformwachstum verbindet.",
-    "mandate": "Klonen. Betreiben. Erweitern. Kein Vendor-Lock-in.",
-    "ringCta": "RING-Token-Ökonomie erkunden",
+    "badge": "Journey",
+    "subtitle": "Reise in die Ring-powered Zukunft",
+    "ringCta": "RING-Tokenökonomie erkunden",
     "walletCta": "Wallet öffnen",
     "cloneCta": "Auf GitHub klonen"
   },
   "timeline": {
-    "title": "Plattformreise",
-    "subtitle": "Wichtige Meilensteine auf Produktions-Rings — keine Vaporware-Folien."
+    "title": "Startbahn",
+    "subtitle": "Raketen-Scrubber — vergangene Releases aus dem Changelog, Zukunft aus der Engineering-Roadmap."
   },
-  "timelineItems": [
+  "journey": {
+    "nowLabel": "Aktuelle Production-Version",
+    "changelogCta": "Vollständiges Changelog",
+    "futureBadge": "Demnächst",
+    "inProgressBadge": "In Arbeit",
+    "plannedBadge": "Geplant",
+    "releaseBadge": "Veröffentlicht",
+    "dragHint": "Rakete ziehen",
+    "empty": "Noch keine Reisedaten.",
+    "axisFuture": "Zukunft",
+    "axisPast": "Vergangenheit",
+    "githubCta": "GitHub",
+    "ringdomCta": "Ringdom"
+  },
+  "futureMilestones": [
     {
-      "title": "2025 H1",
-      "cardTitle": "OSS-Basis ausgeliefert",
-      "cardSubtitle": "Live auf Flagship-Rings",
-      "cardDetailedText": "Next.js 16 + Turbopack, React 19, Auth.js v5, PostgreSQL/PostGIS, modulares i18n (en/uk/ru/es/de), Marketplace, Opportunities und White-Label-Propagation."
+      "id": "file-cabinet-depth",
+      "period": "Q3 2026",
+      "title": "File-Cabinet-Tiefe",
+      "summary": "Foundation + gallery/trustee/share shipped (1.97.6). Remaining: nested folders polish, ContactPicker share UX, shared FileTree parity.",
+      "status": "in_progress"
     },
     {
-      "title": "2025 H2",
-      "cardTitle": "LegioX Operator-Schicht",
-      "cardSubtitle": "MCP + AI-CONTEXT",
-      "cardDetailedText": "147+ Truth Lenses, ring-mcp (57 Tools), NODUS-konforme Workflows und gesteuerte, prompt-gesteuerte Customization-Pfade."
+      "id": "generative-gallery",
+      "period": "Q3 2026",
+      "title": "Generative Gallery SSOT",
+      "summary": "Cabinet media targets + gallery routes shipped. Remaining: unify NFT/store Upload|Generate SSOT + WebP on every display path.",
+      "status": "in_progress"
     },
     {
-      "title": "Jun 2026",
-      "cardTitle": "Autonomous Newsroom",
-      "cardSubtitle": "Ausgeliefert — Grok + Telegram",
-      "cardDetailedText": "URL/Suche → zitierter HTML-Entwurf, OG-Bild, TTS, Kategorie/Tags, Telegram-Freigabe, Locale-Fan-out (en/uk/ru/es/de). Oberflächen: MCP ring-news-generate, Admin-UI, Admin-Bot."
+      "id": "messenger-call-ui",
+      "period": "Q3 2026",
+      "title": "Messenger Call UI",
+      "summary": "1:1 WebRTC on Tunnel + STUNner — call-event/invite polish only; full Call UI still open.",
+      "status": "in_progress"
     },
     {
-      "title": "2026",
-      "cardTitle": "In Entwicklung",
-      "cardSubtitle": "Aktive Engineering-Arbeit",
-      "cardDetailedText": "ConnectPlatform/Firebase-Deployment-Pfade, Cache-Components-Härten, reichere Reggie-Ringization und Serialisierung Phase 2."
+      "id": "erp-hub",
+      "period": "Q3 2026",
+      "title": "Ring ERP hub depth",
+      "summary": "Wave 1 shipped (1.97.10): cart soft-holds, MCP stock tools, inventory-drift, DAGI chat. Wave 2+ RMA/PO/lots remain.",
+      "status": "in_progress"
     },
     {
-      "title": "Horizont",
-      "cardTitle": "Natürliche Sprach-Ring-Assemblierung",
-      "cardSubtitle": "Human-in-the-loop",
-      "cardDetailedText": "Rings, die geprüfte Module schrittweise aus Absicht zusammensetzen — auditfreundliche Multi-Tenant-Kontrollen und robuste Orchestrierung."
+      "id": "treasury-swap",
+      "period": "Q3 2026",
+      "title": "Wagmi Treasury Swap",
+      "summary": "RingTreasurySwap.sol + quote/execute APIs + oracle/FX desk shipped (1.97.12). Remaining: production allowlist hardening + ops runbook closeout.",
+      "status": "in_progress"
+    },
+    {
+      "id": "solana-nft-gate",
+      "period": "Q4 2026",
+      "title": "Solana NFT Gate Production",
+      "summary": "Gate TS + membership/public-pool program source advanced (1.97.12). Remaining: GateEscrow PDA production deploy + sponsored feePayer.",
+      "status": "in_progress"
+    },
+    {
+      "id": "intent-ring-assembly",
+      "period": "2027+",
+      "title": "Intent-gesteuerte Ring-Assemblierung",
+      "summary": "Order Lab clone-bridge / Forgejo source editor / ringization playbook spine shipped (1.97.13). Full Reggie/MCP composer product remains.",
+      "status": "in_progress"
+    },
+    {
+      "id": "push-vapid",
+      "period": "Q3 2026",
+      "title": "Push-Benachrichtigungen",
+      "summary": "VAPID Web Push neben FCM — klarere Alert-Architektur.",
+      "status": "planned"
+    },
+    {
+      "id": "reward-system",
+      "period": "Q4 2026",
+      "title": "Ring Reward System",
+      "summary": "Konfigurierbare Points → Credit für Engagement-Schleifen.",
+      "status": "planned"
+    },
+    {
+      "id": "tunnel-wss",
+      "period": "Q4 2026",
+      "title": "Tunnel + natives WSS",
+      "summary": "Tunnel-Remediation und natives WebSocket in Production.",
+      "status": "planned"
+    },
+    {
+      "id": "dao-governance-v2",
+      "period": "2027+",
+      "title": "DAO Governance v2",
+      "summary": "On-Chain-Abstimmung jenseits von Pools/Jars — voller Proposal-Lifecycle.",
+      "status": "planned"
     }
   ],
-  "shipped": {
-    "title": "Ausgeliefert auf Produktions-Rings",
-    "subtitle": "Funktionen, die Sie heute betreiben können — self-hosted oder auf Ringdom.",
-    "items": [
-      {
-        "name": "Autonomous Newsroom",
-        "tag": "Jun 2026"
-      },
-      {
-        "name": "ImageConductor (Grok / Imagen)",
-        "tag": "2026"
-      },
-      {
-        "name": "Ring MCP — 57 Tools",
-        "tag": "2026"
-      },
-      {
-        "name": "PaymentConductor v1",
-        "tag": "2025"
-      },
-      {
-        "name": "News Kingdom + Member-Blogs",
-        "tag": "2025"
-      },
-      {
-        "name": "LegioX MCP + AI-CONTEXT",
-        "tag": "2025"
-      }
-    ]
-  },
-  "demos": {
-    "title": "Live-Dokumentationskomponenten",
-    "subtitle": "Visualisierungs-Stack Phase 1 — interaktiv auf dieser Seite.",
-    "timelineCaption": "Release-Kadenz (react-chrono)",
-    "mathCaption": "Token-Gebührenverteilung (KaTeX)",
-    "mathFormula": "\\text{community\\_share} = \\text{platform\\_fee} \\times (1 - \\text{treasury\\_rate})",
-    "sandboxTitle": "Ring-artiger Server Action (Sandpack)",
-    "sandboxCode": "'use server'\\n\\nexport async function publishDraft(formData: FormData) {\\n  const title = formData.get('title')\\n  if (!title) return { error: 'Title required' }\\n  // await db.create('news', { title, status: 'draft' })\\n  return { success: true, title }\\n}"
-  },
-  "platform": {
-    "title": "Strategische Phasen",
-    "subtitle": "Drei Horizonte für Plattformkäufer — Basis, aktiver Build und nächste Welle.",
-    "phases": [
-      {
-        "title": "Ausgelieferte Basis",
-        "timeline": "Jetzt live",
-        "body": "Produktions-Stack auf ring-platform.org und Klonen: Entities, Store, Wallet, Messaging, Memberships, Docs und k8s-Deployment-Pfade."
-      },
-      {
-        "title": "In Entwicklung",
-        "timeline": "Aktiv",
-        "body": "Operator-Automatisierung (LegioX), generative Module (Newsroom, Bilder), MCP-Gateway-Härten und Enterprise-ConnectPlatform-Brücken."
-      },
-      {
-        "title": "Nächster Horizont",
-        "timeline": "Geplant",
-        "body": "Intent-gesteuerte Modul-Assemblierung, DAO-Governance-Hooks, Mobile Shell und erweiterte Locale-Abdeckung (ES, FR, DE, PT, SW)."
-      }
-    ]
-  },
   "docs": {
     "title": "Dokumentation",
-    "subtitle": "Tiefgänge für technische Due Diligence — Architektur, APIs und generative Module.",
+    "subtitle": "Tiefe für technische Due Diligence.",
+    "cta": "Dokumentation öffnen",
     "links": [
-      {
-        "title": "Technische Roadmap (Docs)",
-        "description": "Begleitendes MDX mit Timeline-, Math- und CodeSandbox-Beispielen.",
-        "href": "/docs/roadmap"
-      },
-      {
-        "title": "Autonomous Newsroom",
-        "description": "Grok-Recherche, zitierte Entwürfe, TTS, Telegram-Freigabe, Übersetzungen.",
-        "href": "/docs/development/generative-newsroom"
-      },
-      {
-        "title": "Generative Bilder",
-        "description": "ImageConductor — xAI / Google Imagen nach ring-filebase.",
-        "href": "/docs/development/generative-images"
-      },
-      {
-        "title": "Ring MCP",
-        "description": "57 ring-*-Tools für Operatoren und Agenten.",
-        "href": "/docs/development/ring-mcp"
-      },
       {
         "title": "Erste Schritte",
         "description": "Klonen, konfigurieren, erster Deploy.",
         "href": "/docs/getting-started"
       },
       {
-        "title": "Token-Ökonomie",
-        "description": "RING-Nutzen, Reserven und Partizipationsmechanik.",
+        "title": "Changelog",
+        "description": "Jedes Release mit vollständigen GFM-Notizen.",
+        "href": "/changelog"
+      },
+      {
+        "title": "Tokenökonomie",
+        "description": "RING-Nutzen, Reserven und Teilnahme.",
         "href": "/token-economy"
       }
     ]
-  },
-  "visualization": {
-    "title": "Docs-UX-Roadmap",
-    "subtitle": "Wie wir die Bibliotheksdocs auf Stripe/Vercel-Niveau heben.",
-    "phases": {
-      "phase1": {
-        "label": "Phase 1",
-        "timeline": "1–2 Tage",
-        "priority": "P0"
-      },
-      "phase2": {
-        "label": "Phase 2",
-        "timeline": "3–5 Tage",
-        "priority": "P1"
-      },
-      "phase3": {
-        "label": "Phase 3",
-        "timeline": "1–2 Wochen",
-        "priority": "P2"
-      }
-    },
-    "statusImplemented": "Ausgeliefert",
-    "statusPlanned": "Geplant",
-    "useCases": "Anwendungsfälle",
-    "effort": "Schätzung",
-    "library": "Bibliothek",
-    "orderTitle": "Implementierungsreihenfolge",
-    "implementedTitle": "Bereits in Docs",
-    "metricsTitle": "Erfolgsmetriken",
-    "metrics": {
-      "documentation_quality": "Guides auf Stripe/Vercel-Niveau",
-      "developer_productivity": "50 % schnelleres Onboarding",
-      "user_engagement": "3× Docs-Verweildauer",
-      "support_reduction": "30 % weniger Support-Tickets"
-    },
-    "effortSummary": "Gesamtaufwand",
-    "exploreDocs": "Dokumentationsbibliothek öffnen"
   },
   "labels": {
     "version": "Spec v{version}",

@@ -5,6 +5,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { auth } from "@/auth"
 import { decryptPrivateKey } from '@/lib/crypto'
 import { getUserWallets } from '@/lib/wallet/user-wallet-db'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 /**
  * POST handler for transferring native tokens (POL/MATIC) from user's wallet
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
     const walletClient = createWalletClient({
       account,
       chain: polygon,
-      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+      transport: http(getEvmRpcUrl()),
     })
 
     // 6. Execute the transfer
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
     // Create a public client for reading transaction receipts
     const publicClient = createPublicClient({
       chain: polygon,
-      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+      transport: http(getEvmRpcUrl()),
     })
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash })

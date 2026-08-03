@@ -8,7 +8,6 @@
   "upcomingMeetups": "Майбутні Зустрічі",
   "pastMeetups": "Минулі Зустрічі",
   "myMeetups": "Мої Зустрічі",
-  
   "types": {
     "dog_park_meetup": "Зустріч в Собачому Парку",
     "hiking": "Походи з Тваринами",
@@ -19,14 +18,12 @@
     "charity": "Благодійна Подія",
     "other": "Інше"
   },
-  
   "privacy": {
     "public": "Публічна",
     "private": "Приватна",
     "publicDescription": "Будь-хто може побачити та приєднатися",
     "privateDescription": "Лише за запрошенням"
   },
-  
   "fields": {
     "title": "Назва Зустрічі",
     "description": "Опис",
@@ -41,7 +38,6 @@
     "photos": "Фотографії",
     "safetyGuidelines": "Правила Безпеки"
   },
-  
   "allowedPets": {
     "title": "Дозволені Тварини",
     "dogs": "Собаки",
@@ -50,7 +46,6 @@
     "allPets": "Всі Тварини Вітаються",
     "noPets": "Без Тварин (Лише для людей)"
   },
-  
   "rsvp": {
     "title": "Реєстрація",
     "going": "Йду",
@@ -65,7 +60,6 @@
     "attendees": "Учасники",
     "viewAttendees": "Переглянути Учасників"
   },
-  
   "participants": {
     "title": "Учасники",
     "organizer": "Організатор",
@@ -77,7 +71,6 @@
     "confirmed": "Підтверджені",
     "declined": "Відхилені"
   },
-  
   "groupChat": {
     "title": "Груповий Чат",
     "openChat": "Відкрити Чат",
@@ -86,7 +79,6 @@
     "leaveChat": "Вийти з Чату",
     "members": "{{count}} учасників"
   },
-  
   "safety": {
     "title": "Правила Безпеки",
     "leashRequired": "Повідці обов'язкові",
@@ -97,7 +89,6 @@
     "weatherDependent": "Залежить від погоди",
     "emergencyContact": "Екстрений контакт доступний"
   },
-  
   "search": {
     "placeholder": "Шукати зустрічі...",
     "filterByType": "Фільтр за Типом",
@@ -114,7 +105,6 @@
       "newest": "Найновіші"
     }
   },
-  
   "status": {
     "upcoming": "Майбутня",
     "ongoing": "Відбувається Зараз",
@@ -123,7 +113,6 @@
     "postponed": "Відкладена",
     "full": "Заповнена"
   },
-  
   "actions": {
     "saveMeetup": "Зберегти Зустріч",
     "updateMeetup": "Оновити Зустріч",
@@ -140,7 +129,6 @@
     "viewOnMap": "Показати на Карті",
     "getDirections": "Отримати Маршрут"
   },
-  
   "validation": {
     "titleRequired": "Назва зустрічі обов'язкова",
     "typeRequired": "Тип зустрічі обов'язковий",
@@ -151,7 +139,6 @@
     "maxParticipantsInvalid": "Максимум учасників має бути щонайменше 2",
     "entryFeeInvalid": "Вхідна плата має бути позитивним числом"
   },
-  
   "success": {
     "created": "Зустріч успішно створено! Груповий чат створено.",
     "updated": "Зустріч успішно оновлено!",
@@ -164,7 +151,6 @@
     "photoUploaded": "Фото успішно завантажено",
     "checkedIn": "Успішно зареєстровано!"
   },
-  
   "errors": {
     "loadFailed": "Не вдалося завантажити зустрічі",
     "saveFailed": "Не вдалося зберегти зустріч",
@@ -174,7 +160,6 @@
     "uploadFailed": "Не вдалося завантажити фото",
     "locationAccessDenied": "Доступ до локації відхилено"
   },
-  
   "notifications": {
     "newMeetupNearby": "Нова зустріч поблизу: {{title}}",
     "meetupStartingSoon": "Зустріч почнеться через {{minutes}} хвилин!",
@@ -184,5 +169,10 @@
     "waitlistPromoted": "Вас переведено з листа очікування! {{title}}",
     "reminderOneDayBefore": "Нагадування: Зустріч завтра - {{title}}",
     "reminderOneHourBefore": "Нагадування: Зустріч почнеться через 1 годину - {{title}}"
-  }
+  },
+  "inviteRsvp": "Запросити RSVP",
+  "inviteRsvpPickContacts": "Запросити контакти на RSVP",
+  "inviteRsvpConfirm": "Надіслати RSVP",
+  "inviteRsvpSuccess": "RSVP-запрошення надіслано",
+  "inviteRsvpFailed": "Не вдалося надіслати RSVP"
 }

@@ -10,6 +10,11 @@ import {
   LogOut,
   Wallet,
   Share2,
+  Music2,
+  Images,
+  HardDrive,
+  Gamepad2,
+  FolderOpen,
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
@@ -38,6 +43,8 @@ interface ProfileNavRailProps {
   onEditProfile?: () => void
   onNavigateSettings?: () => void
   onSignOut?: () => void
+  /** Public username for Player / Gallery quick links */
+  username?: string | null
 }
 
 export default function ProfileNavRail({
@@ -48,6 +55,7 @@ export default function ProfileNavRail({
   onEditProfile,
   onNavigateSettings,
   onSignOut,
+  username,
 }: ProfileNavRailProps) {
   const t = useTranslations('modules.profile')
   const tNav = useTranslations('navigation')
@@ -120,6 +128,55 @@ export default function ProfileNavRail({
             >
               <Wallet className="mr-2 h-4 w-4" />
               {t('wallet')}
+            </Link>
+          </Button>
+          {username ? (
+            <>
+              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                <Link
+                  href={toAppHref(ROUTES.PUBLIC_PROFILE_PLAYER(username, locale))}
+                  onClick={() => onNavigate?.()}
+                >
+                  <Music2 className="mr-2 h-4 w-4" />
+                  Player
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                <Link
+                  href={toAppHref(ROUTES.PUBLIC_PROFILE_GAMES(username, locale))}
+                  onClick={() => onNavigate?.()}
+                >
+                  <Gamepad2 className="mr-2 h-4 w-4" />
+                  Games
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                <Link
+                  href={toAppHref(ROUTES.PUBLIC_PROFILE_IMG(username, locale))}
+                  onClick={() => onNavigate?.()}
+                >
+                  <Images className="mr-2 h-4 w-4" />
+                  Gallery
+                </Link>
+              </Button>
+            </>
+          ) : null}
+          <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+            <Link
+              href={toAppHref(ROUTES.FILE_CABINET(locale))}
+              onClick={() => onNavigate?.()}
+            >
+              <HardDrive className="mr-2 h-4 w-4" />
+              File Cabinet
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+            <Link
+              href={toAppHref(ROUTES.PROFILE_SHARED(locale))}
+              onClick={() => onNavigate?.()}
+            >
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Shared
             </Link>
           </Button>
           <Button variant="outline" size="sm" className="w-full justify-start" asChild>

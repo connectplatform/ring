@@ -20,9 +20,11 @@ export async function syncOpportunityDiscovery(params: {
   opportunityId: string
   event: OpportunityMutationEvent
   roleKeys?: readonly string[]
+  /** Optional serialized opportunity (or partial) for optimistic list/detail patches. */
+  snippet?: Record<string, unknown> | null
 }): Promise<void> {
   const roleKeys = params.roleKeys ?? DEFAULT_ROLE_KEYS
-  const { opportunityId, event } = params
+  const { opportunityId, event, snippet } = params
 
   try {
     invalidateOpportunitiesCache([...roleKeys])
@@ -41,5 +43,5 @@ export async function syncOpportunityDiscovery(params: {
     logger.warn('syncOpportunityDiscovery: revalidatePath failed', { opportunityId, error })
   }
 
-  await syncDiscovery({ channel: 'opportunities', resourceId: opportunityId, event })
+  await syncDiscovery({ channel: 'opportunities', resourceId: opportunityId, event, snippet })
 }

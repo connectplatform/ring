@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Loader2, RefreshCw, Rocket } from 'lucide-react'
+import { Loader2, RefreshCw, Rocket, GitBranch, Hammer } from 'lucide-react'
 
 type EdgeId = 'us' | 'fi' | 'ua'
 type Pod = {
@@ -45,6 +45,9 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
   const [namespace, setNamespace] = useState('')
   const [deploymentName, setDeploymentName] = useState('')
   const [imageTag, setImageTag] = useState('')
+  const [gitUrl, setGitUrl] = useState<string | null>(null)
+  const [bridgeJob, setBridgeJob] = useState<string | null>(null)
+  const [bridgeAction, setBridgeAction] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('idle')
   const [lastError, setLastError] = useState<string | null>(null)
   const [pods, setPods] = useState<Pod[]>([])
@@ -64,6 +67,7 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
     setNamespace(d.namespace || '')
     setDeploymentName(d.deploymentName || '')
     setImageTag(d.imageTag || '')
+    setGitUrl(d.gitUrl || null)
     setStatus(d.lastDeployStatus || 'idle')
     setLastError(d.lastError)
   }, [orderId])
@@ -129,6 +133,55 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Deploy failed')
         setStatus('failed')
+      }
+    })
+  }
+
+  const runCloneBridge = (action: 'scaffold' | 'build') => {
+    setError(null)
+    startTransition(async () => {
+      try {
+        const path =
+          action === 'scaffold'
+            ? `/api/my-jobs/${orderId}/deployment/clone-bridge/scaffold`
+            : `/api/my-jobs/${orderId}/deployment/clone-bridge/build`
+        const res = await fetch(path, { method: 'POST' })
+        const json = await res.json()
+        if (!res.ok || json.success === false) {
+          throw new Error(json.error || `${action} failed`)
+        }
+        setBridgeJob(json.jobName || null)
+        setBridgeAction(action)
+        setGitUrl(json.plan?.gitUrl || gitUrl)
+        if (json.plan?.imageTag) setImageTag(json.plan.imageTag)
+        setStatus('pending')
+        await load()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : `${action} failed`)
+        setStatus('failed')
+      }
+    })
+  }
+
+  const refreshBridgeJob = () => {
+    if (!bridgeJob) return
+    startTransition(async () => {
+      try {
+        const res = await fetch(
+          `/api/my-jobs/${orderId}/deployment/clone-bridge/scaffold?job=${encodeURIComponent(bridgeJob)}`,
+        )
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || 'Job status failed')
+        const j = json.job
+        if (!j) {
+          setError('Job not found')
+          return
+        }
+        if (j.succeeded > 0) setStatus('success')
+        else if (j.failed > 0) setStatus('failed')
+        else setStatus('pending')
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Job status failed')
       }
     })
   }
@@ -234,6 +287,12 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
           </div>
         </div>
 
+        {gitUrl ? (
+          <p className="truncate font-mono text-xs text-muted-foreground" title={gitUrl}>
+            {t('order.lab.gitUrl')}: {gitUrl}
+          </p>
+        ) : null}
+
         {!canEditNamespace ? (
           <p className="text-xs text-muted-foreground">{t('order.lab.namespaceAdminLock')}</p>
         ) : null}
@@ -241,6 +300,24 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
         <div className="flex flex-wrap gap-2">
           <Button disabled={pending} size="sm" variant="secondary" onClick={saveMeta}>
             {t('order.lab.saveDeployMeta')}
+          </Button>
+          <Button
+            disabled={pending || !edges.fi}
+            size="sm"
+            variant="outline"
+            onClick={() => runCloneBridge('scaffold')}
+          >
+            <GitBranch className="mr-2 h-4 w-4" />
+            {t('order.lab.scaffoldClone')}
+          </Button>
+          <Button
+            disabled={pending || !edges.fi}
+            size="sm"
+            variant="outline"
+            onClick={() => runCloneBridge('build')}
+          >
+            <Hammer className="mr-2 h-4 w-4" />
+            {t('order.lab.buildImage')}
           </Button>
           <Button disabled={pending || !edgeAvailable || !namespace} size="sm" onClick={deploy}>
             {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />}
@@ -260,6 +337,21 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
             {t('order.lab.refreshPods')}
           </Button>
         </div>
+
+        {bridgeJob ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-mono">
+              {bridgeAction}: {bridgeJob}
+            </span>
+            <Button disabled={pending} size="sm" variant="ghost" onClick={refreshBridgeJob}>
+              {t('order.lab.refreshJob')}
+            </Button>
+          </div>
+        ) : null}
+
+        {!edges.fi ? (
+          <p className="text-xs text-muted-foreground">{t('order.lab.cloneBridgeFiHint')}</p>
+        ) : null}
 
         {!edgeAvailable ? (
           <p className="text-xs text-muted-foreground">{t('order.lab.edgeUnavailableHint')}</p>

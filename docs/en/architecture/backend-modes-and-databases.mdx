@@ -109,7 +109,7 @@ All application CRUD goes through **`db()`** from `@/lib/database`:
 
 **Raw SQL escape hatch:** `getSharedPgPool()` in `lib/database/shared-pg-pool.ts` — calls `initializeDatabase()` then returns the adapter pool. Use **only** for PostGIS / SQL the doc-model cannot express. `new Pool(` is allowed only under `lib/database/` (enforced by `validate-provider-ssot.sh`).
 
-**2026-07-07 audit:** Three rogue private pools in `platform-settings-service.ts`, `ring-token-oracle.ts`, and `geolocation-service.ts` were eliminated. Only `platform_settings` had a real hybrid-table bypass; those modules now use `db().*Doc` or `getSharedPgPool()`.
+**2026-07-07 audit:** Three rogue private pools in `platform-settings-service.ts`, `native-token-oracle.ts`, and `geolocation-service.ts` were eliminated. Only `platform_settings` had a real hybrid-table bypass; those modules now use `db().*Doc` or `getSharedPgPool()`.
 
 ### Backend selection in code
 

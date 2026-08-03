@@ -37,6 +37,7 @@ export async function GET(
         projectName: dep.projectName || null,
         deploymentName: dep.deploymentName || null,
         projectUrl: dep.projectUrl || null,
+        gitUrl: dep.gitUrl || null,
         lastDeployAt: dep.lastDeployAt,
         lastDeployStatus: dep.lastDeployStatus,
         lastError: dep.lastDeployStatus === 'failed' ? dep.lastError : null,

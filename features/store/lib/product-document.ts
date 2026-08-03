@@ -117,8 +117,9 @@ export function resolveVendorEntityId(doc: ProductDoc): string {
       doc.entityId ??
       doc.ownerEntityId ??
       doc.vendorId ??
+      doc.productOwner ??
       (doc.data && typeof doc.data === 'object'
-        ? (doc.data as ProductDoc).vendorId
+        ? (doc.data as ProductDoc).vendorId ?? (doc.data as ProductDoc).productOwner
         : '') ??
       '',
   )

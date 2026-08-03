@@ -41,9 +41,37 @@ export function getCardPaymentProcessor(): CardPaymentProcessor {
 // Supported / future methods
 // ---------------------------------------------------------------------------
 
+/** Normalize legacy `ring_token` alias → `native_token` (conductor / types SSOT). */
+function normalizeMembershipProvider(
+  provider: string,
+): MembershipPaymentProvider | null {
+  const p = provider.trim().toLowerCase()
+  if (p === 'ring_token') return 'native_token'
+  const known: MembershipPaymentProvider[] = [
+    'stripe',
+    'wayforpay',
+    'credit_balance',
+    'native_token',
+    'nft_gate',
+    'paypal',
+    'telegram_stars',
+  ]
+  return known.includes(p as MembershipPaymentProvider)
+    ? (p as MembershipPaymentProvider)
+    : null
+}
+
 /** Which membership payment methods are currently available to users. */
 export function getSupportedPaymentMethods(): MembershipPaymentProvider[] {
-  return getSystemConfigSnapshot().payment?.supportedMethods ?? ['wayforpay', 'credit_balance', 'native_token']
+  const raw =
+    getSystemConfigSnapshot().payment?.supportedMethods ??
+    (['wayforpay', 'credit_balance', 'native_token'] as MembershipPaymentProvider[])
+  const out: MembershipPaymentProvider[] = []
+  for (const item of raw) {
+    const n = normalizeMembershipProvider(String(item))
+    if (n && !out.includes(n)) out.push(n)
+  }
+  return out.length > 0 ? out : ['wayforpay', 'credit_balance', 'native_token']
 }
 
 /** Which methods are listed as upcoming features (docs, UI badges). */
@@ -70,7 +98,14 @@ export function getPaymentConfig(): PaymentConfig | undefined {
 export function getGatewayConfig(
   provider: MembershipPaymentProvider,
 ): PaymentGatewayConfig | undefined {
-  return getSystemConfigSnapshot().payment?.gateways?.[provider]
+  const gateways = getSystemConfigSnapshot().payment?.gateways as
+    | Record<string, PaymentGatewayConfig>
+    | undefined
+  if (!gateways) return undefined
+  return (
+    gateways[provider] ??
+    (provider === 'native_token' ? gateways.ring_token : undefined)
+  )
 }
 
 /**

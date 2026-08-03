@@ -1,5 +1,10 @@
 'use client'
 
+/**
+ * @deprecated Prefer EmailLoginForm (OTP / magic link) + /login/onboarding vitals.
+ * Password register remains for legacy accounts only; not used on primary login surfaces.
+ */
+
 import React from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'

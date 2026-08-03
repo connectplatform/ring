@@ -2,9 +2,13 @@ import 'server-only'
 
 import type { Metadata } from 'next'
 import { getMessages, setRequestLocale } from 'next-intl/server'
-import { routing } from '@/i18n/routing'
-import { defaultLocale, type Locale } from '@/i18n/shared'
+import { type Locale } from '@/i18n/shared'
+import { withLocalePath } from '@/lib/hreflang'
+import { openGraphAlternateLocaleTags, openGraphLocaleTag } from '@/lib/locale-config'
 import { getRingSeoBranding, getSiteBaseUrl } from '@/lib/ring-config-core'
+
+export { generateHreflangAlternates, withLocalePath } from '@/lib/hreflang'
+export { stripLocalePrefix as pathnameWithoutLocale } from '@/lib/pathname-without-locale'
 
 export interface SEOData {
   title?: string
@@ -20,13 +24,6 @@ export interface SEOData {
 }
 
 type SeoVariables = Record<string, string | number>
-
-function withLocalePath(locale: Locale, path: string): string {
-  if (locale === defaultLocale) {
-    return path
-  }
-  return path === '/' ? `/${locale}` : `/${locale}${path}`
-}
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((current, key) => {
@@ -136,34 +133,6 @@ export type BuildLocalizedMetadataOptions = {
 
 export { getRingSeoBranding, getSiteBaseUrl }
 
-/** @deprecated Use getSiteBaseUrl() from @/lib/ring-config */
-export { getSiteBaseUrl as getSeoSiteBaseUrl }
-
-/** Strip `/uk`, `/ru`, … prefix for hreflang path generation. */
-export function pathnameWithoutLocale(pathname: string): string {
-  const segments = pathname.split('/').filter(Boolean)
-  if (segments.length > 0 && routing.locales.includes(segments[0] as Locale)) {
-    const rest = segments.slice(1).join('/')
-    return rest ? `/${rest}` : '/'
-  }
-  return pathname.startsWith('/') ? pathname : `/${pathname}`
-}
-
-export function generateHreflangAlternates(
-  pathname: string,
-  locales: readonly Locale[] = routing.locales,
-): Record<string, string> {
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
-  const alternates: Record<string, string> = {}
-
-  for (const locale of locales) {
-    alternates[locale] = withLocalePath(locale, normalized)
-  }
-  alternates['x-default'] = withLocalePath(defaultLocale, normalized)
-
-  return alternates
-}
-
 export async function buildLocalizedMetadata(
   options: BuildLocalizedMetadataOptions,
 ): Promise<Metadata> {
@@ -192,7 +161,6 @@ export async function buildLocalizedMetadata(
         ? `${baseUrl}${withLocalePath(locale, pathname)}`
         : undefined)
 
-  const ogLocale = locale === 'uk' ? 'uk_UA' : 'en_US'
   const ogImage = seoData?.ogImage ?? branding.ogImage
 
   return {
@@ -207,8 +175,8 @@ export async function buildLocalizedMetadata(
       url: canonical,
       type: 'website',
       siteName,
-      locale: ogLocale,
-      alternateLocale: locale === 'uk' ? ['en_US'] : ['uk_UA'],
+      locale: openGraphLocaleTag(locale),
+      alternateLocale: openGraphAlternateLocaleTags(locale),
       images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
@@ -218,32 +186,5 @@ export async function buildLocalizedMetadata(
       description: seoData?.twitterDescription ?? seoData?.description,
       images: [seoData?.twitterImage ?? ogImage],
     },
-  }
-}
-
-/** @deprecated Use `buildLocalizedMetadata` in `generateMetadata` instead. */
-export async function getSEOMetadata(
-  locale: Locale,
-  path: string,
-  variables: SeoVariables = {},
-  fallback?: Partial<SEOData>,
-): Promise<SEOData | null> {
-  return resolveSeoData(locale, path, variables, fallback)
-}
-
-export function getDefaultSEOData(locale: Locale): SEOData {
-  const branding = getRingSeoBranding()
-  return {
-    title: `${branding.siteName} - Decentralized Opportunities & Professional Networking`,
-    description:
-      'Connect, collaborate, and create value in the decentralized economy. Join Ring Platform for professional networking, opportunities, and blockchain-enabled collaboration.',
-    keywords: ['decentralized', 'opportunities', 'blockchain', 'collaboration', 'web3', branding.siteName],
-    canonical: locale === defaultLocale ? '/' : `/${locale}`,
-    ogTitle: `${branding.siteName} - Decentralized Professional Networking`,
-    ogDescription: 'Discover and create opportunities in the decentralized economy',
-    ogImage: branding.ogImage,
-    twitterTitle: branding.siteName,
-    twitterDescription: 'Decentralized opportunities and collaboration platform',
-    twitterImage: branding.ogImage,
   }
 }

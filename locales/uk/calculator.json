@@ -142,8 +142,8 @@
       "description": "Миттєва edge-пропагація"
     },
     "mail": {
-      "name": "k8s-mail",
-      "description": "Пошта платформи в K8s"
+      "name": "RingdomX Mail",
+      "description": "Hosted MX on mail.ringdom.org or bring-your-own SMTP"
     },
     "dns": {
       "name": "ringdomNS",
@@ -285,7 +285,8 @@
     "becomeSettler": "Стати Settler",
     "findDevelopers": "Знайти кастомізаторів",
     "startBuilding": "Почати будувати",
-    "orderThisBuild": "Замовити цей білд"
+    "orderThisBuild": "Замовити цей білд",
+    "selfBuildPlaybook": "Self-build (feature overlay)"
   },
   "checkout": {
     "payCard": "Сплатити карткою",
@@ -463,7 +464,17 @@
       "restartPod": "Restart",
       "projectRoom": "Кімната проєкту",
       "noProjectRoom": "Кімната проєкту недоступна",
-      "namespaceAdminLock": "Простір імен і edge задає адмін у CRM — зверніться, якщо поле порожнє."
+      "namespaceAdminLock": "Простір імен і edge задає адмін у CRM — зверніться, якщо поле порожнє.",
+      "ownerPrivate": "ключі власника",
+      "missing": "Не задано — запросіть покупця",
+      "requestUpdate": "Запросити оновлення",
+      "requestSent": "Запит надіслано",
+      "requestFailed": "Не вдалося надіслати",
+      "gitUrl": "Forgejo git",
+      "scaffoldClone": "Створити клон",
+      "buildImage": "Зібрати образ",
+      "refreshJob": "Оновити Job",
+      "cloneBridgeFiHint": "Scaffold/build потребує RING_EDGE_FI_* (k3s-3 BuildKit)."
     },
     "buyerBadge": "Мої проєкти",
     "buyerTitle": "Мої замовлення проєктів",
@@ -480,6 +491,45 @@
     "integratorLabel": "Інтегратор",
     "awaitingIntegrator": "Очікується призначення інтегратора",
     "filterPaid": "Оплачені",
-    "kpiPaid": "Оплачені"
+    "kpiPaid": "Оплачені",
+    "secrets": {
+      "title": "Секрети власника",
+      "subtitle": "Firebase, RingBase та сховище — лише ви й адміни. Застосується при наступному деплої.",
+      "savedBanner": "Збережено — застосується при наступному деплої.",
+      "save": "Зберегти секрети"
+    },
+    "projectConfig": {
+      "title": "Ідентичність проєкту",
+      "buyerSubtitle": "Назва, слоган і логотип. Застосується при наступному деплої.",
+      "integratorSubtitle": "Повний Order Project Config (брендинг, SEO, контакт).",
+      "savedBanner": "Збережено — застосується при наступному деплої.",
+      "displayName": "Назва",
+      "slogan": "Слоган",
+      "description": "Опис",
+      "logoUrl": "URL логотипу",
+      "primaryColor": "Основний колір",
+      "accentColor": "Акцент",
+      "contactEmail": "Email контакту",
+      "seoTitle": "SEO суфікс",
+      "ogImage": "OG зображення",
+      "save": "Зберегти конфіг"
+    },
+    "source": {
+      "title": "Код клону",
+      "tree": "Файли",
+      "save": "Зберегти",
+      "commit": "Зберегти і закомітити",
+      "commitMessagePlaceholder": "Повідомлення коміту",
+      "commits": "Коміти",
+      "readOnlyBadge": "Лише читання",
+      "scaffoldFirst": "Спочатку створіть scaffold клону (панель Deploy → Scaffold clone), потім редагуйте overlay-файли тут.",
+      "scaffoldFirstBuyer": "Код з’явиться після того, як інтегратор створить репозиторій клону.",
+      "conflictReload": "Файл змінено на сервері — перезавантажено. Перегляньте і закомітьте знову.",
+      "diff": "Diff",
+      "emptyTree": "Поки немає overlay-файлів",
+      "noCommits": "Поки немає комітів",
+      "suggestMessage": "Запропонувати повідомлення коміту",
+      "suggestMessagePending": "Генеруємо…"
+    }
   }
 }

@@ -37,6 +37,7 @@
   "profile": "Профиль",
   "settings": "Настройки",
   "messages": "Сообщения",
+  "tasks": "Задачи",
   "wallet": "Кошелёк",
   "refcodes": "Делись и зарабатывай",
   "admin": {
@@ -114,7 +115,12 @@
     "browseCatalog": "Просмотреть каталог",
     "verifiedPublishers": "Проверенные издатели",
     "newListings": "Новые предложения",
-    "bundlesAndStacks": "Наборы и комплекты"
+    "bundlesAndStacks": "Наборы и комплекты",
+    "supermenuFilter": "Фильтр меню…",
+    "economics": "Экономика",
+    "calculateYourProject": "Рассчитайте свой проект",
+    "calculateYourProjectDesc": "Выберите опции для AI-клона проекта, оплата {token} или картой.",
+    "calculatorCta": "Калькулятор"
   },
   "userRole": {
     "superadmin": "Супер-администратор",
@@ -264,10 +270,12 @@
   "myProjectOrders": "Мои проекты",
   "changelog": {
     "title": "Журнал изменений",
-    "subtitle": "Заметки о релизах из CHANGELOG.md (v{version})",
+    "subtitle": "Заметки о релизах из docs changelog (v{version})",
     "project": "Проект",
     "publisher": "Издатель",
     "reportErrors": "Сообщить об ошибке",
-    "publisherPage": "Страница издателя"
-  }
+    "publisherPage": "Страница издателя",
+    "empty": "Пока нет записей в changelog."
+  },
+  "games": "Игры"
 }

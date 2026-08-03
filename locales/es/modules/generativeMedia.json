@@ -33,5 +33,22 @@
   "promptPlaceholder": "Describe tus medios con todo detalle…",
   "modeImage": "Imagen",
   "modeVideo": "Vídeo",
-  "modeVideoSoon": "El modo vídeo usa VideoConductor — próximamente en este editor."
+  "modeVideoSoon": "El modo vídeo usa VideoConductor — próximamente en este editor.",
+  "useThisVideo": "Usar este video",
+  "saveToDesktop": "Guardar en Escritorio",
+  "savedToDesktop": "Guardado en Escritorio",
+  "saveDesktopFailed": "No se pudo guardar en Escritorio",
+  "noUseTarget": "No hay destino de editor — abra un editor o un campo de medios.",
+  "videoNeedsReference": "Adjunte o pegue una imagen de referencia para el video.",
+  "generatingVideo": "Generando video (puede tardar unos minutos)…",
+  "referenceAttached": "Imagen de referencia",
+  "clearAttachment": "Quitar adjunto",
+  "pasteHint": "La imagen pegada / soltada se usará como referencia.",
+  "pasteOrDropHint": "Pegue o suelte una imagen aquí como referencia.",
+  "attachTooLarge": "El adjunto supera el límite de 20 MB.",
+  "generatingVideoProgress": "Generando video…",
+  "videoStatus": "Estado: {status}",
+  "videoProgressPct": "{pct}%",
+  "cancelGeneration": "Cancelar generación",
+  "videoCancelled": "Generación de video cancelada"
 }

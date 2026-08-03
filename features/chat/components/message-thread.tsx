@@ -15,6 +15,10 @@ import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import type { WalletInfo } from '@/features/wallet/services/list-wallets'
 import WalletRequestFsModal from '@/features/wallet/components/wallet-request-fs-modal'
+import { TaskComposeDialog } from '@/features/tasks/components/task-compose-dialog'
+import { PollComposeDialog } from '@/features/chat/interactive/poll-compose-dialog'
+import { RsvpComposeDialog } from '@/features/chat/interactive/rsvp-compose-dialog'
+import { GameRequestComposeDialog } from '@/features/chat/interactive/game-request-compose-dialog'
 
 interface MessageThreadProps {
   conversationId: string
@@ -25,6 +29,8 @@ interface MessageThreadProps {
   onMessageEditAction?: (messageId: string, newContent: string) => Promise<void>
   onMessageDeleteAction?: (messageId: string) => Promise<void>
   onMessageReactionAction?: (messageId: string, emoji: string) => Promise<void>
+  /** Mutex: block game compose/accept while WebRTC call is active. */
+  callBusy?: boolean
 }
 
 export function MessageThread({
@@ -34,7 +40,8 @@ export function MessageThread({
   className,
   onMessageEditAction,
   onMessageDeleteAction,
-  onMessageReactionAction
+  onMessageReactionAction,
+  callBusy = false,
 }: MessageThreadProps) {
   const t = useTranslations('modules.messenger')
   const locale = useLocale() as Locale
@@ -43,6 +50,10 @@ export function MessageThread({
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [requestOpen, setRequestOpen] = useState(false)
   const [requestWallet, setRequestWallet] = useState<WalletInfo | null>(null)
+  const [taskComposeOpen, setTaskComposeOpen] = useState(false)
+  const [pollComposeOpen, setPollComposeOpen] = useState(false)
+  const [rsvpComposeOpen, setRsvpComposeOpen] = useState(false)
+  const [gameComposeOpen, setGameComposeOpen] = useState(false)
   
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -247,6 +258,7 @@ export function MessageThread({
                      key={message.id}
                      message={message}
                      isOwn={message.senderId === userId}
+                     currentUserId={userId}
                      showAvatar={messageIndex === 0 && group.showAvatar}
                      onEditAction={onMessageEditAction ? (messageId) => onMessageEditAction(messageId, '') : undefined}
                      onDeleteAction={onMessageDeleteAction ? (messageId) => onMessageDeleteAction(messageId) : undefined}
@@ -287,11 +299,17 @@ export function MessageThread({
           conversationId={conversationId}
           onSendMessageAction={handleSendMessage}
           onRequestPaymentAction={peer ? () => void openRequestPayment() : undefined}
+          onCreateTaskAction={() => setTaskComposeOpen(true)}
+          onCreatePollAction={() => setPollComposeOpen(true)}
+          onCreateRsvpAction={() => setRsvpComposeOpen(true)}
+          onCreateGameAction={
+            conversation?.type === 'direct' ? () => setGameComposeOpen(true) : undefined
+          }
           replyTo={replyTo}
           onCancelReplyAction={handleCancelReply}
           placeholder={
             messages.length === 0
-              ? conversation.type === 'product'
+              ? conversation?.type === 'product'
                 ? t('emptyThreadProduct')
                 : t('emptyThreadHello')
               : undefined
@@ -311,6 +329,36 @@ export function MessageThread({
           initialRecipient={peer}
         />
       )}
+
+      {conversation ? (
+        <TaskComposeDialog
+          open={taskComposeOpen}
+          onOpenChange={setTaskComposeOpen}
+          conversation={conversation}
+          currentUserId={userId}
+        />
+      ) : null}
+
+      <PollComposeDialog
+        open={pollComposeOpen}
+        onOpenChange={setPollComposeOpen}
+        conversationId={conversationId}
+      />
+
+      {conversation ? (
+        <RsvpComposeDialog
+          open={rsvpComposeOpen}
+          onOpenChange={setRsvpComposeOpen}
+          conversation={conversation}
+        />
+      ) : null}
+
+      <GameRequestComposeDialog
+        open={gameComposeOpen}
+        onOpenChange={setGameComposeOpen}
+        conversationId={conversationId}
+        callBusy={callBusy}
+      />
     </div>
   )
 } 

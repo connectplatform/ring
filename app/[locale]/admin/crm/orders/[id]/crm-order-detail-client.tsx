@@ -20,6 +20,8 @@ import type { CrmUserChip } from '@/features/crm/orders/resolve-users'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
 import type { Locale } from '@/i18n/shared'
 import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { RINGIZATION_PLAYBOOK_DOCS_PATH } from '@/features/crm/lab/ringization-playbook'
 
 function UserRow({
   user,
@@ -202,6 +204,18 @@ export function CrmOrderDetailClient({
           {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Publish as available
         </Button>
+        <Button variant="outline" asChild>
+          <Link href={`/${locale}${RINGIZATION_PLAYBOOK_DOCS_PATH}`}>Open playbook</Link>
+        </Button>
+        {order.paymentStatus !== 'paid' ? (
+          <Button
+            disabled={pending}
+            variant="secondary"
+            onClick={() => patch({ markPaid: true })}
+          >
+            Mark paid
+          </Button>
+        ) : null}
         <Button
           disabled={pending}
           variant="destructive"

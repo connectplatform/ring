@@ -29,5 +29,16 @@
     "needHelpDesc": "La mayoría de respuestas están en /docs. Para lo demás, usa el formulario de esta página.",
     "documentation": "Documentación →",
     "contactSupport": "Contactar soporte →"
+  },
+  "form": {
+    "name": "Nombre",
+    "email": "Correo",
+    "message": "Mensaje",
+    "send": "Enviar",
+    "sending": "Enviando…",
+    "success": "¡Gracias por tu mensaje!",
+    "openMessages": "Abrir conversación",
+    "messageSent": "¡Mensaje enviado!",
+    "notAcceptingMessages": "Este miembro no acepta mensajes desde el perfil"
   }
 }

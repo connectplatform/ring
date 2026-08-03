@@ -5,13 +5,13 @@ export interface EvmNetwork {
   blockExplorerUrl?: string
 }
 
-import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
+import { getEvmChainId, getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 export const POLYGON_MAINNET: EvmNetwork = {
-  chainId: 137,
+  chainId: getEvmChainId(),
   name: 'polygon',
-  rpcUrl: getPolygonRpcUrl(),
-  blockExplorerUrl: 'https://polygonscan.com'
+  rpcUrl: getEvmRpcUrl(),
+  blockExplorerUrl: 'https://polygonscan.com',
 }
 
 export function getDefaultNetwork(): EvmNetwork {

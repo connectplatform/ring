@@ -8,7 +8,7 @@ import { useCreditHistoryContext } from '@/components/providers/credit-history-p
 import { useWalletActivityContext } from '@/components/providers/wallet-activity-provider'
 import WalletTransactionRow from './wallet-transaction-row'
 import type { WalletActivityRow } from '@/features/wallet/services/wallet-activity-feed'
-import { getClientCreditFiatCurrency } from '@/lib/ring-config-client'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
 import { cn } from '@/lib/utils'
 import type { CreditTransaction } from '@/lib/zod/credit-schemas'
 
@@ -25,7 +25,7 @@ interface WalletTransactionFeedProps {
 }
 
 function activityToCreditRow(row: WalletActivityRow, userId = ''): CreditTransaction {
-  const fiatCurrency = getClientCreditFiatCurrency()
+  const mainCurrency = getClientMainCurrency()
   const signedAmount =
     row.direction === 'out' && !row.amount.startsWith('-') ? `-${row.amount}` : row.amount
   return {
@@ -33,18 +33,18 @@ function activityToCreditRow(row: WalletActivityRow, userId = ''): CreditTransac
     user_id: userId,
     type: row.kind as CreditTransaction['type'],
     amount: signedAmount,
-    usd_equivalent: row.source === 'credit' ? row.amount : row.amount,
-    usd_rate: '1',
+    main_currency_equivalent: row.source === 'credit' ? row.amount : row.amount,
+    main_currency_rate: '1',
     balance_after: row.amount,
     description: row.description ?? row.kind,
     timestamp: new Date(row.createdAt).getTime(),
     metadata: {
       ...row.metadata,
       currency: row.currency,
-      fiatCurrency,
-      creditUnit:
-        typeof row.metadata?.creditUnit === 'string'
-          ? row.metadata.creditUnit
+      mainCurrency,
+      creditBalanceUnit:
+        typeof row.metadata?.creditBalanceUnit === 'string'
+          ? row.metadata.creditBalanceUnit
           : row.source === 'credit'
             ? row.currency
             : undefined,

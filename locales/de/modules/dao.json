@@ -49,7 +49,12 @@
       "createPool": "Pool erstellen",
       "saveChanges": "Änderungen speichern",
       "cancel": "Abbrechen",
-      "saveFailed": "Speichern fehlgeschlagen"
+      "saveFailed": "Speichern fehlgeschlagen",
+      "builderUserIdLabel": "Builder-User-ID (optional)",
+      "builderUserIdPlaceholder": "Ring-User-ID für Ledger",
+      "payoutWalletLabel": "Builder-Auszahlungswallet",
+      "payoutWalletPlaceholder": "Solana-Adresse für Accounting-Payout bei completed",
+      "payoutTxHash": "Payout-Tx: {hash}"
     },
     "create": {
       "title": "Öffentlichen Pool erstellen",
@@ -72,5 +77,11 @@
       "completed": "Abgeschlossen",
       "cancelled": "Abgebrochen"
     }
-  }
+  },
+  "shareToChat": "Teilen",
+  "postJarToChat": "Jar-Karte senden",
+  "postJarPickContacts": "Funding-Jar an Kontakte",
+  "postJarConfirm": "Senden",
+  "postJarSuccess": "Jar gesendet",
+  "postJarFailed": "Jar konnte nicht gesendet werden"
 }

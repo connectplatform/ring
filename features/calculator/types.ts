@@ -24,7 +24,7 @@ export interface CalculatorResults {
   monthlyPoints: number
   alaCartePoints: number
   packSavingsPoints: number
-  /** Fiat (store.defaultCurrency) mirrors for convenience. */
+  /** Fiat (store.mainCurrency) mirrors for convenience. */
   oneTimeFiat: number
   monthlyFiat: number
   alaCarteFiat: number

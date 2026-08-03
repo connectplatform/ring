@@ -41,7 +41,7 @@ You are preparing a **white-label clone** — branding in `ring-config.json`, se
     **Postgres-primary** + `data/schema.sql` v4+ + kingdom migrations — required for store, PaymentConductor, News Kingdom depth.
   </Card>
   <Card title="Sign-in for testers" href="/docs/features/authentication">
-    At least one Auth.js provider: Google OAuth, Apple, or Resend magic link (`AUTH_RESEND_KEY`).
+    At least one Auth.js path: Google OAuth, Apple, or Ring Mailer (`SMTP_*` or `EMAIL_MODE=ethereal`).
   </Card>
   <Card title="Payments later" href="/docs/features/payment-conductor">
     WayForPay / Stripe credentials — **not** required for first `npm run dev`; add before checkout.
@@ -119,10 +119,11 @@ DB_* or DATABASE_URL               # required for postgres modes
 
 # At least one sign-in path:
 AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
-# and/or AUTH_APPLE_* 
-# and/or AUTH_RESEND_KEY (+ Postgres adapter for magic link)`}</Code>
+# and/or AUTH_APPLE_*
+# and/or Ring Mailer: EMAIL_MODE=ethereal or SMTP_HOST + SMTP_USER + SMTP_PASSWORD
+# (migration 038_email_login_tokens.sql for OTP / magic link)`}</Code>
 
-Providers registered in `auth.ts`: **Resend** (when adapter + key), **Google** OAuth, **Google One Tap** (Credentials), **Apple**, wallet/crypto credentials. GitHub/Discord OAuth are **not** in the default `auth.ts` provider list.
+Providers registered in `auth.ts`: **Ring Mailer** Credentials (`email-otp`, `email-magic`, `credentials`), **Google** OAuth, **Google One Tap**, **Apple**, wallet/crypto credentials. GitHub/Discord OAuth are **not** in the default provider list. **Resend / `AUTH_RESEND_KEY` removed.**
 
 Optional for later features:
 

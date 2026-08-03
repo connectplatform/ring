@@ -106,15 +106,53 @@ export async function purchaseGateAction(slug: NftGateSlug) {
   return result
 }
 
-export async function stakeGateAction(asset: string, slug: NftGateSlug) {
+export async function stakeGateAction(
+  asset: string,
+  slug: NftGateSlug,
+  vendorEntityId?: string,
+) {
   const session = await auth()
   if (!session?.user?.id) {
     return { success: false as const, error: 'Unauthorized' }
   }
+
+  let boundVendorEntityId = vendorEntityId?.trim() || undefined
+  const template = (await import('@/features/nft-gates/config')).getNftGateTemplate(slug)
+  const needsVendorBind = template?.gateFeatures.includes('vendor.dagi')
+
+  if (needsVendorBind) {
+    const { getVendorEntities, getVendorEntityById } = await import(
+      '@/features/entities/services/vendor-entity'
+    )
+    const owned = await getVendorEntities(session.user.id)
+    if (owned.length === 0) {
+      return {
+        success: false as const,
+        error: 'No store-activated vendor entity — create a vendor store before staking DAGI',
+      }
+    }
+    if (!boundVendorEntityId) {
+      if (owned.length === 1) {
+        boundVendorEntityId = owned[0].id
+      } else {
+        return {
+          success: false as const,
+          error: 'Select which vendor store to bind this DAGI stake to',
+        }
+      }
+    }
+    const entity = await getVendorEntityById(boundVendorEntityId)
+    const owns = owned.some((e) => e.id === boundVendorEntityId)
+    if (!entity || !owns) {
+      return { success: false as const, error: 'vendorEntityId not owned by you' }
+    }
+  }
+
   const result = await stakeGateAsset({
     userId: session.user.id,
     asset,
     slug,
+    vendorEntityId: boundVendorEntityId,
   })
   if (result.success) {
     revalidatePath(ROUTES.NFT_GATES())

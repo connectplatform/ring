@@ -1,12 +1,12 @@
 import 'server-only'
 
 import { randomUUID } from 'crypto'
-import {
+import type {
   DraftRepository,
   DraftCreateInput,
   DraftUpdateInput,
   EmailDraft,
-} from '@/features/email-crm/pipeline/drafts/draft-service'
+} from '@/features/email-crm/types/draft'
 import type { ToolUsageRecord } from '@/features/email-crm/pipeline/ai/response-generator'
 import { parseIsoDate, queryDocs, readDoc, upsertDoc } from '@/features/email-crm/lib/jsonb-collection'
 

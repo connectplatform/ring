@@ -37,6 +37,7 @@
   "profile": "Profile",
   "settings": "Settings",
   "messages": "Messages",
+  "tasks": "Tasks",
   "wallet": "Wallet",
   "refcodes": "Share & Earn",
   "admin": {
@@ -114,7 +115,12 @@
     "browseCatalog": "Browse catalog",
     "verifiedPublishers": "Verified publishers",
     "newListings": "New listings",
-    "bundlesAndStacks": "Bundles & stacks"
+    "bundlesAndStacks": "Bundles & stacks",
+    "supermenuFilter": "Filter menu…",
+    "economics": "Economy",
+    "calculateYourProject": "Calculate Your Project",
+    "calculateYourProjectDesc": "Choose options for your AI-led project clone, pay with {token} or card.",
+    "calculatorCta": "Calculator"
   },
   "userRole": {
     "superadmin": "Super Administrator",
@@ -264,10 +270,12 @@
   "myProjectOrders": "My Projects",
   "changelog": {
     "title": "Changelog",
-    "subtitle": "Release notes sourced from CHANGELOG.md (v{version})",
+    "subtitle": "Release notes from docs changelog (v{version})",
     "project": "Project",
     "publisher": "Publisher",
     "reportErrors": "Report errors",
-    "publisherPage": "Publisher page"
-  }
+    "publisherPage": "Publisher page",
+    "empty": "No changelog entries yet."
+  },
+  "games": "Games"
 }

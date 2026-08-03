@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Loader2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { LabThread } from '@/features/crm/lab/order-lab-chat-rail'
+import { LabThread, EmbeddedConversation } from '@/features/crm/lab/order-lab-chat-rail'
 
 /**
  * Admin CRM chat — three tabs: shared Project room | Integrator DM | Client DM.
@@ -66,7 +66,7 @@ export function AdminCrmChatTabs({ orderId }: { orderId: string }) {
             </TabsList>
             <TabsContent className="mt-0 min-h-0 flex-1 data-[state=inactive]:hidden" value="room">
               {labId ? (
-                <LabThread conversationId={labId} userId={userId} />
+                <EmbeddedConversation conversationId={labId} userId={userId} variant="order_lab" />
               ) : (
                 <p className="p-4 text-sm text-muted-foreground">Project room unavailable</p>
               )}

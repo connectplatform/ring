@@ -23,8 +23,8 @@ import { UserRolesArray } from '@/features/auth/user-role'
 type DeskQuote = {
   side: 'buy'
   ringAmountUi: string
-  creditUsd: string
-  creditFiatCurrency: string
+  creditBalanceAmount: string
+  mainCurrency: string
   rate: string
   discountBps: number
   quoteToken: string
@@ -51,7 +51,7 @@ export default function DeskWidget({
   const { role } = useAuth()
   const deskAllowed = canUseTokenDeskClient(role ?? UserRolesArray.visitor)
   const nativeSymbol = getClientNativeTokenSymbol()
-  const creditUnit = getClientCreditUnitLabel()
+  const creditBalanceUnit = getClientCreditUnitLabel()
   const projectName = getClientSiteName()
   const availablePoints = formatCreditPoints(creditBalancePoints)
   const availableNum = parseCreditPoints(availablePoints)
@@ -228,14 +228,14 @@ export default function DeskWidget({
         <div className="space-y-2">
           <p className="text-sm font-medium">{t('deskNoCreditTitle')}</p>
           <p className="text-sm text-muted-foreground">
-            {t('deskNoCreditHint', { project: projectName, unit: creditUnit })}
+            {t('deskNoCreditHint', { project: projectName, unit: creditBalanceUnit })}
           </p>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('deskNoCreditOr')}</p>
         </div>
         {onPurchaseCredit ? (
           <Button type="button" className="w-full gap-2" onClick={onPurchaseCredit}>
             <CreditCard className="h-4 w-4" />
-            {t('deskBuyCreditUnit', { unit: creditUnit })}
+            {t('deskBuyCreditUnit', { unit: creditBalanceUnit })}
           </Button>
         ) : null}
       </div>
@@ -258,7 +258,7 @@ export default function DeskWidget({
         <p className="mb-3 text-sm text-muted-foreground">
           {t('deskAvailableBalance', {
             amount: availablePoints,
-            unit: creditUnit,
+            unit: creditBalanceUnit,
           })}
         </p>
       )}
@@ -287,7 +287,7 @@ export default function DeskWidget({
           >
             {t('deskMax')}
           </Button>
-          <span className="text-sm text-muted-foreground">{creditUnit}</span>
+          <span className="text-sm text-muted-foreground">{creditBalanceUnit}</span>
         </div>
         <p className="text-xs text-muted-foreground">
           {t('deskBuyHint', {
@@ -315,7 +315,7 @@ export default function DeskWidget({
               <p>
                 {t('deskQuoteCredit')}:{' '}
                 <strong>
-                  {formatCreditPoints(quote.creditUsd)} {creditUnit}
+                  {formatCreditPoints(quote.creditBalanceAmount)} {creditBalanceUnit}
                 </strong>
               </p>
               {quote.discountBps > 0 && (
@@ -346,7 +346,7 @@ export default function DeskWidget({
         <div className="flex justify-between text-[10px] text-muted-foreground">
           <span>0</span>
           <span>
-            {availablePoints} {creditUnit}
+            {availablePoints} {creditBalanceUnit}
           </span>
         </div>
       </div>
@@ -370,7 +370,7 @@ export default function DeskWidget({
           {onPurchaseCredit && (
             <Button type="button" variant="outline" size="sm" onClick={onPurchaseCredit}>
               <CreditCard className="mr-1.5 h-3.5 w-3.5" />
-              {t('deskBuyCreditUnit', { unit: creditUnit })}
+              {t('deskBuyCreditUnit', { unit: creditBalanceUnit })}
             </Button>
           )}
         </div>

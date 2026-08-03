@@ -3,11 +3,11 @@ import 'server-only'
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
 import {
   assertQuoteSlippage,
-  getRingPerUsdRate,
+  getNativeTokenPerMainCurrencyRate,
   signQuote,
   verifyQuoteToken,
   type SignedQuotePayload,
-} from '@/features/wallet/services/ring-token-oracle'
+} from '@/lib/ring-oracle'
 import {
   getNativeChain,
   getTokenDeskConfig,
@@ -26,12 +26,12 @@ import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
 import { transferTokenFromTreasury } from '@/features/wallet/chains/solana/treasury-transfer-service'
 import type { DeskOrderSide } from '@/lib/zod/desk-schemas'
 import { db } from '@/lib/database'
-import { getClientCreditFiatCurrency } from '@/lib/ring-config-client'
-import { getFiatCreditAccountingRate } from '@/lib/payments/credit-currency'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
+import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
 
-/** Credit point → defaultCurrency multiplier (ring-config credit.unitToDefaultCurrency). */
+/** Credit point → main currency multiplier (ring-config credit.creditBalanceUnitToMainCurrency). */
 function getPointFiatValue(): number {
-  return Number(getFiatCreditAccountingRate()) || 1
+  return Number(getMainCurrencyCreditAccountingRate()) || 1
 }
 
 export class DeskInsufficientCreditError extends Error {
@@ -45,11 +45,10 @@ export class DeskInsufficientCreditError extends Error {
 /**
  * Quotes a desk buy: credit points → native token via live oracle.
  *
- * With pointFiatValue = 1 (1 point ≡ 1 default-fiat unit), token fiat price is
- * the oracle rate itself (fiat units per 1 native token). Example: rate 100 →
- * 100 points = 1 RING.
+ * With pointFiatValue = 0.1 (10 points ≡ 1 main-currency unit) and oracle rate 10
+ * (main currency units per 1 native token), 100 points → 10 main → 1 native.
  *
- * nativeOut = (points × pointFiatValue) / ringPerUsd
+ * nativeOut = (points × pointFiatValue) / nativePerMainCurrency
  */
 export async function quoteDesk(params: {
   userId: string
@@ -59,8 +58,8 @@ export async function quoteDesk(params: {
   side: DeskOrderSide
   ringAmountRaw: string
   ringAmountUi: string
-  creditUsd: string
-  creditFiatCurrency: string
+  creditBalanceAmount: string
+  mainCurrency: string
   rate: string
   discountBps: number
   quoteToken: string
@@ -78,13 +77,13 @@ export async function quoteDesk(params: {
     throw new Error('Buy amount must be a positive whole number of credit points')
   }
 
-  const ringPerUsd = parseFloat(await getRingPerUsdRate())
-  if (!Number.isFinite(ringPerUsd) || ringPerUsd <= 0) {
+  const nativePerMain = parseFloat(await getNativeTokenPerMainCurrencyRate())
+  if (!Number.isFinite(nativePerMain) || nativePerMain <= 0) {
     throw new Error('Oracle rate unavailable')
   }
 
   const fiat = points * getPointFiatValue()
-  const ringUi = (fiat / ringPerUsd).toFixed(8)
+  const ringUi = (fiat / nativePerMain).toFixed(8)
   const ringAmountRaw = nativeTokenUiToRaw(ringUi, getNativeTokenDecimals() ?? 8)
   if (ringAmountRaw <= 0n) {
     throw new Error('Converted native token amount is too small')
@@ -95,8 +94,8 @@ export async function quoteDesk(params: {
   const quoteToken = signQuote({
     side: 'buy',
     ringAmountRaw: ringAmountRaw.toString(),
-    creditUsd: creditPoints,
-    rate: String(ringPerUsd),
+    creditBalanceAmount: creditPoints,
+    rate: String(nativePerMain),
     discountBps,
   })
 
@@ -104,9 +103,9 @@ export async function quoteDesk(params: {
     side: 'buy',
     ringAmountRaw: ringAmountRaw.toString(),
     ringAmountUi: nativeTokenRawToUi(ringAmountRaw, getNativeTokenDecimals() ?? 8),
-    creditUsd: creditPoints,
-    creditFiatCurrency: getClientCreditFiatCurrency(),
-    rate: String(ringPerUsd),
+    creditBalanceAmount: creditPoints,
+    mainCurrency: getClientMainCurrency(),
+    rate: String(nativePerMain),
     discountBps,
     quoteToken,
   }
@@ -144,7 +143,7 @@ export async function executeDesk(params: {
 
   // Subscriber+ gate lives in WalletConductor.quoteDesk/executeDesk (SSOT).
 
-  const pointsNeeded = Math.floor(parseFloat(payload.creditUsd))
+  const pointsNeeded = Math.floor(parseFloat(payload.creditBalanceAmount))
   const hasEnough = await creditBalanceService.hasSufficientBalance(
     params.userId,
     String(pointsNeeded),
@@ -160,7 +159,7 @@ export async function executeDesk(params: {
     status: 'pending',
     quote_token: params.quoteToken,
     ring_amount_raw: payload.ringAmountRaw,
-    credit_amount_usd: payload.creditUsd,
+    credit_amount_usd: payload.creditBalanceAmount,
     first_settler_discount_applied: payload.discountBps > 0,
   })
 
@@ -179,7 +178,7 @@ async function executeDeskBuy(
   try {
     await creditBalanceService.spendFiatUsd(
       userId,
-      payload.creditUsd,
+      payload.creditBalanceAmount,
       `Desk buy ${nativeTokenRawToUi(ringRaw, getNativeTokenDecimals() ?? 8)} ${getNativeTokenSymbol()}`,
       'desk_buy',
       { desk_order_id: orderId },
@@ -247,7 +246,7 @@ async function executeDeskBuy(
       try {
         await creditBalanceService.addFiatUsd(
           userId,
-          payload.creditUsd,
+          payload.creditBalanceAmount,
           'Desk buy refund (chain failure)',
           'desk_refund',
           { desk_order_id: orderId },

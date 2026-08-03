@@ -1,0 +1,22 @@
+{
+  "marketplaceTitle": "Peer Games",
+  "marketplaceDescription": "Free Member mini-games. Challenge someone in Messages or from their public games page. Moves sync over Tunnel — no stakes.",
+  "manageMyGames": "Manage my games",
+  "becomeMember": "Become a Member to publish",
+  "openMessages": "Open Messages",
+  "openMiniApp": "Open mini-app",
+  "catalog": {
+    "tic-tac-toe": {
+      "title": "Tic-Tac-Toe",
+      "description": "Classic 3×3. First to three in a row wins."
+    },
+    "chess": {
+      "title": "Chess",
+      "description": "Standard chess. White moves first."
+    },
+    "checkers": {
+      "title": "Checkers",
+      "description": "English draughts on an 8×8 board. Forced captures."
+    }
+  }
+}

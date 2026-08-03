@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import type { WalletInfo } from '@/features/wallet/services/list-wallets'
 import type { WalletActivityScope } from '@/components/providers/wallet-activity-provider'
 import NativeWalletListItem from '@/features/wallet/components/native-wallet-list-item'
+import SignInWalletListItem from '@/features/wallet/components/signin-wallet-list-item'
 import CreditBalanceItemWidget from '@/features/wallet/components/credit-balance-item-widget'
 import WalletSendFsModal from '@/features/wallet/components/wallet-send-fs-modal'
 import WalletRequestFsModal from '@/features/wallet/components/wallet-request-fs-modal'
@@ -61,7 +62,7 @@ export function WalletBalanceHero({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 rounded-xl text-xs"
+            className="h-8 rounded-[99px] text-xs"
             onClick={() => onSelectScope({ type: 'all' })}
           >
             {t('activityAll', { defaultValue: 'All activity' })}
@@ -78,36 +79,32 @@ export function WalletBalanceHero({
           onRefresh={onRefresh}
         />
 
+        {/* Lane C: browser-connected sign-in EVM wallet (wagmi). Swap CTA when allowlisted. */}
+        <SignInWalletListItem />
+
         {walletsLoading ? (
           <p className="py-2 text-sm text-muted-foreground">{t('loadingWallets')}</p>
         ) : wallets.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground">{t('noWallets')}</p>
         ) : (
           wallets.map((wallet) => (
-            <div
+            <NativeWalletListItem
               key={wallet.address}
-              className={cn(
-                'rounded-xl transition-colors',
-                isScopeSelected(selectedScope, { type: 'wallet', address: wallet.address }) &&
-                  'ring-1 ring-[var(--davinci-beam)]/30',
-              )}
-            >
-              <NativeWalletListItem
-                wallet={wallet}
-                copied={copiedAddress === wallet.address}
-                selected={isScopeSelected(selectedScope, {
-                  type: 'wallet',
-                  address: wallet.address,
-                })}
-                isRefreshing={isRefreshing}
-                primaryLabel={t('primary')}
-                onCopy={() => onCopyAddress(wallet.address)}
-                onSelect={() => onSelectScope({ type: 'wallet', address: wallet.address })}
-                onRecharge={() => setRechargeWallet(wallet)}
-                onRequest={() => setRequestWallet(wallet)}
-                onSend={() => setSendWallet(wallet)}
-              />
-            </div>
+              wallet={wallet}
+              copied={copiedAddress === wallet.address}
+              selected={isScopeSelected(selectedScope, {
+                type: 'wallet',
+                address: wallet.address,
+              })}
+              isRefreshing={isRefreshing}
+              primaryLabel={t('primary')}
+              onCopy={() => onCopyAddress(wallet.address)}
+              onSelect={() => onSelectScope({ type: 'wallet', address: wallet.address })}
+              onRecharge={() => setRechargeWallet(wallet)}
+              onRequest={() => setRequestWallet(wallet)}
+              onSend={() => setSendWallet(wallet)}
+              onRefresh={onRefresh}
+            />
           ))
         )}
       </div>

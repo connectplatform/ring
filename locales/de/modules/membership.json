@@ -55,8 +55,8 @@
     "subtitle": "Schließen Sie sich Fachleuten an, die ihr Business mit Ring Platform ausbauen"
   },
   "pricing": {
-    "amount": "₴299",
-    "period": "UAH",
+    "amount": "$10",
+    "period": "/month",
     "features_included": "Alle Member-Funktionen inklusive"
   },
   "sidebar": {
@@ -149,5 +149,32 @@
     "faq_info_answer": "Wir fragen nach grundlegenden Infos zu Ihrer Organisation, Ihrer Rolle und dem Grund für das Upgrade. LinkedIn-Profil oder Portfolio-Links können die Prüfung beschleunigen.",
     "faq_downgrade_question": "Kann ich später downgraden?",
     "faq_downgrade_answer": "Ja, Sie können jederzeit über die Profileinstellungen eine Änderung des Kontotyps beantragen. Ein Downgrade kann den Zugriff auf bestimmte Funktionen einschränken."
+  },
+  "gate": {
+    "title": "Auf Member upgraden",
+    "subtitle": "Schalten Sie Entity-Erstellung und das volle Ring-Member-Erlebnis frei",
+    "subscribe_now": "Jetzt abonnieren",
+    "continue_free": "Kostenlos fortfahren",
+    "cancel_anytime": "Jederzeit kündbar. Mitgliedschaft verlängert sich nach gewähltem Plan.",
+    "fiat_period": "/Monat",
+    "fiat_period_year": "/Jahr",
+    "fiat_hint": "Karte oder Kontoguthaben",
+    "ring_period": "einmalig",
+    "ring_hint": "Einmalzahlung mit on-chain RING",
+    "select_method": "Zahlungsmethode wählen",
+    "plan_monthly_hint": "Monatliche Abrechnung",
+    "plan_annual_off": "20 % Rabatt vs. monatlich",
+    "eternal_nft": "Eternal Member NFT — {amount} {symbol}",
+    "eternal_hint": "Lebenslanger Member-Zugang per NFT",
+    "nft_month": "1-Monats-NFT — {amount} {symbol}",
+    "nft_month_off": "20 % Rabatt vs. Fiat monatlich",
+    "nft_year": "1-Jahres-NFT — {amount} {symbol}",
+    "nft_year_off": "40 % Rabatt vs. Fiat jährlich",
+    "nft_need_token": "Mehr {symbol} benötigt",
+    "native_insufficient_short": "Unzureichendes {symbol}-Guthaben",
+    "no_token_has_credit": "Noch kein {symbol} — Sie haben {credit} {unit}. Am Token Desk tauschen.",
+    "visit_desk": "{symbol}-Desk öffnen",
+    "token_insufficient_buy_credit": "Wenig {symbol}. {unit}-Guthaben kaufen, dann am Desk tauschen.",
+    "buy_credit": "{unit} kaufen / {symbol} holen"
   }
 }

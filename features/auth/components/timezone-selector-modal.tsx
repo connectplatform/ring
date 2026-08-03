@@ -26,10 +26,9 @@ interface TimezoneSelectorModalProps {
 
 /**
  * Timezone Selector Modal
- * Reuses SetUsernameModal pattern with the existing TimezoneSelect component.
- * - Fullscreen mobile, centered dialog desktop
- * - Searchable timezone dropdown with current time display
- * - Auto-detect from locale as fallback
+ * Profile save flow — embeds TimezoneSelect (Davinci-droplist FsModal on trigger tap).
+ * - Outer dialog: detect + save to profile
+ * - Inner picker: FsModal z-[9200] over this dialog
  */
 export default function TimezoneSelectorModal({
   open,

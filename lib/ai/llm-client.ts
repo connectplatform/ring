@@ -1,4 +1,5 @@
 import { getXaiTextConfig } from '@/lib/text/text.config'
+import { listCandidates, resolveModel } from '@/lib/ai/model-router'
 
 /**
  * Unified LLM Client for Ring Platform
@@ -582,12 +583,83 @@ export function createStreamingLLMClient(fallback: boolean = true): LLMClient {
 }
 
 export function createLLMClient(fallback: boolean = true): LLMClient {
+  try {
+    if (!(process.env.LLM_PROVIDER || process.env.LLM_MODEL)) {
+      const primary = resolveModel('chat_stream')
+      const primaryConfig: LLMConfig =
+        primary.provider === 'anthropic'
+          ? {
+              provider: 'anthropic',
+              model: primary.modelId,
+              apiKey: primary.apiKey,
+              temperature: 0.7,
+              maxTokens: 1000,
+            }
+          : {
+              provider: 'openai',
+              model: primary.modelId,
+              baseUrl: primary.endpoint.baseUrl,
+              apiKey: primary.apiKey,
+              temperature: 0.7,
+              maxTokens: 1000,
+            }
+
+      let fallbackConfig: LLMConfig | undefined
+      if (fallback) {
+        const alts = listCandidates('chat_stream').filter(
+          (c) => !(c.provider === primary.provider && c.modelId === primary.modelId),
+        )
+        const alt = alts[0]
+        if (alt) {
+          fallbackConfig =
+            alt.provider === 'anthropic'
+              ? {
+                  provider: 'anthropic',
+                  model: alt.modelId,
+                  apiKey: alt.apiKey,
+                  temperature: 0.7,
+                  maxTokens: 1000,
+                }
+              : {
+                  provider: 'openai',
+                  model: alt.modelId,
+                  baseUrl: alt.endpoint.baseUrl,
+                  apiKey: alt.apiKey,
+                  temperature: 0.7,
+                  maxTokens: 1000,
+                }
+        }
+      }
+      return new LLMClient(primaryConfig, fallbackConfig)
+    }
+  } catch {
+    // fall through to env-legacy path
+  }
+
   const providerEnv = (process.env.LLM_PROVIDER || 'openai').toLowerCase()
 
   if (providerEnv === 'openrouter' || process.env.OPENROUTER_API_KEY) {
+    let openrouterModel = process.env.LLM_MODEL || 'anthropic/claude-sonnet-4-5'
+    let anthropicFallback = 'claude-sonnet-4-5-20250929'
+    try {
+      openrouterModel =
+        process.env.LLM_MODEL ||
+        resolveModel('news_moderation_score', {
+          availableKeys: { OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || 'x' },
+          ignoreEnvOverride: true,
+        }).modelId
+      anthropicFallback = resolveModel('chat_stream', {
+        availableKeys: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || 'x' },
+        preferred: [{ provider: 'anthropic', modelId: 'claude-sonnet-4-5-20250929' }],
+        ignoreEnvOverride: true,
+      }).modelId
+    } catch {
+      /* keep defaults */
+    }
+
     const primaryConfig: LLMConfig = {
       provider: 'openai',
-      model: process.env.LLM_MODEL || 'anthropic/claude-3.5-sonnet',
+      model: openrouterModel,
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY,
       temperature: 0.7,
@@ -598,7 +670,7 @@ export function createLLMClient(fallback: boolean = true): LLMClient {
     if (fallback && process.env.ANTHROPIC_API_KEY) {
       fallbackConfig = {
         provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20241022',
+        model: anthropicFallback,
         temperature: 0.7,
         maxTokens: 1000,
       }
@@ -609,12 +681,29 @@ export function createLLMClient(fallback: boolean = true): LLMClient {
 
   const provider = (providerEnv === 'anthropic' ? 'anthropic' : 'openai') as 'openai' | 'anthropic'
 
+  let defaultOpenAi = 'gpt-5.6-terra'
+  let defaultAnthropic = 'claude-sonnet-4-5-20250929'
+  try {
+    defaultOpenAi = resolveModel('chat_stream', {
+      availableKeys: { OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'x' },
+      preferred: [{ provider: 'openai', modelId: 'gpt-5.6-terra' }],
+      ignoreEnvOverride: true,
+    }).modelId
+    defaultAnthropic = resolveModel('chat_stream', {
+      availableKeys: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || 'x' },
+      preferred: [{ provider: 'anthropic', modelId: 'claude-sonnet-4-5-20250929' }],
+      ignoreEnvOverride: true,
+    }).modelId
+  } catch {
+    /* keep defaults */
+  }
+
   const primaryConfig: LLMConfig = {
     provider,
     model:
       provider === 'openai'
-        ? process.env.LLM_MODEL || 'gpt-4o'
-        : process.env.LLM_MODEL || 'claude-3-5-sonnet-20241022',
+        ? process.env.LLM_MODEL || defaultOpenAi
+        : process.env.LLM_MODEL || defaultAnthropic,
     temperature: 0.7,
     maxTokens: 1000,
   }
@@ -625,14 +714,14 @@ export function createLLMClient(fallback: boolean = true): LLMClient {
     if (provider === 'openai' && process.env.ANTHROPIC_API_KEY) {
       fallbackConfig = {
         provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20241022',
+        model: defaultAnthropic,
         temperature: 0.7,
         maxTokens: 1000,
       }
     } else if (provider === 'anthropic' && process.env.OPENAI_API_KEY) {
       fallbackConfig = {
         provider: 'openai',
-        model: 'gpt-4o',
+        model: defaultOpenAi,
         temperature: 0.7,
         maxTokens: 1000,
       }

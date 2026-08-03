@@ -5,7 +5,7 @@
     "name": "my-ring-clone",
     "displayName": "My Ring Clone",
     "shortName": "Ring",
-    "description": "Open-source white-label community, opportunity, and marketplace platform \u2014 Entities, Opportunities, Store, Web3, and AI matching in one React 19 / Next.js 16 stack",
+    "description": "Open-source white-label community, opportunity, and marketplace platform — Entities, Opportunities, Store, Web3, and AI matching in one React 19 / Next.js 16 stack",
     "version": "1.0.0",
     "organization": "Your Organization Name",
     "contactEmail": "contact@your-domain.com"
@@ -168,21 +168,6 @@
     "baseUrl": "https://your-domain.com"
   },
   "tokens": {
-    "creditUnit": "USD",
-    "creditFiatCurrency": "USD",
-    "desk": {
-      "supplyPolicy": "treasury_transfer",
-      "firstSettlerDiscountBps": 2000,
-      "firstSettlerOneTime": true,
-      "firstSettlerGates": [
-        "wallet",
-        "username",
-        "dob",
-        "verified"
-      ],
-      "quoteTtlSeconds": 60,
-      "maxSlippageBps": 100
-    },
     "nativeToken": {
       "symbol": "RING",
       "name": "RING Governance Token",
@@ -254,6 +239,32 @@
     "phone": "+1 000 000 0000",
     "email": "contact@your-domain.com"
   },
+  "emailCrm": {
+    "enabled": false,
+    "_comment": "Multi-mailbox CRM IMAP. Passwords via CRM_CHANNEL_<ID>_PASSWORD env. AUTH SMTP remains SMTP_*.",
+    "channels": [
+      {
+        "id": "primary",
+        "name": "Primary",
+        "enabled": false,
+        "flow": "standard",
+        "imap": {
+          "host": "mail.example.com",
+          "port": 993,
+          "user": "info@example.com",
+          "mailbox": "INBOX",
+          "tls": true
+        },
+        "smtp": {
+          "host": "mail.example.com",
+          "port": 587,
+          "user": "info@example.com",
+          "from": "Support <info@example.com>"
+        },
+        "secretEnvPrefix": "CRM_CHANNEL_PRIMARY"
+      }
+    ]
+  },
   "localization": {
     "defaultLocale": "en",
     "supportedLocales": [
@@ -321,7 +332,7 @@
       "provider": "ringbase",
       "maxEdge": 1600,
       "quality": 82,
-      "_comment": "off | sharp | ringbase \u2014 ringbase is default for ring_filebase mode; sharp only if opted in; off disables post-upload deriveWebpSibling"
+      "_comment": "off | sharp | ringbase — ringbase is default for ring_filebase mode; sharp only if opted in; off disables post-upload deriveWebpSibling"
     }
   },
   "security": {
@@ -373,27 +384,52 @@
   "publicPools": {
     "minGoalHours": 1,
     "ringPerMachineHour": 1,
-    "likeQueueThreshold": 100
+    "likeQueueThreshold": 100,
+    "platformFeePercentByRole": {
+      "visitor": 7,
+      "subscriber": 7,
+      "member": 7,
+      "confidential": 6,
+      "admin": 0,
+      "superadmin": 0
+    },
+    "autoPayoutOnGoalMet": true
   },
   "membership": {
     "tiers": {
       "subscriber": {
         "amount": 0,
-        "currency": "UAH",
+        "currency": "USD",
         "description": "Ring Platform Subscriber (Free)",
         "duration": "lifetime"
       },
       "member": {
-        "amount": 299,
-        "currency": "UAH",
-        "description": "Ring Platform Member Upgrade",
-        "duration": "1 month"
+        "amount": 10,
+        "currency": "USD",
+        "description": "Ring Platform Member Upgrade (1 RING)",
+        "duration": "1 month",
+        "pricedInNativeToken": true
+      },
+      "memberAnnual": {
+        "amount": 100,
+        "currency": "USD",
+        "description": "Ring Platform Member Upgrade Annual (10 RING)",
+        "duration": "1 year",
+        "pricedInNativeToken": true
       }
     },
     "ring": {
       "memberUpgradeAmount": 1,
-      "subscriptionRenewalAmount": 1
-    }
+      "subscriptionRenewalAmount": 1,
+      "annualUpgradeAmount": 10
+    },
+    "nativeToken": {
+      "memberUpgradeAmount": 1,
+      "subscriptionRenewalAmount": 1,
+      "annualUpgradeAmount": 10
+    },
+    "solanaSettlement": "treasury_transfer",
+    "pricedInNativeToken": true
   },
   "chains": {
     "native": "solana",
@@ -425,7 +461,7 @@
       "enabled": false,
       "chainId": 8453,
       "decimals": 8,
-      "note": "US L2 mirror \u2014 Phase 1.5 CDP Paymaster + ERC-20 mirror"
+      "note": "US L2 mirror — Phase 1.5 CDP Paymaster + ERC-20 mirror"
     }
   },
   "integrations": {
@@ -477,7 +513,7 @@
     "supportedMethods": [
       "wayforpay",
       "credit_balance",
-      "ring_token"
+      "native_token"
     ],
     "futureMethods": [
       "stripe",
@@ -501,7 +537,7 @@
         "feePercent": 0,
         "currency": "USD"
       },
-      "ring_token": {
+      "native_token": {
         "enabled": true,
         "feePercent": 0,
         "currency": "RING",
@@ -633,11 +669,13 @@
     "maxMintsPerCollection": 50
   },
   "store": {
-    "defaultCurrency": "USD"
+    "mainCurrency": "USD",
+    "mainCurrencyToUsd": 1
   },
   "exchangeRates": {
     "USD": 1.0,
-    "RING": 1.0
+    "RING": 10.0,
+    "UAH": 41.0
   },
   "entities": {
     "preset": "platform"
@@ -695,8 +733,8 @@
     "preset": "platform"
   },
   "credit": {
-    "creditUnitLabel": "points",
-    "unitToDefaultCurrency": 1,
+    "creditBalanceUnitLabel": "points",
+    "creditBalanceUnitToMainCurrency": 0.1,
     "rewards": {
       "minRole": "subscriber",
       "multipliers": {
@@ -787,6 +825,20 @@
           "idempotencyMode": "once_per_object"
         }
       }
+    },
+    "desk": {
+      "supplyPolicy": "treasury_transfer",
+      "firstSettlerDiscountBps": 2000,
+      "firstSettlerOneTime": true,
+      "firstSettlerGates": [
+        "wallet",
+        "username",
+        "dob",
+        "verified"
+      ],
+      "quoteTtlSeconds": 60,
+      "maxSlippageBps": 100,
+      "creditBalanceUnitPerNativeToken": 100
     }
   }
 }

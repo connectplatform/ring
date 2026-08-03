@@ -1,7 +1,7 @@
 import { auth } from '@/auth'
 import { randomUUID } from 'crypto'
 import { db } from '@/lib/database'
-import { getNativeTokenAddress, getNativeTokenDecimals } from '@/lib/ring-config-chain'
+import { getNativeTokenAddress, getNativeTokenDecimals, getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { nativeTokenUiToRaw } from '@/lib/wallet/native-token-amount'
 import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
 import {
@@ -173,7 +173,7 @@ export async function createListingDraft(data: any): Promise<ServiceResult<NftMa
         priceRaw,
         priceRing: String(input.priceRing),
         decimals,
-        currency: 'RING',
+        currency: getNativeTokenSymbol(),
         ringMint: getNativeTokenAddress(),
         feeBps,
         feeRecipient: getMarketplaceFeeRecipient(),
@@ -221,7 +221,7 @@ export async function createListingDraft(data: any): Promise<ServiceResult<NftMa
         priceRaw,
         priceRing: String(input.priceRing),
         decimals,
-        currency: 'RING',
+        currency: getNativeTokenSymbol(),
         ringMint: getNativeTokenAddress(),
         feeBps,
         feeRecipient: getMarketplaceFeeRecipient(),

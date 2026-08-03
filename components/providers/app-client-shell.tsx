@@ -17,11 +17,12 @@ import { AppProvider } from '@/contexts/app-context'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
 import { GlobalTunnelListeners } from '@/components/providers/global-tunnel-listeners'
-import { StoreCurrencyProvider } from '@/features/store/currency-context'
+import { StorePaymentMethodsProvider } from '@/features/store/currency-context'
 import { StoreProvider } from '@/features/store/context'
 import GoogleOneTap from '@/features/auth/components/google-one-tap'
 import { Toaster } from '@/components/ui/toaster'
 import { RingAnalyticsBeacon } from '@/components/providers/ring-analytics-beacon'
+import { MediaUseTargetProvider } from '@/features/generative-media/media-use-target'
 
 /** Static whitelabel defaults for Suspense fallback — from ring-config snapshot. */
 const APP_SHELL_STATIC_INSTANCE_CONFIG: PublicInstanceConfig =
@@ -56,12 +57,13 @@ export function AppClientShell({
           <ThemeProvider>
             <InstanceConfigClientProvider value={instanceConfig}>
               <AppProvider>
+                <MediaUseTargetProvider>
                 <FCMProvider>
                   <TunnelProvider autoConnect={false} debug={false}>
                     <CreditBalanceProvider>
                       <GlobalTunnelListeners />
                       <Web3ScopeProvider>
-                        <StoreCurrencyProvider>
+                        <StorePaymentMethodsProvider>
                           <StoreProvider>
                             {children}
                             <GoogleOneTap />
@@ -69,13 +71,14 @@ export function AppClientShell({
                               <RingAnalyticsBeacon />
                             </Suspense>
                           </StoreProvider>
-                        </StoreCurrencyProvider>
+                        </StorePaymentMethodsProvider>
                       </Web3ScopeProvider>
                     </CreditBalanceProvider>
                     <FCMPermissionPrompt />
                     <Toaster />
                   </TunnelProvider>
                 </FCMProvider>
+                </MediaUseTargetProvider>
               </AppProvider>
             </InstanceConfigClientProvider>
           </ThemeProvider>

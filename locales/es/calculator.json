@@ -463,7 +463,17 @@
       "restartPod": "Reiniciar",
       "projectRoom": "Sala del proyecto",
       "noProjectRoom": "Sala del proyecto no disponible",
-      "namespaceAdminLock": "El namespace y el edge los define un admin en CRM — pídeselo si el campo está vacío."
+      "namespaceAdminLock": "El namespace y el edge los define un admin en CRM — pídeselo si el campo está vacío.",
+      "ownerPrivate": "claves del dueño",
+      "missing": "Sin definir — solicitar al comprador",
+      "requestUpdate": "Solicitar actualización",
+      "requestSent": "Solicitud enviada",
+      "requestFailed": "No se pudo enviar",
+      "gitUrl": "Forgejo git",
+      "scaffoldClone": "Crear clon",
+      "buildImage": "Construir imagen",
+      "refreshJob": "Actualizar Job",
+      "cloneBridgeFiHint": "Scaffold/build requiere RING_EDGE_FI_* (k3s-3 BuildKit)."
     },
     "buyerBadge": "Mis proyectos",
     "buyerTitle": "Mis pedidos de proyecto",
@@ -480,6 +490,28 @@
     "integratorLabel": "Integrador",
     "awaitingIntegrator": "Esperando asignación de integrador",
     "filterPaid": "Pagados",
-    "kpiPaid": "Pagados"
+    "kpiPaid": "Pagados",
+    "secrets": {
+      "title": "Secretos del dueño",
+      "subtitle": "Firebase, RingBase y almacenamiento — solo usted y admins. Se aplica en el próximo deploy.",
+      "savedBanner": "Guardado — se aplica en el próximo deploy.",
+      "save": "Guardar secretos"
+    },
+    "projectConfig": {
+      "title": "Identidad del proyecto",
+      "buyerSubtitle": "Nombre, slogan y logo. Se aplica en el próximo deploy.",
+      "integratorSubtitle": "Order Project Config completo (marca, SEO, contacto).",
+      "savedBanner": "Guardado — se aplica en el próximo deploy.",
+      "displayName": "Nombre",
+      "slogan": "Eslogan",
+      "description": "Descripción",
+      "logoUrl": "URL del logo",
+      "primaryColor": "Color primario",
+      "accentColor": "Acento",
+      "contactEmail": "Email de contacto",
+      "seoTitle": "Sufijo SEO",
+      "ogImage": "Imagen OG",
+      "save": "Guardar config"
+    }
   }
 }

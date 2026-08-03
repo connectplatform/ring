@@ -28,7 +28,8 @@
     },
     "contactUsPrivacy": {
       "title": "Protección de datos de contacto",
-      "content": "Si tiene alguna pregunta sobre esta política de privacidad, puede contactarnos en privacidad@connect.software"
+      "content": "Si tiene alguna pregunta sobre esta política de privacidad, contacte a nuestro equipo.",
+      "contactStaff": "Contactar al personal"
     }
   }
 }

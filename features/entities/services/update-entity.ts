@@ -72,7 +72,16 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
 
     console.log('Services: updateEntity - Entity updated successfully');
 
-    await syncEntityDiscovery({ entityId: id, event: 'updated' })
+    const { mapDbDocumentToSerializedEntity } = await import('@/features/entities/lib/entity-db-mapper')
+    const fresh = await db().findDocById('entities', id)
+    const snippet =
+      fresh.success && fresh.data
+        ? (mapDbDocumentToSerializedEntity(fresh.data as { id: string } & object) as unknown as Record<
+            string,
+            unknown
+          >)
+        : null
+    await syncEntityDiscovery({ entityId: id, event: 'updated', snippet })
 
     return true; // Indicate successful update
 

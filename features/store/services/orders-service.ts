@@ -10,6 +10,7 @@ import { cache } from 'react'
 import { orderCreateSchema } from '@/lib/zod'
 import { db } from '@/lib/database'
 import type { Order, StoreOrder, StorePayment, VendorSettlement } from '@/features/store/types'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 
 type OrderRow = Order & Record<string, unknown> & { id: string }
 type StoreOrderRow = StoreOrder & Record<string, unknown> & { id: string }
@@ -197,10 +198,12 @@ export const StoreOrdersService = {
       
       if (!orderData.payment) {
         orderData.payment = {
-          method: 'wayforpay',
+          method: 'card',
           status: 'pending',
           amount: Number(orderData.total ?? 0),
-          currency: String((result.data as Record<string, unknown>).currency ?? 'UAH'),
+          currency: String(
+            (result.data as Record<string, unknown>).currency ?? getMainCurrencySymbol(),
+          ),
         } satisfies StorePayment
       }
       

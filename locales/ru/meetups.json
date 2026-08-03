@@ -8,7 +8,6 @@
   "upcomingMeetups": "Предстоящие встречи",
   "pastMeetups": "Прошедшие встречи",
   "myMeetups": "Мои встречи",
-
   "types": {
     "dog_park_meetup": "Встреча в собачьем парке",
     "hiking": "Походы с питомцами",
@@ -19,14 +18,12 @@
     "charity": "Благотворительное мероприятие",
     "other": "Другое"
   },
-
   "privacy": {
     "public": "Публичная",
     "private": "Приватная",
     "publicDescription": "Любой может увидеть и присоединиться",
     "privateDescription": "Только по приглашению"
   },
-
   "fields": {
     "title": "Название встречи",
     "description": "Описание",
@@ -41,7 +38,6 @@
     "photos": "Фотографии",
     "safetyGuidelines": "Правила безопасности"
   },
-
   "allowedPets": {
     "title": "Разрешённые питомцы",
     "dogs": "Собаки",
@@ -50,7 +46,6 @@
     "allPets": "Все питомцы приветствуются",
     "noPets": "Без питомцев (только для людей)"
   },
-
   "rsvp": {
     "title": "Регистрация",
     "going": "Иду",
@@ -65,7 +60,6 @@
     "attendees": "Участники",
     "viewAttendees": "Просмотреть участников"
   },
-
   "participants": {
     "title": "Участники",
     "organizer": "Организатор",
@@ -77,7 +71,6 @@
     "confirmed": "Подтверждённые",
     "declined": "Отклонённые"
   },
-
   "groupChat": {
     "title": "Групповой чат",
     "openChat": "Открыть чат",
@@ -86,7 +79,6 @@
     "leaveChat": "Выйти из чата",
     "members": "{{count}} участников"
   },
-
   "safety": {
     "title": "Правила безопасности",
     "leashRequired": "Поводки обязательны",
@@ -97,7 +89,6 @@
     "weatherDependent": "Зависит от погоды",
     "emergencyContact": "Экстренный контакт доступен"
   },
-
   "search": {
     "placeholder": "Искать встречи...",
     "filterByType": "Фильтр по типу",
@@ -114,7 +105,6 @@
       "newest": "Новизне"
     }
   },
-
   "status": {
     "upcoming": "Предстоящая",
     "ongoing": "Идёт сейчас",
@@ -123,7 +113,6 @@
     "postponed": "Отложена",
     "full": "Заполнена"
   },
-
   "actions": {
     "saveMeetup": "Сохранить встречу",
     "updateMeetup": "Обновить встречу",
@@ -140,7 +129,6 @@
     "viewOnMap": "Показать на карте",
     "getDirections": "Построить маршрут"
   },
-
   "validation": {
     "titleRequired": "Название встречи обязательно",
     "typeRequired": "Тип встречи обязателен",
@@ -151,7 +139,6 @@
     "maxParticipantsInvalid": "Максимум участников — не менее 2",
     "entryFeeInvalid": "Входная плата должна быть положительным числом"
   },
-
   "success": {
     "created": "Встреча успешно создана! Групповой чат создан.",
     "updated": "Встреча успешно обновлена!",
@@ -164,7 +151,6 @@
     "photoUploaded": "Фото успешно загружено",
     "checkedIn": "Успешно отмечены!"
   },
-
   "errors": {
     "loadFailed": "Не удалось загрузить встречи",
     "saveFailed": "Не удалось сохранить встречу",
@@ -174,7 +160,6 @@
     "uploadFailed": "Не удалось загрузить фото",
     "locationAccessDenied": "Доступ к геолокации отклонён"
   },
-
   "notifications": {
     "newMeetupNearby": "Новая встреча рядом: {{title}}",
     "meetupStartingSoon": "Встреча начнётся через {{minutes}} минут!",
@@ -184,5 +169,10 @@
     "waitlistPromoted": "Вас перевели из листа ожидания! {{title}}",
     "reminderOneDayBefore": "Напоминание: встреча завтра — {{title}}",
     "reminderOneHourBefore": "Напоминание: встреча начнётся через 1 час — {{title}}"
-  }
+  },
+  "inviteRsvp": "Пригласить RSVP",
+  "inviteRsvpPickContacts": "Пригласить контакты на RSVP",
+  "inviteRsvpConfirm": "Отправить RSVP",
+  "inviteRsvpSuccess": "RSVP-приглашения отправлены",
+  "inviteRsvpFailed": "Не удалось отправить RSVP"
 }

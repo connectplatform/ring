@@ -515,6 +515,10 @@
       "version"
     ],
     "ogTitle": "Changelog — Ring Platform",
-    "ogDescription": "Release notes sourced from CHANGELOG.md"
+    "ogDescription": "Release notes from docs changelog"
+  },
+  "fileCabinet": {
+    "title": "File Cabinet",
+    "description": "Your personal Ring file manager."
   }
 }

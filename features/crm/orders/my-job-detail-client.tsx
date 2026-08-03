@@ -26,10 +26,12 @@ export function MyJobDetailClient({
   order: initial,
   buyer,
   locale,
+  hidePageTitle = false,
 }: {
   order: ProjectOrder
   buyer: CrmUserChip | null
   locale: Locale
+  hidePageTitle?: boolean
 }) {
   const t = useTranslations('calculator')
   const router = useRouter()
@@ -71,8 +73,14 @@ export function MyJobDetailClient({
           <Button asChild size="sm" variant="ghost">
             <Link href={ROUTES.MY_JOBS(locale)}>{t('order.backToDesk')}</Link>
           </Button>
-          <h1 className="text-2xl font-bold">{nicheTitle(order)}</h1>
-          <p className="text-sm text-muted-foreground">{order.id}</p>
+          {!hidePageTitle ? (
+            <>
+              <h1 className="text-2xl font-bold">{nicheTitle(order)}</h1>
+              <p className="text-sm text-muted-foreground">{order.id}</p>
+            </>
+          ) : (
+            <p className="font-mono text-xs text-muted-foreground">{order.id}</p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{order.paymentStatus}</Badge>
@@ -148,7 +156,7 @@ export function MyJobDetailClient({
               <>
                 <dt className="text-muted-foreground">{t('order.briefOneTime')}</dt>
                 <dd>
-                  {results.oneTimeFiat} {snap?.rates?.defaultCurrency ?? order.currency}
+                  {results.oneTimeFiat} {snap?.rates?.mainCurrency ?? order.currency}
                 </dd>
               </>
             ) : null}
@@ -156,7 +164,7 @@ export function MyJobDetailClient({
               <>
                 <dt className="text-muted-foreground">{t('order.briefMonthly')}</dt>
                 <dd>
-                  {results.monthlyFiat} {snap?.rates?.defaultCurrency ?? order.currency}
+                  {results.monthlyFiat} {snap?.rates?.mainCurrency ?? order.currency}
                 </dd>
               </>
             ) : null}

@@ -9,7 +9,7 @@ import { Package, Truck, Shield, Heart } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { ProductAgentChatTopBar } from '@/features/store/components/product-agent-chat-shell'
 import { useStore } from '@/features/store/context'
-import { useStoreCurrency } from '@/features/store/currency-context'
+import { useStorePaymentMethods } from '@/features/store/currency-context'
 import type { Locale } from '@/i18n/shared'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { useToast } from '@/hooks/use-toast'
@@ -69,7 +69,7 @@ export default function ProductDetailsClient({
 
   const { success } = useToast()
   const t = useTranslations('modules.store')
-  const storeCurrencyContext = useStoreCurrency()
+  const storeCurrencyContext = useStorePaymentMethods()
 
   const convertPrice = storeCurrencyContext?.convertPrice || ((price: number) => price)
   const formatPrice =

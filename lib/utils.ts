@@ -407,7 +407,7 @@ export function formatDateValue(value: string | Timestamp | FieldValue): string 
 /**
  * Formats currency amounts with proper symbols and formatting
  * @param amount - The amount to format
- * @param currency - The currency code (RING, DAAR, DAARION, USD, etc.)
+ * @param currency - The currency code (RING, USD, etc.)
  * @returns Formatted currency string
  * 
  * @example
@@ -416,7 +416,7 @@ export function formatDateValue(value: string | Timestamp | FieldValue): string 
  */
 export function formatCurrency(amount: number, currency: string = 'USD'): string {
   // Handle crypto currencies
-  if (['RING', 'DAAR', 'DAARION'].includes(currency.toUpperCase())) {
+  if (['RING'].includes(currency.toUpperCase())) {
     return `${amount.toLocaleString()} ${currency.toUpperCase()}`
   }
   

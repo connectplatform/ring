@@ -2,14 +2,18 @@
 
 import React, { useMemo } from 'react' // Only import useMemo, as memoization will be added.
 import { useTranslations } from 'next-intl'
-import { useOptionalStoreCurrency } from '@/features/store/currency-context'
+import { useOptionalStorePaymentMethods } from '@/features/store/currency-context'
 import { Truck, Clock, MapPin, Package } from 'lucide-react'
 import { NovaPostSelector, type NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
-import type { StoreCurrency } from '@/features/store/types'
+import type { StorePaymentMethods } from '@/features/store/types'
 import type { SupportedCurrencies } from '@/lib/ring-config-types'
+import type { ShippingProvider } from '@/lib/zod'
 
-// Define all shipping method string literal types for explicit checks and robust typing
-export type ShippingMethod = 'nova-post' | 'express' | 'standard' | 'pickup'
+/**
+ * Buyer-selectable shipping methods — a subset of the zod `ShippingProvider` SSOT.
+ * `manual` is vendor-arranged and never rendered as a checkout option.
+ */
+export type ShippingMethod = Exclude<ShippingProvider, 'manual'>
 
 // TODO: Provide a selector that determines which shipping methods are present, based on the user's country.
 //       1. Accept country prop or obtain country from checkout context.
@@ -51,13 +55,13 @@ function ShippingMethodSelector({
   // Access translation function from next-intl for i18n/localization
   const t = useTranslations('modules.store.checkout')
   // Access store-level currency conversion context (returns undefined if not in a store domain)
-  const currencyContext = useOptionalStoreCurrency()
+  const currencyContext = useOptionalStorePaymentMethods()
   
   // Helper: Retrieve convertPrice method (currency conversion), fallback is an identity function
   const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
   // Helper: Retrieve formatPrice method (price presentation), fallback is a basic string formatter
   const formatPrice = currencyContext?.formatPrice || (
-    (price: number, symbol: string, name: StoreCurrency) => `${price.toFixed(2)} ${symbol || name}`
+    (price: number, symbol: string, name: StorePaymentMethods) => `${price.toFixed(2)} ${symbol || name}`
   )
   
   // Memoize shippingOptions so that they are not regenerated needlessly on every render,

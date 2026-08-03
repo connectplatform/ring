@@ -7,7 +7,8 @@ import {
   getBuyerWalletAddresses,
   resolveOrderReferral,
 } from '@/features/refcodes/services/attribution-service'
-import { reserveInventoryForOrder } from '@/features/store/services/inventory-sync'
+import { reserveInventoryForOrder, releaseReservationsForOrder } from '@/features/store/services/inventory-sync'
+import { cartHoldOrderId } from '@/features/store/constants/stock'
 import { logger } from '@/lib/logger'
 
 export async function GET(req: NextRequest) {
@@ -70,12 +71,9 @@ export async function POST(req: NextRequest) {
           payment: {
             ...data.payment,
             method:
-              // Legacy credit alias ("RING credits") — not in orderCreateSchema enum; defensive cast for old clients/prefs.
-              (data.payment.method as string) === 'ring'
-                ? 'credit'
-                : data.payment.method === 'card'
-                  ? 'wayforpay'
-                  : data.payment.method,
+              data.payment.method === 'card'
+                ? 'wayforpay'
+                : data.payment.method,
           },
         }
 
@@ -89,18 +87,28 @@ export async function POST(req: NextRequest) {
     )
 
     try {
-      const reservationItems = (data.items || []).map((item) => ({
-        productId: item.productId || (item as { product?: { id?: string } }).product?.id || '',
-        quantity: item.quantity || 1,
-      })).filter((i) => i.productId)
+      await releaseReservationsForOrder(cartHoldOrderId(session.user.id))
+      const reservationItems = (data.items || []).map((item) => {
+        const product = (item as {
+          product?: { id?: string; digitalProduct?: boolean; instantDelivery?: boolean }
+          isPreorder?: boolean
+        }).product
+        return {
+          productId: item.productId || product?.id || '',
+          quantity: item.quantity || 1,
+          isPreorder: Boolean((item as { isPreorder?: boolean }).isPreorder),
+          digitalProduct: Boolean(product?.digitalProduct),
+          instantDelivery: Boolean(product?.instantDelivery),
+        }
+      }).filter((i) => i.productId)
 
       if (reservationItems.length > 0) {
         const { reserved, skipped } = await reserveInventoryForOrder(orderId, reservationItems)
-        if (reserved.length > 0) {
+        if (reserved.length > 0 || skipped.length > 0) {
           logger.info('Orders: inventory reserved', {
             orderId,
             reserved: reserved.length,
-            skipped: skipped.length,
+            skippedDigitalOrPreorder: skipped.length,
           })
         }
       }

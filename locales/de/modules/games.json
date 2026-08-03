@@ -1,0 +1,22 @@
+{
+  "marketplaceTitle": "Peer Games",
+  "marketplaceDescription": "Kostenlose Member-Minispiele. Fordere jemanden in Messages oder über deren öffentliche Spiele-Seite heraus. Züge synchronisieren über Tunnel — ohne Einsätze.",
+  "manageMyGames": "Meine Spiele verwalten",
+  "becomeMember": "Member werden zum Veröffentlichen",
+  "openMessages": "Messages öffnen",
+  "openMiniApp": "Mini-App öffnen",
+  "catalog": {
+    "tic-tac-toe": {
+      "title": "Tic-Tac-Toe",
+      "description": "Klassisch 3×3. Wer zuerst drei in einer Reihe hat, gewinnt."
+    },
+    "chess": {
+      "title": "Schach",
+      "description": "Standardschach. Weiß zieht zuerst."
+    },
+    "checkers": {
+      "title": "Dame",
+      "description": "Englische Dame auf 8×8. Schlagzwang."
+    }
+  }
+}

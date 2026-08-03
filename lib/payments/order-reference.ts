@@ -23,7 +23,12 @@ export interface ParsedOrderReference {
 
 export function buildOrderReference(
   purpose: PaymentPurpose,
-  payload: { orderId?: string; userId?: string; articleId?: string }
+  payload: {
+    orderId?: string
+    userId?: string
+    articleId?: string
+    poolSlug?: string
+  }
 ): string {
   const ts = Date.now()
   switch (purpose) {
@@ -45,6 +50,20 @@ export function buildOrderReference(
     case 'project_order':
       if (!payload.orderId) throw new Error('orderId required for project_order')
       return `project_${payload.orderId}_${ts}`
+    case 'task_escrow':
+      if (!payload.orderId) throw new Error('orderId required for task_escrow')
+      return `task_${payload.orderId}_${ts}`
+    case 'collective_order_slot':
+      if (!payload.orderId) throw new Error('orderId required for collective_order_slot')
+      return `coslot_${payload.orderId}_${ts}`
+    case 'scheduled_service_slot':
+      if (!payload.orderId) throw new Error('orderId required for scheduled_service_slot')
+      return `ssslot_${payload.orderId}_${ts}`
+    case 'public_pool_contribution':
+      if (!payload.userId) throw new Error('userId required for public_pool_contribution')
+      if (!payload.poolSlug) throw new Error('poolSlug required for public_pool_contribution')
+      // Format: poolcontrib_{userId}_{ts}_{base64url(poolSlug)} — encode last (may contain _)
+      return `poolcontrib_${payload.userId}_${ts}_${encodeArticleIdForOrder(payload.poolSlug)}`
     default:
       throw new Error(`Unsupported purpose for order reference: ${purpose}`)
   }
@@ -118,6 +137,51 @@ export function parseOrderReference(orderReference: string): ParsedOrderReferenc
       purpose: 'project_order',
       entityId: projectMatch[1],
       timestamp: Number(projectMatch[2]),
+    }
+  }
+
+  // task_{escrowId}_{timestamp} — escrow ids may contain underscores
+  const taskEscrowMatch = orderReference.match(/^task_(.+)_(\d+)$/)
+  if (taskEscrowMatch) {
+    return {
+      purpose: 'task_escrow',
+      entityId: taskEscrowMatch[1],
+      timestamp: Number(taskEscrowMatch[2]),
+    }
+  }
+
+  const collectiveSlotMatch = orderReference.match(/^coslot_(.+)_(\d+)$/)
+  if (collectiveSlotMatch) {
+    return {
+      purpose: 'collective_order_slot',
+      entityId: collectiveSlotMatch[1],
+      timestamp: Number(collectiveSlotMatch[2]),
+    }
+  }
+
+  const scheduledSlotMatch = orderReference.match(/^ssslot_(.+)_(\d+)$/)
+  if (scheduledSlotMatch) {
+    return {
+      purpose: 'scheduled_service_slot',
+      entityId: scheduledSlotMatch[1],
+      timestamp: Number(scheduledSlotMatch[2]),
+    }
+  }
+
+  // poolcontrib_{userId}_{ts}_{base64url(poolSlug)}
+  const poolContribMatch = orderReference.match(/^poolcontrib_([^_]+)_(\d+)_(.+)$/)
+  if (poolContribMatch) {
+    let poolSlug = poolContribMatch[3]
+    try {
+      poolSlug = Buffer.from(poolContribMatch[3], 'base64url').toString('utf8')
+    } catch {
+      // keep encoded form
+    }
+    return {
+      purpose: 'public_pool_contribution',
+      entityId: poolSlug,
+      userId: poolContribMatch[1],
+      timestamp: Number(poolContribMatch[2]),
     }
   }
 

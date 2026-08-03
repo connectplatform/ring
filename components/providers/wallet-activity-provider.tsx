@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   type ReactNode,
@@ -13,6 +14,7 @@ import type {
   WalletActivityFeedFilter,
   WalletActivityRow,
 } from '@/features/wallet/services/wallet-activity-feed'
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel'
 
 export type WalletActivityFilter = WalletActivityFeedFilter
 
@@ -32,7 +34,7 @@ export type WalletActivityContextValue = {
   isLoading: boolean
   error: string | null
   setScope: (scope: WalletActivityScope) => void
-  refresh: () => Promise<void>
+  refresh: (opts?: { quiet?: boolean }) => Promise<void>
 }
 
 const WalletActivityContext = createContext<WalletActivityContextValue | null>(null)
@@ -57,9 +59,12 @@ export function WalletActivityProvider({ children }: { children: ReactNode }) {
 
   const filter = scopeToFilter(scope)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
     const requestId = ++requestIdRef.current
-    setIsLoading(true)
+    const quiet = Boolean(opts?.quiet)
+    if (!quiet) {
+      setIsLoading(true)
+    }
     setError(null)
 
     try {
@@ -76,14 +81,34 @@ export function WalletActivityProvider({ children }: { children: ReactNode }) {
       setActivities(data.activities ?? [])
     } catch (err) {
       if (requestId !== requestIdRef.current) return
-      setError(err instanceof Error ? err.message : 'Failed to load activity')
-      setActivities([])
+      if (!quiet) {
+        setError(err instanceof Error ? err.message : 'Failed to load activity')
+        setActivities([])
+      }
     } finally {
-      if (requestId === requestIdRef.current) {
+      if (requestId === requestIdRef.current && !quiet) {
         setIsLoading(false)
       }
     }
   }, [filter, scope])
+
+  const refreshRef = useRef(refresh)
+  refreshRef.current = refresh
+
+  const onActivityInvalidate = useEffectEvent(() => {
+    void refreshRef.current({ quiet: true })
+  })
+
+  useTunnelChannel({
+    channel: 'wallet:list',
+    enabled: true,
+    onMessage: onActivityInvalidate,
+  })
+  useTunnelChannel({
+    channel: 'credit:balance',
+    enabled: true,
+    onMessage: onActivityInvalidate,
+  })
 
   useEffect(() => {
     void refresh()

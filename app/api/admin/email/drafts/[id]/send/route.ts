@@ -46,8 +46,8 @@ export async function POST(
     return NextResponse.json({ error: 'Recipient email required' }, { status: 400 })
   }
 
-  // Send the draft reply email
-  const { messageId } = await sendDraftReply({
+  // Send the draft reply email (soft-skips when client prefers in-app chat)
+  const result = await sendDraftReply({
     draftId: id,
     toEmail,
     subject,
@@ -56,6 +56,17 @@ export async function POST(
     wasAutoSent: false,
   })
 
+  if (result.skipped) {
+    return NextResponse.json({
+      success: false,
+      skipped: true,
+      reason: result.reason,
+      notice: result.notice,
+      supportConversationId: thread?.supportConversationId ?? null,
+      threadId: draft.threadId,
+    })
+  }
+
   // Respond with success and the new messageId
-  return NextResponse.json({ success: true, messageId })
+  return NextResponse.json({ success: true, messageId: result.messageId })
 }

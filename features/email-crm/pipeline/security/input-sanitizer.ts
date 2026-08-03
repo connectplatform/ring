@@ -7,6 +7,7 @@
 
 import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
+import { ensureGlobal } from './regexp-utils';
 
 export interface SanitizationResult {
   sanitizedContent: string;
@@ -162,7 +163,7 @@ export class InputSanitizer {
     
     // Detect all suspicious patterns
     for (const detection of DETECTION_PATTERNS) {
-      const matches = [...rawContent.matchAll(new RegExp(detection.regex.source, detection.regex.flags + 'g'))];
+      const matches = [...rawContent.matchAll(ensureGlobal(detection.regex))];
       
       for (const match of matches) {
         if (match.index !== undefined) {

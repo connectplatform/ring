@@ -1,7 +1,7 @@
 ---
 title: Discovery Mutation Sync
 description: How Ring keeps opportunity and entity listings fresh after every change — cache, SSR, and realtime for founders and integrators
-last_modified: "2026-06-22"
+last_modified: "2026-07-20"
 audience: both
 ---
 
@@ -133,7 +133,14 @@ await syncEntityDiscovery({
 
 ### Subscribe on the client
 
-Listen on Tunnel topic channels — see [Realtime transport](./real-time) and [Tunnel protocol](../features/tunnel-protocol).
+Wire topic listeners with **`useTunnelChannel`** — production hooks parse `syncDiscovery` payloads via `lib/discovery/parse-discovery-tunnel-message.ts` (`{ id, event }` + `message.event` like `entity:created`).
+
+| Channel | Hook | UI wiring |
+|---------|------|-----------|
+| `opportunities` | `hooks/use-realtime-opportunities.ts` | `features/opportunities/components/opportunities.tsx` |
+| `entities` | `hooks/use-realtime-entities.ts` | `features/entities/components/entities.tsx` — deletes splice locally; create/update soft-reloads the cursor feed |
+
+See [Realtime transport](./real-time) and [Tunnel protocol](../features/tunnel-protocol).
 
 </Step>
 </Steps>
@@ -176,23 +183,28 @@ Legacy Firestore converters under `lib/converters/*-converter.ts` apply only whe
 
 ## Related documentation
 
-<Cards>
-  <Card title="Data model" href="/docs/architecture/data-model">
-    JSONB collections synced by this pipeline.
-  </Card>
-  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
-    Postgres-primary vs firebase-full behavior.
-  </Card>
-  <Card title="Realtime transport" href="/docs/architecture/real-time">
-    TunnelHub transports (native WSS, SSE, Supabase).
-  </Card>
-  <Card title="Opportunities API" href="/docs/api/opportunities">
-    REST surface + post-mutation hooks.
-  </Card>
-  <Card title="Entities API" href="/docs/api/entities">
-    REST surface + post-mutation hooks.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/tunnel-protocol"
+    relation="Prerequisite: channel subscribe SSOT and publishToChannel vs publishToUserTunnel."
+  />
+  <RelatedArticle
+    slug="architecture/real-time"
+    relation="Deep-dive: TunnelHub broker and feature publish/subscribe matrix."
+  />
+  <RelatedArticle
+    slug="architecture/data-model"
+    relation="Depends-on: JSONB collections synced by this pipeline."
+  />
+  <RelatedArticle
+    slug="api/opportunities"
+    relation="Same-workflow: REST surface + post-mutation hooks for opportunities."
+  />
+  <RelatedArticle
+    slug="api/entities"
+    relation="Same-workflow: REST surface + post-mutation hooks for entities."
+  />
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — discovery sync (TBD)">
 

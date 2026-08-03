@@ -3,7 +3,7 @@
  * You could move these to a separate __tests__ file.
  */
 if (process.env.NODE_ENV === 'development' && typeof window === 'undefined') {
-  const assert = (cond: boolean, msg?: string) => { if (!cond) throw new Error('[StoreCurrency Test] ' + msg) }
+  const assert = (cond: boolean, msg?: string) => { if (!cond) throw new Error('[StorePaymentMethods Test] ' + msg) }
 
   // Conversion roundtrip (should always be idempotent for same)
   for (const from of ALL_CURRENCIES) {

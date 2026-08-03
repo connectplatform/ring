@@ -119,6 +119,19 @@ Target roster: `platform`, `agricultural`, then `tourism`, `sport`, `business`, 
 - `public/logo*.svg`, `favicon.ico`, `public/branding/`
 - `locales/{en,uk,ru}/config.json`, `vendor.json`
 - Custom `features/*/presets/<clone-only>.ts` (+ registry overlay) when not upstreamed yet
+- **Tier-3 plug:** `lib/overlay/registry.ts` only (maps). Do **not** exclude `lib/overlay/types.ts` or `lib/overlay/runtime.ts` — those are platform SSOT.
+
+### Tier-3 overlay socket (platform) + plug (clone)
+
+| Path | Owner | Role |
+|------|--------|------|
+| `lib/overlay/types.ts` | Platform | Contracts |
+| `lib/overlay/runtime.ts` | Platform | `loadOverlayMessages` / `resolveOverlayHomeRail` |
+| `lib/overlay/registry.ts` | Platform empty maps; **clone overlays maps** | Domain feature loaders |
+
+Consumers import from `@/lib/overlay/runtime`. Clones never duplicate loaders in `registry.ts`.
+
+Operator checklist (calculator / Order Lab): [Ringization playbook](/docs/customization/ringization-playbook).
 
 Propagation source remains **`ring-platform.org`** → clones for shared code. Clone-local custom presets stay in the clone dir and win at **`ringdom-clone-build`**.
 

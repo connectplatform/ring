@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger'
 
 /**
  * WayForPay webhook handler for wallet credit top-up.
- * Credits user balance with paid fiat amount (1:1 points when usd_rate=1).
+ * Credits user balance with paid fiat amount (1:1 points when main_currency_rate=1).
  */
 export async function handleWalletTopupWayForPayWebhook(
   payload: Record<string, unknown>,

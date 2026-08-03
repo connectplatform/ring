@@ -8,8 +8,8 @@
     "redirecting": "Redirecting to your dashboard...",
     "form": {
       "storeSlug": "Store URL Slug",
-      "storeUrlPrefix": "ring-platform.org/store/vendors/",
-      "storeSlugHint": "URL-friendly identifier (e.g., 'my-dev-shop')",
+      "storeUrlPrefix": "https://[slug].ring-platform.org",
+      "storeSlugHint": "Your store will live at https://[slug].ring-platform.org (URL-friendly, e.g. my-dev-shop)",
       "storeSlugPlaceholder": "my-dev-shop",
       "storeName": "Store Name",
       "storeNameHint": "Your business or brand name",
@@ -22,10 +22,16 @@
       "storeCategories": "Store Categories",
       "storeCategoriesHint": "Select all categories that apply to your products",
       "storeLogo": "Store Logo",
-      "storeLogoHint": "Square image, 512x512 recommended (JPG, PNG, WebP, max 5MB)",
+      "storeLogoHint": "Square image, 512×512 recommended. Upload or generate with ImageConductor.",
       "uploadLogo": "Upload Logo",
+      "uploadAndGenerate": "Upload & Generate",
       "changeLogo": "Change Logo",
       "removeLogo": "Remove Logo",
+      "existingStorefrontsTitle": "I already sell at",
+      "existingStorefrontsHint": "Add links to your existing storefronts.",
+      "existingPagesUrls": "Existing pages URLs",
+      "addUrl": "Add another URL",
+      "removeUrl": "Remove URL",
       "submit": "Create My Vendor Store",
       "submitting": "Creating your store..."
     },
@@ -153,9 +159,17 @@
     },
     "dagi": {
       "title": "DAGI Vendor Agent",
-      "comingSoon": "Coming soon",
-      "description": "AI agent activation and DAARION staking will land here. Store operations (products, orders, stock, earnings) are available now from the vendor menu.",
-      "todoNote": "Provisioning API and wallet staking remain planned — no mock activation."
+      "comingSoon": "Locked",
+      "unlocked": "Unlocked",
+      "description": "Stake a vendor-dagi-key to unlock an ERP assistant bound to this store.",
+      "todoNote": "Provisioning API and wallet staking remain planned — no mock activation.",
+      "unlockHint": "Buy and stake a vendor-dagi-key NFT to unlock DAGI for one of your vendor stores. Stake uses GateEscrow — tradeable keys rebind to your owned store at stake time.",
+      "getKey": "Get DAGI key",
+      "chatIntro": "DAGI is bound to this store. Ask about products, stock, or recent orders — tools run with your session only.",
+      "chatTitle": "DAGI ERP chat",
+      "chatLoading": "Opening DAGI…",
+      "chatPlaceholder": "Ask DAGI about stock, orders, or a product…",
+      "chatSend": "Send"
     },
     "promotions": {
       "label": "Promotions",
@@ -395,7 +409,10 @@
     "stock": "Stock",
     "restock": "Restock",
     "restocking": "Adding…",
-    "quantity": "Quantity"
+    "quantity": "Quantity",
+    "bulkRestock": "Bulk restock",
+    "warehouse": "Warehouse",
+    "lowStock": "Low stock"
   },
   "navbar": {
     "myStore": "My Store",

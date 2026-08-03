@@ -3,7 +3,7 @@
  * Single source of truth for filter defaults
  */
 
-import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 
 export const PRICE_MIN = 0
 
@@ -37,7 +37,7 @@ export const DEFAULT_STORE_FILTERS: StoreFilterState = {
   categories: [],
   priceMin: PRICE_MIN,
   priceMax: null, // Set from catalog bounds after first product load
-  currency: getDefaultStoreCurrencySymbol(),
+  currency: getMainCurrencySymbol(),
   vendor: '',
   inStock: null,
   sortBy: 'name-asc'

@@ -126,15 +126,86 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
         console.warn('Services: updateProfile - Failed to parse settings JSON:', e);
       }
     }
+
+    // Normalize personal-page flags (FormData sends strings)
+    if ('publicProfile' in processedData) {
+      const v = processedData.publicProfile
+      processedData.publicProfile = v === true || v === 'true' || v === 1 || v === '1'
+    }
+    if ('acceptProfileDms' in processedData) {
+      const v = processedData.acceptProfileDms
+      processedData.acceptProfileDms = !(
+        v === false ||
+        v === 'false' ||
+        v === 0 ||
+        v === '0'
+      )
+    }
+    if (typeof processedData.publicProfileSections === 'string') {
+      try {
+        processedData.publicProfileSections = JSON.parse(processedData.publicProfileSections)
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse publicProfileSections JSON:', e)
+      }
+    }
+    if (typeof processedData.publicProfileFields === 'string') {
+      try {
+        const { normalizePublicProfileFields } = await import(
+          '@/features/auth/lib/personal-page-sections'
+        )
+        processedData.publicProfileFields = normalizePublicProfileFields(
+          JSON.parse(processedData.publicProfileFields),
+        )
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse publicProfileFields JSON:', e)
+      }
+    }
     
+    // Snapshot before update for one-time reward transitions + Telegram forgery guard
+    const beforeResult = await db().findDocById<Record<string, unknown>>('users', userId);
+    const before = beforeResult.success ? beforeResult.data : null;
+
+    // Telegram UID is auth-flow only (widget/OIDC/miniapp). Strip client forgery.
+    if (
+      processedData.communication &&
+      typeof processedData.communication === 'object' &&
+      !Array.isArray(processedData.communication)
+    ) {
+      const incoming = { ...processedData.communication } as Record<string, unknown>
+      delete incoming.telegramId
+      delete incoming.telegramLinkedAt
+
+      const prevComm =
+        before && typeof before.communication === 'object' && before.communication
+          ? (before.communication as Record<string, unknown>)
+          : {}
+      const prevId = String(prevComm.telegramId || '').trim()
+      const hasVerifiedUid = /^\d{3,}$/.test(prevId)
+
+      if (!hasVerifiedUid) {
+        delete incoming.telegramUsername
+      }
+
+      processedData.communication = {
+        ...prevComm,
+        ...incoming,
+        ...(hasVerifiedUid
+          ? {
+              telegramId: prevId,
+              telegramLinkedAt: prevComm.telegramLinkedAt,
+              telegramUsername:
+                typeof incoming.telegramUsername === 'string'
+                  ? String(incoming.telegramUsername).replace(/^@+/, '')
+                  : prevComm.telegramUsername,
+            }
+          : {}),
+      }
+    }
+
     const updateData = {
       ...processedData,
       updatedAt: new Date(), // Add a timestamp for the update
     };
-
-    // Snapshot before update for one-time reward transitions
-    const beforeResult = await db().findDocById<Record<string, unknown>>('users', userId);
-    const before = beforeResult.success ? beforeResult.data : null;
 
     // Step 5: Update the PostgreSQL document
     const updateResult = await db().updateDoc('users', userId, updateData);

@@ -18,6 +18,7 @@ import {
   assertOpportunityVisibilityPatch,
 } from '@/features/opportunities/lib/opportunity-permissions'
 import { ROUTES } from '@/constants/routes'
+import { getCollectiveOrderDefaultRails, getMainCurrencySymbol } from '@/lib/ring-config-core'
 import type { Locale } from '@/i18n/shared'
 
 // State definition for Opportunity-related form actions
@@ -62,6 +63,8 @@ export async function createOpportunity(
     | 'offer' | 'request' | 'partnership' | 'volunteer'
     | 'mentorship' | 'resource' | 'event' | 'ring_customization'
     | 'program' | 'cv'
+    | 'scheduled_services' | 'collective_order' | 'bounty'
+    | 'tender' | 'asset_rental' | 'job'
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
@@ -94,10 +97,11 @@ export async function createOpportunity(
   }
 
   // Business logic: handle entity vs. individual opps
-  const requestTypes = ['request', 'cv']
+  const requestTypes = ['request', 'cv', 'scheduled_services', 'bounty']
   const organizationalTypes = [
     'offer', 'partnership', 'volunteer', 'mentorship',
     'resource', 'event', 'ring_customization', 'program',
+    'collective_order', 'tender', 'asset_rental', 'job',
   ]
   if (requestTypes.includes(type)) {
     entityId = null as unknown as string // Requests/CVs are always from individuals
@@ -152,7 +156,7 @@ export async function createOpportunity(
       try {
         const min = budgetMin?.trim() ? parseInt(budgetMin) : undefined
         const max = budgetMax?.trim() ? parseInt(budgetMax) : undefined
-        const currency = budgetCurrency?.trim() || 'USD'
+        const currency = budgetCurrency?.trim() || getMainCurrencySymbol()
         if (min !== undefined || max !== undefined) {
           // Always include both min/max as 0 fallback to simplify later rendering logic.
           budgetObj = {
@@ -207,6 +211,104 @@ export async function createOpportunity(
           }
         : undefined
 
+    const slotCount = parseInt(String(formData.get('slotCount') || ''), 10)
+    const slotPrice = parseFloat(String(formData.get('slotPrice') || ''))
+    const collectiveMeta =
+      type === 'collective_order'
+        ? {
+            productTitle: String(formData.get('productTitle') || title).trim(),
+            productSku: String(formData.get('productSku') || '').trim() || undefined,
+            slotCount: Number.isFinite(slotCount) && slotCount > 0 ? slotCount : 10,
+            slotPrice: Number.isFinite(slotPrice) && slotPrice > 0 ? slotPrice : 0,
+            slotsFilled: 0,
+            currency: String(formData.get('slotCurrency') || budgetCurrency || getMainCurrencySymbol()).trim() || getMainCurrencySymbol(),
+            rails: getCollectiveOrderDefaultRails(),
+            escrowStatus: 'open' as const,
+          }
+        : undefined
+
+    if (type === 'collective_order' && (!collectiveMeta || collectiveMeta.slotPrice <= 0)) {
+      return { fieldErrors: { slotPrice: 'Slot price is required for collective orders' } }
+    }
+
+    const durationMinutes = parseInt(String(formData.get('durationMinutes') || ''), 10)
+    const pricePerSlot = parseFloat(String(formData.get('pricePerSlot') || ''))
+    const scheduledMeta =
+      type === 'scheduled_services'
+        ? {
+            serviceCategory: String(formData.get('serviceCategory') || '').trim() || undefined,
+            durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : undefined,
+            capacityPerSlot: 1,
+            pricePerSlot: Number.isFinite(pricePerSlot) ? pricePerSlot : undefined,
+            currencyType: 'credit_balance' as const,
+            bookingMode: 'interest' as const,
+            availability: [],
+          }
+        : undefined
+
+    const prizeAmount = parseFloat(String(formData.get('prizeAmount') || ''))
+    const bountyMeta =
+      type === 'bounty'
+        ? {
+            prizeAmount: Number.isFinite(prizeAmount) ? prizeAmount : undefined,
+            currencyType: String(formData.get('prizeCurrency') || budgetCurrency || getMainCurrencySymbol()),
+            acceptanceCriteria: String(formData.get('acceptanceCriteria') || '').trim() || undefined,
+            maxWinners: parseInt(String(formData.get('maxWinners') || '1'), 10) || 1,
+            submissionDeadline: String(formData.get('submissionDeadline') || '').trim() || undefined,
+          }
+        : undefined
+
+    const budgetCap = parseFloat(String(formData.get('budgetCap') || ''))
+    const tenderMeta =
+      type === 'tender'
+        ? {
+            budgetCap: Number.isFinite(budgetCap) ? budgetCap : undefined,
+            responseDeadline: String(formData.get('responseDeadline') || '').trim() || undefined,
+            evaluationNotes: String(formData.get('evaluationNotes') || '').trim() || undefined,
+            allowAnonymousBids: formData.get('allowAnonymousBids') === 'true',
+          }
+        : undefined
+
+    const unitsAvailable = parseInt(String(formData.get('unitsAvailable') || ''), 10)
+    const pricePerPeriod = parseFloat(String(formData.get('pricePerPeriod') || ''))
+    const assetRentalMeta =
+      type === 'asset_rental'
+        ? {
+            assetKind: String(formData.get('assetKind') || '').trim() || undefined,
+            unitsAvailable: Number.isFinite(unitsAvailable) ? unitsAvailable : undefined,
+            pricePerPeriod: Number.isFinite(pricePerPeriod) ? pricePerPeriod : undefined,
+            periodUnit: (['hour', 'day', 'week'].includes(String(formData.get('periodUnit') || ''))
+              ? String(formData.get('periodUnit'))
+              : 'day') as 'hour' | 'day' | 'week',
+            depositOptional: formData.get('depositOptional') === 'true',
+          }
+        : undefined
+
+    const salaryMin = parseFloat(String(formData.get('salaryMin') || ''))
+    const salaryMax = parseFloat(String(formData.get('salaryMax') || ''))
+    const jobMeta =
+      type === 'job'
+        ? {
+            employmentType: (['full_time', 'part_time', 'contract'].includes(
+              String(formData.get('employmentType') || ''),
+            )
+              ? String(formData.get('employmentType'))
+              : 'full_time') as 'full_time' | 'part_time' | 'contract',
+            salaryMin: Number.isFinite(salaryMin) ? salaryMin : undefined,
+            salaryMax: Number.isFinite(salaryMax) ? salaryMax : undefined,
+            remotePolicy: String(formData.get('remotePolicy') || '').trim() || undefined,
+          }
+        : undefined
+
+    const typeMetadata =
+      programMeta ||
+      collectiveMeta ||
+      scheduledMeta ||
+      bountyMeta ||
+      tenderMeta ||
+      assetRentalMeta ||
+      jobMeta
+
     const opportunityData = {
       type,
       title: title.trim(),
@@ -237,7 +339,7 @@ export async function createOpportunity(
         contactAccount: contactEmail?.trim() || session.user.email || ''
       },
       isPrivate: requestTypes.includes(type), // Requests are private to originator
-      ...(programMeta ? { metadata: programMeta } : {}),
+      ...(typeMetadata ? { metadata: typeMetadata } : {}),
     }
 
     // Import and call the actual opportunity creation service
@@ -400,7 +502,7 @@ export async function updateOpportunity(
       try {
         const min = budgetMin?.trim() ? parseInt(budgetMin) : undefined
         const max = budgetMax?.trim() ? parseInt(budgetMax) : undefined
-        const currency = budgetCurrency?.trim() || 'USD'
+        const currency = budgetCurrency?.trim() || getMainCurrencySymbol()
         if (min !== undefined || max !== undefined) {
           budgetObj = {
             min: min ?? max ?? 0,

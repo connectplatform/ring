@@ -1,15 +1,15 @@
 ---
 title: PaymentConductor architecture
 description: CheckoutRedirect DTO, normalizeCheckoutResult, webhook dispatcher, processors, wallet top-up, and API routes
-last_modified: "2026-07-16"
+last_modified: "2026-07-21"
 audience: both
 ---
 
 # PaymentConductor architecture
 
-PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, news promotion, and wallet credit top-up.
+PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, news promotion, wallet credit top-up, and **public pool (DAO jar) card/PayPal chip-ins**.
 
-**Operator setup:** [Payment integration](/docs/customization/payment-integration) · [WayForPay](/docs/features/wayforpay-integration)
+**Operator setup:** [Payment integration](/docs/customization/payment-integration) · [WayForPay](/docs/features/wayforpay-integration) · [Public Pools](/docs/features/public-pools)
 
 <Callout type="info">
   Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
@@ -21,6 +21,9 @@ PaymentConductor is Ring Platform's config-driven payment layer. One PostgreSQL 
   </Card>
   <Card title="Feature overview" href="/docs/features/payment-conductor">
     Purposes and rails
+  </Card>
+  <Card title="Public Pools & DAO Jars" href="/docs/features/public-pools">
+    `public_pool_contribution` + desk-oracle FX (not 1:1)
   </Card>
   <Card title="Wallet top-up" href="/docs/features/wallet">
     Live `wallet_topup` via Card / PayPal
@@ -121,6 +124,7 @@ WayForPay HPP **rejects GET** query-string “payment URLs” (`Bad Request` / *
 | `news_promotion` | `conductor/handlers/news-promotion.ts` |
 | `wallet_topup` | `conductor/handlers/wallet-topup.ts` (+ Stripe / PayPal capture handlers) |
 | `native_token_onramp` | `conductor/handlers/native-token-onramp.ts` (+ Stripe: `native-token-onramp-stripe.ts`) |
+| `public_pool_contribution` | `conductor/handlers/public-pool-contribution.ts` → `settlePublicPoolCardContribution` |
 
 ### Processors
 
@@ -129,12 +133,12 @@ WayForPay HPP **rejects GET** query-string “payment URLs” (`Bad Request` / *
 | WayForPay | `processors/wayforpay.processor.ts` | HPP `form_post` (or invoice `navigate`) |
 | Stripe | `processors/stripe.processor.ts` | `navigate` (Checkout Session URL) |
 | PayPal | `processors/paypal.processor.ts` | `navigate` (Orders v2 approve URL) |
-| Internal credit | `processors/internal-credit.processor.ts` | Sync settle (no redirect) |
+| Internal credit | `processors/credit-balance.processor.ts` | Sync settle (no redirect) |
 | Native token | `processors/native-token.processor.ts` | Sync settle (no redirect) |
 
 Processor resolution in `createCheckout`:
 
-1. `rail === 'internal_credit'` / `'native_token'` → that processor  
+1. `rail === 'credit_balance'` / `'native_token'` → that processor  
 2. Else `metadata.processor` if `paypal` \| `stripe` \| `wayforpay`  
 3. Else `getPaymentProvider(purpose)` (`PAYMENT_*_PROCESSOR` / `PAYMENT_DEFAULT_PROCESSOR`)
 
@@ -146,17 +150,19 @@ Legacy helpers (`wayforpay-service.ts`, `wayforpay-store-service.ts`) remain for
 {`type PaymentPurpose =
   | 'store_order' | 'membership_upgrade' | 'news_promotion'
   | 'wallet_topup' | 'native_token_onramp'
+  | 'public_pool_contribution'
+  // also: task_escrow, project_order, collective_order_slot, …
 
-type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
+type PaymentRail = 'merchant_redirect' | 'credit_balance' | 'native_token'
 type PaymentProcessorId =
-  | 'wayforpay' | 'stripe' | 'internal-credit' | 'native-token' | 'paypal'
+  | 'wayforpay' | 'stripe' | 'credit_balance' | 'native-token' | 'paypal'
 
 type PaymentTransactionStatus =
   | 'created' | 'redirected' | 'pending' | 'paid'
   | 'failed' | 'cancelled' | 'refunded'`}
 </Code>
 
-`CreateCheckoutContext` carries `purpose`, optional `rail`, `userId`, `amount`, `currency`, `returnUrl`, `metadata`, and purpose-specific fields (`orderId`, `articleId`, `targetRole`, etc.).
+`CreateCheckoutContext` carries `purpose`, optional `rail`, `userId`, `amount`, `currency`, `returnUrl`, `metadata`, and purpose-specific fields (`orderId`, `articleId`, `targetRole`, `publicPoolSlug`, `amountRing`, etc.).
 
 ## Configuration surface
 
@@ -167,7 +173,7 @@ type PaymentTransactionStatus =
 - `getDefaultStoreCurrencySymbol()` — `PAYMENT_FIAT_CURRENCY` (default `USD`)
 - `getWebhookUrl(provider)` — `${site}/api/payments/${provider}/webhook`
 
-Env keys per purpose: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`, `PAYMENT_NATIVE_TOKEN_ONRAMP_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` | `stripe` | `paypal`).
+Env keys per purpose: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`, `PAYMENT_NATIVE_TOKEN_ONRAMP_PROCESSOR`, `PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` | `stripe` | `paypal`).
 
 WayForPay env SSOT (no `WAYFORPAY_MERCHANT_ID`):
 
@@ -188,6 +194,7 @@ WAYFORPAY_API_URL=https://api.wayforpay.com/api
 | `membership_upgrade` (legacy) | `ring_{userId}_{timestamp}` | still accepted |
 | `news_promotion` | `news-promo-{base64url(articleId)}-{timestamp}` | `news-promo-YWJj-1717000000000` |
 | `wallet_topup` | `wallettopup_{userId}_{timestamp}` | `wallettopup_user123_1717000000000` |
+| `public_pool_contribution` | `poolcontrib_{userId}_{ts}_{base64url(poolSlug)}` | `poolcontrib_user123_1717000000000_…` |
 
 `buildOrderReference` / `parseOrderReference` in `order-reference.ts`. Duplicate webhook delivery is safe: ledger enforces unique `order_reference`.
 
@@ -291,20 +298,32 @@ Deprecated aliases (delegate to canonical webhook):
 
 ## Related
 
-<Cards>
-  <Card title="WalletConductor architecture" href="/docs/architecture/wallet-conductor">
-    Custodial native + credit facade (top-up / desk / spend)
-  </Card>
-  <Card title="Payment integration" href="/docs/customization/payment-integration">
-    Operator PSP setup
-  </Card>
-  <Card title="Payments feature" href="/docs/features/payments">
-    User-facing flows
-  </Card>
-  <Card title="Admin API" href="/docs/api/admin">
-    User Payments tab endpoint
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="architecture/wallet-conductor"
+    relation="Depends-on: custodial native + credit facade used after settle and builder payout."
+  />
+  <RelatedArticle
+    slug="features/public-pools"
+    relation="Same-workflow: public_pool_contribution purpose, desk FX, and jar settle handler."
+  />
+  <RelatedArticle
+    slug="features/payment-conductor"
+    relation="Next-step: operator-facing Conductor purposes and rails."
+  />
+  <RelatedArticle
+    slug="customization/payment-integration"
+    relation="Prerequisite: PSP dashboards and env before enabling card jars."
+  />
+  <RelatedArticle
+    slug="features/payments"
+    relation="See-also: user-facing payment flows overview."
+  />
+  <RelatedArticle
+    slug="api/admin"
+    relation="See-also: admin user Payments tab endpoint."
+  />
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — payment architecture (TBD)">
 

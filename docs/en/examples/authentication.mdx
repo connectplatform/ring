@@ -1,7 +1,7 @@
 ---
 title: Authentication Examples
-description: Auth.js v5 multi-provider authentication patterns — Google OAuth, Google One Tap, Apple Sign-In, Resend magic links, and crypto wallet authentication with PostgreSQL or Firebase adapters.
-last_modified: "2026-07-07"
+description: Auth.js v5 multi-provider patterns — Google, Telegram OIDC + Mini App initData, Apple, Ring Mailer SMTP, and crypto wallet auth with PostgreSQL or Firebase adapters.
+last_modified: "2026-07-20"
 audience: both
 ---
 
@@ -10,20 +10,22 @@ audience: both
 Complete authentication implementation patterns using Auth.js v5 with Ring Platform.
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. See [Authentication Architecture](/docs/architecture/authentication) for provider design decisions and [Environment Variables](/docs/deployment/environment) for the full env reference.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. See [Authentication](/docs/features/authentication), [Authentication Architecture](/docs/architecture/authentication), [Ring Mailer](/docs/features/ring-mailer), and [Environment Variables](/docs/deployment/environment).
 </Callout>
 
 <Audience for="founder">
 
 ## Provider overview
 
-Ring Platform supports five authentication providers, all managed by Auth.js v5:
+Ring Platform supports these Auth.js v5 sign-in paths:
 
 | Provider | What it enables |
 |----------|----------------|
-| **Google OAuth** | Traditional OAuth redirect + Google One Tap (client-side GIS popup with server-side JWT verification) |
+| **Google OAuth** | Traditional OAuth redirect + Google One Tap (GIS with server-side JWT verification) |
+| **Telegram (web)** | Login via Telegram OIDC (`oauth.telegram.org`) — same-tab redirect button on `/login` |
+| **Telegram Mini App** | Silent session from `Telegram.WebApp.initData` via Credentials `telegram-miniapp` |
 | **Apple Sign-In** | Native iOS/macOS sign-in via OAuth redirect |
-| **Resend (Magic Links)** | Passwordless email sign-in. 24-hour token expiry, single-use. Requires `AUTH_RESEND_KEY` |
+| **Ring Mailer** | OTP, magic link (`/verify#token=…`), password — own SMTP or Ethereal. See [Ring Mailer](/docs/features/ring-mailer) |
 | **Crypto Wallet** | Nonce-signature verification via Viem (Ethereum, Polygon, Arbitrum, Optimism, Base) |
 | **Internal JWT** | Machine-to-machine tokens for WebSocket and MCP gateway auth |
 
@@ -37,18 +39,27 @@ The database adapter (PostgreSQL or Firebase) is selected automatically by `DB_B
 
 ## Auth.js v5 server configuration
 
-```typescript title="auth.ts"
+Canonical providers live in root `auth.ts`. Shape (illustrative — prefer reading the file):
+
+```typescript title="auth.ts (illustrative)"
 import NextAuth from "next-auth"
 import { getAuthAdapter } from "@/lib/auth-adapter-singleton"
 import authConfig from "./auth.config"
 import GoogleProvider from "next-auth/providers/google"
 import AppleProvider from "next-auth/providers/apple"
-import Resend from "next-auth/providers/resend"
 import CredentialsProvider from "next-auth/providers/credentials"
+import {
+  isTelegramOidcConfigured,
+  TelegramOidcProvider,
+} from "@/lib/auth/telegram-oidc"
+import {
+  getTelegramMiniAppBotToken,
+  verifyTelegramMiniAppInitData,
+  isTelegramMiniAppAuthDateFresh,
+} from "@/lib/auth/telegram-miniapp-initdata"
 
 const authAdapter = getAuthAdapter()
 const hasAdapter = !!authAdapter
-const hasResendKey = process.env.AUTH_RESEND_KEY
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -60,18 +71,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   trustHost: true,
   providers: [
-    // Magic Links via Resend (requires adapter + AUTH_RESEND_KEY)
-    ...(hasAdapter && hasResendKey
-      ? [Resend({ from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org" })]
-      : []),
+    CredentialsProvider({ id: "email-otp", /* email + code */ }),
+    CredentialsProvider({ id: "email-magic", /* token */ }),
+    CredentialsProvider({ id: "credentials", /* email + password */ }),
 
-    // Google OAuth
     GoogleProvider({
       allowDangerousEmailAccountLinking: true,
       checks: ["pkce", "state"],
     }),
 
-    // Google One Tap (client-side GIS popup)
     CredentialsProvider({
       id: "google-one-tap",
       name: "Google One Tap",
@@ -82,12 +90,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
 
-    // Apple Sign-In
     AppleProvider({
       allowDangerousEmailAccountLinking: true,
     }),
 
-    // Crypto Wallet
+    ...(isTelegramOidcConfigured()
+      ? [TelegramOidcProvider({ allowDangerousEmailAccountLinking: true })]
+      : []),
+
+    CredentialsProvider({
+      id: "telegram-miniapp",
+      name: "Telegram Mini App",
+      credentials: { initData: { label: "Telegram initData", type: "text" } },
+      async authorize(credentials) {
+        const initData = String(credentials?.initData || "").trim()
+        const botToken = getTelegramMiniAppBotToken()
+        const parsed = verifyTelegramMiniAppInitData(initData, botToken)
+        if (!parsed?.user?.id || !isTelegramMiniAppAuthDateFresh(parsed.authDate)) {
+          return null
+        }
+        // resolveOrCreateTelegramUser(...) → return { id, email, name, image, role, telegramId }
+      },
+    }),
+
     CredentialsProvider({
       id: "crypto-wallet",
       credentials: {
@@ -97,32 +122,46 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.walletAddress || !credentials?.signedNonce) return null
         // Nonce signature verification via Viem
-        // Returns user object on success, null on failure
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user, account, trigger }) {
-      // Fetch fresh user data from database
-      // Apply user row to JWT via applyUserRowToJwt()
-      // Generate internal JWT for WebSocket auth
-      return token
-    },
-    async session({ session, token }) {
-      session.user.id = token.userId as string
-      session.user.role = token.role as string
-      session.user.isVerified = token.isVerified as boolean
-      session.accessToken = token.accessToken as string
-      return session
-    },
-    async signIn({ user, account, profile }) {
-      // Google One Tap: verify JWT via google-auth-library
-      // Check account status, block suspended users
-      return true
-    },
-  },
 })
 ```
+
+Request OTP / magic link via `app/_actions/auth-email-actions.ts`, then `signIn('email-otp')` or `signIn('email-magic')`. Do **not** import `next-auth/providers/resend`.
+
+## Telegram sign-in (client) — web OIDC
+
+Prefer the shipped button (locale + `buildOAuthCallbackUrl`):
+
+```typescript title="features/auth/components/telegram-signin-button.tsx (shape)"
+"use client"
+import { signIn } from "next-auth/react"
+import { buildOAuthCallbackUrl } from "@/lib/auth/oauth-callback-url"
+
+await signIn("telegram", { callbackUrl: buildOAuthCallbackUrl(from, locale) })
+```
+
+Requires `AUTH_TELEGRAM_ID` / `AUTH_TELEGRAM_SECRET`. BotFather Allowed URL must include `{origin}/api/auth/callback/telegram`.
+
+## Telegram Mini App sign-in (client)
+
+Call from a WebApp page that has loaded Telegram’s script (white-label shells may add `/tg-mini-app`; platform ships auth only):
+
+```typescript title="Mini App client (shape)"
+"use client"
+import { signIn } from "next-auth/react"
+
+const initData = window.Telegram?.WebApp?.initData
+if (!initData) throw new Error("Not inside Telegram WebApp")
+
+const result = await signIn("telegram-miniapp", {
+  initData,
+  redirect: false,
+})
+```
+
+Requires a bot token reachable via `getTelegramMiniAppBotToken()` (`TELEGRAM_MINI_APP_BOT_TOKEN` preferred).
 
 ## Firebase credential strategy
 
@@ -131,8 +170,6 @@ Firebase Admin SDK uses **Application Default Credentials (ADC)** first. The `ce
 ```typescript title="lib/firebase-admin.server.ts"
 import { cert, initializeApp } from "firebase-admin/app"
 
-// ADC-first (works on Cloud Run, GKE, Cloud Functions without manual config)
-// cert() fallback for local dev / CI when env vars are set:
 adminApp = initializeApp({
   credential: cert({
     projectId: process.env.AUTH_FIREBASE_PROJECT_ID,
@@ -143,8 +180,6 @@ adminApp = initializeApp({
 ```
 
 ## Adapter selection
-
-The adapter is determined by `DB_BACKEND_MODE` and initialized via the singleton:
 
 ```typescript title="lib/auth-adapter-singleton.ts"
 import { FirestoreAdapter } from "@auth/firebase-adapter"
@@ -194,85 +229,67 @@ export default function UserProfile() {
 
 ## Session provider setup
 
-Ring wraps Auth.js with a tuned `SessionProvider` at `features/auth/components/session-provider.tsx`. Import this component — not `SessionProvider` directly from `next-auth/react` — so refetch behavior is consistent app-wide:
+Ring wraps Auth.js with a tuned `SessionProvider` at `features/auth/components/session-provider.tsx`. Import this component — not `SessionProvider` directly from `next-auth/react`:
 
 ```typescript title="components/providers/app-client-shell.tsx"
 "use client"
 import { SessionProvider } from "@/features/auth/components/session-provider"
 
 export function AppClientShell({ children }: { children: React.ReactNode }) {
-  return (
-    <SessionProvider>
-      {children}
-    </SessionProvider>
-  )
+  return <SessionProvider>{children}</SessionProvider>
 }
 ```
 
-The canonical implementation sets `refetchInterval={15 * 60}` (one 15-minute background poll), `refetchOnWindowFocus={false}`, and `refetchWhenOffline={false}` — reducing redundant `GET /api/auth/session` calls across every `useSession()` consumer.
+Canonical settings: `refetchInterval={15 * 60}`, `refetchOnWindowFocus={false}`, `refetchWhenOffline={false}`.
 
 ## Environment variables
 
 ```bash
-# Auth.js core
 AUTH_SECRET=your_auth_secret
 AUTH_TRUST_HOST=true
 
-# Google OAuth (Auth.js auto-prefix)
 AUTH_GOOGLE_ID=your_google_client_id
 AUTH_GOOGLE_SECRET=your_google_client_secret
 
-# Apple Sign-In (Auth.js auto-prefix)
+AUTH_TELEGRAM_ID=your_telegram_oidc_client_id
+AUTH_TELEGRAM_SECRET=your_telegram_oidc_client_secret
+# TELEGRAM_MINI_APP_BOT_TOKEN=...  # Mini App initData HMAC
+
 AUTH_APPLE_ID=your_apple_client_id
 AUTH_APPLE_SECRET=your_apple_private_key
 
-# Magic Links
-AUTH_RESEND_KEY=your_resend_api_key
-AUTH_RESEND_FROM=noreply@ring-platform.org
-
-# Firebase Admin (for firebase-full mode)
-AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
-AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
-AUTH_FIREBASE_PRIVATE_KEY=your_firebase_private_key
+# EMAIL_MODE=ethereal
+# SMTP_HOST= / SMTP_USER= / SMTP_PASSWORD= / SMTP_FROM=
+# OTP_HMAC_SECRET=
 ```
 
 <Callout type="tip">
-  Auth.js v5 automatically reads `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_APPLE_ID`, `AUTH_APPLE_SECRET`, and `AUTH_RESEND_KEY` from environment variables — no manual `clientId` / `clientSecret` config needed in the provider constructor.
+  Auth.js v5 reads `AUTH_GOOGLE_*`, `AUTH_TELEGRAM_*`, and `AUTH_APPLE_*` for OAuth/OIDC. Mini App auth uses the **bot API token** via `TELEGRAM_MINI_APP_BOT_TOKEN` (not the OIDC client secret). Email auth uses Ring Mailer (`SMTP_*` / `EMAIL_MODE`) — not `AUTH_RESEND_KEY`.
 </Callout>
-
-## Middleware route protection
-
-```typescript title="middleware.ts"
-import { auth } from "@/auth"
-import { NextResponse } from "next/server"
-
-export default auth((req) => {
-  const { pathname } = req.nextUrl
-  const session = req.auth
-
-  if (pathname.startsWith("/auth") || pathname === "/") {
-    return NextResponse.next()
-  }
-  if (!session && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", req.url))
-  }
-  if (pathname.startsWith("/admin") && session?.user?.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/403", req.url))
-  }
-  return NextResponse.next()
-})
-
-export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
-}
-```
 
 </Audience>
 
 ## Related documentation
 
-<Cards>
-  <Card href="/docs/architecture/authentication" title="Authentication Architecture" description="Provider design, session flow, and file structure." />
-  <Card href="/docs/deployment/environment" title="Environment Variables" description="Complete env var reference including Auth.js and all providers." />
-  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend Modes" description="How DB_BACKEND_MODE affects adapter selection and Firebase usage." />
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/authentication"
+    relation="Prerequisite: shipped providers, BotFather checklist, Mini App, and FutureFeature backlog."
+  />
+  <RelatedArticle
+    slug="architecture/authentication"
+    relation="Deep-dive: file split, OIDC + Mini App modules, and adapters."
+  />
+  <RelatedArticle
+    slug="features/subscriptions"
+    relation="Next-step: telegram_stars invoices reuse the Mini App bot token helper."
+  />
+  <RelatedArticle
+    slug="examples/apple-signin-integration"
+    relation="Same-workflow: Apple-specific JWT / Services ID walkthrough."
+  />
+  <RelatedArticle
+    slug="deployment/environment"
+    relation="Depends-on: full env reference for clone secrets."
+  />
+</RelatedDocs>

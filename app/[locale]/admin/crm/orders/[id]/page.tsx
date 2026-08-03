@@ -16,6 +16,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CrmOrderDetailClient } from './crm-order-detail-client'
 import { AdminCrmChatTabs } from '@/features/crm/lab/admin-crm-chat-tabs'
 import { AdminNamespaceEditor } from '@/features/crm/lab/admin-namespace-editor'
+import { ProjectConfigPanel } from '@/features/crm/orders/project-config-panel'
+import { OwnerSecretsPanel } from '@/features/crm/orders/owner-secrets-panel'
+import { EnvConfigPanel } from '@/features/crm/lab/env-config-panel'
+import { DeployStatusWidget } from '@/features/crm/lab/deploy-status-widget'
+import { OrderSourcePanel } from '@/features/crm/lab/order-source/order-source-panel'
 import { CrmAdminShell } from '@/features/admin/crm/crm-admin-shell'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
@@ -90,11 +95,15 @@ export default async function AdminCrmOrderDetailPage({
               ) : (
                 'No opportunity published yet'
               )}
+              {' · '}
+              <Link className="underline" href={ROUTES.MY_ORDER(order.id, locale)}>
+                Buyer view
+              </Link>
               {order.integratorId ? (
                 <>
                   {' · '}
                   <Link className="underline" href={ROUTES.MY_JOB(order.id, locale)}>
-                    Integrator lab (assignee view)
+                    Integrator lab
                   </Link>
                 </>
               ) : null}
@@ -110,6 +119,13 @@ export default async function AdminCrmOrderDetailPage({
             <CrmOrderDetailClient locale={locale} order={order} users={users} />
           </CardContent>
         </Card>
+
+        {/* Reuse buyer/integrator custom-order panels */}
+        <ProjectConfigPanel mode="integrator" orderId={order.id} />
+        <OwnerSecretsPanel orderId={order.id} />
+        <EnvConfigPanel orderId={order.id} />
+        <OrderSourcePanel orderId={order.id} role="admin" />
+        <DeployStatusWidget orderId={order.id} />
 
         <AdminNamespaceEditor orderId={order.id} />
         <AdminCrmChatTabs orderId={order.id} />

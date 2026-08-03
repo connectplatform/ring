@@ -93,7 +93,13 @@ export const wayforpaySubscriptionProvider: SubscriptionProviderModule = {
         return { success: false, error: 'WayForPay not configured (missing env)' }
       }
 
-      const regularMode = getRegularMode()
+      const metaPeriod = input.metadata?.billingPeriod
+      const regularMode: 'monthly' | 'yearly' =
+        metaPeriod === 'yearly' || metaPeriod === 'YEAR'
+          ? 'yearly'
+          : metaPeriod === 'monthly' || metaPeriod === 'MONTH'
+            ? 'monthly'
+            : getRegularMode()
       const tierConfig = getMembershipTierConfig('member' as any)
       const gwConfig = getGatewayConfig('wayforpay')
 
@@ -106,7 +112,7 @@ export const wayforpaySubscriptionProvider: SubscriptionProviderModule = {
       await paymentTransactionService.createPending({
         purpose: 'membership_upgrade',
         processor: 'wayforpay',
-        rail: 'merchant_redirect',
+        rail: 'card',
         orderReference,
         entityType: 'membership_upgrade',
         entityId: input.userId,
@@ -130,7 +136,10 @@ export const wayforpaySubscriptionProvider: SubscriptionProviderModule = {
 
       // 3. Call WFP API directly so we can pass regularMode + dateNext (per truth lens RECURRING_SETUP)
       const timestamp = Math.floor(Date.now() / 1000)
-      const productName = tierConfig?.description ?? 'Ring Platform Membership (Monthly)'
+      const productName =
+        regularMode === 'yearly'
+          ? 'Ring Platform Membership (Yearly)'
+          : (tierConfig?.description ?? 'Ring Platform Membership (Monthly)')
       const signString = [
         merchant,
         domain,

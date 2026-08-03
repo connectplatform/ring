@@ -83,6 +83,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   users: 'Users',
   news: 'News',
+  wiki: 'Wiki',
   dao: 'Public pools',
   analytics: 'Platform Analytics',
   moderation: 'Moderation',
@@ -279,6 +280,12 @@ export function buildAdminSupermenuModel({
           true,
         ),
       )
+      pushLink(entries, seen, {
+        id: 'admin-wiki',
+        label: labelOfAdminNav(labels, 'wiki', 'Wiki'),
+        href: stripLocalePrefix(ROUTES.ADMIN_WIKI(locale)),
+        icon: getAdminNavIconComponent('Database'),
+      })
     }
     if (entries.some((e) => e.kind === 'link')) {
       groupsOut.push({ id: 'content', title: copy.contentTitle, entries })

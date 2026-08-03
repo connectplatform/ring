@@ -4,6 +4,7 @@ import { ReferralRewardService } from '@/features/refcodes/services/referral-rew
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
 import { getGatewayConfig } from '@/lib/payments/subscription/subscription-config'
 import { logger } from '@/lib/logger'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 
 /**
  * WayForPay membership webhook handler.
@@ -43,7 +44,7 @@ export async function handleMembershipWayForPayWebhook(
           payload: {
             orderReference,
             amount: Number(payload.amount) || 0,
-            currency: String(payload.currency || 'UAH'),
+            currency: String(payload.currency || getMainCurrencySymbol()),
           },
         })
       } catch {
@@ -56,7 +57,7 @@ export async function handleMembershipWayForPayWebhook(
           userId,
           orderReference,
           amount: Number(payload.amount) || 0,
-          currency: String(payload.currency || 'UAH'),
+          currency: String(payload.currency || getMainCurrencySymbol()),
         })
       } catch (referralError) {
         logger.error('Membership webhook: referral reward failed', { orderReference, referralError })
@@ -65,7 +66,7 @@ export async function handleMembershipWayForPayWebhook(
       // Create subscription_ledger row (NEW — Phase S6 integration)
       try {
         const amount = Number(payload.amount) || 0
-        const currency = String(payload.currency || 'UAH')
+        const currency = String(payload.currency || getMainCurrencySymbol())
         const gwConfig = getGatewayConfig('wayforpay')
         const userEmail = String(payload.email || '')
         // SSOT: recToken from webhook is the key for all future regularApi calls

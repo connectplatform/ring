@@ -8,6 +8,10 @@ import {
   type MaskedEnvValue,
 } from '@/features/crm/lab/lab-secret-crypto'
 import { getEnvTemplateManifest, isAllowedEnvKey } from '@/features/crm/lab/env-template-parser'
+import { isBrandMirrorEnvKey } from '@/features/crm/lab/env-key-ownership'
+import {
+  projectConfigToConfigMapEnv,
+} from '@/features/crm/orders/order-project-config'
 import {
   type RingEdgeId,
   getEdgeAvailability,
@@ -15,6 +19,10 @@ import {
   upsertConfigMap,
   rolloutRestart,
   setDeploymentImage,
+  ensureImagePullSecrets,
+  ensureForgejoRegistryPullSecret,
+  ensureNamespace,
+  isForgejoRegistryImage,
   listPods,
   getPodLogs,
   deletePod,
@@ -32,6 +40,19 @@ export type EnvConfigEntry = {
   encrypted?: boolean
 }
 
+/** Per-order Forgejo Source Editor credentials (ciphertext only at rest). */
+export type SourceAuth = {
+  robotUsername: string
+  tokenId: number
+  tokenLastEight: string
+  /** encryptLabSecret(sha1) — never return via toMasked / public APIs */
+  tokenEncrypted: string
+  scope: 'write:repository'
+  mintedAt: string
+  rotatedAt?: string
+  revokedAt?: string
+}
+
 export type ProjectDeployment = {
   id: string
   orderId: string
@@ -40,6 +61,13 @@ export type ProjectDeployment = {
   projectUrl: string | null
   projectName: string | null
   imageTag: string | null
+  /** Forgejo git remote after Phase 4 clone bridge */
+  gitUrl: string | null
+  /**
+   * Per-order Forgejo robot + encrypted PAT for Order Source Editor.
+   * Stripped in toMasked — never expose ciphertext/metadata on API responses.
+   */
+  sourceAuth?: SourceAuth | null
   namespace: string
   deploymentName: string
   secretName: string
@@ -55,6 +83,24 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function parseSourceAuth(raw: unknown): SourceAuth | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const tokenEncrypted = String(o.tokenEncrypted || '')
+  const robotUsername = String(o.robotUsername || '')
+  if (!robotUsername && !tokenEncrypted) return null
+  return {
+    robotUsername,
+    tokenId: Number(o.tokenId || 0),
+    tokenLastEight: String(o.tokenLastEight || ''),
+    tokenEncrypted,
+    scope: 'write:repository',
+    mintedAt: String(o.mintedAt || ''),
+    ...(o.rotatedAt ? { rotatedAt: String(o.rotatedAt) } : {}),
+    ...(o.revokedAt ? { revokedAt: String(o.revokedAt) } : {}),
+  }
+}
+
 function asDeployment(row: Record<string, unknown>): ProjectDeployment | null {
   const data = (row.data ?? row) as Record<string, unknown>
   const id = String(row.id ?? data.id ?? '')
@@ -68,6 +114,8 @@ function asDeployment(row: Record<string, unknown>): ProjectDeployment | null {
     projectUrl: data.projectUrl ? String(data.projectUrl) : null,
     projectName: data.projectName ? String(data.projectName) : null,
     imageTag: data.imageTag ? String(data.imageTag) : null,
+    gitUrl: data.gitUrl ? String(data.gitUrl) : null,
+    sourceAuth: parseSourceAuth(data.sourceAuth),
     namespace: String(data.namespace || ''),
     deploymentName: String(data.deploymentName || data.namespace || ''),
     secretName: String(data.secretName || `${data.namespace || 'app'}-secrets`),
@@ -93,6 +141,8 @@ function defaultDoc(orderId: string): Omit<ProjectDeployment, 'id'> {
     projectUrl: null,
     projectName: null,
     imageTag: null,
+    gitUrl: null,
+    sourceAuth: null,
     namespace: ns,
     deploymentName: ns,
     secretName: '',
@@ -117,6 +167,44 @@ export const ProjectDeploymentService = {
     return asDeployment(result.data[0] as Record<string, unknown>)
   },
 
+  /**
+   * Scan deployments that have sourceAuth.robotUsername set (for Forgejo robot GC).
+   * Caps at 2000 rows — Order Lab scale is far below that.
+   */
+  async listSourceAuthRefs(): Promise<
+    Array<{
+      orderId: string
+      robotUsername: string
+      revokedAt: string | null
+      mintedAt: string | null
+    }>
+  > {
+    await ensureDb()
+    const result = await db().queryDocs({
+      collection: COLLECTION,
+      pagination: { limit: 2000 },
+    })
+    if (!result.success || !result.data?.length) return []
+    const out: Array<{
+      orderId: string
+      robotUsername: string
+      revokedAt: string | null
+      mintedAt: string | null
+    }> = []
+    for (const row of result.data) {
+      const dep = asDeployment(row as Record<string, unknown>)
+      const auth = dep?.sourceAuth
+      if (!dep || !auth?.robotUsername) continue
+      out.push({
+        orderId: dep.orderId,
+        robotUsername: auth.robotUsername,
+        revokedAt: auth.revokedAt || null,
+        mintedAt: auth.mintedAt || null,
+      })
+    }
+    return out
+  },
+
   async getOrCreate(orderId: string): Promise<ProjectDeployment> {
     const existing = await this.getByOrderId(orderId)
     if (existing) return existing
@@ -139,6 +227,8 @@ export const ProjectDeploymentService = {
         | 'projectUrl'
         | 'projectName'
         | 'imageTag'
+        | 'gitUrl'
+        | 'sourceAuth'
         | 'namespace'
         | 'deploymentName'
         | 'secretName'
@@ -200,6 +290,9 @@ export const ProjectDeploymentService = {
     const nextEnv = { ...existing.envConfig }
 
     for (const [key, raw] of Object.entries(patch)) {
+      if (isBrandMirrorEnvKey(key)) {
+        throw new Error(`Env key "${key}" is managed by Order Project Config — not writable here`)
+      }
       if (!isAllowedEnvKey(key)) {
         throw new Error(`Env key "${key}" is not in env.local.template allowlist`)
       }
@@ -223,16 +316,27 @@ export const ProjectDeploymentService = {
     })
   },
 
-  toMasked(dep: ProjectDeployment): {
-    deployment: Omit<ProjectDeployment, 'envConfig'> & { envConfig: Record<string, MaskedEnvValue> }
+  toMasked(
+    dep: ProjectDeployment,
+    opts?: { hideOwnerPrivateValues?: boolean },
+  ): {
+    deployment: Omit<ProjectDeployment, 'envConfig' | 'sourceAuth'> & {
+      envConfig: Record<string, MaskedEnvValue>
+    }
     edges: Record<RingEdgeId, boolean>
     essentials: string[]
     groups: ReturnType<typeof getEnvTemplateManifest>['groups']
   } {
     const manifest = getEnvTemplateManifest()
-    const { envConfig, ...rest } = dep
+    const { envConfig, sourceAuth: _sourceAuth, ...rest } = dep
+    void _sourceAuth
     return {
-      deployment: { ...rest, envConfig: maskEnvMap(envConfig) },
+      deployment: {
+        ...rest,
+        envConfig: maskEnvMap(envConfig, {
+          hideOwnerPrivateValues: opts?.hideOwnerPrivateValues,
+        }),
+      },
       edges: getEdgeAvailability(),
       essentials: manifest.essentials,
       groups: manifest.groups,
@@ -262,6 +366,8 @@ export const ProjectDeploymentService = {
     dep = (await this.getByOrderId(orderId)) || dep
 
     try {
+      await ensureNamespace(dep.edge, namespace)
+
       const secretData: Record<string, string> = {}
       const configData: Record<string, string> = {}
 
@@ -284,6 +390,22 @@ export const ProjectDeploymentService = {
         secretData.NEXTAUTH_URL ??= configData.NEXT_PUBLIC_BASE_URL
       }
 
+      // Order Project Config overlay → ConfigMap (RING_ORDER_PROJECT_CONFIG + brand mirrors)
+      try {
+        const { ProjectOrderService } = await import(
+          '@/features/crm/orders/project-order-service'
+        )
+        const order = await ProjectOrderService.getById(orderId)
+        if (order?.projectConfig && Object.keys(order.projectConfig).length > 0) {
+          Object.assign(configData, projectConfigToConfigMapEnv(order.projectConfig))
+        }
+      } catch (err) {
+        logger.warn('Order projectConfig ConfigMap merge skipped', {
+          orderId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+
       if (Object.keys(secretData).length) {
         await upsertSecret(dep.edge, namespace, secretName, secretData)
       }
@@ -292,9 +414,26 @@ export const ProjectDeploymentService = {
       }
 
       if (dep.imageTag) {
-        const image = dep.imageTag.includes('/')
-          ? dep.imageTag
-          : `ghcr.io/connectplatform/ring:${dep.imageTag}`
+        const { resolvePlatformDeployImage, RING_FORGEJO_PULL_SECRET } = await import(
+          '@/lib/docker-registry'
+        )
+        const image = resolvePlatformDeployImage(dep.imageTag)
+        // Forgejo OCI: ensure pull secret + merge imagePullSecrets (mesh registry SSOT)
+        if (isForgejoRegistryImage(image)) {
+          const upserted = await ensureForgejoRegistryPullSecret(
+            dep.edge,
+            namespace,
+            RING_FORGEJO_PULL_SECRET,
+          )
+          if (!upserted) {
+            throw new Error(
+              'Forgejo image deploy requires RING_FORGEJO_PULL_TOKEN (k8s-pull robot)',
+            )
+          }
+          await ensureImagePullSecrets(dep.edge, namespace, deploymentName, [
+            RING_FORGEJO_PULL_SECRET,
+          ])
+        }
         await setDeploymentImage(dep.edge, namespace, deploymentName, deploymentName, image)
       }
 

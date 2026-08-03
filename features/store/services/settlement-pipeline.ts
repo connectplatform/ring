@@ -1,4 +1,4 @@
-import { DEFAULT_CURRENCY } from '@/features/store/currency-context'
+import { MAIN_CURRENCY } from '@/features/store/currency-context'
 
 /**
  * Settlement pipeline — wires paid orders into the canonical `settlements` ledger.
@@ -60,7 +60,7 @@ function buildVendorOrderFromSettlement(
 }
 
 function buildOrderForSettlement(order: StoreOrder): Order {
-  const currency = (order.payment?.currency || DEFAULT_CURRENCY).toUpperCase()
+  const currency = (order.payment?.currency || MAIN_CURRENCY).toUpperCase()
   const totals: Order['totals'] = { [currency]: order.total }
 
   return {
@@ -79,7 +79,8 @@ function buildOrderForSettlement(order: StoreOrder): Order {
     createdAt: order.createdAt,
     payment: order.payment
       ? {
-          method: order.payment.method === 'wayforpay' ? 'stripe' : 'crypto',
+          method: order.payment.method,
+          processor: order.payment.processor,
           status: order.payment.status === 'paid' ? 'paid' : 'pending',
         }
       : undefined,
@@ -122,7 +123,7 @@ export async function recordErpSalesAssist(params: {
       referralCode: params.referralCode,
       referrerUserId: params.referrerUserId,
       subtotal: params.subtotal,
-      currency: params.currency || 'UAH',
+      currency: params.currency || MAIN_CURRENCY,
       assisted: true,
       createdAt: new Date().toISOString(),
     },

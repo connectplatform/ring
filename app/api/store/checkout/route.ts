@@ -6,7 +6,8 @@ import {
   getBuyerWalletAddresses,
   resolveOrderReferral,
 } from '@/features/refcodes/services/attribution-service'
-import { reserveInventoryForOrder } from '@/features/store/services/inventory-sync'
+import { reserveInventoryForOrder, releaseReservationsForOrder } from '@/features/store/services/inventory-sync'
+import { cartHoldOrderId } from '@/features/store/constants/stock'
 import { logger } from '@/lib/logger'
 
 /**
@@ -63,16 +64,23 @@ export async function POST(req: NextRequest) {
       referral || undefined
     )
 
-    // Hold stock for products with configured inventory levels (15-min TTL,
-    // released by cron cleanup-reservations if payment never lands).
+    // Promote cart soft-holds → order holds: release cart_${userId}, then reserve for orderId.
     try {
+      await releaseReservationsForOrder(cartHoldOrderId(session.user.id))
       const reservationItems = items.map((item: any) => ({
         productId: item.product?.id ?? item.productId,
         quantity: item.quantity || 1,
+        isPreorder: Boolean(item.isPreorder),
+        digitalProduct: Boolean(item.product?.digitalProduct),
+        instantDelivery: Boolean(item.product?.instantDelivery),
       }))
       const { reserved, skipped } = await reserveInventoryForOrder(orderId, reservationItems)
-      if (reserved.length > 0) {
-        logger.info('Checkout: inventory reserved', { orderId, reserved: reserved.length, skipped: skipped.length })
+      if (reserved.length > 0 || skipped.length > 0) {
+        logger.info('Checkout: inventory reserved', {
+          orderId,
+          reserved: reserved.length,
+          skippedDigitalOrPreorder: skipped.length,
+        })
       }
     } catch (reservationError) {
       // Insufficient configured stock — cancel the just-created order and reject.

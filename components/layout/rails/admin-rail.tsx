@@ -40,6 +40,12 @@ export type ModulesAdminLabels = Partial<Record<AdminNavLabelKey | string, strin
   newUsers?: string
   refcodes?: string
   newsManagement?: string
+  wikiManagement?: string
+  wikiDescription?: string
+  wikiRailCrmOrders?: string
+  wikiRailNews?: string
+  wikiRailTasks?: string
+  wikiRailDocs?: string
   newsStatsTotal?: string
   newsStatsPublished?: string
   newsStatsDrafts?: string
@@ -61,6 +67,14 @@ const DEFAULT_LABELS: Record<string, string> = {
   users: 'Users',
   rewards: 'Rewards',
   news: 'News',
+  wiki: 'Wiki',
+  wikiManagement: 'Admin Wiki',
+  wikiRailCrmOrders: 'CRM project orders',
+  wikiRailNews: 'News',
+  wikiRailTasks: 'CRM tasks',
+  wikiRailDocs: 'Wiki docs',
+  wikiDescription:
+    'Obsidian-like Markdown knowledge base with [[wikilinks]] for platform and project vaults.',
   dao: 'Public pools',
   analytics: 'Analytics',
   moderation: 'Moderation',
@@ -150,9 +164,17 @@ export function AdminSidebarContent({
         <>
           <section className="space-y-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <AdminNavIcon name="Settings" className="h-5 w-5 shrink-0" />
+              <AdminNavIcon
+                name={pageContext === 'wiki' ? 'Database' : 'Settings'}
+                className="h-5 w-5 shrink-0"
+              />
               {labelFor(labels, getSectionTitleKey(railSection))}
             </h2>
+            {pageContext === 'wiki' ? (
+              <p className="text-sm text-muted-foreground">
+                {labels.wikiDescription ?? DEFAULT_LABELS.wikiDescription}
+              </p>
+            ) : null}
             <div className="space-y-1">
               {sectionLinks.map((link) => {
                 const href = link.href(locale)
@@ -287,39 +309,78 @@ export function AdminSidebarContent({
           {labels.helpDocs ?? DEFAULT_LABELS.helpDocs}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {labels.adminHelpDescription ?? DEFAULT_LABELS.adminHelpDescription}
+          {pageContext === 'wiki'
+            ? (labels.wikiDescription ?? DEFAULT_LABELS.wikiDescription)
+            : (labels.adminHelpDescription ?? DEFAULT_LABELS.adminHelpDescription)}
         </p>
         <div className="space-y-1">
-          <Button
-            variant="link"
-            className="h-auto p-0 text-sm"
-            onClick={() => {
-              router.push(`${ROUTES.DOCS(locale)}/admin/getting-started`)
-              onNavigate?.()
-            }}
-          >
-            {labels.gettingStarted ?? DEFAULT_LABELS.gettingStarted} →
-          </Button>
-          <Button
-            variant="link"
-            className="h-auto p-0 text-sm"
-            onClick={() => {
-              router.push(`${ROUTES.DOCS(locale)}/admin/api-reference`)
-              onNavigate?.()
-            }}
-          >
-            {labels.apiReference ?? DEFAULT_LABELS.apiReference} →
-          </Button>
-          <Button
-            variant="link"
-            className="h-auto p-0 text-sm"
-            onClick={() => {
-              router.push(`${ROUTES.DOCS(locale)}/admin/troubleshooting`)
-              onNavigate?.()
-            }}
-          >
-            {labels.troubleshooting ?? DEFAULT_LABELS.troubleshooting} →
-          </Button>
+          {pageContext === 'wiki' ? (
+            <>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => {
+                  router.push(`${ROUTES.DOCS(locale)}/features/admin-wiki`)
+                  onNavigate?.()
+                }}
+              >
+                {labels.wikiRailDocs ?? DEFAULT_LABELS.wikiRailDocs} →
+              </Button>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => {
+                  router.push(`${ROUTES.DOCS(locale)}/features/owner-project-lab`)
+                  onNavigate?.()
+                }}
+              >
+                Owner Project Lab →
+              </Button>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => {
+                  router.push(`${ROUTES.DOCS(locale)}/features/admin`)
+                  onNavigate?.()
+                }}
+              >
+                Admin console →
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => {
+                  router.push(`${ROUTES.DOCS(locale)}/admin/getting-started`)
+                  onNavigate?.()
+                }}
+              >
+                {labels.gettingStarted ?? DEFAULT_LABELS.gettingStarted} →
+              </Button>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => {
+                  router.push(`${ROUTES.DOCS(locale)}/admin/api-reference`)
+                  onNavigate?.()
+                }}
+              >
+                {labels.apiReference ?? DEFAULT_LABELS.apiReference} →
+              </Button>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => {
+                  router.push(`${ROUTES.DOCS(locale)}/admin/troubleshooting`)
+                  onNavigate?.()
+                }}
+              >
+                {labels.troubleshooting ?? DEFAULT_LABELS.troubleshooting} →
+              </Button>
+            </>
+          )}
         </div>
       </section>
     </div>

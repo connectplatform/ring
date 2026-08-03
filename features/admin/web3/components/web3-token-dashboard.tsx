@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Coins, Users, Wallet, Flame } from 'lucide-react'
+import { Loader2, Coins, Users, Wallet, Flame, Scale } from 'lucide-react'
 
 type TokenSummary = {
   token: {
@@ -36,6 +36,14 @@ export function Web3TokenDashboard() {
   const [isMinting, startMint] = useTransition()
   const [isBurning, startBurn] = useTransition()
   const [txResult, setTxResult] = useState<{ type: 'mint' | 'burn'; txHash?: string; error?: string } | null>(null)
+  const [diversifyHealth, setDiversifyHealth] = useState<{
+    ready: boolean
+    reason?: string
+    allowlistCount: number
+    healthyFeeds: number
+  } | null>(null)
+  const [isDiversifying, startDiversify] = useTransition()
+  const [diversifyMsg, setDiversifyMsg] = useState<string | null>(null)
 
   // ── Load ──
   const load = useCallback(async () => {
@@ -53,7 +61,41 @@ export function Web3TokenDashboard() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void load()
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/web3/treasury-diversify')
+        if (!res.ok) return
+        setDiversifyHealth(await res.json())
+      } catch {
+        /* non-blocking */
+      }
+    })()
+  }, [load])
+
+  const handleDiversify = () => {
+    startDiversify(async () => {
+      setDiversifyMsg(null)
+      try {
+        const res = await fetch('/api/admin/web3/treasury-diversify', { method: 'POST' })
+        const json = await res.json()
+        if (!json.success) {
+          setDiversifyMsg(json.error ?? 'Diversify failed')
+          if (json.health) setDiversifyHealth(json.health)
+          return
+        }
+        setDiversifyMsg(
+          json.status === 'plan_only'
+            ? (t('diversifyPlanRecorded') ?? 'Equal-weight plan recorded (router auto-exec not configured).')
+            : (t('diversifyExecuted') ?? 'Diversify executed'),
+        )
+        if (json.health) setDiversifyHealth(json.health)
+      } catch (e) {
+        setDiversifyMsg(e instanceof Error ? e.message : 'Diversify failed')
+      }
+    })
+  }
 
   // ── Mint ──
   const handleMint = () => {
@@ -266,6 +308,47 @@ export function Web3TokenDashboard() {
               {isBurning ? <Loader2 className="h-4 w-4 animate-spin" /> : t('burn') ?? 'Burn'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Diversify — equalize allowlisted non-native treasury holdings via oracle */}
+      <Card className={diversifyHealth?.ready ? '' : 'border-dashed opacity-90'}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5" /> {t('diversifyTreasury') ?? 'Diversify'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t('diversifyTreasuryHint') ??
+              'Equalize treasury balances across allowlisted swap currencies (oracle-priced). Enabled when allowlist ≥ 2 and Chainlink feeds are healthy.'}
+          </p>
+          {diversifyHealth ? (
+            <p className="text-xs text-muted-foreground">
+              allowlist={diversifyHealth.allowlistCount} · healthyFeeds={diversifyHealth.healthyFeeds}
+              {diversifyHealth.reason ? ` · ${diversifyHealth.reason}` : ''}
+            </p>
+          ) : null}
+          {diversifyMsg ? <p className="text-sm">{diversifyMsg}</p> : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!diversifyHealth?.ready || isDiversifying}
+            title={
+              diversifyHealth?.ready
+                ? undefined
+                : (diversifyHealth?.reason ?? 'treasury_diversify_not_ready')
+            }
+            onClick={handleDiversify}
+          >
+            {isDiversifying ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : diversifyHealth?.ready ? (
+              (t('diversifyRun') ?? 'Run diversify plan')
+            ) : (
+              (t('diversifyComingSoon') ?? 'Diversify (waiting on feeds)')
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>

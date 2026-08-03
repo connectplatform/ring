@@ -375,7 +375,7 @@ export default function EntityFormWrapper({ children, locale }: EntityFormWrappe
       onToggle={setRightSidebarOpen}
       contentClassName="pb-24 lg:pb-8"
     >
-      <DavinciCenterPane>{children}</DavinciCenterPane>
+      <DavinciCenterPane contentClassName="!p-0">{children}</DavinciCenterPane>
     </RingRightRailLayout>
   )
 }

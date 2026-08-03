@@ -12,12 +12,13 @@ import React, { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRolesArray } from '@/features/auth/user-role'
-import { useStoreCurrency } from '@/features/store/currency-context'
+import { useStorePaymentMethods } from '@/features/store/currency-context'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddressManager } from './address-manager'
 import ShippingMethodSelector from './shipping-method-selector'
 import type { ShippingMethod } from './shipping-method-selector'
 import { PaymentStep, type PaymentMethod } from './payment-step'
+import { normalizePaymentRail } from '@/lib/payments/conductor/types'
 import { SecurityBadges } from './security-badges'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,7 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { User, Mail, Phone, CreditCard } from 'lucide-react'
+import { User, Mail, Phone, CreditCard, ChevronsUpDown } from 'lucide-react'
 import type { UserAddress } from '@/features/store/services/address-service'
 import type { NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
 import { 
@@ -34,8 +35,17 @@ import {
   updatePaymentPreference,
   updateLastUsedAddress
 } from '@/app/_actions/store-preferences-actions'
-import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
-import type { STORE_CURRENCIES, StoreCurrency } from '@/lib/zod/store-product'
+import { getMainCurrencySymbol, getSupportedCurrencies } from '@/lib/ring-config-core'
+import type { SupportedCurrencies } from '@/lib/ring-config-types'
+import type { StorePaymentMethods } from '@/features/store/types'
+import {
+  DavinciDroplist,
+  DavinciDroplistItem,
+  DavinciDroplistTrigger,
+} from '@/components/ui/davinci-droplist'
+
+const PRESENTMENT_CURRENCIES: SupportedCurrencies[] = getSupportedCurrencies()
+const MAIN_CURRENCY_CODE = getMainCurrencySymbol() as SupportedCurrencies
 
 // ===================
 // Interfaces & Types
@@ -45,10 +55,10 @@ import type { STORE_CURRENCIES, StoreCurrency } from '@/lib/zod/store-product'
 interface PrebillingPageProps {
   cartItems: any[]
   cartTotal: {
-    [key in StoreCurrency]: number
+    [key in StorePaymentMethods]: number
   }
-  currency: StoreCurrency
-  defaultCurrency: StoreCurrency
+  currency: StorePaymentMethods
+  mainCurrency: StorePaymentMethods
   onProceedToPayment: (billingData: BillingData) => void
   returnTo?: string
 }
@@ -67,6 +77,8 @@ export interface BillingData {
   billingAddress?: UserAddress
   savePaymentMethod: boolean
   marketingOptIn: boolean
+  /** Fiat presentment for card/paypal — server recomputes charge amount. */
+  paymentCurrency?: SupportedCurrencies
 }
 
 // ===========================
@@ -89,7 +101,8 @@ export function PrebillingPage({
     convertPrice,
     formatPrice: formatCurrencyPrice,
     currency: activeCurrency,
-  } = useStoreCurrency()
+    mainCurrency,
+  } = useStorePaymentMethods()
 
   // ==========================================
   // UI/Form State (User, Address, Preferences)
@@ -112,6 +125,15 @@ export function PrebillingPage({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')     // Default: Card (PaymentConductor)
   const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true) // Billing = shipping
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<UserAddress | null>(null) // Separate billing if needed
+
+  // Presentment currency for card/paypal (fiat pool only)
+  const defaultPaymentCurrency: SupportedCurrencies =
+    PRESENTMENT_CURRENCIES.includes(activeCurrency as SupportedCurrencies)
+      ? (activeCurrency as SupportedCurrencies)
+      : MAIN_CURRENCY_CODE
+  const [paymentCurrency, setPaymentCurrency] = useState<SupportedCurrencies>(defaultPaymentCurrency)
+  const [currencyDroplistOpen, setCurrencyDroplistOpen] = useState(false)
+  const [currencySearch, setCurrencySearch] = useState('')
 
   // Preferences and subscriptions
   const [savePaymentMethod, setSavePaymentMethod] = useState(false)                  // Save card on file pref 
@@ -159,20 +181,22 @@ export function PrebillingPage({
       // Hydrate store preferences if available
       if (userPreferences) {
         // Select stored shipping method if set
-        if (userPreferences.preferredShippingMethod) {
+        if (
+          userPreferences.preferredShippingMethod &&
+          userPreferences.preferredShippingMethod !== 'manual'
+        ) {
           setShippingMethod(userPreferences.preferredShippingMethod)
         }
-        // Heal legacy prefs: 'ring' → Credit Balance; wayforpay display alias → card
         if (userPreferences.preferredPaymentMethod) {
-          const m = userPreferences.preferredPaymentMethod as string
-          const normalized =
-            m === 'ring' ? 'credit' : m === 'wayforpay' ? 'card' : (m as PaymentMethod)
-          setPaymentMethod(normalized)
-          if (m === 'ring' && user?.id) {
-            updatePaymentPreference('credit').catch((error) => {
-              console.error('Failed to heal legacy payment preference', error)
-            })
-          }
+          setPaymentMethod(
+            normalizePaymentRail(userPreferences.preferredPaymentMethod) as PaymentMethod,
+          )
+        }
+        if (
+          userPreferences.preferredDisplayCurrency &&
+          PRESENTMENT_CURRENCIES.includes(userPreferences.preferredDisplayCurrency)
+        ) {
+          setPaymentCurrency(userPreferences.preferredDisplayCurrency)
         }
         // Load "save payment method" pref, default to false if unset
         setSavePaymentMethod(userPreferences.savePaymentMethods ?? false)
@@ -211,9 +235,7 @@ export function PrebillingPage({
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setPaymentMethod(method)
     if (user?.id) {
-      const persist =
-        method === 'card' ? 'card' : method === 'wayforpay' ? 'wayforpay' : method
-      updatePaymentPreference(persist).catch(error => {
+      updatePaymentPreference(method).catch(error => {
         console.error('Failed to update payment preference:', error)
       })
     }
@@ -251,7 +273,8 @@ export function PrebillingPage({
       billingAddressSameAsShipping,
       billingAddress: billingAddressSameAsShipping ? selectedAddress : selectedBillingAddress,
       savePaymentMethod,
-      marketingOptIn
+      marketingOptIn,
+      paymentCurrency,
     }
 
     // Pass to caller callback, handle errors gracefully
@@ -557,7 +580,7 @@ export function PrebillingPage({
                           {t('quantity')}: {item.quantity} × {formatCurrencyPrice(
                             convertPrice(
                               displayPrice,
-                              item.product.currency as StoreCurrency,
+                              item.product.currency as StorePaymentMethods,
                               activeCurrency
                             ),
                             activeCurrency
@@ -566,7 +589,7 @@ export function PrebillingPage({
                       </div>
                       <div className="font-medium ml-4">
                         {formatCurrencyPrice(
-                          convertPrice(itemTotal, item.product.currency as StoreCurrency, activeCurrency),
+                          convertPrice(itemTotal, item.product.currency as StorePaymentMethods, activeCurrency),
                           activeCurrency
                         )}
                       </div>
@@ -583,26 +606,36 @@ export function PrebillingPage({
                 - TODO: Codemod to integrate w/ dynamic shipping logic when switching to React 19/Next 16 config
               */}
               {(() => {
-                // Compute subtotal from prop (current currency)
-                let subtotal = 0
+                // Cart totals are stored in main currency; convert for display / presentment.
+                const mainKey = (mainCurrency || MAIN_CURRENCY_CODE) as StorePaymentMethods
+                let subtotalMain = 0
                 if (typeof cartTotal === 'object' && cartTotal !== null) {
-                  subtotal = cartTotal[activeCurrency as StoreCurrency] ?? 0
+                  subtotalMain =
+                    cartTotal[mainKey] ??
+                    cartTotal[MAIN_CURRENCY_CODE as StorePaymentMethods] ??
+                    Object.values(cartTotal).find((v) => typeof v === 'number') ??
+                    0
                 } else {
-                  subtotal = typeof cartTotal === 'number' ? cartTotal : 0
+                  subtotalMain = typeof cartTotal === 'number' ? cartTotal : 0
                 }
 
-                // Shipping: 0 for pickup, 65 default for others (replace with dynamic later)
-                let shippingCost = 0
+                let shippingCostMain = 0
                 if (shippingMethod === 'pickup') {
-                  shippingCost = 0
+                  shippingCostMain = 0
                 } else {
-                  // STUB: Temporary static shipping; replace with backend or quoting service
-                  shippingCost = 65
-                  // TODO: Replace static 65 with dynamic shipping quote from backend API
+                  shippingCostMain = 65
                 }
 
-                // Grand total = subtotal + shipping
-                const grandTotal = subtotal + shippingCost
+                const grandTotalMain = subtotalMain + shippingCostMain
+                const showPresentment = paymentMethod === 'card' || paymentMethod === 'paypal'
+                const displayCode = showPresentment
+                  ? paymentCurrency
+                  : (PRESENTMENT_CURRENCIES.includes(activeCurrency as SupportedCurrencies)
+                      ? (activeCurrency as SupportedCurrencies)
+                      : MAIN_CURRENCY_CODE)
+                const filteredCurrencies = PRESENTMENT_CURRENCIES.filter((c) =>
+                  c.toLowerCase().includes(currencySearch.trim().toLowerCase()),
+                )
 
                 return (
                   <div className="space-y-2 text-sm">
@@ -610,12 +643,8 @@ export function PrebillingPage({
                       <span>{t('subtotal')}</span>
                       <span>
                         {formatCurrencyPrice(
-                          convertPrice(
-                            subtotal,
-                            activeCurrency, 
-                            activeCurrency
-                          ),
-                          activeCurrency,
+                          convertPrice(subtotalMain, mainKey, displayCode),
+                          displayCode,
                         )}
                       </span>
                     </div>
@@ -625,29 +654,57 @@ export function PrebillingPage({
                         {shippingMethod === 'pickup'
                           ? t('free')
                           : formatCurrencyPrice(
-                              convertPrice(
-                                shippingCost,
-                                activeCurrency, 
-                                activeCurrency
-                              ),
-                              activeCurrency,
+                              convertPrice(shippingCostMain, mainKey, displayCode),
+                              displayCode,
                             )}
-                        {/* TODO: Use dynamic shipping price lookup here */}
                       </span>
                     </div>
                     <Separator />
-                    <div className="flex justify-between font-semibold text-lg">
+                    <div className="flex items-center justify-between gap-3 font-semibold text-lg">
                       <span>{t('total')}</span>
-                      <span>
-                        {formatCurrencyPrice(
-                          convertPrice(
-                            grandTotal,
-                            activeCurrency, 
-                            activeCurrency
-                          ),
-                          activeCurrency,
-                        )}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {showPresentment ? (
+                          <DavinciDroplist
+                            open={currencyDroplistOpen}
+                            onOpenChange={setCurrencyDroplistOpen}
+                            scopeLabel={t('paymentCurrency') || 'Currency'}
+                            search={currencySearch}
+                            onSearchChange={setCurrencySearch}
+                            empty={filteredCurrencies.length === 0}
+                            emptyMessage={t('noCurrencies') || 'No currencies'}
+                            trigger={
+                              <DavinciDroplistTrigger
+                                open={currencyDroplistOpen}
+                                onClick={() => setCurrencyDroplistOpen(true)}
+                                className="h-9 w-[7.5rem] shrink-0"
+                              >
+                                <span className="truncate">{paymentCurrency}</span>
+                                <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                              </DavinciDroplistTrigger>
+                            }
+                          >
+                            {filteredCurrencies.map((code) => (
+                              <DavinciDroplistItem
+                                key={code}
+                                selected={code === paymentCurrency}
+                                onSelect={() => {
+                                  setPaymentCurrency(code)
+                                  setCurrencyDroplistOpen(false)
+                                  setCurrencySearch('')
+                                }}
+                              >
+                                {code}
+                              </DavinciDroplistItem>
+                            ))}
+                          </DavinciDroplist>
+                        ) : null}
+                        <span>
+                          {formatCurrencyPrice(
+                            convertPrice(grandTotalMain, mainKey, displayCode),
+                            displayCode,
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )

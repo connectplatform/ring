@@ -179,7 +179,8 @@
       "noErrors": "Keine Fehler für diesen Zeitraum erfasst",
       "noTraffic": "Traffic-Quelldaten erscheinen, sobald Seitenaufrufe erfasst werden",
       "noActivity": "Aktuelle Aktivität erscheint, sobald Ereignisse erfasst werden",
-      "noDevices": "Geräteaufschlüsselung erscheint, sobald Sitzungen verfolgt werden"
+      "noDevices": "Geräteaufschlüsselung erscheint, sobald Sitzungen verfolgt werden",
+      "noPersonalPages": "Noch keine Besuche persönlicher Seiten"
     },
     "overview": {
       "activeSessions": "Aktive Sitzungen",
@@ -187,7 +188,15 @@
       "avgResponseTime": "Durchschn. Antwortzeit",
       "errorRate": "Fehlerrate",
       "fromYesterday": "seit gestern",
-      "thisWeek": "diese Woche"
+      "thisWeek": "diese Woche",
+      "personalPages": "Persönliche Seiten",
+      "personalPagesSubtitle": "Eindeutige Besucher öffentlicher /username-Profile",
+      "personalUnique24h": "Einzigartig 24h",
+      "personalUniquePeriod": "Einzigartig (Zeitraum)",
+      "personalVisits": "Besuche",
+      "personalByRole": "Nach Rolle",
+      "personalByRoleHint": "24h / Zeitraum einzigartig",
+      "personalTopProfiles": "Top-Profile"
     },
     "webvitals": {
       "title": "Core Web Vitals Leistung",
@@ -311,6 +320,8 @@
   "users": "Nutzer",
   "rewards": "Belohnungen",
   "news": "News",
+  "wiki": "Wiki",
+  "wikiDescription": "Obsidian-ähnliche Markdown-Wissensbasis mit [[wikilinks]] für Plattform- und Projekt-Vaults",
   "dao": "Öffentliche Pools",
   "analytics": "Analytik",
   "moderation": "Moderation",
@@ -459,7 +470,36 @@
         "completed": "Abgeschlossen",
         "canceled": "Storniert"
       }
-    }
+    },
+    "hub": "Übersicht",
+    "hubTitle": "Shop-ERP-Hub",
+    "hubSubtitle": "Lager {warehouse} ({warehouseId} / store {storeId}) — Produkte, Bestand, Bestellungen und Abrechnungen",
+    "warehouseLabel": "{name} · {id} · store {storeId}",
+    "warehouse": "Lager",
+    "reason": "Grund",
+    "restock": "Auffüllen",
+    "adjustReasonPlaceholder": "Anpassungsgrund",
+    "adjustStockError": "Bestand konnte nicht angepasst werden",
+    "filter": {
+      "all": "Alle",
+      "low": "Niedrig",
+      "critical": "Kritisch",
+      "out": "Leer"
+    },
+    "settlementFilter": {
+      "all": "Alle",
+      "pending": "Ausstehend",
+      "held": "Gesperrt",
+      "completed": "Abgeschlossen"
+    },
+    "dryRunPayouts": "Auszahlungen prüfen",
+    "dryRunResult": "Fällig: {due} von {pending} · Netto {total}",
+    "hold": "Sperren",
+    "release": "Freigeben",
+    "holdReasonPrompt": "Sperrgrund",
+    "holdError": "Sperren fehlgeschlagen",
+    "releaseError": "Freigabe fehlgeschlagen",
+    "actions": "Aktionen"
   },
   "verificationQueue": {
     "pageTitle": "Identitätsverifizierung",
@@ -566,6 +606,11 @@
         "description": "Abgelaufene Store-Bestandsreservierungen freigeben (TTL)",
         "schedule": "Alle 5–15 Minuten"
       },
+      "inventory-drift": {
+        "label": "Inventar-Drift-Erkennung",
+        "description": "Prüft stock === available + reserved; meldet ohne Auto-Reparatur",
+        "schedule": "Nächtlich oder stündlich"
+      },
       "cleanup-usernames": {
         "label": "Benutzernamen-Reservierungs-Bereinigung",
         "description": "Abgelaufene Benutzernamen-Reservierungen entfernen",
@@ -610,6 +655,14 @@
         "label": "NFT-Gate-Ablauf",
         "description": "NFT-Besitz für nft_gate-Abonnenten prüfen (Phase S7)",
         "schedule": "Täglich um 4 Uhr"
+      },
+      "close-expired-polls": {
+        "label": "Abgelaufene Umfragen schließen",
+        "description": "Schließt Chat-Umfragen nach closeAt"
+      },
+      "peer-game-session-expiry": {
+        "label": "Peer-Spiel-Sitzungsablauf",
+        "description": "Pending-Einladungen (15m), idle active (2h), Orphan-Reclaim"
       }
     },
     "nav": "Hintergrundprozesse"
@@ -772,5 +825,6 @@
     "title": "Belohnungsüberwachung",
     "subtitle": "Credit-Belohnungsaktivität, Mint-Volumen und Zustellungszustand überwachen."
   },
-  "moderationTabReports": "Nutzerberichte"
+  "moderationTabReports": "Nutzerberichte",
+  "crmTaskEscrows": "Aufgaben-Escrows"
 }

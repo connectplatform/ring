@@ -7,7 +7,7 @@
  * - Allowed types / defaults / feature flags → ring-config.store.promotions
  */
 
-import type { StoreCurrency } from '@/features/store/types'
+import type { StorePaymentMethods } from '@/features/store/types'
 
 /** Free-shipping modes for a vendor storefront. */
 export type FreeShippingMode = 'off' | 'always' | 'conditional'
@@ -19,8 +19,8 @@ export interface VendorFreeShippingPromotion {
    * Ignored for 'off' / 'always'.
    */
   minOrderAmount?: number
-  /** Store display/settlement currency for the threshold (defaults to store.defaultCurrency). */
-  currency?: StoreCurrency | string
+  /** Store display/settlement currency for the threshold (defaults to store.mainCurrency). */
+  currency?: StorePaymentMethods | string
 }
 
 /**
@@ -59,7 +59,7 @@ export interface ProductPromotion {
   percentOff?: number
   /** amount_off: fixed discount per unit (or line — see apply helper) */
   amountOff?: number
-  currency?: StoreCurrency | string
+  currency?: StorePaymentMethods | string
   startsAt?: string
   endsAt?: string
 }
@@ -72,7 +72,7 @@ export interface StorePromotionsConfig {
   allowedProductPromotionTypes?: ProductPromotionType[]
   /** Default free-shipping mode suggested on new vendor profiles. */
   defaultFreeShippingMode?: FreeShippingMode
-  /** Default conditional threshold in store.defaultCurrency. */
+  /** Default conditional threshold in store.mainCurrency. */
   defaultFreeShippingMinOrderAmount?: number
 }
 

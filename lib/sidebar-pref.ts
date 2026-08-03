@@ -3,9 +3,9 @@
 export const SIDEBAR_COOKIE_NAME = 'ring-sidebar'
 export const SIDEBAR_STORAGE_KEY = 'ring-sidebar'
 export const SIDEBAR_RAIL_W = 64
-export const SIDEBAR_ASIDE_DEFAULT = 270
+export const SIDEBAR_ASIDE_DEFAULT = 230
 export const SIDEBAR_ASIDE_MAX = 320
-export const SIDEBAR_ASIDE_COLLAPSE_THRESHOLD = 220
+export const SIDEBAR_ASIDE_COLLAPSE_THRESHOLD = 70
 export const SIDEBAR_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 365
 
 export interface SidebarPersistedState {

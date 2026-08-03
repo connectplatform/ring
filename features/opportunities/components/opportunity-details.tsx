@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useTransition } from 'react'
+import React, { useState, useEffect, useTransition, useRef } from 'react'
 import { useSession, SessionProvider } from 'next-auth/react'
 import { hasConfidentialAccess, resolveSessionUserRole } from '@/features/auth/user-role'
 import { SerializedOpportunity, OpportunityVisibility } from '@/features/opportunities/types'
@@ -8,11 +8,9 @@ import { SerializedEntity } from '@/features/entities/types'
 
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { useTranslations } from 'next-intl'
-import { getOpportunityById } from '@/features/opportunities/services'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { useRealtimeOpportunities } from '@/hooks/use-realtime-opportunities'
+import { useRealtimeOpportunities, useOpportunityUpdates } from '@/hooks/use-realtime-opportunities'
 import {
-  Calendar,
   MapPin,
   Tag,
   Building,
@@ -23,30 +21,28 @@ import {
   Users,
   BadgeCheck,
   AlertTriangle,
-  MessageCircle,
   Wallet,
   Coins,
-  Briefcase,
-  HandHeart,
-  GraduationCap,
-  Package,
-  Calendar as CalendarIcon,
-  CheckCircle2,
   ArrowLeft,
   Share,
   Bookmark,
   BookmarkCheck,
-  ExternalLink
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { formatDateValue, formatBudget } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
+import { formatBudget } from '@/lib/utils'
 import { useLocale } from 'next-intl'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
 import type { Locale } from '@/i18n/shared'
 import { Loader2 } from 'lucide-react'
+import { ROUTES } from '@/constants/routes'
+import { getOpportunityFeedTypeTone } from '@/features/opportunities/lib/opportunity-feed-type-tone'
+import { CollectiveOrderSlotPanel } from '@/features/opportunities/components/collective-order-slot-panel'
+import { ScheduledServicesBookPanel } from '@/features/opportunities/components/scheduled-services-book-panel'
 
 /**
  * Represents an attachment for an opportunity
@@ -76,76 +72,8 @@ export interface OpportunityDetailsProps {
   initialError: string | null;
 }
 
-// Opportunity type configuration for visual indicators
-const getOpportunityTypeConfig = (type: string) => {
-  const configs = {
-    offer: {
-      icon: Briefcase,
-      color: 'bg-blue-500',
-      bgColor: 'bg-blue-50 dark:bg-blue-950/20',
-      borderColor: 'border-blue-200 dark:border-blue-800',
-      textColor: 'text-blue-700 dark:text-blue-300'
-    },
-    request: {
-      icon: HandHeart,
-      color: 'bg-green-500',
-      bgColor: 'bg-green-50 dark:bg-green-950/20',
-      borderColor: 'border-green-200 dark:border-green-800',
-      textColor: 'text-green-700 dark:text-green-300'
-    },
-    partnership: {
-      icon: Users,
-      color: 'bg-purple-500',
-      bgColor: 'bg-purple-50 dark:bg-purple-950/20',
-      borderColor: 'border-purple-200 dark:border-purple-800',
-      textColor: 'text-purple-700 dark:text-purple-300'
-    },
-    volunteer: {
-      icon: HandHeart,
-      color: 'bg-orange-500',
-      bgColor: 'bg-orange-50 dark:bg-orange-950/20',
-      borderColor: 'border-orange-200 dark:border-orange-800',
-      textColor: 'text-orange-700 dark:text-orange-300'
-    },
-    mentorship: {
-      icon: GraduationCap,
-      color: 'bg-indigo-500',
-      bgColor: 'bg-indigo-50 dark:bg-indigo-950/20',
-      borderColor: 'border-indigo-200 dark:border-indigo-800',
-      textColor: 'text-indigo-700 dark:text-indigo-300'
-    },
-    resource: {
-      icon: Package,
-      color: 'bg-teal-500',
-      bgColor: 'bg-teal-50 dark:bg-teal-950/20',
-      borderColor: 'border-teal-200 dark:border-teal-800',
-      textColor: 'text-teal-700 dark:text-teal-300'
-    },
-    event: {
-      icon: CalendarIcon,
-      color: 'bg-pink-500',
-      bgColor: 'bg-pink-50 dark:bg-pink-950/20',
-      borderColor: 'border-pink-200 dark:border-pink-800',
-      textColor: 'text-pink-700 dark:text-pink-300'
-    }
-  }
-
-  return configs[type as keyof typeof configs] || configs.offer
-}
-
 /**
- * OpportunityDetailsContent component
- * Renders the details of an opportunity with enhanced features
- *
- * User steps:
- * 1. User views the opportunity details
- * 2. If not logged in, user is prompted to log in
- * 3. If logged in, user sees opportunity details based on their role
- * 4. Confidential information is only shown to users with appropriate roles
- * 5. Enhanced features include real-time updates, RING integration, and better UX
- *
- * @param {OpportunityDetailsProps} props - The component props
- * @returns {React.ReactElement} The rendered opportunity details
+ * OpportunityDetailsContent — details page with feed-tone SSOT + i18n chrome.
  */
 const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   initialOpportunity,
@@ -155,6 +83,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   const { data: session, status } = useSession()
   const t = useTranslations('modules.opportunities')
   const locale = useLocale() as Locale
+  const router = useRouter()
   const { balance: tokenBalance } = useCreditBalanceContext()
   const [requestPending, startRequest] = useTransition()
   const [requestError, setRequestError] = useState<string | null>(null)
@@ -168,29 +97,35 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 
   const [opportunity, setOpportunity] = useState(initialOpportunity)
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const opportunityIdRef = useRef(opportunity.id)
+  opportunityIdRef.current = opportunity.id
 
   useEffect(() => {
-    const applicants = (initialOpportunity as { applicants?: string[] }).applicants
+    const applicants = opportunity.applicants
     const uid = session?.user?.id
     if (uid && Array.isArray(applicants)) {
       setRequested(applicants.map(String).includes(uid))
     }
-  }, [initialOpportunity, session?.user?.id])
+  }, [opportunity.applicants, session?.user?.id])
 
-  // Update opportunity when real-time updates come in
-  useEffect(() => {
-    const handleUpdate = (event: CustomEvent) => {
-      const update = event.detail
-      if (update.opportunityId === opportunity.id) {
-        if (update.type === 'updated' || update.type === 'application_count_changed') {
-          setOpportunity(prev => ({ ...prev, ...update.data }))
-        }
-      }
+  useOpportunityUpdates((update) => {
+    if (update.opportunityId !== opportunityIdRef.current) return
+    if (update.type === 'deleted') {
+      router.push(ROUTES.OPPORTUNITIES(locale))
+      return
     }
-
-    window.addEventListener('opportunity-update', handleUpdate)
-    return () => window.removeEventListener('opportunity-update', handleUpdate)
-  }, [opportunity.id])
+    if (
+      (update.type === 'updated' || update.type === 'application_count_changed') &&
+      update.data
+    ) {
+      setOpportunity((prev) => ({ ...prev, ...update.data }))
+      return
+    }
+    if (update.type === 'updated') {
+      // No snippet — soft refresh App Router payload
+      router.refresh()
+    }
+  })
 
   const projectOrderId = (opportunity as { projectOrderId?: string }).projectOrderId
   const canRequestProjectJob =
@@ -226,29 +161,51 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
     return <div className="text-red-500">{initialError}</div>
   }
 
-  // Get type configuration for visual styling
-  const typeConfig = getOpportunityTypeConfig(opportunity.type)
+  const typeConfig = getOpportunityFeedTypeTone(opportunity.type)
   const TypeIcon = typeConfig.icon
+  const typeLabel = (() => {
+    const typeKey = String(opportunity.type || 'offer')
+    if (t.has(typeKey as 'offer')) return t(typeKey as 'offer')
+    if (t.has(`types.${typeKey}.title` as 'types.offer.title')) {
+      return t(`types.${typeKey}.title` as 'types.offer.title')
+    }
+    return typeKey
+  })()
 
-  // Calculate deadline countdown
-  const getDeadlineCountdown = () => {
+  const getDeadlineCountdownKey = ():
+    | 'deadlineExpired'
+    | 'deadlineToday'
+    | 'deadlineTomorrow'
+    | { key: 'deadlineDays'; days: number }
+    | { key: 'deadlineWeeks'; weeks: number }
+    | { key: 'deadlineMonths'; months: number }
+    | null => {
     if (!opportunity.applicationDeadline) return null
-
     const deadline = new Date(opportunity.applicationDeadline)
-    const now = new Date()
-    const diffTime = deadline.getTime() - now.getTime()
-
-    if (diffTime <= 0) return 'Expired'
-
+    const diffTime = deadline.getTime() - Date.now()
+    if (diffTime <= 0) return 'deadlineExpired'
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Tomorrow'
-    if (diffDays < 7) return `${diffDays} days`
-    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks`
-
-    return `${Math.ceil(diffDays / 30)} months`
+    if (diffDays === 0) return 'deadlineToday'
+    if (diffDays === 1) return 'deadlineTomorrow'
+    if (diffDays < 7) return { key: 'deadlineDays', days: diffDays }
+    if (diffDays < 30) return { key: 'deadlineWeeks', weeks: Math.ceil(diffDays / 7) }
+    return { key: 'deadlineMonths', months: Math.ceil(diffDays / 30) }
   }
+
+  const deadlineCountdown = getDeadlineCountdownKey()
+  const deadlineCountdownLabel = (() => {
+    if (!deadlineCountdown) return null
+    if (typeof deadlineCountdown === 'string') return t(deadlineCountdown)
+    if (deadlineCountdown.key === 'deadlineDays') {
+      return t('deadlineDays', { days: deadlineCountdown.days })
+    }
+    if (deadlineCountdown.key === 'deadlineWeeks') {
+      return t('deadlineWeeks', { weeks: deadlineCountdown.weeks })
+    }
+    return t('deadlineMonths', { months: deadlineCountdown.months })
+  })()
+  const isDeadlineToday = deadlineCountdown === 'deadlineToday'
+  const isDeadlineExpired = deadlineCountdown === 'deadlineExpired'
 
   // Check entity verification status
   const isEntityVerified = initialEntity?.storeVerification?.identityVerified || false
@@ -265,17 +222,17 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                 realtime.isConnected ? 'bg-green-500' : 'bg-red-500'
               }`} />
               <span className="text-sm text-muted-foreground">
-                {realtime.isConnected ? 'Live Updates Active' : 'Offline Mode'}
+                {realtime.isConnected ? t('liveUpdatesActive') : t('offlineMode')}
               </span>
               {realtime.lastUpdate && (
                 <span className="text-xs text-muted-foreground">
-                  • Last update: {realtime.lastUpdate.toLocaleTimeString()}
+                  • {t('lastUpdate', { time: realtime.lastUpdate.toLocaleTimeString() })}
                 </span>
               )}
             </div>
             {realtime.provider && (
               <span className="text-xs text-muted-foreground">
-                via {realtime.provider}
+                {t('viaProvider', { provider: realtime.provider })}
               </span>
             )}
           </div>
@@ -285,7 +242,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
       <div className="mx-auto max-w-4xl">
         {/* Back Navigation */}
         <div className="mb-6">
-          <Link href="/opportunities">
+          <Link href={ROUTES.OPPORTUNITIES(locale)}>
             <Button variant="ghost" className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               {t('backToOpportunities')}
@@ -296,14 +253,14 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
         {/* Main Opportunity Card */}
         <Card className={`relative overflow-hidden mb-6 ${typeConfig.borderColor} ${typeConfig.bgColor}`}>
           {/* Type indicator stripe */}
-          <div className={`absolute top-0 left-0 w-1 h-full ${typeConfig.color}`} />
+          <div className={`absolute top-0 left-0 w-1 h-full ${typeConfig.solidColor}`} />
 
           <CardHeader className="pb-4">
             {/* Header with type badge and actions */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {/* Type Icon */}
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${typeConfig.color}`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${typeConfig.solidColor}`}>
                   <TypeIcon className="h-6 w-6 text-white" />
                 </div>
 
@@ -312,20 +269,20 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="outline" className={`text-sm ${typeConfig.textColor}`}>
                       <TypeIcon className="h-4 w-4 mr-1" />
-                      {t(opportunity.type)}
+                      {typeLabel}
                     </Badge>
 
                     {opportunity.priority && opportunity.priority !== 'normal' && (
                       <Badge variant={opportunity.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
                         <Clock className="h-3 w-3 mr-1" />
-                        {opportunity.priority}
+                        {opportunity.priority === 'urgent' ? t('priorityUrgent') : t('priorityLow')}
                       </Badge>
                     )}
 
-                    {getDeadlineCountdown() === 'Today' && (
+                    {isDeadlineToday && (
                       <Badge variant="destructive" className="text-xs">
                         <Clock className="h-3 w-3 mr-1" />
-                        Deadline Today
+                        {t('deadlineTodayBadge')}
                       </Badge>
                     )}
 
@@ -374,37 +331,34 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 
             {/* Enhanced Information Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* Deadline Countdown */}
-              {getDeadlineCountdown() && (
+              {deadlineCountdownLabel && (
                 <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                  <Timer className={`w-5 h-5 ${getDeadlineCountdown() === 'Expired' ? 'text-red-500' :
-                    getDeadlineCountdown() === 'Today' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                  <Timer className={`w-5 h-5 ${isDeadlineExpired ? 'text-red-500' :
+                    isDeadlineToday ? 'text-orange-500' : 'text-muted-foreground'}`} />
                   <div>
-                    <div className="text-sm font-medium">Deadline</div>
-                    <div className={`text-sm ${getDeadlineCountdown() === 'Expired' ? 'text-red-500' :
-                      getDeadlineCountdown() === 'Today' ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                      {getDeadlineCountdown()}
+                    <div className="text-sm font-medium">{t('deadline')}</div>
+                    <div className={`text-sm ${isDeadlineExpired ? 'text-red-500' :
+                      isDeadlineToday ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                      {deadlineCountdownLabel}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Applicant Count */}
               <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                 <Users className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm font-medium">Applicants</div>
+                  <div className="text-sm font-medium">{t('applicants')}</div>
                   <div className="text-sm text-muted-foreground">
-                    {opportunity.applicantCount || 0} applied
+                    {t('applicantsApplied', { count: opportunity.applicantCount || 0 })}
                   </div>
                 </div>
               </div>
 
-              {/* Location */}
               <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                 <MapPin className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm font-medium">Location</div>
+                  <div className="text-sm font-medium">{t('location')}</div>
                   <div className="text-sm text-muted-foreground">
                     {opportunity.location}
                   </div>
@@ -412,13 +366,12 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
               </div>
             </div>
 
-            {/* Budget */}
             {opportunity.budget && (
               <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg mb-6">
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-5 h-5" />
                   <div>
-                    <div className="text-sm font-medium">Budget</div>
+                    <div className="text-sm font-medium">{t('budget')}</div>
                     <div className="text-sm text-muted-foreground">
                       {formatBudget(opportunity.budget)}
                     </div>
@@ -437,12 +390,11 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
               </div>
             )}
 
-            {/* Entity Information - Only show if entity exists */}
             {initialEntity && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Building className="w-5 h-5" />
-                  Organization Details
+                  {t('organizationDetails')}
                 </h3>
 
                 <div className="bg-muted/30 p-4 rounded-lg">
@@ -459,17 +411,16 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <h4 className="font-medium">{initialEntity.name}</h4>
 
-                        {/* Verification badges */}
                         {isEntityVerified && (
                           <Badge variant="secondary" className="text-xs flex items-center gap-1">
                             <BadgeCheck className="w-3 h-3 text-green-500" />
-                            Verified
+                            {t('verified')}
                           </Badge>
                         )}
 
                         {entityTrustScore > 0 && (
                           <Badge variant="outline" className="text-xs">
-                            Trust: {entityTrustScore}/100
+                            {t('trustScore', { score: entityTrustScore })}
                           </Badge>
                         )}
                       </div>
@@ -479,8 +430,8 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                       </p>
 
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Type: {initialEntity.type}</span>
-                        <span>Location: {initialEntity.location}</span>
+                        <span>{t('type')}: {initialEntity.type}</span>
+                        <span>{t('location')}: {initialEntity.location}</span>
                       </div>
                     </div>
                   </div>
@@ -488,20 +439,18 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
               </div>
             )}
 
-            {/* Full Description */}
             {opportunity.fullDescription && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Full Description</h3>
+                <h3 className="text-lg font-semibold mb-3">{t('fullDescription')}</h3>
                 <div className="prose prose-sm max-w-none bg-muted/30 p-4 rounded-lg whitespace-pre-wrap">
                   {opportunity.fullDescription}
                 </div>
               </div>
             )}
 
-            {/* Tags */}
             {opportunity.tags && opportunity.tags.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Tags</h3>
+                <h3 className="text-lg font-semibold mb-3">{t('tags')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {opportunity.tags.map((tag, index) => (
                     <Badge key={index} variant="outline" className="text-sm">
@@ -513,10 +462,9 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
               </div>
             )}
 
-            {/* Required Skills */}
             {opportunity.requiredSkills && opportunity.requiredSkills.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Required Skills</h3>
+                <h3 className="text-lg font-semibold mb-3">{t('requiredSkills')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {opportunity.requiredSkills.map((skill, index) => (
                     <Badge key={index} variant="secondary" className="text-sm">
@@ -527,10 +475,26 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
               </div>
             )}
 
-            {/* Attachments */}
+            {opportunity.type === 'collective_order' ? (
+              <CollectiveOrderSlotPanel
+                opportunity={opportunity}
+                onOpportunityPatch={(patch) =>
+                  setOpportunity((prev) => ({ ...prev, ...patch }))
+                }
+              />
+            ) : null}
+
+            {opportunity.type === 'scheduled_services' ? (
+              <ScheduledServicesBookPanel
+                opportunity={opportunity}
+                onBooked={() => setRequested(true)}
+                alreadyRequested={requested}
+              />
+            ) : null}
+
             {opportunity.attachments && opportunity.attachments.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Attachments</h3>
+                <h3 className="text-lg font-semibold mb-3">{t('attachments')}</h3>
                 <div className="space-y-2">
                   {opportunity.attachments.map((attachment, index) => (
                     <div key={index} className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
@@ -549,36 +513,43 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
               </div>
             )}
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
               {canRequestProjectJob ? (
-                <Button
-                  className="flex-1"
-                  size="lg"
-                  disabled={requestPending || requested}
-                  onClick={() => {
-                    setRequestError(null)
-                    startRequest(async () => {
-                      try {
-                        const res = await fetch(`/api/opportunities/${opportunity.id}/request`, {
-                          method: 'POST',
-                        })
-                        const json = await res.json()
-                        if (!res.ok) throw new Error(json.error || 'Request failed')
-                        setRequested(true)
-                        setOpportunity((prev) => ({
-                          ...prev,
-                          applicantCount: json.applicantCount ?? (prev.applicantCount || 0) + 1,
-                        }))
-                      } catch (e) {
-                        setRequestError(e instanceof Error ? e.message : 'Request failed')
-                      }
-                    })
-                  }}
-                >
-                  {requestPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {requested ? 'Requested' : 'Request'}
-                </Button>
+                <div className="flex-1 space-y-2">
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    disabled={requestPending || requested}
+                    onClick={() => {
+                      setRequestError(null)
+                      startRequest(async () => {
+                        try {
+                          const res = await fetch(`/api/opportunities/${opportunity.id}/request`, {
+                            method: 'POST',
+                          })
+                          const json = await res.json()
+                          if (!res.ok) throw new Error(json.error || t('requestFailed'))
+                          setRequested(true)
+                          setOpportunity((prev) => ({
+                            ...prev,
+                            applicantCount: json.applicantCount ?? (prev.applicantCount || 0) + 1,
+                          }))
+                        } catch (e) {
+                          setRequestError(e instanceof Error ? e.message : t('requestFailed'))
+                        }
+                      })
+                    }}
+                  >
+                    {requestPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {requested ? t('requested') : t('requestAction')}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    {t('requestProjectOrderHint', {
+                      defaultValue:
+                        'Integrate this Ring customization — overlay playbook is in the description.',
+                    })}
+                  </p>
+                </div>
               ) : null}
 
               <div className="flex gap-2">

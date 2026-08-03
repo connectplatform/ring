@@ -13,10 +13,10 @@ export function getReferralChain(): Chain {
   return CHAINS[REFERRAL_CHAIN_ID] || polygon
 }
 
-import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 export function getReferralRpcUrl(): string {
-  return getPolygonRpcUrl()
+  return getEvmRpcUrl()
 }
 
 export function getReferralMinterWalletClient(): WalletClient | null {

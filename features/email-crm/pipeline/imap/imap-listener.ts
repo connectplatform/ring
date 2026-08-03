@@ -167,7 +167,7 @@ export class ImapListener extends EventEmitter {
     return new Promise((resolve, reject) => {
       if (!this.imap) return reject(new Error('IMAP not initialized'));
 
-      // Search for unseen messages
+      // Search for unseen messages (bounded by EMAIL_BATCH_SIZE / config.polling.batchSize)
       this.imap.search(['UNSEEN'], (err, uids) => {
         if (err) {
           logger.error('[IMAP] Search failed', { error: err.message });
@@ -179,8 +179,24 @@ export class ImapListener extends EventEmitter {
           return resolve();
         }
 
-        logger.info('[IMAP] Found unseen messages', { count: uids.length });
-        this.fetchMessages(uids)
+        const batchSize = Math.max(1, this.config.polling?.batchSize || 10);
+        // Oldest-first so poison/new mail cannot starve the back of the queue
+        const ordered = [...uids].sort((a, b) => a - b);
+        const selected = ordered.length > batchSize ? ordered.slice(0, batchSize) : ordered;
+        logger.info('[IMAP] Found unseen messages', {
+          total: uids.length,
+          batchSize,
+          fetching: selected.length,
+        });
+        void import('../metrics')
+          .then(({ emailCrmMetrics }) => {
+            emailCrmMetrics.unseenBacklog(uids.length)
+            emailCrmMetrics.batchTruncated(uids.length, selected.length)
+          })
+          .catch(() => {
+            /* metrics optional */
+          })
+        this.fetchMessages(selected)
           .then(() => resolve())
           .catch(reject);
       });
@@ -290,7 +306,7 @@ export class ImapListener extends EventEmitter {
         raw: parsed,
       };
 
-      logger.info('[IMAP] Email parsed', {
+      logger.debug('[IMAP] Email parsed', {
         uid,
         messageId: event.messageId,
         from: event.from,
@@ -371,6 +387,21 @@ export class ImapListener extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.imap!.move(uid, folder, (err) => {
         if (err) return reject(err);
+        resolve();
+      });
+    });
+  }
+
+  /** Create mailbox if missing (e.g. CRM.Quarantine). */
+  async ensureFolder(folder: string): Promise<void> {
+    if (!this.imap) throw new Error('IMAP not connected');
+
+    return new Promise((resolve, reject) => {
+      this.imap!.addBox(folder, (err) => {
+        // ALREADYEXISTS is fine
+        if (err && !/exists|already/i.test(err.message || '')) {
+          return reject(err);
+        }
         resolve();
       });
     });

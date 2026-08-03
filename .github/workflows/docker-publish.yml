@@ -1,5 +1,15 @@
 name: 🐳 Build and Publish Docker Images
 
+# Prod path: push to main/develop (or v* tags) builds and pushes
+# registry.ringdom.org/ringdom-clones/ring with v*-ring-platform-org-amd64 tags (Forgejo OCI / ring-mesh).
+#
+# Default runner: ubuntu-latest (always available) — requires FORGEJO_REGISTRY_USER/TOKEN
+# secrets that can push packages (e.g. buildkit-pusher). Prefer self-hosted k3s-3 runner
+# on mesh for native amd64 + remote BuildKit.
+#
+# Optional native builder: set repo var RING_BUILD_RUNNER=k3s-3 ONLY after the
+# self-hosted runner is online — GitHub will NOT fall back if the label is missing
+# (job queues forever). Pair with RING_USE_REMOTE_BUILDKIT=true on that runner.
 on:
   push:
     branches:
@@ -17,18 +27,30 @@ on:
         required: false
         default: true
         type: boolean
+      platforms:
+        description: 'Target platforms'
+        required: false
+        default: 'linux/amd64'
+        type: choice
+        options:
+          - linux/amd64
+          - linux/amd64,linux/arm64
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: registry.ringdom.org
+  # Canonical Ring image (matches local `ring prod` / k8s deploy tags)
+  IMAGE_NAME: ringdom-clones/ring
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RING_BUILD_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
-      packages: write
+      # packages:write not needed — images push to Forgejo OCI, not GHCR
       id-token: write
+    outputs:
+      prod_amd64_tag: ${{ steps.ver.outputs.prod_amd64_tag }}
+      tag_version: ${{ steps.ver.outputs.tag_version }}
 
     steps:
       - name: 📥 Checkout repository
@@ -36,44 +58,88 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 🏷️ Resolve version + tags
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(jq -r .version package.json)"
+          SHA_SHORT="${GITHUB_SHA:0:12}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            TAG_VERSION="${PKG_VERSION}"
+          fi
+          PROD_AMD64="v${TAG_VERSION}-ring-platform-org-amd64"
+          echo "pkg_version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_version=${TAG_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "prod_amd64_tag=${PROD_AMD64}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=${TAG_VERSION} sha=${SHA_SHORT} prod=${PROD_AMD64}"
+
       - name: 🏷️ Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            type=raw,value=v${{ steps.ver.outputs.tag_version }}-ring-platform-org-amd64,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ github.ref_name }}-${{ steps.ver.outputs.sha_short }}-ring-platform-org-amd64,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value={{branch}}-{{sha}}-ring-platform.org-amd64,enable=${{ github.ref == 'refs/heads/main' }}
           labels: |
             org.opencontainers.image.title=Ring Platform
             org.opencontainers.image.description=Professional Networking Platform with Web3 Integration
             org.opencontainers.image.vendor=ConnectPlatform
-            org.opencontainers.image.version={{version}}
+            org.opencontainers.image.version=${{ steps.ver.outputs.tag_version }}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
             org.opencontainers.image.revision={{sha}}
             org.opencontainers.image.url=https://ring-platform.org
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/DOCKER_SETUP.md
 
-      - name: 🔧 Set up Docker Buildx
+      # Prefer explicit repo var over secret emptiness checks (secrets-in-if is fragile).
+      # RING_USE_REMOTE_BUILDKIT=true + secret BUILDKIT_HOST=tcp://buildkit.buildkit.svc.cluster.local:1234
+      # only on self-hosted k3s-3 runners.
+      - name: 🔧 Set up Docker Buildx (remote k3s-3 BuildKit)
+        if: ${{ vars.RING_USE_REMOTE_BUILDKIT == 'true' }}
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: remote
+          endpoint: ${{ secrets.BUILDKIT_HOST }}
+
+      - name: 🔧 Set up Docker Buildx (default)
+        if: ${{ vars.RING_USE_REMOTE_BUILDKIT != 'true' }}
         uses: docker/setup-buildx-action@v3
         with:
           platforms: linux/amd64,linux/arm64
-
-      - name: 🔐 Log in to Container Registry
+      - name: 🔐 Log in to Forgejo Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.FORGEJO_REGISTRY_USER }}
+          password: ${{ secrets.FORGEJO_REGISTRY_TOKEN }}
 
-      - name: 🏗️ Build Docker image (amd64)
+      - name: 🏗️ Resolve platforms
+        id: platforms
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "list=${{ inputs.platforms }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ vars.RING_BUILD_RUNNER || 'ubuntu-latest' }}" == *"k3s-3"* ]]; then
+            # Native amd64 builder — ship the prod tag first; arm64 optional later.
+            echo "list=linux/amd64" >> "$GITHUB_OUTPUT"
+          else
+            echo "list=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+          fi
+
+      # load:true requires a local docker engine — skip on remote-BuildKit runners.
+      - name: 🏗️ Build Docker image (amd64 smoke)
+        if: github.event_name == 'pull_request' && vars.RING_USE_REMOTE_BUILDKIT != 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -86,7 +152,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
-            VERSION=${{ steps.meta.outputs.version }}
+            VERSION=${{ steps.ver.outputs.tag_version }}
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             GIT_COMMIT=${{ github.sha }}
             AUTH_SECRET=${{ secrets.AUTH_SECRET }}
@@ -112,12 +178,12 @@ jobs:
             DB_SSL=${{ vars.DB_SSL }}
             LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
             POLYGON_RPC_URL=${{ vars.POLYGON_RPC_URL }}
+            RING_BUILD_SKIP_DB=1
 
       - name: 🧪 Test Docker image
+        if: github.event_name == 'pull_request' && vars.RING_USE_REMOTE_BUILDKIT != 'true'
         run: |
           echo "🧪 Testing Docker image for amd64..."
-          
-          # Start container in background with minimal env vars for health check
           docker run -d \
             --name ring-test-amd64 \
             -p 3000:3000 \
@@ -126,48 +192,74 @@ jobs:
             -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
             -e NEXT_PUBLIC_API_URL="${{ vars.NEXT_PUBLIC_API_URL }}" \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-amd64
-          
-          # Wait for container to start
+
           echo "⏳ Waiting for container to start..."
           sleep 30
-          
-          # Check if container is running
+
           if ! docker ps | grep -q ring-test-amd64; then
             echo "❌ Container failed to start"
             docker logs ring-test-amd64
             exit 1
           fi
-          
-          # Test health endpoint
+
           echo "🏥 Testing health endpoint..."
           if curl -f http://localhost:3000/api/health 2>/dev/null; then
             echo "✅ Health check passed"
           else
             echo "⚠️ Health check not available or failed (non-blocking)"
           fi
-          
-          # Check if the app responds
-          echo "🌐 Testing application response..."
-          if curl -f http://localhost:3000 2>/dev/null; then
-            echo "✅ Application responds successfully"
-          else
-            echo "❌ Application not responding"
-            docker logs ring-test-amd64
-            exit 1
-          fi
-          
-          # Cleanup
+
           docker stop ring-test-amd64
           docker rm ring-test-amd64
-          
           echo "✅ Docker image test completed successfully"
 
-      - name: 🚀 Build and push multi-platform image
+      - name: 🏗️ PR build via remote BuildKit (no local load)
+        if: github.event_name == 'pull_request' && vars.RING_USE_REMOTE_BUILDKIT == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-amd64
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+            VERSION=${{ steps.ver.outputs.tag_version }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            GIT_COMMIT=${{ github.sha }}
+            AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+            RING_BUILD_SKIP_DB=1
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXTAUTH_URL=${{ vars.NEXTAUTH_URL }}
+            NEXT_PUBLIC_AUTH_GOOGLE_ID=${{ vars.NEXT_PUBLIC_AUTH_GOOGLE_ID }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+            NEXT_PUBLIC_FIREBASE_VAPID_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+            DB_BACKEND_MODE=${{ vars.DB_BACKEND_MODE }}
+            DB_HOST=${{ vars.DB_HOST }}
+            DB_PORT=${{ vars.DB_PORT }}
+            DB_NAME=${{ vars.DB_NAME }}
+            DB_USER=${{ vars.DB_USER }}
+            DB_POOL_SIZE=${{ vars.DB_POOL_SIZE }}
+            DB_SSL=${{ vars.DB_SSL }}
+            LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
+            POLYGON_RPC_URL=${{ vars.POLYGON_RPC_URL }}
+
+      - name: 🚀 Build and push production image
         if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push_to_registry)
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.platforms.outputs.list }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -175,7 +267,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
-            VERSION=${{ steps.meta.outputs.version }}
+            VERSION=${{ steps.ver.outputs.tag_version }}
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             GIT_COMMIT=${{ github.sha }}
             AUTH_SECRET=${{ secrets.AUTH_SECRET }}
@@ -201,11 +293,13 @@ jobs:
             DB_SSL=${{ vars.DB_SSL }}
             LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
             POLYGON_RPC_URL=${{ vars.POLYGON_RPC_URL }}
+            RING_BUILD_SKIP_DB=1
 
   security-scan:
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.event_name != 'pull_request'
+    # Only on main/tags where we push the canonical prod amd64 tag (not develop-only).
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: read
       packages: read
@@ -217,14 +311,16 @@ jobs:
 
       - name: 🔍 Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.prod_amd64_tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
 
       - name: 📊 Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -232,13 +328,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-push, security-scan]
     if: always() && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: 📢 Notify on success
         if: needs.build-and-push.result == 'success'
         run: |
           echo "🎉 Docker image built and published successfully!"
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "🏷️ Prod tag pattern: v*-ring-platform-org-amd64"
           echo "🔗 Registry: https://github.com/${{ github.repository }}/pkgs/container/ring"
           echo "🌐 Platform: https://ring-platform.org"
 

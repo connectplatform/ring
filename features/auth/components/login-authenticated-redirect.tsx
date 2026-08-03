@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import type { Locale } from '@/i18n/shared'
+import { ROUTES } from '@/constants/routes'
 import { safePostAuthRedirect } from '@/lib/auth/safe-post-auth-redirect'
 
 interface LoginAuthenticatedRedirectProps {
@@ -33,13 +34,22 @@ export function LoginAuthenticatedRedirect({
   locale,
   disabled = false,
 }: LoginAuthenticatedRedirectProps) {
-  const { status } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
     if (disabled || status !== 'authenticated') return
+    if (session?.user?.needsOnboarding) {
+      const qs = new URLSearchParams()
+      if (from) qs.set('callbackUrl', from)
+      const q = qs.toString()
+      router.replace(
+        q ? `${ROUTES.LOGIN_ONBOARDING(locale)}?${q}` : ROUTES.LOGIN_ONBOARDING(locale),
+      )
+      return
+    }
     router.replace(safePostAuthRedirect(from, locale))
-  }, [disabled, status, from, locale, router])
+  }, [disabled, status, from, locale, router, session?.user?.needsOnboarding])
 
   return null
 }

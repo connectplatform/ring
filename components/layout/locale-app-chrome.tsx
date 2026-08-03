@@ -5,6 +5,7 @@ import Navigation from '@/components/navigation/navigation'
 import { HreflangLinks } from '@/components/seo/hreflang-links'
 import { AppContentShell } from '@/components/layout/ring-app-shell'
 import { ReferralAttributionEffect } from '@/components/refcodes/referral-attribution-effect'
+import { CreditRewardReceivedListener } from '@/features/wallet/components/credit-reward-received-listener'
 import type { Locale } from '@/i18n/shared'
 
 export interface LocaleAppChromeProps {
@@ -33,6 +34,7 @@ export function LocaleAppChrome({
     <I18nProvider locale={locale} messages={messages}>
       {hreflangPath != null ? <HreflangLinks pathname={hreflangPath} /> : null}
       <NotificationProvider>
+        <CreditRewardReceivedListener />
         {showReferralAttribution && variant === 'full' ? <ReferralAttributionEffect /> : null}
         {variant === 'minimal' ? (
           <div className="flex min-h-screen flex-col bg-background">

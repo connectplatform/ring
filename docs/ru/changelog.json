@@ -1,0 +1,782 @@
+[
+  {
+    "date": "2026-08-03",
+    "version": "1.97.13",
+    "mods": [
+      "### Добавлено\n- **Order Lab clone-bridge** — Forgejo scaffold/build, source tree editor, env-request ownership, ringization playbook panel\n- **Docker registry SSOT** — `lib/docker-registry.ts` / `cli/registry.js`; publish workflow → `registry.ringdom.org/ringdom-clones/ring`\n- **Forgejo robot GC** — cron + admin clients",
+      "### Ops\n- **Image hygiene** — `.dockerignore` / `.gitignore` exclude `solana/target`, Hardhat artifacts, nested `node_modules`"
+    ]
+  },
+  {
+    "date": "2026-08-01",
+    "version": "1.97.12",
+    "mods": [
+      "### Добавлено\n- **Wagmi treasury swap** — `RingTreasurySwap.sol`, quote/execute APIs, admin treasury-diversify, `lib/ring-oracle` + FX admin rates\n- **Public-pool / Solana programs** — `solana/programs/{membership,public-pool}` source; pool contribute/escrow UI polish\n- **Wallet desk** — credit-reward received UX, value denomination, credit-balance SSOT rename"
+    ]
+  },
+  {
+    "date": "2026-07-30",
+    "version": "1.97.11",
+    "mods": [
+      "### Добавлено\n- **Email auth surface** — forgot/reset/verify routes, email login tokens (migrations `037`–`038`), cleanup cron\n- **Telegram Login + Stars** — OIDC/widget/mini-app hash, link prepare API, Stars bot webhook + subscription provider\n- **Vitals onboarding** — `/login/onboarding` + profile shell rebuild (hero balances, share-earn)\n- **Admin Wiki MVP** — `features/wiki`, `/admin/wiki`, MCP wiki tools, migration `040_wiki_pages`\n- **Email CRM support desk** — channels + task reply APIs, channel index migration `039`"
+    ]
+  },
+  {
+    "date": "2026-07-28",
+    "version": "1.97.10",
+    "mods": [
+      "### Добавлено\n- **ERP hub Wave 1** — cart soft-holds (`/api/store/cart`, migration `044_store_user_carts`), inventory-drift cron, MCP store stock/orders/vendors tools\n- **DAGI vendor agent** — `/api/vendor/dagi/chat`, ERP + product-commerce tools, product-agent research actions\n- **Collective-order escrow** — opportunity slot checkout, migration `041_collective_order_escrows`, PaymentConductor handlers"
+    ]
+  },
+  {
+    "date": "2026-07-27",
+    "version": "1.97.9",
+    "mods": [
+      "### Добавлено\n- **Chat interactive kit** — poll / rsvp / share_card / product_card / cart_summary dual-gate widgets + compose dialogs; `interactive-registry`; close-expired-polls cron\n- **Meetup RSVP + DAO jar chat** — invite RSVP button; post DAO jar to conversation"
+    ]
+  },
+  {
+    "date": "2026-07-26",
+    "version": "1.97.8",
+    "mods": [
+      "### Добавлено\n- **Ring Peer Games P1** — checkers plugin, session expiry cron, DataChannel optimistic hints, FCM offline invite, profile `/profile/games` + public `/{username}/games`\n- **Migration** — `043_peer_games.sql`"
+    ]
+  },
+  {
+    "date": "2026-07-25",
+    "version": "1.97.7",
+    "mods": [
+      "### Добавлено\n- **Ring Tasks escrow** — credit/WayForPay escrow checkout, CRM `/admin/crm/task-escrows`, PaymentConductor `task-escrow` handler, `lib/escrow/credit-spend`\n- **Rocket roadmap journey** — `RocketJourneyWidget` scrubber merges live changelog past + `futureMilestones` ahead",
+      "### Документация\n- **Roadmap / FEATURESET / README** — conductors, DAO pools, NFT, CRM lab, File Cabinet standing restored; Q3–2027 backlog curated"
+    ]
+  },
+  {
+    "date": "2026-07-24",
+    "version": "1.97.6",
+    "mods": [
+      "### Добавлено\n- **File Cabinet depth** — nested tree UX, share/rename/trustee modals, gallery manager, download upstream, generative media cabinet refs (`media-use-target`, `resolve-cabinet-ref`)\n- **Mood player routes** — `/profile/songs`, public `/{username}/player`; retired playlist nested routes",
+      "### Изменено\n- **Gallery SSOT hooks** — cabinet ↔ generative video jobs / editor enhance host wiring"
+    ]
+  },
+  {
+    "date": "2026-07-22",
+    "version": "1.97.5",
+    "mods": [
+      "### Документация\n- **File Cabinet** — dual-audience rewrite: canonical `/file-cabinet` (member+), `/profile/shared` for all subscribers+, trustees ACL, three-column shell, confidential/Make confidential, rail skeletons; reciprocal links on public-profile / subscriptions / RingFileBase / Ring CDN\n- **Access gates** — MemberUpgradeGate for own manager + gallery; shared desktop for all subscribers+ with upgrade CTA for own manager"
+    ]
+  },
+  {
+    "date": "2026-07-21",
+    "version": "1.97.4",
+    "mods": [
+      "### Добавлено\n- **Ring File Cabinet** — /profile/cabinet|shared|gallery, public /{username}/img, ACL owner|editor\n- **Ring Tasks** — /tasks tree + chat task widgets + optional escrow\n- **Ring Peer Games** — /games, game_request type, tic-tac-toe + chess, Tunnel session SSOT\n- **Public profile player** — /{username}/player for mood playlists\n- **Email CRM under features/** — pipeline relocated; native token oracle under wallet/services",
+      "### Изменено\n- **Changelog page** — Locale JSON DaVinci-glass SSOT; GFM/TTFB fixes",
+      "### Документация\n- **Roadmap reconciliation** — Conductors, DAO/pools, NFT, CRM lab restored; backlog from open plans",
+      "### Примечание\n- **History span** — Public changelog lists feature releases from **2024** genesis through current; dates are narrative markers."
+    ]
+  },
+  {
+    "date": "2026-07-20",
+    "version": "1.97.3",
+    "mods": [
+      "### Добавлено\n- **Interactive type kit** — poll / rsvp / dao_jar / share_card foundations\n- **CAS ledger versioning** — Concurrency-safe ledger revisions"
+    ]
+  },
+  {
+    "date": "2026-07-19",
+    "version": "1.97.2",
+    "mods": [
+      "### Добавлено\n- **Wagmi housekeeping** — RPC SSOT, viem staking polish"
+    ]
+  },
+  {
+    "date": "2026-07-18",
+    "version": "1.97.1",
+    "mods": [
+      "### Добавлено\n- **Ring Mailer** — First-party SMTP SSOT — OTP, magic link, password reset; no Resend"
+    ]
+  },
+  {
+    "date": "2026-07-17",
+    "version": "1.97.0",
+    "mods": [
+      "### Добавлено\n- **Owner CRM lab** — /my-orders, /my-jobs, admin /admin/crm/*\n- **Generative media field** — ImageConductor gallery + billing\n- **Calculator project checkout** — PaymentConductor project_order\n- **Store promotions** — Share-and-earn\n- **Locales DE/ES** — Full packs\n- **Rewards admin** — /admin/rewards\n- **News collaboration** — Invites, amendments, diffs\n- **Wallet fullscreen modals** — Pay-request, recharge, on-chain detail\n- **Entity/home presets** — Agricultural, ERP, MVM landing"
+    ]
+  },
+  {
+    "date": "2026-07-16",
+    "version": "1.96.1",
+    "mods": [
+      "### Добавлено\n- **PayPal subscriptions** — Membership PayPal lane\n- **Ring Mood Player** — Playlists, TipTap node, Suno"
+    ]
+  },
+  {
+    "date": "2026-07-15",
+    "version": "1.96.0",
+    "mods": [
+      "### Добавлено\n- **Admin supermenu refinement** — Dense role-aware IA\n- **Project order CRM** — Owner lab orders migrations"
+    ]
+  },
+  {
+    "date": "2026-07-12",
+    "version": "1.95.0",
+    "mods": [
+      "### Добавлено\n- **Open member NFT creator lane** — Metaplex Core collections + listings"
+    ]
+  },
+  {
+    "date": "2026-07-11",
+    "version": "1.94.0",
+    "mods": [
+      "### Добавлено\n- **Solana Exhibition NFT market** — Ledger-dev settlement marketplace"
+    ]
+  },
+  {
+    "date": "2026-07-10",
+    "version": "1.93.0",
+    "mods": [
+      "### Добавлено\n- **Conductor mapping complete** — WalletConductor / NewsConductor / MediaConductor + PayPal/native rails\n- **SubscriptionConductor** — Membership renew/cancel SSOT\n- **ProcessConductor** — PIPELINE_IDS cron desk"
+    ]
+  },
+  {
+    "date": "2026-07-09",
+    "version": "1.92.0",
+    "mods": [
+      "### Добавлено\n- **Store WFP via PaymentConductor** — Cart→checkout conductor wiring\n- **Vendor dashboard real data** — Mounted live VendorDashboard"
+    ]
+  },
+  {
+    "date": "2026-07-07",
+    "version": "1.91.0",
+    "mods": [
+      "### Добавлено\n- **SSOT fetch consolidation** — Duplicate-fetch + tunnel timing fixes"
+    ]
+  },
+  {
+    "date": "2026-07-03",
+    "version": "1.90.1",
+    "mods": [
+      "### Добавлено\n- **Zero-loop proxy refactor** — Auth out of proxy into layouts\n- **Lab01 sidebar integration** — Rail + collapsible aside SSOT\n- **Admin Telegram bot** — NL admin CRUD via Claude\n- **Wallet Connect auth route** — wagmi → Auth.js crypto-wallet\n- **Ring Admin Analytics** — PostgreSQL web vitals/errors\n- **Affiliate / settlement pipeline** — createSettlement live\n- **Docs resolver SSOT** — Optional catch-all docs routes\n- **Codediff-apply MCP** — Smart propagation tool\n- **Group chat type** — metadata.groupName + multi-select create"
+    ]
+  },
+  {
+    "date": "2026-07-01",
+    "version": "1.90.0",
+    "mods": [
+      "### Добавлено\n- **OG home 1200×630** — Social preview assets"
+    ]
+  },
+  {
+    "date": "2026-06-28",
+    "version": "1.6.8",
+    "mods": [
+      "### Добавлено\n- **AI-CONTEXT ingestion F1** — Knowledge pipeline for agents"
+    ]
+  },
+  {
+    "date": "2026-06-24",
+    "version": "1.6.7",
+    "mods": [
+      "### Добавлено\n- **DAGI agent provisioning live** — Entity AI agents"
+    ]
+  },
+  {
+    "date": "2026-06-22",
+    "version": "1.6.6",
+    "mods": [
+      "### Добавлено\n- **Public pools / DAO jars** — /dao + PaymentConductor pool contributions\n- **Collective contribution rails** — Multi-party funding"
+    ]
+  },
+  {
+    "date": "2026-06-20",
+    "version": "1.89.0",
+    "mods": [
+      "### Добавлено\n- **Native WSS custom server** — k3s-postgres Tunnel via custom server\n- **Device telemetry / ring-analytics** — Ingestion + aggregates\n- **FCM hooks Auth SSOT** — Push token upsert alignment\n- **Fraud desk suspension** — Admin risk actions\n- **Tunnel channel consolidation** — Realtime migration P2",
+      "### Исправлено\n- **DB/Firebase secrets alignment** — One Tap session guard"
+    ]
+  },
+  {
+    "date": "2026-06-18",
+    "version": "1.88.0",
+    "mods": [
+      "### Добавлено\n- **Unified locale layout** — Tunnel fixes + admin UX pack"
+    ]
+  },
+  {
+    "date": "2026-06-15",
+    "version": "1.6.5",
+    "mods": [
+      "### Добавлено\n- **User migration email dedup** — Account hygiene\n- **Verification procedures SSOT** — Shared verification flows"
+    ]
+  },
+  {
+    "date": "2026-06-13",
+    "version": "1.6.4",
+    "mods": [
+      "### Добавлено\n- **Docs root flatten** — docs/{locale}/** SSOT\n- **LoginAuthenticatedRedirect** — Client /login session gate",
+      "### Изменено\n- **Sidebar hydration** — Mobile nav always-on"
+    ]
+  },
+  {
+    "date": "2026-06-12",
+    "version": "1.6.3",
+    "mods": [
+      "### Добавлено\n- **ring-db *Doc migration** — Domain CRUD + transactions empire-wide"
+    ]
+  },
+  {
+    "date": "2026-06-10",
+    "version": "1.6.2",
+    "mods": [
+      "### Добавлено\n- **Store product AI chat** — Persisted Messenger threads + SSE\n- **Grok streaming fallback** — Non-SSE provider path + guest login restore"
+    ]
+  },
+  {
+    "date": "2026-06-07",
+    "version": "1.6.1",
+    "mods": [
+      "### Добавлено\n- **Ring MCP gateway** — /api/mcp/v1/* bearer tools\n- **ISO date serialization helper** — Cross-boundary dates\n- **Docs library v1.6** — MCP, PaymentConductor, editor, self-host pages",
+      "### Исправлено\n- **cacheComponents + auth() typing** — Production build green"
+    ]
+  },
+  {
+    "date": "2026-06-06",
+    "version": "1.6.0",
+    "mods": [
+      "### Добавлено\n- **PaymentConductor v1** — WayForPay + Stripe + credit ledger; store/membership/news\n- **News Kingdom** — Scoring, promotion, Telegram approval, member blogs\n- **Scientific editor** — Publications API, equations, AI assistant\n- **Locale SSOT** — lib/locale-config.ts\n- **Member blogs** — /blog/[username]/[slug]\n- **Content favorites** — News bookmarks\n- **DaVinci mobile UX** — Glass nav patterns\n- **OSS security boundary** — Public tree excludes k8s/cli\n- **Image/Text/Audio/Video conductors** — Generative SSOT surfaces",
+      "### Безопасность\n- **Mail credential hardening** — No hardcoded IMAP/SMTP fallbacks"
+    ]
+  },
+  {
+    "date": "2026-05-15",
+    "version": "1.53.0",
+    "mods": [
+      "### Добавлено\n- **Ring Messenger UI** — ConversationList, MessageThread, MessageComposer\n- **FCM delivery path** — Message and domain push\n- **AI Matcher production depth** — LLM scoring + explanations\n- **Email AI CRM** — IMAP multi-channel, injection defense, draft queue\n- **PIN security** — Web3 without seed phrases\n- **Interactive maps suite** — Feature/timeline/dataflow/knowledge\n- **White-label preset system** — Entity/product/badge presets"
+    ]
+  },
+  {
+    "date": "2026-04-10",
+    "version": "1.52.0",
+    "mods": [
+      "### Добавлено\n- **Auth.js v5 split config** — Edge + server; Google GIS, Apple, MetaMask, magic links\n- **Vendor dashboard real data** — Live KPIs and orders\n- **Reviews optimistic UI** — React 19 useOptimistic\n- **3-level comment threading** — Nested discussions\n- **Notification templates** — Multi-channel localized templates"
+    ]
+  },
+  {
+    "date": "2026-03-12",
+    "version": "1.51.0",
+    "mods": [
+      "### Добавлено\n- **Ringdom Settler flow** — Tier selection, token calculator, ringization hooks\n- **Legiox-Access NFT gating** — Skillset distribution access patterns\n- **Confidential networking depth** — C-level / stealth opportunity tier"
+    ]
+  },
+  {
+    "date": "2026-02-21",
+    "version": "1.50.4",
+    "mods": [
+      "### Добавлено\n- **Reggie propagation wave** — Store/checkout/reviews/auth/entities/opportunities/notifications sync across clones\n- **DAGI provisioning service** — AI agent provisioning live\n- **Agricultural entity types** — Vertical presets expansion\n- **ERP stock service** — Vendor stock operations"
+    ]
+  },
+  {
+    "date": "2026-02-18",
+    "version": "1.50.3",
+    "mods": [
+      "### Добавлено\n- **PostGIS geolocation service** — Reverse-prop from PetFriend\n- **Full-width map layout** — GIS-friendly chrome\n- **Business subscription billing schema** — Clone billing patterns"
+    ]
+  },
+  {
+    "date": "2026-02-13",
+    "version": "1.50.2",
+    "mods": [
+      "### Добавлено\n- **Auth.js v5 optimizations** — CreditBalanceProvider patterns"
+    ]
+  },
+  {
+    "date": "2026-02-10",
+    "version": "1.50.1",
+    "mods": [
+      "### Добавлено\n- **Schema.sql v4.0.0** — Username reservation + messaging infrastructure tables"
+    ]
+  },
+  {
+    "date": "2026-02-08",
+    "version": "1.50.0",
+    "mods": [
+      "### Добавлено\n- **Next.js 16 narrative** — Turbopack, async params documented",
+      "### Исправлено\n- **Minor v1.50 fixes** — Stability pass"
+    ]
+  },
+  {
+    "date": "2026-02-05",
+    "version": "1.49.0",
+    "mods": [
+      "### Добавлено\n- **Docs/ROADMAP/maps sync** — Verified platform statistics\n- **Customization opportunity seeds** — Ring customization listings"
+    ]
+  },
+  {
+    "date": "2026-02-04",
+    "version": "1.48.0",
+    "mods": [
+      "### Добавлено\n- **Legiox AI integration** — Truth-lens agents + MCP tools\n- **Tunnel as RTDB analog** — K8s realtime pub/sub",
+      "### Изменено\n- **React 19.2 + Next.js 16 + Tailwind 4** — Stack baseline bump",
+      "### Производительность\n- **Build ~17s / bundle ~260kB** — React 19 optimization"
+    ]
+  },
+  {
+    "date": "2025-12-15",
+    "version": "1.4.9",
+    "mods": [
+      "### Добавлено\n- **Multi-vendor store core maturity** — Cart, variants JSONB, sticky FABs\n- **Address / checkout forms** — Theme-wired checkout"
+    ]
+  },
+  {
+    "date": "2025-11-30",
+    "version": "1.4.8",
+    "mods": [
+      "### Добавлено\n- **Wrapper pattern migration** — Consistent locale wrappers across pages"
+    ]
+  },
+  {
+    "date": "2025-11-09",
+    "version": "1.4.7",
+    "mods": [
+      "### Добавлено\n- **DatabaseService migration wave** — Firebase→Postgres conversion across features\n- **PostgreSQL financial transactions** — Atomic subscription/credit ops\n- **Tunnel in messaging/opportunities** — Realtime fan-out"
+    ]
+  },
+  {
+    "date": "2025-11-07",
+    "version": "1.4.6",
+    "mods": [
+      "### Добавлено\n- **Tunnel multi-transport matrix** — WS, SSE, Supabase, Firebase RTDB, long-poll\n- **Reggie local LLM servant** — Code transform / propagation assistant"
+    ]
+  },
+  {
+    "date": "2025-11-05",
+    "version": "1.4.5",
+    "mods": [
+      "### Добавлено\n- **User widget MiniCart/Favorites** — Clone UX patterns\n- **Superbadge layout** — Corner branding pattern"
+    ]
+  },
+  {
+    "date": "2025-11-04",
+    "version": "1.4.4",
+    "mods": [
+      "### Добавлено\n- **Global users architecture** — Cross-clone shared identity\n- **Preorder + dynamic price range** — Cached price filters\n- **Checkout currency/theme polish** — Address modal theme wiring",
+      "### Исправлено\n- **Currency toggle + navigation** — Store/nav restoration"
+    ]
+  },
+  {
+    "date": "2025-11-03",
+    "version": "1.4.3",
+    "mods": [
+      "### Добавлено\n- **Multi-vendor product page** — Gallery, variants, cart, reviews, carousel\n- **Vendor commission tiers** — NEW→PREMIUM rate ladder\n- **Badass product page conquest** — Complete product UX"
+    ]
+  },
+  {
+    "date": "2025-11-02",
+    "version": "1.4.2",
+    "mods": [
+      "### Исправлено\n- **Store filter data flow** — End-to-end filter state fix"
+    ]
+  },
+  {
+    "date": "2025-11-01",
+    "version": "1.4.1",
+    "mods": [
+      "### Добавлено\n- **Consolidated floating buttons** — Unified FAB system\n- **Global currency context** — App-wide currency state\n- **Store locale remounting** — Correct locale switching in store"
+    ]
+  },
+  {
+    "date": "2025-10-31",
+    "version": "1.4.0",
+    "mods": [
+      "### Добавлено\n- **White-label product import** — Bulk catalog migration for clones\n- **Store right-sidebar filters** — Filter IA for store-first rings",
+      "### Изменено\n- **Clone navigation patterns** — Propagation Ring → GreenFood-style clones"
+    ]
+  },
+  {
+    "date": "2025-10-30",
+    "version": "1.3.9",
+    "mods": [
+      "### Добавлено\n- **Tailwind 4 semantic tokens** — Full design-token migration"
+    ]
+  },
+  {
+    "date": "2025-10-29",
+    "version": "1.3.8",
+    "mods": [
+      "### Добавлено\n- **Docs welcome landing** — Operator onboarding hub"
+    ]
+  },
+  {
+    "date": "2025-10-28",
+    "version": "1.3.7",
+    "mods": [
+      "### Добавлено\n- **Documentation system complete** — MDX, code, Mermaid\n- **13 opportunity categories** — ai_instructor + unified schemas\n- **Docs modernization** — Both projects documentation victory"
+    ]
+  },
+  {
+    "date": "2025-10-26",
+    "version": "1.3.6",
+    "mods": [
+      "### Добавлено\n- **Legiox tool tiers** — Structured MCP capability advancement\n- **AI-CONTEXT timeline org** — Knowledge base structure\n- **AI-CONTEXT defragmentation** — Corpus cleanup"
+    ]
+  },
+  {
+    "date": "2025-10-25",
+    "version": "1.3.5",
+    "mods": [
+      "### Добавлено\n- **Legiox Engine MCP** — MCP server enhancements for Ring development"
+    ]
+  },
+  {
+    "date": "2025-10-14",
+    "version": "1.3.1",
+    "mods": [
+      "### Добавлено\n- **Entities filters panel** — Advanced entity browse\n- **AI Matcher caching** — User profile features in Matcher\n- **Self-typing animation** — Narrative UX on Trinity/about pages"
+    ]
+  },
+  {
+    "date": "2025-10-13",
+    "version": "1.3.0",
+    "mods": [
+      "### Добавлено\n- **Bottom nav + desktop sidebar** — Core Ring chrome\n- **Wallet navigation + top-up** — Credit top-up UX\n- **Ring CLI (empire)** — Config + deploy tooling (later OSS-excluded)\n- **Docs navigation + Callouts** — MDX docs IA\n- **PostgreSQL store path** — Store components on Postgres\n- **Opportunity filters/components** — Enhanced opportunity browse"
+    ]
+  },
+  {
+    "date": "2025-10-12",
+    "version": "1.2.0",
+    "mods": [
+      "### Добавлено\n- **Tunnel production ready** — Multi-transport + Edge JWT at scale\n- **Confidential entity protection** — Access-denied error classes"
+    ]
+  },
+  {
+    "date": "2025-10-05",
+    "version": "1.1.0",
+    "mods": [
+      "### Добавлено\n- **RING token + credit systems** — Membership economics and credit ledger\n- **Automatic payment hooks** — Blockchain/fiat automation paths"
+    ]
+  },
+  {
+    "date": "2025-09-18",
+    "version": "1.0.0",
+    "mods": [
+      "### Добавлено\n- **Database Abstraction Phase 3–4** — PostgreSQL-primary DatabaseService production-ready\n- **Advanced search** — Entities + opportunities unified search/filter",
+      "### Производительность\n- **BackendSelector savings** — Dual-backend cost reduction"
+    ]
+  },
+  {
+    "date": "2025-09-08",
+    "version": "0.9.9",
+    "mods": [
+      "### Добавлено\n- **Docker configuration** — Containerized deploy templates\n- **ERP vendor–product extension** — Quality management hooks"
+    ]
+  },
+  {
+    "date": "2025-09-03",
+    "version": "0.9.8",
+    "mods": [
+      "### Добавлено\n- **Health check API** — Ops readiness endpoint\n- **Wallet ETag caching** — Transaction history caching + event bus"
+    ]
+  },
+  {
+    "date": "2025-08-29",
+    "version": "0.9.7",
+    "mods": [
+      "### Добавлено\n- **Wallet management + Web3 context** — Wallet UI and provider wiring\n- **Store settings + addresses** — Vendor/buyer address book\n- **Checkout client + prebilling** — Special offer modal, payment step refactor"
+    ]
+  },
+  {
+    "date": "2025-08-28",
+    "version": "0.9.6",
+    "mods": [
+      "### Добавлено\n- **WayForPay store payments** — Checkout payment processing\n- **Unread notification count hook** — Live badge counts"
+    ]
+  },
+  {
+    "date": "2025-08-27",
+    "version": "0.9.5",
+    "mods": [
+      "### Добавлено\n- **Unified Entity Service** — Consolidated get-entity APIs\n- **Multi-vendor marketplace foundation** — Vendor lifecycle, inventory sync, trust scoring\n- **Vendor profile types** — Typed multi-vendor marketplace models\n- **Store event bus** — Domain events for cart/catalog\n- **Currency formatting utility** — Locale-aware money display"
+    ]
+  },
+  {
+    "date": "2025-08-23",
+    "version": "0.9.3",
+    "mods": [
+      "### Изменено\n- **SEO + env configs** — Environment and SEO component refresh"
+    ]
+  },
+  {
+    "date": "2025-08-23",
+    "version": "0.9.2",
+    "mods": [
+      "### Добавлено\n- **Tunnel heartbeat endpoint** — Polling auth + keepalive\n- **CORS via NEXT_PUBLIC_API_URL** — Production API origin config"
+    ]
+  },
+  {
+    "date": "2025-08-23",
+    "version": "0.9.1",
+    "mods": [
+      "### Добавлено\n- **SSE transport hardening** — Connection handling improvements",
+      "### Изменено\n- **Tunnel enhancement** — Subscription/unsubscription for anonymous users"
+    ]
+  },
+  {
+    "date": "2025-08-23",
+    "version": "0.9.0",
+    "mods": [
+      "### Добавлено\n- **Tunnel Transport Layer** — Multi-transport realtime abstraction (WS/SSE/…)\n- **Edge JWT tunnel auth** — Production-ready tunnel tokens"
+    ]
+  },
+  {
+    "date": "2025-08-22",
+    "version": "0.8.9",
+    "mods": [
+      "### Добавлено\n- **Usernames** — Unique username reservation foundations",
+      "### Безопасность\n- **Security fixes** — Auth and socket hardening"
+    ]
+  },
+  {
+    "date": "2025-08-22",
+    "version": "0.8.8",
+    "mods": [
+      "### Добавлено\n- **Analytics API logging** — Auth + analytics instrumentation"
+    ]
+  },
+  {
+    "date": "2025-08-22",
+    "version": "0.8.7",
+    "mods": [
+      "### Добавлено\n- **API client integration** — Shared client error handling"
+    ]
+  },
+  {
+    "date": "2025-08-22",
+    "version": "0.8.6",
+    "mods": [
+      "### Изменено\n- **WebSocket refactor** — Performance and compatibility",
+      "### Производительность\n- **Firebase cache() patterns** — React 19 caching reduces hot-path calls"
+    ]
+  },
+  {
+    "date": "2025-08-21",
+    "version": "0.8.5",
+    "mods": [
+      "### Добавлено\n- **Modern WebSocket architecture** — Push notifications + diagnostics"
+    ]
+  },
+  {
+    "date": "2025-08-21",
+    "version": "0.8.4",
+    "mods": [
+      "### Добавлено\n- **Membership feature pack** — Enhanced membership UX + locale strings"
+    ]
+  },
+  {
+    "date": "2025-08-21",
+    "version": "0.8.3",
+    "mods": [
+      "### Добавлено\n- **Opportunity category expansion** — Major opportunity type improvements\n- **Acknowledgements** — AI agent credits in docs"
+    ]
+  },
+  {
+    "date": "2025-08-20",
+    "version": "0.8.2",
+    "mods": [
+      "### Изменено\n- **Auth config refactor** — Firebase admin validation and secret management\n- **Session middleware** — Hardened Auth.js session handling"
+    ]
+  },
+  {
+    "date": "2025-08-08",
+    "version": "0.8.0",
+    "mods": [
+      "### Добавлено\n- **Membership payment WayForPay** — HMAC webhooks, PaymentModal flows\n- **AddEntityButton** — Role-aware create with upgrade modal\n- **RING token membership hooks** — Smart-contract membership experiments"
+    ]
+  },
+  {
+    "date": "2025-07-20",
+    "version": "0.7.6",
+    "mods": [
+      "### Добавлено\n- **AUTHORS.md** — Contributor recognition\n- **API ES2022 features** — Modern JS across handlers"
+    ]
+  },
+  {
+    "date": "2025-07-19",
+    "version": "0.7.5",
+    "mods": [
+      "### Добавлено\n- **News management components** — Admin/editor surfaces for news\n- **Testing infrastructure complete** — Critical path coverage milestone",
+      "### Документация\n- **ROADMAP status refresh** — Achievements tracking update"
+    ]
+  },
+  {
+    "date": "2025-07-18",
+    "version": "0.7.3",
+    "mods": [
+      "### Добавлено\n- **ES2022 Error.cause chains** — Richer error diagnostics",
+      "### Изменено\n- **Error handling sweep** — API routes adopt cause chains"
+    ]
+  },
+  {
+    "date": "2025-07-11",
+    "version": "0.7.2",
+    "mods": [
+      "### Добавлено\n- **Localization improvements** — UK/RU coverage expansion",
+      "### Изменено\n- **Entity URL schemes** — Canonical entity slugs"
+    ]
+  },
+  {
+    "date": "2025-07-10",
+    "version": "0.7.0",
+    "mods": [
+      "### Добавлено\n- **WebSocket service** — Realtime notification transport\n- **Installation guide** — Community docs for self-host\n- **Jest infrastructure** — Expanded test suites"
+    ]
+  },
+  {
+    "date": "2025-06-22",
+    "version": "0.6.1",
+    "mods": [
+      "### Добавлено\n- **Dev environment setup system** — Firebase SA importer, Vercel env helpers",
+      "### Исправлено\n- **Firebase build issues** — Hardened build for serverless"
+    ]
+  },
+  {
+    "date": "2025-06-19",
+    "version": "0.6.0",
+    "mods": [
+      "### Добавлено\n- **Public repository genesis** — Ring Platform open-sourced — Initial commit v0.6\n- **Entities + localization** — Entity components and locale packs in public tree\n- **Install / setup scripts** — Community clone bootstrap"
+    ]
+  },
+  {
+    "date": "2025-05-28",
+    "version": "0.5.22",
+    "mods": [
+      "### Добавлено\n- **File cabinet sketch** — Personal file nodes ACL experiments\n- **Generative image hooks** — ImageConductor provider stubs\n- **Solana SPL paths** — Native token transfer experiments"
+    ]
+  },
+  {
+    "date": "2025-04-25",
+    "version": "0.5.20",
+    "mods": [
+      "### Добавлено\n- **Email CRM IMAP listener** — Inbound mail pipeline prototype\n- **Publications / scientific editor** — TipTap research editor beginnings\n- **Mood player sketch** — Playlist + audio node experiments"
+    ]
+  },
+  {
+    "date": "2025-03-22",
+    "version": "0.5.18",
+    "mods": [
+      "### Добавлено\n- **Public pools sketch** — DAO jar / collective funding UI experiments\n- **Tasks message type sketch** — Chat task widget prototype\n- **Peer games sketch** — In-chat game invite experiments"
+    ]
+  },
+  {
+    "date": "2025-02-18",
+    "version": "0.5.15",
+    "mods": [
+      "### Добавлено\n- **Maps feature map** — @xyflow interactive platform map prototype\n- **DAGI agent provisioning** — 3-tier AI agent stubs per entity\n- **Calculator presets** — Project cost calculator foundations"
+    ]
+  },
+  {
+    "date": "2025-01-20",
+    "version": "0.5.12",
+    "mods": [
+      "### Добавлено\n- **EVM wallet connect experiments** — wagmi / MetaMask sign-in prototypes\n- **Credit balance ledger** — Internal credit table + spend/top-up APIs\n- **ERP stock hooks** — Vendor inventory sync sketches"
+    ]
+  },
+  {
+    "date": "2024-12-10",
+    "version": "0.5.10",
+    "mods": [
+      "### Добавлено\n- **Fraud flags desk** — Admin suspension / risk markers\n- **Terms & privacy pages** — Legal shells per locale\n- **Verification flows** — Email/phone verification stubs"
+    ]
+  },
+  {
+    "date": "2024-11-15",
+    "version": "0.5.9",
+    "mods": [
+      "### Добавлено\n- **Staking UI stub** — RING stake/unstake screens (testnet)\n- **NFT gate sketch** — Membership NFT check patterns\n- **Karpathy-style wiki pages MVP** — Markdown knowledge base for members"
+    ]
+  },
+  {
+    "date": "2024-10-22",
+    "version": "0.5.8",
+    "mods": [
+      "### Добавлено\n- **PostgreSQL adapter sketch** — DatabaseService dual-backend selector beginnings\n- **FCM token store** — Push token registration for mobile/web\n- **Message threads API** — Conversation CRUD foundations"
+    ]
+  },
+  {
+    "date": "2024-09-18",
+    "version": "0.5.5",
+    "mods": [
+      "### Добавлено\n- **White-label env branding** — Logo/name/colors via env for clone settlers\n- **Docker compose draft** — Local Postgres + app container sketches\n- **API route explosion** — Domain REST handlers under App Router"
+    ]
+  },
+  {
+    "date": "2024-08-28",
+    "version": "0.5.1",
+    "mods": [
+      "### Добавлено\n- **PIN security sketch** — Wallet access without seed-phrase UX experiments\n- **Refcodes stub** — Referral code capture on register\n- **Analytics beacon** — Web Vitals + pageview stubs"
+    ]
+  },
+  {
+    "date": "2024-08-08",
+    "version": "0.5.0",
+    "mods": [
+      "### Добавлено\n- **AI Matcher (prototype)** — LLM scoring sketch for opportunity–profile fit\n- **WebSocket notifications** — Push path replacing crude polling\n- **PWA shell** — Installable progressive web app manifest"
+    ]
+  },
+  {
+    "date": "2024-07-12",
+    "version": "0.4.1",
+    "mods": [
+      "### Добавлено\n- **Reviews MVP** — Product/entity star ratings\n- **Meetups / events type** — Opportunity category for community events\n- **Dark mode** — System-preference theme toggle"
+    ]
+  },
+  {
+    "date": "2024-06-25",
+    "version": "0.4.0",
+    "mods": [
+      "### Добавлено\n- **Wallet placeholder** — Custodial wallet shell for future RING / credit\n- **Store catalog MVP** — Product listing page for multi-vendor experiments\n- **Contact forms** — Entity inquiry forms with Telegram/email hooks"
+    ]
+  },
+  {
+    "date": "2024-06-05",
+    "version": "0.3.1",
+    "mods": [
+      "### Добавлено\n- **Confidential tier gates** — Hide confidential entities/opportunities from lower roles\n- **Entity verification badges** — Credibility markers on profiles\n- **Opportunity applications** — Apply / track interest on listings"
+    ]
+  },
+  {
+    "date": "2024-05-20",
+    "version": "0.3.0",
+    "mods": [
+      "### Добавлено\n- **News module (MVP)** — Article list/detail for community updates\n- **Admin shell** — Role-gated admin routes and user list\n- **Search (client)** — Title/tag filter for entities and opportunities"
+    ]
+  },
+  {
+    "date": "2024-04-30",
+    "version": "0.2.1",
+    "mods": [
+      "### Добавлено\n- **Firebase backend mode** — Firestore/Auth path for early Vercel deploys\n- **Notifications inbox (basic)** — In-app notification list and unread badge\n- **Comments on opportunities** — Threaded discussion MVP"
+    ]
+  },
+  {
+    "date": "2024-04-15",
+    "version": "0.2.0",
+    "mods": [
+      "### Добавлено\n- **next-intl EN/UK** — Modular locale packs for English and Ukrainian\n- **SEO metadata helpers** — Locale-aware titles and Open Graph stubs\n- **Radix UI primitives** — Accessible dialogs, dropdowns, and form controls\n- **Tailwind design tokens** — Early Ring visual system"
+    ]
+  },
+  {
+    "date": "2024-03-28",
+    "version": "0.1.1",
+    "mods": [
+      "### Добавлено\n- **Role hierarchy** — VISITOR → SUBSCRIBER → MEMBER → CONFIDENTIAL → ADMIN model\n- **Membership upgrade UX** — Subscriber prompts when accessing member-only create flows\n- **Profile pages** — Public and private profile shells"
+    ]
+  },
+  {
+    "date": "2024-03-12",
+    "version": "0.1.0",
+    "mods": [
+      "### Добавлено\n- **Ring Platform concept** — White-label professional networking vision — entities, opportunities, membership tiers\n- **Next.js App Router scaffold** — TypeScript strict baseline for the first Ring codebase\n- **Auth.js foundation** — Session model and provider slots for OAuth\n- **Entity profiles (MVP)** — Create/read organization profiles with basic fields\n- **Opportunities pool (MVP)** — Offers and requests with public visibility",
+      "### Примечание\n- **Genesis** — First Ring versions appear in 2024; public OSS later. Dates are release markers for feature history, not audit timestamps."
+    ]
+  }
+]

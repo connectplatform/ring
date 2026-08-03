@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.97.6-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.97.13-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/Next.js-16.2-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -36,7 +36,7 @@ React 19 + Next.js 16 open-source platform: AI-Matcher, SSE-push tunnel, direct 
 
 Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** — the First Digital Kingdom for global abundance. This repository is the full open-source codebase; Ringdom adds turn-key K8s hosting, Legiox skillsets, and **Reggie** to ringize settler requirements into a customization plan.
 
-**Version**: 1.97.6 | **Site**: [ring-platform.org](https://ring-platform.org) | **Changelog**: [/changelog](https://ring-platform.org/changelog) | **Origin**: Built by Ray Sorkin, a free person of Ukraine
+**Version**: 1.97.13 | **Site**: [ring-platform.org](https://ring-platform.org) | **Changelog**: [/changelog](https://ring-platform.org/changelog) | **Origin**: Built by Ray Sorkin, a free person of Ukraine
 
 ## Ringdom Ecosystem
 
@@ -69,7 +69,7 @@ Ringdom.org (Turn-key service layer)
 | Founding Settler | $500 | 5,000 RNG | Ring clone + full AI customization + priority support |
 | Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legiox support |
 
-## What's New in v1.97.6 (July 2026)
+## What's New in v1.97.13 (August 2026)
 
 Full history: [ring-platform.org/changelog](https://ring-platform.org/changelog). Newest highlights:
 
@@ -224,7 +224,7 @@ Ring Platform implements a tiered access model for professional networking:
 
 ### Platform Statistics
 
-- **Version**: 1.97.6
+- **Version**: 1.97.13
 - **API route handlers**: ~300
 - **App Router pages**: ~165
 - **Feature modules**: 41 (`features/`)
@@ -1007,7 +1007,7 @@ flowchart LR
     end
     
     subgraph Push["Push Phase"]
-        GHCR[ghcr.io Registry]
+        FORGE[registry.ringdom.org Forgejo OCI]
         TAG[v1.6.0-project-amd64]
     end
     
@@ -1019,8 +1019,8 @@ flowchart LR
     
     CODE --> NPM
     NPM --> DOCKER
-    DOCKER --> GHCR
-    GHCR --> TAG
+    DOCKER --> FORGE
+    FORGE --> TAG
     TAG --> K8S
     K8S --> ROLL
     ROLL --> HEALTH
@@ -1279,7 +1279,7 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <strong>Version 1.97.6</strong> | <strong>React 19.2</strong> | <strong>Next.js 16.2</strong> | <strong>TypeScript 6</strong> | <strong>Tailwind 4.3</strong> | <strong>Auth.js v5</strong> | <strong>wagmi 3</strong>
+  <strong>Version 1.97.13</strong> | <strong>React 19.2</strong> | <strong>Next.js 16.2</strong> | <strong>TypeScript 6</strong> | <strong>Tailwind 4.3</strong> | <strong>Auth.js v5</strong> | <strong>wagmi 3</strong>
 </p>
 
 <p align="center">

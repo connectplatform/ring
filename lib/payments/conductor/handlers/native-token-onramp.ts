@@ -46,7 +46,7 @@ export async function handleNativeTokenOnrampWayForPayWebhook(
 
   const settled = await settleNativeTokenOnramp({
     userId: tx.user_id,
-    fiatAmount: amount,
+    mainCurrencyAmount: amount,
     orderReference,
     processor: 'wayforpay',
   })

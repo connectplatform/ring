@@ -2,88 +2,96 @@
 
 ## ПОТОЧНИЙ СТАН
 
-**Останнє оновлення:** 21 липня 2026  
-**Версія:** **1.97.6**  
-**Канонічна EN-дорожня карта:** [ROADMAP.md](ROADMAP.md)  
-**Changelog:** [ring-platform.org/changelog](https://ring-platform.org/changelog)
+**Останнє оновлення:** 3 серпня 2026  
+**Версія:** **1.97.13** (changelog блоки **1.97.6 → 1.97.13**)  
+**Канонічна EN:** [ROADMAP.md](ROADMAP.md)  
+**Changelog:** [ring-platform.org/changelog](https://ring-platform.org/changelog)  
+**Публічний UI:** [ring-platform.org/roadmap](https://ring-platform.org/roadmap)
+
+Джерела: `.cursor/plans/completed/**`, модулі `features/` + `lib/*/conductor/`, відкриті `.cursor/plans/*.plan.md`.
 
 ---
 
-## ЗАВЕРШЕНІ КЛЮЧОВІ ФУНКЦІЇ
+## ЗАВЕРШЕНО (кластери)
 
-### v1.97.x (липень 2026)
-- Changelog на locale JSON + DaVinci-glass UI
-- **Ring Mailer** — власний SMTP (`lib/mailer.ts`); Resend прибрано
-- Owner CRM lab (`/my-orders`, `/my-jobs`), адмін `/admin/crm/*`
-- Generative media; mood player; публічний `/{username}/player`
-- PayPal + розширення PaymentConductor; локалі **DE/ES**
-- NFT market (медіа / art-generate); admin supermenu; rewards
-- **File Cabinet** — `/profile/cabinet`, `/shared`, `/gallery`, `/{username}/img`
+### Стек Conductor
+PaymentConductor · SubscriptionConductor · WalletConductor · ProcessConductor · ImageConductor · TextConductor · AudioConductor · VideoConductor · MediaConductor · NewsConductor  
 
-### v1.6.x (червень 2026)
-- AI-чат у магазині + SSE; ring-db `*Doc`; сплощення docs
-- PaymentConductor v1; News Kingdom; науковий редактор; locale SSOT
-- OSS-межа: `install.sh`, без k8s/cli у публічному дереві
+У т.ч. внески в **public pools / DAO jars**, native-token rail, PayPal/Stripe/WFP/credit.
 
-### Раніше (2025–2026)
-- React 19 + Next.js 16; Tunnel; AI Matcher; мультивендорний store
-- Гаманець / токен / стейкінг / NFT gates; messaging
-- Email AI CRM; PIN; white-label клони на K8s
+### Generative / медіа
+Generative media + білінг кредитів · Autonomous Newsroom · Mood player · File Cabinet (основа)
+
+### Комерція / Web3
+Мультивендорний store · NFT gates + Exhibition market · Token desk / oracle · Wallet Connect auth · Settlement / refcodes
+
+### DAO / колективи
+`/dao` + public pools · `dao_jar` у чаті · opportunity `collective_need` · ERP/agro пресети з DAO-прапорцями
+
+### CRM / пошта / lab
+Ring Mailer · Email AI CRM pipeline · `/my-orders` / `/my-jobs` · admin CRM · calculator project orders · supermenu · rewards
+
+### Collaboration
+**Ring Tasks (готово)** — `task` у чаті, `/tasks` + `/tasks/[chatId]`, віджет, escrow, CRM escrow admin (`features/tasks/`)
+
+### Платформа
+Next.js 16.2 · React 19.2 · TS 6 · Tailwind 4.3 · wagmi 3 · локалі en/uk/ru/es/de · Tunnel · Messenger · Wiki
 
 ---
 
 ## У ПРОЦЕСІ
 
-- Глибина File Cabinet (папки, share UX, shared FileTree)
-- Паритет docs для UK/RU/ES/DE у довгих MDX
-- Глибший пошук + Matcher по вертикалях
-- Serialization Hardening Phase 2
+| Пріоритет | Тема |
+|-----------|------|
+| P0 | Глибина File Cabinet; Generative Gallery SSOT; DaVinci feed; PublicPool on-chain deploy |
+| P1 | Messages rail; WebRTC Call UI; media derivatives; wallet desk; My-Orders credentials |
+| P2 | Serialization Phase 2; docs locale parity; matcher auto-approve; ERP/affiliate ops |
 
 ---
 
 ## ЗАПЛАНОВАНО
 
-- Ring Academy
-- Повне DAO-управління (on-chain voting UX)
-- Мобільний застосунок (React Native / Expo)
-- Додаткові мови (FR, PT, SW, …)
+### Найближчий горизонт (Q3 2026)
+1. Інтерактивні типи чату (poll / rsvp / dao_jar / share_card)
+2. Native token checkout hardening
+3. Wagmi treasury swap (ERC-20 → RING)
+4. Feed cursor SSOT
+5. Feature shell + CalculatorEngine
+6. Mobile menus (Admin vs Ring)
+7. Telegram Login (Auth.js)
+8. Push (VAPID + FCM split)
+9. Contacts P5–P6 (picker + signed transfer)
+10. **ERP admin hub** — vendor-store, zero-warehouse, stock (`ERPStockService` / inventory-sync / settlements)
 
-**Вже не «TODO» (реалізовано):** фронтенд messaging, NFT-маркетплейс, NFT gates, локалі ES/DE, AI Matcher.
+### Середина (Q4 2026)
+11. Reward System completion  
+12. Per-product referral commission  
+13. Admin Wiki depth  
+14. Knowledge Base (pgvector)  
+15. Tunnel remediation + native WSS  
+16. Postgres NOTIFY → Tunnel  
+17. RBAC hardening  
+18. API compliance remediation  
+19. Solana NFT Gate MVP-A production  
+
+### Горизонт (2027+)
+21. RING multi-chain (Aptos Move FA)  
+22. Повне DAO governance UX  
+23. Collective purchase protocols v2  
+24. Intent-driven ring assembly (Reggie/MCP)  
+25. Mobile shell (RN/Expo)  
+26. Локалі FR/PT/SW  
+27. Ring Academy  
+28. Connect.Software marketplace  
+29. PR-Ops / News-Ops PaaS  
+30. Unified Ringdom knowledge layer  
+
+### Вигадані модулі-прогалини
+**MatchConductor** · **TunnelConductor** · **SettlementConductor** · **CloneConductor** · **AccessibilityConductor** · **ObservabilityConductor**
 
 ---
 
-## ТЕХНОЛОГІЧНИЙ СТЕК
+## СТЕК І МАСШТАБ
 
-- **Frontend:** Next.js 16.2, React 19.2, TypeScript 6, Tailwind 4.3
-- **Auth:** Auth.js v5 — Google, Apple, MetaMask, Ring Mailer (OTP / magic / password), PIN
-- **DB:** PostgreSQL (+ Firebase / Connect адаптери), ring-db `*Doc`
-- **Web3:** wagmi 3, viem, Solana + EVM, NFT gate/market, стейкінг
-- **Payments:** PaymentConductor — WayForPay, Stripe, PayPal, credit
-- **Realtime:** Tunnel (SSE / WebSocket) + FCM
-- **i18n:** next-intl — en, uk, ru, es, de
-- **AI:** Matcher + LLM; Legiox MCP (шар Ringdom / IDE)
-
----
-
-## МАСШТАБИ (2026-07-21)
-
-- ~300 API route handlers · ~165 сторінок App Router · 41 модуль `features/`
-- Production-клони: ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua та інші
-
----
-
-## РОЗТАШУВАННЯ КОДУ
-
-- Email CRM pipeline → `features/email-crm/pipeline/`
-- Native token price oracle → `features/wallet/services/native-token-price-oracle.ts`
-- Auth SMTP SSOT → `lib/mailer.ts`
-
----
-
-## ВИСНОВОК
-
-Ring Platform у production і фазі розширення verticals / MCP-оркестрації.  
-Актуальний інвентар можливостей: [FEATURESET.md](FEATURESET.md).
-
-**Статус:** Production Deployed — Expansion  
-**Версія:** 1.97.6
+- ~300 API · ~165 сторінок · 41 `features/` · 10+ conductors  
+- Деталі та посилання на плани — у [ROADMAP.md](ROADMAP.md)

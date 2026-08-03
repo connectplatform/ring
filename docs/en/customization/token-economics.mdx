@@ -1,7 +1,7 @@
 ---
 title: Token Economics Setup
 description: Design and operate your Ring clone economy — off-chain credit ledger, RING reference contracts, PaymentConductor rails, and referral token rewards
-last_modified: "2026-07-01"
+last_modified: "2026-07-22"
 ---
 
 # Token Economics Setup
@@ -39,7 +39,7 @@ last_modified: "2026-07-01"
 |-----------|---------------------|
 | Utility-first | Tokens gate features and settle platform fees — not investment promises |
 | Postgres-primary | Credit balances and subscriptions live in `users.data` + `ring_subscriptions` when `DB_BACKEND_MODE=k8s-postgres-fcm` |
-| Fiat + credit coexist | WayForPay/Stripe for card rails; `internal_credit` spends the same ledger |
+| Fiat + credit coexist | WayForPay/Stripe for card rails; `credit_balance` spends the same ledger |
 | Per-clone branding | `ring-config.json` → `tokens.native.symbol` drives UI copy via `getNativeTokenSymbol()` |
 
 <Mermaid title="Three economic layers">
@@ -63,7 +63,7 @@ last_modified: "2026-07-01"
     REF[ReferralRewards UUPS]
   end
 
-  PC -->|internal_credit| UCS
+  PC -->|credit_balance| UCS
   SUB --> UCS
   UCS --> UB
   SUB --> RS
@@ -81,7 +81,7 @@ Most membership and store flows debit an **application credit balance** — deno
 
 | Store | Location | Contents |
 |-------|----------|----------|
-| Balance | `users.data.credit_balance` | `amount`, `usd_equivalent`, `subscription_active`, `subscription_next_payment` |
+| Balance | `users.data.credit_balance` | `amount`, `main_currency_equivalent`, `subscription_active`, `subscription_next_payment` |
 | History | `users.data.credit_transactions` | Typed ledger entries with optional `tx_hash`, `order_id` |
 | Subscriptions | `ring_subscriptions` collection | Status, `next_payment_due`, `failed_attempts`, `auto_renew` |
 
@@ -94,7 +94,7 @@ Schema comment: `users.data` JSONB in `data/schema.sql` v4+.
 | **creditBalanceService** | `features/wallet/services/credit-balance-service.ts` | Balance read/write, spend, top-up, membership fee debit, tunnel publish on change |
 | **SubscriptionService** | `services/membership/subscription-service.ts` | Create/cancel/renew; 1 RING/month; upgrades `membership.tier` → `member` |
 | **PriceOracleService** | `features/wallet/services/native-token-price-oracle.ts` | RING/USD via viem + Chainlink/CoinGecko/CMC/Binance fallbacks |
-| **Internal credit checkout** | `lib/payments/processors/internal-credit.processor.ts` | PaymentConductor rail for store + membership spend |
+| **Internal credit checkout** | `lib/payments/processors/credit-balance.processor.ts` | PaymentConductor rail for store + membership spend |
 
 ### Membership economics (reference)
 
@@ -131,7 +131,7 @@ This route returns **503** until `RING_TOKEN_CONTRACT_ADDRESS` and `RING_MEMBERS
 
 ### Store checkout with credit
 
-When `PAYMENT_STORE_ALLOW_CREDIT=true`, PaymentConductor `internal_credit` rail spends credits for orders in currencies allowed by `PAYMENT_CREDIT_ACCEPT_ORDER_CURRENCY` (defaults to `PAYMENT_FIAT_CURRENCY`).
+When `PAYMENT_STORE_ALLOW_CREDIT=true`, PaymentConductor `credit_balance` rail spends credits for orders in currencies allowed by `PAYMENT_CREDIT_BALANCE_ACCEPTED_ORDER_CURRENCIES` (defaults to `PAYMENT_FIAT_CURRENCY`).
 
 </Step>
 
@@ -308,9 +308,11 @@ Token economics intersect **PaymentConductor** — one ledger (`payment_transact
 
 | Rail | Env | Use |
 |------|-----|-----|
-| `merchant_redirect` | WayForPay / Stripe | Card checkout, membership upgrade fiat |
-| `internal_credit` | `PAYMENT_STORE_ALLOW_CREDIT=true` | Spend `credit_balance` at store |
+| `merchant_redirect` | WayForPay / Stripe / PayPal | Card checkout, membership upgrade fiat, **public_pool_contribution** jar chip-ins |
+| `credit_balance` | `PAYMENT_STORE_ALLOW_CREDIT=true` | Spend `credit_balance` at store |
 | `native_token` | `PAYMENT_STORE_ALLOW_TOKEN=true` | On-chain token checkout (advanced) |
+
+**Desk oracle (shared):** Token Desk credit↔native conversion and public-pool card settle both use `getNativeTokenPerMainCurrencyRate()` (`nativeUi = fiatMajor / nativePerMainCurrency`). Do **not** confuse with `wallet_topup` (fiat credit points, 1:1 ledger). Full jar SSOT: [Public Pools & DAO Jars](/docs/features/public-pools).
 
 <Code language="bash" title=".env.local — payments">
 {`PAYMENT_DEFAULT_PROCESSOR=wayforpay
@@ -318,7 +320,8 @@ PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay
 PAYMENT_FIAT_CURRENCY=USD
 PAYMENT_STORE_ALLOW_CREDIT=true
 PAYMENT_STORE_ALLOW_TOKEN=false
-PAYMENT_CREDIT_ACCEPT_ORDER_CURRENCY=   # default: PAYMENT_FIAT_CURRENCY only`}
+PAYMENT_CREDIT_BALANCE_ACCEPTED_ORDER_CURRENCIES=   # default: PAYMENT_FIAT_CURRENCY only
+# Optional: PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR=wayforpay`}
 </Code>
 
 Apply `data/migrations/004_payment_transactions.sql` before production payments. Full operator guide: [Payment integration](/docs/customization/payment-integration).

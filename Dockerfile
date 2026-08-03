@@ -37,7 +37,7 @@
 #   --build-arg DB_USER="ring_user" \
 #   --build-arg NEXT_PUBLIC_APP_URL="https://ring-platform.org" \
 #   --build-arg NEXT_PUBLIC_API_URL="https://ring-platform.org" \
-#   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 .
+#   -t registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 .
 #
 # 🔐 CRITICAL: AUTH_SECRET and other sensitive secrets
 # (AUTH_GOOGLE_SECRET, AUTH_FIREBASE_PRIVATE_KEY, etc.)
@@ -353,12 +353,12 @@ COPY env.local.template env.local.template
 ENV SKIP_TYPE_CHECK=1
 
 # Build the application (reuse .next/cache across builds when BuildKit cache mount is enabled).
-# 8GiB Node heap; Colima VM should be >=12GiB (see ~/.colima/default/colima.yaml).
+# 4GiB Node heap + low static concurrency (next.config SKIP_TYPE_CHECK) — Colima VM >=12GiB.
 # Do not set NODE_OPTIONS inside npm scripts — it would override this RUN env.
 # Ephemeral AUTH_SECRET for Next compile only — production value comes from K8s at pod start.
 RUN --mount=type=cache,target=/app/.next/cache \
     AUTH_SECRET=ring-docker-build-placeholder-not-for-runtime \
-    NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
+    NODE_OPTIONS="--no-deprecation --max-old-space-size=4096" npm run build:skip-types
 
 # Trim devDependencies for runtime copy (avoids second npm ci in runtime stage)
 RUN npm prune --omit=dev
@@ -405,7 +405,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 COPY --from=builder --chown=nextjs:nodejs /app/i18n ./i18n
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
-COPY --from=builder --chown=nextjs:nodejs /app/CHANGELOG.md ./CHANGELOG.md
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
 
 RUN mkdir -p /app/log /app/tmp && \

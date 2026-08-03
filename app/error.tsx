@@ -32,11 +32,9 @@ export default function Error({
 }) {
   // Log the error when the component mounts
   React.useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('Error occurred:', error)
-    
-    // TODO: Implement a more robust error logging mechanism
-    // For example, sending the error to a backend API or a service like Sentry
+    // Prefer message + stack so Next browser logs show the real cause
+    // (empty `{}` serialization hid "Element type is invalid" stacks).
+    console.error('Error occurred:', error?.message || error, error?.stack || error)
   }, [error])
 
   return (

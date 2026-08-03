@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
+import { useRealtimeEntities, useEntityUpdates, applyEntityListUpdate } from '@/hooks/use-realtime-entities'
 
 /**
  * Props for the ConfidentialEntitiesContent component
@@ -70,6 +71,30 @@ export const ConfidentialEntitiesContent: React.FC<ConfidentialEntitiesContentPr
   const [entities, setEntities] = useState<Entity[]>(initialEntities)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
+
+  useRealtimeEntities({ autoConnect: status === 'authenticated', debug: false })
+  useEntityUpdates((update) => {
+    if (update.type === 'deleted' || update.data) {
+      setEntities((prev) => {
+        const next = applyEntityListUpdate(prev, update)
+        return next.kind === 'next' ? next.entities : prev
+      })
+      return
+    }
+    // No snippet — soft refetch current page
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/confidential-entities?page=${page}&limit=${limit}&sort=${sort}&filter=${filter}${lastVisible ? `&startAfter=${lastVisible}` : ''}`,
+        )
+        if (!response.ok) return
+        const fetchedEntities = await response.json()
+        setEntities(Array.isArray(fetchedEntities) ? fetchedEntities : fetchedEntities.data ?? [])
+      } catch {
+        /* best-effort */
+      }
+    })()
+  })
 
   useEffect(() => {
     /**

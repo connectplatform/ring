@@ -1,20 +1,9 @@
 /**
- * features/staking/server/read-positions.ts — server-side EVM position reader.
- *
- * Optional cached/aggregated on-chain reads for the wallet staking page.
- * Inject through buildEvmStakingConfigFromSSOT({ readPositions }) so the
- * adapter's getPositions() resolves server-side without client RPC fan-out.
- * Not required for signing transactions.
- *
- * Contract read surface (see legacy sources in daarion/daarion-token/contracts):
- *   APRStaking.sol      — stakesDAAR(addr), stakesDAARION(addr), totalStakedDAAR(),
- *                         totalStakedDAARION(), DAAR_APR(), DAARION_APR(),
- *                         getPendingRewards(addr)  [combined across both APR pools]
- *   DAARDistributor.sol — stakes(addr), totalStakedDAARION(),
- *                         getPendingRewardsDAARDistributor(addr),
- *                         getCurrentEpoch(), epochDuration(), lastEpochTimestamp()
+ * features/staking/server/read-positions.ts — server-side EVM position reader (viem).
  */
 import 'server-only'
+import { createPublicClient, http, formatUnits, type Abi } from 'viem'
+import { polygon } from 'viem/chains'
 import type { EvmAbi } from '../adapters/evm'
 import { isDeployedEvmAddress } from '../adapters/evm'
 import { getEvmChainWalletSlot } from '../slots'
@@ -25,7 +14,6 @@ export interface ReadPositionsOptions {
   aprStakingAbi?: EvmAbi
   feeDistributorAbi?: EvmAbi
   rpcUrl?: string
-  /** Explicit address overrides; default from chains.evm.staking.contracts. */
   aprStakingAddress?: string
   feeDistributorAddress?: string
 }
@@ -41,6 +29,10 @@ function contractAddressFrom(raw: unknown): string | undefined {
   return undefined
 }
 
+function toAbi(abi: EvmAbi): Abi {
+  return abi as Abi
+}
+
 /**
  * Read staking positions on the server. Non-fatal by design: individual pool
  * read failures degrade to omission, never to a thrown 500 on the wallet page.
@@ -53,83 +45,111 @@ export async function readPositionsOnServer(
   const rpcUrl = opts.rpcUrl || getPolygonRpcUrl()
   if (!rpcUrl || !walletAddress) return []
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { JsonRpcProvider, Contract, formatUnits } = require('ethers')
-  const provider = new JsonRpcProvider(rpcUrl)
+  const client = createPublicClient({
+    chain: polygon,
+    transport: http(rpcUrl),
+  })
+
+  const read = async (
+    address: `0x${string}`,
+    abi: Abi,
+    functionName: string,
+    args: unknown[] = []
+  ): Promise<unknown> =>
+    client.readContract({
+      address,
+      abi,
+      functionName,
+      args,
+    } as never)
+
   const decimals = slot.tokenDecimals ?? 18
   const fmt = (v: unknown): string => {
-    try { return formatUnits(v as bigint, decimals) } catch { return '0' }
+    try {
+      return formatUnits(v as bigint, decimals)
+    } catch {
+      return '0'
+    }
   }
 
   const aprAddress = opts.aprStakingAddress ?? contractAddressFrom(slot.staking?.contracts?.aprStaking)
-  const distAddress = opts.feeDistributorAddress ?? contractAddressFrom(slot.staking?.contracts?.feeDistributor)
+  const distAddress =
+    opts.feeDistributorAddress ?? contractAddressFrom(slot.staking?.contracts?.feeDistributor)
 
   const results: ServerStakingPosition[] = []
+  const wallet = walletAddress as `0x${string}`
 
-  // ---- APRStaking pools (DAAR_APR, DAARION_APR) ----
   if (aprAddress && opts.aprStakingAbi) {
-    const apr = new Contract(aprAddress, opts.aprStakingAbi, provider)
+    const abi = toAbi(opts.aprStakingAbi)
+    const addr = aprAddress as `0x${string}`
 
     try {
       const [stakeDaar, totalDaar, aprDaar, pendingTotal] = await Promise.all([
-        apr.stakesDAAR(walletAddress),
-        apr.totalStakedDAAR(),
-        apr.DAAR_APR?.() ?? Promise.resolve(2000n),
-        apr.getPendingRewards(walletAddress),
+        read(addr, abi, 'stakesDAAR', [wallet]),
+        read(addr, abi, 'totalStakedDAAR'),
+        read(addr, abi, 'DAAR_APR').catch(() => 2000n),
+        read(addr, abi, 'getPendingRewards', [wallet]),
       ])
+      const amount = (stakeDaar as { amount?: unknown })?.amount ?? stakeDaar
       results.push({
         pool: 'DAAR_APR',
         token: 'DAAR',
         rewardToken: 'DAAR',
-        stakedAmount: fmt(stakeDaar.amount),
-        // getPendingRewards is combined across both APR pools — attribute to
-        // the pool the user actually staked in (0 when unstaked).
-        pendingRewards: Number(fmt(stakeDaar.amount)) > 0 ? fmt(pendingTotal) : '0',
+        stakedAmount: fmt(amount),
+        pendingRewards: Number(fmt(amount)) > 0 ? fmt(pendingTotal) : '0',
         apr: Number(aprDaar) / 100,
         totalStaked: fmt(totalDaar),
       })
-    } catch { /* pool read degraded — omit */ }
+    } catch {
+      /* omit */
+    }
 
     try {
       const [stakeDaarion, totalDaarion, aprDaarion, pendingTotal] = await Promise.all([
-        apr.stakesDAARION(walletAddress),
-        apr.totalStakedDAARION(),
-        apr.DAARION_APR?.() ?? Promise.resolve(400n),
-        apr.getPendingRewards(walletAddress),
+        read(addr, abi, 'stakesDAARION', [wallet]),
+        read(addr, abi, 'totalStakedDAARION'),
+        read(addr, abi, 'DAARION_APR').catch(() => 400n),
+        read(addr, abi, 'getPendingRewards', [wallet]),
       ])
+      const amount = (stakeDaarion as { amount?: unknown })?.amount ?? stakeDaarion
       results.push({
         pool: 'DAARION_APR',
         token: 'DAARION',
         rewardToken: 'DAAR',
-        stakedAmount: fmt(stakeDaarion.amount),
-        pendingRewards: Number(fmt(stakeDaarion.amount)) > 0 ? fmt(pendingTotal) : '0',
+        stakedAmount: fmt(amount),
+        pendingRewards: Number(fmt(amount)) > 0 ? fmt(pendingTotal) : '0',
         apr: Number(aprDaarion) / 100,
         totalStaked: fmt(totalDaarion),
       })
-    } catch { /* pool read degraded — omit */ }
+    } catch {
+      /* omit */
+    }
   }
 
-  // ---- DAARDistributor pool (DAARION_DISTRIBUTOR) ----
   if (distAddress && opts.feeDistributorAbi) {
-    const dist = new Contract(distAddress, opts.feeDistributorAbi, provider)
+    const abi = toAbi(opts.feeDistributorAbi)
+    const addr = distAddress as `0x${string}`
     try {
       const [stakeInfo, total, pending, epochDuration, lastEpochTs] = await Promise.all([
-        dist.stakes(walletAddress),
-        dist.totalStakedDAARION(),
-        dist.getPendingRewardsDAARDistributor(walletAddress),
-        dist.epochDuration?.() ?? Promise.resolve(0n),
-        dist.lastEpochTimestamp?.() ?? Promise.resolve(0n),
+        read(addr, abi, 'stakes', [wallet]),
+        read(addr, abi, 'totalStakedDAARION'),
+        read(addr, abi, 'getPendingRewardsDAARDistributor', [wallet]),
+        read(addr, abi, 'epochDuration').catch(() => 0n),
+        read(addr, abi, 'lastEpochTimestamp').catch(() => 0n),
       ])
+      const amount = (stakeInfo as { amount?: unknown })?.amount ?? stakeInfo
       results.push({
         pool: 'DAARION_DISTRIBUTOR',
         token: 'DAARION',
         rewardToken: 'DAAR',
-        stakedAmount: fmt(stakeInfo.amount),
+        stakedAmount: fmt(amount),
         pendingRewards: fmt(pending),
         totalStaked: fmt(total),
         nextEpochTime: (Number(lastEpochTs) + Number(epochDuration)) * 1000,
       })
-    } catch { /* pool read degraded — omit */ }
+    } catch {
+      /* omit */
+    }
   }
 
   return results

@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createMoodPlaylistAction, type MoodPlayerActionState } from '@/app/_actions/mood-player'
 import { Button } from '@/components/ui/button'
@@ -14,12 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { useLocale } from 'next-intl'
 
-export function NewPlaylistForm() {
+type NewPlaylistFormProps = {
+  /** When set, navigate here with ?p=id instead of legacy edit URL */
+  redirectBase?: string
+  onCreated?: (playlistId: string) => void
+  /** Hide outer page title when embedded in shell */
+  embedded?: boolean
+}
+
+export function NewPlaylistForm({
+  redirectBase,
+  onCreated,
+  embedded = false,
+}: NewPlaylistFormProps) {
   const locale = useLocale()
   const router = useRouter()
   const [visibility, setVisibility] = useState('private')
@@ -29,14 +40,21 @@ export function NewPlaylistForm() {
   )
 
   useEffect(() => {
-    if (state?.success && state.playlistId) {
-      router.push(ROUTES.PROFILE_PLAYER_PLAYLIST(state.playlistId, locale as 'en'))
+    if (!state?.success || !state.playlistId) return
+    if (onCreated) {
+      onCreated(state.playlistId)
+      return
     }
-  }, [state, router, locale])
+    if (redirectBase) {
+      router.push(`${redirectBase}?p=${encodeURIComponent(state.playlistId)}`)
+      return
+    }
+    router.push(ROUTES.PROFILE_SONGS_EDIT(state.playlistId, locale as 'en'))
+  }, [state, router, locale, redirectBase, onCreated])
 
   return (
-    <form action={action} className="mx-auto max-w-lg space-y-4 px-4 py-10">
-      <h1 className="text-2xl font-semibold">New mood playlist</h1>
+    <form action={action} className={embedded ? 'space-y-4' : 'mx-auto max-w-lg space-y-4 px-4 py-10'}>
+      {!embedded ? <h1 className="text-2xl font-semibold">New mood playlist</h1> : null}
       {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
@@ -60,7 +78,9 @@ export function NewPlaylistForm() {
         </Select>
         <input type="hidden" name="visibility" value={visibility} />
       </div>
-      <label className={`flex items-center gap-2 text-sm ${visibility !== 'public' ? 'text-muted-foreground' : ''}`}>
+      <label
+        className={`flex items-center gap-2 text-sm ${visibility !== 'public' ? 'text-muted-foreground' : ''}`}
+      >
         <input
           type="checkbox"
           name="isPrimary"

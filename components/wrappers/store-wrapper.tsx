@@ -9,32 +9,18 @@ import React, {
   // TODO: Add useOptimistic (React 19) for better concurrent interactions
   // TODO: Consider useActionState for optimistic UI and async state flows
 } from 'react'
-import dynamic from 'next/dynamic'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
+import StoreFiltersPanel from '@/components/store/store-filters-panel'
+import FloatingButtons from '@/components/store/floating-buttons'
+import VendorCTACard from '@/components/vendor/vendor-cta-card'
+import { StoreShareEarnCard } from '@/components/store/store-share-earn-card'
 import type { Locale } from '@/i18n/shared'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
 
-// ----------- Dynamic Components -----------
-// Client-only dynamic imports to avoid SSR hydration mismatch and dynamic HMR issues
-const StoreFiltersPanel = dynamic(
-  () => import('@/components/store/store-filters-panel'),
-  { ssr: false }
-)
-const FloatingButtons = dynamic(
-  () => import('@/components/store/floating-buttons'),
-  { ssr: false }
-)
-const VendorCTACard = dynamic(
-  () => import('@/components/vendor/vendor-cta-card'),
-  { ssr: false }
-)
-const StoreShareEarnCard = dynamic(
-  () =>
-    import('@/components/store/store-share-earn-card').then((m) => m.StoreShareEarnCard),
-  { ssr: false }
-)
+// Static client imports (wallet/admin SSOT) — avoid next/dynamic default/named interop
+// under Turbopack that can yield undefined element types on /store.
 
 // ----------- Storage Constants -----------
 // TODO: After planned @store-page-client upgrade, storage scheme may need namespacing per user/session
@@ -222,13 +208,9 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
   )
 }
 
-// TODO: Codemod suggestions for React 19+/Next 16+ features on store-page-client upgrade:
-// - Replace manual isHydrated state with use client side useDeferredValue/useSyncExternalStore for hydration state
-// - Use <Suspense fallback={...}> for async filters/localStorage restore to simplify loader logic
-// - Adopt useOptimistic for filter/sort changes and async UX
-// - Replace imperative prop drilling with context providers or server-client boundary composition
-// - (If store filters become server-side persisted) refactor localStorage logic to use server-actions or cookies
-
-// STUB: To fully support multitab sync, implement a 'storage' event handler that listens for changes to STORAGE_KEY and live-updates filter state accordingly:
-//   1. Add a window 'storage' event listener on mount (if window exists). On receiving changes to STORAGE_KEY, parse and update filters as needed.
-//   2. Clean up event listener on unmount.
+// Codemod / React 19 + Next 16 follow-ups (store stack → wallet parity):
+// - Replace manual isHydrated with useSyncExternalStore for localStorage filter restore
+// - useDeferredValue for filter debounce (replace setTimeout)
+// - useOptimistic for filter/sort feedback
+// - Prefer composition/context over cloneElement prop drilling
+// - Multitab: window 'storage' listener on STORAGE_KEY

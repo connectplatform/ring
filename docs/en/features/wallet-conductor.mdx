@@ -14,7 +14,7 @@ audience: both
 </Callout>
 
 <Callout type="success" title="Executive summary">
-One layer for wallet money: card → **credit points**, desk → **native token**, gasless custodial sends, ad-hoc credit spend, and NFT market purchases. Fiat spend accounting uses `credit.unitToDefaultCurrency` (usually `1`) — never the desk oracle. External EVM POL/USDT via `POST /api/wallet/transfer` stays **outside** this conductor.
+One layer for wallet money: card → **credit points**, desk → **native token**, gasless custodial sends, ad-hoc credit spend, and NFT market purchases. Fiat spend accounting uses `credit.creditBalanceUnitToMainCurrency` (usually `1`) — never the desk oracle. External EVM POL/USDT via `POST /api/wallet/transfer` stays **outside** this conductor.
 </Callout>
 
 <Mermaid title="WalletConductor — money paths">
@@ -39,7 +39,7 @@ One layer for wallet money: card → **credit points**, desk → **native token*
   subgraph deps["Dependencies"]
     PC["PaymentConductor\nwallet_topup / native_token_onramp"]
     CBS["creditBalanceService"]
-    DS["desk-service + ring-token-oracle"]
+    DS["desk-service + native-token-oracle"]
     XFER["native-token-transfer-service"]
     EW["ensure-wallet"]
     SOL["SolanaMarketClient"]
@@ -68,21 +68,21 @@ One layer for wallet money: card → **credit points**, desk → **native token*
 | **Token Desk** | `quoteDesk` / `executeDesk` | Credit points ↔ native at desk oracle (subscriber+) |
 | **Custodial send** | `transferNative` | Gasless native transfer + `wallet_transactions` row |
 | **Native balance** | `getNativeBalance` | Custodial balance for platform native chain |
-| **Ad-hoc credit spend** | `spendCredits` | Fiat ledger debit at `unitToDefaultCurrency` |
+| **Ad-hoc credit spend** | `spendCredits` | Fiat ledger debit at `creditBalanceUnitToMainCurrency` |
 | **Wallet provision** | `ensureNativeWallet` | Atomic multi-chain wallets (OAuth-safe, no session) |
 | **Min credit gate** | `ensureFunded` | Session-gated provision + credit floor |
 | **NFT market buy** | `purchaseNftListing` | Idempotent RING buy via Solana market client |
 
 <Callout type="warning" title="Conductor boundary">
-**Not in WalletConductor:** store/membership **checkout** debit (PaymentConductor `internal_credit` / SubscriptionConductor), and external EVM `POST /api/wallet/transfer`. Those remain separate SSOT paths by design.
+**Not in WalletConductor:** store/membership **checkout** debit (PaymentConductor `credit_balance` / SubscriptionConductor), and external EVM `POST /api/wallet/transfer`. Those remain separate SSOT paths by design.
 </Callout>
 
 ## Two rates — do not mix
 
 | Rate | SSOT | Used by |
 |------|------|---------|
-| **Fiat credit accounting** | `ring-config.json` → `credit.unitToDefaultCurrency` (usually `1`) via `getFiatCreditAccountingRate()` | `spendCredits`, desk debit side, internal-credit checkout |
-| **Token Desk oracle** | `platform_settings.web3.oracle.ringPerUsd` via `ring-token-oracle.ts` | `quoteDesk` / `executeDesk` points ↔ native only |
+| **Fiat credit accounting** | `ring-config.json` → `credit.creditBalanceUnitToMainCurrency` (usually `1`) via `getMainCurrencyCreditAccountingRate()` | `spendCredits`, desk debit side, credit_balance checkout |
+| **Token Desk oracle** | `platform_settings.web3.oracle.nativePerMainCurrency` via `native-token-oracle.ts` | `quoteDesk` / `executeDesk` points ↔ native only |
 
 <Audience for="founder">
 
@@ -92,10 +92,10 @@ WalletConductor is the operator-facing money spine behind the [Wallet](/docs/fea
 
 <Cards>
   <Card title="Credit top-up" href="/docs/features/wallet">
-    Any signed-in member buys credit points with a card. Points are fiat ledger units (1:1 with store `defaultCurrency` when `unitToDefaultCurrency` is `1`).
+    Any signed-in member buys credit points with a card. Points are fiat ledger units (1:1 with store `mainCurrency` when `creditBalanceUnitToMainCurrency` is `1`).
   </Card>
   <Card title="Token Desk" href="/docs/features/wallet">
-    Subscriber+ converts points ↔ native at the desk oracle. Changing `ringPerUsd` never rewrites store or ad-hoc credit spend math.
+    Subscriber+ converts points ↔ native at the desk oracle. Changing `nativePerMainCurrency` never rewrites store or ad-hoc credit spend math.
   </Card>
   <Card title="Native onramp" href="/docs/features/payment-conductor">
     Confidential+ card/PayPal → treasury native (feature-flagged). Does **not** add credit points.
@@ -113,7 +113,7 @@ WalletConductor is the operator-facing money spine behind the [Wallet](/docs/fea
 
 **Confirm credit unit SSOT**
 
-Keep `credit.unitToDefaultCurrency: 1` in `ring-config.json` unless you intentionally scale points vs fiat. Desk oracle changes never affect store checkout or `POST /api/wallet/credit/spend`.
+Keep `credit.creditBalanceUnitToMainCurrency: 1` in `ring-config.json` unless you intentionally scale points vs fiat. Desk oracle changes never affect store checkout or `POST /api/wallet/credit/spend`.
 
 </Step>
 
@@ -121,7 +121,7 @@ Keep `credit.unitToDefaultCurrency: 1` in `ring-config.json` unless you intentio
 
 **Separate desk oracle from fiat**
 
-Superadmins set `ringPerUsd` for desk conversion only. Do not expect that rate on ad-hoc credit spend.
+Superadmins set `nativePerMainCurrency` for desk conversion only. Do not expect that rate on ad-hoc credit spend.
 
 </Step>
 
@@ -156,7 +156,7 @@ const ensured = await WalletConductor.ensureNativeWallet({ id: userId, role })
 // Card → credit points (amount 25–2000)
 const topUp = await WalletConductor.initiateTopUp(null, formData)
 
-// Ad-hoc fiat debit — rate defaults to unitToDefaultCurrency
+// Ad-hoc fiat debit — rate defaults to creditBalanceUnitToMainCurrency
 const spent = await WalletConductor.spendCredits({
   userId,
   amount: '10.00',
@@ -184,7 +184,7 @@ UI and routes should import `WalletConductor` (or the thin wrappers in `app/_act
 
 **Keep fiat rate SSOT**
 
-For spend paths, omit `usdRate` or pass `getFiatCreditAccountingRate()`. Never feed `ringPerUsd` / desk oracle into fiat ledger debits.
+For spend paths, omit `usdRate` or pass `getMainCurrencyCreditAccountingRate()`. Never feed `nativePerMainCurrency` / desk oracle into fiat ledger debits.
 
 </Step>
 
@@ -205,12 +205,12 @@ Custodial native send is `transferNative`. External SupportedCrypto (POL/USDT) s
 | Facade | `features/wallet/conductor/wallet-conductor.ts` |
 | Provision | `features/wallet/services/ensure-wallet.ts` |
 | Credit ledger | `features/wallet/services/credit-balance-service.ts` |
-| Fiat rate | `lib/ring-config-core.ts` → `getCreditUnitToDefaultCurrencyRate` / `lib/payments/credit-currency.ts` → `getFiatCreditAccountingRate` |
+| Fiat rate | `lib/ring-config-core.ts` → `getCreditUnitToMainCurrencyRate` / `lib/payments/credit-balance.ts` → `getMainCurrencyCreditAccountingRate` |
 | Desk | `features/wallet/chains/solana/desk-service.ts` |
-| Desk oracle | `features/wallet/services/ring-token-oracle.ts` |
+| Desk oracle | `features/wallet/services/native-token-oracle.ts` |
 | Custodial send | `features/wallet/chains/native-token-transfer-service.ts` |
 | PSP checkout | `lib/payments/conductor/payment-conductor.ts` |
-| Store credit rail | `lib/payments/processors/internal-credit.processor.ts` (PaymentConductor — not WC) |
+| Store credit rail | `lib/payments/processors/credit-balance.processor.ts` (PaymentConductor — not WC) |
 | Actions | `app/_actions/wallet.ts` |
 | NFT buy | `features/nft-market/services/solana-market-client.ts` |
 
@@ -224,7 +224,7 @@ Custodial native send is `transferNative`. External SupportedCrypto (POL/USDT) s
 | `initiateNativeOnramp` | Session + confidential metadata | Optional `processor` paypal/stripe/wayforpay |
 | `quoteDesk` / `executeDesk` | `assertTokenDeskSubscriberAccess` | Solana desk SSOT |
 | `transferNative` | Caller supplies `userId` | Writes `wallet_transactions`; touches contacts |
-| `spendCredits` | Caller supplies `userId` | Defaults `usdRate` to `getFiatCreditAccountingRate()` |
+| `spendCredits` | Caller supplies `userId` | Defaults `usdRate` to `getMainCurrencyCreditAccountingRate()` |
 | `purchaseNftListing` | Idempotency key | Status: pending → submitted → confirmed / failed |
 | `getNativeBalance` | Caller supplies `userId` | Thin wrap of transfer service |
 
@@ -255,10 +255,10 @@ Card tab omits `processor` (env SSOT). PayPal tab sets `processor=paypal`. Clien
 {`sequenceDiagram
   participant API as POST /api/wallet/credit/spend
   participant WC as WalletConductor.spendCredits
-  participant RATE as getFiatCreditAccountingRate
+  participant RATE as getMainCurrencyCreditAccountingRate
   participant CBS as creditBalanceService
   API->>WC: amount, description
-  WC->>RATE: unitToDefaultCurrency
+  WC->>RATE: creditBalanceUnitToMainCurrency
   WC->>CBS: spendCredits(..., usdRate)
   CBS-->>API: newBalance, transactionId`}
 </Mermaid>
@@ -270,7 +270,7 @@ Card tab omits `processor` (env SSOT). PayPal tab sets `processor=paypal`. Clien
 | `WALLET_ENCRYPTION_KEY` | Custodial key encryption |
 | `SOLANA_RPC_URL` / `SOLANA_TREASURY_PRIVATE_KEY` | Custodial Solana + gas sponsorship |
 | `CONFIDENTIAL_TOKEN_ONRAMP` / desk `nativeTokenOnramp` | Native card onramp gate |
-| `credit.unitToDefaultCurrency` | Fiat ledger accounting multiplier |
+| `credit.creditBalanceUnitToMainCurrency` | Fiat ledger accounting multiplier |
 | `ORACLE_QUOTE_SECRET` / `RING_ORACLE_DEFAULT_RATE` | Desk quote HMAC + fallback |
 
 </Audience>

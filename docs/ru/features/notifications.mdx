@@ -1,88 +1,63 @@
 ---
 title: Notifications
-description: Notifications documentation for Ring Platform
+description: In-app notification types, preferences, and delivery channels — including GAME_REQUEST / GAME_UPDATED for Peer Games
+last_modified: "2026-07-24"
+audience: both
 ---
 
 # Notification System
 
-Real-time notification delivery with FCM push notifications, user preferences, and performance optimization.
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar. Deep FCM setup lives on [Push Notifications (FCM)](/docs/features/push-notifications-fcm).
+</Callout>
 
-## Overview
+Ring delivers in-app and push notifications for opportunities, messages, entity updates, wallet events, and **peer-game challenges**.
 
-Ring Platform's notification system ensures users stay informed about opportunities, messages, entity updates, and platform activities through multiple delivery channels.
+## Verified notification types (partial)
 
-## Key Features
+| Type | Purpose |
+|------|---------|
+| `OPPORTUNITY` | New opportunities and applications |
+| `MESSAGE` | New messages and conversations |
+| `ENTITY` | Entity updates and invitations |
+| `SYSTEM` | Platform announcements |
+| `WALLET` | Transaction and balance notifications |
+| `GAME_REQUEST` | Peer-game challenge in chat (`game_request`) |
+| `GAME_UPDATED` | Game accepted / finished updates |
 
-### Notification Types
-- **OPPORTUNITY** - New opportunities and applications
-- **MESSAGE** - New messages and conversations  
-- **ENTITY** - Entity updates and invitations
-- **SYSTEM** - Platform announcements and updates
-- **WALLET** - Transaction and balance notifications
+`GAME_*` types appear in notification preferences UI and interactive notify (`features/chat/lib/interactive-notify.ts`). Offline FCM for game invites: after `!deliveredLive`, `createInvite` waits ~500ms and rechecks `getTunnelHub().isUserConnected(peer)` before `NotificationType.GAME_REQUEST` + FCM (not the call ringtone). Hub presence is process-local today — multi-pod false offline is backlog. See [Peer Games](/docs/features/peer-games).
 
-### Delivery Channels
-- **In-app Notifications** - Real-time browser notifications
-- **Push Notifications (FCM)** — Веб- и мобильные push через Firebase Cloud Messaging: полная настройка, регистрация токенов через Server Action и контракт API — см. [Push-уведомления через FCM (Ring)](/docs/features/push-notifications-fcm).
-- **Email Notifications** - Important updates via email
-- **SMS Notifications** - Critical alerts via SMS
+### Delivery channels
 
-### User Preferences
-- **Granular Control** - Enable/disable by type and channel
-- **Quiet Hours** - Schedule notification-free periods
-- **Priority Levels** - High, medium, low priority handling
-- **Frequency Limits** - Prevent notification spam
+- **In-app** — Tunnel `notifications:inbox` / bell UI
+- **Push (FCM)** — [Push Notifications with FCM](/docs/features/push-notifications-fcm)
+- **Email / SMS** — preference-gated where wired
 
-## Implementation
+### User preferences
 
-### Send Notifications
-// Send opportunity notification
+Granular enable/disable by type and channel, including quiet hours — see preferences components under `features/notifications/`.
 
-<Code language="typescript" title="TypeScript">
-{`await sendNotification({
-  userId: 'user-123',
-  type: 'OPPORTUNITY',
-  title: 'New Job Opportunity',
-  message: 'Senior React Developer position at Tech Corp',
-  data: {
-    opportunityId: 'opp-456',
-    entityId: 'entity-789'
-  },
-  channels: ['in-app', 'push', 'email']
-})`}
-</Code>
+## Related documentation
 
-### User Preferences
-// Update notification preferences
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/push-notifications-fcm"
+    relation="Deep-dive: FCM token registration, Server Action path, and delivery."
+  />
+  <RelatedArticle
+    slug="features/peer-games"
+    relation="Same-workflow: GAME_REQUEST / GAME_UPDATED for challenges and session updates."
+  />
+  <RelatedArticle
+    slug="features/tunnel-protocol"
+    relation="Depends-on: live inbox fan-out on notifications:* channels."
+  />
+  <RelatedArticle
+    slug="features/messaging"
+    relation="See-also: interactive notify kit that emits typed notifications."
+  />
+</RelatedDocs>
 
-<Code language="typescript" title="TypeScript">
-{`await updateNotificationPreferences(userId, {
-  OPPORTUNITY: {
-    inApp: true,
-    push: true,
-    email: false,
-    sms: false
-  },
-  MESSAGE: {
-    inApp: true,
-    push: true,
-    email: true,
-    sms: false
-  },
-  quietHours: {
-    enabled: true,
-    start: '22:00',
-    end: '08:00',
-    timezone: 'UTC'
-  }
-})`}
-</Code>
-
-## Push (FCM)
-
-Полное руководство по настройке FCM — регистрация токенов через Server Action, ограниченный по частоте API для клиентов без React, переменные окружения и устранение неполадок:
-
-**[Push-уведомления через FCM (Ring)](/docs/features/push-notifications-fcm)**
-
----
-
-*Полная документация по уведомлениям (триггеры, API настроек) готовится.*
+<Callout type="development" title="Documentation in progress">
+  Broader notifications triggers and preferences API docs are still expanding; treat the type table above as the verified Peer Games addendum.
+</Callout>

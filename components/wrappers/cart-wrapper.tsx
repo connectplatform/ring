@@ -13,8 +13,8 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useStore } from '@/features/store/context'
 import {
-  useStoreCurrency,
-  DEFAULT_CURRENCY,
+  useStorePaymentMethods,
+  MAIN_CURRENCY,
   resolveStorePriceCurrency,
 } from '@/features/store/currency-context'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
@@ -34,8 +34,11 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
-import type { StoreCurrency } from '@/features/store/currency-context'
+import type { StorePaymentMethods } from '@/features/store/currency-context'
 import { applyProductPromotionToLine } from '@/features/store/types/promotions'
+import { ProductAgentChatProvider } from '@/features/store/context/product-agent-chat-context'
+import { ProductAgentChatPanel } from '@/features/store/components/product-agent-chat-panel'
+import { readLastProductAgentContext } from '@/features/store/components/product-agent-cart-summary'
 
 /**
  * Computes cart total with correct currency conversion using SSOT.
@@ -44,13 +47,13 @@ import { applyProductPromotionToLine } from '@/features/store/types/promotions'
  */
 function useCartTotal(
   cartItems: any[],
-  currency: StoreCurrency,
-  convertPrice: (n: number, f: StoreCurrency, t: StoreCurrency) => number,
+  currency: StorePaymentMethods,
+  convertPrice: (n: number, f: StorePaymentMethods, t: StorePaymentMethods) => number,
 ): number {
   return useMemo(() => {
     return cartItems.reduce((sum, item) => {
       const raw = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price)
-      const from = resolveStorePriceCurrency(item.product.currency || DEFAULT_CURRENCY)
+      const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
       const unit = convertPrice(raw, from, currency)
       const { lineTotal } = applyProductPromotionToLine(
         unit,
@@ -76,7 +79,7 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   // Get cart items from global store context
   const { cartItems } = useStore()
   // Currency SSOT — convertPrice/formatPrice are plain functions from context (safe in useMemo)
-  const { currency, convertPrice, formatPrice } = useStoreCurrency()
+  const { currency, convertPrice, formatPrice } = useStorePaymentMethods()
 
   // Translation dictionary hook for cart
   const t = useTranslations('modules.store.cart')
@@ -101,6 +104,27 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   const totalItems = visibleCartItems.length
   const cartTotal = useCartTotal(visibleCartItems, currency, convertPrice)
 
+  const [agentProduct, setAgentProduct] = useState<{
+    productId: string
+    productName: string
+  } | null>(null)
+
+  useEffect(() => {
+    if (!mounted) return
+    const remembered = readLastProductAgentContext()
+    if (remembered?.productId) {
+      setAgentProduct(remembered)
+      return
+    }
+    const first = visibleCartItems[0]?.product
+    if (first?.id) {
+      setAgentProduct({
+        productId: String(first.id),
+        productName: String(first.name || 'Product'),
+      })
+    }
+  }, [mounted, visibleCartItems])
+
   const handleApplyPromo = useCallback(() => {
     if (promoCode.trim().toLowerCase() === 'welcome10') {
       setAppliedPromo('WELCOME10')
@@ -111,7 +135,22 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   // Closes the side rail by setting state
   const closeRail = useCallback(() => setRightSidebarOpen(false), [])
 
-  // The content for the Cart sidebar (rail)
+  // The content for the Cart sidebar (rail) — product agent chat when context known
+  const productChatRail = useMemo(() => {
+    if (!agentProduct?.productId) return null
+    return (
+      <div className="flex h-[calc(100dvh-2rem)] min-h-[24rem] flex-col">
+        <ProductAgentChatPanel
+          productId={agentProduct.productId}
+          productName={agentProduct.productName}
+          locale={locale}
+          showCartSummary
+          className="min-h-0 flex-1"
+        />
+      </div>
+    )
+  }, [agentProduct, locale])
+
   function SideRail() {
     return (
       <CartSidebarContent
@@ -130,26 +169,32 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
     )
   }
 
-  // ---- Main rendered layout ----
-  return (
+  const layout = (
     <RingRightRailLayout
       rightRailPurpose="cart"
-      rightRailContent={[
-        {
-          id: 'cart-sidebar',
-          blockType: 'cart-sidebar',
-          i18nKey: 'modules.store.cart.sidebar',
-          params: {
-            locale,
-            cartItems: visibleCartItems,
-            totalPrice: cartTotal,
-            totalItems: totalItems,
-            formatPrice: formatCartPrice,
-            onNavigate: closeRail
-          }
-        }
-      ]}
-      showRightRail={false} // Sidebar only shows when opened by user
+      rightRail={productChatRail || undefined}
+      rightRailContent={
+        productChatRail
+          ? undefined
+          : [
+              {
+                id: 'cart-sidebar',
+                blockType: 'cart-sidebar',
+                i18nKey: 'modules.store.cart.sidebar',
+                params: {
+                  locale,
+                  cartItems: visibleCartItems,
+                  totalPrice: cartTotal,
+                  totalItems: totalItems,
+                  formatPrice: formatCartPrice,
+                  onNavigate: closeRail,
+                },
+              },
+            ]
+      }
+      showRightRail={Boolean(productChatRail)}
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
       railWidth={380}
       contentClassName="pb-[calc(11rem+env(safe-area-inset-bottom,0px))] lg:pb-8"
       flushCenterPane
@@ -341,6 +386,19 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
       )}
     </RingRightRailLayout>
   )
+
+  if (agentProduct?.productId) {
+    return (
+      <ProductAgentChatProvider
+        productId={agentProduct.productId}
+        productName={agentProduct.productName}
+      >
+        {layout}
+      </ProductAgentChatProvider>
+    )
+  }
+
+  return layout
 }
 
 /* 
@@ -349,7 +407,7 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
 - TODO: Modernize state/transition management with React 19/Next 16 server components and hooks, if/when those are supported (e.g., switch useState/useEffect for mount-detection to useOptimistic or server-aware lifecycle).
 - TODO: Replace `useEffect(() => setMounted(true), [])` and conditional `mounted` renderings with use client directive (where possible) as client-side APIs in Next 16/React 19 stabilize.
 - TODO: Refactor currency/format helpers to use a single source of truth from context or server action, not redundant hooks.
-- TODO: Replace asserts on `as StoreCurrency` for cartTotal/formatters with more deliberate typing, or stricter typing in context hooks for improved safety.
+- TODO: Replace asserts on `as StorePaymentMethods` for cartTotal/formatters with more deliberate typing, or stricter typing in context hooks for improved safety.
 - STUB: Shipping is hardcoded as 'Free'; future enhancement would bring in a dynamic shipping API and fee estimation (step-by-step: (1) design API, (2) update cart summary, (3) conditional shipping block).
 - TODO: Move all business logic (totalling, format, currency) into dedicated single-hook or backend utility for easier testability and SSR support.
 

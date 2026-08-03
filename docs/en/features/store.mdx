@@ -1,23 +1,23 @@
 ---
 title: Multi-Vendor Store
-description: Ring Platform's multi-vendor marketplace — vendor onboarding, product management, commission settlements, and audience-gated product visibility for member-restricted offerings
-last_modified: "2026-07-14"
+description: Multi-vendor marketplace with vendor onboarding, product CRUD, Agent Knowledge Research (WebConductor), commission settlements, and audience-gated visibility
+last_modified: "2026-08-03"
 audience: both
 ---
 
 # Multi-Vendor Store
 
-Ring Platform ships a multi-vendor marketplace where any **verified Entity** can operate a store, list products, and earn through automated commission settlements. The platform operator (Founder) earns from tiered commissions; vendors add products via a configurable product form with per-category custom fields and audience-gated visibility.
+Ring Platform ships a multi-vendor marketplace where any **verified Entity** can operate a store, list products, and earn through automated commission settlements. Vendors enrich catalog copy with **Agent Knowledge Research** — WebConductor web research into structured fields, `productAgent` markdown, Admin Wiki NODUS, and File Cabinet alt images — then opt media into the product gallery explicitly.
 
 <Callout type="info">
-  Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page by audience.
+  Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page by audience. Pipeline names live in `scripts/PIPELINES.md` (`store.web_conductor.research_populate`).
 </Callout>
 
 <Audience for="founder">
 
 ## Why the multi-vendor store matters for your clone
 
-Every Entity in your Ring deployment can become a selling vendor — no external marketplace needed. The store generates platform revenue through **tier-based commission rates** (NEW → BASIC → VERIFIED → TRUSTED → PREMIUM, descending from 20% to 12%) on every sale. Vendors handle cataloguing themselves via the product form; operators review submissions through the admin product queue and process settlements in the commissions dashboard.
+Every Entity in your Ring deployment can become a selling vendor — no external marketplace needed. The store generates platform revenue through **tier-based commission rates** (NEW → BASIC → VERIFIED → TRUSTED → PREMIUM, descending from 20% to 12%) on every sale. Vendors catalogue themselves; operators review submissions and settle commissions.
 
 ### Key operator capabilities
 
@@ -25,25 +25,26 @@ Every Entity in your Ring deployment can become a selling vendor — no external
   <Card title="Vendor lifecycle" href="/docs/features/store" icon="store">
     Onboard entities as vendors at /vendor/start. Trust scoring, tier progression, and suspension workflows are automated.
   </Card>
-  <Card title="Commission settlements" href="/docs/features/store" icon="wallet">
-    Tier-based commissions calculated per sale. Admin dashboard at /admin/store/commissions shows pending payouts with referral breakdowns.
+  <Card title="Agent Knowledge Research" href="/docs/features/generative-media" icon="sparkles">
+    On create/edit product forms: Research → fields + markdown + wiki NODUS + cabinet alt images. **Use in gallery** is explicit — nothing silently replaces the primary photo.
+  </Card>
+  <Card title="Commission settlements" href="/docs/features/erp/commissions" icon="wallet">
+    Tier-based commissions per sale. Admin dashboard at /admin/store/commissions shows pending payouts with referral breakdowns.
   </Card>
   <Card title="Product audience gating" href="/docs/features/store" icon="shield">
-    Vendors can mark products as member-only. Non-member visitors see only public products. Gated by the hasMemberPrivileges() role guard.
-  </Card>
-  <Card title="Custom product fields" href="/docs/features/store" icon="settings">
-    Vendors add per-category custom parameters (name + value pairs) below the category selector on the product form. Categories ship with SQL migration presets.
+    Mark products member-only. Non-members see public products only (`hasMemberPrivileges()`).
   </Card>
 </Cards>
 
 ### Typical scenarios
 
-- **A Ring clone for a local business network:** every shop in the city becomes a verified Entity and lists inventory in the store; transactions settle automatically.
-- **A DAO marketplace:** member-gated products (courses, NFTs, service tiers) visible only to role-holders; public products serve as lead magnets.
-- **A hosting/provider clone:** agencies and dev studios list managed Ring hosting packages; platform operator earns commission on every subscription.
+- **Local business network** — every shop lists inventory; settlements run automatically.
+- **DAO marketplace** — member-gated courses/NFTs; public SKUs as lead magnets.
+- **Catalog enrichment** — vendor pastes a manufacturer URL, runs **Research**, reviews suggested fields, saves Agent Knowledge, then clicks **Use in gallery** only for photos they want on the storefront.
+- **DAGI assist** — vendor ERP chat tool `dagi_research_product` returns the same suggested fields / research media / cabinet path for the bound vendor.
 
 <Callout type="tip">
-  Storefront **product agent** chats use `Conversation.type: 'product'` and stay visible in Messages. **Generative Gallery** tool chats reuse the same channel with `kind: 'generative_gallery'` and `hiddenFromInbox: true` so generation history does not clutter the inbox — see [Messaging](/docs/features/messaging) and [Generative Gallery](/docs/features/generative-media).
+  Storefront **product agent** chats use `Conversation.type: 'product'` and stay visible in Messages. **Generative Gallery** tool chats reuse the product channel with `kind: 'generative_gallery'` and `hiddenFromInbox: true` — see [Messaging](/docs/features/messaging) and [Generative Gallery](/docs/features/generative-media).
 </Callout>
 
 </Audience>
@@ -58,173 +59,196 @@ Every Entity in your Ring deployment can become a selling vendor — no external
 {`flowchart TB
     subgraph Vendor[Vendor Onboarding]
         Start[/vendor/start]
-        Apply[Submit application]
         Approve[Admin approval]
         Profile[createVendorProfile]
-        Inherit[Inherit storeCategories from ring-config]
+    end
+
+    subgraph Research[Agent Knowledge]
+        UI[ProductAgentKnowledgeSection]
+        Act[researchProductAgentAction / Draft]
+        WC[WebConductor]
+        Cab[product-cabinet-media]
+        Wiki[createProductNodusWikiFromDraft]
     end
 
     subgraph Catalog[Catalog SSOT]
         Cache[getCachedProductCatalog]
         API[GET /api/store/products]
-        Action[getStoreProducts server action]
-        MCP[MCP store/products GET]
+        Action[getStoreProducts]
     end
 
-    subgraph Client[Client load]
-        Ctx[StoreProvider in context.tsx]
-        Defer[Defer fetch until /store or cart items]
-    end
-
-    subgraph Product[Product CRUD]
-        Form[ProductForm — vendor/products]
-        Mutate[POST creates + updateTag]
-    end
-
-    subgraph Store[Storefront]
-        List[/store]
-        Filter[audience filter: hasMemberPrivileges]
-        Cart[Cart + Checkout]
-    end
-
-    Vendor --> Product
-    Product --> Mutate
-    Mutate --> Cache
+    Vendor --> UI
+    UI --> Act --> WC
+    Act --> Cab
+    Act --> Wiki
+    UI --> Cache
     Cache --> API
-    Cache --> Action
-    API --> Ctx
-    Defer --> Ctx
-    Action --> List
-    Ctx --> Store`}
+    Cache --> Action`}
 </Mermaid>
+
+### Agent Knowledge Research (Phase W — shipped)
+
+| Piece | Path | Role |
+|-------|------|------|
+| Conductor | `lib/web/conductor/web-conductor.ts` | TextConductor `webSearch: true` → structured fields + `productAgentMarkdown` + NODUS JSON + citation-host image candidates |
+| Orchestrator | `features/store/lib/product-agent-research.ts` | Builds request + `runProductAgentResearch` |
+| Cabinet writer | `features/store/lib/product-cabinet-media.ts` | Dirs `store/[storename]/[product-slug]/alt` (fits `MAX_FOLDER_DEPTH` 3; conceptual `files/` prefix), `research-{runId}.md`, SSRF-safe image fetch → RingBase → cabinet nodes |
+| Actions | `app/_actions/product-agent-research.ts` | `researchProductAgentAction`, `researchProductDraftAction`, `saveProductAgentKnowledgeAction` |
+| UI | `features/store/components/product-agent-knowledge-section.tsx` | Create + edit; **Use in gallery** explicit |
+| Wiki helper | `features/store/lib/product-nodus-wiki.ts` | `createProductNodusWikiFromDraft` → tenant Admin Wiki |
+| DAGI | `features/store/services/dagi-erp-tools.ts` | `dagi_research_product` → `suggestedFields` / `researchMedia` / `cabinetPath` / `skippedImages` |
+| Schema notes | `AI-LEGIOX/legiox-truth-lens/AGENT-PRODUCT-SCHEMA.md` | § photo / research generator steps |
+| Pipeline | `scripts/PIPELINES.md` | `store.web_conductor.research_populate` |
+
+**Auth:** vendor entity owner or platform admin (`resolveResearchVendor` + ownership check). Draft research (no product id yet) uses `researchProductDraftAction` and still writes cabinet artifacts under the vendor owner.
+
+**Gallery rule:** research media is never auto-merged as primary. Operators must click **Use in gallery**.
 
 ### Product catalog SSOT
 
-The full unfiltered product list is read once per cache window through `getCachedProductCatalog()` in `features/store/config.ts`:
-
-<Code language="typescript" title="features/store/config.ts">{`export async function getCachedProductCatalog(): Promise<StoreProduct[]> {
-  'use cache'
-  cacheTag('store:products')
-  cacheLife('minutes')
-
-  const adapter = await getStoreAdapter()
-  return adapter.listProducts()
-}`}</Code>
-
-| Consumer | Path | Role |
-|----------|------|------|
-| REST storefront API | `app/api/store/products/route.ts` (GET) | Filter/sort/paginate cached catalog |
-| Server action | `app/_actions/store-products.ts` → `getStoreProducts()` | Same catalog + audience gating + price bounds |
-| MCP tools | `app/api/mcp/v1/store/products/route.ts` (GET) | Direct adapter list for external agents |
-
-**Cache invalidation:** after product create, call `updateTag('store:products')` — verified in `app/api/store/products/route.ts` (POST) and `app/api/mcp/v1/store/products/route.ts` (POST). New products appear immediately instead of waiting for `cacheLife('minutes')`.
+`getCachedProductCatalog()` in `features/store/config.ts` (`'use cache'` + `cacheTag('store:products')`). Consumers: `app/api/store/products/route.ts`, `getStoreProducts` in `app/_actions/store-products.ts`, MCP `app/api/mcp/v1/store/products/route.ts`. Invalidate with `updateTag('store:products')` after create.
 
 ### Deferred client fetch
 
-`features/store/context.tsx` mounts `StoreProvider` globally (nav cart badge needs `totalItems` on every route) but **defers** the product-list network call:
-
-- Loads only when `pathname` includes `/store` **or** the user already has cart items in `localStorage`.
-- Uses module-scope single-flight (`fetchStoreProductsSingleFlight`) so concurrent mounts share one `GET /api/store/products`.
-- Manual refresh via `refreshEnhancedProducts()` bypasses single-flight and hits the network fresh.
-
-This follows the minimal-global-state pattern — no full catalog in client state until a store route or cart warrants it.
+`features/store/context.tsx` mounts `StoreProvider` globally but defers the catalog network call until pathname includes `/store` or cart items exist in `localStorage` (single-flight fetch).
 
 ### Verified routes
 
 | Route | Purpose | Auth |
 |-------|---------|------|
-| `/vendor/start` | Vendor onboarding form | Subscriber+ |
-| `/vendor/products` | Vendor product CRUD | Vendor entity owner |
-| `/vendor/products/product-form.tsx` | Create/edit product form with category selector, custom fields, audience toggle | Vendor entity owner |
-| `/admin/store/commissions` | Commission settlements dashboard | Platform admin |
-| `/admin/store/products` | Product approval queue | Platform admin |
-| `/store` | Public storefront with audience filtering | Public (member-gated products hidden) |
+| `/vendor/start` | Vendor onboarding | Subscriber+ |
+| `/vendor/products` | Vendor product CRUD + Agent Knowledge | Vendor entity owner |
+| `/admin/store/products` | Product approval queue (same form) | Platform admin |
+| `/admin/store/commissions` | Commission settlements | Platform admin |
+| `/store` | Public storefront + audience filter | Public |
 
-### Vendor store creation flow
-
-When a vendor is approved, `createVendorProfile()` in `features/store/services/vendor-lifecycle.ts`:
-
-1. Creates a `VendorProfile` with `store_activated: true` and `store_status: 'test'`
-2. **Inherits store categories** from ring-config: `storeCategories: getSystemConfigSnapshot().store?.storeCategories ?? []`
-3. Writes the profile to the `entities` collection (embedded) and `vendor_profiles` collection (mirror)
-4. Publishes a `STORE_CREATED` event
-
-Categories are defined in `ring-config.json` under `store.storeCategories` and shipped via SQL migration presets (`productFieldsPresets`).
-
-### Product custom fields (per-category)
-
-Vendors can add arbitrary name-value pairs to products, scoped by category. The flow:
+### Product custom fields
 
 <Steps>
-  <Step>Vendor selects a category from the dropdown on the product form</Step>
-  <Step>Clicks "Add product parameter" — a name+value input row appears</Step>
-  <Step>Multiple parameters can be added and removed per product</Step>
-  <Step>On save, custom fields are persisted to the `product_custom_fields` table via `createProductCustomField()` in `app/_actions/vendor-actions.ts`</Step>
+
+<Step>
+
+Vendor selects a category on the product form.
+
+</Step>
+
+<Step>
+
+Adds name+value parameters (“Add product parameter”).
+
+</Step>
+
+<Step>
+
+Persists via `createProductCustomField()` in `app/_actions/vendor-actions.ts` (ownership-guarded).
+
+</Step>
+
 </Steps>
-
-**CRUD actions** (all auth-guarded via `getVendorEntity()` + product ownership verification):
-
-<Code language="typescript" title="app/_actions/vendor-actions.ts">
-{`await createProductCustomField({
-  productId: 'product_123',
-  category: 'organic-produce',
-  fieldName: 'Soil Type',
-  fieldValue: 'Loamy',
-  fieldType: 'text',
-})`}
-</Code>
 
 ### Product audience filtering
 
-Products carrying `productAudience: 'member'` are hidden from non-member visitors. Implemented in `app/_actions/store-products.ts` after catalog filters:
-
-<Code language="typescript" title="app/_actions/store-products.ts">
-{`const userHasMemberAccess = isAdmin || hasMemberPrivileges(currentRole)
-if (!userHasMemberAccess) {
-  filteredProducts = filteredProducts.filter(product => {
-    const doc = product as unknown as Record<string, unknown>
-    return doc.productAudience !== 'member'
-  })
-}`}
-</Code>
-
-The `hasMemberPrivileges()` guard checks `role >= member` (member, confidential, admin, superadmin).
+Products with `productAudience: 'member'` are hidden unless `isAdmin || hasMemberPrivileges(currentRole)` in `app/_actions/store-products.ts`.
 
 ### Module summary
 
 | Module | Purpose |
 |--------|---------|
-| `features/store/config.ts` | Adapter selection + `getCachedProductCatalog()` SSOT |
-| `features/store/context.tsx` | `StoreProvider` — deferred client catalog load, cart state |
-| `features/store/services/vendor-lifecycle.ts` | Vendor profile creation, trust scoring, tier progression |
-| `features/store/services/settlement.ts` | Commission calculation (tier-based + referral) |
-| `app/_actions/vendor-actions.ts` | Vendor product CRUD, custom fields CRUD |
-| `app/_actions/store-products.ts` | Storefront listing — cached catalog + filters + audience gate |
-| `app/api/store/products/route.ts` | REST catalog GET/POST + `updateTag` on create |
-| `app/api/mcp/v1/store/products/route.ts` | MCP list/create + `updateTag` on create |
-| `features/auth/user-role.ts` | `hasMemberPrivileges()` — role-based product visibility |
+| `features/store/config.ts` | Adapter + cached catalog SSOT |
+| `features/store/context.tsx` | Deferred client catalog + cart |
+| `features/store/services/vendor-lifecycle.ts` | Vendor profile + tiers |
+| `features/store/services/settlement.ts` | Commission calculation |
+| `lib/web/conductor/web-conductor.ts` | Web product research |
+| `features/store/lib/product-cabinet-media.ts` | Research → File Cabinet alt |
+| `app/_actions/product-agent-research.ts` | Research / draft / save knowledge |
+| `app/_actions/vendor-actions.ts` | Vendor product CRUD + research form fields |
+| `app/_actions/admin-store-erp.ts` | Admin product path + Agent Knowledge hidden fields |
+| `features/auth/user-role.ts` | `hasMemberPrivileges()` |
 
 </Audience>
 
 ## Related documentation
 
-<Cards>
-  <Card title="Generative Gallery" href="/docs/features/generative-media">
-    Upload \| Generate product images — shared field with NFT create; WebP strip + credit billing.
-  </Card>
-  <Card title="Real-Time Messaging" href="/docs/features/messaging">
-    Product agent chats vs hidden generative tool chats (`type` vs `kind`).
-  </Card>
-  <Card title="Ring ERP" href="/docs/features/erp" icon="package">
-    Inventory, stock management, warehouse operations, and vendor settlement pipelines.
-  </Card>
-  <Card title="Vendor Guide" href="/docs/vendor-guide" icon="book">
-    Step-by-step guide for vendors: onboarding, product listing, and storefront setup.
-  </Card>
-  <Card title="Store API" href="/docs/api/store" icon="code">
-    API routes for products, orders, checkout, payments, and commission settlements.
-  </Card>
-  <Card title="Payment Conductor" href="/docs/architecture/payment-conductor" icon="credit-card">
-    WayForPay integration, HMAC webhook validation, and subscription billing.
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/file-cabinet"
+    relation="Same-workflow: research images land under store/product/alt; Image/Video chat enhances siblings."
+  />
+  <RelatedArticle
+    slug="features/generative-media"
+    relation="Next-step: Generative Gallery Upload \| Generate on product forms and cabinet scope."
+  />
+  <RelatedArticle
+    slug="features/admin-wiki"
+    relation="Depends-on: Research writes product NODUS pages into the tenant wiki vault."
+  />
+  <RelatedArticle
+    slug="features/erp"
+    relation="Next-step: ERP hub for stock invariant, commitSale, and settlements cockpit."
+  />
+  <RelatedArticle
+    slug="features/erp/inventory"
+    relation="Deep-dive: reserve → commitSaleForOrder → cancel/refund restore."
+  />
+  <RelatedArticle
+    slug="features/payment-conductor"
+    relation="Depends-on: PaymentConductor paid handlers drive stock commit."
+  />
+  <RelatedArticle
+    slug="api/store"
+    relation="Deep-dive: store REST routes for products, orders, checkout."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — Store Agent Commerce (not shipped)">
+
+<FutureFeatureWidget
+  name="Phase 4 UX polish"
+  description="Further Agent Knowledge / Research modal polish beyond the shipped create+edit section and Use in gallery control."
+  implementationCost={24}
+  labels={['store', 'agent-commerce', 'ux']}
+/>
+
+<FutureFeatureWidget
+  name="Phase 5 sellable gate"
+  description="Hard gate that blocks sellable/publish until research artifacts or gallery completeness meet clone policy — not enforced today."
+  implementationCost={32}
+  labels={['store', 'agent-commerce', 'compliance']}
+/>
+
+<FutureFeatureWidget
+  name="Phase 6 Reggie propagate"
+  description="Propagate WebConductor Research + cabinet alt wiring to white-label clones via Reggie — platform tree only for now."
+  implementationCost={40}
+  labels={['store', 'reggie', 'propagation']}
+/>
+
+<FutureFeatureWidget
+  name="OpenAI tool-loop adapter"
+  description="Alternate LLM tool-loop adapter for product research (beyond TextConductor webSearch path)."
+  implementationCost={48}
+  labels={['store', 'ai', 'conductor']}
+/>
+
+<FutureFeatureWidget
+  name="Auto-merge research media"
+  description="Automatically push research images into the product gallery without explicit Use in gallery — intentionally not shipped."
+  implementationCost={16}
+  labels={['store', 'gallery']}
+/>
+
+<FutureFeatureWidget
+  name="Nightly ProcessConductor enrichment"
+  description="Scheduled enrichment of stale products via ProcessConductor (TODO in researchProductAgentAction)."
+  implementationCost={56}
+  labels={['store', 'process-conductor', 'cron']}
+/>
+
+<FutureFeatureWidget
+  name="On-approve research trigger"
+  description="Optional auto-run of WebConductor Research when a product is approved (TODO in researchProductAgentAction)."
+  implementationCost={20}
+  labels={['store', 'admin', 'agent-commerce']}
+/>
+
+</FutureFeatureBacklog>

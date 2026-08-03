@@ -8,6 +8,7 @@ import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import { CalculatorEngine } from '@/features/calculator/calculator-engine'
 import { resolveCalculatorRates } from '@/features/calculator/rates'
+import type { ProjectHostingId } from '@/features/calculator/presets/project'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 
@@ -30,8 +31,10 @@ export async function generateMetadata({
 
 export default async function CalculatorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   await connection()
 
@@ -48,6 +51,11 @@ export default async function CalculatorPage({
   }
 
   const rates = resolveCalculatorRates()
+  const sp = await searchParams
+  const hostingRaw = sp.hosting
+  const hostingParam = Array.isArray(hostingRaw) ? hostingRaw[0] : hostingRaw
+  const initialHosting: ProjectHostingId | undefined =
+    hostingParam === 'ringdom' || hostingParam === 'self_host' ? hostingParam : undefined
 
   return (
     <RingRightRailLayout
@@ -56,7 +64,7 @@ export default async function CalculatorPage({
       contentClassName="pb-24 lg:pb-8"
     >
       <DavinciCenterPane>
-        <CalculatorEngine rates={rates} />
+        <CalculatorEngine rates={rates} initialHosting={initialHosting} />
       </DavinciCenterPane>
     </RingRightRailLayout>
   )

@@ -1,23 +1,23 @@
 import {
   CreditTransaction,
-  CreditTransactionType,
+  CreditBalanceTransactionType,
   UserCreditBalance,
-  CreditTopUpRequest,
+  CreditBalanceTopUpRequest,
   CreditSpendRequest,
   CreditHistoryRequest,
   CreditHistoryResponse,
 } from '@/lib/zod/credit-schemas';
 import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
-import { publishToChannel } from '@/lib/tunnel/publisher';
+import { publishToUserTunnel } from '@/lib/tunnel/publisher';
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain';
-import { getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core';
+import { getMainCurrencySymbol } from '@/lib/ring-config-core';
 
-// Fetch the default payment currency (e.g. 'USD' or similar) from system config.
-// Uses the SSOT accessor (getDefaultStoreCurrencySymbol) instead of reaching
+// Fetch the main fiat currency from system config.
+// Uses the SSOT accessor (getMainCurrencySymbol) instead of reaching
 // into the raw snapshot — ring-config.json has `currencies` (array) and
-// `store.defaultCurrency` (string), NOT `supportedCurrencies` (which is undefined).
-const paymentCurrency = getDefaultStoreCurrencySymbol();
+// `store.mainCurrency` (string), NOT `supportedCurrencies` (which is undefined).
+const mainCurrency = getMainCurrencySymbol();
 
 // Interface describing credit-related DB shape for a user document
 interface UserCreditRow extends Record<string, unknown> {
@@ -121,8 +121,8 @@ export class CreditBalanceService {
       // Create an initial zero balance struct
       const initialBalance: UserCreditBalance = {
         amount: '0',
-        usd_equivalent: '0',
-        fiat_currency: paymentCurrency,
+        main_currency_equivalent: '0',
+        main_currency: mainCurrency,
         last_updated: now.getTime(),
         subscription_active: false,
       };
@@ -211,14 +211,128 @@ export class CreditBalanceService {
    */
   async addCredits(
     userId: string,
-    request: CreditTopUpRequest,
-    type: CreditTransactionType,
+    request: CreditBalanceTopUpRequest,
+    type: CreditBalanceTransactionType,
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
       const now = new Date();
 
-      // Lookup current user and their balance
+      const applyAdd = (
+        userData: UserCreditRow,
+      ): {
+        prior?: CreditTransaction
+        creditTransaction?: CreditTransaction
+        updatedBalance?: UserCreditBalance
+        updatedTransactions?: CreditTransaction[]
+        newBalance: string
+      } => {
+        const currentBalance = userData?.credit_balance || {
+          amount: '0',
+          main_currency_equivalent: '0',
+          main_currency: mainCurrency,
+          last_updated: now.getTime(),
+          subscription_active: false,
+        };
+        const existingTransactions = userData?.credit_transactions || [];
+
+        if (request.reference_id) {
+          const prior = existingTransactions.find(
+            (tx) => tx.reference_id === request.reference_id,
+          );
+          if (prior) {
+            return { prior, newBalance: currentBalance.amount };
+          }
+        }
+
+        const currentAmount = parseFloat(currentBalance.amount);
+        const addAmount = parseFloat(request.amount);
+        const newAmount = (currentAmount + addAmount).toString();
+        const usdEquivalent = (addAmount * parseFloat(usdRate)).toString();
+        const transactionId = this._generateTransactionId();
+        const creditTransaction: CreditTransaction = {
+          id: transactionId,
+          user_id: userId,
+          type,
+          amount: request.amount,
+          main_currency_rate: usdRate,
+          main_currency_equivalent: usdEquivalent,
+          balance_after: newAmount,
+          timestamp: now.getTime(),
+          description: request.description,
+          tx_hash: request.tx_hash,
+          reference_id: request.reference_id,
+          metadata: request.metadata,
+        };
+        const updatedBalance: UserCreditBalance = {
+          ...currentBalance,
+          amount: newAmount,
+          main_currency_equivalent: (
+            parseFloat(currentBalance.main_currency_equivalent) + parseFloat(usdEquivalent)
+          ).toString(),
+          main_currency: currentBalance.main_currency ?? mainCurrency,
+          last_updated: now.getTime(),
+          last_transaction_id: transactionId,
+        };
+        return {
+          creditTransaction,
+          updatedBalance,
+          updatedTransactions: [...existingTransactions, creditTransaction],
+          newBalance: newAmount,
+        };
+      };
+
+      // With reference_id: FOR UPDATE user row so concurrent retries cannot double-credit
+      if (request.reference_id) {
+        const applied = await db().transaction(async (txn) => {
+          const locked = await txn.read('users', userId);
+          if (!locked) {
+            throw new Error('User not found.');
+          }
+          const userData = {
+            ...(locked.data as UserCreditRow),
+            id: locked.id,
+          } as UserCreditRow;
+          const result = applyAdd(userData);
+          if (result.prior) {
+            return result;
+          }
+          await txn.update('users', userId, {
+            credit_balance: result.updatedBalance,
+            credit_transactions: result.updatedTransactions,
+            updated_at: now,
+          });
+          return result;
+        });
+
+        if (applied.prior) {
+          logger.info('Credits add skipped — duplicate reference_id', {
+            userId,
+            reference_id: request.reference_id,
+            transactionId: applied.prior.id,
+          });
+          return {
+            success: true,
+            transaction: applied.prior,
+            newBalance: applied.newBalance,
+          };
+        }
+
+        logger.info('Credits added successfully.', {
+          userId,
+          amount: request.amount,
+          type,
+          transactionId: applied.creditTransaction!.id,
+        });
+        await this.publishBalanceUpdate(userId, applied.updatedBalance!);
+        return {
+          success: true,
+          transaction: applied.creditTransaction!,
+          newBalance: applied.newBalance,
+        };
+      }
+
+      // Lookup current user and their balance (legacy path without reference_id)
       const userResult = await db().readDoc<UserCreditRow>('users', userId);
       if (!userResult.success) {
         if (isDbInitFailure(userResult.metadata)) {
@@ -229,88 +343,34 @@ export class CreditBalanceService {
       if (!userResult.data) {
         throw new Error('User not found.');
       }
-      const userData = userResult.data;
 
-      // Use the in-document balance, or default/zero if none present (legacy users)
-      const currentBalance = userData?.credit_balance || {
-        amount: '0',
-        usd_equivalent: '0',
-        fiat_currency: paymentCurrency,
-        last_updated: now.getTime(),
-        subscription_active: false,
-      };
-
-      // Compute the numeric new and old balances
-      const currentAmount = parseFloat(currentBalance.amount);
-      const addAmount = parseFloat(request.amount);
-      const newAmount = (currentAmount + addAmount).toString();
-      const usdEquivalent = (addAmount * parseFloat(usdRate)).toString();
-
-      // Compose transaction for audit/history
-      const transactionId = this._generateTransactionId();
-      const creditTransaction: CreditTransaction = {
-        id: transactionId,
-        user_id: userId,
-        type,
-        amount: request.amount, // Always positive for credit/top-up
-        usd_rate: usdRate,
-        usd_equivalent: usdEquivalent,
-        balance_after: newAmount,
-        timestamp: now.getTime(),
-        description: request.description,
-        tx_hash: request.tx_hash,
-        metadata: request.metadata,
-      };
-
-      // Update the balance in the struct
-      const updatedBalance: UserCreditBalance = {
-        ...currentBalance,
-        amount: newAmount,
-        usd_equivalent: (parseFloat(currentBalance.usd_equivalent) + parseFloat(usdEquivalent)).toString(),
-        fiat_currency: currentBalance.fiat_currency ?? paymentCurrency,
-        last_updated: now.getTime(),
-        last_transaction_id: transactionId,
-      };
-
-      // Mutate user doc with new balance and timestamp
+      const applied = applyAdd(userResult.data);
       const updatedUserData = {
-        ...userData,
-        credit_balance: updatedBalance,
+        ...userResult.data,
+        credit_balance: applied.updatedBalance,
         updated_at: now,
+        credit_transactions: applied.updatedTransactions,
       };
 
-      // Write balance update
       const updateResult = await db().updateDoc('users', userId, updatedUserData);
       if (!updateResult.success) {
         throw new Error('Failed to update user balance.');
-      }
-
-      // Extend transaction array with the new top-up
-      // TODO: React19/Next16 - migrate to native RDB transactions or draft updates for true atomicity.
-      const existingTransactions = userData?.credit_transactions || [];
-      const updatedTransactions = [...existingTransactions, creditTransaction];
-
-      // Now commit the transaction list (ideally, this and previous would be a single atomic op)
-      const transactionUpdateResult = await db().updateDoc('users', userId, {
-        ...updatedUserData,
-        credit_transactions: updatedTransactions,
-      });
-
-      if (!transactionUpdateResult.success) {
-        logger.warn('Failed to save credit transaction record, but balance was updated.', { userId, transactionId });
       }
 
       logger.info('Credits added successfully.', {
         userId,
         amount: request.amount,
         type,
-        transactionId: creditTransaction.id,
+        transactionId: applied.creditTransaction!.id,
       });
 
-      // Fire-and-forget: update client UI in real-time via user-scope tunnel/pubsub channel
-      await this.publishBalanceUpdate(userId, updatedBalance);
+      await this.publishBalanceUpdate(userId, applied.updatedBalance!);
 
-      return { success: true, transaction: creditTransaction, newBalance: newAmount };
+      return {
+        success: true,
+        transaction: applied.creditTransaction!,
+        newBalance: applied.newBalance,
+      };
     } catch (error) {
       logger.error('Failed to add credits.', { userId, request, error });
       throw new Error(`Failed to add credits: ${error}`);
@@ -326,13 +386,128 @@ export class CreditBalanceService {
   async spendCredits(
     userId: string,
     request: CreditSpendRequest,
-    type: CreditTransactionType,
+    type: CreditBalanceTransactionType,
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
       const now = new Date();
 
-      // Fetch user and verify presence
+      const applySpend = (
+        userData: UserCreditRow,
+      ): {
+        prior?: CreditTransaction
+        creditTransaction?: CreditTransaction
+        updatedBalance?: UserCreditBalance
+        updatedTransactions?: CreditTransaction[]
+        newBalance: string
+      } => {
+        const currentBalance = userData?.credit_balance;
+        if (!currentBalance) {
+          throw new Error('No credit balance found.');
+        }
+        const existingTransactions = userData?.credit_transactions || [];
+
+        if (request.reference_id) {
+          const prior = existingTransactions.find(
+            (tx) => tx.reference_id === request.reference_id,
+          );
+          if (prior) {
+            return { prior, newBalance: currentBalance.amount };
+          }
+        }
+
+        const currentAmount = parseFloat(currentBalance.amount);
+        const spendAmount = parseFloat(request.amount);
+        if (currentAmount < spendAmount) {
+          throw new Error(
+            `Insufficient balance. Current: ${currentAmount}, Required: ${spendAmount}.`,
+          );
+        }
+
+        const newAmount = (currentAmount - spendAmount).toString();
+        const usdEquivalent = (spendAmount * parseFloat(usdRate)).toString();
+        const transactionId = this._generateTransactionId();
+        const creditTransaction: CreditTransaction = {
+          id: transactionId,
+          user_id: userId,
+          type,
+          amount: `-${request.amount}`,
+          main_currency_rate: usdRate,
+          main_currency_equivalent: `-${usdEquivalent}`,
+          balance_after: newAmount,
+          timestamp: now.getTime(),
+          description: request.description,
+          order_id: request.order_id,
+          reference_id: request.reference_id,
+          metadata: request.metadata,
+        };
+        const updatedBalance: UserCreditBalance = {
+          ...currentBalance,
+          amount: newAmount,
+          main_currency_equivalent: (
+            parseFloat(currentBalance.main_currency_equivalent) - parseFloat(usdEquivalent)
+          ).toString(),
+          main_currency: currentBalance.main_currency ?? mainCurrency,
+          last_updated: now.getTime(),
+          last_transaction_id: transactionId,
+        };
+        return {
+          creditTransaction,
+          updatedBalance,
+          updatedTransactions: [...existingTransactions, creditTransaction],
+          newBalance: newAmount,
+        };
+      };
+
+      if (request.reference_id) {
+        const applied = await db().transaction(async (txn) => {
+          const locked = await txn.read('users', userId);
+          if (!locked) {
+            throw new Error('User not found.');
+          }
+          const userData = {
+            ...(locked.data as UserCreditRow),
+            id: locked.id,
+          } as UserCreditRow;
+          const result = applySpend(userData);
+          if (result.prior) {
+            return result;
+          }
+          await txn.update('users', userId, {
+            credit_balance: result.updatedBalance,
+            credit_transactions: result.updatedTransactions,
+            updated_at: now,
+          });
+          return result;
+        });
+
+        if (applied.prior) {
+          logger.info('Credits spend skipped — duplicate reference_id', {
+            userId,
+            reference_id: request.reference_id,
+            transactionId: applied.prior.id,
+          });
+          return {
+            success: true,
+            transaction: applied.prior,
+            newBalance: applied.newBalance,
+          };
+        }
+
+        logger.info('Credits spent successfully.', {
+          userId,
+          amount: request.amount,
+          type,
+          transactionId: applied.creditTransaction!.id,
+        });
+        await this.publishBalanceUpdate(userId, applied.updatedBalance!);
+        return {
+          success: true,
+          transaction: applied.creditTransaction!,
+          newBalance: applied.newBalance,
+        };
+      }
+
       const userResult = await db().readDoc<UserCreditRow>('users', userId);
       if (!userResult.success) {
         if (isDbInitFailure(userResult.metadata)) {
@@ -343,88 +518,31 @@ export class CreditBalanceService {
       if (!userResult.data) {
         throw new Error('User not found.');
       }
-      const userData = userResult.data;
-      const currentBalance = userData?.credit_balance;
-      if (!currentBalance) {
-        throw new Error('No credit balance found.');
-      }
 
-      // Verify user has enough credits
-      const currentAmount = parseFloat(currentBalance.amount);
-      const spendAmount = parseFloat(request.amount);
-
-      if (currentAmount < spendAmount) {
-        throw new Error(`Insufficient balance. Current: ${currentAmount}, Required: ${spendAmount}.`);
-      }
-
-      // Calculate new balance and transaction
-      const newAmount = (currentAmount - spendAmount).toString();
-      const usdEquivalent = (spendAmount * parseFloat(usdRate)).toString();
-
-      // Negative-valued credit transaction to represent debit/spend
-      const transactionId = this._generateTransactionId();
-      const creditTransaction: CreditTransaction = {
-        id: transactionId,
-        user_id: userId,
-        type,
-        amount: `-${request.amount}`,
-        usd_rate: usdRate,
-        usd_equivalent: `-${usdEquivalent}`,
-        balance_after: newAmount,
-        timestamp: now.getTime(),
-        description: request.description,
-        order_id: request.order_id,
-        reference_id: request.reference_id,
-        metadata: request.metadata,
-      };
-
-      // Construct updated balance object
-      const updatedBalance: UserCreditBalance = {
-        ...currentBalance,
-        amount: newAmount,
-        usd_equivalent: (parseFloat(currentBalance.usd_equivalent) - parseFloat(usdEquivalent)).toString(),
-        fiat_currency: currentBalance.fiat_currency ?? paymentCurrency,
-        last_updated: now.getTime(),
-        last_transaction_id: transactionId,
-      };
-
-      // Write new balance to document
+      const applied = applySpend(userResult.data);
       const updatedUserData = {
-        ...userData,
-        credit_balance: updatedBalance,
+        ...userResult.data,
+        credit_balance: applied.updatedBalance,
         updated_at: now,
+        credit_transactions: applied.updatedTransactions,
       };
-
-      // Commit balance
       const updateResult = await db().updateDoc('users', userId, updatedUserData);
       if (!updateResult.success) {
         throw new Error('Failed to update user balance.');
-      }
-
-      // Transaction list update (non-atomic)
-      const existingTransactions = userData?.credit_transactions || [];
-      const updatedTransactions = [...existingTransactions, creditTransaction];
-
-      // Write new transaction list
-      const transactionUpdateResult = await db().updateDoc('users', userId, {
-        ...updatedUserData,
-        credit_transactions: updatedTransactions,
-      });
-      if (!transactionUpdateResult.success) {
-        logger.warn('Failed to save credit transaction record, but balance was updated.', { userId, transactionId });
       }
 
       logger.info('Credits spent successfully.', {
         userId,
         amount: request.amount,
         type,
-        transactionId: creditTransaction.id,
+        transactionId: applied.creditTransaction!.id,
       });
-
-      // Update client UI for new balance in real time
-      await this.publishBalanceUpdate(userId, updatedBalance);
-
-      return { success: true, transaction: creditTransaction, newBalance: newAmount };
+      await this.publishBalanceUpdate(userId, applied.updatedBalance!);
+      return {
+        success: true,
+        transaction: applied.creditTransaction!,
+        newBalance: applied.newBalance,
+      };
     } catch (error) {
       logger.error('Failed to spend credits.', { userId, request, error });
       throw new Error(`Failed to spend credits: ${error}`);
@@ -565,7 +683,7 @@ export class CreditBalanceService {
         description: 'Monthly membership fee',
         metadata: {
           subscription_type: 'monthly_membership',
-          payment_method: 'ring_credits',
+          payment_method: 'credit_balance',
         },
       };
       // Use existing debit/spend flow to ensure identical audit trail, limits, balances, etc.
@@ -636,7 +754,7 @@ export class CreditBalanceService {
       const balanceData = {
         balance: {
           amount: balance.amount,
-          usd_equivalent: balance.usd_equivalent,
+          main_currency_equivalent: balance.main_currency_equivalent,
           last_updated: balance.last_updated,
         },
         subscription: {
@@ -654,49 +772,56 @@ export class CreditBalanceService {
           min_balance_warning: '1', // STUB/static
         },
       };
-      // Actually trigger the pubsub/push event (can be async fire-and-forget if wanted)
-      await publishToChannel(userId, 'credit:balance', balanceData);
+      // Per-user inbox: clients subscribe to channel `credit:balance` via useTunnelChannel
+      // (publishToChannel(userId, …) wrongly used userId as the channel name).
+      await publishToUserTunnel(userId, 'credit:balance', balanceData);
     } catch (error) {
       logger.error('Failed to publish balance update.', { userId, error });
     }
   }
 
   /**
-   * Utility: Immediately spend fiat USD credits for a user (wrapper enforcing usd_rate = 1).
+   * Utility: Immediately spend fiat USD credits for a user (wrapper enforcing main_currency_rate = 1).
    * // STUB: Currency enforcement is not robust; in a real multi-fiat scenario, currency & rate logic must be generalized.
    */
   async spendFiatUsd(
     userId: string,
     usdAmount: string,
     description: string,
-    type: CreditTransactionType = 'desk_buy',
+    type: CreditBalanceTransactionType = 'desk_buy',
     metadata?: Record<string, unknown>
   ) {
-    const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
     return this.spendCredits(
       userId,
       { amount: usdAmount, description, metadata },
       type,
-      getFiatCreditAccountingRate()
+      getMainCurrencyCreditAccountingRate()
     );
   }
 
   /**
-   * Utility: Immediately top up fiat credits for a user (SSOT unitToDefaultCurrency rate).
+   * Utility: Immediately top up fiat credits for a user (SSOT creditBalanceUnitToMainCurrency rate).
    */
   async addFiatUsd(
     userId: string,
     usdAmount: string,
     description: string,
-    type: CreditTransactionType = 'desk_sell',
-    metadata?: Record<string, unknown>
+    type: CreditBalanceTransactionType = 'desk_sell',
+    metadata?: Record<string, unknown>,
+    referenceId?: string,
   ) {
-    const { getFiatCreditAccountingRate } = await import('@/lib/payments/credit-currency')
+    const { getMainCurrencyCreditAccountingRate } = await import('@/lib/payments/credit-balance')
     return this.addCredits(
       userId,
-      { amount: usdAmount, description, metadata },
+      {
+        amount: usdAmount,
+        description,
+        metadata,
+        ...(referenceId ? { reference_id: referenceId } : {}),
+      },
       type,
-      getFiatCreditAccountingRate()
+      getMainCurrencyCreditAccountingRate()
     );
   }
 }

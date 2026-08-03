@@ -1,7 +1,7 @@
 ---
 title: Owner Project Lab
 description: Buyer My Projects (/my-orders), shared order_lab chat with integrator and Reggie, and admin CRM order desk under /admin/crm
-last_modified: "2026-07-17"
+last_modified: "2026-07-18"
 audience: both
 ---
 
@@ -12,15 +12,19 @@ audience: both
 </Callout>
 
 <Callout type="success" title="Executive summary">
-After a calculator **project order** is paid, the **buyer (owner)** opens **My Projects** at `/my-orders` — status, masked deploy summary, and one shared **Project room** chat with the integrator and Reggie. Integrators work the same room from `/my-jobs/[id]`. Admins manage orders and chat tabs under `/admin/crm/orders/[id]`. Email AI-CRM pages live under the same CRM shell at `/admin/crm/*` (APIs stay `/api/admin/email/*`).
+After a calculator **project order** is paid, the **buyer (owner)** opens **My Projects** at `/my-orders` — status, **Order Project Config** (name/slogan/logo), **owner secrets** (Firebase/RingBase), masked deploy summary, and one shared **Project room** with integrator and Reggie. Integrators work the same room from `/my-jobs/[id]` with ops env + full projectConfig (no owner secrets plaintext). Admins manage orders under `/admin/crm/orders/[id]`. Deploy is integrator/admin only; Reggie never deploys.
 </Callout>
 
 | Role | Surface | What they can do |
 |------|---------|------------------|
-| **Buyer** | `/my-orders`, `/my-orders/[id]` | Read-only order + project status; Project room chat only — **no** env/deploy mutate |
-| **Integrator** | `/my-jobs/[id]` Order Lab | Same Project room; env + `imageTag`; namespace/edge/deploymentName are **admin-only** |
-| **Admin** | `/admin/crm/orders/[id]` | Three chat tabs + `AdminNamespaceEditor` (namespace / projectName / edge) |
-| **Reggie** | Poller on `order_lab` | Locked to conversation metadata namespace/project in the system prompt |
+| **Buyer** | `/my-orders`, `/my-orders/[id]` | Status; vital **projectConfig**; **owner_private** env; Project room chat — **no** deploy |
+| **Integrator** | `/my-jobs/[id]` Order Lab | Same room; ops env + `imageTag`; full projectConfig; **Request update** for owner keys; deploy |
+| **Admin** | `/admin/crm/orders/[id]` | Three chat tabs + namespace lock; all env + projectConfig |
+| **Reggie** | Poller on `order_lab` | Locked to metadata namespace/project; chat plans only — **no deploy** |
+
+### Order Project Config SSOT
+
+Control-plane store: `project_orders.data.projectConfig` (allowlisted ring-config overlay). On deploy, `applyAndDeploy` writes ConfigMap `RING_ORDER_PROJECT_CONFIG` + `NEXT_PUBLIC_BRAND_*` mirrors. Runtime: `ring-config-core` `mergeDeep(file, overlay)`. Install `ring-config.json` is never rewritten.
 
 <Mermaid title="Shared Project room per order">
 {`flowchart TD
@@ -68,6 +72,10 @@ Old `/admin/email-*` page URLs are **gone**. Bookmarks must use `/admin/crm/{inb
 | Detail page | `app/[locale]/my-orders/[id]/page.tsx` → `BuyerOrderPanel` |
 | List API | `GET /api/my-orders` — `ProjectOrderService.listForUser` (session owner) |
 | Detail API | `GET /api/my-orders/[id]` — owner or platform admin; deployment summary **without** env secrets |
+| Owner env | `GET/PATCH /api/my-orders/[id]/env` — `owner_private` + `public_shared` only |
+| Project config | `GET/PATCH /api/my-orders/[id]/project-config` — buyer vital mask |
+| Integrator project config | `GET/PATCH /api/my-jobs/[id]/project-config` — full allowlist |
+| Env request | `POST /api/my-jobs/env-request` (+ `/cancel`) — posts `env_request` into `order_lab` |
 | Routes | `ROUTES.MY_ORDERS`, `ROUTES.MY_ORDER(id)` in `constants/routes.ts` |
 | Success CTA | `app/[locale]/calculator/success/page.tsx` → `ROUTES.MY_ORDER(order.id)` |
 
@@ -88,12 +96,16 @@ Detail response includes order + optional `{ edge, namespace, projectName, deplo
 
 ### Role matrix (verified)
 
-| Action | Buyer | Integrator | Admin |
-|--------|-------|------------|-------|
-| Read order + masked deploy | yes | yes (My Jobs) | yes |
-| Project room chat | yes | yes | yes (joins room) |
-| Env / imageTag | no | yes | yes |
-| Namespace / edge / deploymentName / projectName | no | no | yes (`AdminNamespaceEditor` / admin deploy PATCH) |
+| Action | Buyer | Integrator | Admin | Reggie |
+|--------|-------|------------|-------|--------|
+| Read order + masked deploy | yes | yes (My Jobs) | yes | — |
+| Project room chat | yes | yes | yes | poller reply |
+| `owner_private` env | **write** | request only | write | no |
+| `integrator_ops` env | no | write | write | no |
+| Order Project Config (vital) | **write** | write | write | no |
+| Order Project Config (full) | vital only | **full** | full | no |
+| Deploy / pods | no | yes | yes | **no** |
+| Namespace / edge lock | no | no | yes | no |
 
 ## Admin CRM UI
 
@@ -206,3 +218,32 @@ After namespace/projectName changes, ensure `syncOrderLabMetadata` runs (chat bo
 />
 
 </FutureFeatureBacklog>
+
+<RelatedDocs>
+
+<RelatedArticle
+  slug="customization/ringization-playbook"
+  relation="Next-step: Tier-1/2/3 feature-overlay checklist for self-build and integrator desks."
+/>
+
+<RelatedArticle
+  slug="features/admin-wiki"
+  relation="Same-workflow: each project order can keep a Markdown wiki vault on buyer and integrator desks."
+/>
+
+<RelatedArticle
+  slug="features/admin"
+  relation="See-also: CRM orders desk lives under the Admin console shell."
+/>
+
+<RelatedArticle
+  slug="features/payment-conductor"
+  relation="Prerequisite: project orders are paid through PaymentConductor before My Projects unlocks."
+/>
+
+<RelatedArticle
+  slug="development/ring-mcp"
+  relation="Depends-on: agents may write project vaults via ring-wiki-* while Reggie stays plan-only on deploy."
+/>
+
+</RelatedDocs>

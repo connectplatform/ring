@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Credit transaction type enum
  */
-export const CreditTransactionType = z.enum([
+export const CreditBalanceTransactionType = z.enum([
   'payment',
   'reward_credit_add',
   'reimbursement',
@@ -17,7 +17,7 @@ export const CreditTransactionType = z.enum([
   'desk_refund',
 ]);
 
-export type CreditTransactionType = z.infer<typeof CreditTransactionType>;
+export type CreditBalanceTransactionType = z.infer<typeof CreditBalanceTransactionType>;
 
 /**
  * Credit transaction schema for individual balance changes
@@ -25,10 +25,10 @@ export type CreditTransactionType = z.infer<typeof CreditTransactionType>;
 export const CreditTransactionSchema = z.object({
   id: z.string(),
   user_id: z.string(),
-  type: CreditTransactionType,
+  type: CreditBalanceTransactionType,
   amount: z.string().regex(/^-?\d+(\.\d+)?$/, 'Amount must be a valid number string'),
-  usd_rate: z.string().regex(/^\d+(\.\d+)?$/, 'USD rate must be a positive number string'),
-  usd_equivalent: z.string().regex(/^-?\d+(\.\d+)?$/, 'USD equivalent must be a valid number string'),
+  main_currency_rate: z.string().regex(/^\d+(\.\d+)?$/, 'USD rate must be a positive number string'),
+  main_currency_equivalent: z.string().regex(/^-?\d+(\.\d+)?$/, 'USD equivalent must be a valid number string'),
   balance_after: z.string().regex(/^\d+(\.\d+)?$/, 'Balance after must be a positive number string'),
   timestamp: z.number().int().positive(),
   description: z.string().min(1).max(500),
@@ -46,9 +46,9 @@ export type CreditTransaction = z.infer<typeof CreditTransactionSchema>;
 export const UserCreditBalanceSchema = z.object({
   /** Fiat balance amount (USD on ring-platform.org) — never RING denomination */
   amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a positive number string'),
-  usd_equivalent: z.string().regex(/^\d+(\.\d+)?$/, 'USD equivalent must be a positive number string'),
+  main_currency_equivalent: z.string().regex(/^\d+(\.\d+)?$/, 'USD equivalent must be a positive number string'),
   /** Fiat currency code — defaults to USD when absent on legacy rows */
-  fiat_currency: z.string().optional(),
+  main_currency: z.string().optional(),
   last_updated: z.number().int().positive(),
   last_transaction_id: z.string().optional(),
   subscription_active: z.boolean().default(false),
@@ -79,14 +79,16 @@ export type UserProfileWithCredits = z.infer<typeof UserProfileWithCreditsSchema
 /**
  * Credit operation request schemas for API endpoints
  */
-export const CreditTopUpRequestSchema = z.object({
+export const CreditBalanceTopUpRequestSchema = z.object({
   amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a positive number string'),
   description: z.string().min(1).max(200),
   tx_hash: z.string().optional(),
+  /** Stable idempotency key (e.g. task_escrow_release_${id}) — refuse duplicate credit. */
+  reference_id: z.string().optional(),
   metadata: z.record(z.any(), z.any()).optional(),
 });
 
-export type CreditTopUpRequest = z.infer<typeof CreditTopUpRequestSchema>;
+export type CreditBalanceTopUpRequest = z.infer<typeof CreditBalanceTopUpRequestSchema>;
 
 export const CreditSpendRequestSchema = z.object({
   amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a positive number string'),
@@ -104,7 +106,7 @@ export type CreditSpendRequest = z.infer<typeof CreditSpendRequestSchema>;
 export const CreditBalanceResponseSchema = z.object({
   balance: z.object({
     amount: z.string(),
-    usd_equivalent: z.string(),
+    main_currency_equivalent: z.string(),
     last_updated: z.number(),
   }),
   subscription: z.object({
@@ -128,7 +130,7 @@ export type CreditBalanceResponse = z.infer<typeof CreditBalanceResponseSchema>;
 export const CreditHistoryRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
   after_id: z.string().optional(),
-  type: CreditTransactionType.nullish().optional(),
+  type: CreditBalanceTransactionType.nullish().optional(),
   start_date: z.number().int().optional(),
   end_date: z.number().int().optional(),
 });

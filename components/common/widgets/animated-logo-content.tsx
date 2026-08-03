@@ -6,12 +6,14 @@ import EarthIcon from './earth-icon'
 
 export interface AnimatedLogoContentProps {
   size?: number // Canvas render size (default: 77)
+  vibrant?: boolean
 }
 
-const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) => {
+const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77, vibrant = false }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const { scene, camera, renderer, ring, waterRingMaterial, particles } = useMemo(() => {
+  const { scene, camera, renderer, ring, waterRingMaterial, particles, vibrant: isVibrant } =
+    useMemo(() => {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas: document.createElement('canvas') })
@@ -24,7 +26,7 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
     scene.add(ring)
 
     // Particles
-    const particleCount = 2000
+    const particleCount = vibrant ? 2800 : 2000
     const particleGeometry = new THREE.BufferGeometry()
     const positions = new Float32Array(particleCount * 3)
     const colors = new Float32Array(particleCount * 3)
@@ -35,10 +37,16 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
       const radius = 0.8 + Math.cos(angle * 8) * 0.08 // Adjusted radius
       positions[i3] = Math.cos(angle) * radius
       positions[i3 + 1] = Math.sin(angle) * radius
-      positions[i3 + 2] = (Math.random() - 0.5) * 0.1 // Reduced depth
+      positions[i3 + 2] = (Math.random() - 0.5) * (vibrant ? 0.18 : 0.1)
 
-      const hue = (i / particleCount) * 0.3 + 0.1
-      const color = new THREE.Color().setHSL(hue, 0.8, 0.5 + Math.random() * 0.3)
+      const hue = vibrant
+        ? (i / particleCount) * 1.0
+        : (i / particleCount) * 0.3 + 0.1
+      const color = new THREE.Color().setHSL(
+        hue,
+        vibrant ? 1.0 : 0.8,
+        vibrant ? 0.55 + Math.random() * 0.35 : 0.5 + Math.random() * 0.3,
+      )
       colors[i3] = color.r
       colors[i3 + 1] = color.g
       colors[i3 + 2] = color.b
@@ -48,7 +56,7 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
     particleGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
     
     const particleMaterial = new THREE.PointsMaterial({
-      size: 0.02, // Increased particle size
+      size: vibrant ? 0.028 : 0.02,
       vertexColors: true,
       blending: THREE.AdditiveBlending,
       transparent: true,
@@ -63,6 +71,7 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
       uniforms: {
         time: { value: 0 },
         resolution: { value: new THREE.Vector2() },
+        vibrant: { value: vibrant ? 1.0 : 0.0 },
       },
       vertexShader: `
         uniform float time;
@@ -116,6 +125,7 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
       fragmentShader: `
         uniform float time;
         uniform vec2 resolution;
+        uniform float vibrant;
         varying vec2 vUv;
         varying float vElevation;
 
@@ -123,19 +133,31 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
         vec3 blue = vec3(0.0, 0.5, 1.0);
         vec3 green = vec3(0.0, 0.8, 0.2);
         vec3 brown = vec3(0.6, 0.3, 0.0);
+        vec3 magenta = vec3(1.0, 0.1, 0.75);
+        vec3 cyan = vec3(0.05, 0.95, 1.0);
+        vec3 orange = vec3(1.0, 0.45, 0.05);
+        vec3 violet = vec3(0.55, 0.15, 1.0);
+        vec3 lime = vec3(0.55, 1.0, 0.15);
+        vec3 hotpink = vec3(1.0, 0.25, 0.55);
 
         void main() {
-          float t = sin(time * 0.5) * 0.5 + 0.5;
+          float t = sin(time * (0.5 + vibrant * 1.2)) * 0.5 + 0.5;
           float angle = atan(vUv.y - 0.5, vUv.x - 0.5);
-          float segment = floor(mod(angle / (3.14159 * 2.0) * 6.0, 6.0));
+          float segs = mix(6.0, 10.0, vibrant);
+          float segment = floor(mod(angle / (3.14159 * 2.0) * segs + time * vibrant * 0.8, segs));
           
           vec3 color1 = mix(yellow, blue, sin(time + segment) * 0.5 + 0.5);
           vec3 color2 = mix(green, brown, cos(time * 1.2 + segment * 0.5) * 0.5 + 0.5);
+          vec3 vivid1 = mix(magenta, cyan, sin(time * 1.4 + segment) * 0.5 + 0.5);
+          vec3 vivid2 = mix(orange, violet, cos(time * 1.7 + segment * 0.7) * 0.5 + 0.5);
+          vec3 vivid3 = mix(lime, hotpink, sin(time * 2.1 + segment * 1.1) * 0.5 + 0.5);
           
           vec3 baseColor = mix(color1, color2, t);
+          vec3 vividBase = mix(mix(vivid1, vivid2, t), vivid3, sin(time * 0.9 + segment) * 0.5 + 0.5);
+          baseColor = mix(baseColor, vividBase, vibrant);
           
-          float waterEffect = sin(vElevation * 10.0 + time * 2.0) * 0.5 + 0.5;
-          vec3 waterColor = mix(baseColor, vec3(0.0, 0.7, 1.0), waterEffect * 0.3);
+          float waterEffect = sin(vElevation * 10.0 + time * (2.0 + vibrant * 3.0)) * 0.5 + 0.5;
+          vec3 waterColor = mix(baseColor, mix(vec3(0.0, 0.7, 1.0), cyan, vibrant), waterEffect * (0.3 + vibrant * 0.25));
           
           gl_FragColor = vec4(waterColor, 1.0);
         }
@@ -144,8 +166,8 @@ const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) 
     const torus = new THREE.Mesh(torusGeometry, waterRingMaterial)
     ring.add(torus)
 
-return { scene, camera, renderer, ring, waterRingMaterial, particles }
-  }, [size])
+return { scene, camera, renderer, ring, waterRingMaterial, particles, vibrant }
+  }, [size, vibrant])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -153,14 +175,16 @@ return { scene, camera, renderer, ring, waterRingMaterial, particles }
     // Replace the canvas element
     canvasRef.current.replaceWith(renderer.domElement)
 
+    const spin = isVibrant ? 0.0014 : 0.001
+    const swirl = isVibrant ? 0.00016 : 0.0001
+
     const animate = (time: number) => {
       requestAnimationFrame(animate)
 
-      ring.rotation.z = time * 0.001
+      ring.rotation.z = time * spin
 
       const positions = particles.geometry.attributes.position as THREE.BufferAttribute
       for (let i = 0; i < positions.count; i++) {
-        const i3 = i * 3
         const x = positions.getX(i)
         const y = positions.getY(i)
         const z = positions.getZ(i)
@@ -168,9 +192,9 @@ return { scene, camera, renderer, ring, waterRingMaterial, particles }
         const radius = Math.sqrt(x * x + y * y)
         positions.setXYZ(
           i,
-          radius * Math.cos(angle + time * 0.0001 + Math.sin(time * 0.0002 + radius) * 0.1),
-          radius * Math.sin(angle + time * 0.0001 + Math.sin(time * 0.0002 + radius) * 0.1),
-          z + Math.sin(time * 0.001 + z * 2) * 0.02
+          radius * Math.cos(angle + time * swirl + Math.sin(time * 0.0002 + radius) * 0.1),
+          radius * Math.sin(angle + time * swirl + Math.sin(time * 0.0002 + radius) * 0.1),
+          z + Math.sin(time * 0.001 + z * 2) * (isVibrant ? 0.035 : 0.02),
         )
       }
       positions.needsUpdate = true
@@ -182,7 +206,7 @@ return { scene, camera, renderer, ring, waterRingMaterial, particles }
     animate(0)
 
     return () => {}
-  }, [scene, camera, renderer, ring, waterRingMaterial, particles])
+  }, [scene, camera, renderer, ring, waterRingMaterial, particles, isVibrant])
   return <canvas ref={canvasRef} />
 }
 

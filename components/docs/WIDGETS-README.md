@@ -18,6 +18,10 @@ SSOT for **ring-widgets** (reusable React UI blocks) and **ring-docs-widgets** (
 
 **Retired (do not author or link):** `docs/content/{locale}/library/`, URL segment `/docs/library/`.
 
+**Typography SSOT:** `lib/docs/markdown-prose-classes.ts` — Tailwind class tokens for MDX element map + changelog GFM mods. Do **not** install `@tailwindcss/typography`.
+
+**Changelog UI SSOT:** append-only `docs/{locale}/changelog.json` (`[{ date, version, mods[] }]`) rendered on `/changelog` as DaVinci-glass cards via `lib/docs/render-gfm-mod.tsx` (React GFM — no `dangerouslySetInnerHTML`). Route is **`force-static`** (build-time prerender per locale). Root `CHANGELOG.md` is **deprecated for UI** — points readers to https://ring-platform.org/changelog. No CRUD UI.
+
 Client-only widgets show a pulse placeholder during SSR (`mdx-heavy-components.tsx`). Prefer **`locale="uk"`** / **`locale="ru"`** props on visual widgets when the MDX page is translated but copy is embedded in the component.
 
 ## Table of Contents
@@ -34,6 +38,8 @@ Client-only widgets show a pulse placeholder during SSR (`mdx-heavy-components.t
 10. [Authoring rules](#authoring-rules)
 11. [Adding a new widget](#adding-a-new-widget)
 12. [Related docs](#related-docs)
+13. [RelatedArticle widget](#relatedarticle-widget)
+14. [Adding a new widget](#adding-a-new-widget)
 
 ---
 
@@ -93,8 +99,9 @@ Client-only widgets show a pulse placeholder during SSR (`mdx-heavy-components.t
 | **Mermaid** | `mermaid.tsx` | No | Flowchart, sequence, mindmap, etc. — JSX or fenced ` ```mermaid `. Serialized render queue in `lib/mermaid-render.ts`. |
 | **MindMap** | `mindmap.tsx` | No | Thin alias: wraps `<Mermaid type="mindmap">` with `mindmap` root normalization. |
 | **Math** | `math.tsx` | No | Inline KaTeX. |
-| **MathBlock** | `math.tsx` | No | Display-mode KaTeX block. |
-| **CodeSandbox** | `code-sandbox.tsx` | No | Sandpack live editor — `code`, `files`, `template`, `showPreview`, `title`. |
+| **MathBlock** / display **Math** | `math.tsx` | No | Display KaTeX inside `DiagramViewer` (`compact`, fullscreen zoom + theme + **Copy** LaTeX). SVG copy skipped (KaTeX is HTML/MathML). |
+| **DiagramViewer** | `diagram-viewer.tsx` | No | Fullscreen zoom/pan/theme chrome for Mermaid + display Math. Optional `copyText`. |
+| **CodeSandbox** | `code-sandbox.tsx` | No | Sandpack live editor — `code`, `files`, `template`, `showPreview`, `title`. Outer `overflow-x-auto` under docs shell. |
 
 **Mermaid mindmap rules:** one `root((…))` node; no `<br/>` inside root circles; indent children under category headers. See `AI-CONTEXT/concepts/ring-docs.nodus.json` → `Mermaid.render_contract`.
 
@@ -240,6 +247,51 @@ Not part of MDX or `docsMdxComponents`. Register the custom element in the host 
 
 ---
 
+## RelatedArticle widget
+
+**Preferred “Related documentation” block** for feature/API articles.
+
+```mdx
+<RelatedDocs>
+
+<RelatedArticle
+  slug="features/admin"
+  relation="Next-step: open the Admin console nav SSOT after you understand Wiki vaults."
+/>
+
+<RelatedArticle
+  slug="features/owner-project-lab"
+  relation="Same-workflow: project vaults attach to buyer/integrator Order Lab desks."
+/>
+
+</RelatedDocs>
+```
+
+| Prop | Meaning |
+|------|---------|
+| `slug` | Library-relative path (no locale, no `/docs`, no `.mdx`) — e.g. `features/admin-wiki`. Widget resolves **Article Title** from EN frontmatter. |
+| `relation` | One concrete reader-facing reason to continue (not a bare enum label). |
+| `title?` | Optional override if frontmatter title is wrong. |
+
+### Ring relation tree (authoring vocabulary)
+
+Free-text `relation` is SSOT for the reader. When useful, embed these verbs naturally:
+
+| Verb | Reader intent |
+|------|----------------|
+| **prerequisite** | Read this before the current article lands |
+| **next-step** | Natural continuation of the same journey |
+| **deep-dive** | More technical / API depth on the same topic |
+| **same-workflow** | Same operator desk or clone workflow |
+| **depends-on** | Technical module this feature relies on |
+| **see-also** | Loosely related; optional context |
+
+Do **not** use bare `relation="see-also"` — write a sentence the reader can act on.
+
+`Cards` / `Card` remain valid for hub indexes and non-related navigation. Prefer `RelatedDocs` + `RelatedArticle` for end-of-article related blocks.
+
+---
+
 ## Related docs
 
 - [Doc System feature](/docs/features/doc-system) — author-facing gallery and pipeline
@@ -251,9 +303,9 @@ Not part of MDX or `docsMdxComponents`. Register the custom element in the host 
 
 ## Full MDX registry (quick index)
 
-Alphabetical list of tags in `docsMdxComponents` as of 2026-06-22 (31 tags):
+Alphabetical list of tags in `docsMdxComponents` (includes RelatedArticle / RelatedDocs):
 
-`Audience` · `Callout` · `Card` · `Cards` · `Code` · `CodeSandbox` · `Math` · `MathBlock` · `Mermaid` · `MindMap` · `RingAISynapseFlow` · `RingApiTree` · `RingCollectiveIntelligenceLoop` · `RingDeploymentPaths` · `RingFeatureEcosystem` · `RingGatewayBridge` · `RingHumanityVision` · `RingIntegrationPlanesHub` · `RingMatcherOrchestration` · `RingProblemSolvingEvolution` · `RingWidgetsContact` · `RingWelcomeFeatureExplorer` · `Step` · `Steps` · `Tab` · `Tabs` · `Timeline` · `UiCard` · `UiCardContent` · `UiCardDescription` · `UiCardHeader` · `UiCardTitle`
+`Audience` · `Callout` · `Card` · `Cards` · `Code` · `CodeSandbox` · `FutureFeatureBacklog` · `FutureFeatureWidget` · `Math` · `MathBlock` · `Mermaid` · `MindMap` · `RelatedArticle` · `RelatedDocs` · `RingAISynapseFlow` · `RingApiTree` · `RingCollectiveIntelligenceLoop` · `RingDeploymentPaths` · `RingFeatureEcosystem` · `RingGatewayBridge` · `RingHumanityVision` · `RingIntegrationPlanesHub` · `RingMatcherOrchestration` · `RingProblemSolvingEvolution` · `RingWidgetsContact` · `RingWelcomeFeatureExplorer` · `Step` · `Steps` · `Tab` · `Tabs` · `Timeline` · `UiCard` · `UiCardContent` · `UiCardDescription` · `UiCardHeader` · `UiCardTitle`
 
 
 **Site barrel exports:** `RingWidgetsContact` · `PublisherGetStartedFlow` · `RingIntegrationPlanesHub` · `RingApiTree` · `RingWelcomeFeatureExplorer` · `RingWalletBalance`

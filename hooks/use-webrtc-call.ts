@@ -18,6 +18,8 @@ import type {
   CallPhase,
   CallSignalPayload,
 } from '@/features/chat/lib/call-types'
+import { emitConversationMessage } from '@/features/chat/lib/conversation-message-events'
+import type { Message } from '@/features/chat/types'
 import type { TunnelMessage } from '@/lib/tunnel/types'
 
 function newCallId(selfId: string, peerId: string) {
@@ -134,7 +136,7 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
       const call = callIdRef.current
       if (!cid || !call) return
       try {
-        await apiClient.post(
+        const res = await apiClient.post(
           `/api/conversations/${cid}/call-event`,
           {
             callId: call,
@@ -143,6 +145,10 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
           },
           { timeout: 8000, retries: 0 },
         )
+        const message = (res.data as { message?: Message } | undefined)?.message
+        if (res.success && message && message.id) {
+          emitConversationMessage(cid, message)
+        }
       } catch {
         /* non-fatal */
       }
@@ -351,6 +357,10 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
         if (!inviteRes.success) {
           throw new Error(inviteRes.error || 'Invite failed')
         }
+        const systemMessage = (inviteRes.data as { message?: Message } | undefined)?.message
+        if (systemMessage?.id) {
+          emitConversationMessage(conversationId, systemMessage)
+        }
         return { ok: true }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to start call'
@@ -446,15 +456,14 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
     const cid = callIdRef.current
     const wasActive = phaseRef.current !== 'idle' && phaseRef.current !== 'ended'
     if (cid && selfId && wasActive) {
-      try {
-        await signal('call:hangup', {
-          callId: cid,
-          fromUserId: selfId,
-          media: mediaRef.current,
-        })
-      } catch {
+      // Fire-and-forget hangup signal — do not block call-event / system line on stalled tunnel.
+      void signal('call:hangup', {
+        callId: cid,
+        fromUserId: selfId,
+        media: mediaRef.current,
+      }).catch(() => {
         /* ignore */
-      }
+      })
       void recordCallEnded('ended')
     }
     setPhase('ended')

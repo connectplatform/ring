@@ -136,7 +136,7 @@ export default function WalletPageClient({
       <WalletBalanceHero
         locale={locale}
         creditAmount={tokenBalance?.amount ?? '0'}
-        creditUsdEquivalent={tokenBalance?.usd_equivalent}
+        creditUsdEquivalent={tokenBalance?.main_currency_equivalent}
         wallets={wallets}
         walletsLoading={walletsLoading}
         selectedScope={scope}

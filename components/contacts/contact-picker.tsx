@@ -39,6 +39,16 @@ export interface ContactPickerProps {
   /** Controlled selected user ids for multi mode */
   selectedUserIds?: string[]
   onSelectedUserIdsChange?: (ids: string[]) => void
+  /** Contact row layout (inline = one-line avatar + name + @username) */
+  itemLayout?: 'stacked' | 'inline'
+  /** Hide wallet address on cards */
+  hideWalletAddress?: boolean
+  /** Hide multi-select badge chips (parent may render its own summary row) */
+  hideSelectionChips?: boolean
+  /** Allow confirm with zero selections (e.g. revoke all trustees) */
+  allowEmptyConfirm?: boolean
+  /** Extra classes for each selectable contact row button */
+  itemClassName?: string
 }
 
 function selectionUserId(selection: ContactPickerSelection): string {
@@ -59,6 +69,11 @@ export default function ContactPicker({
   confirmLabel,
   selectedUserIds: controlledSelected,
   onSelectedUserIdsChange,
+  itemLayout = 'stacked',
+  hideWalletAddress = false,
+  hideSelectionChips = false,
+  allowEmptyConfirm = false,
+  itemClassName,
 }: ContactPickerProps) {
   const tMessenger = useTranslations('modules.messenger')
   const tContacts = useTranslations('modules.contacts')
@@ -124,6 +139,21 @@ export default function ContactPicker({
     [results, excluded, sortByRecency],
   )
 
+  const savedUserIds = useMemo(
+    () => new Set(savedContacts.map((c) => c.contactUserId)),
+    [savedContacts],
+  )
+
+  const contactSearchHits = useMemo(
+    () => filteredResults.filter((u) => savedUserIds.has(u.id)),
+    [filteredResults, savedUserIds],
+  )
+
+  const nonContactSearchHits = useMemo(
+    () => filteredResults.filter((u) => !savedUserIds.has(u.id)),
+    [filteredResults, savedUserIds],
+  )
+
   const toggleMulti = (selection: ContactPickerSelection) => {
     const id = selectionUserId(selection)
     const next = selectedIds.includes(id)
@@ -179,7 +209,7 @@ export default function ContactPicker({
 
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
-      {isMulti && selectedIds.length > 0 && (
+      {isMulti && !hideSelectionChips && selectedIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedIds.map((id) => {
             const sel = selectionMap[id]
@@ -224,8 +254,9 @@ export default function ContactPicker({
                   type="button"
                   variant="ghost"
                   className={cn(
-                    'h-auto w-full justify-start px-2 py-2',
+                    'h-auto w-full justify-start rounded-lg px-1.5 py-1',
                     selected && 'bg-accent',
+                    itemClassName,
                   )}
                   onClick={() => handleContactSelect(contact)}
                 >
@@ -234,11 +265,13 @@ export default function ContactPicker({
                     name={contact.displayName}
                     username={contact.username}
                     photoURL={contact.photoURL}
-                    address={contact.walletAddress}
+                    address={hideWalletAddress || itemLayout === 'inline' ? null : contact.walletAddress}
                     isFavorite={contact.isFavorite}
                     isVerified={Boolean(contact.isVerified)}
                     linkToProfile={false}
                     compact
+                    layout={itemLayout}
+                    hideAddress={hideWalletAddress || itemLayout === 'inline'}
                     actions={
                       isMulti && selected ? (
                         <Check className="h-4 w-4 shrink-0 text-primary" />
@@ -264,17 +297,23 @@ export default function ContactPicker({
             {tMessenger('noUsersFound')}
           </p>
         )}
-        {filteredResults.map((user) => {
+        {term.trim().length >= 2 && contactSearchHits.length > 0 && (
+          <p className="px-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {tContacts('savedContacts')}
+          </p>
+        )}
+        {contactSearchHits.map((user) => {
           const isPending = pendingUserId === user.id
           const selected = selectedIds.includes(user.id)
           return (
             <Button
-              key={user.id}
+              key={`contact-hit-${user.id}`}
               type="button"
               variant="ghost"
               className={cn(
-                'h-auto w-full justify-start px-2 py-2',
+                'h-auto w-full justify-start rounded-lg px-1.5 py-1',
                 selected && 'bg-accent',
+                itemClassName,
               )}
               disabled={isPending}
               onClick={() => handleUserSelect(user)}
@@ -287,6 +326,50 @@ export default function ContactPicker({
                 isVerified={user.isVerified}
                 linkToProfile={false}
                 compact
+                layout={itemLayout}
+                hideAddress
+                actions={
+                  isPending ? (
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  ) : isMulti && selected ? (
+                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                  ) : undefined
+                }
+              />
+            </Button>
+          )
+        })}
+        {term.trim().length >= 2 && nonContactSearchHits.length > 0 && (
+          <p className="px-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {tContacts('notYourContacts')}
+          </p>
+        )}
+        {nonContactSearchHits.map((user) => {
+          const isPending = pendingUserId === user.id
+          const selected = selectedIds.includes(user.id)
+          return (
+            <Button
+              key={user.id}
+              type="button"
+              variant="ghost"
+              className={cn(
+                'h-auto w-full justify-start rounded-lg px-1.5 py-1',
+                selected && 'bg-accent',
+                itemClassName,
+              )}
+              disabled={isPending}
+              onClick={() => handleUserSelect(user)}
+            >
+              <ContactCard
+                locale={locale}
+                name={user.name}
+                username={user.username}
+                photoURL={user.photoURL}
+                isVerified={user.isVerified}
+                linkToProfile={false}
+                compact
+                layout={itemLayout}
+                hideAddress
                 actions={
                   isPending ? (
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -304,7 +387,7 @@ export default function ContactPicker({
         <Button
           type="button"
           className="w-full"
-          disabled={selectedIds.length === 0}
+          disabled={!allowEmptyConfirm && selectedIds.length === 0}
           onClick={confirmMultiple}
         >
           {confirmLabel || tMessenger('createGroup')}

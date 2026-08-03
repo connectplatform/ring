@@ -28,10 +28,13 @@ export async function GET(
   }
 
   const dep = await ProjectDeploymentService.getOrCreate(id)
-  const masked = ProjectDeploymentService.toMasked(dep)
+  const masked = ProjectDeploymentService.toMasked(dep, {
+    hideOwnerPrivateValues: access.role === 'integrator',
+  })
   return NextResponse.json({
     success: true,
     ...masked,
+    role: access.role,
     edgeLabels: RING_EDGES,
   })
 }
@@ -76,6 +79,15 @@ export async function PATCH(
   }
 
   if (body.envConfig) {
+    const { assertEnvPatchAllowed } = await import('@/features/crm/lab/env-key-ownership')
+    try {
+      assertEnvPatchAllowed(access.role === 'admin' ? 'admin' : 'integrator', body.envConfig)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Env write denied' },
+        { status: 403 },
+      )
+    }
     await ProjectDeploymentService.saveEnvConfig(id, body.envConfig)
   }
 
@@ -87,7 +99,10 @@ export async function PATCH(
 
   return NextResponse.json({
     success: true,
-    ...ProjectDeploymentService.toMasked(dep),
+    ...ProjectDeploymentService.toMasked(dep, {
+      hideOwnerPrivateValues: access.role === 'integrator',
+    }),
+    role: access.role,
     edgeLabels: RING_EDGES,
   })
 }

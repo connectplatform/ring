@@ -2,207 +2,267 @@
 
 /**
  * Store display currency SSOT.
- * - Base/list prices: store.defaultCurrency (via getDefaultStoreCurrencySymbol)
- * - Rail toggle: preferred fiat (supported currencies) ↔ native token (RING)
- * - Rates: ring-config.exchangeRates relative to defaultCurrency
+ * - Base/list prices: store.mainCurrency (via getMainCurrencySymbol)
+ * - Rail toggle: preferred fiat (SupportedCurrencies) ↔ native token
+ * - Rates: live FX via getLiveExchangeRates → convertViaRates; fallback convertTo/FromMainCurrency (ring-config + overlay)
  * PaymentConductor is checkout/PSP orchestration — not used for catalog price display.
+ *
+ * Type: StorePaymentMethods = SupportedCurrencies | SupportedCrypto (features/store/types).
+ * Distinct from PaymentRail (card | paypal | credit_balance | native_token).
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import type { SupportedCrypto, SupportedCurrencies } from '@/lib/ring-config-types'
+import type { SupportedCurrencies } from '@/lib/ring-config-types'
+import type { StorePaymentMethods } from '@/features/store/types'
 import {
-  getDefaultStoreCurrencySymbol,
+  getMainCurrencySymbol,
   getExchangeRates,
   getNativeTokenSymbol,
   getSupportedCurrencies,
+  convertToMainCurrency,
+  convertFromMainCurrency,
 } from '@/lib/ring-config-core'
 
-export type StoreCurrency = SupportedCrypto | SupportedCurrencies | string
+export type { StorePaymentMethods }
 
-export const DEFAULT_CURRENCY: StoreCurrency = getDefaultStoreCurrencySymbol()
-export const NATIVE_TOKEN_CURRENCY: StoreCurrency = getNativeTokenSymbol()
-export const EXCHANGE_RATES: Record<string, number> = getExchangeRates()
+export const MAIN_CURRENCY: StorePaymentMethods = getMainCurrencySymbol()
+export const NATIVE_TOKEN: StorePaymentMethods = getNativeTokenSymbol()
 
-/** Fiat codes from ring-config.currencies (user-preferred pool). */
-const FIAT_CURRENCIES: StoreCurrency[] = getSupportedCurrencies()
-
-/**
- * Legacy GreenFood token codes that may linger in localStorage carts / seeded DB rows.
- * Map to this clone's native token when no explicit exchange rate exists.
- */
-const LEGACY_CLONE_TOKEN_ALIASES: Record<string, StoreCurrency> = {
-  DAAR: NATIVE_TOKEN_CURRENCY,
-  DAARION: NATIVE_TOKEN_CURRENCY,
-}
+/** Fiat presentment/display pool — typed as SupportedCurrencies, not the wider union. */
+const FIAT_CURRENCIES: SupportedCurrencies[] = getSupportedCurrencies()
 
 /**
  * Resolve a product/list currency code to one that exists in exchangeRates.
- * Unknown / empty / legacy clone tokens → defaultCurrency (or native via alias).
+ * Unknown or empty codes fall back to the main currency.
  */
 export function resolveStorePriceCurrency(
   code?: string | null,
-): StoreCurrency {
+): StorePaymentMethods {
   const raw = (code || '').trim().toUpperCase()
-  if (!raw) return DEFAULT_CURRENCY
-  if (typeof EXCHANGE_RATES[raw] === 'number') return raw
-  const aliased = LEGACY_CLONE_TOKEN_ALIASES[raw]
-  if (aliased && typeof EXCHANGE_RATES[aliased] === 'number') return aliased
-  return DEFAULT_CURRENCY
+  if (!raw) return MAIN_CURRENCY
+  const rates = getExchangeRates()
+  if (typeof rates[raw] === 'number') return raw as StorePaymentMethods
+  return MAIN_CURRENCY
 }
 
 /**
  * Currencies the rail may display: all supported fiats + native token.
- * Only codes with a numeric exchange rate are included.
+ * Fiat codes are always listed (presentment pool); conversion soft-falls back
+ * when a live feed rate is not yet on the client static exchangeRates table.
  */
-function buildDisplayCurrencies(): StoreCurrency[] {
-  const ordered: StoreCurrency[] = []
-  const push = (code: StoreCurrency) => {
+function buildDisplayCurrencies(): StorePaymentMethods[] {
+  const rates = getExchangeRates()
+  const ordered: StorePaymentMethods[] = []
+  const push = (code: StorePaymentMethods, requireRate: boolean) => {
     if (!code || ordered.includes(code)) return
-    if (typeof EXCHANGE_RATES[code] !== 'number') return
+    if (requireRate && typeof rates[code] !== 'number') return
     ordered.push(code)
   }
-  push(DEFAULT_CURRENCY)
-  for (const c of FIAT_CURRENCIES) push(c)
-  push(NATIVE_TOKEN_CURRENCY)
-  if (ordered.length === 0) ordered.push('USD')
+  push(MAIN_CURRENCY, false)
+  for (const c of FIAT_CURRENCIES) push(c, false)
+  push(NATIVE_TOKEN, true)
+  if (ordered.length === 0) ordered.push(MAIN_CURRENCY)
   return ordered
 }
 
-const DISPLAY_CURRENCIES: StoreCurrency[] = buildDisplayCurrencies()
+const DISPLAY_CURRENCIES: StorePaymentMethods[] = buildDisplayCurrencies()
 
-function isDisplayCurrency(code: string | null | undefined): code is StoreCurrency {
-  return Boolean(code && DISPLAY_CURRENCIES.includes(code))
+function isDisplayCurrency(code: string | null | undefined): code is StorePaymentMethods {
+  return Boolean(code && DISPLAY_CURRENCIES.includes(code as StorePaymentMethods))
 }
 
-interface StoreCurrencyContextType {
-  currency: StoreCurrency
-  setCurrency: (currency: StoreCurrency) => void
+interface StorePaymentMethodsContextType {
+  currency: StorePaymentMethods
+  setCurrency: (currency: StorePaymentMethods) => void
   /** Toggle between current fiat preference and native token (or cycle fiats when already on token). */
   toggleCurrency: () => void
-  convertPrice: (amount: number, from: StoreCurrency, to: StoreCurrency) => number
-  formatPrice: (amount: number, currency: StoreCurrency) => string
-  displayPrice: (amount: number, fromCurrency?: StoreCurrency) => string
+  convertPrice: (amount: number, from: StorePaymentMethods, to: StorePaymentMethods) => number
+  formatPrice: (amount: number, currency: StorePaymentMethods) => string
+  displayPrice: (amount: number, fromCurrency?: StorePaymentMethods) => string
   /** Secondary reference currency for ≈ row (native ↔ default fiat). */
-  equivalentCurrency: StoreCurrency
-  defaultCurrency: StoreCurrency
-  nativeTokenCurrency: StoreCurrency
-  displayCurrencies: StoreCurrency[]
+  equivalentCurrency: StorePaymentMethods
+  mainCurrency: StorePaymentMethods
+  nativeTokenCurrency: StorePaymentMethods
+  displayCurrencies: StorePaymentMethods[]
 }
 
-const StoreCurrencyContext = createContext<StoreCurrencyContextType | null>(null)
+const StorePaymentMethodsContext = createContext<StorePaymentMethodsContextType | null>(null)
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  JPY: '¥',
-  CAD: '$',
-  AUD: '$',
-  BTC: '₿',
-  ETH: 'Ξ',
-  INR: '₹',
-  UAH: '₴',
-  RING: 'Ⓡ',
+/**
+ * Client-side convert mirroring ring-config-core convertTo/FromMainCurrency,
+ * using a hydrated rate table (live FX feed + static + manual from ring-oracle).
+ */
+function convertViaRates(
+  amount: number,
+  from: string,
+  to: string,
+  rates: Record<string, number>,
+  main: string,
+): number {
+  if (!Number.isFinite(amount)) return 0
+  const fromCode = (from || main).trim().toUpperCase()
+  const toCode = (to || main).trim().toUpperCase()
+  if (fromCode === toCode) return amount
+
+  const mainRate = rates[main]
+  const fromRate = rates[fromCode]
+  const toRate = rates[toCode]
+  if (
+    typeof mainRate !== 'number' ||
+    mainRate <= 0 ||
+    typeof fromRate !== 'number' ||
+    fromRate <= 0
+  ) {
+    return amount
+  }
+  const inMain = fromCode === main ? amount : (amount * mainRate) / fromRate
+  if (toCode === main) return inMain
+  if (typeof toRate !== 'number' || toRate <= 0) return inMain
+  return (inMain * toRate) / mainRate
 }
 
-export function StoreCurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrencyState] = useState<StoreCurrency>(DEFAULT_CURRENCY)
+export function StorePaymentMethodsProvider({ children }: { children: React.ReactNode }) {
+  const [currency, setCurrencyState] = useState<StorePaymentMethods>(MAIN_CURRENCY)
   const [mounted, setMounted] = useState(false)
+  /** Live FX table from ring-oracle (server action); null until hydrated. */
+  const [liveRates, setLiveRates] = useState<Record<string, number> | null>(null)
   /** Last selected fiat — used so rail toggle returns to user preference, not always default. */
-  const lastFiatRef = React.useRef<StoreCurrency>(DEFAULT_CURRENCY)
+  const lastFiatRef = React.useRef<StorePaymentMethods>(MAIN_CURRENCY)
 
   useEffect(() => {
     setMounted(true)
     if (typeof window === 'undefined') return
 
-    const savedCurrency = localStorage.getItem('ring-currency')
-    const cookieCurrency = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('ring-currency='))
-      ?.split('=')[1]
+    let cancelled = false
 
-    let preferred: StoreCurrency = DEFAULT_CURRENCY
-    if (isDisplayCurrency(cookieCurrency)) preferred = cookieCurrency
-    else if (isDisplayCurrency(savedCurrency)) preferred = savedCurrency
+    const hydrate = async () => {
+      const savedCurrency = localStorage.getItem('ring-currency')
+      const cookieCurrency = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('ring-currency='))
+        ?.split('=')[1]
 
-    if (preferred !== NATIVE_TOKEN_CURRENCY) {
-      lastFiatRef.current = preferred
+      let preferred: StorePaymentMethods = MAIN_CURRENCY
+
+      // Server preference wins when the user is signed in.
+      try {
+        const { getUserStorePreferences } = await import(
+          '@/app/_actions/store-preferences-actions'
+        )
+        const prefs = await getUserStorePreferences()
+        const serverCurrency = prefs?.preferredDisplayCurrency
+        if (serverCurrency && isDisplayCurrency(serverCurrency)) {
+          preferred = serverCurrency
+        } else if (isDisplayCurrency(cookieCurrency)) {
+          preferred = cookieCurrency
+        } else if (isDisplayCurrency(savedCurrency)) {
+          preferred = savedCurrency
+        }
+      } catch {
+        if (isDisplayCurrency(cookieCurrency)) preferred = cookieCurrency
+        else if (isDisplayCurrency(savedCurrency)) preferred = savedCurrency
+      }
+
+      // Live FX via ring-oracle SSOT — matches server checkout convert*.
+      try {
+        const { getLiveExchangeRates } = await import('@/app/_actions/fx-rates-actions')
+        const live = await getLiveExchangeRates()
+        if (!cancelled && live?.rates && typeof live.rates === 'object') {
+          setLiveRates(live.rates)
+        }
+      } catch {
+        /* static exchangeRates still apply */
+      }
+
+      if (cancelled) return
+      if (preferred !== NATIVE_TOKEN) {
+        lastFiatRef.current = preferred
+      }
+      setCurrencyState(preferred)
     }
-    setCurrencyState(preferred)
+
+    void hydrate()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const persistCurrencyPreference = (newCurrency: StoreCurrency) => {
+  const persistCurrencyPreference = (newCurrency: StorePaymentMethods) => {
     if (typeof window === 'undefined') return
     localStorage.setItem('ring-currency', newCurrency)
     document.cookie = `ring-currency=${newCurrency}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
   }
 
-  const setCurrency = useCallback((newCurrency: StoreCurrency) => {
+  const setCurrency = useCallback((newCurrency: StorePaymentMethods) => {
     if (!isDisplayCurrency(newCurrency)) {
       if (process.env.NODE_ENV !== 'production') {
-        console.error(`[StoreCurrency] Unsupported currency "${newCurrency}"`)
+        console.error(`[StorePaymentMethods] Unsupported currency "${newCurrency}"`)
       }
       return
     }
-    if (newCurrency !== NATIVE_TOKEN_CURRENCY) {
+    if (newCurrency !== NATIVE_TOKEN) {
       lastFiatRef.current = newCurrency
     }
     setCurrencyState(newCurrency)
     persistCurrencyPreference(newCurrency)
+
+    // Persist fiat preference to the user profile when signed in.
+    if (newCurrency !== NATIVE_TOKEN) {
+      void import('@/app/_actions/store-preferences-actions')
+        .then(({ updateDisplayCurrencyPreference }) =>
+          updateDisplayCurrencyPreference(newCurrency as SupportedCurrencies),
+        )
+        .catch(() => {
+          /* cookie/localStorage already written */
+        })
+    }
   }, [])
 
   const toggleCurrency = useCallback(() => {
     // Binary toggle: fiat preference ↔ native token (matches left-rail UX).
-    if (currency === NATIVE_TOKEN_CURRENCY) {
+    if (currency === NATIVE_TOKEN) {
       const fiat =
-        lastFiatRef.current !== NATIVE_TOKEN_CURRENCY && isDisplayCurrency(lastFiatRef.current)
+        lastFiatRef.current !== NATIVE_TOKEN && isDisplayCurrency(lastFiatRef.current)
           ? lastFiatRef.current
-          : DEFAULT_CURRENCY
+          : MAIN_CURRENCY
       setCurrency(fiat)
       return
     }
-    setCurrency(NATIVE_TOKEN_CURRENCY)
+    setCurrency(NATIVE_TOKEN)
   }, [currency, setCurrency])
 
+  /**
+   * Convert via main-currency bridge — same SSOT path as server convertTo/FromMainCurrency.
+   * Prefer liveRates from ring-oracle when hydrated; else static convert*.
+   */
   const convertPrice = useCallback(
-    (amount: number, from: StoreCurrency, to: StoreCurrency): number => {
-      const fromCode = resolveStorePriceCurrency(from)
-      const toCode = resolveStorePriceCurrency(to)
-
+    (amount: number, from: StorePaymentMethods, to: StorePaymentMethods): number => {
       if (typeof amount !== 'number' || Number.isNaN(amount)) {
         throw new Error('[convertPrice] Amount must be a number')
       }
+      const fromCode = resolveStorePriceCurrency(from)
+      const toCode = resolveStorePriceCurrency(to)
       if (fromCode === toCode) return amount
 
-      const fromRate = EXCHANGE_RATES[fromCode]
-      const toRate = EXCHANGE_RATES[toCode]
-      if (typeof fromRate !== 'number' || typeof toRate !== 'number') {
-        // Should be unreachable after resolveStorePriceCurrency — soft-fail for cart safety.
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[convertPrice] Exchange rate missing: from=${fromCode}, to=${toCode}`)
-        }
-        return amount
-      }
-
-      const baseAmount = amount / fromRate
-      const result = baseAmount * toRate
-      if (!(result >= 0)) {
+      const result = liveRates
+        ? convertViaRates(amount, fromCode, toCode, liveRates, MAIN_CURRENCY)
+        : convertFromMainCurrency(convertToMainCurrency(amount, fromCode), toCode)
+      if (!(result >= 0) || !Number.isFinite(result)) {
         throw new Error(`[convertPrice] Computed result invalid: ${result}`)
       }
       return result
     },
-    [],
+    [liveRates],
   )
 
-  const formatPrice = useCallback((amount: number, currencyArg: StoreCurrency): string => {
+  const formatPrice = useCallback((amount: number, currencyArg: StorePaymentMethods): string => {
     const locale = (typeof window !== 'undefined' && navigator.language) || 'en'
-    const code = currencyArg || DEFAULT_CURRENCY
-    const symbol = CURRENCY_SYMBOLS[code] || code
+    const code = currencyArg || MAIN_CURRENCY
 
-    // Native / non-ISO codes — avoid Intl currency style throwing.
-    if (code === NATIVE_TOKEN_CURRENCY || !/^[A-Z]{3}$/.test(code)) {
+    // Native token / non-ISO codes — Intl currency style would throw on these.
+    if (code === NATIVE_TOKEN || !/^[A-Z]{3}$/.test(code)) {
       const digits = Math.abs(amount) < 1e-2 || Math.abs(amount) > 1e6 ? 8 : 2
-      return `${amount.toFixed(digits)} ${symbol === code ? code : symbol}`
+      return `${amount.toFixed(digits)} ${code}`
     }
 
     try {
@@ -214,15 +274,15 @@ export function StoreCurrencyProvider({ children }: { children: React.ReactNode 
         maximumFractionDigits: 2,
       }).format(amount)
     } catch {
-      return `${symbol}${amount.toFixed(2)}`
+      return `${amount.toFixed(2)} ${code}`
     }
   }, [])
 
   const displayPrice = useCallback(
-    (amount: number, fromCurrency: StoreCurrency = DEFAULT_CURRENCY): string => {
-      const from = fromCurrency || DEFAULT_CURRENCY
+    (amount: number, fromCurrency: StorePaymentMethods = MAIN_CURRENCY): string => {
+      const from = fromCurrency || MAIN_CURRENCY
       if (!mounted) {
-        return formatPrice(amount, DEFAULT_CURRENCY)
+        return formatPrice(amount, MAIN_CURRENCY)
       }
       const price = convertPrice(amount, from, currency)
       return formatPrice(price, currency)
@@ -230,10 +290,10 @@ export function StoreCurrencyProvider({ children }: { children: React.ReactNode 
     [convertPrice, formatPrice, currency, mounted],
   )
 
-  const equivalentCurrency: StoreCurrency =
-    currency === NATIVE_TOKEN_CURRENCY ? DEFAULT_CURRENCY : NATIVE_TOKEN_CURRENCY
+  const equivalentCurrency: StorePaymentMethods =
+    currency === NATIVE_TOKEN ? MAIN_CURRENCY : NATIVE_TOKEN
 
-  const value: StoreCurrencyContextType = {
+  const value: StorePaymentMethodsContextType = {
     currency,
     setCurrency,
     toggleCurrency,
@@ -241,28 +301,28 @@ export function StoreCurrencyProvider({ children }: { children: React.ReactNode 
     convertPrice,
     displayPrice,
     equivalentCurrency,
-    defaultCurrency: DEFAULT_CURRENCY,
-    nativeTokenCurrency: NATIVE_TOKEN_CURRENCY,
+    mainCurrency: MAIN_CURRENCY,
+    nativeTokenCurrency: NATIVE_TOKEN,
     displayCurrencies: DISPLAY_CURRENCIES,
   }
 
   return (
-    <StoreCurrencyContext.Provider value={value}>{children}</StoreCurrencyContext.Provider>
+    <StorePaymentMethodsContext.Provider value={value}>{children}</StorePaymentMethodsContext.Provider>
   )
 }
 
-export function useStoreCurrency(): StoreCurrencyContextType {
-  const ctx = useContext(StoreCurrencyContext)
-  if (!ctx) throw new Error('useStoreCurrency must be used within StoreCurrencyProvider')
+export function useStorePaymentMethods(): StorePaymentMethodsContextType {
+  const ctx = useContext(StorePaymentMethodsContext)
+  if (!ctx) throw new Error('useStorePaymentMethods must be used within StorePaymentMethodsProvider')
   return ctx
 }
 
-export function useOptionalStoreCurrency(): StoreCurrencyContextType | null {
-  return useContext(StoreCurrencyContext)
+export function useOptionalStorePaymentMethods(): StorePaymentMethodsContextType | null {
+  return useContext(StorePaymentMethodsContext)
 }
 
-export function useDisplayPrice(amount: number, fromCurrency?: StoreCurrency): string {
-  const currencyContext = useOptionalStoreCurrency()
+export function useDisplayPrice(amount: number, fromCurrency?: StorePaymentMethods): string {
+  const currencyContext = useOptionalStorePaymentMethods()
   const [mounted, setMounted] = React.useState(typeof window === 'undefined' ? false : true)
   React.useEffect(() => {
     setMounted(true)

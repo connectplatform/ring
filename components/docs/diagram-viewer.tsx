@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Maximize2, Moon, Sun, X } from 'lucide-react'
+import { Check, Copy, Maximize2, Moon, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -32,6 +32,14 @@ export interface DiagramViewerProps {
   /** Shown when diagram has no visible title */
   diagramLabel?: string
   className?: string
+  /**
+   * Optional clipboard payload for the Copy control (e.g. LaTeX source).
+   * SVG export is not used — KaTeX renders HTML/MathML, not SVG.
+   */
+  copyText?: string
+  copyLabel?: string
+  /** Tighter frame for short content (e.g. KaTeX formulas). */
+  compact?: boolean
 }
 
 function useDocumentTheme() {
@@ -101,6 +109,8 @@ interface DiagramFullscreenOverlayProps {
   title?: string
   diagramLabel?: string
   children: React.ReactNode
+  copyText?: string
+  copyLabel?: string
 }
 
 function DiagramFullscreenOverlay({
@@ -109,6 +119,8 @@ function DiagramFullscreenOverlay({
   title,
   diagramLabel,
   children,
+  copyText,
+  copyLabel = 'Copy',
 }: DiagramFullscreenOverlayProps) {
   const sliderId = useId()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -116,7 +128,19 @@ function DiagramFullscreenOverlay({
   const [zoom, setZoom] = useState(ZOOM_DEFAULT)
   const [pan, setPan] = useState<PanPoint>({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { mounted, isDark, toggle } = useDocumentTheme()
+
+  const handleCopy = useCallback(async () => {
+    if (!copyText?.trim()) return
+    try {
+      await navigator.clipboard.writeText(copyText.trim())
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }, [copyText])
 
   const endDrag = useCallback((pointerId: number) => {
     dragSessionRef.current = null
@@ -231,6 +255,25 @@ function DiagramFullscreenOverlay({
         )}
       </Button>
 
+      {copyText?.trim() ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCopy}
+          aria-label={copied ? 'Copied' : copyLabel}
+          title={copied ? 'Copied!' : copyLabel}
+          className="fixed top-4 left-20 h-14 gap-2 rounded-2xl border-2 px-4 shadow-lg md:top-auto md:bottom-6 md:left-auto md:right-24"
+          style={{ zIndex: DIAGRAM_FULLSCREEN_CONTROLS_Z }}
+        >
+          {copied ? (
+            <Check className="h-5 w-5 text-green-500" aria-hidden />
+          ) : (
+            <Copy className="h-5 w-5" aria-hidden />
+          )}
+          <span className="text-sm font-medium">{copied ? 'Copied' : copyLabel}</span>
+        </Button>
+      ) : null}
+
       <DiagramZoomSlider
         id={`${sliderId}-mobile`}
         zoom={zoom}
@@ -284,9 +327,29 @@ function DiagramFullscreenOverlay({
 }
 
 /** Wraps rendered diagrams with inline chrome + optional fullscreen viewer. */
-export function DiagramViewer({ title, children, diagramLabel, className }: DiagramViewerProps) {
+export function DiagramViewer({
+  title,
+  children,
+  diagramLabel,
+  className,
+  copyText,
+  copyLabel,
+  compact = false,
+}: DiagramViewerProps) {
   const [fullscreen, setFullscreen] = useState(false)
+  const [copied, setCopied] = useState(false)
   const label = title ?? diagramLabel ?? 'Diagram'
+
+  const handleInlineCopy = useCallback(async () => {
+    if (!copyText?.trim()) return
+    try {
+      await navigator.clipboard.writeText(copyText.trim())
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }, [copyText])
 
   return (
     <>
@@ -294,18 +357,43 @@ export function DiagramViewer({ title, children, diagramLabel, className }: Diag
         {title ? (
           <figcaption className="mb-2 font-semibold text-foreground">{title}</figcaption>
         ) : null}
-        <div className="relative flex w-full min-h-[12rem] min-w-0 items-center justify-center overflow-x-auto rounded-lg border border-border bg-background p-4 md:p-6">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setFullscreen(true)}
-            aria-label={`Open ${label} in fullscreen`}
-            title="Zoom fullscreen"
-            className="absolute right-3 top-3 z-10 h-10 w-10 rounded-xl border-2 bg-background/95 shadow-sm backdrop-blur-sm"
-          >
-            <Maximize2 className="h-5 w-5" aria-hidden />
-          </Button>
+        <div
+          className={cn(
+            'relative flex w-full min-w-0 items-center justify-center overflow-x-auto rounded-lg border border-border bg-background p-4 md:p-6',
+            compact ? 'min-h-0' : 'min-h-[12rem]',
+          )}
+        >
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+            {copyText?.trim() ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleInlineCopy}
+                aria-label={copied ? 'Copied' : copyLabel ?? 'Copy'}
+                title={copied ? 'Copied!' : copyLabel ?? 'Copy'}
+                className="h-10 gap-1.5 rounded-xl border-2 bg-background/95 px-3 shadow-sm backdrop-blur-sm"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" aria-hidden />
+                ) : (
+                  <Copy className="h-4 w-4" aria-hidden />
+                )}
+                <span className="text-xs font-medium">{copied ? 'Copied' : copyLabel ?? 'Copy'}</span>
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setFullscreen(true)}
+              aria-label={`Open ${label} in fullscreen`}
+              title="Zoom fullscreen"
+              className="h-10 w-10 rounded-xl border-2 bg-background/95 shadow-sm backdrop-blur-sm"
+            >
+              <Maximize2 className="h-5 w-5" aria-hidden />
+            </Button>
+          </div>
           {children}
         </div>
       </figure>
@@ -315,6 +403,8 @@ export function DiagramViewer({ title, children, diagramLabel, className }: Diag
         onClose={() => setFullscreen(false)}
         title={title}
         diagramLabel={diagramLabel}
+        copyText={copyText}
+        copyLabel={copyLabel}
       >
         <div className="w-full min-w-[min(100vw,64rem)] max-w-none [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-w-none [&_svg]:w-full">
           {children}

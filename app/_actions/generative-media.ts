@@ -5,6 +5,9 @@ import { hasMemberPrivileges, isPlatformAdmin, resolveSessionUserRole } from '@/
 import type { GenerativeMediaScope } from '@/features/generative-media/types'
 import { deriveWebpSibling } from '@/lib/images/derive-webp'
 
+// maxDuration for long VideoConductor polls must live on route segment configs —
+// "use server" modules may only export async functions (Turbopack).
+
 async function requireActor(requireMember = false) {
   const session = await auth()
   if (!session?.user?.id) return { error: 'Unauthorized' as const }
@@ -78,7 +81,7 @@ export async function runGenMediaImageAction(input: {
   notifyIfBackground?: boolean
   actionUrl?: string
 }) {
-  const gate = await requireActor(input.scope === 'nft')
+  const gate = await requireActor(input.scope === 'nft' || input.scope === 'cabinet')
   if ('error' in gate) return { success: false as const, error: gate.error }
 
   const { runGenMediaImageTurn } = await import('@/features/generative-media/service')
@@ -86,6 +89,78 @@ export async function runGenMediaImageAction(input: {
     userId: gate.session.user!.id!,
     userName: gate.session.user!.name || gate.session.user!.username || 'Member',
     ...input,
+  })
+}
+
+export async function runGenMediaVideoAction(input: {
+  scope: GenerativeMediaScope
+  pageSlug: string
+  fieldId: string
+  entityId?: string
+  prompt: string
+  purpose?: string
+  imageUrl?: string
+  referenceImageUrls?: string[]
+  notifyIfBackground?: boolean
+  actionUrl?: string
+}) {
+  const gate = await requireActor(input.scope === 'nft' || input.scope === 'cabinet')
+  if ('error' in gate) return { success: false as const, error: gate.error }
+
+  const { runGenMediaVideoTurn } = await import('@/features/generative-media/service')
+  return runGenMediaVideoTurn({
+    userId: gate.session.user!.id!,
+    userName: gate.session.user!.name || gate.session.user!.username || 'Member',
+    ...input,
+  })
+}
+
+export async function startGenMediaVideoAction(input: {
+  scope: GenerativeMediaScope
+  pageSlug: string
+  fieldId: string
+  entityId?: string
+  prompt: string
+  purpose?: string
+  imageUrl?: string
+  referenceImageUrls?: string[]
+  notifyIfBackground?: boolean
+  actionUrl?: string
+}) {
+  const gate = await requireActor(input.scope === 'nft' || input.scope === 'cabinet')
+  if ('error' in gate) return { success: false as const, error: gate.error }
+
+  const { startGenMediaVideoJob } = await import('@/features/generative-media/service')
+  return startGenMediaVideoJob({
+    userId: gate.session.user!.id!,
+    userName: gate.session.user!.name || gate.session.user!.username || 'Member',
+    ...input,
+  })
+}
+
+export async function pollGenMediaVideoJobAction(input: { jobId: string }) {
+  const gate = await requireActor()
+  if ('error' in gate) return { success: false as const, error: gate.error }
+  const jobId = input.jobId?.trim()
+  if (!jobId) return { success: false as const, error: 'jobId required' }
+
+  const { pollGenMediaVideoJob } = await import('@/features/generative-media/service')
+  return pollGenMediaVideoJob({
+    userId: gate.session.user!.id!,
+    jobId,
+  })
+}
+
+export async function cancelGenMediaVideoJobAction(input: { jobId: string }) {
+  const gate = await requireActor()
+  if ('error' in gate) return { success: false as const, error: gate.error }
+  const jobId = input.jobId?.trim()
+  if (!jobId) return { success: false as const, error: 'jobId required' }
+
+  const { cancelGenMediaVideoJob } = await import('@/features/generative-media/service')
+  return cancelGenMediaVideoJob({
+    userId: gate.session.user!.id!,
+    jobId,
   })
 }
 
@@ -102,7 +177,7 @@ export async function runGhostWriteAction(input: {
     vendorName?: string
   }
 }) {
-  const gate = await requireActor(input.scope === 'nft')
+  const gate = await requireActor(input.scope === 'nft' || input.scope === 'cabinet')
   if ('error' in gate) return { success: false as const, error: gate.error }
 
   const { runGhostWrite } = await import('@/features/generative-media/service')
@@ -125,7 +200,7 @@ export async function postGenMediaUploadAction(input: {
   fileId?: string
   derivatives?: import('@/lib/file/interfaces/IFileService').MediaDerivatives
 }) {
-  const gate = await requireActor(input.scope === 'nft')
+  const gate = await requireActor(input.scope === 'nft' || input.scope === 'cabinet')
   if ('error' in gate) return { success: false as const, error: gate.error }
 
   let webpUrl: string | undefined

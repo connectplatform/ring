@@ -47,7 +47,20 @@ export interface PlatformAnalyticsSummary {
     recentNotFound: AnalyticsForensicsTrace[]
     hasData: boolean
   }
+  personalPages: {
+    unique24h: number
+    uniquePeriod: number
+    visits24h: number
+    visitsPeriod: number
+    byRole24h: Array<{ role: string; unique: number; visits: number }>
+    byRolePeriod: Array<{ role: string; unique: number; visits: number }>
+    topProfiles: Array<{ username: string; unique: number; visits: number }>
+    hasData: boolean
+  }
 }
 
-/** Platform aggregates without docs-specific queries (composed in getPlatformAnalytics). */
-export type PlatformAnalyticsCoreSummary = Omit<PlatformAnalyticsSummary, 'docs'>
+/** Platform aggregates without docs/personal-page composition queries. */
+export type PlatformAnalyticsCoreSummary = Omit<
+  PlatformAnalyticsSummary,
+  'docs' | 'personalPages'
+>

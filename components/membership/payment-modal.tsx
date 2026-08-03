@@ -24,8 +24,8 @@ import type { Locale } from '@/i18n/shared'
 import { initiateMembershipPayment } from '@/app/_actions/membership-payment'
 import { UserRolesArray } from '@/features/auth/user-role'
 import {
-  formatMembershipFiatAmount,
-  getMemberFiatTier,
+  formatMembershipMainCurrencyAmount,
+  getMemberMainCurrencyTier,
   getMembershipRingUpgradeAmount,
 } from '@/lib/membership/pricing'
 import { ROUTES } from '@/constants/routes'
@@ -49,8 +49,6 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const [selectedTab, setSelectedTab] = useState('wallet_native_token')
   const [onChainRingBalance, setOnChainRingBalance] = useState('0')
   const [onChainLoading, setOnChainLoading] = useState(true)
-  const [paypalLoading, setPaypalLoading] = useState(false)
-  const [paypalError, setPaypalError] = useState<string | null>(null)
   const paypalEnabled = process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL === 'true'
   const [formState, formAction] = useActionState(
     (state: Awaited<ReturnType<typeof initiateMembershipPayment>> | null, formData: FormData) =>
@@ -58,30 +56,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
     null,
   )
 
-  const startPayPalCheckout = async () => {
-    setPaypalError(null)
-    setPaypalLoading(true)
-    try {
-      const res = await fetch('/api/membership/payment/paypal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'membership_upgrade',
-          auto_subscribe: true,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.paymentUrl) {
-        throw new Error(data.error || data.message || 'PayPal checkout failed')
-      }
-      window.location.href = data.paymentUrl
-    } catch (e) {
-      setPaypalError(e instanceof Error ? e.message : 'PayPal checkout failed')
-      setPaypalLoading(false)
-    }
-  }
-
-  const fiatTier = getMemberFiatTier()
+  const fiatTier = getMemberMainCurrencyTier()
   const membershipRingCost = getMembershipRingUpgradeAmount()
   const walletRingAmount = parseFloat(onChainRingBalance || '0')
   const hasSufficientOnChainRing = walletRingAmount >= membershipRingCost
@@ -228,7 +203,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
             <TabsContent value="card" className="space-y-4">
               <div className="rounded-lg bg-muted p-4 text-center">
                 <div className="mb-2 flex items-center justify-center space-x-2">
-                  <span className="text-2xl font-bold">{formatMembershipFiatAmount(fiatTier)}</span>
+                  <span className="text-2xl font-bold">{formatMembershipMainCurrencyAmount(fiatTier)}</span>
                   <span className="text-sm text-muted-foreground">{fiatTier.currency}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -237,7 +212,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
               </div>
 
               <form action={formAction} className="space-y-3">
-                {formState?.error && (
+                {formState?.error && selectedTab === 'card' && (
                   <Alert className="border-red-200 bg-red-50">
                     <AlertTriangle className="h-4 w-4 text-red-600" />
                     <AlertDescription className="text-red-800">{formState.error}</AlertDescription>
@@ -248,7 +223,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                 <input type="hidden" name="paymentMethod" value="wayforpay" />
                 {returnTo && <input type="hidden" name="returnUrl" value={returnTo} />}
 
-                <SubmitCardButton
+                <SubmitRailButton
                   label={t('payment.fiat_details.proceed', { defaultValue: 'Proceed to Card Payment' })}
                 />
               </form>
@@ -257,7 +232,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
             <TabsContent value="paypal" className="space-y-4">
               <div className="rounded-lg bg-muted p-4 text-center">
                 <div className="mb-2 flex items-center justify-center space-x-2">
-                  <span className="text-2xl font-bold">{formatMembershipFiatAmount(fiatTier)}</span>
+                  <span className="text-2xl font-bold">{formatMembershipMainCurrencyAmount(fiatTier)}</span>
                   <span className="text-sm text-muted-foreground">{fiatTier.currency}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -266,27 +241,29 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                   })}
                 </p>
               </div>
-              {paypalError && (
-                <Alert className="border-red-200 bg-red-50">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800">{paypalError}</AlertDescription>
-                </Alert>
-              )}
-              <Button
-                className="w-full"
-                disabled={!paypalEnabled || paypalLoading}
-                onClick={() => void startPayPalCheckout()}
-                data-testid="button-membership-pay-paypal"
-              >
-                <ArrowRight className="mr-2 h-4 w-4" />
-                {paypalLoading
-                  ? t('payment.paypal.redirecting', { defaultValue: 'Redirecting…' })
-                  : paypalEnabled
-                    ? t('payment.paypal.pay_now', { defaultValue: 'Pay with PayPal' })
-                    : t('payment.paypal.disabled', {
-                        defaultValue: 'PayPal disabled (set NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true)',
-                      })}
-              </Button>
+              <form action={formAction} className="space-y-3">
+                {formState?.error && selectedTab === 'paypal' && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800">{formState.error}</AlertDescription>
+                  </Alert>
+                )}
+                <input type="hidden" name="targetRole" value={UserRolesArray.member} />
+                <input type="hidden" name="paymentMethod" value="paypal" />
+                {returnTo && <input type="hidden" name="returnUrl" value={returnTo} />}
+                <SubmitRailButton
+                  label={
+                    paypalEnabled
+                      ? t('payment.paypal.pay_now', { defaultValue: 'Pay with PayPal' })
+                      : t('payment.paypal.disabled', {
+                          defaultValue:
+                            'PayPal disabled (set NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true)',
+                        })
+                  }
+                  disabled={!paypalEnabled}
+                  dataTestId="button-membership-pay-paypal"
+                />
+              </form>
             </TabsContent>
           </Tabs>
 
@@ -312,10 +289,18 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   )
 }
 
-function SubmitCardButton({ label }: { label: string }) {
+function SubmitRailButton({
+  label,
+  disabled,
+  dataTestId,
+}: {
+  label: string
+  disabled?: boolean
+  dataTestId?: string
+}) {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" className="w-full" disabled={pending}>
+    <Button type="submit" className="w-full" disabled={pending || disabled} data-testid={dataTestId}>
       {pending ? (
         <>
           <ArrowRight className="mr-2 h-4 w-4 animate-pulse" />

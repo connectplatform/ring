@@ -14,3 +14,4 @@ export {
   getGoogleConfig,
   getXaiConfig,
 } from '@/lib/images/image.config'
+export { toImageDataUri, fileToImageDataUri } from '@/lib/images/to-image-data-uri'

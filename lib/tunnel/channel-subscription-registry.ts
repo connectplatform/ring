@@ -11,6 +11,10 @@
  * - Postgres LISTEN/NOTIFY bridge for k8s-postgres mode (replace in-process-only fan-out)
  * - Subscribe/unsubscribe telemetry endpoint for ops (duplicate /api/tunnel/subscribe detection)
  * - Optional: migrate useSync tunnel leg fully to useTunnelChannel
+ *
+ * Done 2026-07-21 (Tunnel User Channel Upgrade): call-invite/call-event return Message for
+ * local thread append; syncDiscovery optional snippet; entity detail/confidential/my live;
+ * useCreditBalance useEffectEvent parity with WalletListProvider.
  */
 
 import type { TunnelMessage, TunnelSubscription } from '@/lib/tunnel/types'

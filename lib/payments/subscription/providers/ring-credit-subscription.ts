@@ -26,9 +26,16 @@ export const ringCreditSubscriptionProvider: SubscriptionProviderModule = {
 
   async createSubscription(input: CreateSubscriptionInput): Promise<CreateSubscriptionResult> {
     try {
-      // Delegate to the existing credit-balance subscription service.
-      // It handles: balance check → deduct → create ring_subscriptions row → update user profile
-      const result = await subscriptionService.createSubscription(input.userId)
+      // Delegate to credit-balance subscription service (SSOT amount from Conductor input).
+      // skipCharge when caller already deducted (metadata.prePaid / tx_hash style).
+      const skipCharge =
+        input.metadata?.prePaid === true ||
+        Boolean(input.metadata?.tx_hash) ||
+        Boolean(input.metadata?.credit_tx_id)
+      const result = await subscriptionService.createSubscription(input.userId, {
+        amount: input.amount,
+        skipCharge,
+      })
 
       if (!result.success) {
         return { success: false, error: 'Credit subscription creation failed' }
@@ -36,12 +43,16 @@ export const ringCreditSubscriptionProvider: SubscriptionProviderModule = {
 
       logger.info('RingCredit subscription created', {
         userId: input.userId,
+        amount: input.amount,
+        skipCharge,
         nextPaymentDue: result.subscription.next_payment_due,
       })
 
       return {
         success: true,
-        gatewayReference: result.contract_address, // RING_MEMBERSHIP_CONTRACT_ADDRESS
+        gatewayReference:
+          (typeof input.metadata?.credit_tx_id === 'string' && input.metadata.credit_tx_id) ||
+          result.contract_address,
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'

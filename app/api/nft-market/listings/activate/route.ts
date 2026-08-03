@@ -4,6 +4,7 @@ import { db } from '@/lib/database'
 import { createPublicClient, http } from 'viem'
 import { polygon } from 'viem/chains'
 import { logger } from '@/lib/logger'
+import { getEvmRpcUrl } from '@/lib/ring-config-chain'
 
 type ListingRow = Record<string, unknown> & { id: string }
 
@@ -12,7 +13,7 @@ async function verifyListingTransaction(txHash: string): Promise<{ ok: boolean; 
   try {
     const client = createPublicClient({
       chain: polygon,
-      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+      transport: http(getEvmRpcUrl()),
     })
     const receipt = await client.getTransactionReceipt({ hash: txHash as `0x${string}` })
     if (receipt.status !== 'success') return { ok: false, reason: 'Transaction reverted' }

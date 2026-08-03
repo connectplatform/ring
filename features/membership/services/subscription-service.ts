@@ -1,11 +1,25 @@
 import { SubscriptionStatus } from '@/lib/zod/credit-schemas';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
-import { nativeTokenPriceOracleService } from '@/features/wallet/services/native-token-price-oracle';
-import { getNativeChainConfig } from '@/lib/ring-config-chain';
 import { db } from '@/lib/database';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
 import { revalidatePath } from 'next/cache';
+import { getMembershipCreditAmountForPeriod } from '@/lib/membership/pricing';
+import { getCreditUnitLabel, getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance';
+
+/** Monthly membership billing window (mirrors subscription_ledger / Membership.sol). */
+const MEMBERSHIP_BILLING_PERIOD_MS = 30 * 24 * 60 * 60 * 1000
+
+function resolveCreditMembershipFee(amount?: string | number): string {
+  if (typeof amount === 'number' && Number.isFinite(amount) && amount > 0) {
+    return String(amount)
+  }
+  if (typeof amount === 'string' && parseFloat(amount) > 0) {
+    return amount
+  }
+  // SSOT: RING × credit.desk.creditBalanceUnitPerNativeToken (100 points for 1 RING)
+  return String(getMembershipCreditAmountForPeriod('monthly'))
+}
 
 // TODO: If migrating to React 19/Next.js 16, consider leveraging server actions 
 // for all mutative handlers (creation, cancellation, renewal), and caching selectors
@@ -52,7 +66,10 @@ export class SubscriptionService {
    * Create a new membership subscription for a user.
    * Throws if already active.
    */
-  async createSubscription(userId: string): Promise<SubscriptionCreationResult> {
+  async createSubscription(
+    userId: string,
+    options?: { amount?: string | number; skipCharge?: boolean },
+  ): Promise<SubscriptionCreationResult> {
     try {
       // Check for active subscription
       const existingSubscription = await this.getSubscriptionStatus(userId);
@@ -60,36 +77,29 @@ export class SubscriptionService {
         throw new Error('User already has an active subscription');
       }
 
-      const membershipFee = '1.0'; // TODO: Parameterize fee for flexibility 
+      const membershipFee = resolveCreditMembershipFee(options?.amount);
+      const accountingRate = getMainCurrencyCreditAccountingRate();
 
-      // Check if user has enough credit tokens
-      const hasSufficientBalance = await creditBalanceService.hasSufficientBalance(
-        userId,
-        membershipFee
-      );
-
-      if (!hasSufficientBalance) {
-        throw new Error('Insufficient token balance for subscription');
+      let paymentResult: { success: true; transaction: { id: string } } | undefined;
+      if (!options?.skipCharge) {
+        const hasSufficientBalance = await creditBalanceService.hasSufficientBalance(
+          userId,
+          membershipFee,
+        );
+        if (!hasSufficientBalance) {
+          throw new Error('Insufficient credit balance for subscription');
+        }
+        paymentResult = await creditBalanceService.processMembershipFee(
+          userId,
+          membershipFee,
+          accountingRate,
+        );
       }
-
-      // Retrieve the current USD price for the chain's native token
-      const priceData = await nativeTokenPriceOracleService.getNativeTokenUsdPrice(
-        Number(getNativeChainConfig().solana?.chainId)
-      );
-
-      // Process payment using membership fee and current price
-      // TODO: Replace with native server actions for atomicity if/when possible in Next.js 16
-      const paymentResult = await creditBalanceService.processMembershipFee(
-        userId,
-        membershipFee,
-        priceData.price
-      );
 
       // Construct subscription DB row
       const subscriptionId = `sub_${Date.now()}_${userId.slice(-8)}`;
       const now = Date.now();
-      // Set next payment due in 30 days
-      const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000);
+      const nextPaymentDue = now + MEMBERSHIP_BILLING_PERIOD_MS;
 
       const subscription: SubscriptionStatus = {
         user_id: userId,
@@ -117,9 +127,9 @@ export class SubscriptionService {
         await txn.update('users', userId, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
-          'membership.tier': 'MEMBER',
+          'membership.tier': 'member',
           'membership.upgraded_at': now,
-          'membership.payment_method': 'ring_credits',
+          'membership.payment_method': 'credit_balance',
           'membership.auto_renew': true,
         });
       });
@@ -130,14 +140,15 @@ export class SubscriptionService {
       logger.info('Subscription created successfully', {
         userId,
         subscriptionId,
-        initialPayment: paymentResult.transaction.id, // STUB: confirm paymentResult.transaction instance shape
+        initialPayment: paymentResult?.transaction.id,
+        membershipFee,
         nextPaymentDue,
       });
 
       return {
         success: true,
         subscription,
-        contract_address: process.env.RING_MEMBERSHIP_CONTRACT_ADDRESS || '', // Fallback to empty string
+        contract_address: process.env.RING_MEMBERSHIP_CONTRACT_ADDRESS || '',
       };
 
     } catch (error) {
@@ -218,33 +229,29 @@ export class SubscriptionService {
         throw new Error('Subscription is not due for renewal');
       }
 
-      const membershipFee = '1.0'; // TODO: Parameterize fee for flexibility
+      const membershipFee = resolveCreditMembershipFee();
+      const accountingRate = getMainCurrencyCreditAccountingRate();
 
-      // Check for sufficient wallet credit
-      const hasSufficientBalance = await creditBalanceService.hasSufficientBalance(userId, membershipFee);
+      const hasSufficientBalance = await creditBalanceService.hasSufficientBalance(
+        userId,
+        membershipFee,
+      );
 
       if (!hasSufficientBalance) {
         return {
           success: false,
-          error: `Insufficient {native_token} balance for renewal`, // TODO: Replace placeholder with symbol/label
+          error: 'Insufficient credit balance for renewal',
         };
       }
 
-      // Find live price again before payment
-      const priceData = await nativeTokenPriceOracleService.getNativeTokenUsdPrice(
-        Number(getNativeChainConfig().solana?.chainId)
-      );
-
-      // Process the payment
-      // TODO: Wrap payment + subscription update in a unified action/mutex if possible in Next 16
       const paymentResult = await creditBalanceService.processMembershipFee(
         userId,
         membershipFee,
-        priceData.price
+        accountingRate,
       );
 
       const now = Date.now();
-      const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000);
+      const nextPaymentDue = now + MEMBERSHIP_BILLING_PERIOD_MS;
 
       // Find the subscription doc to patch
       const queryResult = await db().queryDocs<SubscriptionRow & Record<string, unknown>>({

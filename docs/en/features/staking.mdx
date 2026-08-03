@@ -1,6 +1,8 @@
 ---
 title: Token Staking System
-description: White-label staking module with EVM adapter, supporting DAAR and DAARION pools with profile integration
+description: White-label staking module with EVM adapter (viem WalletClient), supporting DAAR and DAARION pools with profile integration
+last_modified: "2026-07-21"
+audience: both
 ---
 
 # Token Staking System
@@ -10,6 +12,10 @@ Complete staking system for DAAR and DAARION tokens with automated rewards, prof
 ## Overview
 
 The Ring Platform staking system enables authenticated users to stake DAAR and DAARION tokens in multiple pools to earn rewards while supporting platform governance and liquidity. The system features automated reward distribution, wrong-network protection, and optional server-side position caching.
+
+<Callout type="warning" title="App runtime is viem, not ethers">
+  The shipped EVM staking adapter (`features/staking/adapters/evm.ts`) uses a **viem `WalletClient`** injected from Wagmi — the app runtime carries **no `ethers`** in `features/`, `app/`, or `lib/`. The `ethers.*` calls in the illustrative snippets below show the on-chain operations conceptually; port them to viem (`getWalletClient`, `readContract`, `writeContract`) in real integrations. RPC and RING token addresses resolve through `getEvmRpcUrl()` / `getEvmTokenAddress()` — see [Ethereum wallets](/docs/integrations/ethereum-wallets).
+</Callout>
 
 ## Key Features
 
@@ -575,6 +581,15 @@ export async function unstakeTokens(positionId: string) {
 - [ ] Test end-to-end staking and reward flows
 - [ ] Monitor gas costs and optimize contract calls
 
----
+## Related documentation
 
-*This staking system provides a complete DeFi staking ecosystem with automated rewards and comprehensive user management.*
+<RelatedDocs>
+  <RelatedArticle
+    slug="integrations/ethereum-wallets"
+    relation="Depends-on: Wagmi v3 + viem WalletClient, getEvmRpcUrl / getEvmTokenAddress SSOT."
+  />
+  <RelatedArticle
+    slug="features/wallet"
+    relation="Same-workflow: custodial balances and credit ledger alongside on-chain stakes."
+  />
+</RelatedDocs>

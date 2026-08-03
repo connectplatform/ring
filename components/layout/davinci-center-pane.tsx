@@ -32,7 +32,8 @@ export function DavinciCenterPane({
       <HeroAmbient className="pointer-events-none absolute inset-0 opacity-30" />
       <div
         className={cn(
-          // Default padding; callers may override with Tailwind !p-* (cn does not twMerge)
+          // Default padding; mobile bottom nav clearance lives on RingRightRailLayout / RING_MOBILE_NAV_PAD.
+          // Callers may override with Tailwind !p-* (cn does not twMerge).
           'relative z-[1] flex min-h-0 flex-1 flex-col px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5',
           contentClassName,
         )}

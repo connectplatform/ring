@@ -1,14 +1,17 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, toAppHref, usePathname } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { CircleEllipsis, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
+import { QuickSearchFilter } from '@/components/common/quick-search-filter'
 import { useVendorStatus } from '@/hooks/use-vendor-status'
 import { useAdminSupermenu } from '@/features/admin/use-admin-supermenu'
+import { filterSupermenuGroups } from '@/features/admin/filter-admin-supermenu'
 import {
   useOptionalAdminSupermenuState,
 } from '@/components/navigation/admin-supermenu-context'
@@ -39,12 +42,12 @@ function LeafLink({
       onClick={onNavigate}
       data-current={active ? '' : undefined}
       className={cn(
-        'sidebar-nav-item flex h-7 min-h-7 max-h-8 items-center gap-1.5 rounded-md px-2 text-[12px] leading-tight transition-colors',
+        'sidebar-nav-item flex h-9 min-h-9 items-center gap-2 rounded-md px-2.5 text-sm leading-snug transition-colors',
         'hover:bg-foreground/5 data-current:bg-foreground/8',
         active && 'font-semibold text-primary',
       )}
     >
-      <Icon className="size-3.5 shrink-0 opacity-75" strokeWidth={1.5} />
+      <Icon className="size-4 shrink-0 opacity-80" strokeWidth={1.5} />
       <span className="truncate">{leaf.label}</span>
     </Link>
   )
@@ -60,8 +63,8 @@ function GroupColumn({
   onNavigate: () => void
 }) {
   return (
-    <section className="min-w-0">
-      <h3 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <section className={cn(davinciGlassSurface, 'min-w-0 p-3')}>
+      <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {group.title}
       </h3>
       <div className="space-y-0.5">
@@ -70,7 +73,7 @@ function GroupColumn({
             return (
               <div
                 key={entry.id}
-                className="mt-2 px-2 pt-1 text-[10px] font-medium tracking-wide text-muted-foreground/90 first:mt-0"
+                className="mt-2 px-2.5 pt-1 text-[11px] font-medium tracking-wide text-muted-foreground/90 first:mt-0"
               >
                 {entry.label}
               </div>
@@ -90,6 +93,18 @@ function GroupColumn({
   )
 }
 
+function useSupermenuFilter(open: boolean) {
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const isSearchStale = query !== deferredQuery
+
+  useEffect(() => {
+    if (!open) setQuery('')
+  }, [open])
+
+  return { query, setQuery, deferredQuery, isSearchStale }
+}
+
 /** Dense overlay to the right of the desktop sidebar — all permitted leaves visible. */
 export function AdminSupermenuOverlay() {
   const locale = useLocale() as Locale
@@ -104,9 +119,14 @@ export function AdminSupermenuOverlay() {
   })
   const open = Boolean(state?.open && hasContent)
   const close = state?.close
-  const headingRef = useRef<HTMLHeadingElement>(null)
   const pathWithQuery = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ''}`
   const panelDomId = 'admin-supermenu-panel'
+  const { query, setQuery, deferredQuery, isSearchStale } = useSupermenuFilter(open)
+
+  const filteredGroups = useMemo(
+    () => filterSupermenuGroups(groups, deferredQuery),
+    [groups, deferredQuery],
+  )
 
   useEffect(() => {
     if (!open || !close) return
@@ -117,7 +137,6 @@ export function AdminSupermenuOverlay() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, close])
 
-  // Close on route transitions (programmatic nav fallback).
   const prevPathRef = useRef(pathWithQuery)
   useEffect(() => {
     if (!state?.open) {
@@ -130,18 +149,11 @@ export function AdminSupermenuOverlay() {
     }
   }, [pathWithQuery, state])
 
-  useEffect(() => {
-    if (!open) return
-    const id = window.requestAnimationFrame(() => {
-      headingRef.current?.focus()
-    })
-    return () => window.cancelAnimationFrame(id)
-  }, [open])
-
   if (!state || !open || !close) return null
 
   const dashActive = dashboardItem ? leafIsActive(dashboardItem, pathWithQuery) : false
   const DashIcon = dashboardItem?.icon
+  const filterPlaceholder = tNav('sidebar.supermenuFilter')
 
   return (
     <div
@@ -154,9 +166,7 @@ export function AdminSupermenuOverlay() {
       <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-4 py-2.5">
         <h2
           id="admin-supermenu-title"
-          ref={headingRef}
-          tabIndex={-1}
-          className="truncate text-base font-semibold tracking-tight outline-none"
+          className="shrink-0 truncate text-base font-semibold tracking-tight"
         >
           {tNav('admin.label')}
         </h2>
@@ -168,41 +178,61 @@ export function AdminSupermenuOverlay() {
             aria-label={dashboardItem.label}
             data-current={dashActive ? '' : undefined}
             className={cn(
-              'inline-flex size-7 items-center justify-center rounded-md transition-colors',
+              'inline-flex size-8 items-center justify-center rounded-md transition-colors',
               'hover:bg-foreground/5 data-current:bg-foreground/8',
               dashActive && 'text-primary',
             )}
           >
-            <DashIcon className="size-4" strokeWidth={1.5} />
+            <DashIcon className="size-4.5" strokeWidth={1.5} />
           </Link>
         )}
-        <div className="flex-1" />
+        <QuickSearchFilter
+          className="min-w-[10rem] flex-1"
+          value={query}
+          onChange={setQuery}
+          placeholder={filterPlaceholder}
+          autoFocus
+          focusKey={open}
+          aria-label={filterPlaceholder}
+        />
         <button
           type="button"
           onClick={() => close({ restoreFocus: true })}
-          className="flex size-8 items-center justify-center rounded-full border border-border/60 bg-background/50 hover:bg-foreground/5"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/50 hover:bg-foreground/5"
           aria-label={tNav('close')}
         >
           <X className="size-4" strokeWidth={1.5} />
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:overflow-y-auto">
-        <div
-          className={cn(
-            'grid gap-x-3 gap-y-4',
-            'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
-          )}
-        >
-          {groups.map((group) => (
-            <GroupColumn
-              key={group.id}
-              group={group}
-              pathWithQuery={pathWithQuery}
-              onNavigate={() => close({ restoreFocus: false })}
-            />
-          ))}
-        </div>
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto px-3 py-3 transition-opacity',
+          isSearchStale && 'opacity-70',
+        )}
+        aria-busy={isSearchStale}
+      >
+        {filteredGroups.length === 0 && deferredQuery.trim() ? (
+          <p className="px-2 py-6 text-sm text-muted-foreground">
+            No menu items match &ldquo;{deferredQuery.trim()}&rdquo;
+          </p>
+        ) : (
+          <div
+            className={cn(
+              'grid gap-3',
+              'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+            )}
+          >
+            {filteredGroups.map((group) => (
+              <GroupColumn
+                key={group.id}
+                group={group}
+                pathWithQuery={pathWithQuery}
+                onNavigate={() => close({ restoreFocus: false })}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -278,7 +308,7 @@ export function AdminSupermenuToggle({
 }
 
 /**
- * Mobile Admin supermenu — grouped leaves above the bottom nav (z below nav).
+ * Mobile Admin supermenu — filter shares the title row; items fill remaining space.
  * Open state is owned by BottomNavigation (not desktop AdminSupermenuProvider).
  */
 export function AdminSupermenuMobile({
@@ -297,9 +327,14 @@ export function AdminSupermenuMobile({
   const { groups, dashboardItem, hasContent } = useAdminSupermenu(session?.user?.role, locale, {
     hasVendor,
   })
-  const headingRef = useRef<HTMLHeadingElement>(null)
   const pathWithQuery = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ''}`
   const prevPathRef = useRef(pathWithQuery)
+  const { query, setQuery, deferredQuery, isSearchStale } = useSupermenuFilter(open)
+
+  const filteredGroups = useMemo(
+    () => filterSupermenuGroups(groups, deferredQuery),
+    [groups, deferredQuery],
+  )
 
   useEffect(() => {
     if (!open) return
@@ -321,16 +356,11 @@ export function AdminSupermenuMobile({
     }
   }, [pathWithQuery, open, onClose])
 
-  useEffect(() => {
-    if (!open) return
-    const id = window.requestAnimationFrame(() => headingRef.current?.focus())
-    return () => window.cancelAnimationFrame(id)
-  }, [open])
-
   if (!open || !hasContent) return null
 
   const dashActive = dashboardItem ? leafIsActive(dashboardItem, pathWithQuery) : false
   const DashIcon = dashboardItem?.icon
+  const filterPlaceholder = tNav('sidebar.supermenuFilter')
 
   return (
     <div
@@ -344,12 +374,10 @@ export function AdminSupermenuMobile({
       aria-modal="false"
       aria-labelledby="admin-supermenu-mobile-title"
     >
-      <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2.5">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
         <h2
           id="admin-supermenu-mobile-title"
-          ref={headingRef}
-          tabIndex={-1}
-          className="truncate text-base font-semibold tracking-tight outline-none"
+          className="shrink-0 max-w-[28%] truncate text-sm font-semibold tracking-tight sm:max-w-none sm:text-base"
         >
           {tNav('admin.label')}
         </h2>
@@ -361,7 +389,7 @@ export function AdminSupermenuMobile({
             aria-label={dashboardItem.label}
             data-current={dashActive ? '' : undefined}
             className={cn(
-              'inline-flex size-7 items-center justify-center rounded-md transition-colors',
+              'inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-colors',
               'hover:bg-foreground/5 data-current:bg-foreground/8',
               dashActive && 'text-primary',
             )}
@@ -369,28 +397,49 @@ export function AdminSupermenuMobile({
             <DashIcon className="size-4" strokeWidth={1.5} />
           </Link>
         )}
-        <div className="flex-1" />
+        <QuickSearchFilter
+          className="min-w-0 flex-1"
+          value={query}
+          onChange={setQuery}
+          placeholder={filterPlaceholder}
+          autoFocus
+          focusKey={open}
+          inputClassName="h-9"
+          aria-label={filterPlaceholder}
+        />
         <button
           type="button"
           onClick={onClose}
-          className="flex size-8 items-center justify-center rounded-full border border-border/60 bg-background/50 hover:bg-foreground/5"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/50 hover:bg-foreground/5"
           aria-label={tNav('close')}
         >
           <X className="size-4" strokeWidth={1.5} />
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <div className="flex flex-col gap-4">
-          {groups.map((group) => (
-            <GroupColumn
-              key={group.id}
-              group={group}
-              pathWithQuery={pathWithQuery}
-              onNavigate={onClose}
-            />
-          ))}
-        </div>
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto px-3 py-3 transition-opacity',
+          isSearchStale && 'opacity-70',
+        )}
+        aria-busy={isSearchStale}
+      >
+        {filteredGroups.length === 0 && deferredQuery.trim() ? (
+          <p className="px-2 py-6 text-sm text-muted-foreground">
+            No menu items match &ldquo;{deferredQuery.trim()}&rdquo;
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {filteredGroups.map((group) => (
+              <GroupColumn
+                key={group.id}
+                group={group}
+                pathWithQuery={pathWithQuery}
+                onNavigate={onClose}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { StoreAdapter, StoreProduct, CartItem, CheckoutInfo } from './types'
 import { db } from '@/lib/database'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { logger } from '@/lib/logger'
 import { isVisibleOnMainStore } from '@/features/store/lib/product-document'
 
@@ -11,7 +12,7 @@ function mapProductRow(row: ProductRow): StoreProduct {
     name: (row.name as string) || '',
     description: (row.description as string) || '',
     price: row.price?.toString() || '0',
-    currency: (row.currency as StoreProduct['currency']) || 'USD',
+    currency: (row.currency as StoreProduct['currency']) || getMainCurrencySymbol(),
     inStock: ((row.stock as number) || (row.stock_quantity as number) || 0) > 0,
     stock: typeof row.stock === 'number' ? row.stock : parseInt(String(row.stock ?? '0'), 10) || 0,
     category: row.category as string | undefined,
@@ -82,7 +83,7 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
         description: productData.description || '',
         longDescription: productData.longDescription || '',
         price: parseFloat(productData.price || '0'),
-        currency: productData.currency || 'USD',
+        currency: productData.currency || getMainCurrencySymbol(),
         category: productData.category || 'general',
         images: productData.images || [],
         status: productData.status || 'active',
@@ -179,7 +180,7 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
         tax: 0,
         shipping: 0,
         total: subtotal,
-        currency: 'USD',
+        currency: getMainCurrencySymbol(),
         status: 'pending',
         shipping_address: {
           firstName: info.firstName,

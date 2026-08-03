@@ -33,20 +33,13 @@ import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
 import { ProfileContentProps } from '@/types/profile'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  BorderBeam,
-  davinciGlassSurface,
-  davinciBeamInnerSurface,
-  davinciAuthButtonLift,
-  HeroAmbient,
-} from '@/lib/ui/davinci'
 import { KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
 import { UserRolesArray } from '@/features/auth/user-role'
@@ -61,7 +54,6 @@ import {
   Mail,
   Shield,
   Calendar,
-  Edit2,
   AlertCircle,
   CheckCircle,
   X,
@@ -80,23 +72,60 @@ import {
   Send,
   Phone,
   Globe,
-  Layout,
-  Info,
   Medal,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import BioEditModal from './bio-edit-modal'
 import SetUsernameModal from './set-username-modal'
+import { PersonalPageWidget } from './personal-page-widget'
+import { ShareEarnWidget } from './share-earn-widget'
+import {
+  acceptsProfileDms,
+  normalizePublicProfileFields,
+  type PublicProfileFieldsMap,
+} from '@/features/auth/lib/personal-page-sections'
 import TimezoneSelectorModal from './timezone-selector-modal'
 const LocationMapModal = dynamic(
   () => import('./location-map-modal'),
   { ssr: false }
 )
 import TelegramLinkingModal from './telegram-linking-modal'
+import {
+  formatTelegramProfileLabel,
+  isTelegramLinked,
+} from '@/lib/auth/telegram-profile'
 import { SessionForensicsWidget } from './session-forensics-widget'
 import { UserProgressWidget } from './user-progress-widget'
+import { ProfileHeroBalances } from './profile-hero-balances'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
+import type { AuthUser } from '@/features/auth/types'
+
+function isPublicProfileEnabled(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1'
+}
+
+function readPublicProfile(userLike: unknown): boolean {
+  if (!userLike || typeof userLike !== 'object') return false
+  return isPublicProfileEnabled((userLike as { publicProfile?: unknown }).publicProfile)
+}
+
+function readPublicProfileSections(userLike: unknown): string[] | undefined {
+  if (!userLike || typeof userLike !== 'object') return undefined
+  const sections = (userLike as { publicProfileSections?: unknown }).publicProfileSections
+  return Array.isArray(sections) ? (sections as string[]) : undefined
+}
+
+function readPublicProfileFields(userLike: unknown): PublicProfileFieldsMap {
+  if (!userLike || typeof userLike !== 'object') return {}
+  return normalizePublicProfileFields(
+    (userLike as { publicProfileFields?: unknown }).publicProfileFields,
+  )
+}
+
+function readAcceptProfileDms(userLike: unknown): boolean {
+  if (!userLike || typeof userLike !== 'object') return true
+  return acceptsProfileDms((userLike as { acceptProfileDms?: unknown }).acceptProfileDms)
+}
 
 // TODO: Refactor for React 19 and Next.js 15/16 codemods:
 // - Consider switching to useOptimistic for profile update flows
@@ -201,6 +230,7 @@ export default function ProfileContent({
   const [timezoneModalOpen, setTimezoneModalOpen] = useState(false)
   const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [telegramLinking, setTelegramLinking] = useState(false)
+  const [telegramUnlinking, setTelegramUnlinking] = useState(false)
 
   // Security/session forensics: list of recent authentication sessions
   const [forensicsEntries, setForensicsEntries] = useState<any[]>([])
@@ -437,26 +467,28 @@ export default function ProfileContent({
   ]
 
   /**
-   * Handler: Go to edit profile route based on current locale
+   * Handler: Go to edit profile route.
+   * next-intl useRouter expects unprefixed paths (locale applied by navigation helpers).
    */
   const handleEditProfile = () => {
-    router.push(`/${locale.toLowerCase()}/profile/edit` as any)
+    router.push('/profile/edit')
   }
 
   /**
    * Handler: Go to profile settings route
    */
   const handleNavigateSettings = () => {
-    router.push(ROUTES.SETTINGS(locale.toLowerCase() as Locale) as any)
+    router.push('/settings')
   }
 
   /**
-   * Handler: Initiate sign out (using auth context)
+   * Handler: Initiate sign out (using auth context).
+   * Auth.js redirectTo is a full browser URL — keep locale for non-default locales.
    */
   const handleSignOut = () => {
     signOut({
       redirect: true,
-      redirectTo: `/${locale.toLowerCase()}/login`,
+      redirectTo: ROUTES.LOGIN(locale),
     })
   }
 
@@ -472,6 +504,7 @@ export default function ProfileContent({
       onEditProfile={handleEditProfile}
       onNavigateSettings={handleNavigateSettings}
       onSignOut={handleSignOut}
+      username={user.username || null}
     />
   )
 
@@ -484,10 +517,32 @@ export default function ProfileContent({
       onToggle={setRightSidebarOpen}
       rightRail={profileRail}
     >
-      <DavinciCenterPane>
+      <DavinciCenterPane contentClassName="relative !px-3 !py-3 sm:!px-5 sm:!py-4 lg:!px-6 space-y-5 sm:space-y-6">
+          {/* Role / status labels — top-right of center pane (wallet-style flush glass) */}
+          <div className="pointer-events-none absolute right-0 top-0 z-[2] flex flex-col items-end gap-1.5 pr-0.5 pt-0.5 sm:pr-1 sm:pt-1">
+            <Badge className={cn(getRoleBadgeColor(user.role as UserRolesArray), 'pointer-events-auto shadow-sm')}>
+              {user.role}
+            </Badge>
+            {user.isVerified && (
+              <Badge
+                variant="default"
+                className="pointer-events-auto bg-green-100 text-green-800 shadow-sm dark:bg-green-900 dark:text-green-200"
+              >
+                <CheckCircle className="mr-1 h-3 w-3" />
+                Verified
+              </Badge>
+            )}
+            {((user as any)?.membership?.active || (user as any)?.subscription?.active) && (
+              <Badge className="pointer-events-auto border-amber-400/30 bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-sm">
+                <Medal className="mr-1 h-3 w-3" />
+                Member
+              </Badge>
+            )}
+          </div>
+
           {/* Conditionally render a message banner if save encountered error/success */}
           {saveMessage && (
-            <div className="mb-4">
+            <div className="mb-0 max-w-[calc(100%-7rem)]">
               <Alert variant={saveMessage.type === 'success' ? 'default' : 'destructive'}>
                 {saveMessage.type === 'success' ? (
                   <CheckCircle className="h-4 w-4" />
@@ -509,169 +564,143 @@ export default function ProfileContent({
             </div>
           )}
 
-          {/* Profile Header/Glass: avatar, name, badges, credit balance */}
-          <BorderBeam
-            duration="6s"
-            className={cn(davinciGlassSurface, davinciAuthButtonLift, 'mb-8 overflow-hidden')}
-            innerClassName={cn(davinciBeamInnerSurface, 'p-5 sm:p-7')}
-          >
-            <HeroAmbient className="rounded-[inherit] opacity-50" />
+          {/* Profile hero — no nested BorderBeam; pane already carries davinciPanelSurface gradient */}
+          <div className="pr-16 sm:pr-20">
+            <div className="flex flex-col items-center gap-5 md:flex-row md:items-start">
+              {/* Avatar Section */}
+              <div className="flex shrink-0 flex-col items-center space-y-2">
+                <Avatar
+                  src={(user as { avatarThumb?: string | null }).avatarThumb || user.photoURL || session?.user?.image}
+                  alt={user.name || 'User'}
+                  size="2xl"
+                  fallback={user.name?.charAt(0) || 'U'}
+                  editable={true}
+                  onUpload={handleAvatarUpload}
+                  uploading={avatarUploading}
+                  className="border-4 border-border"
+                />
+                {uploadError && (
+                  <Alert variant="destructive" className="text-xs">
+                    <AlertDescription className="text-xs">{uploadError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
 
-            <div className="relative z-[1]">
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-5">
-                {/* Avatar Section: profile pic, fallback, editable state */}
-                <div className="flex flex-col items-center space-y-2 shrink-0">
-                  <Avatar
-                    src={(user as { avatarThumb?: string | null }).avatarThumb || user.photoURL || session?.user?.image}
-                    alt={user.name || 'User'}
-                    size="2xl"
-                    fallback={user.name?.charAt(0) || 'U'}
-                    editable={!isEditing}
-                    onUpload={handleAvatarUpload}
-                    uploading={avatarUploading}
-                    className="border-4 border-border"
-                  />
-                  {/* If error on avatar upload, show concise error message */}
-                  {uploadError && (
-                    <Alert variant="destructive" className="text-xs">
-                      <AlertDescription className="text-xs">{uploadError}</AlertDescription>
-                    </Alert>
+              {/* Profile main info */}
+              <div className="w-full min-w-0 flex-1 space-y-3 text-center md:text-left">
+                <h1 className="text-2xl font-bold md:text-3xl">{user.name || 'Anonymous User'}</h1>
+
+                {/* Username */}
+                <div className="flex items-center justify-center gap-2 md:justify-start">
+                  {user.username ? (
+                    <>
+                      <span className="font-mono text-sm text-muted-foreground">@{user.username}</span>
+                      <button
+                        type="button"
+                        className="text-xs text-[var(--davinci-beam)] hover:underline"
+                        onClick={() => setSetUsernameModalOpen(true)}
+                      >
+                        {t('changeUsername')}
+                      </button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => setSetUsernameModalOpen(true)}
+                    >
+                      <User className="h-3.5 w-3.5" />
+                      {t('setUsername')}
+                    </Button>
                   )}
                 </div>
 
-                {/* Profile main info: name, role badge, verification, membership, username, bio, org, credits */}
-                <div className="flex-1 min-w-0 space-y-3 w-full text-center md:text-left">
-                  {/* Name/Role/Member badges */}
-                  <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-3">
-                    <h1 className="text-2xl md:text-3xl font-bold">{user.name || 'Anonymous User'}</h1>
-                    <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
-                      <Badge className={getRoleBadgeColor(user.role as UserRolesArray)}>
-                        {user.role}
-                      </Badge>
-                      {user.isVerified && (
-                        <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Verified
-                        </Badge>
-                      )}
-                      {/* Show Member badge (if paid member or subscriber) */}
-                      {((user as any)?.membership?.active || (user as any)?.subscription?.active) && (
-                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-amber-400/30">
-                          <Medal className="w-3 h-3 mr-1" />
-                          Member
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Username (change/set) */}
-                  <div className="flex items-center justify-center md:justify-start gap-1.5">
-                    {user.username ? (
-                      <>
-                        <span className="text-sm text-muted-foreground font-mono">@{user.username}</span>
-                        <button
-                          type="button"
-                          className="text-xs text-[var(--davinci-beam)] hover:underline"
-                          onClick={() => setSetUsernameModalOpen(true)}
-                        >
-                          {t('changeUsername')}
-                        </button>
-                      </>
-                    ) : (
+                {/* Bio editable */}
+                <div>
+                  {(user as any)?.bio ? (
+                    <div className="flex items-start justify-center gap-2 md:justify-start">
+                      <p className="max-w-lg text-sm text-muted-foreground">{(user as any).bio}</p>
                       <button
                         type="button"
-                        className="text-sm text-[var(--davinci-beam)] hover:underline"
-                        onClick={() => setSetUsernameModalOpen(true)}
-                      >
-                        {t('setUsername')}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Bio editable */}
-                  <div>
-                    {(user as any)?.bio ? (
-                      <div className="flex items-start gap-2 justify-center md:justify-start">
-                        <p className="text-sm max-w-lg text-muted-foreground">{(user as any).bio}</p>
-                        <button
-                          type="button"
-                          className="text-xs text-[var(--davinci-beam)] hover:underline shrink-0 mt-0.5"
-                          onClick={() => setBioEditModalOpen(true)}
-                        >
-                          {t('edit') || 'Edit'}
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-sm text-[var(--davinci-beam)] hover:underline"
+                        className="mt-0.5 shrink-0 text-xs text-[var(--davinci-beam)] hover:underline"
                         onClick={() => setBioEditModalOpen(true)}
                       >
-                        {t('addBio') || 'Add bio'}
+                        {t('edit') || 'Edit'}
                       </button>
-                    )}
-                  </div>
-
-                  {/* Email/phone display */}
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3.5 h-3.5" />
-                      {user.email}
-                    </span>
-                    {(user as any)?.phoneNumber && (
-                      <>
-                        <span className="hidden md:inline text-muted-foreground/40">|</span>
-                        <span className="flex items-center gap-1">
-                          {(user as any)?.phoneNumber && formatPhone((user as any).phoneNumber)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Organization/country quick stats */}
-                  <div className="flex flex-wrap gap-3 md:gap-4 text-xs justify-center md:justify-start">
-                    {(user as any)?.organization && (
-                      <div className="flex items-center gap-1.5">
-                        <Building className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{(user as any).organization}</span>
-                      </div>
-                    )}
-                    {(user as any)?.cultural?.country && (
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{(user as any).cultural.country}</span>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-sm text-[var(--davinci-beam)] hover:underline"
+                      onClick={() => setBioEditModalOpen(true)}
+                    >
+                      {t('addBio') || 'Add bio'}
+                    </button>
+                  )}
                 </div>
+
+                {/* Email/phone display */}
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground md:justify-start">
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3.5 w-3.5" />
+                    {user.email}
+                  </span>
+                  {(user as any)?.phoneNumber && (
+                    <>
+                      <span className="hidden text-muted-foreground/40 md:inline">|</span>
+                      <span className="flex items-center gap-1">
+                        {formatPhone((user as any).phoneNumber)}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Organization/country */}
+                <div className="flex flex-wrap justify-center gap-3 text-xs md:justify-start md:gap-4">
+                  {(user as any)?.organization && (
+                    <div className="flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{(user as any).organization}</span>
+                    </div>
+                  )}
+                  {(user as any)?.cultural?.country && (
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{(user as any).cultural.country}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Credit + native balances */}
+                {mounted ? <ProfileHeroBalances locale={locale.toLowerCase()} /> : null}
               </div>
             </div>
-          </BorderBeam>
+          </div>
 
-          {/* Balances + Quests card – only once mounted in browser */}
+          {/* Reward quests — expand for stacked reward-credit-add events */}
           {mounted && (
-            <div className="mb-6">
-              <UserProgressWidget
-                usernameSet={!!user.username}
-                bioSet={!!((user as any)?.bio)}
-                telegramSet={!!((user as any)?.communication?.telegramUsername)}
-                kycApproved={kycStatus === KYCStatus.APPROVED}
-                locale={locale.toLowerCase()}
-                onNavigateTab={setActiveTab}
-                onOpenUsernameModal={() => setSetUsernameModalOpen(true)}
-                onOpenBioModal={() => setBioEditModalOpen(true)}
-              />
-            </div>
+            <UserProgressWidget
+              usernameSet={!!user.username}
+              bioSet={!!((user as any)?.bio)}
+              telegramSet={isTelegramLinked((user as any)?.communication)}
+              kycApproved={kycStatus === KYCStatus.APPROVED}
+              locale={locale.toLowerCase()}
+              onNavigateTab={setActiveTab}
+              onOpenUsernameModal={() => setSetUsernameModalOpen(true)}
+              onOpenBioModal={() => setBioEditModalOpen(true)}
+            />
           )}
 
           {/* Main Content Section: varies by activeTab. All logic below is conditional UI. */}
           {mounted && (
             <div className="space-y-6">
 
-              {/* Section Title row [mobile only] */}
-              <div className="lg:hidden mb-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold flex items-center gap-2">
+              {/* Mobile tab chrome — skip on overview (widgets speak for themselves) */}
+              {activeTab !== 'overview' && (
+                <div className="mb-4 lg:hidden">
+                  <h2 className="flex items-center gap-2 text-2xl font-bold">
                     {profileMenuItems.find(item => item.id === activeTab)?.icon && (
                       <span className="inline-flex">
                         {React.createElement(profileMenuItems.find(item => item.id === activeTab)!.icon, { className: "w-6 h-6" })}
@@ -679,141 +708,41 @@ export default function ProfileContent({
                     )}
                     {profileMenuItems.find(item => item.id === activeTab)?.label}
                   </h2>
-                  <div className="flex items-center gap-2">
-                    {/* Edit action (for overview) */}
-                    {activeTab === 'overview' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setBioEditModalOpen(true)}
-                        className="flex items-center gap-1"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        <span className="text-xs">{t('edit') || 'Edit'}</span>
-                      </Button>
-                    )}
-                    {/* Show menu sidebar drawer toggle on mobile */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRightSidebarOpen(true)}
-                      className="flex items-center gap-1"
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span className="text-xs">Menu</span>
-                    </Button>
-                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {activeTab === 'communications' && t('communicationsTabDescription')}
+                    {activeTab === 'professional' && t('professionalTabDescription')}
+                    {activeTab === 'security' && t('securityTabDescription')}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {activeTab === 'overview' && t('overviewDescription')}
-                  {activeTab === 'communications' && t('communicationsTabDescription')}
-                  {activeTab === 'professional' && t('professionalTabDescription')}
-                  {activeTab === 'security' && t('securityTabDescription')}
-                </p>
-              </div>
+              )}
 
               {/* ========== Conditional tab rendering ========== */}
 
               {/* Overview tab */}
               {activeTab === 'overview' && (
-                <div className="space-y-6">
-                  {/* "Page Builder" Widget for setting public profile visibility (future granular switches: see TODO) */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Layout className="h-5 w-5" />
-                        {t('pageBuilder') || 'Page Builder'}
-                      </CardTitle>
-                      <CardDescription>
-                        {t('pageBuilderDescription') || 'Choose what appears on your public profile'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-1">
-                      {/* Each section row switches current publicProfile flag (TODO: granular toggles per section later) */}
-                      {/* Bio */}
-                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('bio') || 'Bio'}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {(user as any)?.bio ? ((user as any).bio as string).slice(0, 60) + ((user as any).bio.length > 60 ? '...' : '') : t('noBio') || 'Not set'}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={((user as any)?.publicProfile === 'true')}
-                          onCheckedChange={() => setSetUsernameModalOpen(true)}
-                        />
-                      </div>
-                      {/* Messengers */}
-                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('messengers') || 'Messengers'}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {(user as any)?.communication?.telegramUsername
-                              ? `Telegram: @${(user as any).communication.telegramUsername}`
-                              : t('noMessengers') || 'Not connected'}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={!!((user as any)?.publicProfile === 'true')}
-                          onCheckedChange={() => setActiveTab('communications')}
-                        />
-                      </div>
-                      {/* Professional */}
-                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('professional') || 'Professional'}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {(user as any)?.organization
-                              ? `${(user as any).organization}`
-                              : t('noProfessionalInfo') || 'Not set'}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={!!((user as any)?.publicProfile === 'true')}
-                          onCheckedChange={() => setActiveTab('professional')}
-                        />
-                      </div>
-                      {/* Location */}
-                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('location') || 'Location'}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {(user as any)?.cultural?.country
-                              ? `${(user as any).cultural.country}`
-                              : (user as any)?.cultural?.address
-                                ? ((user as any).cultural.address as string).slice(0, 50)
-                                : t('noLocation') || 'Not set'}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={!!((user as any)?.publicProfile === 'true')}
-                          onCheckedChange={() => setActiveTab('regional')}
-                        />
-                      </div>
-                      {/* Contact data */}
-                      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{t('contactData') || 'Contact Data'}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {(user as any)?.phoneNumber
-                              ? formatPhone((user as any).phoneNumber)
-                              : user.email
-                                ? user.email
-                                : t('noContact') || 'Not set'}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={!!((user as any)?.publicProfile === 'true')}
-                          onCheckedChange={() => setSetUsernameModalOpen(true)}
-                        />
-                      </div>
-                    </CardContent>
-                    <CardFooter className="text-xs text-muted-foreground px-6 pb-4">
-                      <Info className="w-3.5 h-3.5 mr-1.5" />
-                      {t('pageBuilderFooter') || 'Granular per-field public visibility toggles coming soon'}
-                    </CardFooter>
-                  </Card>
-                  {/* TODO: Implement granular per-section public toggles with server action + optimisitc update (React 19) */}
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <PersonalPageWidget
+                      username={user?.username || null}
+                      publicProfile={readPublicProfile(user)}
+                      publicProfileSections={readPublicProfileSections(user)}
+                      publicProfileFields={readPublicProfileFields(user)}
+                      acceptProfileDms={readAcceptProfileDms(user)}
+                      onOpenUsernameModal={() => setSetUsernameModalOpen(true)}
+                      onPublicProfileChange={(enabled, sections, fields, acceptDms) => {
+                        if (initialUser) {
+                          ;(initialUser as AuthUser).publicProfile = enabled
+                          ;(initialUser as AuthUser).publicProfileSections = sections
+                          ;(initialUser as AuthUser).publicProfileFields = fields
+                          ;(initialUser as AuthUser).acceptProfileDms = acceptDms
+                        }
+                      }}
+                    />
+                    <ShareEarnWidget
+                      username={user?.username || null}
+                      publicProfile={readPublicProfile(user)}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -829,23 +758,71 @@ export default function ProfileContent({
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-muted-foreground">{t('communicationsDescription')}</p>
-                      {/* Telegram */}
+                      {/* Telegram — linked only when verified telegramId (UID) is present */}
                       <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
                         <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-full shrink-0">
                           <Send className="w-5 h-5 text-blue-500" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">{t('telegramAccount')}</p>
-                          {(user as any)?.communication?.telegramUsername ? (
-                            <p className="text-xs text-muted-foreground truncate">@{((user as any)?.communication?.telegramUsername)}</p>
+                          {isTelegramLinked((user as any)?.communication) ? (
+                            <div className="text-xs text-muted-foreground truncate space-y-0.5">
+                              <p className="font-medium text-foreground/80">
+                                {formatTelegramProfileLabel((user as any).communication)}
+                              </p>
+                              <p className="font-mono opacity-70">
+                                UID {(user as any).communication.telegramId}
+                              </p>
+                            </div>
                           ) : (
                             <p className="text-xs text-muted-foreground">{t('telegramNotConnected')}</p>
                           )}
                         </div>
-                        {(user as any)?.communication?.telegramUsername ? (
-                          <Button variant="outline" size="sm" className="shrink-0">
-                            {t('edit') || 'Edit'}
-                          </Button>
+                        {isTelegramLinked((user as any)?.communication) ? (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={telegramUnlinking}
+                              onClick={async () => {
+                                if (
+                                  typeof window !== 'undefined' &&
+                                  !window.confirm(t('unlinkConfirm'))
+                                ) {
+                                  return
+                                }
+                                setTelegramUnlinking(true)
+                                try {
+                                  const { unlinkTelegramAccount } = await import(
+                                    '@/app/_actions/profile'
+                                  )
+                                  const result = await unlinkTelegramAccount()
+                                  if (result.success) {
+                                    await updateSession()
+                                    await refreshSession()
+                                    router.refresh()
+                                  } else {
+                                    setUploadError(result.message || 'Unlink failed')
+                                  }
+                                } catch (err) {
+                                  console.error('Telegram unlink error:', err)
+                                  setUploadError('Failed to unlink Telegram')
+                                } finally {
+                                  setTelegramUnlinking(false)
+                                }
+                              }}
+                            >
+                              {telegramUnlinking ? t('unlinking') : t('unlinkTelegram')}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => setTelegramLinking(true)}
+                            >
+                              {t('addTelegramAccount')}
+                            </Button>
+                          </div>
                         ) : (
                           <Button
                             variant="default"
@@ -1143,8 +1120,9 @@ export default function ProfileContent({
         onOpenChange={setBioEditModalOpen}
         currentBio={(user as any)?.bio || ''}
         onBioSaved={(newBio) => {
-          if (user) (user as any).bio = newBio
-          // TODO: Use server action so mutation is persisted and reflected immediately (react-query or useOptimistic)
+          if (initialUser) {
+            ;(initialUser as AuthUser).bio = newBio
+          }
         }}
       />
 
@@ -1153,12 +1131,11 @@ export default function ProfileContent({
         open={setUsernameModalOpen}
         onOpenChange={setSetUsernameModalOpen}
         currentUsername={user?.username || ''}
-        currentPublicProfile={(user as any)?.publicProfile === 'true' || false}
+        currentPublicProfile={readPublicProfile(user)}
         onUsernameSaved={(newUsername, newPublicProfile) => {
-          if (user) {
-            (user as any).username = newUsername
-            ;(user as any).publicProfile = newPublicProfile ? 'true' : 'false'
-            // TODO: Persist username & setting natively (server action + optimistic update or transition)
+          if (initialUser) {
+            ;(initialUser as AuthUser).username = newUsername
+            ;(initialUser as AuthUser).publicProfile = newPublicProfile
           }
         }}
       />

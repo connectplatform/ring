@@ -1,8 +1,13 @@
-import type { PaymentPurpose, PaymentProcessorId, PaymentRail } from '@/lib/payments/conductor/types'
+import type { PaymentPurpose, PaymentProcessorId, PaymentRail, ExternalPaymentProcessorId } from '@/lib/payments/conductor/types'
 import { getSiteBaseUrl, getSystemConfigSnapshot } from '@/lib/ring-config-core'
-import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
-import { RING_TOKEN_ADDRESS } from '@/constants/web3'
-import { StoreCurrency } from '@/features/store/types'
+import { getEvmTokenAddress, getNativeTokenSymbol } from '@/lib/ring-config-chain'
+
+/**
+ * Main currency SSOT lives in `@/lib/ring-config-core`. Re-exported here so payment
+ * code has one import surface and can never drift into a second implementation.
+ */
+export { getMainCurrencySymbol } from '@/lib/ring-config-core'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 
 // Helper to fetch a processor from env, normalized to string union
 function envProcessor(key: string): PaymentProcessorId | null {
@@ -25,6 +30,10 @@ const PURPOSE_ENV: Record<PaymentPurpose, string> = {
   wallet_topup: 'PAYMENT_WALLET_TOPUP_PROCESSOR',
   native_token_onramp: 'PAYMENT_NATIVE_TOKEN_ONRAMP_PROCESSOR',
   project_order: 'PAYMENT_PROJECT_ORDER_PROCESSOR',
+  task_escrow: 'PAYMENT_TASK_ESCROW_PROCESSOR',
+  collective_order_slot: 'PAYMENT_COLLECTIVE_ORDER_SLOT_PROCESSOR',
+  scheduled_service_slot: 'PAYMENT_SCHEDULED_SERVICE_SLOT_PROCESSOR',
+  public_pool_contribution: 'PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR',
 }
 
 /** 
@@ -46,43 +55,26 @@ export function getProcessorForPurpose(purpose: PaymentPurpose): PaymentProcesso
 // and Next.js' config fetching methods for runtime configs to reduce cold lookup times.
 
 /**
- * Gets the fiat currency used for display AND order settlement from system config (SSOT).
- * Fallbacks: process.env, then USD.
- */
-export function getDefaultStoreCurrencySymbol(): StoreCurrency {
-  const config = getSystemConfigSnapshot()
-  // NOTE: .store?.defaultCurrency is expected to be defined in SSOT
-  const raw =
-    config.store?.defaultCurrency
-    ?? process.env.PAYMENT_FIAT_CURRENCY?.toUpperCase()
-    ?? 'USD'
-  return raw as StoreCurrency
-}
-
-/**
- * Gets the array of accepted currencies for credit-based payments.
- * Priority: ring-config.json > ENV > fallback to fiat currency.
+ * Order currencies the `credit_balance` rail is allowed to settle.
+ * Priority: ring-config `store.creditBalanceAcceptedOrderCurrencies` > ENV > main currency.
  *
  * NOTE: Each accepted value is uppercased and trimmed for comparison/robustness.
  */
-export function getCreditAcceptOrderCurrencies(): string[] {
+export function getCreditBalanceAcceptedOrderCurrencies(): string[] {
   const config = getSystemConfigSnapshot()
-  const configCurrencies = config.store?.creditAcceptOrderCurrencies
+  const configCurrencies = config.store?.creditBalanceAcceptedOrderCurrencies
 
-  // If config explicitly lists currencies, normalize and return
   if (configCurrencies && configCurrencies.length > 0) {
     return configCurrencies.map((c) => c.trim().toUpperCase()).filter(Boolean)
   }
 
-  // Fallback: try ENV var
-  const raw = process.env.PAYMENT_CREDIT_ACCEPT_ORDER_CURRENCY?.trim()
+  const raw = process.env.PAYMENT_CREDIT_BALANCE_ACCEPTED_ORDER_CURRENCIES?.trim()
   if (raw) {
     // Supports comma-separated values, cleans up spacing & case
     return raw.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean)
   }
 
-  // Ultimate fallback: just use SSOT fiat currency.
-  return [getDefaultStoreCurrencySymbol()]
+  return [getMainCurrencySymbol()]
 }
 
 /**
@@ -90,47 +82,47 @@ export function getCreditAcceptOrderCurrencies(): string[] {
  * Used in guards, frontend, and API-level checks.
  */
 export function canSpendCreditForOrderCurrency(orderCurrency: string): boolean {
-  const allowed = getCreditAcceptOrderCurrencies()
+  const allowed = getCreditBalanceAcceptedOrderCurrencies()
   // Normalize input for case-insensitive compare
   return allowed.includes(orderCurrency.toUpperCase())
 }
 
 /**
- * Determines if a payment rail is enabled for a purpose.
- * Reads config and env overrides.
- * 
+ * Determines if a user-facing payment rail is enabled for a purpose.
+ * Reads ring-config and env overrides.
+ *
  * @param purpose - business context for payment
- * @param rail - which payment system/approach
+ * @param rail - user-facing rail the buyer picked
  */
 export function isRailEnabled(purpose: PaymentPurpose, rail: PaymentRail): boolean {
-  // rail 'internal_credit' has nuanced checks for store orders
-  if (rail === 'internal_credit') {
+  if (rail === 'credit_balance') {
     if (purpose === 'store_order') {
-      // Use config if present, else ENV flag (default true if unset)
       const config = getSystemConfigSnapshot()
-      // If explicit config present, always allow credit payments for store orders
-      if (config.store?.creditAcceptOrderCurrencies !== undefined) {
-        return true // Explicit config always enables
+      // An explicit accepted-currency list is itself the enable signal.
+      if (config.store?.creditBalanceAcceptedOrderCurrencies !== undefined) {
+        return true
       }
-      // Else, use ENV; disabled ONLY if env var is explicitly 'false'
       return process.env.PAYMENT_STORE_ALLOW_CREDIT !== 'false'
     }
-    // For non-store purposes, credit payments always enabled
     return true
   }
 
-  // rail 'native_token' is only enabled if store specifically allows it in ENV
   if (rail === 'native_token') {
+    if (purpose === 'task_escrow') {
+      return process.env.PAYMENT_STORE_ALLOW_TOKEN === 'true' || process.env.PAYMENT_TASK_ESCROW_ALLOW_TOKEN === 'true'
+    }
     return process.env.PAYMENT_STORE_ALLOW_TOKEN === 'true'
   }
 
-  // rail 'merchant_redirect' always enabled (at code-level)
-  if (rail === 'merchant_redirect') {
-    return true
+  if (rail === 'paypal') {
+    const gateways = getSystemConfigSnapshot().payment?.gateways as
+      | Record<string, { enabled?: boolean }>
+      | undefined
+    return gateways?.paypal?.enabled === true
   }
 
-  // Any other rails not recognized for this config are not enabled
-  return false
+  // Card rail is always available at code level; PSP availability is a gateway concern.
+  return rail === 'card'
 }
 
 /**
@@ -147,7 +139,7 @@ export function getSiteUrl(): string {
  * 
  * @param provider - currently 'wayforpay' or 'stripe'
  */
-export function getWebhookUrl(provider: 'wayforpay' | 'stripe' | 'paypal'): string {
+export function getWebhookUrl(provider: ExternalPaymentProcessorId): string {
   // NOTE: Path is hard coded, consider registering route with Next.js app router for static safety
   return `${getSiteUrl()}/api/payments/${provider}/webhook`
 }
@@ -159,14 +151,11 @@ export function getWebhookUrl(provider: 'wayforpay' | 'stripe' | 'paypal'): stri
  */
 // TODO: Consider switching to server-actions/getServerSideProps if client & server config diverges in future Next.js releases.
 export function getNativeTokenConfig() {
+  // EVM contract payments only — never fall back to Solana SPL mint from getNativeTokenAddress().
   return {
-    contractAddress:
-      process.env.NEXT_PUBLIC_RING_TOKEN_ADDRESS || // Most explicit/public
-      process.env.RING_CONTRACT_ADDRESS || // Deprecated, legacy
-      RING_TOKEN_ADDRESS, // Hard fallback
-
-    symbol: getNativeTokenSymbol(), // From shared chain config util
-    decimals: Number(process.env.PAYMENT_TOKEN_DECIMALS || 18), // Default to 18 decimals (ERC20 standard)
+    contractAddress: getEvmTokenAddress() || '0x0000000000000000000000000000000000000000',
+    symbol: getNativeTokenSymbol(),
+    decimals: Number(process.env.PAYMENT_TOKEN_DECIMALS || 18),
   }
 }
 

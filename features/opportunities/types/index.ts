@@ -23,6 +23,14 @@ export type OpportunityType =
   | 'event'                   // 📅 Events and workshops
   | 'cv'                      // Developer CV listings
   | 'program'                 // Institution programs / investments → email-CRM
+  // PUBLIC / SUBSCRIBER SPECIALIZATIONS (Ring Opportunity Upgrade)
+  | 'scheduled_services'      // Calendar-slot service offers
+  | 'collective_order'        // Groupon-style N prepaid slots
+  | 'bounty'                  // Prize for deliverable
+  | 'tender'                  // Buyer RFQ / reverse ask
+  | 'asset_rental'            // Asset rental by period
+  | 'job'                     // Employment / hire listing
+
 export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential';
 export type OpportunityPriority = 'urgent' | 'normal' | 'low';
 
@@ -63,10 +71,14 @@ export interface Opportunity {
   };
   // New tracking fields
   applicantCount: number;
+  /** User ids who applied / booked interest */
+  applicants?: string[];
   maxApplicants?: number;
   priority?: OpportunityPriority;
   // Logic: Offers require linkedEntity, requests can have isPrivate=true for individual posts
   isPrivate?: boolean;
+  /** Type-specific JSONB bag (program, collective_order, scheduled_services, …) */
+  metadata?: Record<string, unknown>;
 }
 
 // Serialized version for client components (dates as ISO strings)
@@ -102,10 +114,14 @@ export interface SerializedOpportunity {
   };
   // New tracking fields
   applicantCount: number;
+  /** User ids who applied / booked interest */
+  applicants?: string[];
   maxApplicants?: number;
   priority?: OpportunityPriority;
   // Logic: Offers require linkedEntity, requests can have isPrivate=true for individual posts
   isPrivate?: boolean;
+  /** Type-specific JSONB bag (program, collective_order, scheduled_services, …) */
+  metadata?: Record<string, unknown>;
 }
 
 export type OpportunitySubmenuTab = 'all' | 'saved' | 'applied' | 'posted' | 'drafts' | 'expired'

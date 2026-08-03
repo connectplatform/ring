@@ -16,6 +16,7 @@ import {
 import { buildOpportunityVisibilityFilters } from '@/features/opportunities/lib/opportunity-visibility-filter'
 import { auth } from '@/auth'
 import { getMcpActor } from '@/lib/auth/mcp-actor-context'
+import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
@@ -413,7 +414,7 @@ export const searchOpportunitiesByLocation = cache(async (
 export const searchOpportunitiesByBudget = cache(async (
   minBudget?: number,
   maxBudget?: number,
-  currency: string = 'USD',
+  currency: string = getMainCurrencySymbol(),
   options: Omit<SearchOpportunitiesParams, 'budgetMin' | 'budgetMax' | 'currency'> = {}
 ): Promise<SearchOpportunitiesResult> => {
   return searchOpportunities({

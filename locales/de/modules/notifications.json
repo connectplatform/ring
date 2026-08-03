@@ -114,5 +114,14 @@
     "description": "Erhalten Sie Echtzeit-Updates zu Kollaborationen, Kommentaren und Publikationsstatus.",
     "enable": "Aktivieren",
     "notNow": "Nicht jetzt"
+  },
+  "typeLabels": {
+    "poll_created": "Neue Umfragen in deinen Chats",
+    "poll_closed": "Wenn eine verfolgte Umfrage schließt",
+    "rsvp_invite": "RSVP-Einladungen im Chat",
+    "rsvp_updated": "Updates zu RSVPs, an denen du teilnimmst",
+    "dao_jar_update": "DAO-Jar-Beiträge und Updates",
+    "game_request": "Spielherausforderungen im Chat",
+    "game_updated": "Updates, wenn ein Spiel angenommen oder beendet wird"
   }
 }

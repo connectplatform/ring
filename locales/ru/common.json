@@ -115,5 +115,20 @@
     "title": "Несанкционированный доступ",
     "message": "У вас нет прав для просмотра этой страницы.",
     "returnHome": "На главную"
+  },
+  "davinciDroplist": {
+    "selectTitle": "Выберите {scope}",
+    "filterPlaceholder": "Фильтр…",
+    "noResults": "Ничего не найдено.",
+    "detecting": "Определение…",
+    "clearSelection": "Очистить выбор",
+    "searchHintMinChars": "Введите не менее {count} символов для поиска.",
+    "scopes": {
+      "country": "страну",
+      "timezone": "часовой пояс",
+      "representative": "представителя",
+      "vendor": "вендора"
+    },
+    "searching": "Поиск…"
   }
 }

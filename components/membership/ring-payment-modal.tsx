@@ -26,7 +26,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
-import { getClientCreditCurrencyCode } from '@/lib/payments/credit-currency-client'
+import { getClientCreditCurrencyCode } from '@/lib/payments/credit-balance-client'
 
 export type MembershipPaymentRail = 'account_credit' | 'on_chain_ring'
 
@@ -44,7 +44,7 @@ interface PaymentOption {
   description: string
   cost: {
     ring_amount: string
-    usd_equivalent: string
+    main_currency_equivalent: string
   }
   benefits: string[]
   recommended?: boolean
@@ -122,7 +122,7 @@ export function MembershipPaymentModal({
       description: t('payment.upgrade.description', { defaultValue: 'Unlock all Member features with RING tokens' }),
       cost: {
         ring_amount: upgradeRingAmount.toFixed(2),
-        usd_equivalent: paymentInfo?.pricing?.membership_fee?.usd_equivalent ?? upgradeRingAmount.toFixed(2),
+        main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? upgradeRingAmount.toFixed(2),
       },
       benefits: memberBenefits,
       recommended: true,
@@ -133,7 +133,7 @@ export function MembershipPaymentModal({
       description: t('payment.renewal.description', { defaultValue: 'Extend your membership for another month' }),
       cost: {
         ring_amount: renewalRingAmount.toFixed(2),
-        usd_equivalent: paymentInfo?.pricing?.membership_fee?.usd_equivalent ?? renewalRingAmount.toFixed(2),
+        main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? renewalRingAmount.toFixed(2),
       },
       benefits: [t('payment.renewal.restore_access', { defaultValue: 'Restore full Member access' })],
     },
@@ -143,7 +143,7 @@ export function MembershipPaymentModal({
       description: t('payment.fee.description', { defaultValue: 'One-time membership payment' }),
       cost: {
         ring_amount: upgradeRingAmount.toFixed(2),
-        usd_equivalent: paymentInfo?.pricing?.membership_fee?.usd_equivalent ?? upgradeRingAmount.toFixed(2),
+        main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? upgradeRingAmount.toFixed(2),
       },
       benefits: [t('payment.fee.no_subscription', { defaultValue: 'No automatic renewals' })],
     },
@@ -371,7 +371,7 @@ export function MembershipPaymentModal({
                   <Coins className="h-5 w-5 text-primary" />
                   <span className="text-xl font-bold">{currentOption.cost.ring_amount} RING</span>
                   <span className="text-sm text-muted-foreground">
-                    (≈ ${currentOption.cost.usd_equivalent} USD)
+                    (≈ ${currentOption.cost.main_currency_equivalent} USD)
                   </span>
                 </div>
                 <p className="text-xs text-center text-muted-foreground">

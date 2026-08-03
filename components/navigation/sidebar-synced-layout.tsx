@@ -7,17 +7,24 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { useSession } from 'next-auth/react'
-import { hasMemberPrivileges } from '@/features/auth/user-role'
+import {
+  hasConfidentialAccess,
+  hasMemberPrivileges,
+  resolveSessionUserRole,
+} from '@/features/auth/user-role'
 import {
   Bell,
   Briefcase,
   Calculator,
   Coins,
+  Crown,
   FileText,
   Globe,
   Heart,
+  ListTodo,
   Map,
   MessageCircle,
+  Gamepad2,
   Moon,
   Rocket,
   ShoppingCart,
@@ -31,51 +38,39 @@ import {
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/constants/routes'
-import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
-import {
-  localeDisplayLabel,
-  localeNativeTitle,
-  nextLocaleInRoutingOrder,
-  persistRingLocalePreference,
-} from '@/lib/locale-pref'
-import { useStoreCurrency } from '@/features/store/currency-context'
-import { useRouter, replaceLocalePath } from '@/i18n/routing'
+import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
+import { useStorePaymentMethods } from '@/features/store/currency-context'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 import { AdminSupermenuToggle } from './admin-supermenu'
+import { NavCreditTrailing } from './nav-credit-trailing'
 import { NavLegalFooter } from './nav-legal-footer'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
   ssr: false,
 })
 
-const ROW = 'flex h-9 min-h-9 max-h-9 items-center'
+const ROW = 'flex h-11 min-h-11 max-h-11 items-center'
 const BRAND_ROW = 'flex h-16 min-h-16 max-h-16 items-center'
 const SECTION_ROW = 'h-5 min-h-5 max-h-5'
 const GRID_COLS = 'grid-cols-[64px_minmax(0,1fr)]'
-const GUTTER_ICON = 'flex w-5 shrink-0 items-center justify-center'
-const FOOTER_H = 'min-h-12 h-auto py-1.5'
+const GUTTER_ICON = 'flex w-6 shrink-0 items-center justify-center'
+const FOOTER_H = 'min-h-[4.5rem] h-auto py-2'
 const FOOTER_BTN =
   'flex h-8 w-full shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent text-white hover:bg-white/10'
 const ASIDE_PAD = 'pl-1 pr-2'
 const RAIL_LOGO_SIZE = Math.round(64 * 0.9)
+const ICON = 'size-[22px]'
 
 type SyncedRow =
   | { kind: 'pair'; key: string; href?: string; rail: React.ReactNode; aside: React.ReactNode; tall?: boolean; markActive?: boolean }
   | { kind: 'aside-only'; key: string; href: string; icon: React.ReactNode; label: React.ReactNode }
   | { kind: 'section'; key: string; label: string }
   | { kind: 'admin-toggle'; key: string }
-
-function formatBalance(balance: string | null) {
-  if (!balance || balance === '0') return '0.00'
-  const num = parseFloat(balance)
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`
-  if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`
-  return num.toFixed(2)
-}
 
 function countSuffix(count: number) {
   if (count <= 0) return null
@@ -85,7 +80,7 @@ function countSuffix(count: number) {
 function AsideLabel({ title, count }: { title: string; count?: number | null }) {
   const suffix = count != null ? countSuffix(count) : null
   return (
-    <div className="flex min-w-0 items-center gap-2 text-[13px]">
+    <div className="flex min-w-0 items-center gap-2 text-[16px]">
       <span className="truncate font-medium">{title}</span>
       {suffix && (
         <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
@@ -108,6 +103,8 @@ interface SidebarSyncedLayoutProps {
   className?: string
   overlayMode?: boolean
   onOpenAside?: () => void
+  /** Desktop aside fully collapsed (width 0) — hide privacy/contact legal footer */
+  collapsed?: boolean
 }
 
 export function SidebarSyncedLayout({
@@ -115,15 +112,15 @@ export function SidebarSyncedLayout({
   className,
   overlayMode,
   onOpenAside,
+  collapsed = false,
 }: SidebarSyncedLayoutProps) {
   const pathname = usePathname()
-  const router = useRouter()
   const locale = useLocale() as Locale
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
-  const { currency, toggleCurrency, nativeTokenCurrency, defaultCurrency } = useStoreCurrency()
-  const nextLocale = nextLocaleInRoutingOrder(locale)
+  const { currency, toggleCurrency, nativeTokenCurrency, mainCurrency } = useStorePaymentMethods()
   const [mounted, setMounted] = useState(false)
+  const nativeSymbol = getClientNativeTokenSymbol()
 
   const tNav = useTranslations('navigation')
   const tEntities = useTranslations('modules.entities')
@@ -131,15 +128,15 @@ export function SidebarSyncedLayout({
   const tStore = useTranslations('modules.store')
   const tFav = useTranslations('modules.store.favorites')
 
-  const { balance: tokenBalance, isLoading: balanceLoading } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
   const [messagesCount] = useState(0)
 
   const cartCount = store?.totalItems || 0
-  const displayBalance = formatBalance(tokenBalance?.amount)
+  const userRole = resolveSessionUserRole(session?.user?.role)
   const showAdminToggle = hasMemberPrivileges(session?.user?.role)
+  const hideConcepts = hasConfidentialAccess(userRole)
 
   useEffect(() => {
     setMounted(true)
@@ -147,16 +144,10 @@ export function SidebarSyncedLayout({
 
   const isActive = (href: string) => {
     if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-    // Documentation hub: don't steal active state from deeper docs pages that have their own nav rows
     if (href === ROUTES.DOCS(locale)) {
       return pathname === href || pathname === `${href}/`
     }
     return pathname === href || pathname.startsWith(`${href}/`)
-  }
-
-  const switchLocale = () => {
-    persistRingLocalePreference(nextLocale)
-    replaceLocalePath(router, pathname, nextLocale)
   }
 
   const rows = useMemo((): SyncedRow[] => {
@@ -186,7 +177,7 @@ export function SidebarSyncedLayout({
         kind: 'pair',
         key: 'sign-in',
         href: ROUTES.LOGIN(locale),
-        rail: <User className="size-[18px]" strokeWidth={1.5} />,
+        rail: <User className={ICON} strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('sidebar.signIn')} />,
       })
     } else {
@@ -204,50 +195,60 @@ export function SidebarSyncedLayout({
               className="size-8"
             />
           ),
-          aside: <AsideLabel title={session.user.name || 'Anonymous'} />,
-        },
-        {
-          kind: 'pair',
-          key: 'wallet',
-          href: ROUTES.WALLET(locale),
-          rail: <Wallet className="size-[18px]" strokeWidth={1.5} />,
           aside: (
-            <div className="flex min-w-0 items-baseline gap-2 text-[13px]">
-              <span className="truncate font-semibold tabular-nums">
-                {balanceLoading ? '···' : displayBalance}
-              </span>
-              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                RING
-              </span>
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-[16px]">
+              <span className="truncate font-medium">{session.user.name || 'Anonymous'}</span>
+              <NavCreditTrailing />
             </div>
           ),
         },
         {
           kind: 'pair',
+          key: 'wallet',
+          href: ROUTES.WALLET(locale),
+          rail: <Wallet className={ICON} strokeWidth={1.5} />,
+          aside: <AsideLabel title={tNav('wallet')} />,
+        },
+        {
+          kind: 'pair',
           key: 'notifications',
           href: ROUTES.NOTIFICATIONS(locale),
-          rail: <Bell className="size-[18px]" strokeWidth={1.5} />,
+          rail: <Bell className={ICON} strokeWidth={1.5} />,
           aside: <AsideLabel title={tNav('notifications')} count={notificationCount} />,
         },
         {
           kind: 'pair',
           key: 'messages',
           href: ROUTES.MESSAGES(locale),
-          rail: <MessageCircle className="size-[18px]" strokeWidth={1.5} />,
+          rail: <MessageCircle className={ICON} strokeWidth={1.5} />,
           aside: <AsideLabel title={tNav('messages')} count={messagesCount} />,
+        },
+        {
+          kind: 'pair',
+          key: 'games',
+          href: ROUTES.GAMES(locale),
+          rail: <Gamepad2 className={ICON} strokeWidth={1.5} />,
+          aside: <AsideLabel title={tNav('games')} />,
+        },
+        {
+          kind: 'pair',
+          key: 'tasks',
+          href: ROUTES.TASKS(locale),
+          rail: <ListTodo className={ICON} strokeWidth={1.5} />,
+          aside: <AsideLabel title={tNav('tasks')} />,
         },
         {
           kind: 'pair',
           key: 'cart',
           href: ROUTES.CART(locale),
-          rail: <ShoppingCart className="size-[18px]" strokeWidth={1.5} />,
+          rail: <ShoppingCart className={ICON} strokeWidth={1.5} />,
           aside: <AsideLabel title={tStore('cart.title')} count={cartCount} />,
         },
         {
           kind: 'pair',
           key: 'favorites',
           href: ROUTES.STORE(locale),
-          rail: <Heart className="size-[18px]" strokeWidth={1.5} />,
+          rail: <Heart className={ICON} strokeWidth={1.5} />,
           aside: <AsideLabel title={tFav('button')} count={favorites.length} />,
         },
       )
@@ -259,11 +260,40 @@ export function SidebarSyncedLayout({
       label: string
       icon: React.ReactNode
       badge?: string
+      trailing?: React.ReactNode
     }> = [
-      { key: 'entities', href: ROUTES.ENTITIES(locale), label: tEntities('title'), icon: <Users className="size-[18px]" strokeWidth={1.5} />, badge: 'Hot' },
-      { key: 'opportunities', href: ROUTES.OPPORTUNITIES(locale), label: tOpp('opportunities'), icon: <Briefcase className="size-[18px]" strokeWidth={1.5} />, badge: 'New' },
-      { key: 'store-nav', href: ROUTES.STORE(locale), label: tStore('title'), icon: <Store className="size-[18px]" strokeWidth={1.5} /> },
-      { key: 'docs-nav', href: ROUTES.DOCS(locale), label: tNav('sidebar.documentation'), icon: <FileText className="size-[18px]" strokeWidth={1.5} /> },
+      {
+        key: 'entities',
+        href: ROUTES.ENTITIES(locale),
+        label: tEntities('title'),
+        icon: <Users className={ICON} strokeWidth={1.5} />,
+        trailing: (
+          <Crown
+            className="ml-auto size-[22px] shrink-0 text-amber-500"
+            strokeWidth={1.5}
+            aria-label="Membership"
+          />
+        ),
+      },
+      {
+        key: 'opportunities',
+        href: ROUTES.OPPORTUNITIES(locale),
+        label: tOpp('opportunities'),
+        icon: <Briefcase className={ICON} strokeWidth={1.5} />,
+        badge: 'New',
+      },
+      {
+        key: 'store-nav',
+        href: ROUTES.STORE(locale),
+        label: tStore('title'),
+        icon: <Store className={ICON} strokeWidth={1.5} />,
+      },
+      {
+        key: 'docs-nav',
+        href: ROUTES.DOCS(locale),
+        label: tNav('sidebar.documentation'),
+        icon: <FileText className={ICON} strokeWidth={1.5} />,
+      },
     ]
 
     for (const item of primaryNav) {
@@ -273,8 +303,9 @@ export function SidebarSyncedLayout({
         href: item.href,
         rail: item.icon,
         aside: (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-[16px]">
             <span className="truncate">{item.label}</span>
+            {item.trailing}
             {item.badge && (
               <Badge variant="secondary" className="ml-auto h-5 shrink-0 px-1.5 py-0 text-[10px]">
                 {item.badge}
@@ -289,46 +320,86 @@ export function SidebarSyncedLayout({
       list.push({ kind: 'admin-toggle', key: 'admin-supermenu' })
     }
 
-    list.push({ kind: 'section', key: 'concepts-h', label: tNav('sidebar.concepts', { default: 'Platform Concepts' }) })
-    for (const item of [
-      { key: 'ring-economy', href: `/${locale}/docs/customization/token-economics`, label: tNav('sidebar.ringEconomy'), icon: <Coins className="size-[18px]" strokeWidth={1.5} /> },
-      { key: 'app-publisher', href: `/${locale}/about-publisher`, label: tNav('sidebar.appPublisher'), icon: <Heart className="size-[18px]" strokeWidth={1.5} /> },
-      { key: 'global-impact', href: `/${locale}/global-impact`, label: tNav('sidebar.globalImpact'), icon: <Globe className="size-[18px]" strokeWidth={1.5} /> },
-      { key: 'ai-web3', href: `/${locale}/ai-web3`, label: tNav('sidebar.aiMeetsWeb3'), icon: <Zap className="size-[18px]" strokeWidth={1.5} /> },
-    ]) {
+    if (!hideConcepts) {
       list.push({
-        kind: 'pair',
-        key: item.key,
-        href: item.href,
-        rail: item.icon,
-        aside: <span className="truncate">{item.label}</span>,
+        kind: 'section',
+        key: 'concepts-h',
+        label: tNav('sidebar.concepts', { default: 'Platform Concepts' }),
       })
+      for (const item of [
+        {
+          key: 'ring-economy',
+          href: ROUTES.TOKEN_ECONOMY(locale),
+          label: `${nativeSymbol} ${tNav('sidebar.economics')}`,
+          icon: <Coins className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          key: 'app-publisher',
+          href: ROUTES.ABOUT_PUBLISHER(locale),
+          label: tNav('sidebar.appPublisher'),
+          icon: <Heart className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          key: 'global-impact',
+          href: ROUTES.GLOBAL_IMPACT(locale),
+          label: tNav('sidebar.globalImpact'),
+          icon: <Globe className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          key: 'ai-web3',
+          href: ROUTES.AI_WEB3(locale),
+          label: tNav('sidebar.aiMeetsWeb3'),
+          icon: <Zap className={ICON} strokeWidth={1.5} />,
+        },
+      ]) {
+        list.push({
+          kind: 'pair',
+          key: item.key,
+          href: item.href,
+          rail: item.icon,
+          aside: <span className="truncate text-[16px]">{item.label}</span>,
+        })
+      }
     }
 
     list.push({ kind: 'section', key: 'started-h', label: tNav('sidebar.getStarted') })
     for (const item of [
-      // Documentation already in primary nav — omit duplicate
-      { key: 'quick-start', href: `/${locale}/docs/getting-started`, label: tNav('sidebar.quickStart'), icon: <Rocket className="size-[18px]" strokeWidth={1.5} /> },
-      { key: 'calculator', href: `/${locale}/calculator`, label: tNav('sidebar.deploymentCalculator'), icon: <Calculator className="size-[18px]" strokeWidth={1.5} /> },
-      { key: 'roadmap', href: `/${locale}/roadmap`, label: tNav('sidebar.roadmap'), icon: <Map className="size-[18px]" strokeWidth={1.5} /> },
+      {
+        key: 'quick-start',
+        href: ROUTES.DOCS_GETTING_STARTED(locale),
+        label: tNav('sidebar.quickStart'),
+        icon: <Rocket className={ICON} strokeWidth={1.5} />,
+      },
+      {
+        key: 'calculator',
+        href: ROUTES.CALCULATOR(locale),
+        label: tNav('sidebar.calculatorCta'),
+        icon: <Calculator className={ICON} strokeWidth={1.5} />,
+      },
+      {
+        key: 'roadmap',
+        href: ROUTES.ROADMAP(locale),
+        label: tNav('sidebar.roadmap'),
+        icon: <Map className={ICON} strokeWidth={1.5} />,
+      },
     ]) {
       list.push({
         kind: 'pair',
         key: item.key,
         href: item.href,
         rail: item.icon,
-        aside: <span className="truncate">{item.label}</span>,
+        aside: <span className="truncate text-[16px]">{item.label}</span>,
       })
     }
 
     return list
   }, [
-    balanceLoading,
     cartCount,
-    displayBalance,
     favorites.length,
+    hideConcepts,
     locale,
     messagesCount,
+    nativeSymbol,
     notificationCount,
     session?.user,
     showAdminToggle,
@@ -349,7 +420,7 @@ export function SidebarSyncedLayout({
           key={`${row.key}-aside`}
           className={cn(
             SECTION_ROW,
-            'flex items-end pb-px pl-1 text-[10px] uppercase tracking-wide text-[var(--color-contrast-low)]',
+            'flex items-end pb-px pl-1 text-[11px] uppercase tracking-wide text-[var(--color-contrast-low)]',
           )}
         >
           {row.label}
@@ -376,7 +447,7 @@ export function SidebarSyncedLayout({
           href={toAppHref(row.href)}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(
-            'sidebar-nav-item sidebar-aside-col flex min-w-0 items-center gap-1 rounded-lg text-[13px] transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
+            'sidebar-nav-item sidebar-aside-col flex min-w-0 items-center gap-1 rounded-lg text-[16px] transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
             ROW,
             ASIDE_PAD,
           )}
@@ -427,8 +498,7 @@ export function SidebarSyncedLayout({
   }
 
   return (
-    <div className={cn('relative flex h-full min-h-0 flex-col text-[13px] font-medium', className)}>
-      {/* Single continuous rail chrome — rounded top/bottom on the right edge only */}
+    <div className={cn('relative flex h-full min-h-0 flex-col text-[16px] font-medium', className)}>
       <div
         aria-hidden
         className={cn(
@@ -445,7 +515,6 @@ export function SidebarSyncedLayout({
         <div className={cn('grid', GRID_COLS)}>{gridCells}</div>
       </div>
 
-      {/* Rail utilities — vertical stack on black strip, bottom-anchored */}
       <div className="pointer-events-none absolute bottom-0 left-0 z-[2] w-16">
         <div className="pointer-events-auto flex w-16 flex-col items-stretch border-t border-white/10 bg-[#090909]">
           {overlayMode && onOpenAside && (
@@ -480,12 +549,12 @@ export function SidebarSyncedLayout({
               className={cn(FOOTER_BTN, 'text-[10px] font-semibold')}
               title={
                 currency === nativeTokenCurrency
-                  ? `Switch to ${defaultCurrency}`
+                  ? `Switch to ${mainCurrency}`
                   : `Switch to ${nativeTokenCurrency}`
               }
               aria-label={
                 currency === nativeTokenCurrency
-                  ? `Switch to ${defaultCurrency}`
+                  ? `Switch to ${mainCurrency}`
                   : `Switch to ${nativeTokenCurrency}`
               }
             >
@@ -498,28 +567,23 @@ export function SidebarSyncedLayout({
                     : currency}
             </button>
           )}
-          <button
-            type="button"
-            onClick={switchLocale}
-            className={cn(FOOTER_BTN, 'text-[10px] font-semibold uppercase')}
-            title={`Switch to ${localeNativeTitle(nextLocale)}`}
-          >
-            {localeDisplayLabel(locale)}
-          </button>
+          <LocaleCodeMenu variant="footer" />
         </div>
       </div>
 
-      <div
-        className={cn(
-          'relative z-[1] mt-auto grid shrink-0 grid-cols-[64px_minmax(0,1fr)] border-t border-border/50',
-          FOOTER_H,
-        )}
-      >
-        <div className={FOOTER_H} aria-hidden />
-        <div className={cn(FOOTER_H, 'flex items-center px-2')}>
-          <NavLegalFooter className="w-full" />
+      {!collapsed && (
+        <div
+          className={cn(
+            'relative z-[1] mt-auto grid shrink-0 grid-cols-[64px_minmax(0,1fr)] border-t border-border/50',
+            FOOTER_H,
+          )}
+        >
+          <div className={FOOTER_H} aria-hidden />
+          <div className={cn(FOOTER_H, 'flex items-center px-2')}>
+            <NavLegalFooter className="w-full" />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

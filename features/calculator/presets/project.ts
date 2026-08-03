@@ -1,9 +1,9 @@
 /**
  * Ring Project Calculator preset — founder-facing catalog in credit points.
- * Display FX uses StoreCurrencyProvider (left-rail / mobile menu RING↔fiat toggle),
+ * Display FX uses StorePaymentMethodsProvider (left-rail / mobile menu RING↔fiat toggle),
  * same exchangeRates path as /store product listings.
  *
- * Internal catalog unit: credit points (≈ store.defaultCurrency when unitToDefaultCurrency=1).
+ * Internal catalog unit: credit points (≈ store.mainCurrency when creditBalanceUnitToMainCurrency=1).
  */
 
 export type ProjectModuleDomain = 'core' | 'commerce' | 'community' | 'web3' | 'ai' | 'admin'
@@ -211,10 +211,10 @@ export const PROJECT_EXTERNAL_IDS = ['ringbase', 'ringcdn', 'mail', 'dns'] as co
 export type ProjectExternalId = (typeof PROJECT_EXTERNAL_IDS)[number]
 
 /**
- * Monthly add-on catalog in store.defaultCurrency units (USD on platform).
- * Converted to credit points via unitToDefaultCurrency at calculate time.
+ * Monthly add-on catalog in store.mainCurrency units.
+ * Converted to credit points via creditBalanceUnitToMainCurrency at calculate time.
  */
-export const PROJECT_EXTERNAL_USD_MONTHLY: Record<ProjectExternalId, number> = {
+export const PROJECT_EXTERNAL_MAIN_CURRENCY: Record<ProjectExternalId, number> = {
   ringbase: 15,
   ringcdn: 10,
   mail: 8,

@@ -1,8 +1,19 @@
 # Dependencies & build output
 node_modules/*
+**/node_modules/
 .next/*
 out/
 tsconfig.tsbuildinfo
+
+# Solana / Hardhat build artifacts (mirror .dockerignore — never commit)
+solana/target/
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+**/*.rlib
+**/*.rmeta
+*.bak
+*.bak-*
 
 # Environment files & credentials (never commit real values)
 .env

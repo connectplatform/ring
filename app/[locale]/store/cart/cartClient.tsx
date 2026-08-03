@@ -35,9 +35,9 @@ import Image from 'next/image'
 import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
 import {
-  useStoreCurrency,
+  useStorePaymentMethods,
   resolveStorePriceCurrency,
-  DEFAULT_CURRENCY,
+  MAIN_CURRENCY,
 } from '@/features/store/currency-context'
 import { applyProductPromotionToLine } from '@/features/store/types/promotions'
 import type { Locale } from '@/i18n/shared'
@@ -54,10 +54,10 @@ export default function CartClient({ locale }: { locale: Locale }) {
 
   // Currency converter from context (amount, from, to) — never pass locale as a currency code.
   const {
-    convertPrice: convertStoreCurrencyPrice,
+    convertPrice: convertStorePaymentMethodsPrice,
     currency: displayCurrency,
     formatPrice,
-  } = useStoreCurrency()
+  } = useStorePaymentMethods()
 
   // UI states for confirmation modals, animations, mount guard.
   const [clearing, setClearing] = useState(false)                  // Used to show spinner and disable modal UI when clearing cart.
@@ -159,9 +159,9 @@ export default function CartClient({ locale }: { locale: Locale }) {
               // - Show remove and quantity controls.
               const rawPrice = item.finalPrice ?? parseFloat(item.product.price)
               const basePrice = parseFloat(item.product.price)
-              const from = resolveStorePriceCurrency(item.product.currency || DEFAULT_CURRENCY)
-              const displayPrice = convertStoreCurrencyPrice(rawPrice, from, displayCurrency)
-              const displayBasePrice = convertStoreCurrencyPrice(basePrice, from, displayCurrency)
+              const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
+              const displayPrice = convertStorePaymentMethodsPrice(rawPrice, from, displayCurrency)
+              const displayBasePrice = convertStorePaymentMethodsPrice(basePrice, from, displayCurrency)
               const { lineTotal: itemTotal, applied: appliedPromo } = applyProductPromotionToLine(
                 displayPrice,
                 item.quantity,

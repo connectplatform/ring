@@ -55,8 +55,8 @@
     "subtitle": "Únete a profesionales que hacen crecer su negocio con Ring Platform"
   },
   "pricing": {
-    "amount": "₴299",
-    "period": "UAH",
+    "amount": "$10",
+    "period": "/month",
     "features_included": "Todas las funciones de miembro incluidas"
   },
   "sidebar": {
@@ -149,5 +149,32 @@
     "faq_info_answer": "Pediremos información básica sobre tu organización, tu rol y por qué quieres mejorar. Un perfil de LinkedIn o enlaces a tu portfolio pueden acelerar la revisión.",
     "faq_downgrade_question": "¿Puedo bajar de categoría después?",
     "faq_downgrade_answer": "Sí, puedes solicitar un cambio de tipo de cuenta en cualquier momento desde los ajustes del perfil. Ten en cuenta que bajar de categoría puede afectar al acceso a ciertas funciones."
+  },
+  "gate": {
+    "title": "Mejora a Member",
+    "subtitle": "Desbloquea la creación de entidades y la experiencia completa de miembro Ring",
+    "subscribe_now": "Suscribirse ahora",
+    "continue_free": "Continuar gratis",
+    "cancel_anytime": "Cancela cuando quieras. La membresía se renueva según el plan elegido.",
+    "fiat_period": "/mes",
+    "fiat_period_year": "/año",
+    "fiat_hint": "Tarjeta o crédito de cuenta",
+    "ring_period": "único",
+    "ring_hint": "Pago único con RING on-chain",
+    "select_method": "Selecciona método",
+    "plan_monthly_hint": "Facturación mensual",
+    "plan_annual_off": "20 % menos vs mensual",
+    "eternal_nft": "Eternal Member NFT — {amount} {symbol}",
+    "eternal_hint": "Acceso de miembro de por vida vía NFT",
+    "nft_month": "NFT 1 mes — {amount} {symbol}",
+    "nft_month_off": "20 % menos vs fiat mensual",
+    "nft_year": "NFT 1 año — {amount} {symbol}",
+    "nft_year_off": "40 % menos vs fiat anual",
+    "nft_need_token": "Necesitas más {symbol}",
+    "native_insufficient_short": "Saldo insuficiente de {symbol}",
+    "no_token_has_credit": "Aún no tienes {symbol} — tienes {credit} {unit}. Cambia en Token Desk.",
+    "visit_desk": "Abrir desk de {symbol}",
+    "token_insufficient_buy_credit": "Poco {symbol}. Compra crédito {unit} y cámbialo en el desk.",
+    "buy_credit": "Comprar {unit} / obtener {symbol}"
   }
 }

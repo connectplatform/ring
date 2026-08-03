@@ -1,4 +1,5 @@
 import { getXaiTextConfig } from '@/lib/text/text.config'
+import { resolveModel } from '@/lib/ai/model-router'
 import {
   getPlatformAIData,
   getPlatformAISecrets,
@@ -24,10 +25,35 @@ function envProvider(): LlmProviderOption {
 
 function envModel(provider: LlmProviderOption): string {
   if (process.env.LLM_MODEL) return process.env.LLM_MODEL
-  if (provider === 'anthropic') return 'claude-3-5-sonnet-20241022'
-  if (provider === 'openrouter') return 'anthropic/claude-3.5-sonnet'
-  if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.3'
-  return 'gpt-4o'
+  try {
+    if (provider === 'anthropic') {
+      return resolveModel('chat_stream', {
+        availableKeys: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || 'x' },
+        preferred: [{ provider: 'anthropic', modelId: 'claude-sonnet-4-5-20250929' }],
+        ignoreEnvOverride: true,
+      }).modelId
+    }
+    if (provider === 'openrouter') {
+      return (
+        process.env.OPENROUTER_MODEL_PRIMARY ||
+        resolveModel('news_moderation_score', {
+          availableKeys: { OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || 'x' },
+          ignoreEnvOverride: true,
+        }).modelId
+      )
+    }
+    if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.3'
+    return resolveModel('chat_stream', {
+      availableKeys: { OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'x' },
+      preferred: [{ provider: 'openai', modelId: 'gpt-5.6-terra' }],
+      ignoreEnvOverride: true,
+    }).modelId
+  } catch {
+    if (provider === 'anthropic') return 'claude-sonnet-4-5-20250929'
+    if (provider === 'openrouter') return 'anthropic/claude-sonnet-4-5'
+    if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.3'
+    return 'gpt-5.6-terra'
+  }
 }
 
 function envApiKeys() {

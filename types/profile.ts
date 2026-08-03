@@ -7,6 +7,10 @@ export interface ProfileFormData {
   username?: string;
   bio?: string;
   walletAddress?: string;
+  publicProfile?: boolean | string;
+  publicProfileSections?: string | string[];
+  publicProfileFields?: Record<string, Record<string, boolean>> | string;
+  acceptProfileDms?: boolean | string;
 }
 
 export interface ProfileUpdateState {

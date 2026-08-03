@@ -14,6 +14,9 @@ import type { BaseChainConfig, EnabledChains, EvmChainConfig, SolanaChainConfig 
  */
 export type VerticalPresetId = 'platform' | 'agricultural'
 
+/** Rails a collective order may offer — the config-level mirror of CollectiveOrderRail. */
+export type CollectiveOrderConfigRail = 'credit_balance' | 'card' | 'paypal'
+
 /** @deprecated Prefer VerticalPresetId for productFields.preset — this aliases store category strings historically. */
 export type ProductFieldsPreset = (typeof ringConfig.productFieldsPresets.platform.storeCategories)[number]
 
@@ -25,11 +28,23 @@ export type ProductBadgesPreset = (typeof ringConfig.productBadgesPresets.platfo
 
 export type SupportedCurrencies = (typeof ringConfig.currencies)[number]['symbol'];
 
-/** @deprecated Use SupportedCrypto — this alias is kept for back-compat until currency-context refactor is complete. */
-export type SupportedTokens = (typeof ringConfig.tokens.supported)[number];
-
 /** Supported crypto/token symbols from ring-config.json tokens.supported. */
 export type SupportedCrypto = (typeof ringConfig.tokens.supported)[number];
+
+/**
+ * Fiat FX feed providers.
+ * - nbu: National Bank of Ukraine (only when store.mainCurrency === 'UAH')
+ * - open_er_api: open.er-api.com free global FX (default for non-UAH mains; XE has no free API)
+ * - frankfurter: ECB-backed frankfurter.dev (no UAH — prefer open_er_api when UAH presentment needed)
+ */
+export type FxFeedProviderId = 'nbu' | 'open_er_api' | 'frankfurter'
+
+export type FxFeedProviderConfig = {
+  provider: FxFeedProviderId
+  enabled?: boolean
+  /** Re-fetch interval in hours; default 24. */
+  refreshHours?: number
+}
 
 /**
  * Type for all vendor merchant payout rail types (layer/infrastructure, not product)
@@ -47,13 +62,13 @@ export type VendorMerchantPayoutRailType =
  * Type for all user-facing vendor merchant payout method types (actual method user selects)
  * Subset/superset of payment rails. Use for user interaction or option lists.
  */
-export type VendorAcceptedPaymentMethods = SupportedCurrencies | SupportedTokens;
+export type VendorAcceptedPaymentMethods = SupportedCurrencies | SupportedCrypto;
 
 /**
  * Type for supported vendor merchant payout currencies (includes fiat and crypto)
  * - Used for presenting users with currency options, plus API currency field typing
  */
-export type VendorMerchantPayoutCurrencyType = SupportedCurrencies | SupportedTokens;
+export type VendorMerchantPayoutCurrencyType = SupportedCurrencies | SupportedCrypto;
 
 // =========================
 // Sidebar Config Types
@@ -413,9 +428,11 @@ export interface ConfidentialTierConfig {
 // Native token pricing for membership payments
 export interface MembershipTokenPricing {
   /** Native tokens required for subscriber → member upgrade */
-  memberUpgradeAmount: number    // Upgrade amount in native tokens
+  memberUpgradeAmount: number
   /** Monthly subscription renewal in RING (defaults to memberUpgradeAmount) */
-  subscriptionRenewalAmount?: number // If set, overrides upgradeAmount for billing
+  subscriptionRenewalAmount?: number
+  /** Annual upgrade in RING (defaults to round(monthly×12×0.8)) */
+  annualUpgradeAmount?: number
 }
 
 // Top-level membership config container
@@ -497,13 +514,17 @@ export interface NftGateConfig {
 
 export interface MembershipConfig {
   tiers: {
-    subscriber: SubscriberTierConfig   // Subscriber tier properties
-    member: MemberTierConfig       // Paid/member properties
-    confidential: ConfidentialTierConfig       // Confidential tier properties
+    subscriber: SubscriberTierConfig
+    member: MemberTierConfig
+    /** Annual member fiat (20% off monthly×12). Optional — derived if omitted. */
+    memberAnnual?: MemberTierConfig
+    confidential: ConfidentialTierConfig
   }
-  nativeToken?: MembershipTokenPricing        // Optional token-based payment config
-  fiatCurrency?: SupportedCurrencies       // Optional fiat currency payment config
-  // TODO: Enforce type safety using new TypeScript satisfies operator in Next.js 16+.
+  /** Runtime ring-config key (preferred). */
+  ring?: MembershipTokenPricing
+  /** Legacy alias — prefer `ring`. */
+  nativeToken?: MembershipTokenPricing
+  mainCurrency?: SupportedCurrencies
 }
 
 // =========================
@@ -546,6 +567,38 @@ export interface StorageConfig {
 // Master (main SSOT) RingConfig interface
 // =========================
 
+export interface ContactConfig {
+  address?: string
+  phone?: string
+  email?: string
+  partners?: Array<{ name: string; logo: string; url?: string }>
+}
+
+/** CRM channel processing profile for inbound IMAP. */
+export type EmailCrmChannelFlow = 'standard' | 'ingest_only' | 'tasks_only'
+
+export interface EmailCrmChannelConfig {
+  id: string
+  name: string
+  enabled?: boolean
+  flow?: EmailCrmChannelFlow
+  imap: {
+    host: string
+    port: number
+    user: string
+    mailbox?: string
+    tls?: boolean
+  }
+  smtp?: {
+    host: string
+    port: number
+    user: string
+    from?: string
+  }
+  /** Env prefix for secrets; default CRM_CHANNEL_<ID_UPPER>. */
+  secretEnvPrefix?: string
+}
+
 export interface RingConfig {
   clone: {
     name: string                     // Unique identifier (slug)
@@ -566,6 +619,14 @@ export interface RingConfig {
     partners?: Array<{ name: string; logo: string; url?: string }> // Partner logos/links
   }
   /**
+   * Multi-mailbox Email CRM (IMAP inbound). AUTH SMTP stays on SMTP_* / lib/mailer.
+   * Channel passwords: env `${secretEnvPrefix}_PASSWORD` (default CRM_CHANNEL_<ID>).
+   */
+  emailCrm?: {
+    enabled?: boolean
+    channels?: EmailCrmChannelConfig[]
+  }
+  /**
    * Public /calculator feature shell (Tier B tool page).
    * SSOT is top-level — do not nest under features.
    */
@@ -573,6 +634,21 @@ export interface RingConfig {
     enabled?: boolean
     /** Preset id under features/calculator/presets/{id}.ts (e.g. project, deployment) */
     presetId?: string
+  }
+  /**
+   * Opportunities type enablement + specialty defaults (Ring Opportunity Upgrade).
+   * SSOT is top-level — white-label clones gate selectors via enabledTypes.
+   */
+  opportunities?: {
+    enabledTypes?: string[]
+    scheduledServices?: {
+      categories?: string[]
+    }
+    collectiveOrder?: {
+      defaultRails?: CollectiveOrderConfigRail[]
+      minSlots?: number
+      maxSlots?: number
+    }
   }
   domains: {
     production?: string              // Main production domain (https)
@@ -584,8 +660,24 @@ export interface RingConfig {
   }
   /** Supported fiat currencies — array of {symbol, name, decimals}. */
   currencies?: Array<{ symbol: SupportedCurrencies; name: string; decimals: number }>
-  /** Exchange rates relative to DEFAULT_CURRENCY (rate == 1 for base). */
+  /** Exchange rates relative to MAIN_CURRENCY (rate == 1 for base). */
   exchangeRates?: Record<string, number>
+  /**
+   * Fiat FX feeds + manual overrides.
+   * getExchangeRates resolution: static exchangeRates → live feed overlay → manualOverrides.
+   *
+   * Provider selection (extensible per-main-currency map):
+   * 1. fx.byMainCurrency[mainCurrency]
+   * 2. else if mainCurrency === 'UAH' → nbu
+   * 3. else fx.default → open_er_api
+   */
+  fx?: {
+    byMainCurrency?: Partial<Record<string, FxFeedProviderConfig>>
+    default?: Partial<FxFeedProviderConfig> & { provider?: FxFeedProviderId }
+    /** @deprecated Prefer byMainCurrency / default. */
+    feed?: Partial<FxFeedProviderConfig> & { provider?: FxFeedProviderId }
+    manualOverrides?: Record<string, number>
+  }
   features: Record<string, unknown> & {
     expertServicesMarketplace?: boolean   // Example feature flag (marketplace)
     roadmap?: {
@@ -706,14 +798,14 @@ export interface RingConfig {
   }
   /**
    * Fiat credit ledger SSOT (singular key used by ring-config.json).
-   * Points are denominated in store.defaultCurrency; unitToDefaultCurrency is the
-   * multiplier for ledger `usd_equivalent` / accounting (typically 1 = 1:1).
+   * Points are denominated in store.mainCurrency; creditBalanceUnitToMainCurrency is the
+   * multiplier for ledger `main_currency_equivalent` / accounting (typically 1 = 1:1).
    * Write-path for activity rewards: credit.rewards (events + multipliers + caps).
    */
   credit?: {
-    creditUnitLabel?: string
-    /** How many units of store.defaultCurrency one credit point equals (usually 1). */
-    unitToDefaultCurrency?: number
+    creditBalanceUnitLabel?: string
+    /** How many units of store.mainCurrency one credit point equals (usually 1). */
+    creditBalanceUnitToMainCurrency?: number
     /** @deprecated Prefer credit.rewards.events — kept for dual-read during migration. */
     creditAddEvents?: Record<string, unknown>
     rewards?: {
@@ -722,10 +814,10 @@ export interface RingConfig {
       dailyEarnCap?: Record<string, number>
       events?: Record<RewardCreditAddEventTrigger, RewardCreditAddEventRule>
     }
-    desk?: TokenDeskConfig & { pointsPerNativeToken?: number }
+    desk?: TokenDeskConfig & { creditBalanceUnitPerNativeToken?: number }
   }
   tokens?: {
-    supported?: SupportedTokens[]
+    supported?: SupportedCrypto[]
     tokenDesk?: Record<SupportedChains, TokenDeskConfig>    // Desk/trade/swap config for native token UX
     nativeToken?: {
       tokenSymbol?: string
@@ -814,8 +906,14 @@ export interface RingConfig {
   /** Store settings — configurable options for store checkout behavior. */
   store?: {
     storeCategories?: ProductFieldsPreset[]
-    defaultCurrency?: SupportedCurrencies[number]
-    creditAcceptOrderCurrencies?: VendorAcceptedPaymentMethods[]
+    mainCurrency?: SupportedCurrencies[number]
+    /**
+     * USD per 1 main-currency unit (bridge for Chainlink TOKEN/USD → main).
+     * When main is USD, treat as 1. Manual admin override preferred over cron FX.
+     */
+    mainCurrencyToUsd?: number
+    /** Order currencies the `credit_balance` rail may settle. */
+    creditBalanceAcceptedOrderCurrencies?: VendorAcceptedPaymentMethods[]
   }
   /** Price oracle configuration — multi-chain price feeds. */
   nativeTokenPriceOracle?: NativeTokenPriceOracleConfig
@@ -836,6 +934,7 @@ export type MembershipPaymentProvider =
   | 'native_token'
   | 'nft_gate'
   | 'paypal'
+  | 'telegram_stars'
 // TODO: Use template literal types if supporting custom/extension providers in the future.
 
 /** Per-gateway fee structure for admin net-revenue calculation. */
@@ -858,17 +957,17 @@ export type CardPaymentProcessor = 'wayforpay' | 'stripe'
 
 /** Store settings — configurable options for store checkout behavior. */
 export interface StoreSettingsConfig {
-  /** Which order currencies the user credit balance can pay for (comma-separated ISO 4217 codes). */
-  creditAcceptOrderCurrencies?: string[]
+  /** Which order currencies the user credit balance can pay for (ISO 4217 codes). */
+  creditBalanceAcceptedOrderCurrencies?: string[]
   /** Default currency for store orders. */
-  defaultCurrency?: SupportedCurrencies
+  mainCurrency?: SupportedCurrencies
 
   // TODO: Add experience-level currency choice (locale-based) with Next.js 16 i18n static routing.
 }
 
 /** Price oracle configuration — multi-chain price feeds. */
 export interface NativeTokenPriceOracleConfig {
-  /** Chain-specific oracle configuration. */
+  /** Chain-specific oracle configuration (typed SSOT used by native-token-oracle / native-token-chainlink-oracle). */
   chains?: Record<number, {
     cache?: {
       enabled?: boolean | true
@@ -890,7 +989,23 @@ export interface NativeTokenPriceOracleConfig {
     rpcUrl?: string
   }>
   /** Default chain ID for native-token/USD price. */
-  defaultChain: number
+  defaultChain?: number
+  /**
+   * Legacy / narrative shape still present in some ring-config.json files.
+   * Prefer `chains[chainId].chainlink.feedAddress`; service merges `evm.aggregatorAddress`.
+   */
+  solana?: {
+    enabled?: boolean
+    provider?: string
+    priceFeedId?: string
+    refreshIntervalSeconds?: number
+  }
+  evm?: {
+    enabled?: boolean
+    provider?: string
+    aggregatorAddress?: string
+    refreshIntervalSeconds?: number
+  }
 }
 
 /** Trigger types for user-credit-balance add events. */

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { RingContentPanel } from '@/components/layout/ring-app-shell'
 import {
-  RING_FLUSH_CENTER_PANE,
   RING_FLUSH_CENTER_PANE_MOBILE,
 } from '@/components/layout/center-pane-classes'
 import { cn } from '@/lib/utils'
@@ -156,11 +155,10 @@ export default function RingRightRailLayout({
       <div className="min-h-full lg:flex lg:gap-3">
         <RingContentPanel
           className={cn(
-            'relative min-h-full min-w-0 flex-1 px-1 pb-4 md:px-5 md:pb-6 lg:px-6 lg:pb-0',
-            flushCenterPane &&
-              (mobileRailMode === 'consecutive'
-                ? RING_FLUSH_CENTER_PANE
-                : RING_FLUSH_CENTER_PANE_MOBILE),
+            'relative min-h-full min-w-0 flex-1 px-1',
+            'pb-[calc(var(--mobile-bottom-nav-h,3.5rem)+1.25rem)] md:px-5 md:pb-6 lg:px-6 lg:pb-0',
+            // Flush always keeps mobile nav clearance (`!pb` beats flush `!p-0`).
+            flushCenterPane && RING_FLUSH_CENTER_PANE_MOBILE,
             contentClassName,
           )}
         >
@@ -199,7 +197,7 @@ export default function RingRightRailLayout({
             data-rail-purpose={rightRailPurpose}
             data-rail-content-count={rightRailContent?.length ?? 0}
           >
-            <div className="sticky top-0 px-3 pt-4 pb-6 pr-4">{rail}</div>
+            <div className="sticky top-0 overflow-visible px-3 pt-4 pb-6 pr-4">{rail}</div>
 
             {/* Declarative content hint (for future <RightRailComposer /> or inspection/debug).
                 Not rendered here; the concrete widgets are supplied via the rightRail prop by the wrapper.

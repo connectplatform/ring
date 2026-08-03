@@ -154,6 +154,7 @@ export async function createNewsArticleForAuthor(
       blogUsername: formData.blogUsername,
       promoteToMainPage: extras?.promoteToMainPage ?? formData.promoteToMainPage ?? false,
       mainPageStatus: extras?.mainPageStatus,
+      ...(formData.versions ? { versions: formData.versions } : {}),
     }
 
     // Create article document in database
@@ -315,6 +316,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
         : articleData.publishedAt,
       updatedAt: now,
       seo: formData.seo || null,
+      ...(formData.versions ? { versions: formData.versions } : {}),
     }
 
     // Perform update in database

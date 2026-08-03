@@ -68,8 +68,8 @@ import type { Order } from '@/features/store/types';
  *   `lib/payments/payment-transaction-service.ts`, and the read paths
  *   implemented in `credit-balance-service.ts`, `subscription-service.ts`,
  *   `subscription-conductor.ts`, and `payment-conductor.ts`.
- * - Ring credit balance is **always fiat USD** on ring-platform.org; the
- *   blockchain token is the native chain token (RING on Solana/EVM).
+ * - Ring credit balance is **always credit.unit** the blockchain token is 
+ *   the native token.
  *   Do not add credit helpers that denominate in native tokens.
  */
 
@@ -648,16 +648,15 @@ export async function deleteDocument(collection: string, docId: string): Promise
 // ============================================================================
 // CREDIT BALANCE DOMAIN (SSOT: users/{userId}.credit_balance + credit_transactions[])
 // ----------------------------------------------------------------------------
-// Ring credit balance is **always fiat USD** on ring-platform.org. The
-// blockchain token (RING) is the native chain token. These helpers are the
+// Credit balance is **always credit unit**. The blockchain token is the native chain token. These helpers are the
 // React 19 cache-friendly read side of the credit system; the write side is
 // implemented in `features/wallet/services/credit-balance-service.ts` and
-// orchestrated through `lib/wallet/reward-credit-service.ts` for airdrops.
+// orchestrated through `lib/wallet/reward-credit-service.ts` for credit add events.
 // Field shape matches `lib/zod/credit-schemas.ts`.
 // ============================================================================
 
 /**
- * Cached credit balance (fiat USD) for a single user.
+ * Cached credit balance for a single user.
  * SSOT: `users/{userId}.credit_balance` — the canonical UserCreditBalance
  * document embedded on the user profile.
  */
@@ -783,9 +782,9 @@ export async function creditBalanceAdjustAtomic(
     }
     const data = snap.data() as any;
     const currentBalance = (data?.credit_balance?.amount as string) ?? '0';
-    const currentUsdEquiv = (data?.credit_balance?.usd_equivalent as string) ?? '0';
-    const currentFiatCurrency =
-      (data?.credit_balance?.fiat_currency as string) ?? process.env.PAYMENT_FIAT_CURRENCY ?? 'USD';
+    const currentUsdEquiv = (data?.credit_balance?.main_currency_equivalent as string) ?? '0';
+    const currentMainCurrency =
+      (data?.credit_balance?.main_currency as string) ?? process.env.PAYMENT_MAIN_CURRENCY ?? 'USD';
 
     const currentAmount = parseFloat(currentBalance);
     const newAmount = (currentAmount + delta).toString();
@@ -803,8 +802,8 @@ export async function creditBalanceAdjustAtomic(
 
     const updatedCreditBalance = {
       amount: newAmount,
-      usd_equivalent: newUsdEquiv,
-      fiat_currency: currentFiatCurrency,
+      main_currency_equivalent: newUsdEquiv,
+      main_currency: currentMainCurrency,
       last_updated: tsNow,
       last_transaction_id: newTransactionId,
       subscription_active: data?.credit_balance?.subscription_active ?? false,
@@ -817,8 +816,8 @@ export async function creditBalanceAdjustAtomic(
       id: newTransactionId,
       user_id: userId,
       amount: String(delta),
-      usd_rate: usdRate,
-      usd_equivalent: signedUsdDelta,
+      main_currency_rate: usdRate,
+      main_currency_equivalent: signedUsdDelta,
       balance_after: newAmount,
       timestamp: transaction.timestamp ?? tsNow,
     };
@@ -1455,8 +1454,8 @@ export function createPaymentTransactionListener(
 // Per-user history of on-chain debits / credits and admin-triggered
 // adjustments. Used by the unified `/api/wallet/activity` feed and the
 // Wallet UI. Pairs with `features/wallet/services/credit-balance-service.ts`
-// (fiat credits) and `features/wallet/chains/native-token-transfer-service.ts`
-// (on-chain RING transfers).
+// (credit balance units) and `features/wallet/chains/native-token-transfer-service.ts`
+// (on-chain native-token transfers).
 // ============================================================================
 
 /**
@@ -1549,8 +1548,8 @@ export function createWalletTransactionListener(
 // at the oracle rate. The flow is:
 //   1. `/api/wallet/desk/quote`  → HMAC-signed `desk_orders` row (status=pending)
 //   2. `/api/wallet/desk/execute` → settle against treasury (status=settled | failed)
-// Pairs with `lib/payments/credit-currency.ts` (rate math) and
-// `lib/payments/credit-currency-client.ts` (client fetch).
+// Pairs with `lib/payments/credit-balance.ts` (rate math) and
+// `lib/payments/credit-balance-client.ts` (client fetch).
 // ============================================================================
 
 /**
@@ -1846,7 +1845,7 @@ export const getCachedNewsCategoriesCollection = cache(async (
 
   try {
     const db = getAdminDb();
-    let query: any = db.collection('newsCategories');
+    let query: any = db.collection('news_categories');
 
     // Apply where clauses
     if (options.where) {

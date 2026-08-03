@@ -48,7 +48,7 @@ export function formatCreditAmount(tx: CreditTransaction): string {
       typeof tx.metadata?.tokenSymbol === 'string' ? tx.metadata.tokenSymbol : null,
     ) ||
     (isCreditLedger
-      ? (typeof tx.metadata?.creditUnit === 'string' && tx.metadata.creditUnit) ||
+      ? (typeof tx.metadata?.creditBalanceUnit === 'string' && tx.metadata.creditBalanceUnit) ||
         getClientCreditUnitLabel()
       : getClientNativeTokenSymbol())
   if (Number.isNaN(num)) return `${tx.amount} ${currency}`

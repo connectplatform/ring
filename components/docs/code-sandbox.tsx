@@ -69,7 +69,8 @@ export function CodeSandbox({
       : { '/App.tsx': defaultReact })
 
   return (
-    <div className="my-8 w-full overflow-hidden rounded-lg border border-border">
+    <div className="my-8 w-full min-w-0 overflow-x-auto rounded-lg border border-border">
+      <div className="min-w-0 overflow-hidden rounded-lg">
       {title ? (
         <div className="border-b border-border bg-muted/40 px-4 py-2 text-sm font-medium">{title}</div>
       ) : null}
@@ -86,6 +87,7 @@ export function CodeSandbox({
           activeFile: Object.keys(resolvedFiles)[0],
         }}
       />
+      </div>
     </div>
   )
 }

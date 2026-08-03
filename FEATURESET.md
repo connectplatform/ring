@@ -1,6 +1,6 @@
 # Ring Platform: Feature Set
 
-> React 19 + Next.js 16 open-source white-label platform (v1.97.6)  
+> React 19 + Next.js 16 open-source white-label platform (v1.97.13)  
 > AI-Matcher, SSE tunnel, messaging, Web3 (Solana/EVM), store, CRM, wiki, file cabinet — MCP-orchestrated for any org.
 
 ---
@@ -9,7 +9,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | **1.97.6** |
+| Version | **1.97.13** |
 | Feature modules (`features/`) | **41** |
 | API route handlers | **~300** |
 | App Router pages | **~165** |
@@ -22,11 +22,14 @@
 - **Partial** — works for primary paths; edge cases or verticals still open
 - **Planned** — not claimed as live
 
-Live release notes: [ring-platform.org/changelog](https://ring-platform.org/changelog) (`docs/{locale}/changelog.json`).
+Live release notes: [ring-platform.org/changelog](https://ring-platform.org/changelog) (`docs/{locale}/changelog.json`) — **99+ feature releases from 2024 genesis** (dates are narrative markers).
 
 ## Recent Highlights (newest first)
 
-### v1.97.6 / 1.97.5 (2026-07-21)
+### v1.97.4 (2026-07-21)
+- **File Cabinet, Tasks, Peer Games** — plus roadmap/changelog saturation (2024→now across all locales)
+
+### v1.97.13 / 1.97.5 (2026-07-21)
 - Changelog page — locale JSON SSOT, DaVinci-glass cards, GFM/TTFB fixes (`force-static`)
 - Shared markdown prose tokens; math viewer fullscreen / Copy LaTeX
 
@@ -81,6 +84,8 @@ Live release notes: [ring-platform.org/changelog](https://ring-platform.org/chan
 
 ### Messaging & Chat
 - Direct messaging UI (conversation list, thread, composer)
+- **Ring Tasks** — `/tasks` tree + `/tasks/[chatId]`, chat `task` widgets, notifications, optional escrow (credit / WayForPay)
+- **Ring Peer Games** — `/games` + `/games/[slug]`, `game_request` interactive type, Member `/{username}/games`, Tunnel session SSOT (tic-tac-toe, chess, checkers); P1 ops (expiry cron, Tunnel ACL, FCM offline, DataChannel optimistic hints)
 - Product / agent AI chat with SSE streaming (Anthropic / OpenAI / OpenRouter + Grok fallback)
 - Lab chat rails for owner CRM
 
@@ -92,14 +97,16 @@ Live release notes: [ring-platform.org/changelog](https://ring-platform.org/chan
 ### Store & Commerce
 - Multi-vendor catalog, cart, checkout
 - PaymentConductor — WayForPay, Stripe, PayPal, internal credit, wallet top-up
+- **ERP hub (P0+Wave1)** — `/admin/store` cockpit + vendor stock; `stock === available + reserved`; checkout reserves sellable `available`; paid `commitSaleForOrder`; cancel/refund restore; digital/instantDelivery skip; cart soft-holds (`cart_${userId}`); MCP `ring-stock-*`; ProcessConductor `inventory-drift`
 - Store promotions, share-and-earn, product AI chat
 - User credit / rewards ledger
+- Vendor settlements ledger + commissions hold/release / dry-run payout
 
 ### Wallet & Web3
 - Custodial + connected wallets (wagmi v3)
 - Native / RING token balances, credit↔token swap paths, staking module
 - Solana + EVM surfaces; NFT gates; NFT market (list / gallery / generative art)
-- Price oracle: `features/wallet/services/native-token-price-oracle.ts` (+ RING oracle sibling)
+- Price oracle: desk FX SSOT `features/wallet/services/native-token-oracle.ts`; Chainlink feeds `native-token-chainlink-oracle.ts`
 
 ### Membership & NFT Gates
 - Membership manage / PayPal subscription cancel-status
@@ -164,7 +171,8 @@ data/              # schema.sql + migrations
 ```
 
 Email inbound/CRM pipeline lives under **`features/email-crm/pipeline/`**.  
-Native token USD oracle lives under **`features/wallet/services/native-token-price-oracle.ts`**.
+Native token desk FX / quotes: **`features/wallet/services/native-token-oracle.ts`**.  
+Chainlink AggregatorV3 feeds (treasury-swap allowlist): **`features/wallet/services/native-token-chainlink-oracle.ts`**.
 
 ---
 

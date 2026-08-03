@@ -264,7 +264,14 @@ AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-
 # OAuth Providers (Optional)
 AUTH_GOOGLE_ID=your_google_client_id.apps.googleusercontent.com
 AUTH_GOOGLE_SECRET=your_google_client_secret
-AUTH_RESEND_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Ring Mailer (own SMTP or Ethereal — no AUTH_RESEND_KEY)
+# EMAIL_MODE=ethereal
+# SMTP_HOST=mail.example.com
+# SMTP_PORT=587
+# SMTP_USER=noreply@example.com
+# SMTP_PASSWORD=
+# SMTP_FROM=Ring Platform <noreply@example.com>
 
 # Storage
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxxxxxxxxxxxxxxx

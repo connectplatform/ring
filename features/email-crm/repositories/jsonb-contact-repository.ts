@@ -1,13 +1,13 @@
 import 'server-only'
 
-import {
+import type {
   ContactRepository,
   ContactCreateInput,
   ContactUpdateInput,
   ContactSearchParams,
   EmailContact,
   SentimentEntry,
-} from '@/services/email/crm/email-contact-service'
+} from '@/features/email-crm/types/contact'
 import { contactIdForEmail } from '@/features/email-crm/lib/contact-id'
 import { parseIsoDate, queryDocs, readDoc, upsertDoc, deleteDoc } from '@/features/email-crm/lib/jsonb-collection'
 

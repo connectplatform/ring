@@ -1,4 +1,5 @@
 import type { CalculatorInputs, CalculatorResults } from '@/features/calculator/types'
+import type { OrderProjectConfig } from '@/features/crm/orders/order-project-config'
 
 export type ProjectPaymentStatus =
   | 'draft'
@@ -44,6 +45,8 @@ export interface ProjectOrder {
   opportunityId: string | null
   details: string
   snapshot: ProjectOrderSnapshot
+  /** Order Project Config — allowlisted ring-config overlay SSOT */
+  projectConfig: OrderProjectConfig
   amount: number
   currency: string
   orderReference: string | null

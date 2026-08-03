@@ -148,9 +148,27 @@ Smoke: `scripts/smoke-erp-referral-pipeline.cts`, `scripts/smoke-growth-pipeline
   Run `./scripts/run-all-smokes.sh` (sets `DB_BACKEND_MODE` and `NODE_OPTIONS=--conditions=react-server`). Targeted: `smoke-erp-referral-pipeline.cts`, `smoke-growth-pipelines.cts`, `smoke-refcodes-http.cts`.
 </Callout>
 
-## Related
+## Related documentation
 
-- [Referral codes](/docs/features/refcodes) — user/admin UI, contract deploy, env vars
-- [ERP commissions](/docs/features/erp/commissions) — settlement hierarchy and payout modes
-- [PaymentConductor](/docs/features/payment-conductor) — webhooks and `orderReference` contract
-- [Multi-vendor store](/docs/features/store) — checkout and vendor flows
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/refcodes"
+    relation="Deep-dive: user/admin UI, contract deploy, and env vars for token rewards."
+  />
+  <RelatedArticle
+    slug="features/erp/commissions"
+    relation="Same-workflow: vendor-funded settlement hierarchy and payout modes."
+  />
+  <RelatedArticle
+    slug="features/erp/inventory"
+    relation="Depends-on: paid commitSaleForOrder runs beside settlement on store orders."
+  />
+  <RelatedArticle
+    slug="features/payment-conductor"
+    relation="Prerequisite: webhooks and orderReference contract."
+  />
+  <RelatedArticle
+    slug="features/store"
+    relation="Prerequisite: checkout and vendor flows feed referred orders."
+  />
+</RelatedDocs>

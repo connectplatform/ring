@@ -9,8 +9,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PaymentModal } from '@/components/membership/payment-modal'
 import {
-  formatMembershipFiatAmount,
-  getMemberFiatTier,
+  formatMembershipMainCurrencyAmount,
+  getMemberMainCurrencyTier,
   getMembershipRingUpgradeAmount,
 } from '@/lib/membership/pricing'
 import { ROUTES } from '@/constants/routes'
@@ -33,7 +33,7 @@ export function MembershipUpgradeModal({ onClose, returnTo }: MembershipUpgradeM
   const router = useRouter()
   const [showPayment, setShowPayment] = useState(false)
 
-  const fiatTier = getMemberFiatTier()
+  const fiatTier = getMemberMainCurrencyTier()
   const ringAmount = getMembershipRingUpgradeAmount()
 
   if (showPayment) {
@@ -73,7 +73,7 @@ export function MembershipUpgradeModal({ onClose, returnTo }: MembershipUpgradeM
 
           <div className="bg-muted p-4 rounded-lg text-center space-y-1">
             <div className="flex justify-center items-center space-x-2 mb-1">
-              <span className="text-2xl font-bold">{formatMembershipFiatAmount(fiatTier)}</span>
+              <span className="text-2xl font-bold">{formatMembershipMainCurrencyAmount(fiatTier)}</span>
               <span className="text-sm text-muted-foreground">{fiatTier.currency}</span>
             </div>
             <p className="text-xs text-muted-foreground">

@@ -1,13 +1,13 @@
 ---
 title: PaymentConductor
 description: Unified payment orchestration for store, membership, news, and wallet — WayForPay, Stripe, internal credit, native token, and live PayPal Orders. One ledger, config-driven processors, unified webhooks.
-last_modified: "2026-07-16"
+last_modified: "2026-07-21"
 audience: both
 ---
 
 # PaymentConductor
 
-PaymentConductor is Ring Platform's config-driven payment layer. One ledger (`payment_transactions`) and one webhook dispatcher serve **store checkout**, **membership upgrades**, **news promotion**, and **wallet credit top-up**.
+PaymentConductor is Ring Platform's config-driven payment layer. One ledger (`payment_transactions`) and one webhook dispatcher serve **store checkout**, **membership upgrades**, **news promotion**, **wallet credit top-up**, and **public pool (DAO jar) card/PayPal chip-ins**.
 
 Browser UIs never talk to a PSP by brand for redirect — they follow Conductor **`CheckoutRedirect`** via `lib/payments/checkout-redirect.ts` (`followCheckoutResult`). Deep types: [PaymentConductor architecture](/docs/architecture/payment-conductor).
 
@@ -24,19 +24,21 @@ Browser UIs never talk to a PSP by brand for redirect — they follow Conductor 
 | `news_promotion` | `handlers/news-promotion.ts` | WayForPay or Stripe | News promotion submit |
 | `wallet_topup` | `handlers/wallet-topup.ts` (+ Stripe / PayPal capture handlers) | WayForPay, Stripe, or PayPal | [WalletConductor](/docs/features/wallet-conductor) `initiateTopUp` → `createCheckout` |
 | `native_token_onramp` | `handlers/native-token-onramp.ts` (+ Stripe: `native-token-onramp-stripe.ts`) | WayForPay / Stripe (PayPal unsupported for onramp) | [WalletConductor](/docs/features/wallet-conductor) `initiateNativeOnramp` (confidential+) |
+| `public_pool_contribution` | `handlers/public-pool-contribution.ts` | WayForPay, Stripe, or PayPal | `POST /api/public-pools/[slug]/card-checkout` → desk-oracle FX → settle bumps `pledged_native_token` |
 
 <Callout type="tip">
-  `wallet_topup` credits the **fiat credit ledger** (1:1 USD points) via `creditBalanceService.addFiatUsd` — it does **not** buy on-chain RING. To spend native RING directly, use the `native_token` rail on `store_order`. To convert credit points → native RING, use the [Token Desk](/docs/features/wallet).
+  `wallet_topup` credits the **fiat credit ledger** (1:1 USD points) via `creditBalanceService.addFiatUsd` — it does **not** buy on-chain RING. **`public_pool_contribution` is different:** fiat charged at the PSP converts to pledged native via the **Token Desk oracle** (`nativeUi = fiatMajor / nativePerMainCurrency`) — never 1:1. See [Public Pools & DAO Jars](/docs/features/public-pools).
 </Callout>
 
 <Audience for="founder">
 
 ## What founders get
 
-- **One payment layer** — store, membership, news, and wallet top-up share the same ledger and webhook path.
+- **One payment layer** — store, membership, news, wallet top-up, and **DAO jar card chip-ins** share the same ledger and webhook path.
 - **Config-driven gateway selection** — choose the card processor in `ring-config.json`; override per purpose via env. No code changes for PSP swaps.
 - **Internal credit rail** — members can pay with in-app credit (zero gateway fee when enabled).
 - **Native token rail** — members can spend your clone's on-chain token at store checkout (opt-in via `PAYMENT_STORE_ALLOW_TOKEN=true`, zero gateway fee).
+- **Public pool jars** — card/PayPal chip-ins convert at the **desk oracle** (not 1:1); see [Public Pools](/docs/features/public-pools).
 - **Admin Payments tab** — platform admins see a user's `membership_upgrade` and `wallet_topup` rows from the ledger (`GET /api/admin/users/[id]/payments`).
 - **Membership PaymentModal** — native-token, card, and **PayPal** tabs are live when `NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=true` (plus `PAYPAL_*` + `gateways.paypal.enabled`). Recurring PayPal membership uses Subscriptions v1 — see [SubscriptionConductor](/docs/features/subscriptions). Wallet **Add Credit** PayPal remains `processor=paypal` on `wallet_topup`.
 - **Store PayPal** — checkout method `paypal` → `POST /api/store/payments/paypal` (Orders v2) when the same public flag is on.
@@ -132,20 +134,20 @@ Implementation root: `lib/payments/conductor/`, `lib/payments/processors/`, `lib
 | Config | `lib/payments/payment.config.ts` | `getPaymentProvider`, env overrides |
 | WayForPay | `lib/payments/processors/wayforpay.processor.ts` | Per-purpose checkout; HPP via `wayforpay-hpp.ts` |
 | Stripe | `lib/payments/processors/stripe.processor.ts` | Stripe Checkout sessions (`navigate`) |
-| Internal credit | `lib/payments/processors/internal-credit.processor.ts` | Credit balance deduction |
+| Internal credit | `lib/payments/processors/credit-balance.processor.ts` | Credit balance deduction |
 | Native token | `lib/payments/processors/native-token.processor.ts` | Synchronous on-chain RING → treasury |
 | PayPal | `lib/payments/processors/paypal.processor.ts` | Orders v2 approve URL (`navigate`); store + wallet_topup + membership one-shot |
 | Webhook dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Orders capture by purpose + PayPal Subscriptions lifecycle branch |
 | Purpose handlers | `lib/payments/conductor/handlers/*.ts` | Fulfillment after paid (incl. `membership-paypal-subscription.ts`) |
 
-`PaymentProcessorId` (`conductor/types.ts`): `wayforpay | stripe | internal-credit | native-token | paypal`.
+`PaymentProcessorId` (`conductor/types.ts`): `wayforpay | stripe | credit_balance | native-token | paypal`.
 
 ### Rails
 
 | Rail | Description | Env gate |
 |------|-------------|----------|
 | `merchant_redirect` | WayForPay / Stripe hosted checkout | Default |
-| `internal_credit` | Wallet credit balance (fiat points) | `PAYMENT_STORE_ALLOW_CREDIT` |
+| `credit_balance` | Wallet credit balance (fiat points) | `PAYMENT_STORE_ALLOW_CREDIT` |
 | `native_token` | RING token on-chain to treasury | `PAYMENT_STORE_ALLOW_TOKEN` |
 
 ### Webhook endpoints
@@ -156,7 +158,7 @@ Implementation root: `lib/payments/conductor/`, `lib/payments/processors/`, `lib
 | `/api/payments/stripe/webhook` | Stripe (`STRIPE_WEBHOOK_SECRET`) |
 | `/api/payments/paypal/webhook` | PayPal (transmission signature + `PAYPAL_WEBHOOK_ID`) |
 
-`internal_credit` and `native_token` settle **synchronously** inside `createCheckout` (no external webhook) — the processor debits credit / transfers on-chain and marks the ledger row paid before returning.
+`credit_balance` and `native_token` settle **synchronously** inside `createCheckout` (no external webhook) — the processor debits credit / transfers on-chain and marks the ledger row paid before returning.
 
 ### Store checkout routes (verified)
 
@@ -165,17 +167,21 @@ Implementation root: `lib/payments/conductor/`, `lib/payments/processors/`, `lib
 | `POST /api/store/payments/wayforpay` | `merchant_redirect` | `createCheckout({ purpose: 'store_order' })`; `initiateStorePayment` is an internal helper inside `wayforpay.processor.ts`, not a ledger bypass |
 | `POST /api/store/payments/stripe` | `merchant_redirect` | Stripe Checkout session |
 | `POST /api/store/payments/token` | `native_token` | Requires `PAYMENT_STORE_ALLOW_TOKEN=true`; `isRailEnabled('store_order', 'native_token')` gate |
-| `POST /api/store/payments/credit` | `internal_credit` | Credit balance deduction |
+| `POST /api/store/payments/credit` | `credit_balance` | Credit balance deduction |
 | `POST /api/store/payments/paypal` | `merchant_redirect` | Orders v2; requires PayPal credentials + `gateways.paypal.enabled` + public flag |
 | `POST /api/store/payments/card` | `merchant_redirect` | Alias of WayForPay card path |
 
 ### Native token checkout (verified)
 
-`createNativeTokenCheckout` (`native-token.processor.ts`) resolves fiat → token via the oracle (`nativeOut = amount / ringPerUsd`, or explicit `metadata.tokenAmount`), checks balance, then `transferNativeTokenForUser` → treasury and `markPaid`. Fails closed with `NATIVE_TOKEN_RAIL_DISABLED`, `TREASURY_NOT_CONFIGURED`, or `INSUFFICIENT_TOKEN_BALANCE`.
+`createNativeTokenCheckout` (`native-token.processor.ts`) resolves fiat → token via the oracle (`nativeOut = amount / nativePerMainCurrency`, or explicit `metadata.tokenAmount`), checks balance, then `transferNativeTokenForUser` → treasury and `markPaid`. Fails closed with `NATIVE_TOKEN_RAIL_DISABLED`, `TREASURY_NOT_CONFIGURED`, or `INSUFFICIENT_TOKEN_BALANCE`.
 
 ### Wallet top-up (verified — credits, not tokens)
 
 `initiateCreditTopupPayment` in `app/_actions/wallet.ts` → `purpose: 'wallet_topup'` → `createWalletTopupWayForPay` (or Stripe) → webhook `handlers/wallet-topup.ts` / `wallet-topup-stripe.ts` credits **fiat USD points** via `creditBalanceService.addFiatUsd` (1:1). This is distinct from the `native_token` rail: card top-up never mints on-chain RING.
+
+### Public pool card jar (verified — desk oracle, not 1:1)
+
+`POST /api/public-pools/[slug]/card-checkout` → `purpose: 'public_pool_contribution'` → FX via `mainCurrencyToNativeTokenUi` / `getNativeTokenPerMainCurrencyRate` → webhook `handlers/public-pool-contribution.ts` → `settlePublicPoolCardContribution` bumps `pledged_native_token` and refreshes open `dao_jar` messages. Native SPL chip-ins stay on `contributeToPool` (not Conductor). Optional env: `PAYMENT_PUBLIC_POOL_CONTRIBUTION_PROCESSOR`. Full SSOT: [Public Pools & DAO Jars](/docs/features/public-pools).
 
 ### Membership PayPal (verified — live)
 
@@ -196,23 +202,44 @@ Apply `data/migrations/004_payment_transactions.sql` before production. Ledger r
 
 ## Related
 
-<Cards>
-  <Card title="Payments overview" href="/docs/features/payments">
-    High-level payment integration — store, membership, news, wallet top-up.
-  </Card>
-  <Card title="WayForPay integration" href="/docs/features/wayforpay-integration">
-    Env SSOT, HMAC, regularApi password, orderReference prefixes.
-  </Card>
-  <Card title="Architecture: PaymentConductor" href="/docs/architecture/payment-conductor">
-    Types, ledger, dispatcher sequences, API routes.
-  </Card>
-  <Card title="SubscriptionConductor" href="/docs/features/subscriptions">
-    PayPal Subscriptions v1, ledger, manage page, cancel/renew.
-  </Card>
-  <Card title="Wallet" href="/docs/features/wallet">
-    Credit top-up via WayForPay / Stripe / PayPal (`wallet_topup`).
-  </Card>
-</Cards>
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/payments"
+    relation="Prerequisite: high-level rails before Conductor purpose details."
+  />
+  <RelatedArticle
+    slug="features/public-pools"
+    relation="Same-workflow: public_pool_contribution card jar, desk FX, and builder payout."
+  />
+  <RelatedArticle
+    slug="features/wayforpay-integration"
+    relation="Deep-dive: WayForPay env, HMAC, and orderReference prefixes."
+  />
+  <RelatedArticle
+    slug="architecture/payment-conductor"
+    relation="Deep-dive: types, ledger, dispatcher sequences, API routes."
+  />
+  <RelatedArticle
+    slug="features/subscriptions"
+    relation="Next-step: PayPal Subscriptions v1 for recurring membership."
+  />
+  <RelatedArticle
+    slug="features/wallet"
+    relation="See-also: credit top-up vs Token Desk oracle (jar FX shares desk rate)."
+  />
+  <RelatedArticle
+    slug="features/erp"
+    relation="Next-step: ERP hub cockpits after payment lands."
+  />
+  <RelatedArticle
+    slug="features/erp/inventory"
+    relation="Next-step: store paid handlers call commitSaleForOrder for stock invariant."
+  />
+  <RelatedArticle
+    slug="features/erp/commissions"
+    relation="Same-workflow: processSettlements after paid store order."
+  />
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — PaymentConductor (TBD)">
 

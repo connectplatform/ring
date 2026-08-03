@@ -94,28 +94,43 @@ async function postXaiVideoJob(url: string, apiKey: string, body: Record<string,
   return payload.request_id
 }
 
-export async function pollXaiVideo(
-  requestId: string,
-  options?: { timeoutMs?: number; intervalMs?: number },
-): Promise<XaiVideoPollResult> {
+/** Single GET /v1/videos/{request_id} — includes official progress 0–100. */
+export async function getXaiVideoStatus(requestId: string): Promise<XaiVideoPollResult> {
   const config = getXaiVideoConfig({})
   if (!config.apiKey) {
     throw new Error('XAI_API_KEY is not configured')
   }
+  if (!requestId?.trim()) {
+    throw new Error('requestId is required')
+  }
 
+  const response = await fetch(`${config.baseUrl}/videos/${requestId.trim()}`, {
+    headers: { Authorization: `Bearer ${config.apiKey}`, Accept: 'application/json' },
+  })
+
+  const data = (await response.json().catch(() => ({}))) as XaiVideoPollResult
+  if (!response.ok) {
+    throw new Error(data.error?.message || `xAI video poll failed (${response.status})`)
+  }
+
+  return data
+}
+
+export async function pollXaiVideo(
+  requestId: string,
+  options?: {
+    timeoutMs?: number
+    intervalMs?: number
+    onPoll?: (status: XaiVideoPollResult) => void
+  },
+): Promise<XaiVideoPollResult> {
   const timeoutMs = options?.timeoutMs ?? 15 * 60 * 1000
   const intervalMs = options?.intervalMs ?? 5000
   const started = Date.now()
 
   while (Date.now() - started < timeoutMs) {
-    const response = await fetch(`${config.baseUrl}/videos/${requestId}`, {
-      headers: { Authorization: `Bearer ${config.apiKey}`, Accept: 'application/json' },
-    })
-
-    const data = (await response.json().catch(() => ({}))) as XaiVideoPollResult
-    if (!response.ok) {
-      throw new Error(data.error?.message || `xAI video poll failed (${response.status})`)
-    }
+    const data = await getXaiVideoStatus(requestId)
+    options?.onPoll?.(data)
 
     if (data.status === 'done') return data
     if (data.status === 'failed' || data.status === 'expired') {

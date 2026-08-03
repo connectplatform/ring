@@ -72,6 +72,7 @@ export function mapNewsDocument(
     payment: d.payment as NewsArticle['payment'],
     deletedAt: d.deletedAt as NewsArticle['deletedAt'],
     deletedBy: d.deletedBy as string | undefined,
+    versions: d.versions as NewsArticle['versions'],
   }
 }
 

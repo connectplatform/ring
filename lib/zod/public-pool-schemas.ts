@@ -35,16 +35,21 @@ export const PublicPoolSchema = z.object({
   description: z.string().min(1),
   labels: z.array(z.string()).default([]),
   goal_hours: z.number().int().min(1),
-  goal_ring: z.string().min(1),
+  goal_native_token: z.string().min(1),
   funding_mode: PublicPoolFundingModeSchema.default('donation'),
   status: PublicPoolStatusSchema.default('open'),
   like_count: z.number().int().min(0).default(0),
-  pledged_ring: z.string().default('0'),
+  pledged_native_token: z.string().default('0'),
   queued_at: z.string().datetime().optional().nullable(),
   completed_at: z.string().datetime().optional().nullable(),
   doc_path: z.string().optional().nullable(),
   on_chain: PublicPoolOnChainSchema.optional().nullable(),
   signal_at_completion: z.number().int().min(0).optional().nullable(),
+  /** Optional builder payout target (TD-MONEY-02) */
+  builder_user_id: z.string().optional().nullable(),
+  payout_wallet_address: z.string().optional().nullable(),
+  payout_tx_hash: z.string().optional().nullable(),
+  payout_at: z.string().datetime().optional().nullable(),
 })
 
 export const PublicPoolSignalSchema = z.object({
@@ -59,18 +64,20 @@ export const PublicPoolContributionSchema = z.object({
   clone_id: z.string().min(1),
   pool_id: z.string().min(1),
   user_id: z.string().min(1),
-  amount_ring: z.string().min(1),
+  amount_native: z.string().min(1),
   funding_mode: PublicPoolFundingModeSchema.default('donation'),
   status: z.enum(PUBLIC_POOL_CONTRIBUTION_STATUSES).default('pending'),
   tx_hash: z.string().optional().nullable(),
-  idempotency_key: z.string().uuid(),
+  idempotency_key: z.string().uuid().or(z.string().min(8)),
   from_address: z.string().optional().nullable(),
   to_address: z.string().optional().nullable(),
   chain: z.literal('solana').default('solana'),
+  /** Payment rail — native SPL vs card/fiat via PaymentConductor */
+  rail: z.enum(['native_token', 'card']).optional().default('native_token'),
 })
 
 export const PublicPoolContributeRequestSchema = z.object({
-  amount_ring: z.string().min(1),
+  amount_native: z.string().min(1),
   idempotency_key: z.string().uuid(),
   funding_mode: PublicPoolFundingModeSchema.default('donation'),
 })
@@ -95,6 +102,8 @@ export const PublicPoolAdminCreateSchema = z.object({
   doc_path: z.string().optional().nullable(),
   funding_mode: PublicPoolFundingModeSchema.default('donation'),
   status: PublicPoolStatusSchema.default('open'),
+  builder_user_id: z.string().optional().nullable(),
+  payout_wallet_address: z.string().optional().nullable(),
 })
 
 /** Admin full update — pool_slug is immutable after create. */
@@ -107,6 +116,8 @@ export const PublicPoolAdminUpdateSchema = z.object({
   doc_path: z.string().optional().nullable(),
   funding_mode: PublicPoolFundingModeSchema.optional(),
   status: PublicPoolStatusSchema.optional(),
+  builder_user_id: z.string().optional().nullable(),
+  payout_wallet_address: z.string().optional().nullable(),
 })
 
 export type PublicPoolAdminCreate = z.infer<typeof PublicPoolAdminCreateSchema>

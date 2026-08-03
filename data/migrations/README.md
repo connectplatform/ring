@@ -1,82 +1,40 @@
 # Ring Platform — database migrations
 
-Apply **after** base schema [`data/schema.sql`](../schema.sql) (v4).
-
-## Order (v1.6.0)
+**Fresh installs (clones):** apply **only** [`data/schema.sql`](../schema.sql) **v4.1.0** (flattened SSOT).
 
 ```bash
-export DATABASE_URL=postgresql://user:pass@localhost:5432/ring_platform
-
-psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
-psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
-psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
-psql "$DATABASE_URL" -f data/migrations/005_refcodes_schema.sql
-psql "$DATABASE_URL" -f data/migrations/006_generated_images_schema.sql
-psql "$DATABASE_URL" -f data/migrations/018_generative_media_conductor_schema.sql
-psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
-psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+./install.sh setup-db --clone-name myclone --db-name ring_myclone --create-role
+# or
+./scripts/setup-clone-db.sh --db-name ring_myclone --db-user ring_user
 ```
 
-Or use [`scripts/apply-generated-images-migrations-dev.sh`](../scripts/apply-generated-images-migrations-dev.sh) for migration 006.
+Do **not** replay `data/migrations/*.sql` on an empty database — those files are historical increments already absorbed into `schema.sql`.
 
-Or use [`scripts/run-migration.sh`](../scripts/run-migration.sh) when configured for your environment.
+**Existing databases:** add a new numbered/dated file under `data/migrations/`, apply it once, then re-flatten:
 
-## What each migration does
+```bash
+./scripts/flatten-schema-from-migrations.sh
+```
+
+Legacy `001_email_crm_schema.sql` is skipped during flatten (depends on removed `global_users`; JSONB CRM lives in `009`/`010` and is in `schema.sql`).
+
+## What each migration did (archive)
 
 | File | Purpose |
 |------|---------|
-| `002_news_content_schema.sql` | `news`, `news_categories`, `news_likes` JSONB tables + default categories |
-| `003_news_kingdom_upgrade.sql` | Kingdom fields: promotion, blog username, main-page status, AI score columns |
-| `004_payment_transactions.sql` | `payment_transactions` ledger for PaymentConductor |
-| `005_refcodes_schema.sql` | `refcodes` + `referral_rewards` for referral module |
-| `006_generated_images_schema.sql` | `generated_images` ledger for ImageConductor (xAI / Google Imagen) |
-| `007_generated_videos_schema.sql` | Superseded by `018` — `generated_videos` ledger for VideoConductor |
-| `018_generative_media_conductor_schema.sql` | Idempotent `generated_images` + `generated_videos` + VideoConductor v2 indexes |
-| `008_process_runs_schema.sql` | `process_runs` ledger for ProcessConductor (cron / background pipelines) |
-| `008_inventory_schema.sql` | `inventory_levels` + `inventory_reservations` (also in `schema.sql` v4.0.1+) |
-| `009_email_crm_jsonb.sql` | Email CRM JSONB tables: contacts, threads, messages, drafts |
-| `010_email_crm_tasks_jsonb.sql` | Email CRM tasks + `email_api_usage` cost ledger |
-| `012_verification_procedures.sql` | Verification procedures SSOT + matcher events |
-| `013_users_email_unique.sql` | Unique index on `lower(users.data->>'email')` — **run dedupe script first** |
-| `014_user_roles_lowercase.sql` | Lowercase all `users.data` role strings + nested upgrade fields; idempotent |
-| `015_store_product_rep_index.sql` | `store_products` indexes for `rep`, `approvalStatus`, `listStores` JSONB paths |
-| `016_fcm_jsonb_schema.sql` | `fcm_tokens` JSONB table — one row per `(userId, deviceFingerprint)`; status lifecycle indexes |
-| `017_ring_analytics_schema.sql` | `analytics_events`, `web_vitals`, `analytics_errors` JSONB telemetry |
-| `023_user_device_telemetry_schema.sql` | `user_device_telemetry` last-known device snapshots (fraud forensics + UX) |
+| `002_news_content_schema.sql` | `news`, `news_categories`, `news_likes` |
+| `003_news_kingdom_upgrade.sql` | Kingdom news fields |
+| `004_payment_transactions.sql` | PaymentConductor ledger |
+| `005_refcodes_schema.sql` | Referral codes |
+| `006` / `007` / `018` | Generative media ledgers |
+| `008_*` | Inventory + process_runs |
+| `009` / `010` | Email CRM JSONB |
+| `011`–`043` | Moderation, FCM, analytics, wallets, NFT, project orders, wiki, file cabinet, peer games, … |
+| `2026-06-13-notification_preferences.sql` | Notification preferences |
 
-**Dev DB name:** `ring_platform` (`DATABASE_URL` in `.env.local`). Clone DBs use their own names (e.g. `ring_ringdom_org`).
-
-### User email dedupe (dev)
-
-Before `013_users_email_unique.sql`:
-
-```bash
-DATABASE_URL=postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform \
-  npx tsx scripts/dedupe-users-by-email.cts --email automart@gmail.com --apply
-
-psql "$DATABASE_URL" -f data/migrations/013_users_email_unique.sql
-psql "$DATABASE_URL" -f data/migrations/014_user_roles_lowercase.sql
-```
-
-Dry-run (default): omit `--apply`.
-
-### Email CRM — internal production ops
-
-Full Ringdom deploy runbook (secrets paths, k8s cron, `info@ringdom.org`, SMTP smoke test):
-
-→ **[EMAIL-CRM-OPS.md](./EMAIL-CRM-OPS.md)** (operators / LegioX only; not duplicated in public docs)
-
-Public developer setup: `docs/en/examples/email-ai-crm.mdx`.
-
-## Optional news seeds
-
-Community announcements: [`scripts/seed-news-v1.6.0.sql`](../scripts/seed-news-v1.6.0.sql) (EN platform posts for v1.6.0).
+Operator runbooks: [EMAIL-CRM-OPS.md](./EMAIL-CRM-OPS.md), [RING-MAILER-OPS.md](./RING-MAILER-OPS.md).
 
 ## Docs
 
-- [Getting started: migrations](/docs/getting-started/migrations)
-- [News Kingdom architecture](/docs/architecture/news-kingdom)
-- [PaymentConductor](/docs/features/payment-conductor)
-- [Referral Codes](/docs/features/refcodes)
-- [Email AI-CRM](/docs/features/email-ai-crm)
-- [EMAIL-CRM-OPS.md](./EMAIL-CRM-OPS.md) — internal ring-ringdom-org production runbook
+- Schema overview: [`../SCHEMA-README.md`](../SCHEMA-README.md)
+- Public: `/docs/getting-started/migrations`

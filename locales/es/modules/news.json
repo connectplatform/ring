@@ -80,5 +80,10 @@
     "autoSavedAt": "Autoguardado a las {time}",
     "saving": "Guardando…",
     "tipTapHint": "TipTap — escribe / para comandos, pega URLs para incrustar o inserta Mood Player."
+  },
+  "versions": {
+    "localDraft": "Local draft",
+    "historicalBanner": "Editing historical version — Save creates a new latest version.",
+    "sliderLabel": "v{current} of {total}"
   }
 }

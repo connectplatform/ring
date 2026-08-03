@@ -58,7 +58,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     prune()
     const key = `${conversationId}:${parsed.callId}:${parsed.event}`
     if (recorded.has(key)) {
-      return NextResponse.json({ success: true, data: { deduped: true } })
+      return NextResponse.json({
+        success: true,
+        data: { deduped: true, message: null },
+      })
     }
     recorded.set(key, Date.now())
 
@@ -82,9 +85,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
           ? 'declined the call'
           : 'call failed'
 
-    await conversationService.recordCallSystemMessage(conversationId, userId, phrase)
+    const systemMessage = await conversationService.recordCallSystemMessage(
+      conversationId,
+      userId,
+      phrase,
+    )
 
-    return NextResponse.json({ success: true, data: { recorded: true } })
+    return NextResponse.json({
+      success: true,
+      data: { recorded: true, message: systemMessage },
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

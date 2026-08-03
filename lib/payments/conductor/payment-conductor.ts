@@ -8,7 +8,7 @@ import { normalizeCheckoutResult } from '@/lib/payments/conductor/types'
 import { getPaymentProvider } from '@/lib/payments/payment.config'
 import { createWayForPayCheckout } from '@/lib/payments/processors/wayforpay.processor'
 import { createStripeCheckout } from '@/lib/payments/processors/stripe.processor'
-import { createInternalCreditCheckout } from '@/lib/payments/processors/internal-credit.processor'
+import { createCreditBalanceCheckout } from '@/lib/payments/processors/credit-balance.processor'
 import { createNativeTokenCheckout } from '@/lib/payments/processors/native-token.processor'
 import { createPayPalCheckout } from '@/lib/payments/processors/paypal.processor'
 import {
@@ -19,9 +19,15 @@ import {
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { assertNativeTokenOnrampAllowed } from '@/lib/payments/confidential-token-onramp'
 
+/**
+ * Rail → processor resolution. Internal rails settle as themselves; `paypal` is
+ * both rail and processor; `card` defers to the metadata hint, then purpose config.
+ */
 function resolveProcessor(ctx: CreateCheckoutContext): PaymentProcessorId {
-  if (ctx.rail === 'internal_credit') return 'internal-credit'
-  if (ctx.rail === 'native_token') return 'native-token'
+  if (ctx.rail === 'credit_balance') return 'credit_balance'
+  if (ctx.rail === 'native_token') return 'native_token'
+  if (ctx.rail === 'paypal') return 'paypal'
+
   const fromMeta = ctx.metadata?.processor
   if (fromMeta === 'paypal' || fromMeta === 'stripe' || fromMeta === 'wayforpay') {
     return fromMeta
@@ -40,10 +46,10 @@ export const PaymentConductor = {
 
     let result: CreateCheckoutResult
     switch (processor) {
-      case 'internal-credit':
-        result = await createInternalCreditCheckout(ctx)
+      case 'credit_balance':
+        result = await createCreditBalanceCheckout(ctx)
         break
-      case 'native-token':
+      case 'native_token':
         result = await createNativeTokenCheckout(ctx)
         break
       case 'paypal':

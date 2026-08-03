@@ -25,12 +25,14 @@ export {
 } from './derivatives-profile'
 
 // Backend adapters (for advanced usage)
+// Prefer RingBase / Vercel via file(). Local disk adapter is NOT re-exported here
+// so Turbopack NFT does not pull process.cwd() into every route that imports
+// `@/lib/file`. Deep-import when needed:
+//   import { LocalStorageAdapter } from '@/lib/file/adapters/LocalStorageAdapter'
+//   import { resolveLocalStorageRoot } from '@/lib/file/local-storage-root'
 export { VercelAdapter } from './adapters/VercelAdapter';
 export { RingBaseAdapter } from './adapters/RingBaseAdapter';
-export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 
 // Backend selector (for advanced usage)
 export { FileSelector } from './FileSelector';
 export { getStorageBackendFromEnvironment } from './FileSelector';
-export { resolveLocalStorageRoot } from './local-storage-root';
-export type { ResolveLocalStorageRootOptions } from './local-storage-root';

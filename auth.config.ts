@@ -62,6 +62,8 @@ export default {
   trustHost: true,
   pages: {
     signIn: "/login",
+    // Avoid Auth.js default /api/auth/error shell for cancelled OAuth / back-button.
+    error: "/login",
   },
   callbacks: {
     // Route protection is enforced in proxy (cookie gate), layouts, and Server Components.

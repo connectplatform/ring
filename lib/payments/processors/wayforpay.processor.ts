@@ -1,6 +1,6 @@
 import type { CreateCheckoutContext, CreateCheckoutResult } from '@/lib/payments/conductor/types'
 import { buildOrderReference } from '@/lib/payments/order-reference'
-import { getWebhookUrl } from '@/lib/payments/payment.config'
+import { getMainCurrencySymbol, getWebhookUrl } from '@/lib/payments/payment.config'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { getMembershipTierConfig, initiatePayment } from '@/lib/payments/wayforpay-service'
 import { initiateStorePayment } from '@/lib/payments/wayforpay-store-service'
@@ -53,6 +53,15 @@ export async function createWayForPayCheckout(ctx: CreateCheckoutContext): Promi
   if (ctx.purpose === 'project_order') {
     return createProjectOrderWayForPay(ctx)
   }
+  if (ctx.purpose === 'task_escrow') {
+    return createTaskEscrowWayForPay(ctx)
+  }
+  if (ctx.purpose === 'collective_order_slot') {
+    return createCollectiveOrderSlotWayForPay(ctx)
+  }
+  if (ctx.purpose === 'public_pool_contribution') {
+    return createPublicPoolContributionWayForPay(ctx)
+  }
   // Return error if the purpose is not recognized
   return { success: false, error: `WayForPay does not support purpose: ${ctx.purpose}` }
 }
@@ -73,7 +82,7 @@ async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateC
   await paymentTransactionService.createPending({
     purpose: 'store_order',
     processor: 'wayforpay',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: 'store_order',
     entityId: orderId,
@@ -129,7 +138,7 @@ async function createMembershipWayForPay(ctx: CreateCheckoutContext): Promise<Cr
   await paymentTransactionService.createPending({
     purpose: 'membership_upgrade',
     processor: 'wayforpay',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: 'membership_upgrade',
     entityId: ctx.userId,
@@ -177,13 +186,13 @@ async function createNewsWayForPay(ctx: CreateCheckoutContext): Promise<CreateCh
   const orderReference = buildOrderReference('news_promotion', { articleId })
   const orderDate = Math.floor(Date.now() / 1000)
   const amount = ctx.amount
-  const currency = ctx.currency || 'UAH'
+  const currency = ctx.currency || getMainCurrencySymbol()
   const productName = `Main page promotion ${articleId}`
 
   await paymentTransactionService.createPending({
     purpose: 'news_promotion',
     processor: 'wayforpay',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: 'news_promotion',
     entityId: articleId,
@@ -224,7 +233,7 @@ async function createWalletTopupWayForPay(ctx: CreateCheckoutContext): Promise<C
     return { success: false, error: 'Amount must be between 25 and 2000' }
   }
 
-  const currency = ctx.currency || 'USD'
+  const currency = ctx.currency || getMainCurrencySymbol()
   const orderReference = buildOrderReference('wallet_topup', { userId: ctx.userId })
   const orderDate = Math.floor(Date.now() / 1000)
   const productName = `Credit top-up ${amount} ${currency}`
@@ -232,7 +241,7 @@ async function createWalletTopupWayForPay(ctx: CreateCheckoutContext): Promise<C
   await paymentTransactionService.createPending({
     purpose: 'wallet_topup',
     processor: 'wayforpay',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: 'wallet_topup',
     entityId: ctx.userId,
@@ -275,7 +284,7 @@ async function createNativeTokenOnrampWayForPay(
     return { success: false, error: 'Amount must be between 25 and 2000' }
   }
 
-  const currency = ctx.currency || 'USD'
+  const currency = ctx.currency || getMainCurrencySymbol()
   const orderReference = buildOrderReference('native_token_onramp', { userId: ctx.userId })
   const orderDate = Math.floor(Date.now() / 1000)
   const symbol = getNativeTokenSymbol()
@@ -284,7 +293,7 @@ async function createNativeTokenOnrampWayForPay(
   await paymentTransactionService.createPending({
     purpose: 'native_token_onramp',
     processor: 'wayforpay',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: 'native_token_onramp',
     entityId: ctx.userId,
@@ -330,7 +339,7 @@ async function createProjectOrderWayForPay(ctx: CreateCheckoutContext): Promise<
     return { success: false, error: 'Invalid project order amount' }
   }
 
-  const currency = ctx.currency || 'USD'
+  const currency = ctx.currency || getMainCurrencySymbol()
   const orderReference = buildOrderReference('project_order', { orderId })
   const orderDate = Math.floor(Date.now() / 1000)
   const productName = `Ring project order ${orderId}`
@@ -338,7 +347,7 @@ async function createProjectOrderWayForPay(ctx: CreateCheckoutContext): Promise<
   await paymentTransactionService.createPending({
     purpose: 'project_order',
     processor: 'wayforpay',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: 'project_order',
     entityId: orderId,
@@ -354,6 +363,183 @@ async function createProjectOrderWayForPay(ctx: CreateCheckoutContext): Promise<
     orderReference,
     orderDate,
     amount,
+    currency,
+    productName,
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
+
+  await paymentTransactionService.markRedirected(orderReference)
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
+}
+
+/**
+ * WayForPay checkout for chat task escrow holds.
+ */
+async function createTaskEscrowWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(true)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
+  const escrowId = ctx.taskEscrowId ?? ctx.orderId ?? ctx.entityId
+  if (!escrowId) {
+    return { success: false, error: 'taskEscrowId required' }
+  }
+
+  const amount = ctx.amount
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { success: false, error: 'Invalid task escrow amount' }
+  }
+
+  const currency = ctx.currency || getMainCurrencySymbol()
+  const orderReference = buildOrderReference('task_escrow', { orderId: escrowId })
+  const orderDate = Math.floor(Date.now() / 1000)
+  const productName = `Task escrow ${escrowId}`
+
+  await paymentTransactionService.createPending({
+    purpose: 'task_escrow',
+    processor: 'wayforpay',
+    rail: 'card',
+    orderReference,
+    entityType: 'task_escrow',
+    entityId: escrowId,
+    userId: ctx.userId,
+    amountMinor: Math.round(amount * 100),
+    currency,
+  })
+
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
+    merchant,
+    secret,
+    domain,
+    orderReference,
+    orderDate,
+    amount,
+    currency,
+    productName,
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
+
+  await paymentTransactionService.markRedirected(orderReference)
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
+}
+
+/**
+ * WayForPay checkout for collective-order slot holds.
+ */
+async function createCollectiveOrderSlotWayForPay(
+  ctx: CreateCheckoutContext,
+): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(true)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
+  const escrowId = ctx.collectiveOrderEscrowId ?? ctx.orderId ?? ctx.entityId
+  if (!escrowId) {
+    return { success: false, error: 'collectiveOrderEscrowId required' }
+  }
+
+  const amount = ctx.amount
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { success: false, error: 'Invalid collective order slot amount' }
+  }
+
+  const currency = ctx.currency || getMainCurrencySymbol()
+  const orderReference = buildOrderReference('collective_order_slot', { orderId: escrowId })
+  const orderDate = Math.floor(Date.now() / 1000)
+  const productName = `Collective order slot ${escrowId}`
+
+  await paymentTransactionService.createPending({
+    purpose: 'collective_order_slot',
+    processor: 'wayforpay',
+    rail: 'card',
+    orderReference,
+    entityType: 'collective_order_escrow',
+    entityId: escrowId,
+    userId: ctx.userId,
+    amountMinor: Math.round(amount * 100),
+    currency,
+  })
+
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
+    merchant,
+    secret,
+    domain,
+    orderReference,
+    orderDate,
+    amount,
+    currency,
+    productName,
+    returnUrl: ctx.returnUrl,
+    serviceUrl: getWebhookUrl('wayforpay'),
+    clientEmail: ctx.userEmail,
+  })
+
+  await paymentTransactionService.markRedirected(orderReference)
+  return { success: true, redirect, paymentUrl, paymentFields, orderReference }
+}
+
+/**
+ * Fiat/card chip-in for public pool (DAO jar) — does not move native RING via PaymentConductor.
+ */
+async function createPublicPoolContributionWayForPay(
+  ctx: CreateCheckoutContext,
+): Promise<CreateCheckoutResult> {
+  const { merchant, secret, domain } = getWayForPayCredentials(false)
+  if (!merchant || !secret || !domain) {
+    return { success: false, error: 'WayForPay not configured' }
+  }
+
+  const poolSlug = String(ctx.publicPoolSlug ?? ctx.metadata?.poolSlug ?? '').trim()
+  const amountNativeToken = String(ctx.amountNativeToken ?? ctx.metadata?.amountNativeToken ?? ctx.amount).trim()
+  if (!poolSlug) {
+    return { success: false, error: 'poolSlug required for public_pool_contribution' }
+  }
+  if (!Number.isFinite(ctx.amount) || ctx.amount <= 0) {
+    return { success: false, error: 'Invalid currency amount' }
+  }
+  if (!(parseFloat(amountNativeToken) > 0)) {
+    return { success: false, error: 'Invalid native token amount' }
+  }
+
+  const currency = ctx.currency || getMainCurrencySymbol()
+  const orderReference = buildOrderReference('public_pool_contribution', {
+    userId: ctx.userId,
+    poolSlug,
+  })
+  const orderDate = Math.floor(Date.now() / 1000)
+  const productName = `DAO pool contribution ${amountNativeToken} ${getNativeTokenSymbol()}`
+
+  await paymentTransactionService.createPending({
+    purpose: 'public_pool_contribution',
+    processor: 'wayforpay',
+    rail: 'card',
+    orderReference,
+    entityType: 'public_pool',
+    entityId: ctx.publicPoolId ?? poolSlug,
+    userId: ctx.userId,
+    amountMinor: Math.round(ctx.amount * 100),
+    currency,
+    metadata: {
+      purpose: 'public_pool_contribution',
+      poolSlug,
+      amountNativeToken,
+      publicPoolId: ctx.publicPoolId ?? '',
+    },
+  })
+
+  const { redirect, paymentUrl, paymentFields } = buildWayForPaySimpleHppFields({
+    merchant,
+    secret,
+    domain,
+    orderReference,
+    orderDate,
+    amount: ctx.amount,
     currency,
     productName,
     returnUrl: ctx.returnUrl,

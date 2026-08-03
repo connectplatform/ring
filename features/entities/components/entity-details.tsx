@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { EntityLogo } from '@/components/ui/safe-image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { SlidingPopup } from '@/components/common/widgets/modal'
 import { ContactForm } from '@/components/common/widgets/contact-form'
 import { SerializedEntity } from '@/features/entities/types'
@@ -28,6 +29,7 @@ import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
 import EntityModerationActions from '@/features/entities/components/entity-moderation-actions'
 import { Pencil, Trash2 } from 'lucide-react'
+import { useRealtimeEntities, useEntityUpdates } from '@/hooks/use-realtime-entities'
 
 interface EntityDetailsProps {
   initialEntity: SerializedEntity | null
@@ -42,7 +44,8 @@ interface EntityDetailsProps {
  */
 export default function EntityDetails({ initialEntity, initialError, chatComponent, locale }: EntityDetailsProps) {
   const t = useTranslations('modules.entities')
-  const [entity] = useState<SerializedEntity | null>(initialEntity)
+  const router = useRouter()
+  const [entity, setEntity] = useState<SerializedEntity | null>(initialEntity)
   const [error] = useState<string | null>(initialError)
   const [opportunities, setOpportunities] = useState<SerializedOpportunity[]>([])
   const [products, setProducts] = useState<any[]>([])
@@ -56,16 +59,45 @@ export default function EntityDetails({ initialEntity, initialError, chatCompone
   const [isInquiryPopupOpen, setIsInquiryPopupOpen] = useState(false)
 
   const { data: session } = useSession()
+  const entityIdRef = useRef(entity?.id)
+  entityIdRef.current = entity?.id
 
-  // Load opportunities and products when entity is available
+  useRealtimeEntities({ autoConnect: Boolean(session), debug: false })
+  useEntityUpdates((update) => {
+    const currentId = entityIdRef.current
+    if (!currentId || update.entityId !== currentId) return
+    if (update.type === 'deleted') {
+      router.push(ROUTES.ENTITIES(locale))
+      return
+    }
+    if (update.data) {
+      setEntity((prev) => (prev ? { ...prev, ...update.data } : prev))
+      return
+    }
+    // No snippet — soft refetch current entity
+    void apiClient.get(`/api/entities/${currentId}`).then((res) => {
+      if (res.success && res.data) {
+        setEntity(res.data as SerializedEntity)
+      }
+    })
+  })
+
+  // Load opportunities and products when entity identity / related fields change
+  // (not on every tunnel snippet merge of unrelated fields)
+  const opportunityIdsKey = entity?.opportunities?.join(',') ?? ''
   useEffect(() => {
     if (entity && entity.opportunities?.length > 0) {
-      loadEntityOpportunities()
+      void loadEntityOpportunities()
+    } else {
+      setOpportunities([])
     }
-    if (entity && entity.storeActivated) {
-      loadEntityProducts()
+    if (entity?.storeActivated) {
+      void loadEntityProducts()
+    } else {
+      setProducts([])
     }
-  }, [entity])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: avoid refetch on every snippet patch
+  }, [entity?.id, opportunityIdsKey, entity?.storeActivated])
 
   const loadEntityOpportunities = async () => {
     if (!entity?.opportunities?.length) return

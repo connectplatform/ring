@@ -112,7 +112,7 @@ export const RewardCreditAddEventStatusSchema = z.enum([
 
 /**
  * Credit-balance reward event audit row (credit_add_events).
- * Unit label / fiat accounting: ring-config credit.creditUnitLabel + unitToDefaultCurrency.
+ * Unit label / fiat accounting: ring-config credit.creditBalanceUnitLabel + creditBalanceUnitToMainCurrency.
  */
 export const RewardCreditAddEventConfigSchema = z.object({
   id: z.string().min(1),

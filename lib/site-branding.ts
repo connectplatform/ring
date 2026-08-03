@@ -1,5 +1,5 @@
-import { routing } from '@/i18n/routing'
 import { profileArticlePathname } from '@/lib/blog/blog-path'
+import { toAbsoluteHreflangMap, withLocalePath } from '@/lib/hreflang'
 import {
   getPlatformIdentity,
   getSystemConfigSnapshot,
@@ -43,22 +43,16 @@ export function absoluteSiteUrl(path: string): string {
 }
 
 export function localeNewsArticleUrl(locale: string, slug: string): string {
-  return absoluteSiteUrl(`/${locale}/news/${slug}`)
+  return absoluteSiteUrl(withLocalePath(locale, `/news/${slug}`))
 }
 
 export function localeBlogArticleUrl(locale: string, username: string, slug: string): string {
-  return absoluteSiteUrl(`/${locale}${profileArticlePathname(username, slug)}`)
+  return absoluteSiteUrl(withLocalePath(locale, profileArticlePathname(username, slug)))
 }
 
 /** Absolute hreflang map for a locale-agnostic path (e.g. `/news/my-slug`). */
 export function buildAbsoluteHreflang(pathname: string): Record<string, string> {
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
-  const origin = getSiteOrigin()
-  const languages: Record<string, string> = {}
-  for (const loc of routing.locales) {
-    languages[loc] = `${origin}/${loc}${normalized}`
-  }
-  return languages
+  return toAbsoluteHreflangMap(pathname)
 }
 
 /** Resolve relative image paths against the public site origin. */

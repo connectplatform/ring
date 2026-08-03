@@ -3,13 +3,14 @@
 # =============================================================================
 # 🎯 RING PLATFORM - Open Source Installation Script
 # =============================================================================
-# Version: 2.0.0 - White-Label Clone Installation with Full Setup
+# Version: 2.2.0 - White-Label Clone Installation with Full Setup + setup-db
 # 
 # Usage:
 #   git clone https://github.com/connectplatform/ring.git && cd ring && ./install.sh
 #   ./install.sh                    # Interactive development setup
 #   ./install.sh dev                # Development setup (explicit)
 #   ./install.sh prod               # Production deployment
+#   ./install.sh setup-db           # Create DB + apply data/schema.sql (flattened SSOT)
 #   ./install.sh --quick            # Quick setup with defaults
 #   ./install.sh --clone-name NAME  # Set clone name directly
 #   ./install.sh --help             # Show help
@@ -22,7 +23,7 @@ set -e
 # Configuration
 # =============================================================================
 
-SCRIPT_VERSION="2.0.0"
+SCRIPT_VERSION="2.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="Ring Platform"
 SETUP_MODE="${1:-dev}"
@@ -61,6 +62,11 @@ VERBOSE=false
 DISPLAY_NAME=""
 CONTACT_EMAIL=""
 PRODUCTION_DOMAIN=""
+LOCAL_PORT="3000"
+SYNC_K8S=false
+DB_NAME=""
+DB_USER="ring_user"
+CREATE_DB_ROLE=false
 
 # =============================================================================
 # Utility Functions
@@ -212,10 +218,18 @@ show_help() {
     echo "Modes:"
     echo "  dev                  Development environment setup (default)"
     echo "  prod                 Production deployment"
+    echo "  sync-urls            Align local + k8s origin URL env vars (no full reinstall)"
+    echo "  setup-db             Create Postgres DB + apply data/schema.sql"
     echo
     echo "Options:"
     echo "  --quick              Quick setup with sensible defaults"
     echo "  --clone-name NAME    Set the clone name (e.g., greenfood, wellness)"
+    echo "  --db-name NAME       Database name for setup-db (default: ring_<clone>)"
+    echo "  --db-user USER       DB role for setup-db (default: ring_user)"
+    echo "  --create-role        Create/reset DB role password during setup-db"
+    echo "  --port PORT          Local listen port for sync-urls / env setup (default: 3000)"
+    echo "  --domain HOST        Production public host for sync-urls (e.g. n9life.com)"
+    echo "  --k8s                Also patch infrastructure/*/secrets.local.yaml origin keys"
     echo "  --verbose            Show detailed output"
     echo "  --help, -h           Show this help message"
     echo
@@ -223,10 +237,13 @@ show_help() {
     echo "  ./install.sh                           # Interactive dev setup"
     echo "  ./install.sh prod                      # Production deployment"
     echo "  ./install.sh --quick                   # Quick dev setup"
-    echo "  ./install.sh --clone-name my-platform  # Named clone setup"
+    echo "  ./install.sh sync-urls --port 3000      # Fix NEXT_PUBLIC_API_URL / AUTH_URL drift"
+    echo "  ./install.sh sync-urls --domain n9life.com --k8s"
+    echo "  ./install.sh setup-db --clone-name ring-n9life-com --db-name ring_n9life_com --create-role"
     echo
     echo "Documentation: https://ring-platform.org/docs"
     echo "Templates Guide: ./TEMPLATES.md"
+    echo "DB SSOT: data/schema.sql"
     exit 0
 }
 
@@ -245,6 +262,14 @@ parse_args() {
                 SETUP_MODE="prod"
                 shift
                 ;;
+            sync-urls|SYNC-URLS)
+                SETUP_MODE="sync-urls"
+                shift
+                ;;
+            setup-db|SETUP-DB)
+                SETUP_MODE="setup-db"
+                shift
+                ;;
             --quick)
                 QUICK_MODE=true
                 shift
@@ -252,6 +277,30 @@ parse_args() {
             --clone-name)
                 CLONE_NAME="$2"
                 shift 2
+                ;;
+            --db-name)
+                DB_NAME="$2"
+                shift 2
+                ;;
+            --db-user)
+                DB_USER="$2"
+                shift 2
+                ;;
+            --create-role)
+                CREATE_DB_ROLE=true
+                shift
+                ;;
+            --port)
+                LOCAL_PORT="$2"
+                shift 2
+                ;;
+            --domain)
+                PRODUCTION_DOMAIN="$2"
+                shift 2
+                ;;
+            --k8s)
+                SYNC_K8S=true
+                shift
                 ;;
             --verbose)
                 VERBOSE=true
@@ -770,6 +819,242 @@ step_7_oauth_setup() {
 }
 
 # =============================================================================
+# Origin URL sync (local .env.local + optional k8s secrets)
+# =============================================================================
+# NEXT_PUBLIC_API_URL / AUTH_URL / NEXTAUTH_URL / NEXT_PUBLIC_APP_URL / PORT must
+# share one origin. Drift (e.g. API_URL=:3099 while server binds :3000) causes
+# Firefox NetworkError on /api/wallet/credit/balance.
+
+upsert_env_var() {
+    local file=$1
+    local key=$2
+    local value=$3
+    local tmp
+    tmp="$(mktemp)"
+    if [[ -f "$file" ]] && grep -qE "^${key}=" "$file"; then
+        # Replace first assignment; keep remaining duplicates removed later by caller if needed
+        awk -v k="$key" -v v="$value" '
+            BEGIN { done=0 }
+            $0 ~ "^" k "=" {
+                if (!done) { print k "=" v; done=1; next }
+                next
+            }
+            { print }
+            END { if (!done) print k "=" v }
+        ' "$file" > "$tmp"
+        mv "$tmp" "$file"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+        rm -f "$tmp"
+    fi
+}
+
+sync_origin_urls_local() {
+    local env_file="${1:-.env.local}"
+    local mode="${2:-dev}" # dev|prod
+    local port="${3:-$LOCAL_PORT}"
+    local domain="${4:-$PRODUCTION_DOMAIN}"
+    local origin api_url secure
+
+    if [[ ! -f "$env_file" ]]; then
+        print_error "Missing $env_file — run ./install.sh dev first or copy env.local.template"
+        return 1
+    fi
+
+    if [[ "$mode" == "prod" ]]; then
+        if [[ -z "$domain" || "$domain" == "localhost:3000" ]]; then
+            domain=$(prompt_input "Production domain (no scheme)" "n9life.com")
+        fi
+        origin="https://${domain}"
+        # Same-origin browser fetches: empty API URL is safest; absolute https also OK.
+        api_url="$origin"
+        secure="true"
+    else
+        origin="http://localhost:${port}"
+        # Empty → RingApiClient uses relative /api/* (immune to port drift).
+        api_url=""
+        secure="false"
+    fi
+
+    print_action "Syncing origin URLs in $env_file → $origin"
+
+    upsert_env_var "$env_file" "PORT" "$port"
+    upsert_env_var "$env_file" "AUTH_URL" "$origin"
+    upsert_env_var "$env_file" "NEXTAUTH_URL" "$origin"
+    upsert_env_var "$env_file" "NEXT_PUBLIC_APP_URL" "$origin"
+    upsert_env_var "$env_file" "NEXT_PUBLIC_API_URL" "$api_url"
+    upsert_env_var "$env_file" "AUTH_USE_SECURE_COOKIES" "$secure"
+    upsert_env_var "$env_file" "AUTH_TRUST_HOST" "true"
+
+    print_success "Origin vars synced (AUTH_URL / NEXTAUTH_URL / NEXT_PUBLIC_APP_URL / NEXT_PUBLIC_API_URL / PORT)"
+    if [[ "$mode" == "dev" ]]; then
+        print_info "NEXT_PUBLIC_API_URL is empty (same-origin relative /api). Restart npm run dev after sync."
+    fi
+}
+
+sync_origin_urls_k8s() {
+    local domain="${1:-$PRODUCTION_DOMAIN}"
+    local clone_dir secrets_file origin
+    clone_dir="$(basename "$SCRIPT_DIR")"
+    secrets_file="$(cd "$SCRIPT_DIR/../infrastructure/k3s-3/${clone_dir}" 2>/dev/null && pwd)/secrets.local.yaml"
+
+    if [[ ! -f "$secrets_file" ]]; then
+        print_warning "k8s secrets.local.yaml not found — skipped (expected: infrastructure/k3s-3/${clone_dir}/secrets.local.yaml)"
+        print_info "Create from 00-mail-secrets.template.yaml then re-run: ./install.sh sync-urls --domain HOST --k8s"
+        return 0
+    fi
+
+    if [[ -z "$domain" || "$domain" == "localhost:3000" || "$domain" == localhost* ]]; then
+        domain=$(prompt_input "Production domain for k8s secrets" "n9life.com")
+    fi
+    origin="https://${domain}"
+
+    print_action "Patching origin URLs into $secrets_file"
+
+    # Upsert YAML stringData keys via python for safety
+    python3 - "$secrets_file" "$origin" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+origin = sys.argv[2]
+text = path.read_text()
+keys = {
+    "AUTH_URL": origin,
+    "NEXTAUTH_URL": origin,
+    "NEXT_PUBLIC_APP_URL": origin,
+    "NEXT_PUBLIC_API_URL": origin,
+    "AUTH_USE_SECURE_COOKIES": "true",
+    "AUTH_TRUST_HOST": "true",
+}
+lines = text.splitlines(True)
+out = []
+in_sd = False
+existing = set()
+i = 0
+while i < len(lines):
+    line = lines[i]
+    if line.startswith("stringData:"):
+        in_sd = True
+        out.append(line)
+        i += 1
+        continue
+    if in_sd:
+        if line and not line.startswith(" ") and not line.startswith("\t"):
+            for k, v in keys.items():
+                if k not in existing:
+                    out.append(f'  {k}: "{v}"\n')
+            in_sd = False
+            out.append(line)
+            i += 1
+            continue
+        replaced = False
+        for k, v in keys.items():
+            if line.startswith(f"  {k}:"):
+                out.append(f'  {k}: "{v}"\n')
+                existing.add(k)
+                replaced = True
+                break
+        if not replaced:
+            out.append(line)
+        i += 1
+        continue
+    out.append(line)
+    i += 1
+if in_sd:
+    for k, v in keys.items():
+        if k not in existing:
+            out.append(f'  {k}: "{v}"\n')
+path.write_text("".join(out))
+print(f"updated {path}")
+PY
+
+    print_success "k8s origin URL keys updated in secrets.local.yaml"
+    print_info "Apply with: kctl k3s-3 apply -f \"$secrets_file\" (after namespace exists)"
+}
+
+cmd_sync_urls() {
+    print_step 1 1 "Sync origin URL environment variables"
+
+    # Local stays http://localhost:$PORT unless --domain is used *without* --k8s
+    # (prod-shaped local) OR user explicitly wants both via DOMAIN_FOR_LOCAL.
+    local local_mode="dev"
+    if [[ -n "$PRODUCTION_DOMAIN" && "$PRODUCTION_DOMAIN" != localhost* && "$SYNC_K8S" != true ]]; then
+        local_mode="prod"
+    fi
+
+    sync_origin_urls_local ".env.local" "$local_mode" "$LOCAL_PORT" "$PRODUCTION_DOMAIN"
+
+    if [[ "$SYNC_K8S" == true ]]; then
+        sync_origin_urls_k8s "$PRODUCTION_DOMAIN"
+    fi
+
+    print_success "URL sync complete"
+}
+
+# =============================================================================
+# setup-db — flattened schema SSOT (data/schema.sql)
+# =============================================================================
+
+cmd_setup_db() {
+    print_step 1 1 "Create clone database + apply data/schema.sql"
+
+    if [[ ! -f "$SCRIPT_DIR/scripts/setup-clone-db.sh" ]]; then
+        print_error "Missing scripts/setup-clone-db.sh"
+        exit 1
+    fi
+    if [[ ! -f "$SCRIPT_DIR/data/schema.sql" ]]; then
+        print_error "Missing data/schema.sql (flattened SSOT)"
+        exit 1
+    fi
+
+    local slug="${CLONE_NAME:-platform}"
+    slug=$(echo "$slug" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+    local db_name="${DB_NAME:-ring_${slug//-/_}}"
+    local db_user="${DB_USER:-ring_user}"
+
+    if [[ "$QUICK_MODE" != true ]]; then
+        db_name=$(prompt_input "Database name" "$db_name")
+        db_user=$(prompt_input "Database user" "$db_user")
+    fi
+
+    print_info "Applying flattened schema (do NOT re-run numbered migrations on empty DBs)"
+    print_info "DB=$db_name USER=$db_user"
+
+    local args=(--db-name "$db_name" --db-user "$db_user")
+    if [[ "$CREATE_DB_ROLE" == true ]]; then
+        args+=(--create-role)
+    fi
+
+    bash "$SCRIPT_DIR/scripts/setup-clone-db.sh" "${args[@]}"
+
+    # Upsert DATABASE_URL into .env.local when local defaults apply
+    if [[ -f "$SCRIPT_DIR/.env.local" ]]; then
+        local host="${PGHOST:-localhost}"
+        local port="${PGPORT:-5432}"
+        local pass="${PGPASSWORD:-ring_password_2024}"
+        if [[ "$CREATE_DB_ROLE" == true ]]; then
+            print_warning "Role was (re)created — copy DATABASE_URL printed above into .env.local"
+        else
+            local url="postgresql://${db_user}:${pass}@${host}:${port}/${db_name}"
+            if grep -q '^DATABASE_URL=' "$SCRIPT_DIR/.env.local"; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=\"$url\"|" "$SCRIPT_DIR/.env.local"
+                else
+                    sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"$url\"|" "$SCRIPT_DIR/.env.local"
+                fi
+            else
+                echo "DATABASE_URL=\"$url\"" >> "$SCRIPT_DIR/.env.local"
+            fi
+            print_success "Updated DATABASE_URL in .env.local"
+        fi
+    else
+        print_info "No .env.local yet — set DATABASE_URL after ./install.sh dev"
+    fi
+
+    print_success "Database setup complete"
+}
+
+# =============================================================================
 # Step 8: Environment Variables Setup
 # =============================================================================
 
@@ -788,7 +1073,9 @@ step_8_env_setup() {
     if [[ -f "$env_file" ]]; then
         print_warning ".env.local already exists!"
         if ! prompt_destructive "Overwrite existing .env.local?"; then
-            print_info "Keeping existing .env.local"
+            print_info "Keeping existing .env.local — syncing origin URLs only"
+            LOCAL_PORT=$(prompt_input "Local PORT" "$LOCAL_PORT")
+            sync_origin_urls_local "$env_file" "dev" "$LOCAL_PORT" ""
             return
         fi
         # Backup existing
@@ -826,10 +1113,12 @@ step_8_env_setup() {
     $sed_inplace "s/AUTH_SECRET=\"someSecretKeyGoesHere\"/AUTH_SECRET=\"$auth_secret\"/" "$env_file"
     $sed_inplace "s/AUTH_SECRET=\"\"/AUTH_SECRET=\"$auth_secret\"/" "$env_file"
     $sed_inplace "s/WALLET_ENCRYPTION_KEY=your_wallet_encryption_key_32_hex_chars/WALLET_ENCRYPTION_KEY=$wallet_key/" "$env_file"
-    
-    # Update URLs if production domain is set
-    if [[ "$PRODUCTION_DOMAIN" != "localhost:3000" ]]; then
-        $sed_inplace "s|NEXT_PUBLIC_API_URL=https://myringproject.url|NEXT_PUBLIC_API_URL=https://${PRODUCTION_DOMAIN}|" "$env_file"
+
+    LOCAL_PORT=$(prompt_input "Local PORT for npm run dev" "$LOCAL_PORT")
+    if [[ -n "$PRODUCTION_DOMAIN" && "$PRODUCTION_DOMAIN" != "localhost:3000" ]]; then
+        sync_origin_urls_local "$env_file" "prod" "$LOCAL_PORT" "$PRODUCTION_DOMAIN"
+    else
+        sync_origin_urls_local "$env_file" "dev" "$LOCAL_PORT" ""
     fi
     
     print_success "Generated and set AUTH_SECRET"
@@ -1040,13 +1329,33 @@ main() {
     parse_args "$@"
     
     # Validate setup mode
-    if [[ "$SETUP_MODE" != "dev" && "$SETUP_MODE" != "prod" ]]; then
+    if [[ "$SETUP_MODE" != "dev" && "$SETUP_MODE" != "prod" && "$SETUP_MODE" != "sync-urls" && "$SETUP_MODE" != "setup-db" ]]; then
         # Check if it's a flag that wasn't processed
         if [[ "$SETUP_MODE" == --* ]]; then
             print_error "Unknown option: $SETUP_MODE"
             show_help
         fi
         SETUP_MODE="dev"
+    fi
+
+    # Fast path: origin URL sync only (local ± k8s)
+    if [[ "$SETUP_MODE" == "sync-urls" ]]; then
+        if [[ ! -f "package.json" ]]; then
+            print_error "Please run this script from the Ring Platform project root."
+            exit 1
+        fi
+        cmd_sync_urls
+        exit 0
+    fi
+
+    # Fast path: create DB + apply flattened schema.sql
+    if [[ "$SETUP_MODE" == "setup-db" ]]; then
+        if [[ ! -f "package.json" ]]; then
+            print_error "Please run this script from the Ring Platform project root."
+            exit 1
+        fi
+        cmd_setup_db
+        exit 0
     fi
     
     # Show 80s-style MOTD
@@ -1114,6 +1423,14 @@ main() {
     
     trap 'handle_error "Environment Variables"' ERR
     step_8_env_setup
+
+    # Optional: create local DB schema
+    if prompt_destructive "Create/refresh local Postgres DB from data/schema.sql?"; then
+        trap 'handle_error "Database Setup"' ERR
+        cmd_setup_db
+    else
+        print_info "Skipped DB setup — later: ./install.sh setup-db --clone-name ${CLONE_NAME:-platform}"
+    fi
     
     trap 'handle_error "IDE Configuration"' ERR
     step_9_ide_config

@@ -58,7 +58,7 @@ These HTTP handlers back buttons in the admin UI — you rarely call them manual
 - **Clear verification backlog** — `/admin/security?tab=verification` (legacy `/admin/verification` redirects here) → `POST /api/admin/verification/procedures/{n}/{action}` (`approve`, `reject`, `request-info`, `under-review`).
 - **Pause an abusive entity** — moderation queue → `POST /api/admin/entity-moderation/block` with `entityId` + `reason`.
 - **Rebrand clone colors** — superadmin settings form → `POST /api/admin/whitelabel/save` (redirects to admin settings).
-- **Set RING/USD oracle rate** — Web3 desk → `POST /api/admin/web3/settings` with `{ "ringPerUsd": "..." }`; persisted in `platform_settings` `web3` namespace.
+- **Set RING/USD oracle rate** — Web3 desk → `POST /api/admin/web3/settings` with `{ "nativePerMainCurrency": "..." }`; persisted in `platform_settings` `web3` namespace.
 
 <Callout type="warning">
   **Superadmin-only** changes (AI keys, branding JSON, manual pipeline runs, RING oracle rate) affect every user — restrict `superadmin` role count on production clones.
@@ -156,10 +156,10 @@ Cron equivalents use `/api/cron/*` + `CRON_SECRET` — see ProcessConductor docs
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/api/admin/web3/settings` | Oracle rate, desk config, audit log, gas reserve |
-| POST | `/api/admin/web3/settings` | `{ "ringPerUsd": "..." }` |
+| POST | `/api/admin/web3/settings` | `{ "nativePerMainCurrency": "..." }` |
 | GET | `/api/admin/web3/gas-reserve` | Solana fee-payer balance |
 
-**Oracle persistence:** `features/wallet/services/ring-token-oracle.ts` stores `ringPerUsd` and audit rows in `platform_settings` doc id `web3` via the same `db()` API. When `PLATFORM_SETTINGS_DISABLE_DB=true`, reads fall back to `RING_ORACLE_DEFAULT_RATE` (or `100`) and writes are blocked.
+**Oracle persistence:** `features/wallet/services/native-token-oracle.ts` stores `nativePerMainCurrency` and audit rows in `platform_settings` doc id `web3` via the same `db()` API. When `PLATFORM_SETTINGS_DISABLE_DB=true`, reads fall back to `RING_ORACLE_DEFAULT_RATE` (or `100`) and writes are blocked.
 
 ### Email AI-CRM (platform admin)
 

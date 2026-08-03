@@ -63,7 +63,7 @@ export async function createMoodPlaylistAction(
       songs: [],
       isPrimary: formData.get('isPrimary') === 'true',
     })
-    revalidatePath(LEGACY_ROUTES.PROFILE_PLAYER_PLAYLISTS)
+    revalidatePath(LEGACY_ROUTES.PROFILE_SONGS)
     return { success: true, playlistId: playlist.id }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Create failed' }
@@ -100,10 +100,9 @@ export async function saveMoodPlaylistAction(
       ...(username ? { username } : {}),
       songs,
     })
-    revalidatePath(LEGACY_ROUTES.PROFILE_PLAYER_PLAYLISTS)
-    revalidatePath(LEGACY_ROUTES.PROFILE_PLAYER_PLAYLIST(playlistId))
+    revalidatePath(LEGACY_ROUTES.PROFILE_SONGS)
     if (username) {
-      revalidatePath(LEGACY_ROUTES.PUBLIC_PROFILE_SONGS(username))
+      revalidatePath(LEGACY_ROUTES.PUBLIC_PROFILE_PLAYER(username))
     }
     return { success: true, playlistId }
   } catch (e) {
@@ -116,9 +115,9 @@ export async function deleteMoodPlaylistAction(formData: FormData): Promise<void
   const playlistId = String(formData.get('playlistId') || '').trim()
   if (!playlistId) throw new Error('playlistId is required')
   await deleteMoodPlaylist(playlistId, userId)
-  revalidatePath(LEGACY_ROUTES.PROFILE_PLAYER_PLAYLISTS)
+  revalidatePath(LEGACY_ROUTES.PROFILE_SONGS)
   const { redirect } = await import('next/navigation')
-  redirect(LEGACY_ROUTES.PROFILE_PLAYER_PLAYLISTS)
+  redirect(LEGACY_ROUTES.PROFILE_SONGS)
 }
 
 export async function generateMoodTrackAction(

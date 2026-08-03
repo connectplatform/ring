@@ -49,7 +49,12 @@
       "createPool": "Crear pool",
       "saveChanges": "Guardar cambios",
       "cancel": "Cancelar",
-      "saveFailed": "Error al guardar"
+      "saveFailed": "Error al guardar",
+      "builderUserIdLabel": "ID del builder (opcional)",
+      "builderUserIdPlaceholder": "ID de usuario Ring para el ledger",
+      "payoutWalletLabel": "Wallet de pago al builder",
+      "payoutWalletPlaceholder": "Dirección Solana para payout contable al completar",
+      "payoutTxHash": "Tx de payout: {hash}"
     },
     "create": {
       "title": "Crear pool público",
@@ -72,5 +77,11 @@
       "completed": "Completado",
       "cancelled": "Cancelado"
     }
-  }
+  },
+  "shareToChat": "Compartir",
+  "postJarToChat": "Enviar jarra",
+  "postJarPickContacts": "Enviar jarra a contactos",
+  "postJarConfirm": "Enviar",
+  "postJarSuccess": "Jarra enviada",
+  "postJarFailed": "No se pudo enviar la jarra"
 }

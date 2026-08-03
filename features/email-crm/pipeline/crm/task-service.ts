@@ -272,6 +272,13 @@ export class EmailTaskService {
   }
   
   /**
+   * Get task by id
+   */
+  async getTask(id: string): Promise<EmailTask | null> {
+    return this.repository.findById(id);
+  }
+
+  /**
    * Update task
    */
   async updateTask(id: string, input: TaskUpdateInput): Promise<EmailTask> {

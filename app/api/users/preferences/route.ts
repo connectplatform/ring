@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/locale-config'
-import { getDefaultTheme, getDefaultStoreCurrencySymbol } from '@/lib/ring-config-core'
+import { getDefaultTheme, getMainCurrencySymbol } from '@/lib/ring-config-core'
+import { getSupportedCurrencies } from '@/lib/ring-config-core'
 
 type UserRow = Record<string, unknown> & { id: string }
 
@@ -20,7 +21,7 @@ const preferencesSchema = z.object({
       { message: `Invalid locale. Supported: ${SUPPORTED_LOCALES.join(', ')}` },
     )
     .optional(),
-  currency: z.enum(['UAH', 'DAAR']).optional(),
+  currency: z.enum(getSupportedCurrencies()).optional(),
   theme: z.enum(['light', 'dark', 'system']).optional(),
 })
 
@@ -52,7 +53,7 @@ export async function GET() {
     
     const defaultPreferences: UserPreferences = {
       locale: DEFAULT_LOCALE,
-      currency: getDefaultStoreCurrencySymbol() as UserPreferences['currency'],
+      currency: getMainCurrencySymbol() as UserPreferences['currency'],
       theme: getDefaultTheme() as UserPreferences['theme'],
     }
 

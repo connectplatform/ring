@@ -8,6 +8,7 @@ export type WalletTransactionKind =
   | 'nativetoken_receive'
   | 'desk_buy'
   | 'desk_sell'
+  | 'treasury_swap_in'
   | 'airdrop_verify'
   | 'airdrop_username'
   | 'payment_request_sent'

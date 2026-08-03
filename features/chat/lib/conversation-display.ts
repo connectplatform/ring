@@ -1,5 +1,7 @@
 import type { Conversation } from '@/features/chat/types'
 import { getMessageTimeMs } from '@/features/chat/lib/message-time'
+import { interactivePreviewLabel } from '@/features/chat/lib/interactive-notify'
+import { resolveInteractiveKind } from '@/features/chat/lib/interactive-kind'
 
 /**
  * SSOT conversation label helpers for roster + header.
@@ -47,6 +49,10 @@ export function getConversationTitle(
     return conversation.metadata.subject || `Order Lab ${conversation.metadata.orderId || ''}`.trim()
   }
 
+  if (conversation.type === 'support') {
+    return conversation.metadata.subject || 'Support'
+  }
+
   return 'Conversation'
 }
 
@@ -78,9 +84,16 @@ export function getLastMessagePreview(
     return 'No messages yet'
   }
 
-  const { content, type, senderId } = conversation.lastMessage
+  const last = conversation.lastMessage
+  const { content, type, senderId } = last
   const isOwn = senderId === currentUserId
   const prefix = isOwn ? 'You: ' : ''
+
+  // Dual-gate: prefer interactive kind (type OR metadata.kind)
+  const interactive = resolveInteractiveKind(last)
+  if (interactive) {
+    return `${prefix}${interactivePreviewLabel(last)}`
+  }
 
   switch (type) {
     case 'image':
@@ -142,6 +155,8 @@ export function getConversationTypeGlyph(type: Conversation['type']): string {
       return '👥'
     case 'order_lab':
       return '🧪'
+    case 'support':
+      return '🛟'
     case 'direct':
     default:
       return '👤'

@@ -1,20 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter, usePathname, replaceLocalePath } from '@/i18n/routing'
-import { useLocale } from 'next-intl'
+import { usePathname } from '@/i18n/routing'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
-import { ChevronLeft, ChevronRight, Languages, Moon, Sun } from 'lucide-react'
+import { ChevronRight, Moon, Settings, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 import { cn } from '@/lib/utils'
-import {
-  localeDisplayLabel,
-  localeNativeTitle,
-  nextLocaleInRoutingOrder,
-  persistRingLocalePreference,
-} from '@/lib/locale-pref'
-import type { Locale } from '@/i18n/shared'
 
 interface FloatingSidebarToggleProps {
   children: React.ReactNode
@@ -39,9 +32,7 @@ export default function FloatingSidebarToggle({
 }: FloatingSidebarToggleProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const router = useRouter()
   const pathname = usePathname()
-  const locale = useLocale() as Locale
   const { setTheme, theme, resolvedTheme } = useTheme()
   
   // Prevent hydration mismatch by only rendering theme-dependent content after mount
@@ -71,20 +62,35 @@ export default function FloatingSidebarToggle({
     setIsOpen(false)
   }, [pathname, setIsOpen])
 
-  const getNextCyclingLocale = useCallback(
-    () => nextLocaleInRoutingOrder(locale),
-    [locale],
-  )
+  const controlsRow = (
+    <div className="flex items-center justify-center gap-2">
+      <LocaleCodeMenu variant="panel" align="start" />
 
-  const switchLocale = useCallback(
-    (newLocale: Locale) => {
-      persistRingLocalePreference(newLocale)
-      replaceLocalePath(router, pathname, newLocale)
-    },
-    [pathname, router],
+      {mounted ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
+          className="h-8 px-2 text-xs hover:bg-accent flex-1"
+          title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {resolvedTheme === 'dark' ? (
+            <>
+              <Sun className="h-3 w-3 mr-1" />
+              Light
+            </>
+          ) : (
+            <>
+              <Moon className="h-3 w-3 mr-1" />
+              Dark
+            </>
+          )}
+        </Button>
+      ) : (
+        <div className="h-8 flex-1 rounded-md border border-border bg-muted/50 animate-pulse" />
+      )}
+    </div>
   )
-
-  const nextLocale = getNextCyclingLocale()
 
   return (
     <>
@@ -96,12 +102,12 @@ export default function FloatingSidebarToggle({
             size="sm"
             variant="secondary"
             className="h-12 w-12 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border border-border hover:bg-background transition-all duration-200"
-            aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
+            aria-label={isOpen ? 'Close settings sidebar' : 'Open settings sidebar'}
           >
             {isOpen ? (
               <ChevronRight className="h-5 w-5" />
             ) : (
-              <ChevronLeft className="h-5 w-5" />
+              <Settings className="h-5 w-5" />
             )}
           </Button>
         </div>
@@ -130,46 +136,7 @@ export default function FloatingSidebarToggle({
         {/* Top Controls (Mobile only - avoids z-9000 mobile menu overlap) */}
         {showControls && (
           <div className="md:hidden p-3 border-b border-border bg-background/95 sticky top-0 z-10">
-            <div className="flex items-center justify-center gap-2">
-              {/* Smart 2-Mode Language Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => switchLocale(nextLocale)}
-                className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                title={`Switch to ${localeNativeTitle(nextLocale)}`}
-              >
-                <Languages className="h-3 w-3 mr-1" />
-                {localeDisplayLabel(locale)}
-                <span className="mx-1">↔</span>
-                {localeDisplayLabel(nextLocale)}
-              </Button>
-
-              {/* Theme Toggle - with skeleton placeholder during mount */}
-              {mounted ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
-                  className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                  title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
-                >
-                  {resolvedTheme === 'dark' ? (
-                    <>
-                      <Sun className="h-3 w-3 mr-1" />
-                      Light
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="h-3 w-3 mr-1" />
-                      Dark
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <div className="h-8 flex-1 rounded-md border border-border bg-muted/50 animate-pulse" />
-              )}
-            </div>
+            {controlsRow}
           </div>
         )}
 
@@ -181,52 +148,10 @@ export default function FloatingSidebarToggle({
         {/* Bottom Controls (iPad only - hidden on mobile to avoid menu overlap) */}
         {showControls && (
           <div className="hidden md:block p-4 border-t border-border bg-background/95">
-            <div className="flex items-center justify-center gap-2">
-              {/* Smart 2-Mode Language Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => switchLocale(nextLocale)}
-                className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                title={`Switch to ${localeNativeTitle(nextLocale)}`}
-              >
-                <Languages className="h-3 w-3 mr-1" />
-                {localeDisplayLabel(locale)}
-                <span className="mx-1">↔</span>
-                {localeDisplayLabel(nextLocale)}
-              </Button>
-
-              {/* Theme Toggle - with skeleton placeholder during mount */}
-              {mounted ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
-                  className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                  title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
-                >
-                  {resolvedTheme === 'dark' ? (
-                    <>
-                      <Sun className="h-3 w-3 mr-1" />
-                      Light
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="h-3 w-3 mr-1" />
-                      Dark
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <div className="h-8 flex-1 rounded-md border border-border bg-muted/50 animate-pulse" />
-              )}
-            </div>
+            {controlsRow}
           </div>
         )}
       </div>
     </>
   )
 }
-
-
-

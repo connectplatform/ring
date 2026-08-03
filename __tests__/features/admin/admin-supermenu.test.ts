@@ -5,6 +5,7 @@ import {
   type AdminSupermenuCopy,
 } from '@/features/admin/build-admin-supermenu'
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
+import { filterSupermenuGroups } from '@/features/admin/filter-admin-supermenu'
 
 const copy: AdminSupermenuCopy = {
   contentTitle: 'Content & Blog',
@@ -123,6 +124,18 @@ describe('buildAdminSupermenuModel', () => {
     expect(communityHrefs.some((h) => h.includes('/admin/news'))).toBe(false)
   })
 
+  it('includes Wiki under Content & Blog for admins', () => {
+    const model = build('admin')
+    expect(leafIds(model.groups)).toEqual(expect.arrayContaining(['admin-wiki']))
+    const contentHrefs = collectSupermenuLeafHrefs(
+      model.groups.filter((g) => g.id === 'content'),
+    )
+    expect(contentHrefs.some((h) => h.includes('/admin/wiki'))).toBe(true)
+    expect(leafIds(build('member').groups)).not.toEqual(
+      expect.arrayContaining(['admin-wiki']),
+    )
+  })
+
   it('ensures unique canonical destinations', () => {
     const model = build('superadmin', { hasVendor: true })
     const hrefs = collectSupermenuLeafHrefs(model.groups).map(canonicalizeHref)
@@ -198,5 +211,20 @@ describe('buildAdminSupermenuModel', () => {
     expect(leafLabelsInGroup(model.groups, 'trust')).toEqual(
       expect.arrayContaining(['Matcher Analytics']),
     )
+  })
+})
+
+describe('filterSupermenuGroups', () => {
+  it('filters leaves and keeps matching group titles', () => {
+    const groups = build('admin').groups
+    const wikiOnly = filterSupermenuGroups(groups, 'wiki')
+    expect(wikiOnly.some((g) => g.id === 'content')).toBe(true)
+    expect(
+      wikiOnly
+        .flatMap((g) => g.entries)
+        .filter((e) => e.kind === 'link')
+        .map((e) => (e.kind === 'link' ? e.id : '')),
+    ).toEqual(expect.arrayContaining(['admin-wiki']))
+    expect(filterSupermenuGroups(groups, 'zzzz-no-match')).toEqual([])
   })
 })

@@ -14,6 +14,7 @@ import template from '@/ring-config.template.json'
 import concrete from '@/ring-config.json'
 
 import type {
+  CollectiveOrderConfigRail,
   InstanceConfig,
   PublicInstanceConfig,
   RingConfig,
@@ -23,6 +24,8 @@ import type {
   WebpDerivativeConfig,
   WebpDerivativeProvider,
 } from '@/lib/ring-config-types'
+import { projectConfigToRingOverlay } from '@/features/crm/orders/order-project-config'
+import { getFxOverlayRates } from '@/lib/fx/fx-rates-overlay'
 
 export type {
   InstanceConfig,
@@ -40,6 +43,8 @@ export type {
   SidebarStatConfig,
   SidebarStatValueKey,
   StorageConfig,
+  SupportedCurrencies,
+  SupportedCrypto,
   WebpDerivativeConfig,
   WebpDerivativeProvider,
 } from '@/lib/ring-config-types'
@@ -123,16 +128,29 @@ function mergeDeep(base: any, override: any): any {
 export const getSystemConfigSnapshot = cache(function getSystemConfigSnapshot(): RingConfig {
   const merged = mergeDeep(template, concrete);
 
+  // Order Lab / My Orders overlay from ConfigMap (shared-image runtime SSOT)
+  const overlayRaw = process.env.RING_ORDER_PROJECT_CONFIG
+  let withOverlay = merged
+  if (overlayRaw && typeof overlayRaw === 'string' && overlayRaw.trim()) {
+    try {
+      const parsed = JSON.parse(overlayRaw) as Parameters<typeof projectConfigToRingOverlay>[0]
+      withOverlay = mergeDeep(merged, projectConfigToRingOverlay(parsed))
+    } catch {
+      // Invalid overlay must not break boot — keep file snapshot
+      withOverlay = merged
+    }
+  }
+
   // Fix deployment.resources post-merge (see original version for rationale)
   if (
-    typeof merged === 'object' &&
-    merged !== null &&
-    'deployment' in merged &&
-    typeof (merged as any).deployment === 'object' &&
-    (merged as any).deployment !== null &&
-    'resources' in (merged as any).deployment
+    typeof withOverlay === 'object' &&
+    withOverlay !== null &&
+    'deployment' in withOverlay &&
+    typeof (withOverlay as any).deployment === 'object' &&
+    (withOverlay as any).deployment !== null &&
+    'resources' in (withOverlay as any).deployment
   ) {
-    const dep = (merged as any).deployment;
+    const dep = (withOverlay as any).deployment;
     if (dep.resources && typeof dep.resources === 'object' && !Array.isArray(dep.resources)) {
       const fixed: Record<string, string> = {};
       Object.entries(dep.resources).forEach(([k, v]) => {
@@ -146,7 +164,7 @@ export const getSystemConfigSnapshot = cache(function getSystemConfigSnapshot():
     }
   }
 
-  return merged as RingConfig;
+  return withOverlay as RingConfig;
 });
 
 /**
@@ -193,13 +211,31 @@ export const getEntitiesPreset = cache((): string => {
 /**
  * Accessor: Active home landing preset (`home.preset`).
  * Selects Tier-2 landing under components/pages/home-presets/<name>.tsx
- * Default: "platform". MVM e-commerce clones (GreenFood-style): "mvm-landing".
+ * Default: "platform". Vertical landings (allowlisted kebab-case): e.g. "mvm-landing", "n9life-landing".
  */
 export const getHomePreset = cache((): string => {
   const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
   const singular = (config.home as { preset?: string } | undefined)?.preset
   if (typeof singular === 'string' && singular.trim()) return singular.trim()
   return 'platform'
+})
+
+/** Alias — same as getHomePreset (landing customization SSOT). */
+export const getHomeLandingPreset = getHomePreset
+
+/**
+ * Tier-3 domain overlay id = first allowlisted top-level ring-config object key
+ * among n9life | connect | greenfood | ringdom (clone product surface).
+ * Platform ring-config has none → null (empty overlay registries).
+ */
+export const getOverlayFeature = cache((): string | null => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const ids = ['n9life', 'connect', 'greenfood', 'ringdom'] as const
+  for (const id of ids) {
+    const block = config[id]
+    if (block && typeof block === 'object' && !Array.isArray(block)) return id
+  }
+  return null
 })
 
 /**
@@ -231,13 +267,41 @@ export const getPublicPoolConfig = cache((): {
   minGoalHours: number
   ringPerMachineHour: number
   likeQueueThreshold: number
+  autoPayoutOnGoalMet: boolean
+  platformFeePercentByRole: Record<string, number>
 } => {
-  const { clone, daoPools } = getSystemConfigSnapshot()
+  const snap = getSystemConfigSnapshot() as unknown as {
+    clone?: { name?: string }
+    daoPools?: {
+      minGoalHours?: number
+      ringPerMachineHour?: number
+      likeQueueThreshold?: number
+      autoPayoutOnGoalMet?: boolean
+      platformFeePercentByRole?: Record<string, number>
+    } | string[]
+    publicPools?: {
+      minGoalHours?: number
+      ringPerMachineHour?: number
+      likeQueueThreshold?: number
+      autoPayoutOnGoalMet?: boolean
+      platformFeePercentByRole?: Record<string, number>
+    }
+  }
+  const dao =
+    snap.daoPools && typeof snap.daoPools === 'object' && !Array.isArray(snap.daoPools)
+      ? snap.daoPools
+      : undefined
+  const pub = snap.publicPools
   return {
-    cloneId: clone?.name ?? '',
-    minGoalHours: daoPools?.minGoalHours ?? 1,
-    ringPerMachineHour: daoPools?.ringPerMachineHour ?? 1,
-    likeQueueThreshold: daoPools?.likeQueueThreshold ?? 100,
+    cloneId: snap.clone?.name ?? '',
+    minGoalHours: pub?.minGoalHours ?? dao?.minGoalHours ?? 1,
+    ringPerMachineHour: pub?.ringPerMachineHour ?? dao?.ringPerMachineHour ?? 1,
+    likeQueueThreshold: pub?.likeQueueThreshold ?? dao?.likeQueueThreshold ?? 100,
+    autoPayoutOnGoalMet: pub?.autoPayoutOnGoalMet ?? dao?.autoPayoutOnGoalMet ?? true,
+    platformFeePercentByRole: {
+      ...(dao?.platformFeePercentByRole ?? {}),
+      ...(pub?.platformFeePercentByRole ?? {}),
+    },
   }
 })
 
@@ -621,27 +685,48 @@ export const getDefaultTheme = cache((): 'light' | 'dark' | 'system' => {
 })
 
 /**
- * Returns the configured store currency unit for the instance.
+ * Project **main currency** symbol — settlement / desk FX / treasury-swap notional unit.
+ * SSOT: ring-config.json → `store.mainCurrency`.
  * Empty string is treated as missing (?? alone would not catch '').
  */
-export const getDefaultStoreCurrencySymbol = cache((): SupportedCurrencies => {
-  const raw = getSystemConfigSnapshot().store?.defaultCurrency
+export const getMainCurrencySymbol = cache((): SupportedCurrencies => {
+  const raw = getSystemConfigSnapshot().store?.mainCurrency
   const trimmed = typeof raw === 'string' ? raw.trim() : ''
   return (trimmed || 'USD') as SupportedCurrencies
+})
+
+/**
+ * Payment rails a collective order offers by default.
+ * SSOT: ring-config.json → `opportunities.collectiveOrder.defaultRails`.
+ */
+export const getCollectiveOrderDefaultRails = cache((): CollectiveOrderConfigRail[] => {
+  const configured = getSystemConfigSnapshot().opportunities?.collectiveOrder?.defaultRails
+  return Array.isArray(configured) && configured.length > 0
+    ? configured
+    : ['credit_balance', 'card', 'paypal']
 })
 
 /**
  * Returns all supported fiat currency symbols (e.g. ['USD', 'UAH']).
  * SSOT accessor — replaces raw ringConfig.currencies.map(c => c.symbol).
  */
+/**
+ * Fiat codes accepted for store presentment / display.
+ * Prefer `supportedCurrencies` (checkout allow-list); fall back to `currencies[].symbol`.
+ */
 export const getSupportedCurrencies = cache((): SupportedCurrencies[] => {
   const config = getSystemConfigSnapshot()
+  const presentment = (config.supportedCurrencies ?? [])
+    .map((s) => (typeof s === 'string' ? s.trim() : ''))
+    .filter((s): s is SupportedCurrencies => Boolean(s))
+  if (presentment.length > 0) return presentment
+
   const fromList = (config.currencies ?? [])
     .map((c: { symbol?: string }) => c?.symbol)
     .filter((s): s is SupportedCurrencies => Boolean(s && String(s).trim()))
   if (fromList.length > 0) return fromList
-  // Fallback when currencies[] is absent — still expose defaultCurrency.
-  return [getDefaultStoreCurrencySymbol()]
+  // Fallback when currencies[] is absent — still expose main currency.
+  return [getMainCurrencySymbol()]
 })
 
 /**
@@ -655,7 +740,8 @@ export const getSupportedCrypto = cache((): SupportedCrypto[] => {
 
 /**
  * Native governance / store-display token symbol (e.g. RING).
- * Accepts both tokenSymbol (typed) and legacy symbol on nativeToken.
+ * Thin snapshot read — prefer `@/lib/ring-config-chain` getNativeTokenSymbol for
+ * full chain-aware resolution (cannot re-export from chain here: chain imports core).
  */
 export const getNativeTokenSymbol = cache((): string => {
   const native = getSystemConfigSnapshot().tokens?.nativeToken as
@@ -665,17 +751,30 @@ export const getNativeTokenSymbol = cache((): string => {
 })
 
 /**
- * Returns exchange rates Record<currency, number> relative to DEFAULT_CURRENCY.
- * All rates are relative to DEFAULT_CURRENCY (rate == 1 for the base currency).
- * SSOT accessor — replaces raw ringConfig.exchangeRates.
- * Guarantees defaultCurrency and native token have numeric rates.
+ * Returns exchange rates Record<symbol, number> relative to the **main currency**.
+ * Base currency has rate == 1 (`store.mainCurrency`).
+ * Resolution: static exchangeRates → live FX feed overlay → fx.manualOverrides.
  */
 export const getExchangeRates = cache((): Record<string, number> => {
   const config = getSystemConfigSnapshot()
-  const rates = {
+  const rates: Record<string, number> = {
     ...((config as unknown as { exchangeRates?: Record<string, number> }).exchangeRates ?? {}),
   }
-  const base = getDefaultStoreCurrencySymbol()
+
+  // Live feed overlay (server warm cache from NBU); empty on client until hydrated.
+  const overlay = getFxOverlayRates()
+  if (overlay) Object.assign(rates, overlay)
+
+  const manual = config.fx?.manualOverrides
+  if (manual && typeof manual === 'object') {
+    for (const [code, value] of Object.entries(manual)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        rates[code.toUpperCase()] = value
+      }
+    }
+  }
+
+  const base = getMainCurrencySymbol()
   const native = getNativeTokenSymbol()
   if (typeof rates[base] !== 'number') rates[base] = 1
   if (typeof rates[native] !== 'number') rates[native] = 1
@@ -683,19 +782,19 @@ export const getExchangeRates = cache((): Record<string, number> => {
 })
 
 /**
- * Credit point → store.defaultCurrency multiplier for fiat ledger accounting.
- * SSOT: ring-config.json → credit.unitToDefaultCurrency (typically 1 = 1:1 points:fiat).
- * Fallback: exchangeRates[defaultCurrency], then 1.
+ * Credit balance unit → main currency multiplier for ledger accounting.
+ * SSOT: ring-config.json → credit.creditBalanceUnitToMainCurrency (typically 0.1 = 10 points ≡ 1 main).
+ * Fallback: exchangeRates[mainCurrency], then 1.
  * Do NOT use native-token oracle here — that rate is for desk credit↔native conversion only.
  */
-export const getCreditUnitToDefaultCurrencyRate = cache((): number => {
+export const getCreditUnitToMainCurrencyRate = cache((): number => {
   const config = getSystemConfigSnapshot()
-  const explicit = config.credit?.unitToDefaultCurrency
+  const explicit = config.credit?.creditBalanceUnitToMainCurrency
   if (typeof explicit === 'number' && Number.isFinite(explicit) && explicit > 0) {
     return explicit
   }
   const rates = getExchangeRates()
-  const base = getDefaultStoreCurrencySymbol()
+  const base = getMainCurrencySymbol()
   const fromExchange = rates[base]
   if (typeof fromExchange === 'number' && Number.isFinite(fromExchange) && fromExchange > 0) {
     return fromExchange
@@ -703,10 +802,144 @@ export const getCreditUnitToDefaultCurrencyRate = cache((): number => {
   return 1
 })
 
-/** String form for CreditBalanceService / WalletConductor usdRate params. */
-export function getCreditUnitToDefaultCurrencyRateString(): string {
-  return String(getCreditUnitToDefaultCurrencyRate())
+/**
+ * USD per 1 main-currency unit — bridge for Chainlink TOKEN/USD → main.
+ *
+ * Precedence:
+ * 1. main === 'USD' → 1
+ * 2. store.mainCurrencyToUsd (manual admin override — preferred)
+ * 3. exchangeRates bridge:
+ *    - If rates are relative to main (rates[main]===1): use rates.USD (USD per 1 main)
+ *    - If rates are relative to USD (rates.USD===1): use 1/rates[main]
+ * 4. else throw (do not guess)
+ *
+ * Cron/third-party FX should write store.mainCurrencyToUsd or consistent exchangeRates (24h).
+ */
+export const getMainCurrencyToUsdRate = cache((): number => {
+  const main = getMainCurrencySymbol()
+  if (main === 'USD') return 1
+
+  const config = getSystemConfigSnapshot()
+  const explicit = config.store?.mainCurrencyToUsd
+  if (typeof explicit === 'number' && Number.isFinite(explicit) && explicit > 0) {
+    return explicit
+  }
+
+  const rates = getExchangeRates()
+  const mainRate = rates[main]
+  const usdRate = rates.USD
+
+  // Main is the FX base: rates.USD = USD per 1 main (must not be ambiguous 1/1).
+  if (
+    typeof mainRate === 'number' &&
+    mainRate === 1 &&
+    typeof usdRate === 'number' &&
+    Number.isFinite(usdRate) &&
+    usdRate > 0 &&
+    usdRate !== 1
+  ) {
+    return usdRate
+  }
+
+  // USD is the FX base (store catalog convention): rates[main] = main units per 1 USD.
+  if (
+    typeof usdRate === 'number' &&
+    usdRate === 1 &&
+    typeof mainRate === 'number' &&
+    Number.isFinite(mainRate) &&
+    mainRate > 0
+  ) {
+    return 1 / mainRate
+  }
+
+  throw new Error(
+    `main_currency_to_usd_not_configured:${main} — set store.mainCurrencyToUsd (USD per 1 ${main})`,
+  )
+})
+
+/**
+ * Convert an amount quoted in any configured currency into the main currency.
+ *
+ * `exchangeRates` is a Record<symbol, units-per-1-base>. When main is the FX base
+ * (`rates[main] === 1`), `rates[code]` is *code units per 1 main*, so we divide.
+ * When another symbol is the base, we bridge through it. Unknown codes fall back
+ * to the identity conversion — never silently zero an order out.
+ */
+export function convertToMainCurrency(amount: number, currencyCode?: string): number {
+  if (!Number.isFinite(amount)) return 0
+  const main = getMainCurrencySymbol()
+  const code = (currencyCode || main).trim().toUpperCase()
+  if (!code || code === main) return amount
+
+  const rates = getExchangeRates()
+  const fromRate = rates[code]
+  const mainRate = rates[main]
+  if (
+    typeof fromRate !== 'number' ||
+    !Number.isFinite(fromRate) ||
+    fromRate <= 0 ||
+    typeof mainRate !== 'number' ||
+    !Number.isFinite(mainRate) ||
+    mainRate <= 0
+  ) {
+    return amount
+  }
+
+  return (amount * mainRate) / fromRate
 }
+
+/**
+ * Convert a main-currency amount into a gateway/settlement currency.
+ *
+ * Inverse of {@link convertToMainCurrency}. Needed when a processor settles in a
+ * fixed currency (PayPal `payment.gateways.paypal.currency`) while the catalogue
+ * is quoted in `store.mainCurrency`. Bridges via `store.mainCurrencyToUsd` when
+ * the target is USD and `exchangeRates` has no direct pair.
+ */
+export function convertFromMainCurrency(amount: number, currencyCode?: string): number {
+  if (!Number.isFinite(amount)) return 0
+  const main = getMainCurrencySymbol()
+  const code = (currencyCode || main).trim().toUpperCase()
+  if (!code || code === main) return amount
+
+  const rates = getExchangeRates()
+  const toRate = rates[code]
+  const mainRate = rates[main]
+  if (
+    typeof toRate === 'number' &&
+    Number.isFinite(toRate) &&
+    toRate > 0 &&
+    typeof mainRate === 'number' &&
+    Number.isFinite(mainRate) &&
+    mainRate > 0
+  ) {
+    return (amount * toRate) / mainRate
+  }
+
+  if (code === 'USD') {
+    try {
+      return amount * getMainCurrencyToUsdRate()
+    } catch {
+      return amount
+    }
+  }
+
+  return amount
+}
+
+/** String form for CreditBalanceService / WalletConductor main-currency rate params. */
+export function getCreditUnitToMainCurrencyRateString(): string {
+  return String(getCreditUnitToMainCurrencyRate())
+}
+
+/**
+ * Credit balance unit label (ring-config `credit.creditBalanceUnitLabel`).
+ * SSOT default: `points`. This is the denomination of `users.credit_balance`.
+ */
+export const getCreditUnitLabel = cache((): string => {
+  const label = getSystemConfigSnapshot().credit?.creditBalanceUnitLabel
+  return typeof label === 'string' && label.trim() ? label.trim() : 'points'
+})
 
 const DEFAULT_WEBP_MAX_EDGE = 1600
 const DEFAULT_WEBP_QUALITY = 82

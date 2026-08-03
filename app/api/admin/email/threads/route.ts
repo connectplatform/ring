@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const status = url.searchParams.get('status') as EmailThreadStatus | null
+  const sourceChannel = url.searchParams.get('sourceChannel') || undefined
   const threads = await EmailThreadService.listThreads({
     status: status && status !== ('all' as string) ? status : undefined,
+    sourceChannel,
     limit: 100,
   })
 

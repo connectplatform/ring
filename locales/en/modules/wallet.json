@@ -79,6 +79,20 @@
   "addressCopied": "Address copied",
   "addressCopiedDescription": "Wallet address copied to clipboard",
   "copyAddress": "Copy address",
+  "signinWallet": "Sign-in wallet",
+  "signinWalletDisconnected": "Connect a wallet to fund with sign-in assets",
+  "swapForNative": "Swap for {symbol}",
+  "swapStubHint": "Treasury swap for allowlisted tokens is not live yet. When the treasury contract allowlist and oracle feeds are configured, you can fund your custodial {symbol} wallet from this sign-in wallet.",
+  "swapHint": "Transfer an allowlisted token to the treasury. Custodial {symbol} is credited at the signed oracle quote.",
+  "swapComingSoon": "Coming soon",
+  "swapAmountPlaceholder": "Amount",
+  "swapAvailable": "Available: {balance} {symbol}",
+  "swapQuoting": "Fetching quote…",
+  "swapYouReceive": "You receive ≈ {amount} {symbol} (${usd})",
+  "swapConfirm": "Confirm swap",
+  "swapSuccess": "Received {amount} {symbol}",
+  "swapTreasuryMissing": "Treasury address not configured",
+  "close": "Close",
   "sendLabel": "Send",
   "copyFailed": "Copy failed",
   "orderLabel": "Order #{id}",
@@ -123,7 +137,16 @@
       "invalid_amount": "Amount must be between 0.01 and 10000 RING"
     },
     "proceed_card": "Proceed to Card Payment",
-    "proceed_paypal": "Proceed to PayPal"
+    "proceed_paypal": "Proceed to PayPal",
+    "oracleRateBubble": "Tokens are calculated in accordance with exchange rate: 1 {symbol} is {rate} {creditUnit}.",
+    "securePaymentBubble": "Payments are processed securely via {processor}. This is a non-refundable transaction.",
+    "externalDescription": "Swap allowlisted tokens from your connected sign-in wallet into custodial {symbol}.",
+    "externalNoAllowlist": "No allowlisted tokens configured for treasury swap yet.",
+    "externalTreasuryMissing": "Treasury address not visible yet. Set chains.evm.treasuryAddress or NEXT_PUBLIC_EVM_TREASURY_ADDRESS.",
+    "externalSelectToken": "Token",
+    "externalAmount": "Amount",
+    "externalAvailable": "Available: {balance} {symbol}",
+    "externalYouReceive": "You receive ≈"
   },
   "send": {
     "title": "Send RING",
@@ -177,6 +200,7 @@
     "desk_sell": "Sold {token} at desk",
     "desk_sell_credit": "Received credit balance {creditUnit}",
     "desk_refund": "Desk refund ({creditUnit})",
+    "treasury_swap_in": "Treasury swap → {token}",
     "payment": "Payment",
     "purchase": "Purchase",
     "membership_fee": "Membership fee",
@@ -196,7 +220,11 @@
   "balanceStale": "Balance may be outdated — tap Refresh",
   "autoRefreshEvery": "Auto-refreshes every 60 seconds",
   "topupTabs": {
-    "creditDesk": "Credit {creditUnit}"
+    "creditDesk": "{creditUnit}",
+    "creditNative": "{creditUnit} ↔ {symbol}",
+    "otherWallet": "Other wallet",
+    "creditCard": "Credit Card",
+    "paypal": "Paypal"
   },
   "transactionDetails": {
     "title": "Transaction details",
@@ -277,5 +305,6 @@
   "deskNoCreditTitle": "No credit points",
   "deskNoCreditHint": "Be active in {project} to earn credit {unit}",
   "deskNoCreditOr": "or",
-  "deskBuyCreditUnit": "Buy {unit}"
+  "deskBuyCreditUnit": "Buy {unit}",
+  "balanceStaleShort": "Balance may be outdated"
 }

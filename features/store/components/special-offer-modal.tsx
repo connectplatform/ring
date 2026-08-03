@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
-type Currency = 'RING' | 'DAAR' | 'DAARION' | 'UAH' | 'USD' | 'EUR' | (string & {})
+type Currency = 'RING' | 'USD' | (string & {})
 
 export interface SpecialOffer {
   id: string

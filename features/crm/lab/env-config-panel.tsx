@@ -7,16 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 type MaskedValue =
-  | { set: true; class: 'secret' }
-  | { set: true; class: 'public'; value: string }
-  | { set: false; class: 'public' | 'secret' }
+  | { set: true; class: 'secret'; owner?: string }
+  | { set: true; class: 'public'; value: string; owner?: string }
+  | { set: false; class: 'public' | 'secret'; owner?: string }
 
 type Group = {
   id: string
   title: string
-  keys: Array<{ key: string; class: 'public' | 'secret'; optional?: boolean }>
+  keys: Array<{ key: string; class: 'public' | 'secret'; owner?: string; optional?: boolean }>
 }
 
 export function EnvConfigPanel({ orderId }: { orderId: string }) {
@@ -28,6 +29,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [requesting, setRequesting] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setError(null)
@@ -71,8 +73,71 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
     })
   }
 
-  const renderKey = (key: string, cls: 'public' | 'secret') => {
+  const requestKeys = async (keys: string[]) => {
+    setRequesting(keys[0] || 'batch')
+    try {
+      const docsPath = keys.some((k) => k.includes('FIREBASE'))
+        ? '/docs/backend/firebase'
+        : keys.some((k) => k.includes('RINGBASE') || k.includes('BLOB'))
+          ? '/docs/integrations/ring-filebase'
+          : '/docs/backend/firebase'
+      const res = await fetch('/api/my-jobs/env-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, keys, docsPath }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Request failed')
+      toast({
+        title: t('order.lab.requestSent'),
+        description: keys.join(', '),
+      })
+    } catch (e) {
+      toast({
+        title: t('order.lab.requestFailed'),
+        description: e instanceof Error ? e.message : 'Failed',
+        variant: 'destructive',
+      })
+    } finally {
+      setRequesting(null)
+    }
+  }
+
+  const renderKey = (key: string, cls: 'public' | 'secret', owner?: string) => {
     const masked = envConfig[key]
+    const isOwnerPrivate = owner === 'owner_private' || masked?.owner === 'owner_private'
+    if (isOwnerPrivate) {
+      return (
+        <div key={key} className="space-y-1">
+          <Label className="font-mono text-xs">
+            {key}
+            <span className="ml-2 text-amber-700 dark:text-amber-400">
+              {t('order.lab.ownerPrivate')}
+            </span>
+          </Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="font-mono text-xs"
+              disabled
+              placeholder={masked?.set ? '•••••••• (set)' : t('order.lab.missing')}
+              type="password"
+              value=""
+            />
+            <Button
+              disabled={!!requesting}
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => void requestKeys([key])}
+            >
+              {requesting === key ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+              {t('order.lab.requestUpdate')}
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
     const placeholder =
       masked?.set && cls === 'secret'
         ? '•••••••• (set)'
@@ -117,7 +182,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
             <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
               {t('order.lab.cloneEssentials')}
             </p>
-            {essentialKeys.map((k) => renderKey(k.key, k.class))}
+            {essentialKeys.map((k) => renderKey(k.key, k.class, k.owner))}
           </div>
         ) : null}
 
@@ -128,7 +193,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
               <div className="mt-3 space-y-3">
                 {g.keys
                   .filter((k) => !essentials.includes(k.key))
-                  .map((k) => renderKey(k.key, k.class))}
+                  .map((k) => renderKey(k.key, k.class, k.owner))}
               </div>
             </details>
           ))}

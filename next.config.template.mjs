@@ -61,7 +61,6 @@ const nextConfig = {
     NEXT_PUBLIC_AUTH_GOOGLE_ID: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID || process.env.AUTH_GOOGLE_ID,
     
     // Email Provider
-    AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
   },
   async headers() {
     // ==========================================================================
@@ -74,6 +73,18 @@ const nextConfig = {
       : ['http://localhost:3000', 'http://localhost:3001']
     
     return [
+      {
+        source: '/:locale/login',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+        ],
+      },
+      {
+        source: '/login',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+        ],
+      },
       {
         source: '/api/:path*',
         headers: [

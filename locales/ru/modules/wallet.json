@@ -123,7 +123,16 @@
       "invalid_amount": "Сумма должна быть от 0.01 до 10000 RING"
     },
     "proceed_card": "Перейти к оплате картой",
-    "proceed_paypal": "Перейти к PayPal"
+    "proceed_paypal": "Перейти к PayPal",
+    "oracleRateBubble": "Токены рассчитываются по курсу: 1 {symbol} = {rate} {creditUnit}.",
+    "securePaymentBubble": "Платежи безопасно обрабатывает {processor}. Операция без возврата средств.",
+    "externalDescription": "Обменяйте токены из allowlist с подключённого кошелька входа на custodial {symbol}.",
+    "externalNoAllowlist": "Токены для обмена через казначейство ещё не настроены.",
+    "externalTreasuryMissing": "Адрес казначейства ещё не виден. Задайте chains.evm.treasuryAddress или NEXT_PUBLIC_EVM_TREASURY_ADDRESS.",
+    "externalSelectToken": "Токен",
+    "externalAmount": "Сумма",
+    "externalAvailable": "Доступно: {balance} {symbol}",
+    "externalYouReceive": "Получите ≈"
   },
   "send": {
     "title": "Отправить RING",
@@ -189,14 +198,19 @@
     "reward_credit_add": "Кредит в награду",
     "reimbursement": "Возмещение",
     "payment_request_sent": "Запрос на оплату отправлен ({token})",
-    "payment_request_received": "Запрос на оплату получен ({token})"
+    "payment_request_received": "Запрос на оплату получен ({token})",
+    "treasury_swap_in": "Обмен через казначейство → {token}"
   },
   "refreshingBalances": "Обновление балансов…",
   "balanceUpdated": "Баланс обновлён только что",
   "balanceStale": "Баланс может быть устаревшим — нажмите «Обновить»",
   "autoRefreshEvery": "Автообновление каждые 60 секунд",
   "topupTabs": {
-    "creditDesk": "Кредит {creditUnit}"
+    "creditDesk": "Кредит {creditUnit}",
+    "otherWallet": "Другой кошелёк",
+    "creditCard": "Банковская карта",
+    "paypal": "Paypal",
+    "creditNative": "{creditUnit} ↔ {symbol}"
   },
   "transactionDetails": {
     "title": "Детали транзакции",
@@ -277,5 +291,20 @@
   "deskNoCreditTitle": "Нет кредитных баллов",
   "deskNoCreditHint": "Будьте активны в {project}, чтобы заработать кредит {unit}",
   "deskNoCreditOr": "или",
-  "deskBuyCreditUnit": "Купить {unit}"
+  "deskBuyCreditUnit": "Купить {unit}",
+  "signinWallet": "Кошелёк входа",
+  "signinWalletDisconnected": "Подключите кошелёк, чтобы пополнить активами входа",
+  "swapForNative": "Обменять на {symbol}",
+  "swapStubHint": "Обмен через казначейство для токенов из allowlist ещё не активен. Когда контракт казначейства, allowlist и оракулы будут настроены, вы сможете пополнить custodial-кошелёк {symbol} из этого кошелька входа.",
+  "swapComingSoon": "Скоро",
+  "close": "Закрыть",
+  "swapHint": "Переведите токен из allowlist в казначейство. Custodial {symbol} зачисляется по подписанной котировке оракула.",
+  "swapAmountPlaceholder": "Сумма",
+  "swapAvailable": "Доступно: {balance} {symbol}",
+  "swapQuoting": "Получение котировки…",
+  "swapYouReceive": "Получите ≈ {amount} {symbol} (${usd})",
+  "swapConfirm": "Подтвердить обмен",
+  "swapSuccess": "Получено {amount} {symbol}",
+  "swapTreasuryMissing": "Адрес казначейства не настроен",
+  "balanceStaleShort": "Баланс может быть устаревшим"
 }

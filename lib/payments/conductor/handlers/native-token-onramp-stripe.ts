@@ -47,7 +47,7 @@ export async function handleNativeTokenOnrampStripeWebhook(event: {
 
   const settled = await settleNativeTokenOnramp({
     userId,
-    fiatAmount: amount,
+    mainCurrencyAmount: amount,
     orderReference,
     processor: 'stripe',
   })

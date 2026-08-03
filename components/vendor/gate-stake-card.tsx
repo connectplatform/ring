@@ -2,39 +2,66 @@
 
 /**
  * GateStakeCard — stake/unstake GateEscrow assets (not NATIVE_NFT_APR / DAARION mock).
+ * DAGI / vendor.dagi stakes require vendorEntityId (owned) — multi-entity picker supported.
  */
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Loader2, Lock, Unlock } from 'lucide-react'
 import { stakeGateAction, unstakeGateAction } from '@/app/_actions/nft-gates'
 import type { NftGateSlug } from '@/features/nft-gates/types'
 import type { NftOwnershipRecord, NftStakeRecord } from '@/features/nft-gates/types'
+
+export type VendorEntityOption = { id: string; name: string }
 
 interface GateStakeCardProps {
   owned: NftOwnershipRecord[]
   stakes: NftStakeRecord[]
   /** Highlight this slug (e.g. vendor-dagi-key on vendor dashboard). */
   focusSlug?: NftGateSlug
+  /** Owned vendor entities for DAGI stake-time bind (required when staking vendor-dagi-key). */
+  vendorEntities?: VendorEntityOption[]
 }
 
-export function GateStakeCard({ owned, stakes, focusSlug }: GateStakeCardProps) {
+export function GateStakeCard({
+  owned,
+  stakes,
+  focusSlug,
+  vendorEntities = [],
+}: GateStakeCardProps) {
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [busyAsset, setBusyAsset] = useState<string | null>(null)
+  const [selectedEntityId, setSelectedEntityId] = useState<string>(
+    vendorEntities[0]?.id || '',
+  )
 
   const activeAssets = new Set(stakes.map((s) => s.asset))
-  // Member-lane mints are ownership-only; GateEscrow stake is KEYS/gate SKUs only.
   const gateOwned = owned.filter((o) => o.source !== 'member_mint')
   const rows = focusSlug ? gateOwned.filter((o) => o.slug === focusSlug) : gateOwned
+
+  const needsEntityPicker = useMemo(() => {
+    if (focusSlug === 'vendor-dagi-key') return true
+    return rows.some((r) => r.slug === 'vendor-dagi-key')
+  }, [focusSlug, rows])
 
   function onStake(asset: string, slug: string) {
     setError(null)
     setBusyAsset(asset)
+    const vendorEntityId =
+      slug === 'vendor-dagi-key' || needsEntityPicker ? selectedEntityId || undefined : undefined
     startTransition(async () => {
-      const result = await stakeGateAction(asset, slug as NftGateSlug)
+      const result = await stakeGateAction(asset, slug as NftGateSlug, vendorEntityId)
       if (!result.success) setError(result.error || 'Stake failed')
       setBusyAsset(null)
     })
@@ -66,9 +93,41 @@ export function GateStakeCard({ owned, stakes, focusSlug }: GateStakeCardProps) 
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {needsEntityPicker && vendorEntities.length > 1 ? (
+        <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+          <Label htmlFor="dagi-vendor-entity">Bind DAGI stake to vendor store</Label>
+          <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
+            <SelectTrigger id="dagi-vendor-entity">
+              <SelectValue placeholder="Select vendor store" />
+            </SelectTrigger>
+            <SelectContent>
+              {vendorEntities.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name || e.id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Tradeable keys rebind on stake to your owned store — never unlock a previous owner&apos;s
+            ERP.
+          </p>
+        </div>
+      ) : null}
+
+      {needsEntityPicker && vendorEntities.length === 0 ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Activate a vendor store before staking DAGI — stake binds to your vendorEntityId.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {rows.map((item) => {
         const staked = activeAssets.has(item.asset)
         const busy = pending && busyAsset === item.asset
+        const stakeMeta = stakes.find((s) => s.asset === item.asset && !s.unstakedAt)
         return (
           <div
             key={item.id}
@@ -85,6 +144,11 @@ export function GateStakeCard({ owned, stakes, focusSlug }: GateStakeCardProps) 
                 )}
               </div>
               <p className="font-mono text-xs text-muted-foreground break-all">{item.asset}</p>
+              {stakeMeta?.vendorEntityId ? (
+                <p className="text-xs text-muted-foreground">
+                  Bound store: {stakeMeta.vendorEntityId}
+                </p>
+              ) : null}
             </div>
             {staked ? (
               <Button
@@ -100,7 +164,15 @@ export function GateStakeCard({ owned, stakes, focusSlug }: GateStakeCardProps) 
                 Unstake
               </Button>
             ) : (
-              <Button disabled={busy} onClick={() => onStake(item.asset, item.slug)}>
+              <Button
+                disabled={
+                  busy ||
+                  (item.slug === 'vendor-dagi-key' &&
+                    (vendorEntities.length === 0 ||
+                      (vendorEntities.length > 1 && !selectedEntityId)))
+                }
+                onClick={() => onStake(item.asset, item.slug)}
+              >
                 {busy ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

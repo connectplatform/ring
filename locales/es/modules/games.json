@@ -1,0 +1,22 @@
+{
+  "marketplaceTitle": "Peer Games",
+  "marketplaceDescription": "Minijuegos gratis para Member. Reta a alguien en Messages o desde su página pública. Las jugadas se sincronizan por Tunnel — sin apuestas.",
+  "manageMyGames": "Gestionar mis juegos",
+  "becomeMember": "Hazte Member para publicar",
+  "openMessages": "Abrir Messages",
+  "openMiniApp": "Abrir mini-app",
+  "catalog": {
+    "tic-tac-toe": {
+      "title": "Tres en raya",
+      "description": "Clásico 3×3. Gana el primero en completar una línea."
+    },
+    "chess": {
+      "title": "Ajedrez",
+      "description": "Ajedrez estándar. Las blancas mueven primero."
+    },
+    "checkers": {
+      "title": "Damas",
+      "description": "Damas inglesas en tablero 8×8. Capturas obligatorias."
+    }
+  }
+}

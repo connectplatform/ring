@@ -8,6 +8,7 @@ import { approveReferralReward, rejectReferralReward } from '@/app/_actions/admi
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPolygonscanUrl, getReferralRewardTokenSymbol } from '@/constants/web3'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
 
 type PendingReward = ReferralRewardRecord & { id: string }
 
@@ -316,6 +317,7 @@ function RewardCard({
   showActions?: boolean
   showRetry?: boolean
 }) {
+  const mainCurrency = getClientMainCurrency()
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -331,7 +333,8 @@ function RewardCard({
           {t('refCode')}: <span className="font-mono">{reward.refCode}</span>
         </p>
         <p>
-          {t('amount')}: {reward.rewardAmount} {tokenSymbol} ({reward.orderTotal} {reward.currency})
+          {t('amount')}: {reward.rewardAmount} {tokenSymbol} ({reward.orderAmount}{' '}
+          {reward.currencyCode ?? mainCurrency})
         </p>
         <p>
           {t('referrer')}: <span className="font-mono text-xs">{reward.referrerWallet}</span>

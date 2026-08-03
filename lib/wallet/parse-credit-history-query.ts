@@ -4,13 +4,13 @@ import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import {
   CreditHistoryRequestSchema,
-  CreditTransactionType,
+  CreditBalanceTransactionType,
   type CreditHistoryRequest,
 } from '@/lib/zod/credit-schemas'
 import { queryInt, queryString } from '@/lib/server/request'
 import { logger } from '@/lib/logger'
 
-/** Wallet activity tab values — not valid CreditTransactionType; ignore instead of 400. */
+/** Wallet activity tab values — not valid CreditBalanceTransactionType; ignore instead of 400. */
 const WALLET_ACTIVITY_FILTER_VALUES = new Set(['all', 'credit', 'chain'])
 
 function parseLimit(request: NextRequest): number {
@@ -25,7 +25,7 @@ function parseTransactionTypeFilter(
   const rawType = queryString(request, 'type')
   if (!rawType) return undefined
 
-  const parsed = CreditTransactionType.safeParse(rawType)
+  const parsed = CreditBalanceTransactionType.safeParse(rawType)
   if (parsed.success) return parsed.data
 
   if (WALLET_ACTIVITY_FILTER_VALUES.has(rawType)) {

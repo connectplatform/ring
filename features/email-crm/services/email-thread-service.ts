@@ -18,17 +18,32 @@ export interface EmailThreadRecord {
   lastMessageAt: string
   createdAt: string
   contact?: { type?: string; company?: string | null; interactions?: number }
+  sourceChannel?: string
+  channelId?: string
+  channelName?: string
+  /** When true, staff answered in support chat — skip outbound email for this thread */
+  preferChat?: boolean
+  /** Linked in-app support conversation id */
+  supportConversationId?: string | null
+  /** CRM contact id for this thread */
+  contactId?: string | null
 }
 
 const COLLECTION = 'email_threads'
 
 export const EmailThreadService = {
-  async listThreads(options: { status?: EmailThreadStatus; limit?: number } = {}): Promise<
-    Array<EmailThreadRecord & { id: string }>
-  > {
-    const filters = options.status
-      ? [{ field: 'status', operator: '=' as const, value: options.status }]
-      : []
+  async listThreads(options: {
+    status?: EmailThreadStatus
+    sourceChannel?: string
+    limit?: number
+  } = {}): Promise<Array<EmailThreadRecord & { id: string }>> {
+    const filters: Array<{ field: string; operator: '='; value: string }> = []
+    if (options.status) {
+      filters.push({ field: 'status', operator: '=', value: options.status })
+    }
+    if (options.sourceChannel) {
+      filters.push({ field: 'sourceChannel', operator: '=', value: options.sourceChannel })
+    }
 
     const result = await db().queryDocs<EmailThreadRecord>({
       collection: COLLECTION,

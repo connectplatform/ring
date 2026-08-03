@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 import { routing, type Locale } from '@/i18n/routing'
 import { ROUTES } from '@/constants/routes'
 import {
@@ -9,6 +10,7 @@ import {
   stripLocaleFromPathname,
   finalizeIntlResponse,
   nextWithPathHeaders,
+  stampPreferredLocaleCookie,
   withUpstreamPathHeaders,
 } from '@/lib/proxy-intl'
 import {
@@ -18,7 +20,8 @@ import {
 } from '@/features/refcodes/constants'
 
 /**
- * next-intl + optimistic session-cookie gate for /profile and /settings only.
+ * next-intl + optimistic session-cookie gate for /profile and /settings,
+ * plus soft needsOnboarding redirect for protected app routes.
  * Role checks and GIS live in layouts and Server Components (auth()).
  * Next.js 16: proxy.ts replaces middleware.ts.
  */
@@ -43,7 +46,7 @@ export default async function proxy(req: NextRequest) {
         if (isIntlSelfReferentialRedirect(intlReq, i18nResponse)) {
           i18nResponse = applyIntlMiddlewareOutcome(intlReq, i18nResponse)
         } else {
-          return i18nResponse
+          return stampPreferredLocaleCookie(req, i18nResponse)
         }
       }
     }
@@ -68,6 +71,24 @@ export default async function proxy(req: NextRequest) {
       const url = new URL(ROUTES.LOGIN(locale as Locale), intlReq.nextUrl.origin)
       url.searchParams.set('from', pathname)
       return NextResponse.redirect(url)
+    }
+
+    // Soft-gate: incomplete vitals → onboarding (login/onboarding/API stay public)
+    const onboardingExempt =
+      stripped.startsWith('/login') ||
+      stripped.startsWith('/auth') ||
+      stripped.startsWith('/register') ||
+      stripped === '/'
+    if (isLoggedIn && !onboardingExempt && !isLanguageSwitch) {
+      const token = await getToken({
+        req: intlReq,
+        secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+      })
+      if (token?.needsOnboarding === true) {
+        const url = new URL(`/${locale}/login/onboarding`, intlReq.nextUrl.origin)
+        url.searchParams.set('from', pathname)
+        return NextResponse.redirect(url)
+      }
     }
 
     const response = finalizeIntlResponse(req, intlReq, i18nResponse)

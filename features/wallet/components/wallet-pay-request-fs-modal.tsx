@@ -48,7 +48,7 @@ export default function WalletPayRequestFsModal({
   const [note, setNote] = useState('')
   const [paying, setPaying] = useState(false)
 
-  const available = parseFloat(wallet.nativeBalance || '0') || 0
+  const available = parseFloat(wallet.nativeTokenBalance || '0') || 0
   const amount = parseFloat(request.amount) || 0
   const insufficient = amount > available
 
@@ -102,7 +102,7 @@ export default function WalletPayRequestFsModal({
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">{t('payBalance')}</span>
               <span className="tabular-nums">
-                {formatNativeBalance(wallet.nativeBalance)} {token}
+                {formatNativeBalance(wallet.nativeTokenBalance)} {token}
               </span>
             </div>
             <div className="flex justify-between gap-3">

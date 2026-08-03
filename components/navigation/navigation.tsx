@@ -35,11 +35,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { MiniCart } from '@/features/store/components/mini-cart'
 import { FavoritesMenu } from '@/features/store/components/favorites-menu'
-import { LanguageSwitcher } from '@/components/common/language-switcher'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
 import MobileUserWidget from './mobile-user-widget'
+import { DesktopSidebarSkeleton } from './desktop-sidebar-skeleton'
 
 // React 19 Resource Preloading APIs
 import { preload, preinit } from 'react-dom'
@@ -50,10 +50,17 @@ const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-
 
 const BottomNavigation = dynamic(() => import('@/components/navigation/bottom-navigation'), {
   ssr: false,
+  loading: () => null,
 })
 
+/**
+ * Desktop sidebar: SSR shell + skeleton while the client chunk loads.
+ * Previously `ssr: false` left Profile/credit blank until JS — perceived hang.
+ * Credit chip is CreditBalanceProvider-only (no wagmi).
+ */
 const DesktopSidebar = dynamic(() => import('@/components/navigation/desktop-sidebar'), {
-  ssr: false,
+  ssr: true,
+  loading: () => <DesktopSidebarSkeleton />,
 })
 
 /**

@@ -4,8 +4,10 @@ import { auth } from '@/auth';
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor';
 import { UserRolesArray } from '@/features/auth/user-role';
 import { logger } from '@/lib/logger';
-import { getMemberFiatTier } from '@/lib/membership/pricing';
+import { getMemberMainCurrencyTier } from '@/lib/membership/pricing';
 import { getCardPaymentProcessor } from '@/lib/payments/subscription/subscription-config';
+import { getNativeTokenSymbol } from '@/lib/ring-config-core';
+import { getPayPalGatewayCurrency } from '@/lib/payments/processors/paypal-client';
 
 // TODO: If running on React 19 and Next.js 16+ ensure that you are using server actions and route handlers that natively leverage streaming and enhanced error boundaries for improved UX and observability. (Not implemented here as this API route relies on traditional handlers, but see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions)
 // TODO: Consider adding "typed responses" using TypeScript utility types for stricter shape enforcement on API response objects.
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtain the member pricing tier from config (single source of truth)
-    const memberTier = getMemberFiatTier();
+    const memberTier = getMemberMainCurrencyTier();
     if (!memberTier) {
       // Service unavailable if config missing
       return NextResponse.json(
@@ -136,21 +138,21 @@ export async function POST(request: NextRequest) {
         method = 'crypto';
         gatewayFeePercent = 0;
         gatewayFeeFixed = 0;
-        currency = '{native_token}';
+        currency = getNativeTokenSymbol();
         break;
       case 'stripe':
         gateway = 'Stripe';
         method = 'card';
         gatewayFeePercent = 2.9;
         gatewayFeeFixed = 0.30;
-        currency = 'USD';
+        currency = memberTier.currency;
         break;
       case 'wayforpay':
         gateway = 'WayForPay';
         method = 'card';
         gatewayFeePercent = 2.7;
         gatewayFeeFixed = 0;
-        currency = 'USD';
+        currency = memberTier.currency;
         break;
       case 'nft_gate':
         gateway = 'NFT Gate';
@@ -161,10 +163,10 @@ export async function POST(request: NextRequest) {
         break;
       case 'paypal':
         gateway = 'PayPal';
-        method = 'crypto';
+        method = 'paypal';
         gatewayFeePercent = 3.49;
         gatewayFeeFixed = 0.49;
-        currency = 'USD';
+        currency = getPayPalGatewayCurrency();
         // STUB: The PayPal method and actual integration NOT implemented yet.
         // STUB: TODO: Implement PayPal provider in conductor and backend. Route to PayPal payment initialization, handle webhooks, validate confirmation, then finalize Subscription.
         break;

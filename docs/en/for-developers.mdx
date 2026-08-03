@@ -1,7 +1,7 @@
 ---
 title: For Developers
 description: Curated docTree for developers and integrators — bootstrap, architecture, APIs, payments cluster, deploy, and contribution layers
-last_modified: "2026-07-17"
+last_modified: "2026-07-24"
 audience: developer
 ---
 
@@ -78,8 +78,9 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 
 - [PaymentConductor](/docs/features/payment-conductor)
 - [WayForPay Integration](/docs/features/wayforpay-integration)
-- [SubscriptionConductor](/docs/features/subscriptions)
+- [SubscriptionConductor](/docs/features/subscriptions) — multi-provider ledger including `telegram_stars`
 - [Payments overview](/docs/features/payments)
+- [Public Pools & DAO Jars](/docs/features/public-pools) — `public_pool_contribution`, desk FX, builder payout, escrow gate
 - [Store](/docs/features/store)
 - [Wallet](/docs/features/wallet)
 - [WalletConductor](/docs/features/wallet-conductor) — custodial native + credit orchestration (top-up, desk, spend, NFT buy)
@@ -99,23 +100,28 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 
 - [Tunnel Protocol](/docs/features/tunnel-protocol)
 - [Messaging](/docs/features/messaging) — `Conversation.type` vs `metadata.kind`; inbox hide for tool chats
+- [Ring Tasks](/docs/features/tasks) — `task` message type, `/tasks` tree, credit escrow, convert → `request` opportunity
 - [WebRTC Calls & STUNner](/docs/features/webrtc-calls)
+- [Peer Games](/docs/features/peer-games) — `/games`, `game_request`, Tunnel+DB SSOT (tic-tac-toe, chess, checkers); P1 expiry/ACL/FCM/DataChannel hints
 - [Push Notifications (FCM)](/docs/features/push-notifications-fcm)
 - [Notifications](/docs/features/notifications)
 - [Email AI-CRM](/docs/features/email-ai-crm) — UI `/admin/crm/*`; APIs `/api/admin/email/*`
+- [Ring Mailer & RingdomX](/docs/features/ring-mailer) — own SMTP / Ethereal; calculator `mail` add-on
 - [Owner Project Lab](/docs/features/owner-project-lab) — buyer My Projects + shared `order_lab` + CRM order desk
 
 ### Identity, trust, content
 
-- [Authentication](/docs/features/authentication)
+- [Authentication](/docs/features/authentication) — Auth.js providers including Telegram OIDC + Mini App initData
 - [Security](/docs/features/security)
 - [Admin console](/docs/features/admin) — `admin-nav-config` SSOT, `CrmAdminShell` tabs, Security/Matcher tabs
-- [Manage via Telegram](/docs/features/manage-via-telegram) — admin bot RBAC + webhook
+- [Admin Wiki](/docs/features/admin-wiki) — Postgres Markdown vault, `[[wikilinks]]`, ring-wiki-* MCP
+- [Manage via Telegram](/docs/features/manage-via-telegram) — admin bot RBAC + webhook (not member Login / Mini App)
 - [Entities](/docs/features/entities)
 - [Opportunities](/docs/features/opportunities)
 - [News](/docs/features/news) — TipTap NewsEditor, pending-revision APIs, sanitizeNewsHtml
 - [Member Blog](/docs/features/member-blog)
 - [Public Profile](/docs/features/public-profile)
+- [File Cabinet](/docs/features/file-cabinet) — member-gated `/file-cabinet`, subscriber+ `/profile/shared`, gallery, public `/{username}/img`
 - [Username Reservation](/docs/features/username-reservation)
 - [Scientific Editor](/docs/features/scientific-editor) — publications TipTap JSON + versions (not news)
 - [Locale System](/docs/features/locale-system)
@@ -183,7 +189,7 @@ Curated index for **developers, integrators, and engineers**. Hubs follow system
 
 [**Customization** →](/docs/customization) · [**Examples** →](/docs/examples)
 
-- Customization: quick-start, guide, database-selection, token-economics, payment-integration, AI, branding, features, localization, themes, components
+- Customization: quick-start, guide, [vertical presets](/docs/customization/vertical-presets), [ringization playbook](/docs/customization/ringization-playbook), database-selection, token-economics, payment-integration, AI, branding, features, localization, themes, components
 - Examples: quick-start, basic-setup, authentication, email-ai-crm, api-integration, api-examples, web3-integration, white-label, custom-branding, apple-signin, integrations, real-world, advanced-features
 - [Ethereum Wallets](/docs/integrations/ethereum-wallets)
 - [Token Launch Jurisdictions](/docs/web3/token-launch-jurisdictions)

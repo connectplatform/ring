@@ -155,16 +155,93 @@ export default function AdminAnalyticsClient({
             </Card>
           </div>
 
-          {/* Secondary analytics: recent activity, traffic sources */}
+          {/* Secondary analytics: personal pages + traffic sources */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Activity (future implementation) */}
             <Card>
               <CardHeader>
-                {/* Use optional label override */}
-                <CardTitle>{labels.recentActivity ?? 'Recent Activity'}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  {t('overview.personalPages')}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {t('overview.personalPagesSubtitle')}
+                </p>
               </CardHeader>
               <CardContent>
-                <EmptyState message={t('empty.noActivity')} />
+                {!data.personalPages.hasData ? (
+                  <EmptyState message={t('empty.noPersonalPages')} />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('overview.personalUnique24h')}
+                        </p>
+                        <p className="text-2xl font-bold">{data.personalPages.unique24h}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {data.personalPages.visits24h} {t('overview.personalVisits')}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('overview.personalUniquePeriod')}
+                        </p>
+                        <p className="text-2xl font-bold">{data.personalPages.uniquePeriod}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {data.personalPages.visitsPeriod} {t('overview.personalVisits')}
+                        </p>
+                      </div>
+                    </div>
+                    {data.personalPages.byRolePeriod.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">{t('overview.personalByRole')}</p>
+                        <ul className="space-y-1">
+                          {data.personalPages.byRolePeriod.map((bucket) => {
+                            const day =
+                              data.personalPages.byRole24h.find((r) => r.role === bucket.role)
+                                ?.unique ?? 0
+                            return (
+                              <li
+                                key={bucket.role}
+                                className="flex items-center justify-between text-sm"
+                              >
+                                <span className="capitalize text-muted-foreground">
+                                  {bucket.role}
+                                </span>
+                                <span className="tabular-nums font-medium">
+                                  {day} / {bucket.unique}
+                                </span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                        <p className="text-xs text-muted-foreground">
+                          {t('overview.personalByRoleHint')}
+                        </p>
+                      </div>
+                    ) : null}
+                    {data.personalPages.topProfiles.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">{t('overview.personalTopProfiles')}</p>
+                        <ul className="space-y-1">
+                          {data.personalPages.topProfiles.map((row) => (
+                            <li
+                              key={row.username}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <span className="truncate font-mono text-muted-foreground">
+                                /{row.username}
+                              </span>
+                              <span className="shrink-0 tabular-nums font-medium">
+                                {row.unique}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </CardContent>
             </Card>
             {/* Traffic Sources (future implementation) */}

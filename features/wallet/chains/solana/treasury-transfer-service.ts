@@ -14,8 +14,8 @@ import {
   getNativeChainConfig, // Fetch platform-supported native chain configs
   getNativeTokenAddress, // Helper for fetching RING token mint public key (Solana)
   getNativeTokenDecimals, // Helper to get token decimals (fallback/default)
+  getNativeTokenSymbol,
 } from '@/lib/ring-config-chain'
-import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { decryptSolanaWalletSecretKey } from '@/lib/wallet/decrypt-user-wallet'
 import { assertFeePayerGasReserve } from './solana-gas-reserve'
 import {
@@ -76,7 +76,7 @@ async function buildSponsoredTx(
   }
 
   // Ensure gas/funding available for off-chain fee payer. Throws if insufficient.
-  await assertFeePayerGasReserve('RING')
+  await assertFeePayerGasReserve(getNativeTokenSymbol())
   const connection = getSolanaConnection()
   const feePayer = getFeePayerKeypair()
   const tx = new Transaction()

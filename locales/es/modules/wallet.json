@@ -123,7 +123,16 @@
       "invalid_amount": "La cantidad debe estar entre 0,01 y 10000 RING"
     },
     "proceed_card": "Ir al pago con tarjeta",
-    "proceed_paypal": "Ir a PayPal"
+    "proceed_paypal": "Ir a PayPal",
+    "externalDescription": "Intercambia tokens de la allowlist desde tu monedero de inicio de sesión por {symbol} custodial.",
+    "externalNoAllowlist": "Aún no hay tokens en la allowlist para el intercambio del tesoro.",
+    "externalTreasuryMissing": "La dirección del tesoro aún no es visible. Configura chains.evm.treasuryAddress o NEXT_PUBLIC_EVM_TREASURY_ADDRESS.",
+    "externalSelectToken": "Token",
+    "externalAmount": "Importe",
+    "externalAvailable": "Disponible: {balance} {symbol}",
+    "externalYouReceive": "Recibes ≈",
+    "oracleRateBubble": "Tokens are calculated in accordance with exchange rate: 1 {symbol} is {rate} {creditUnit}.",
+    "securePaymentBubble": "Payments are processed securely via {processor}. This is a non-refundable transaction."
   },
   "send": {
     "title": "Enviar RING",
@@ -196,7 +205,11 @@
   "balanceStale": "El saldo puede estar desactualizado — toca Actualizar",
   "autoRefreshEvery": "Actualización automática cada 60 segundos",
   "topupTabs": {
-    "creditDesk": "Crédito {creditUnit}"
+    "creditDesk": "{creditUnit}",
+    "creditNative": "{creditUnit} ↔ {symbol}",
+    "otherWallet": "Otra cartera",
+    "creditCard": "Tarjeta",
+    "paypal": "Paypal"
   },
   "transactionDetails": {
     "title": "Detalles de la transacción",
@@ -277,5 +290,12 @@
   "deskNoCreditTitle": "Sin puntos de crédito",
   "deskNoCreditHint": "Sé activo en {project} para ganar crédito {unit}",
   "deskNoCreditOr": "o",
-  "deskBuyCreditUnit": "Comprar {unit}"
+  "deskBuyCreditUnit": "Comprar {unit}",
+  "signinWallet": "Monedero de inicio de sesión",
+  "signinWalletDisconnected": "Conecta un monedero para financiar con activos de inicio de sesión",
+  "swapForNative": "Intercambiar por {symbol}",
+  "swapStubHint": "El intercambio del tesoro para tokens en la allowlist aún no está activo. Cuando el contrato del tesoro, la allowlist y los oráculos estén configurados, podrás financiar tu monedero custodial de {symbol} desde este monedero de inicio de sesión.",
+  "swapComingSoon": "Próximamente",
+  "close": "Cerrar",
+  "balanceStaleShort": "El saldo puede estar desactualizado"
 }

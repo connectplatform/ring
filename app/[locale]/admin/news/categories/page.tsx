@@ -23,7 +23,7 @@ import { getNewsStats } from '@/features/news/services/get-news-stats'
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
     const result = await db().queryDocs({
-      collection: 'newsCategories',
+      collection: 'news_categories',
       orderBy: [{ field: 'name', direction: 'asc' }],
     })
 

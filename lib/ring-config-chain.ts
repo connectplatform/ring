@@ -1,5 +1,6 @@
 
 import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
 export type { EvmContractConfig, EvmStakingConfig, EvmStakingSlotConfig } from '@/features/staking/adapters/evm';
 export type { SolanaStakingSlotConfig, SolanaStakingConfig } from '@/features/staking/adapters/solana';
 export type { EvmStakingPool, EvmStakingToken, SolanaStakingPool, SolanaStakingToken } from '@/features/staking/types';
@@ -80,20 +81,43 @@ export interface SolanaChainConfig {
 }
 
 // EVM (Ethereum or compatible) chain config
+export interface TreasurySwapAllowlistEntry {
+  /** ERC-20 contract address (checksummed). */
+  address: string
+  symbol: string
+  decimals: number
+  /** Chainlink AggregatorV3 USD feed for this token (per-token pricing). */
+  chainlinkFeed?: string
+  enabled?: boolean
+}
+
 export interface EvmChainConfig {
   network?: string                            // Named network (mainnet, dev, etc) 
   enabled?: boolean
   chainId?: number
   tokenDecimals?: number
-  tokenAddress?: string                       // Native token address
+  /** @deprecated Prefer tokenDecimals — JSON often uses `decimals`. */
+  decimals?: number
+  tokenAddress?: string                       // Native RING ERC-20 address
+  /** @deprecated Prefer tokenAddress — JSON often uses `address`. */
+  address?: string
   tokenSymbol?: string                        // Native token symbol
   tokenName?: string                          // Native token name
   tokenProgram?: string                        // Native token program or smart contract address
-  treasuryAddress?: string                    // Treasury address
+  treasuryAddress?: string                    // EVM treasury that receives allowlisted tokens
   rpcUrlEnv?: string                         // RPC environment variable/reference
   commitment?: 'processed' | 'confirmed' | 'finalized'
+  /** Tokens the treasury accepts in exchange for native RING (deploy-time allowlist). */
+  treasurySwapAllowlist?: TreasurySwapAllowlistEntry[]
+  /** Pause flag for Wagmi treasury swap lane (desk architect invariant). */
+  treasurySwapPaused?: boolean
+  /** Per-tx max main-currency notional (optional). */
+  treasurySwapMaxMainCurrencyPerTx?: number
+  /** Daily max main-currency notional per user (optional). */
+  treasurySwapMaxMainCurrencyPerDay?: number
   /** Raw staking slot — validated by buildEvmStakingConfigFromSSOT. */
   staking?: EvmStakingSlotConfig
+  legacyReferralRewards?: boolean
 }
 
 
@@ -199,17 +223,85 @@ export function getNativeChainConfig(): NativeChainConfig {
   // Snapshot 'chains' is loosely typed JSON — normalize once through the
   // NativeChainConfig surface (runtime deep-merge below guards the shape).
   const chains = (getSystemConfigSnapshot().chains ?? {}) as unknown as NativeChainConfig
+  const rawEvm = { ...SUPPORTED_CHAINS.evm, ...(chains.evm ?? {}) } as EvmChainConfig
+  // Normalize JSON aliases: address→tokenAddress, decimals→tokenDecimals
+  const evm: EvmChainConfig = {
+    ...rawEvm,
+    tokenAddress: rawEvm.tokenAddress || rawEvm.address || undefined,
+    tokenDecimals: rawEvm.tokenDecimals ?? rawEvm.decimals,
+    treasurySwapAllowlist: Array.isArray(rawEvm.treasurySwapAllowlist)
+      ? rawEvm.treasurySwapAllowlist
+      : [],
+  }
 
   return {
     ...(SUPPORTED_CHAINS as NativeChainConfig),
     ...chains,
     solana: { ...SUPPORTED_CHAINS.solana, ...(chains.solana ?? {}) },
-    evm: { ...SUPPORTED_CHAINS.evm, ...(chains.evm ?? {}) },
+    evm,
     base: { ...SUPPORTED_CHAINS.base, ...(chains.base ?? {}) },
     enabled: Array.isArray(chains.enabled) ? chains.enabled : SUPPORTED_CHAINS.enabled,
     // Explicit chains.native in ring-config.json wins; otherwise auto-detect.
     native: chains.native ?? ((chains.solana?.network ?? SUPPORTED_CHAINS.solana.network) === 'solana' ? 'solana' : 'evm'),
   }
+}
+
+/** Enabled treasury-swap allowlist entries from chains.evm (Wagmi Swap lane). */
+export function getNativeTokenSwapAllowlist(): TreasurySwapAllowlistEntry[] {
+  const list = getNativeChainConfig().evm?.treasurySwapAllowlist ?? []
+  return list.filter((e) => e.enabled !== false && Boolean(e.address) && Boolean(e.symbol))
+}
+
+/**
+ * EVM JSON-RPC URL for the native (or configured) EVM chain.
+ * Resolves `chains.evm.rpcUrlEnv` first, then shared Polygon helper fallbacks.
+ */
+export function getEvmRpcUrl(): string {
+  const envName = getNativeChainConfig().evm?.rpcUrlEnv || 'POLYGON_RPC_URL'
+  const fromNamedEnv = process.env[envName]
+  if (fromNamedEnv && fromNamedEnv.length > 0) return fromNamedEnv
+  return getPolygonRpcUrl()
+}
+
+/** Configured EVM chain id (Polygon mainnet 137 by default). */
+export function getEvmChainId(): number {
+  return getNativeChainConfig().evm?.chainId ?? 137
+}
+
+const ZERO_EVM_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+/**
+ * EVM RING ERC-20 contract address — never the Solana SPL mint.
+ * When `chains.native === 'solana'`, `getNativeTokenAddress()` returns a mint;
+ * use this helper for Polygon/Base ERC-20 paths instead.
+ */
+export function getEvmTokenAddress(): string | null {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_RING_TOKEN_ADDRESS?.trim() ||
+    process.env.RING_CONTRACT_ADDRESS?.trim() ||
+    ''
+  if (fromEnv && /^0x[a-fA-F0-9]{40}$/.test(fromEnv) && fromEnv.toLowerCase() !== ZERO_EVM_ADDRESS) {
+    return fromEnv
+  }
+  const fromSlot = getNativeChainConfig().evm?.tokenAddress?.trim() || ''
+  if (fromSlot && /^0x[a-fA-F0-9]{40}$/.test(fromSlot) && fromSlot.toLowerCase() !== ZERO_EVM_ADDRESS) {
+    return fromSlot
+  }
+  return null
+}
+
+export function getEvmTreasuryAddress(): string | null {
+  const fromConfig = getNativeChainConfig().evm?.treasuryAddress?.trim()
+  const fromEnv =
+    process.env.EVM_TREASURY_ADDRESS?.trim() ||
+    process.env.NEXT_PUBLIC_EVM_TREASURY_ADDRESS?.trim()
+  const addr = fromConfig || fromEnv
+  if (!addr || addr === '0x0000000000000000000000000000000000000000') return null
+  return addr
+}
+
+export function isTreasurySwapPaused(): boolean {
+  return Boolean(getNativeChainConfig().evm?.treasurySwapPaused)
 }
 
 export function getNativeChain(): NativeChain {
@@ -263,14 +355,18 @@ export function getNativeTokenDecimals(chain?: NativeChain): number {
 export function getNativeTokenMintOrAddress(chain?: NativeChain): string | null {
   const active = chain ?? getNativeChain()
   const chains = getNativeChainConfig()
-
-
-  return (
-    chains.evm?.tokenAddress ||
-    getSystemConfigSnapshot().tokens?.nativeToken?.tokenAddress ||
+  const snapshot = getSystemConfigSnapshot()
+  const fallback =
+    snapshot.tokens?.nativeToken?.tokenAddress ||
     process.env.NATIVE_TOKEN_ADDRESS ||
     null
-  )
+
+  if (active === 'solana') {
+    return chains.solana?.tokenAddress || fallback
+  }
+
+  // evm | base — prefer per-chain ERC-20 address (JSON may still use `address` alias)
+  return chains.evm?.tokenAddress || chains.evm?.address || fallback
 }
 
 /**
@@ -371,9 +467,9 @@ export function getTokenDeskConfig() {
   return snapshot.credit?.desk ?? snapshot.tokens?.tokenDesk ?? {}
 }
 
-export function getPointsPerNativeToken(): number {
-  const desk = getTokenDeskConfig() as { pointsPerNativeToken?: number }
-  return desk.pointsPerNativeToken ?? 100
+export function getCreditUnitPerNativeToken(): number {
+  const desk = getTokenDeskConfig() as { creditBalanceUnitPerNativeToken?: number }
+  return desk.creditBalanceUnitPerNativeToken ?? 100
 }
 
 /**
@@ -504,7 +600,7 @@ export interface SolanaTokensConfig {
 }
 // RENAMED 2026-07-03 (Flawless Victory): was `NativeChainConfig` but collided
 // with the narrower chain-only config at line 22. This is the platform-wide
-// native chain + token + rewards surface, used by RingConfig.{tokens, creditUnit, ...}.
+// native chain + token + rewards surface, used by RingConfig.{tokens, creditBalanceUnit, ...}.
 // TODO: Move chain-specific sub-configs (evmTokens, solanaTokens) to their
 // respective chain feature folders per "keep chain types local" directive.
 export interface NativeChainPlatformConfig {
@@ -529,12 +625,12 @@ export interface NativeChainPlatformConfig {
    }
 
   /**
-   * Configures credit points unit (internal stable currency for user credit_balance)
+   * Configures credit balance unit (internal stable currency for user credit_balance)
    * Example: USD, UAH, etc, defaults to project fiat currency.
    * Not a blockchain token, but allows buying project token for credits (see feature flags).
    */
-  creditUnit?: string            // Credit unit display name (e.g. 'USD')
-  creditFiatCurrency?: string    // 3-char ISO code for main fiat
+  creditBalanceUnit?: string            // Credit balance unit display name (e.g. 'USD')
+  mainCurrency?: string    // 3-char ISO code for main fiat
   rewards?: {                    // Config for credit reward airdrops
     credits?: {
       events?: Record<RewardCreditAddEventTrigger, RewardCreditAddEventRule> // Map of trigger actions to reward logic
@@ -556,7 +652,7 @@ export interface NativeChainPlatformConfig {
 export interface DaoPoolsConfig {
   /** Minimum machine-hours (and RING goal floor) for opportunity-pool jar contract. */
   minGoalHours?: number
-  /** RING per machine-hour when deriving goal_ring from goal_hours. */
+  /** RING per machine-hour when deriving goal_native_token from goal_hours. */
   ringPerMachineHour?: number
   /** Likes required to queue the pool (OR 100% RING pledged). */
   likeQueueThreshold?: number

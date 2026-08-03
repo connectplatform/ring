@@ -3,7 +3,14 @@
     {
       "path": "/api/cron/cleanup-usernames",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/close-expired-polls",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/peer-game-session-expiry",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
-

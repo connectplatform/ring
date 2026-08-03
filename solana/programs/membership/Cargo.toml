@@ -1,0 +1,24 @@
+[package]
+name = "membership"
+version = "0.1.0"
+description = "Ring Membership — SPL fee to treasury + subscription PDA (Anchor)"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "membership"
+
+[features]
+default = []
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { workspace = true, features = ["init-if-needed"] }
+anchor-spl = { workspace = true }

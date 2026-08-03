@@ -8,6 +8,7 @@
 
 import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
+import { ensureGlobal } from './regexp-utils';
 
 export interface OutputValidation {
   isValid: boolean;
@@ -173,7 +174,7 @@ export class OutputValidator {
     
     // Check all patterns
     for (const pattern of OUTPUT_PATTERNS) {
-      const matches = [...response.matchAll(new RegExp(pattern.regex.source, pattern.regex.flags + 'g'))];
+      const matches = [...response.matchAll(ensureGlobal(pattern.regex))];
       
       for (const match of matches) {
         // Skip whitelisted URLs for external_url_inclusion

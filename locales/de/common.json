@@ -115,5 +115,20 @@
     "title": "Nicht autorisierter Zugriff",
     "message": "Sie haben keine Berechtigung, diese Seite anzuzeigen.",
     "returnHome": "Zur Startseite"
+  },
+  "davinciDroplist": {
+    "selectTitle": "{scope} wählen",
+    "filterPlaceholder": "Filtern…",
+    "noResults": "Keine Ergebnisse.",
+    "detecting": "Erkennung…",
+    "clearSelection": "Auswahl löschen",
+    "searchHintMinChars": "Mindestens {count} Zeichen eingeben.",
+    "scopes": {
+      "country": "Land",
+      "timezone": "Zeitzone",
+      "representative": "Vertreter",
+      "vendor": "Anbieter"
+    },
+    "searching": "Suche…"
   }
 }

@@ -17,7 +17,7 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import CreditAddFsModal from '@/features/wallet/components/credit-add-fs-modal'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { getClientCreditCurrencyCode, formatClientCreditAmount } from '@/lib/payments/credit-currency-client'
+import { getClientCreditCurrencyCode, formatClientCreditAmount } from '@/lib/payments/credit-balance-client'
 
 interface CreditBalanceProps {
   className?: string
@@ -160,7 +160,7 @@ export function CreditBalance({
                   {balance?.amount ? formatClientCreditAmount(balance.amount, creditCurrency) : `0 ${creditCurrency}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  ≈ ${balance?.usd_equivalent || '0.00'} USD
+                  ≈ ${balance?.main_currency_equivalent || '0.00'} USD
                 </div>
               </div>
               

@@ -2,6 +2,8 @@
  * Shared MDX component map + serialization options for Ring docs (library index + slug pages).
  *
  * - remark-gfm: GFM tables, strikethrough, task lists, autolinks (not provided by remark-mdx alone).
+ * - Tables: custom `table`/`th`/`td` map (no @tailwindcss/typography). Wrapper MUST be
+ *   `overflow-x-auto` — docs shell uses `overflow-hidden`; `overflow-y-auto` clipped wide tables.
  * - Mermaid / MindMap / RingAISynapseFlow: MDX JSX components — not remark plugins; expose them here so
  *   `docs/{locale}/index.mdx` can use the same blocks as deeper pages.
  * - Fenced code: `rehypeCodeFenceToMdx` → async `<Code>` → server Shiki (`highlightCodeToHtml`).
@@ -22,6 +24,7 @@ import {
   CardTitle as UiCardTitle,
 } from '@/components/ui/card'
 import { Card, Cards } from '@/components/docs/card'
+import { RelatedArticle, RelatedDocs } from '@/components/docs/related-article'
 import { Mermaid } from '@/components/docs/mermaid'
 import { Code } from '@/components/docs/code'
 import { InlineCode } from '@/components/docs/inline-code'
@@ -51,6 +54,7 @@ import {
 } from '@/components/docs/mdx-heavy-components'
 import { collectDiagramSource } from '@/components/docs/diagram-source'
 import { Audience } from '@/components/ui/audience-block'
+import { markdownProseClasses } from '@/lib/docs/markdown-prose-classes'
 
 export const docsMdxComponents = {
   Audience,
@@ -61,6 +65,8 @@ export const docsMdxComponents = {
   Tab,
   Card,
   Cards,
+  RelatedArticle,
+  RelatedDocs,
   UiCard,
   UiCardHeader,
   UiCardTitle,
@@ -90,90 +96,87 @@ export const docsMdxComponents = {
   FutureFeatureWidget,
   FutureFeatureBacklog,
   h1: ({ children, ...props }: React.ComponentProps<'h1'>) => (
-    <h1
-      className="text-4xl font-bold tracking-tight mb-6 mt-8 first:mt-0 text-foreground scroll-mt-20"
-      {...props}
-    >
+    <h1 className={markdownProseClasses.h1} {...props}>
       {children}
     </h1>
   ),
   h2: ({ children, ...props }: React.ComponentProps<'h2'>) => (
-    <h2
-      className="text-3xl font-semibold tracking-tight mb-4 mt-10 first:mt-0 pb-2 border-b border-border text-foreground scroll-mt-20"
-      {...props}
-    >
+    <h2 className={markdownProseClasses.h2} {...props}>
       {children}
     </h2>
   ),
   h3: ({ children, ...props }: React.ComponentProps<'h3'>) => (
-    <h3 className="text-2xl font-semibold mb-3 mt-8 text-foreground scroll-mt-20" {...props}>
+    <h3 className={markdownProseClasses.h3} {...props}>
       {children}
     </h3>
   ),
   h4: ({ children, ...props }: React.ComponentProps<'h4'>) => (
-    <h4 className="text-xl font-semibold mb-2 mt-6 text-foreground scroll-mt-20" {...props}>
+    <h4 className={markdownProseClasses.h4} {...props}>
       {children}
     </h4>
   ),
   h5: ({ children, ...props }: React.ComponentProps<'h5'>) => (
-    <h5 className="text-lg font-semibold mb-2 mt-4 text-foreground scroll-mt-20" {...props}>
+    <h5 className={markdownProseClasses.h5} {...props}>
       {children}
     </h5>
   ),
   h6: ({ children, ...props }: React.ComponentProps<'h6'>) => (
-    <h6 className="text-base font-semibold mb-2 mt-4 text-foreground scroll-mt-20" {...props}>
+    <h6 className={markdownProseClasses.h6} {...props}>
       {children}
     </h6>
   ),
   p: ({ children, ...props }: React.ComponentProps<'p'>) => (
-    <p className="text-base leading-7 text-muted-foreground mb-4 [&:not(:first-child)]:mt-4" {...props}>
+    <p className={markdownProseClasses.p} {...props}>
       {children}
     </p>
   ),
   ul: ({ children, ...props }: React.ComponentProps<'ul'>) => (
-    <ul className="my-4 ml-6 list-disc [&>li]:mt-1 text-muted-foreground" {...props}>
+    <ul className={markdownProseClasses.ul} {...props}>
       {children}
     </ul>
   ),
   ol: ({ children, ...props }: React.ComponentProps<'ol'>) => (
-    <ol className="my-4 ml-6 list-decimal [&>li]:mt-1 text-muted-foreground" {...props}>
+    <ol className={markdownProseClasses.ol} {...props}>
       {children}
     </ol>
   ),
   li: ({ children, ...props }: React.ComponentProps<'li'>) => (
-    <li className="leading-5" {...props}>
+    <li className={markdownProseClasses.li} {...props}>
       {children}
     </li>
   ),
   table: ({ children, ...props }: React.ComponentProps<'table'>) => (
-    <div className="my-6 w-full overflow-y-auto">
-      <table className="w-full border-collapse text-sm" {...props}>
+    // Parent docs panel uses overflow-hidden + min-w-0; must scroll on X (not Y)
+    // or wide GFM tables clip with no scrollbar — same “invisible table” symptom
+    // as wiki prose without typography (structure present, presentation broken).
+    <div className={markdownProseClasses.tableWrap}>
+      <table className={markdownProseClasses.table} {...props}>
         {children}
       </table>
     </div>
   ),
   thead: ({ children, ...props }: React.ComponentProps<'thead'>) => (
-    <thead className="border-b border-border" {...props}>
+    <thead className={markdownProseClasses.thead} {...props}>
       {children}
     </thead>
   ),
   tbody: ({ children, ...props }: React.ComponentProps<'tbody'>) => (
-    <tbody className="[&_tr:last-child]:border-0" {...props}>
+    <tbody className={markdownProseClasses.tbody} {...props}>
       {children}
     </tbody>
   ),
   tr: ({ children, ...props }: React.ComponentProps<'tr'>) => (
-    <tr className="border-b border-border transition-colors hover:bg-muted/50" {...props}>
+    <tr className={markdownProseClasses.tr} {...props}>
       {children}
     </tr>
   ),
   th: ({ children, ...props }: React.ComponentProps<'th'>) => (
-    <th className="h-12 px-4 text-left align-middle font-medium text-foreground" {...props}>
+    <th className={markdownProseClasses.th} {...props}>
       {children}
     </th>
   ),
   td: ({ children, ...props }: React.ComponentProps<'td'>) => (
-    <td className="p-4 align-middle text-muted-foreground" {...props}>
+    <td className={markdownProseClasses.td} {...props}>
       {children}
     </td>
   ),
@@ -181,10 +184,7 @@ export const docsMdxComponents = {
     <Image className="rounded-lg border border-border my-6" alt={alt || ''} width={100} height={100} src={props.src as string} />
   ),
   pre: ({ children, ...props }: React.ComponentProps<'pre'>) => (
-    <pre
-      className="mb-4 mt-4 overflow-x-auto rounded-lg border border-border bg-muted p-4 font-mono text-sm"
-      {...props}
-    >
+    <pre className={markdownProseClasses.pre} {...props}>
       {children}
     </pre>
   ),
@@ -203,17 +203,17 @@ export const docsMdxComponents = {
     )
   },
   blockquote: ({ children, ...props }: React.ComponentProps<'blockquote'>) => (
-    <blockquote className="mt-6 border-l-4 border-primary pl-6 italic text-muted-foreground [&>p]:text-muted-foreground" {...props}>
+    <blockquote className={markdownProseClasses.blockquote} {...props}>
       {children}
     </blockquote>
   ),
   strong: ({ children, ...props }: React.ComponentProps<'strong'>) => (
-    <strong className="font-semibold text-foreground" {...props}>
+    <strong className={markdownProseClasses.strong} {...props}>
       {children}
     </strong>
   ),
   em: ({ children, ...props }: React.ComponentProps<'em'>) => (
-    <em className="italic" {...props}>
+    <em className={markdownProseClasses.em} {...props}>
       {children}
     </em>
   ),
@@ -222,7 +222,7 @@ export const docsMdxComponents = {
     return (
       <a
         href={href}
-        className="text-primary hover:underline font-medium"
+        className={markdownProseClasses.a}
         {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
         {...props}
       >
@@ -230,7 +230,7 @@ export const docsMdxComponents = {
       </a>
     )
   },
-  hr: (props: React.ComponentProps<'hr'>) => <hr className="my-8 border-gray-200 dark:border-gray-800" {...props} />,
+  hr: (props: React.ComponentProps<'hr'>) => <hr className={markdownProseClasses.hr} {...props} />,
 }
 
 /** Widen plugin tuples for `MDXRemote` / `next-mdx-remote` typings. */

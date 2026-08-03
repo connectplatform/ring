@@ -138,7 +138,7 @@ export async function PUT(
       );
     }
 
-    // Prepare update data
+    // Prepare update data — tip overwrite only; never author version commits (Save action owns those)
     const updateData: any = {
       updatedAt: FieldValue.serverTimestamp(),
     };
@@ -154,6 +154,7 @@ export async function PUT(
     if (formData.gallery !== undefined) updateData.gallery = formData.gallery;
     if (formData.seo !== undefined) updateData.seo = formData.seo;
     if (formData.featured !== undefined) updateData.featured = formData.featured;
+    // Explicitly ignore formData.versions — autosave/PUT must not mutate version history
 
     // Visibility — role-aware via canSetNewsVisibility (confidential/site-wide blocked for non-privileged)
     if (formData.visibility !== undefined) {

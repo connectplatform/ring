@@ -17,6 +17,7 @@ import {
 } from '@/features/auth/user-role'
 import type { OpportunityVisibility } from '@/features/opportunities/types'
 import { getAllowedVisibilityValues } from '@/features/opportunities/lib/opportunity-visibility-filter'
+import { isOpportunityTypeEnabled } from '@/features/opportunities/lib/opportunity-enabled-types'
 
 // Defines the allowed opportunity types for creation
 export type OpportunityCreateType =
@@ -39,8 +40,16 @@ const MEMBER_OFFER_TYPES = new Set([
   'event',
   'ring_customization',
   'program', // institution program / investment
+  'collective_order',
+  'tender',
+  'asset_rental',
+  'job',
 ])
-const SUBSCRIBER_TYPES = new Set(['cv']) // Types available to subscribers and higher
+const SUBSCRIBER_TYPES = new Set([
+  'cv',
+  'scheduled_services',
+  'bounty',
+]) // Types available to subscribers and higher
 
 /** 
  * Checks server-side permissions to create an opportunity of the given type.
@@ -54,6 +63,11 @@ export function canCreateOpportunityType(
   const parsed = parseUserRolesArray(role) ?? resolveSessionUserRole(role)
   // Deny if role couldn't be resolved, or is a non-logged-in visitor
   if (!parsed || parsed === UserRolesArray.visitor) return false
+
+  // White-label gate: ring-config opportunities.enabledTypes
+  if (!isOpportunityTypeEnabled(opportunityType)) {
+    return false
+  }
 
   // Check for critical types allowed for member-offer roles
   if (MEMBER_OFFER_TYPES.has(opportunityType)) {

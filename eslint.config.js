@@ -30,6 +30,43 @@ const eslintConfig = [
       // Next.js rules
       "@next/next/no-html-link-for-pages": "warn",
       "@next/next/no-img-element": "warn",
+
+      // Ring Oracle SSOT — prefer @/lib/ring-oracle over deep rate modules.
+      // Implementations + the facade itself are exempt below.
+      "no-restricted-imports": [
+        "warn",
+        {
+          paths: [
+            {
+              name: "@/features/wallet/services/native-token-oracle",
+              message:
+                "Import finance rates from @/lib/ring-oracle (desk SSOT). Implementation modules may keep deep imports.",
+            },
+            {
+              name: "@/lib/fx/fx-feed-service",
+              message:
+                "Import FX feed helpers from @/lib/ring-oracle. Overlay (fx-rates-overlay) stays shared with ring-config-core.",
+            },
+            {
+              name: "@/features/public-pools/lib/public-pool-desk-fx",
+              message:
+                "Deleted — use @/lib/ring-oracle (mainCurrencyToNativeTokenUiWithMeta / nativeTokenUiToMainCurrencyWithMeta).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Facade + implementations may deep-import rate modules.
+    files: [
+      "lib/ring-oracle/**",
+      "features/wallet/services/native-token-oracle.ts",
+      "features/wallet/services/native-token-chainlink-oracle.ts",
+      "lib/fx/**",
+    ],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
 ];

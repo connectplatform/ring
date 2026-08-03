@@ -16,18 +16,26 @@ export async function createStripeCheckout(ctx: CreateCheckoutContext): Promise<
     orderId: ctx.orderId ?? ctx.entityId,
     userId: ctx.userId,
     articleId: ctx.articleId ?? ctx.entityId,
+    poolSlug: ctx.publicPoolSlug ?? (ctx.metadata?.poolSlug as string | undefined),
   })
 
   await paymentTransactionService.createPending({
     purpose: ctx.purpose,
     processor: 'stripe',
-    rail: 'merchant_redirect',
+    rail: 'card',
     orderReference,
     entityType: ctx.purpose,
     entityId: ctx.entityId,
     userId: ctx.userId,
     amountMinor: Math.round(ctx.amount * 100),
     currency: ctx.currency.toLowerCase(),
+    metadata: {
+      purpose: ctx.purpose,
+      poolSlug: ctx.publicPoolSlug ?? ctx.metadata?.poolSlug,
+      amountNativeToken: ctx.amountNativeToken ?? ctx.metadata?.amountNativeToken,
+      publicPoolId: ctx.publicPoolId,
+      ...(ctx.metadata ?? {}),
+    },
   })
 
   try {
@@ -61,6 +69,9 @@ export async function createStripeCheckout(ctx: CreateCheckoutContext): Promise<
         userId: ctx.userId,
         articleId: ctx.articleId ?? '',
         projectOrderId: ctx.projectOrderId ?? ctx.orderId ?? '',
+        taskEscrowId: ctx.taskEscrowId ?? ctx.orderId ?? '',
+        poolSlug: String(ctx.publicPoolSlug ?? ctx.metadata?.poolSlug ?? ''),
+        amountNativeToken: String(ctx.amountNativeToken ?? ctx.metadata?.amountNativeToken ?? ''),
         orderReference,
       },
     })
@@ -94,6 +105,14 @@ function productNameForPurpose(ctx: CreateCheckoutContext): string {
       return 'Native token card onramp'
     case 'project_order':
       return 'Ring project order deposit'
+    case 'task_escrow':
+      return 'Task escrow hold'
+    case 'collective_order_slot':
+      return 'Collective order slot'
+    case 'scheduled_service_slot':
+      return 'Scheduled service slot'
+    case 'public_pool_contribution':
+      return 'DAO pool card contribution'
     default:
       return 'Ring payment'
   }

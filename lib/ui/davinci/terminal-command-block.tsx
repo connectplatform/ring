@@ -63,7 +63,7 @@ export function TerminalCommandBlock({
   if (beam) {
     return (
       <BorderBeam
-        className={cn('rounded-xl w-full', className)}
+        className={cn('rounded-[15px] w-full', className)}
         innerClassName={cn(davinciBeamInnerSurface, 'overflow-hidden border-0')}
         duration={duration}
       >

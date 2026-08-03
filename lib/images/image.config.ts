@@ -1,4 +1,5 @@
 import type { ImageProviderId } from '@/lib/images/conductor/types'
+import { ModelRouterError, resolveKeyForModel, resolveModel } from '@/lib/ai/model-router'
 
 const VALID_PROVIDERS: ImageProviderId[] = ['xai', 'google']
 
@@ -27,11 +28,52 @@ export function getStoragePrefix(): string {
   return prefix || 'generated'
 }
 
-export function getXaiConfig(ctx: { model?: string; aspectRatio?: string; resolution?: string; n?: number }) {
+export function getXaiConfig(ctx: {
+  model?: string
+  aspectRatio?: string
+  resolution?: string
+  n?: number
+  /** When true, resolve via image_edit task class (reference edits). */
+  edit?: boolean
+}) {
+  const taskClass = ctx.edit ? 'image_edit' : 'image_generate'
+  let apiKey = ''
+  let baseUrl = (process.env.XAI_API_BASE_URL?.trim() || 'https://api.x.ai/v1').replace(/\/$/, '')
+  let model =
+    ctx.model?.trim() || process.env.XAI_IMAGE_MODEL?.trim() || 'grok-imagine-image-quality'
+
+  try {
+    if (ctx.model?.trim()) {
+      const keyed = resolveKeyForModel('xai', ctx.model.trim())
+      apiKey = keyed.apiKey
+      baseUrl = keyed.baseUrl
+      model = ctx.model.trim()
+    } else {
+      const resolved = resolveModel(taskClass)
+      if (resolved.provider === 'xai') {
+        apiKey = resolved.apiKey
+        baseUrl = resolved.endpoint.baseUrl
+        model = process.env.XAI_IMAGE_MODEL?.trim() || resolved.modelId
+      } else {
+        const keyed = resolveKeyForModel('xai', 'grok-imagine-image-quality')
+        apiKey = keyed.apiKey
+        baseUrl = keyed.baseUrl
+        model = process.env.XAI_IMAGE_MODEL?.trim() || 'grok-imagine-image-quality'
+      }
+    }
+  } catch (error) {
+    if (error instanceof ModelRouterError) {
+      throw new Error(
+        `xAI image API key not configured. Tried: ${error.triedKeyEnvs.join(', ') || 'XAI_IMAGE_API_KEY, XAI_API_KEY'}`,
+      )
+    }
+    throw error
+  }
+
   return {
-    apiKey: process.env.XAI_API_KEY?.trim() ?? '',
-    baseUrl: (process.env.XAI_API_BASE_URL?.trim() || 'https://api.x.ai/v1').replace(/\/$/, ''),
-    model: ctx.model?.trim() || process.env.XAI_IMAGE_MODEL?.trim() || 'grok-imagine-image-quality',
+    apiKey,
+    baseUrl,
+    model,
     aspectRatio: ctx.aspectRatio?.trim() || process.env.XAI_IMAGE_ASPECT_RATIO?.trim() || '1:1',
     resolution: (ctx.resolution?.trim() || process.env.XAI_IMAGE_RESOLUTION?.trim() || '2k').toLowerCase(),
     n: clampCount(ctx.n, 1, 10, 1),
@@ -40,9 +82,20 @@ export function getXaiConfig(ctx: { model?: string; aspectRatio?: string; resolu
 
 export function getGoogleConfig(ctx: { model?: string; aspectRatio?: string; resolution?: string; n?: number }) {
   const imageSize = (ctx.resolution?.trim() || process.env.GOOGLE_IMAGE_SIZE?.trim() || '2K').toUpperCase()
+  let apiKey = process.env.GOOGLE_GENAI_API_KEY?.trim() ?? ''
+  let baseUrl = (
+    process.env.GOOGLE_GENAI_BASE_URL?.trim() || 'https://generativelanguage.googleapis.com/v1beta'
+  ).replace(/\/$/, '')
+  try {
+    const keyed = resolveKeyForModel('google', ctx.model?.trim() || 'imagen-4.0-generate-001')
+    apiKey = keyed.apiKey
+    baseUrl = keyed.baseUrl
+  } catch {
+    // leave empty — provider will throw clearly
+  }
   return {
-    apiKey: process.env.GOOGLE_GENAI_API_KEY?.trim() ?? '',
-    baseUrl: (process.env.GOOGLE_GENAI_BASE_URL?.trim() || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, ''),
+    apiKey,
+    baseUrl,
     model: ctx.model?.trim() || process.env.GOOGLE_IMAGE_MODEL?.trim() || 'imagen-4.0-generate-001',
     aspectRatio: ctx.aspectRatio?.trim() || process.env.GOOGLE_IMAGE_ASPECT_RATIO?.trim() || '1:1',
     imageSize: imageSize === '1K' || imageSize === '2K' ? imageSize : '2K',

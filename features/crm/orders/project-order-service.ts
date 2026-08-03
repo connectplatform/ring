@@ -9,6 +9,10 @@ import type {
   ProjectPaymentStatus,
   ProjectWorkStatus,
 } from '@/features/crm/orders/types'
+import {
+  emptyOrderProjectConfig,
+  type OrderProjectConfig,
+} from '@/features/crm/orders/order-project-config'
 import type { CalculatorInputs } from '@/features/calculator/types'
 import { calculateProject } from '@/features/calculator/engine'
 import { resolveCalculatorRates } from '@/features/calculator/rates'
@@ -44,6 +48,7 @@ function asOrder(row: Record<string, unknown> | null | undefined): ProjectOrder 
     opportunityId: data.opportunityId ? String(data.opportunityId) : null,
     details: String(data.details ?? ''),
     snapshot: data.snapshot as ProjectOrderSnapshot,
+    projectConfig: (data.projectConfig as OrderProjectConfig) || emptyOrderProjectConfig(),
     amount: typeof data.amount === 'number' ? data.amount : 0,
     currency: String(data.currency ?? 'USD'),
     orderReference: data.orderReference ? String(data.orderReference) : null,
@@ -78,8 +83,8 @@ export function buildProjectOrderDetails(
     `Ringdom services: ${externals || '—'}`,
     `Branding: ${inputs.branding ? 'yes' : 'no'}`,
     `Need human integrator: ${inputs.needHumanDev ? 'yes' : 'no'}`,
-    `One-time: ${snapshot.results.oneTimeFiat} ${snapshot.rates.defaultCurrency} (${snapshot.results.oneTimePoints} pts)`,
-    `Monthly estimate: ${snapshot.results.monthlyFiat} ${snapshot.rates.defaultCurrency}`,
+    `One-time: ${snapshot.results.oneTimeFiat} ${snapshot.rates.mainCurrency} (${snapshot.results.oneTimePoints} pts)`,
+    `Monthly estimate: ${snapshot.results.monthlyFiat} ${snapshot.rates.mainCurrency}`,
     `Complexity: ${snapshot.results.complexity} (${snapshot.results.customizationComplexity}%)`,
     `Estimated hours: ${snapshot.results.estimatedHours}`,
   ]
@@ -139,8 +144,9 @@ export const ProjectOrderService = {
       opportunityId: null,
       details: buildProjectOrderDetails(inputs, snapshot),
       snapshot,
+      projectConfig: emptyOrderProjectConfig(),
       amount: results.oneTimeFiat,
-      currency: rates.defaultCurrency,
+      currency: rates.mainCurrency,
       orderReference: null,
       paymentTransactionId: null,
       refundReference: null,
@@ -229,6 +235,7 @@ export const ProjectOrderService = {
         | 'refundReference'
         | 'refundedAt'
         | 'details'
+        | 'projectConfig'
       >
     >,
   ): Promise<ProjectOrder> {
@@ -298,6 +305,10 @@ export const ProjectOrderService = {
       '@/features/crm/lab/order-lab-chat-service'
     )
     await ensureOrderLabForAssignee(id, integratorId, existing.userId)
+    const { seedRingizationPlaybookMessage } = await import(
+      '@/features/crm/lab/order-lab-chat-service'
+    )
+    await seedRingizationPlaybookMessage(id)
     return next
   },
 
@@ -325,15 +336,35 @@ export async function publishProjectOrderOpportunity(
   const { updateOpportunity } = await import(
     '@/features/opportunities/services/update-opportunity'
   )
+  const { getUserCreatedEntities } = await import(
+    '@/features/entities/services/get-user-entities'
+  )
+  const { formatPlaybookMarkdown } = await import(
+    '@/features/crm/lab/ringization-playbook'
+  )
+
+  const buyerEntities = await getUserCreatedEntities(order.userId, 1)
+  let linkedEntity = buyerEntities.entities[0]?.id || ''
+  if (!linkedEntity) {
+    const actorEntities = await getUserCreatedEntities(actorUserId, 1)
+    linkedEntity = actorEntities.entities[0]?.id || ''
+  }
+  if (!linkedEntity) {
+    throw new Error(
+      'ring_customization publish requires a linkedEntity — buyer or admin must own an entity',
+    )
+  }
 
   const title = `Ring customization: ${order.snapshot.inputs.niche || 'project'}`
   const briefDescription =
     order.details.split('\n').slice(0, 4).join(' · ') || 'Custom Ring platform build'
+  const playbook = formatPlaybookMarkdown('integrator')
+  const fullDescription = `${order.details}\n\n---\n${playbook}`
   const payload = {
     type: 'ring_customization' as const,
     title,
     briefDescription,
-    fullDescription: order.details,
+    fullDescription,
     visibility: 'member' as const,
     category: 'services',
     location: 'Remote',
@@ -348,6 +379,7 @@ export async function publishProjectOrderOpportunity(
     },
     contactInfo: {
       contactAccount: order.userId,
+      linkedEntity,
     },
     projectOrderId: order.id,
     tags: ['ringization', 'calculator', 'custom'],

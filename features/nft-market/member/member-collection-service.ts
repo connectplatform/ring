@@ -2,6 +2,7 @@ import 'server-only'
 
 import { randomUUID } from 'crypto'
 import { db } from '@/lib/database'
+import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { isMemberCollectionsEnabled, getMaxCollectionsPerMember, getMaxMintsPerCollection, getNftCollectionMint } from '@/features/nft-gates/config'
 import { hasMemberPrivileges, resolvePersistedUserRole } from '@/features/auth/user-role'
 import type { NftMemberCollection } from '@/features/nft-market/types'
@@ -16,7 +17,7 @@ function slugifySymbol(input: string) {
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 10)
-  return cleaned || 'RING'
+  return cleaned || getNativeTokenSymbol()
 }
 
 export async function listMemberCollectionsForUser(

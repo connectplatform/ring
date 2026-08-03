@@ -169,7 +169,9 @@
     "nativeTokenDescription": "Оплата ончейн нативным токеном",
     "paypalPayment": "PayPal",
     "paypalPaymentDescription": "Оплата через PayPal (международная)",
-    "paymentMethodNotAvailable": "Этот способ оплаты пока недоступен."
+    "paymentMethodNotAvailable": "Этот способ оплаты пока недоступен.",
+    "paymentCurrency": "Валюта",
+    "noCurrencies": "Нет валют"
   },
   "searchPlaceholder": "Искать продукты...",
   "allCurrencies": "Все валюты",

@@ -55,8 +55,8 @@
     "subtitle": "Присоединяйтесь к профессионалам, которые развивают свой бизнес с Ring Platform"
   },
   "pricing": {
-    "amount": "₴299",
-    "period": "UAH",
+    "amount": "$10",
+    "period": "/month",
     "features_included": "Включены все функции участника"
   },
   "sidebar": {
@@ -149,5 +149,32 @@
     "faq_info_answer": "Мы попросим основную информацию о вашей организации, вашей роли и причине обновления. Ссылки на LinkedIn или портфолио помогут ускорить рассмотрение.",
     "faq_downgrade_question": "Могу ли я понизить статус позже?",
     "faq_downgrade_answer": "Да, вы можете изменить тип аккаунта в любой момент через настройки профиля. Учтите, что некоторые функции могут стать недоступны после понижения."
+  },
+  "gate": {
+    "title": "Обновитесь до Member",
+    "subtitle": "Откройте создание организаций и полный опыт участника Ring",
+    "subscribe_now": "Подписаться сейчас",
+    "continue_free": "Продолжить бесплатно",
+    "cancel_anytime": "Отмена в любое время. Членство продлевается по выбранному плану.",
+    "fiat_period": "/мес",
+    "fiat_period_year": "/год",
+    "fiat_hint": "Карта или кредит счёта",
+    "ring_period": "разово",
+    "ring_hint": "Разовая оплата on-chain RING",
+    "select_method": "Выберите способ",
+    "plan_monthly_hint": "Ежемесячная оплата",
+    "plan_annual_off": "−20% к месячному",
+    "eternal_nft": "Eternal Member NFT — {amount} {symbol}",
+    "eternal_hint": "Пожизненный доступ участника через NFT",
+    "nft_month": "NFT на 1 мес — {amount} {symbol}",
+    "nft_month_off": "−20% к фиатному месячному",
+    "nft_year": "NFT на 1 год — {amount} {symbol}",
+    "nft_year_off": "−40% к фиатному годовому",
+    "nft_need_token": "Нужно больше {symbol}",
+    "native_insufficient_short": "Недостаточно {symbol}",
+    "no_token_has_credit": "Пока нет {symbol} — у вас {credit} {unit}. Обменяйте на Token Desk.",
+    "visit_desk": "Открыть desk {symbol}",
+    "token_insufficient_buy_credit": "Мало {symbol}. Купите кредит {unit}, затем обменяйте на desk.",
+    "buy_credit": "Купить {unit} / получить {symbol}"
   }
 }

@@ -4,6 +4,7 @@ import { isPlatformAdmin } from '@/features/auth/user-role';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { CreditBalanceResponseSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
+import { getMainCurrencySymbol } from '@/lib/ring-config-core';
 import { userMigrationService } from '@/features/auth/services/user-migration';
 
 // Simple in-memory cache for balance responses
@@ -76,8 +77,8 @@ export async function GET(request: NextRequest) {
         // Return default/zero values (for graceful fallback)
         creditBalance = {
           amount: '0',
-          usd_equivalent: '0',
-          fiat_currency: 'USD',
+          main_currency_equivalent: '0',
+          main_currency: getMainCurrencySymbol(),
           last_updated: Date.now(),
           subscription_active: false,
           // STUB: include any missing fields required for default creditBalance shape
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest) {
     const response = {
       balance: {
         amount: creditBalance.amount,
-        usd_equivalent: creditBalance.usd_equivalent,
+        main_currency_equivalent: creditBalance.main_currency_equivalent,
         last_updated: creditBalance.last_updated,
       },
       subscription: subscriptionStatus,

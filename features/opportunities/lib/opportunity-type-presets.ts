@@ -6,11 +6,16 @@ import {
   Target,
   Users,
   Sparkles,
-  MessageSquare,
   Briefcase,
   Crown,
   TrendingUp,
   Zap,
+  Clock,
+  ShoppingCart,
+  Trophy,
+  FileSearch,
+  KeyRound,
+  BadgeCheck,
 } from 'lucide-react'
 
 export type OpportunityFormTypeKey =
@@ -24,6 +29,12 @@ export type OpportunityFormTypeKey =
   | 'ring_customization'
   | 'cv'
   | 'program'
+  | 'scheduled_services'
+  | 'collective_order'
+  | 'bounty'
+  | 'tender'
+  | 'asset_rental'
+  | 'job'
 
 export interface OpportunityFormTypePreset {
   id: OpportunityFormTypeKey
@@ -132,6 +143,66 @@ export const opportunityFormTypePresets: Record<
     icon: Target,
     titleKey: 'program.title',
     descriptionKey: 'program.description',
+  },
+  scheduled_services: {
+    id: 'scheduled_services',
+    color: 'from-sky-500 to-blue-500',
+    bgColor: 'bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20',
+    borderColor: 'border-sky-200 dark:border-sky-800',
+    textColor: 'text-sky-700 dark:text-sky-300',
+    icon: Clock,
+    titleKey: 'scheduled_services.title',
+    descriptionKey: 'scheduled_services.description',
+  },
+  collective_order: {
+    id: 'collective_order',
+    color: 'from-amber-500 to-orange-500',
+    bgColor: 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20',
+    borderColor: 'border-amber-200 dark:border-amber-800',
+    textColor: 'text-amber-700 dark:text-amber-300',
+    icon: ShoppingCart,
+    titleKey: 'collective_order.title',
+    descriptionKey: 'collective_order.description',
+  },
+  bounty: {
+    id: 'bounty',
+    color: 'from-yellow-500 to-lime-500',
+    bgColor: 'bg-gradient-to-br from-yellow-50 to-lime-50 dark:from-yellow-950/20 dark:to-lime-950/20',
+    borderColor: 'border-yellow-200 dark:border-yellow-800',
+    textColor: 'text-yellow-700 dark:text-yellow-300',
+    icon: Trophy,
+    titleKey: 'bounty.title',
+    descriptionKey: 'bounty.description',
+  },
+  tender: {
+    id: 'tender',
+    color: 'from-slate-500 to-zinc-500',
+    bgColor: 'bg-gradient-to-br from-slate-50 to-zinc-50 dark:from-slate-950/20 dark:to-zinc-950/20',
+    borderColor: 'border-slate-200 dark:border-slate-800',
+    textColor: 'text-slate-700 dark:text-slate-300',
+    icon: FileSearch,
+    titleKey: 'tender.title',
+    descriptionKey: 'tender.description',
+  },
+  asset_rental: {
+    id: 'asset_rental',
+    color: 'from-emerald-500 to-teal-500',
+    bgColor: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20',
+    borderColor: 'border-emerald-200 dark:border-emerald-800',
+    textColor: 'text-emerald-700 dark:text-emerald-300',
+    icon: KeyRound,
+    titleKey: 'asset_rental.title',
+    descriptionKey: 'asset_rental.description',
+  },
+  job: {
+    id: 'job',
+    color: 'from-blue-500 to-indigo-500',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20',
+    borderColor: 'border-blue-200 dark:border-blue-800',
+    textColor: 'text-blue-700 dark:text-blue-300',
+    icon: BadgeCheck,
+    titleKey: 'job.title',
+    descriptionKey: 'job.description',
   },
 }
 
