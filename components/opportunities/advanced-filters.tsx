@@ -37,6 +37,8 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
+import { getOpportunityFilterCurrencies } from '@/features/opportunities/lib/opportunity-filter-presets'
 
 interface FilterState {
   search: string
@@ -95,7 +97,7 @@ const priorities = [
   { id: 'low', icon: Clock, label: 'Low', color: 'text-gray-500' }
 ]
 
-const currencies = ['USD', 'EUR', 'UAH', 'GBP']
+const currencies = getOpportunityFilterCurrencies(getClientMainCurrency())
 
 const AdvancedFilters = ({ 
   filters, 

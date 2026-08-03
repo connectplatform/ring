@@ -1,5 +1,29 @@
 [
   {
+    "date": "2026-08-04",
+    "version": "1.97.16",
+    "mods": [
+      "### Hinzugefügt\n- **Docs-Loading i18n** — `docs.loading` (en/uk/ru/de/es); `loading`/`not-found` folgen der Request-Locale\n- **Credit spend mainCurrencyRate** — Zod + MCP/Wallet/Membership; veraltetes `usdRate` → Transform",
+      "### Geändert\n- **Docs-FS-Isolation** — Layout Pass-through; `DocsArticleShell` auf der Page; dynamic-import Nav; `server-only`\n- **Opportunity-Budgetfilter** — Hauptwährung zuerst\n- **Order-Lab Share Cards** — Buyer-Deep-Link zu my-orders; `?source=` im Source-Panel"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.15",
+    "mods": [
+      "### Hinzugefügt\n- **Postgres-Tunnel-Fan-out** — optionales `TUNNEL_POSTGRES_FANOUT` LISTEN/NOTIFY (Standard aus) + Tests\n- **Live-only Delivery** — gemeinsame `message.id`; `DB_SSL` auf Fan-out-PG",
+      "### Docs\n- **FCM vs VAPID** — Firebase Web-Push-Zertifikat vs RFC-VAPID in `env.local.template` + Docs"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.14",
+    "mods": [
+      "### Hinzugefügt\n- **Personal Page RIP3** — Blocklist-DM, NFT/Media-Pins, `private_profile_view`, Admin Private Hits, Skills-Hydrate\n- **Ring Oracle / FX** — FX-Feed-Cron; eslint SSOT für Rate-Imports\n- **Forgejo Token Rotate** — Cron + Robot-GC; CI layer1",
+      "### Geändert\n- **Docs-Path-SSOT** — `docs-path-url`; NFT-sichere Joins unter `docs/`"
+    ]
+  },
+  {
     "date": "2026-08-03",
     "version": "1.97.13",
     "mods": [

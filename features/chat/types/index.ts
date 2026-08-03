@@ -267,6 +267,10 @@ export interface ShareCardMetadata {
     sha: string
     path: string
     orderId: string
+    /** Buyer-facing order URL (Open uses this when session user is the buyer). */
+    buyerUrl?: string
+    buyerId?: string
+    integratorId?: string
   }
 }
 

@@ -26,7 +26,7 @@ import CreditAddFsModal from '@/features/wallet/components/credit-add-fs-modal'
 
 export interface CreditBalanceItemWidgetProps {
   creditAmount: string
-  creditUsdEquivalent?: string
+  creditMainCurrencyEquivalent?: string
   selected: boolean
   onSelect: () => void
   onRefresh?: () => void
@@ -39,7 +39,7 @@ function formatCreditAmount(value: string) {
 
 export default function CreditBalanceItemWidget({
   creditAmount,
-  creditUsdEquivalent,
+  creditMainCurrencyEquivalent,
   selected,
   onSelect,
   onRefresh,
@@ -126,9 +126,9 @@ export default function CreditBalanceItemWidget({
             <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-[var(--davinci-beam)] sm:text-2xl">
               {formatCreditAmount(creditAmount)}
             </p>
-            {creditUsdEquivalent ? (
+            {creditMainCurrencyEquivalent ? (
               <p className="text-xs text-muted-foreground">
-                ≈ {creditUsdEquivalent} {mainCurrency}
+                ≈ {creditMainCurrencyEquivalent} {mainCurrency}
               </p>
             ) : null}
             {convertPreview && parseFloat(creditAmount) > 0 ? (

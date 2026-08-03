@@ -29,7 +29,7 @@ import type { Locale } from '@/i18n/shared'
 import { getClientCreditCurrencyCode } from '@/lib/payments/credit-balance-client'
 import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 
-export type MembershipPaymentRail = 'account_credit' | 'on_chain_ring'
+export type MembershipPaymentRail = 'account_credit' | 'on_chain_native_token'
 
 interface MembershipPaymentModalProps {
   onClose: () => void
@@ -44,7 +44,7 @@ interface PaymentOption {
   title: string
   description: string
   cost: {
-    ring_amount: string
+    native_token_amount: string
     main_currency_equivalent: string
   }
   benefits: string[]
@@ -92,7 +92,7 @@ export function MembershipPaymentModal({
   }, [paymentType])
 
   useEffect(() => {
-    if (paymentRail !== 'on_chain_ring') return
+    if (paymentRail !== 'on_chain_native_token') return
     void (async () => {
       try {
         const res = await fetch('/api/wallet/token/balance', { cache: 'no-store' })
@@ -123,7 +123,7 @@ export function MembershipPaymentModal({
       title: t('payment.upgrade.title', { defaultValue: 'Upgrade to Member' }),
       description: t('payment.upgrade.description', { defaultValue: `Unlock all Member features with ${nativeTokenSymbol} tokens` }),
       cost: {
-        ring_amount: upgradeRingAmount.toFixed(2),
+        native_token_amount: upgradeRingAmount.toFixed(2),
         main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? upgradeRingAmount.toFixed(2),
       },
       benefits: memberBenefits,
@@ -134,7 +134,7 @@ export function MembershipPaymentModal({
       title: t('payment.renewal.title', { defaultValue: 'Renew Subscription' }),
       description: t('payment.renewal.description', { defaultValue: 'Extend your membership for another month' }),
       cost: {
-        ring_amount: renewalRingAmount.toFixed(2),
+        native_token_amount: renewalRingAmount.toFixed(2),
         main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? renewalRingAmount.toFixed(2),
       },
       benefits: [t('payment.renewal.restore_access', { defaultValue: 'Restore full Member access' })],
@@ -144,7 +144,7 @@ export function MembershipPaymentModal({
       title: t('payment.fee.title', { defaultValue: 'Pay Membership Fee' }),
       description: t('payment.fee.description', { defaultValue: 'One-time membership payment' }),
       cost: {
-        ring_amount: upgradeRingAmount.toFixed(2),
+        native_token_amount: upgradeRingAmount.toFixed(2),
         main_currency_equivalent: paymentInfo?.pricing?.membership_fee?.main_currency_equivalent ?? upgradeRingAmount.toFixed(2),
       },
       benefits: [t('payment.fee.no_subscription', { defaultValue: 'No automatic renewals' })],
@@ -153,13 +153,13 @@ export function MembershipPaymentModal({
 
   const currentOption = paymentOptions[paymentType]
   const currentBalance =
-    paymentRail === 'on_chain_ring'
+    paymentRail === 'on_chain_native_token'
       ? parseFloat(onChainBalance || '0')
       : parseFloat(balance?.amount || '0')
-  const requiredAmount = parseFloat(currentOption.cost.ring_amount)
+  const requiredAmount = parseFloat(currentOption.cost.native_token_amount)
   const hasSufficientBalance = currentBalance >= requiredAmount
   const balanceLabel =
-    paymentRail === 'on_chain_ring' ? nativeTokenSymbol : creditCurrency
+    paymentRail === 'on_chain_native_token' ? nativeTokenSymbol : creditCurrency
 
   const handlePayment = async () => {
     if (!hasSufficientBalance) return
@@ -308,7 +308,7 @@ export function MembershipPaymentModal({
                         {t('payment.required', { defaultValue: 'Required' })}
                       </p>
                       <p className="font-medium">
-                        {currentOption.cost.ring_amount} {nativeTokenSymbol}
+                        {currentOption.cost.native_token_amount} {nativeTokenSymbol}
                       </p>
                     </div>
                   </div>
@@ -371,7 +371,7 @@ export function MembershipPaymentModal({
               <div className="bg-muted p-4 rounded-lg">
                 <div className="flex justify-center items-center space-x-2 mb-2">
                   <Coins className="h-5 w-5 text-primary" />
-                  <span className="text-xl font-bold">{currentOption.cost.ring_amount} {nativeTokenSymbol}</span>
+                  <span className="text-xl font-bold">{currentOption.cost.native_token_amount} {nativeTokenSymbol}</span>
                   <span className="text-sm text-muted-foreground">
                     (≈ {currentOption.cost.main_currency_equivalent} {creditCurrency})
                   </span>

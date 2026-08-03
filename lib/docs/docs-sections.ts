@@ -1,3 +1,4 @@
+import 'server-only'
 import fs from 'fs'
 import {
   buildDocsHref,

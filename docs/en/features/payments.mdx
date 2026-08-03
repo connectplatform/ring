@@ -1,17 +1,19 @@
 ---
 title: Payments Overview
 description: PaymentConductor with WayForPay, Stripe, PayPal, and internal credit — store, membership, news, wallet top-up, and public-pool (DAO jar) card chip-ins. Links to deep-dive articles.
-last_modified: "2026-07-22"
+last_modified: "2026-08-04"
 audience: both
 ---
 
 # Payments Overview
 
-Ring Platform routes card, credit, token, and PayPal flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe and PayPal cover international rails. Wallet credit top-up is a live `wallet_topup` purpose. **Public pool / DAO jar** card and PayPal chip-ins use purpose **`public_pool_contribution`** (desk-oracle FX — not 1:1 fiat↔native). Membership recurring PayPal uses [SubscriptionConductor](/docs/features/subscriptions) (Subscriptions v1).
+Ring Platform routes card, credit, native-token, and PayPal flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay is the primary PSP for Ukraine; Stripe and PayPal cover international rails. Wallet credit top-up is a live `wallet_topup` purpose. **Public pool / DAO jar** card and PayPal chip-ins use purpose **`public_pool_contribution`** (desk-oracle FX — not 1:1 fiat↔native). Membership recurring PayPal uses [SubscriptionConductor](/docs/features/subscriptions) (Subscriptions v1).
+
+Rates and presentment denominations come from [Ring Oracle](/docs/features/ring-oracle) (`main_currency` / `native_token` / `credit_balance`).
 
 Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/architecture/payment-conductor) · [WayForPay HPP](/docs/features/wayforpay-integration).
 
-> **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor) · [Public Pools & DAO Jars](/docs/features/public-pools) · [WayForPay](/docs/features/wayforpay-integration) · [SubscriptionConductor](/docs/features/subscriptions)
+> **Deep dive:** [PaymentConductor feature](/docs/features/payment-conductor) · [Architecture](/docs/architecture/payment-conductor) · [Ring Oracle](/docs/features/ring-oracle) · [Public Pools & DAO Jars](/docs/features/public-pools) · [WayForPay](/docs/features/wayforpay-integration) · [SubscriptionConductor](/docs/features/subscriptions)
 
 <Callout type="info">
   Use **Founder** / **Developer** tabs in the docs sidebar to filter this page.
@@ -21,13 +23,13 @@ Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/arc
 
 | Purpose | Description | PSP / rail |
 |---------|-------------|------------|
-| `store_order` | Cart → checkout | WayForPay / Stripe / credit / token / PayPal |
+| `store_order` | Cart → checkout | WayForPay / Stripe / credit / native token / PayPal |
 | `membership_upgrade` | Role upgrade (e.g. SUBSCRIBER → MEMBER) | WayForPay / Stripe / native token / PayPal |
 | `news_promotion` | News Kingdom sponsored articles | WayForPay / Stripe |
 | `wallet_topup` | Fiat credit top-up (Card / PayPal tabs) | WayForPay **or** Stripe (`PAYMENT_WALLET_TOPUP_PROCESSOR`); PayPal when `processor=paypal` |
 | `public_pool_contribution` | DAO jar / public-pool card or PayPal chip-in | WayForPay / Stripe / PayPal → desk oracle → `pledged_native_token` |
-| Internal credit | Spend existing credit balance | Internal |
-| RING token | On-chain native-token payments | RING |
+| Internal credit | Spend existing credit balance (credit unit ↔ main currency accounting) | Internal |
+| Native token | On-chain native-token payments (`tokens.nativeToken.symbol`) | Native token rail |
 
 <Callout type="warning" title="Not PSP donation products">
   WayForPay hosted Донати, Stripe `submit_type=donate`, and PayPal Donate SDK are **not** Ring jar SSOT. See [Public Pools](/docs/features/public-pools).
@@ -46,6 +48,8 @@ Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/arc
 
 ### `ring-config.json` payment section
 
+Symbols below are examples — replace with your clone’s `store.mainCurrency` and `tokens.nativeToken.symbol`.
+
 ```json
 {
   "payment": {
@@ -53,10 +57,10 @@ Browser handoff is Conductor **`CheckoutRedirect`** — [architecture](/docs/arc
     "supportedMethods": ["wayforpay", "credit_balance", "native_token"],
     "futureMethods": ["stripe", "paypal", "nft_gate"],
     "gateways": {
-      "wayforpay": { "enabled": true, "feePercent": 2.5, "currency": "UAH" },
-      "stripe": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "USD" },
-      "credit_balance": { "enabled": true, "feePercent": 0, "currency": "USD" },
-      "native_token": { "enabled": true, "feePercent": 0, "currency": "RING", "label": "Tokens" }
+      "wayforpay": { "enabled": true, "feePercent": 2.5, "currency": "<main_currency>" },
+      "stripe": { "enabled": false, "feePercent": 2.9, "feeFixedCents": 30, "currency": "<main_currency>" },
+      "credit_balance": { "enabled": true, "feePercent": 0, "currency": "<main_currency>" },
+      "native_token": { "enabled": true, "feePercent": 0, "currency": "<native_token_symbol>", "label": "Tokens" }
     }
   }
 }
@@ -88,6 +92,7 @@ lib/payments/conductor/webhook-dispatcher.ts → handlers/* (+ PayPal Subscripti
 |--------|------|------|
 | Conductor | `lib/payments/conductor/payment-conductor.ts` | Routes by purpose + processor |
 | Config | `lib/payments/payment.config.ts` | Config + env overrides |
+| Ring Oracle | `lib/ring-oracle/index.ts` | Desk, FX, credit rate SSOT |
 | WayForPay | `lib/payments/processors/wayforpay.processor.ts` | HMAC, form/redirect, Conductor purposes including public pools |
 | Stripe | `lib/payments/processors/stripe.processor.ts` | Checkout + webhook verify |
 | Internal credit | `lib/payments/processors/credit-balance.processor.ts` | Credit deduction |
@@ -106,7 +111,8 @@ WAYFORPAY_DOMAIN=ring-platform.org
 WAYFORPAY_API_URL=https://api.wayforpay.com/api
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-PAYMENT_FIAT_CURRENCY=USD
+# Optional override; defaults to store.mainCurrency via Ring Oracle / ring-config
+PAYMENT_FIAT_CURRENCY=<main_currency>
 PAYMENT_STORE_PROCESSOR=stripe
 PAYMENT_MEMBERSHIP_PROCESSOR=stripe
 PAYMENT_NEWS_PROCESSOR=wayforpay
@@ -129,6 +135,10 @@ Apply `data/migrations/004_payment_transactions.sql` before enabling the conduct
   <RelatedArticle
     slug="features/payment-conductor"
     relation="Deep-dive: purposes, rails, and module paths including public_pool_contribution."
+  />
+  <RelatedArticle
+    slug="features/ring-oracle"
+    relation="Depends-on: main_currency / native_token rates for checkout presentment and jar FX."
   />
   <RelatedArticle
     slug="features/public-pools"

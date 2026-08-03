@@ -51,7 +51,7 @@ export interface MembershipActionResult {
 export interface PricingResult extends MembershipActionResult {
   membershipFee?: string
   currency?: string
-  usdEquivalent?: string
+  mainCurrencyEquivalent?: string
   exchangeRate?: string
   paymentOptions?: Array<{
     type: string
@@ -508,13 +508,13 @@ export async function getMembershipPricing(): Promise<PricingResult> {
     }
 
     const tokenSymbol = getNativeTokenSymbol()
-    const usdCost = mainCurrencyFee.toFixed(2)
+    const mainCurrencyCost = mainCurrencyFee.toFixed(2)
     const paymentOptions = [
       {
         type: 'credit_balance',
         title: 'Credit Balance',
         description: `Pay with credit points (${creditFee} points = ${nativeTokenFee} ${tokenSymbol})`,
-        cost: { token_amount: creditFee.toFixed(2), main_currency_equivalent: usdCost },
+        cost: { token_amount: creditFee.toFixed(2), main_currency_equivalent: mainCurrencyCost },
         available:
           isPaymentMethodEnabled('credit_balance') && currentBalance >= creditFee,
         benefits: ['Instant processing', 'No additional fees'],
@@ -523,7 +523,7 @@ export async function getMembershipPricing(): Promise<PricingResult> {
         type: 'native_token',
         title: `Pay with ${tokenSymbol}`,
         description: `Pay with your on-chain ${tokenSymbol} (treasury transfer / Membership)`,
-        cost: { token_amount: nativeTokenFee.toFixed(2), main_currency_equivalent: usdCost },
+        cost: { token_amount: nativeTokenFee.toFixed(2), main_currency_equivalent: mainCurrencyCost },
         available:
           isPaymentMethodEnabled('native_token') &&
           parseFloat(nativeTokenBalance) >= nativeTokenFee,
@@ -533,7 +533,7 @@ export async function getMembershipPricing(): Promise<PricingResult> {
         type: 'card',
         title: 'Credit/Debit Card',
         description: `Pay with Visa, Mastercard, or Apple Pay (${getCardPaymentProcessor()})`,
-        cost: { token_amount: mainCurrencyFee.toFixed(2), main_currency_equivalent: usdCost },
+        cost: { token_amount: mainCurrencyFee.toFixed(2), main_currency_equivalent: mainCurrencyCost },
         available: isPaymentMethodEnabled(getCardPaymentProcessor()),
         benefits: ['Secure payment', 'Instant activation'],
       },
@@ -543,7 +543,7 @@ export async function getMembershipPricing(): Promise<PricingResult> {
       success: true,
       membershipFee: nativeTokenFee.toFixed(2),
       currency: tokenSymbol,
-      usdEquivalent: usdCost,
+      mainCurrencyEquivalent: mainCurrencyCost,
       exchangeRate: String(mainCurrencyPerNativeToken),
       paymentOptions,
       currentBalance: currentBalance.toFixed(2),

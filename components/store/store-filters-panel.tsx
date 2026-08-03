@@ -241,7 +241,7 @@ export default function StoreFiltersPanel({
       (priceFilterEnabled &&
         (filters.priceMin !== (catalogPriceBounds?.minPrice ?? PRICE_MIN) ||
           filters.priceMax !== (catalogPriceBounds?.maxPrice ?? sliderMax))) ||
-      filters.currency !== 'USD' ||
+      filters.currency !== MAIN_CURRENCY ||
       filters.vendor ||
       filters.inStock !== null
   }, [filters, priceFilterEnabled, catalogPriceBounds, sliderMax])

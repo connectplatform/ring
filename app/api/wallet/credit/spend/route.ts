@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Credit units → store.mainCurrency (SSOT). Not native-token oracle.
-    const creditBalanceUnitToDefaultCurrencyRate = getMainCurrencyCreditAccountingRate()
+    const creditBalanceUnitToDefaultCurrencyRate =
+      validatedRequest.mainCurrencyRate ?? getMainCurrencyCreditAccountingRate()
 
     // Determine transaction type based on metadata or order context
     let transactionType: 'purchase' | 'membership_fee' | 'payment' = 'purchase';
@@ -118,8 +118,7 @@ export async function POST(request: NextRequest) {
       referenceId: validatedRequest.reference_id,
       metadata: validatedRequest.metadata as Record<string, unknown> | undefined,
       type: transactionType,
-      // Param name `usdRate` is legacy; value is creditBalanceUnitToMainCurrency rate string.
-      usdRate: creditBalanceUnitToDefaultCurrencyRate,
+      mainCurrencyRate: creditBalanceUnitToDefaultCurrencyRate,
     })
 
     if (!result.success) {
@@ -143,7 +142,7 @@ export async function POST(request: NextRequest) {
       transaction_id: result.transactionId,
       new_balance: result.newBalance,
       amount_spent: validatedRequest.amount,
-      main_currency_equivalent: Math.abs(parseFloat(result.usdEquivalent || '0')).toString(),
+      main_currency_equivalent: Math.abs(parseFloat(result.mainCurrencyEquivalent || '0')).toString(),
       message: `Successfully spent ${formatCreditAmount(validatedRequest.amount, creditBalanceUnit)}`,
     });
 

@@ -262,18 +262,24 @@ export async function postSourceCommitCard(opts: {
     })
     const sha7 = opts.sha.slice(0, 7)
     const title = (opts.message || 'Source commit').trim().slice(0, 200)
-    const url = `/my-jobs/${encodeURIComponent(opts.orderId)}?source=${encodeURIComponent(opts.path)}&sha=${encodeURIComponent(opts.sha)}`
+    const qs = `source=${encodeURIComponent(opts.path)}&sha=${encodeURIComponent(opts.sha)}`
+    const labUrl = `/my-jobs/${encodeURIComponent(opts.orderId)}?${qs}`
+    const buyerUrl = `/my-orders/${encodeURIComponent(opts.orderId)}?${qs}`
     const meta = {
       kind: 'share_card' as const,
       targetType: 'source_commit' as const,
       targetId: opts.sha,
       title,
       description: `${opts.path} @ ${sha7}`,
-      url,
+      // Default Open → lab (committer); widget rewrites for buyer via commit.buyerId
+      url: labUrl,
       commit: {
         sha: opts.sha,
         path: opts.path,
         orderId: opts.orderId,
+        buyerUrl,
+        buyerId: opts.buyerId ?? undefined,
+        integratorId: opts.integratorId ?? undefined,
       },
     }
     await messageService.sendMessage(

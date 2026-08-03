@@ -1,5 +1,29 @@
 [
   {
+    "date": "2026-08-04",
+    "version": "1.97.16",
+    "mods": [
+      "### Añadido\n- **i18n de carga de docs** — `docs.loading` (en/uk/ru/de/es); `loading`/`not-found` siguen el locale de la petición\n- **Credit spend mainCurrencyRate** — Zod + MCP/wallet/membership; `usdRate` deprecado → transform",
+      "### Cambiado\n- **Aislamiento FS de docs** — layout pass-through; `DocsArticleShell` en page; dynamic-import nav; `server-only`\n- **Filtros de presupuesto** — moneda principal primero\n- **Share cards Order Lab** — deep-link de comprador a my-orders; `?source=` en source panel"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.15",
+    "mods": [
+      "### Añadido\n- **Postgres Tunnel fan-out** — `TUNNEL_POSTGRES_FANOUT` LISTEN/NOTIFY opcional (off por defecto) + tests\n- **Entrega live-only** — `message.id` compartido; `DB_SSL` en PG fan-out",
+      "### Docs\n- **FCM vs VAPID** — certificado Firebase Web Push vs RFC VAPID en `env.local.template` + docs"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.14",
+    "mods": [
+      "### Añadido\n- **Personal page RIP3** — blocklist DM, pins NFT/media, `private_profile_view`, private hits admin, skills hydrate\n- **Ring Oracle / FX** — cron FX feed; eslint SSOT para rate imports\n- **Forgejo token rotate** — cron + robot GC; CI layer1",
+      "### Cambiado\n- **Docs path SSOT** — `docs-path-url`; joins NFT-safe bajo `docs/`"
+    ]
+  },
+  {
     "date": "2026-08-03",
     "version": "1.97.13",
     "mods": [

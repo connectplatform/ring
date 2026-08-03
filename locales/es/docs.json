@@ -41,5 +41,10 @@
   },
   "mobile": {
     "message": "Abre esta página en un ordenador para ver la documentación completa."
+  },
+  "loading": {
+    "title": "Cargando documentación…",
+    "subtitle": "Preparando el contenido de Ring Platform",
+    "logoAlt": "Logo de Ring Platform"
   }
 }

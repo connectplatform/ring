@@ -755,14 +755,14 @@ export async function getCachedUserCreditBalanceTyped<T = Record<string, any>>(
  * @param userId        Target user ID
  * @param delta         Signed numeric delta (positive = add, negative = spend)
  * @param transaction   Credit transaction record to append
- * @param usdRate       Fiat USD rate at the time of the operation
+ * @param mainCurrencyRate  Credit↔main-currency accounting rate at the time of the operation
  * @returns             `{ success, newBalance, transactionId }` or throws
  */
 export async function creditBalanceAdjustAtomic(
   userId: string,
   delta: number,
   transaction: Record<string, any>,
-  usdRate: string = '1'
+  mainCurrencyRate: string = '1'
 ): Promise<{ success: true; newBalance: string; transactionId: string }> {
   if (!userId) throw new Error('creditBalanceAdjustAtomic: userId is required');
   if (!Number.isFinite(delta)) throw new Error('creditBalanceAdjustAtomic: delta must be finite');
@@ -782,7 +782,7 @@ export async function creditBalanceAdjustAtomic(
     }
     const data = snap.data() as any;
     const currentBalance = (data?.credit_balance?.amount as string) ?? '0';
-    const currentUsdEquiv = (data?.credit_balance?.main_currency_equivalent as string) ?? '0';
+    const currentMainCurrencyEquiv = (data?.credit_balance?.main_currency_equivalent as string) ?? '0';
     const currentMainCurrency =
       (data?.credit_balance?.main_currency as string) ?? process.env.PAYMENT_MAIN_CURRENCY ?? 'USD';
 
@@ -794,15 +794,15 @@ export async function creditBalanceAdjustAtomic(
       );
     }
 
-    const usdDelta = (Math.abs(delta) * parseFloat(usdRate)).toString();
-    const signedUsdDelta = delta < 0 ? `-${usdDelta}` : usdDelta;
-    const newUsdEquiv = (
-      parseFloat(currentUsdEquiv) + (delta < 0 ? -parseFloat(usdDelta) : parseFloat(usdDelta))
+    const mainCurrencyDelta = (Math.abs(delta) * parseFloat(mainCurrencyRate)).toString();
+    const signedMainCurrencyDelta = delta < 0 ? `-${mainCurrencyDelta}` : mainCurrencyDelta;
+    const newMainCurrencyEquiv = (
+      parseFloat(currentMainCurrencyEquiv) + (delta < 0 ? -parseFloat(mainCurrencyDelta) : parseFloat(mainCurrencyDelta))
     ).toString();
 
     const updatedCreditBalance = {
       amount: newAmount,
-      main_currency_equivalent: newUsdEquiv,
+      main_currency_equivalent: newMainCurrencyEquiv,
       main_currency: currentMainCurrency,
       last_updated: tsNow,
       last_transaction_id: newTransactionId,
@@ -816,8 +816,8 @@ export async function creditBalanceAdjustAtomic(
       id: newTransactionId,
       user_id: userId,
       amount: String(delta),
-      main_currency_rate: usdRate,
-      main_currency_equivalent: signedUsdDelta,
+      main_currency_rate: mainCurrencyRate,
+      main_currency_equivalent: signedMainCurrencyDelta,
       balance_after: newAmount,
       timestamp: transaction.timestamp ?? tsNow,
     };

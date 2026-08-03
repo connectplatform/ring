@@ -27,6 +27,7 @@ export function OrderSourcePanel({
   const readOnly = role === 'buyer'
   const [tree, setTree] = useState<TreeEntry[]>([])
   const [commits, setCommits] = useState<SourceCommitRow[]>([])
+  const [deepLinkPath, setDeepLinkPath] = useState<string | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [content, setContent] = useState('')
   const [baseline, setBaseline] = useState('')
@@ -38,6 +39,18 @@ export function OrderSourcePanel({
   const [pending, startTransition] = useTransition()
 
   const dirty = content !== baseline
+
+  useEffect(() => {
+    const source = new URLSearchParams(window.location.search).get('source')
+    if (source) setDeepLinkPath(source)
+  }, [])
+
+  useEffect(() => {
+    if (!deepLinkPath || tree.length === 0) return
+    if (tree.some((f) => f.path === deepLinkPath)) {
+      setSelectedPath(deepLinkPath)
+    }
+  }, [deepLinkPath, tree])
 
   const loadTreeAndCommits = useCallback(async () => {
     setError(null)
@@ -65,8 +78,11 @@ export function OrderSourcePanel({
     const files = ((treeJson.tree || []) as TreeEntry[]).filter((e) => e.type === 'file')
     setTree(files)
     setCommits((commitsJson.commits || []) as SourceCommitRow[])
-    setSelectedPath((prev) => prev ?? files[0]?.path ?? null)
-  }, [orderId])
+    setSelectedPath((prev) => {
+      if (deepLinkPath && files.some((f) => f.path === deepLinkPath)) return deepLinkPath
+      return prev ?? files[0]?.path ?? null
+    })
+  }, [orderId, deepLinkPath])
 
   const loadFile = useCallback(
     async (path: string) => {

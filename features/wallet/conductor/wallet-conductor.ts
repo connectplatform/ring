@@ -574,9 +574,9 @@ export const WalletConductor = {
     referenceId?: string
     metadata?: Record<string, unknown>
     type?: 'purchase' | 'membership_fee' | 'payment'
-    usdRate?: string
+    mainCurrencyRate?: string
   }): Promise<
-    WalletConductorResult & { newBalance?: string; transactionId?: string; usdEquivalent?: string }
+    WalletConductorResult & { newBalance?: string; transactionId?: string; mainCurrencyEquivalent?: string }
   > {
     try {
       if (!params.amount || parseFloat(params.amount) <= 0) {
@@ -600,14 +600,14 @@ export const WalletConductor = {
           metadata: params.metadata,
         },
         params.type || 'purchase',
-        params.usdRate || getMainCurrencyCreditAccountingRate(),
+        params.mainCurrencyRate || getMainCurrencyCreditAccountingRate(),
       )
       return {
         success: true,
         message: `Spent ${params.amount} credits successfully`,
         newBalance: result.newBalance,
         transactionId: result.transaction.id,
-        usdEquivalent: result.transaction.main_currency_equivalent,
+        mainCurrencyEquivalent: result.transaction.main_currency_equivalent,
       }
     } catch (error) {
       logger.error('WalletConductor.spendCredits failed', { error })

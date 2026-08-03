@@ -41,9 +41,10 @@
   },
   "mobile": {
     "message": "Please view this page on a desktop device for the full documentation experience."
+  },
+  "loading": {
+    "title": "Loading documentation...",
+    "subtitle": "Preparing Ring Platform content",
+    "logoAlt": "Ring Platform Logo"
   }
 }
-
-
-
-

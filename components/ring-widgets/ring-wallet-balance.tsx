@@ -28,8 +28,8 @@ import { getClientCreditUnitLabel, getClientMainCurrency } from '@/lib/ring-conf
 export interface RingWalletBalanceProps {
   /** Formatted credit amount, e.g. "12.50" */
   displayBalance: string
-  /** Main-currency equivalent string (legacy prop name: usdEquivalent) */
-  usdEquivalent?: string
+  /** Main-currency equivalent string */
+  mainCurrencyEquivalent?: string
   isLoading?: boolean
   isRefreshing?: boolean
   hasLowBalance?: boolean
@@ -46,7 +46,7 @@ export interface RingWalletBalanceProps {
 // TODO: Consider using React Server Components or useOptimistic/useActionState from React19 for async balance updates if suitable.
 export function RingWalletBalance({
   displayBalance,
-  usdEquivalent = '0.00',
+  mainCurrencyEquivalent = '0.00',
   isLoading = false,
   isRefreshing = false,
   hasLowBalance = false,
@@ -158,7 +158,7 @@ export function RingWalletBalance({
             </div>
             {/* Main-currency equivalent display */}
             <p className="mt-1.5 text-sm text-muted-foreground">
-              ≈ {usdEquivalent} {mainCurrency}
+              ≈ {mainCurrencyEquivalent} {mainCurrency}
             </p>
           </div>
 

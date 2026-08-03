@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import RightSidebar from '@/features/layout/components/right-sidebar'
-import DocsNavigationTree from '@/components/docs/docs-navigation-tree'
 import DocsSidebarControls from '@/components/docs/docs-sidebar-controls'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { RingContentPanel } from '@/components/layout/ring-app-shell'
@@ -14,7 +13,15 @@ interface DocsLayoutShellProps {
   locale: string
 }
 
+/**
+ * Docs chrome shell. Nav tree (FS) is dynamic-imported so the static module
+ * graph for this file does not eagerly pull `docs-path` / `fs` into shared chunks.
+ */
 export default async function DocsLayoutShell({ children, locale }: DocsLayoutShellProps) {
+  const { default: DocsNavigationTree } = await import(
+    '@/components/docs/docs-navigation-tree'
+  )
+
   return (
     <DocsAudienceProvider>
     <DocsPoolProvider>

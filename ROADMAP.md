@@ -2,8 +2,8 @@
 
 ## CURRENT STATUS OVERVIEW
 
-**Last Updated**: August 3, 2026  
-**Ring Platform Version**: **1.97.13** (changelog blocks **1.97.6 → 1.97.13** on `/changelog`)  
+**Last Updated**: August 4, 2026  
+**Ring Platform Version**: **1.97.16** (changelog blocks **1.97.6 → 1.97.16** on `/changelog`)  
 **Live changelog**: [ring-platform.org/changelog](https://ring-platform.org/changelog)  
 **Public roadmap UI**: [ring-platform.org/roadmap](https://ring-platform.org/roadmap) — rocket journey scrubber over live `docs/{locale}/changelog.json` (past) + `locales/*/roadmap.json` `futureMilestones` (ahead); page chrome in the same locale files.  
 **Ringdom**: Turnkey K8s + MCP ringization — [ringdom.org](https://ringdom.org)
@@ -13,6 +13,14 @@ Sources reconciled from `.cursor/plans/completed/**`, production modules under `
 ---
 
 ## COMPLETED — SHIPPED (newest clusters first)
+
+### 1.97.14 → 1.97.16 release cluster (2026-08-04)
+
+| Ver | Ship |
+|-----|------|
+| **1.97.14** | Personal page RIP3 (blocklist, NFT/media pins, private views, skills hydrate); Ring Oracle/FX cron + eslint SSOT; Forgejo token rotate; docs-path-url NFT-safe joins |
+| **1.97.15** | Optional Postgres LISTEN/NOTIFY Tunnel fan-out (`TUNNEL_POSTGRES_FANOUT`, default off); live-only delivery + VAPID/FCM keyspace docs |
+| **1.97.16** | Docs layout FS isolation + loading/not-found locale wiring; credit `mainCurrencyRate`; opportunity main-currency filters; Order Lab share/source deep-links |
 
 ### 1.97.6 → 1.97.13 release cluster (2026-07-24 … 2026-08-03)
 
@@ -116,14 +124,14 @@ Conductor mapping audit (completed): `.cursor/plans/completed/conductor_mapping_
 | P1 | **Messages rail upgrade** | Inbox in right rail; thread as borderless center pane |
 | P1 | **Messenger Call UI** | 1:1 WebRTC on Tunnel + STUNner (invite/event polish only so far) |
 | P1 | **Media derivatives** | RingBase profiles on all upload/display paths |
-| P1 | **Wallet desk polish** | Token desk UX, CreditAddFsModal, safer refunds (credit-reward UX landed 1.97.12) |
-| P1 | **My-Orders lab credentials** | Buyer-owned private deploy secrets (env-request spine in 1.97.13) |
+| P1 | **Wallet desk polish** | Token desk UX, CreditAddFsModal, safer refunds; mainCurrencyRate SSOT advanced 1.97.16 |
+| P1 | **My-Orders lab credentials** | Buyer-owned private deploy secrets (env-request spine in 1.97.13; share deep-links 1.97.16) |
 | P1 | **Treasury swap production** | MVP code 1.97.12 — allowlist hardening + ops closeout |
 | P1 | **Ring ERP hub Wave 2+** | Wave 1 shipped 1.97.10 — RMA/PO/lots; expansion `ring_erp_expansion_strategy_414d7d77` |
 | P1 | **Intent-driven ring assembly** | Clone-bridge spine 1.97.13 — full Reggie/MCP composer product remains |
 | P1 | **Solana NFT Gate production** | Source advanced — GateEscrow PDA + sponsored feePayer deploy |
 | P2 | **Serialization Phase 2** | Adapter-boundary ISO, serializer consolidation |
-| P2 | **Docs locale parity** | Residual UK/RU/ES/DE gaps in long MDX |
+| P2 | **Docs locale parity** | Residual UK/RU/ES/DE gaps in long MDX; loading i18n + FS isolation shipped 1.97.16 |
 | P2 | **Matcher auto-approval toggle** | SuperAdmin settings → AI matcher |
 | P2 | **ERP / affiliate ops activation** | Migrations + smoke + payout rail gating; multi-warehouse / FEFO still thin |
 
@@ -141,6 +149,8 @@ Prioritized from open `.cursor/plans/*.plan.md` (platform-relevant). Empire-only
 - ~~Admin Wiki MVP~~ → **shipped 1.97.11** (Obsidian-depth remains planned)
 - ~~Wagmi treasury swap lane (MVP)~~ → **code shipped 1.97.12** (production hardening IN PROGRESS)
 - ~~Order Lab / clone-bridge spine~~ → **shipped 1.97.13**
+- ~~Personal page privacy / blocklist (RIP3)~~ → **shipped 1.97.14**
+- ~~Postgres NOTIFY → Tunnel bridge (optional fan-out)~~ → **shipped 1.97.15** (`TUNNEL_POSTGRES_FANOUT`, default off; live-only delivery follow-up)
 
 ### Near-term (Q3 2026) — P0/P1
 
@@ -160,7 +170,7 @@ Prioritized from open `.cursor/plans/*.plan.md` (platform-relevant). Empire-only
 13. **Admin Wiki depth** — Obsidian-like vaults, cross-tenant links (`.cursor/plans/ring_admin_wiki_12d40733.plan.md`)
 14. **Ring Admin Knowledge Base** — pgvector empire brain for agents (`.cursor/plans/ring_knowledge_base_98b1d3ba.plan.md`)
 15. **Tunnel remediation + native WSS prod** (`.cursor/plans/ring_tunnel_remediation_3d0da11b.plan.md`, `native_wss_prod_wiring_70f810b9.plan.md`)
-16. **Postgres NOTIFY → Tunnel bridge** (`.cursor/plans/postgres_notify_tunnel_bridge_912a5508.plan.md`)
+16. ~~**Postgres NOTIFY → Tunnel bridge**~~ → **optional hub shipped 1.97.15** — remaining: default-on rollout + ops runbook after soak
 17. **RBAC service hardening** (`.cursor/plans/rbac_service_hardening_debt_f74c5754.plan.md`)
 18. **API routes compliance audit remediation** (`.cursor/plans/api_routes_compliance_audit_be79f82c.plan.md`)
 19. **Solana NFT Gate MVP-A production** — GateEscrow PDA, sponsored feePayer (`.cursor/plans/solana_nft_gate_mvp-a_5134b918.plan.md`)

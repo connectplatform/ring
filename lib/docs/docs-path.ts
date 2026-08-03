@@ -7,8 +7,10 @@
  * segment after cwd (same pattern as `lib/file/local-storage-root.ts`).
  *
  * Pure slug/URL helpers live in `./docs-path-url` (no fs).
+ * Import this module only from docs page/renderer/nav — never from shared layouts.
  */
 
+import 'server-only'
 import fs from 'fs'
 import path from 'path'
 import { SUPPORTED_LOCALES } from '@/lib/locale-config'

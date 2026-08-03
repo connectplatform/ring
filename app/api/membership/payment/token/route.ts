@@ -320,7 +320,7 @@ export async function GET(request: NextRequest) {
         title: 'Upgrade to Member',
         description: 'One-time upgrade with optional auto-renewal',
         cost: {
-          ring_amount: membershipFee.toFixed(2),
+          native_token_amount: membershipFee.toFixed(2),
           currency: symbol,
         },
         available: currentBalance >= membershipFee,
@@ -341,7 +341,7 @@ export async function GET(request: NextRequest) {
         title: 'Renew Subscription',
         description: 'Renew your membership for another month',
         cost: {
-          ring_amount: membershipFee.toFixed(2),
+          native_token_amount: membershipFee.toFixed(2),
           currency: symbol,
         },
         available: currentBalance >= membershipFee,
@@ -358,7 +358,7 @@ export async function GET(request: NextRequest) {
       title: 'One-time Payment',
       description: 'Pay membership fee without subscription',
       cost: {
-        ring_amount: membershipFee.toFixed(2),
+        native_token_amount: membershipFee.toFixed(2),
         currency: symbol,
       },
       available: currentBalance >= membershipFee,
@@ -384,7 +384,7 @@ export async function GET(request: NextRequest) {
       },
       pricing: {
         membership_fee: {
-          ring_amount: membershipFee.toFixed(2),
+          native_token_amount: membershipFee.toFixed(2),
           currency: symbol,
         },
         discounts: [],

@@ -213,7 +213,7 @@ export class CreditBalanceService {
     userId: string,
     request: CreditBalanceTopUpRequest,
     type: CreditBalanceTransactionType,
-    usdRate: string
+    mainCurrencyRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
       const now = new Date();
@@ -248,15 +248,15 @@ export class CreditBalanceService {
         const currentAmount = parseFloat(currentBalance.amount);
         const addAmount = parseFloat(request.amount);
         const newAmount = (currentAmount + addAmount).toString();
-        const usdEquivalent = (addAmount * parseFloat(usdRate)).toString();
+        const mainCurrencyEquivalent = (addAmount * parseFloat(mainCurrencyRate)).toString();
         const transactionId = this._generateTransactionId();
         const creditTransaction: CreditTransaction = {
           id: transactionId,
           user_id: userId,
           type,
           amount: request.amount,
-          main_currency_rate: usdRate,
-          main_currency_equivalent: usdEquivalent,
+          main_currency_rate: mainCurrencyRate,
+          main_currency_equivalent: mainCurrencyEquivalent,
           balance_after: newAmount,
           timestamp: now.getTime(),
           description: request.description,
@@ -268,7 +268,7 @@ export class CreditBalanceService {
           ...currentBalance,
           amount: newAmount,
           main_currency_equivalent: (
-            parseFloat(currentBalance.main_currency_equivalent) + parseFloat(usdEquivalent)
+            parseFloat(currentBalance.main_currency_equivalent) + parseFloat(mainCurrencyEquivalent)
           ).toString(),
           main_currency: currentBalance.main_currency ?? mainCurrency,
           last_updated: now.getTime(),
@@ -387,7 +387,7 @@ export class CreditBalanceService {
     userId: string,
     request: CreditSpendRequest,
     type: CreditBalanceTransactionType,
-    usdRate: string
+    mainCurrencyRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
       const now = new Date();
@@ -425,15 +425,15 @@ export class CreditBalanceService {
         }
 
         const newAmount = (currentAmount - spendAmount).toString();
-        const usdEquivalent = (spendAmount * parseFloat(usdRate)).toString();
+        const mainCurrencyEquivalent = (spendAmount * parseFloat(mainCurrencyRate)).toString();
         const transactionId = this._generateTransactionId();
         const creditTransaction: CreditTransaction = {
           id: transactionId,
           user_id: userId,
           type,
           amount: `-${request.amount}`,
-          main_currency_rate: usdRate,
-          main_currency_equivalent: `-${usdEquivalent}`,
+          main_currency_rate: mainCurrencyRate,
+          main_currency_equivalent: `-${mainCurrencyEquivalent}`,
           balance_after: newAmount,
           timestamp: now.getTime(),
           description: request.description,
@@ -445,7 +445,7 @@ export class CreditBalanceService {
           ...currentBalance,
           amount: newAmount,
           main_currency_equivalent: (
-            parseFloat(currentBalance.main_currency_equivalent) - parseFloat(usdEquivalent)
+            parseFloat(currentBalance.main_currency_equivalent) - parseFloat(mainCurrencyEquivalent)
           ).toString(),
           main_currency: currentBalance.main_currency ?? mainCurrency,
           last_updated: now.getTime(),
@@ -674,7 +674,7 @@ export class CreditBalanceService {
   async processMembershipFee(
     userId: string,
     membershipFee: string,
-    usdRate: string
+    mainCurrencyRate: string
   ): Promise<{ success: true; transaction: CreditTransaction }> {
     try {
       // Prepare spend request struct for this specific business logic (membership fee)
@@ -687,7 +687,7 @@ export class CreditBalanceService {
         },
       };
       // Use existing debit/spend flow to ensure identical audit trail, limits, balances, etc.
-      const result = await this.spendCredits(userId, request, 'membership_fee', usdRate);
+      const result = await this.spendCredits(userId, request, 'membership_fee', mainCurrencyRate);
 
       logger.info('Membership fee processed.', {
         userId,

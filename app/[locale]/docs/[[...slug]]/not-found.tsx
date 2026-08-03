@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/routing'
 import { FileQuestion, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -6,7 +6,10 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 
 export default async function DocsNotFoundPage() {
-  const locale = routing.defaultLocale as Locale
+  const resolved = await getLocale()
+  const locale = (
+    routing.locales.includes(resolved as Locale) ? resolved : routing.defaultLocale
+  ) as Locale
   const t = await getTranslations({ locale, namespace: 'docs.notFound' })
 
   return (

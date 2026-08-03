@@ -1,3 +1,4 @@
+import 'server-only'
 import * as fs from 'fs'
 import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'

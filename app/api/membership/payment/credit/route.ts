@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         type,
         amount_paid: String(creditAmount),
         currency: creditLabel,
-        ring_amount: ringAmount,
+        native_token_amount: ringAmount,
         fiat_amount: mainCurrencyAmount,
         timestamp: Date.now(),
       },
@@ -212,7 +212,7 @@ export async function GET() {
       success: true,
       pricing: {
         credit_points: creditAmount,
-        ring_amount: ringAmount,
+        native_token_amount: ringAmount,
         fiat_amount: mainCurrencyAmount,
         currency: getCreditUnitLabel(),
       },

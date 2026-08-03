@@ -1,5 +1,29 @@
 [
   {
+    "date": "2026-08-04",
+    "version": "1.97.16",
+    "mods": [
+      "### Added\n- **Docs loading i18n** — `docs.loading` (en/uk/ru/de/es); slug `loading.tsx` / `not-found.tsx` follow request locale (no hard-coded Ukrainian / defaultLocale)\n- **Credit spend mainCurrencyRate** — Zod + MCP/wallet/membership paths; deprecate `usdRate` alias with transform",
+      "### Changed\n- **Docs FS isolation** — `docs/[[...slug]]` layout pass-through; `DocsArticleShell` on page path; nav tree dynamic-import; `server-only` on docs-path/article/sections/nav\n- **Opportunity budget filters** — main currency first via `getOpportunityFilterCurrencies`\n- **Order Lab share cards** — buyer deep-link to my-orders; source panel `?source=` path deep-link\n- **Payments docs** — credit/main-currency rate naming alignment"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.15",
+    "mods": [
+      "### Added\n- **Postgres Tunnel fan-out** — optional `TUNNEL_POSTGRES_FANOUT` LISTEN/NOTIFY hub decorator for multi-pod publish (default off) + envelope/hub tests\n- **Live-only fan-out delivery** — stable shared `message.id` on local+NOTIFY; honor `DB_SSL` on fan-out PG clients",
+      "### Docs\n- **FCM vs VAPID keyspace** — Firebase Web Push certificate vs planned RFC web-push VAPID trio in `env.local.template` + notifications docs"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.14",
+    "mods": [
+      "### Added\n- **Personal page RIP3** — user blocklist (DM/`createConversation`), `publicProfileNftListings` + per-media pins, `private_profile_view` analytics, admin private-hits drill-down, skills hydrate (`normalizeSkills`)\n- **Ring Oracle / FX** — FX feed refresh cron; desk SSOT docs; eslint restricted deep rate imports\n- **Forgejo token rotate** — cron + robot GC hardening; CI layer1 / docker-publish updates",
+      "### Changed\n- **Docs path SSOT** — `docs-path-url` pure helpers; NFT-safe joins under `docs/` with `turbopackIgnore`"
+    ]
+  },
+  {
     "date": "2026-08-03",
     "version": "1.97.13",
     "mods": [

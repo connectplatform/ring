@@ -1,3 +1,4 @@
+import 'server-only'
 import fs from 'fs'
 import matter from 'gray-matter'
 import { calculateReadingTime } from '@/features/news/utils/reading-time'

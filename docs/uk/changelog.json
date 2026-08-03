@@ -1,5 +1,29 @@
 [
   {
+    "date": "2026-08-04",
+    "version": "1.97.16",
+    "mods": [
+      "### Додано\n- **i18n завантаження docs** — `docs.loading` (en/uk/ru/de/es); `loading`/`not-found` слідують за locale запиту\n- **Credit spend mainCurrencyRate** — Zod + MCP/wallet/membership; застарілий `usdRate` → transform",
+      "### Змінено\n- **Ізоляція FS docs** — layout pass-through; `DocsArticleShell` на page; dynamic-import nav; `server-only` на docs-path\n- **Фільтри budget можливостей** — головна валюта першою\n- **Order Lab share cards** — deep-link покупця на my-orders; `?source=` у source panel"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.15",
+    "mods": [
+      "### Додано\n- **Postgres Tunnel fan-out** — опційний `TUNNEL_POSTGRES_FANOUT` LISTEN/NOTIFY (за замовчуванням вимк.) + тести\n- **Live-only delivery** — спільний `message.id`; `DB_SSL` на fan-out PG",
+      "### Docs\n- **FCM vs VAPID** — сертифікат Firebase Web Push vs RFC VAPID у `env.local.template` + docs"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.14",
+    "mods": [
+      "### Додано\n- **Personal page RIP3** — blocklist DM, NFT/media pins, `private_profile_view`, admin private hits, skills hydrate\n- **Ring Oracle / FX** — cron FX feed; eslint SSOT для rate imports\n- **Forgejo token rotate** — cron + robot GC; CI layer1",
+      "### Змінено\n- **Docs path SSOT** — `docs-path-url`; NFT-safe joins під `docs/`"
+    ]
+  },
+  {
     "date": "2026-08-03",
     "version": "1.97.13",
     "mods": [

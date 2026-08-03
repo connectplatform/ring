@@ -94,8 +94,8 @@
       "id": "tunnel-wss",
       "period": "Q4 2026",
       "title": "Tunnel + native WSS",
-      "summary": "Ремедиация Tunnel и production native WebSocket.",
-      "status": "planned"
+      "summary": "Ремедиация Tunnel и production native WebSocket. Optional Postgres LISTEN/NOTIFY fan-out shipped 1.97.15 (default off); native WSS + remediation remain.",
+      "status": "partial"
     },
     {
       "id": "dao-governance-v2",

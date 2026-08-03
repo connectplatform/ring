@@ -32,7 +32,7 @@ import { ROUTES } from '@/constants/routes'
 import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 import { followCheckoutResult } from '@/lib/payments/checkout-redirect'
 
-type PaymentRail = 'on_chain_ring'
+type PaymentRail = 'on_chain_native_token'
 
 interface PaymentModalProps {
   onClose: () => void
@@ -45,7 +45,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const router = useRouter()
   const nativeSymbol = getClientNativeTokenSymbol()
   const [showRingPayment, setShowRingPayment] = useState(false)
-  const [paymentRail, setPaymentRail] = useState<PaymentRail>('on_chain_ring')
+  const [paymentRail, setPaymentRail] = useState<PaymentRail>('on_chain_native_token')
   const [selectedTab, setSelectedTab] = useState('wallet_native_token')
   const [onChainRingBalance, setOnChainRingBalance] = useState('0')
   const [onChainLoading, setOnChainLoading] = useState(true)
@@ -107,7 +107,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
 
   const openNativePayment = (sufficient: boolean) => {
     if (!sufficient) return
-    setPaymentRail('on_chain_ring')
+    setPaymentRail('on_chain_native_token')
     setShowRingPayment(true)
   }
 

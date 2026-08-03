@@ -9,6 +9,7 @@ import {
   renderDocsPage,
 } from '@/components/docs/docs-page-renderer'
 import { DocsNotFound } from '@/components/docs/docs-not-found'
+import { DocsArticleShell } from '@/components/docs/docs-article-shell'
 
 type PageParams = {
   locale: string
@@ -31,8 +32,9 @@ export default async function DocPage({ params }: LocalePageProps<PageParams>) {
   const locale = (routing.locales.includes(rawLocale as Locale)
     ? (rawLocale as Locale)
     : routing.defaultLocale) as Locale
+  const normalizedSlug = normalizeDocsSlug(slug)
 
-  const result = await renderDocsPage({ locale, slug: normalizeDocsSlug(slug) })
+  const result = await renderDocsPage({ locale, slug: normalizedSlug })
 
   if (result.status === 'not_found') {
     return (
@@ -46,5 +48,10 @@ export default async function DocPage({ params }: LocalePageProps<PageParams>) {
     )
   }
 
-  return result.content
+  return (
+    <>
+      <DocsArticleShell locale={locale} slug={normalizedSlug} showOnDesktop />
+      {result.content}
+    </>
+  )
 }

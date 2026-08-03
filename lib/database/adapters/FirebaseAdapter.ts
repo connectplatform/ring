@@ -1863,11 +1863,11 @@ export class FirebaseAdapter implements IDatabaseService {
     userId: string,
     delta: number,
     transaction: Record<string, any>,
-    usdRate: string = '1'
+    mainCurrencyRate: string = '1'
   ): Promise<DatabaseResult<{ newBalance: string; transactionId: string }>> {
     try {
       const { creditBalanceAdjustAtomic } = await import('@/lib/services/firebase-service-manager')
-      const result = await creditBalanceAdjustAtomic(userId, delta, transaction, usdRate)
+      const result = await creditBalanceAdjustAtomic(userId, delta, transaction, mainCurrencyRate)
       return {
         success: true,
         data: { newBalance: result.newBalance, transactionId: result.transactionId },

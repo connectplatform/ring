@@ -17,7 +17,7 @@ import type { Locale } from '@/i18n/shared'
 export interface WalletBalanceHeroProps {
   locale: Locale
   creditAmount: string
-  creditUsdEquivalent?: string
+  creditMainCurrencyEquivalent?: string
   wallets: WalletInfo[]
   walletsLoading?: boolean
   selectedScope: WalletActivityScope
@@ -38,7 +38,7 @@ function isScopeSelected(a: WalletActivityScope, b: WalletActivityScope): boolea
 export function WalletBalanceHero({
   locale,
   creditAmount,
-  creditUsdEquivalent,
+  creditMainCurrencyEquivalent,
   wallets,
   walletsLoading = false,
   selectedScope,
@@ -73,7 +73,7 @@ export function WalletBalanceHero({
       <div className="space-y-2">
         <CreditBalanceItemWidget
           creditAmount={creditAmount}
-          creditUsdEquivalent={creditUsdEquivalent}
+          creditMainCurrencyEquivalent={creditMainCurrencyEquivalent}
           selected={isScopeSelected(selectedScope, { type: 'credit' })}
           onSelect={() => onSelectScope({ type: 'credit' })}
           onRefresh={onRefresh}

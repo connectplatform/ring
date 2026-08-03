@@ -24,6 +24,6 @@ Append-only JSON — not this Markdown file:
 
 **History origin:** 2024 (Ring Platform 0.1 genesis; 99+ feature releases).
 
-**Latest docs note (1.97.13):** Roadmap reconciliation restored Payment/Wallet/generative conductors, public pools & collective contributions, NFT market, CRM lab, and File Cabinet into public roadmap standing; added Q3–2027 planned backlog from open Cursor plans.
+**Latest docs note (1.97.16):** Changelog UI backfilled **1.97.14–1.97.16** (RIP3, Postgres Tunnel fan-out, docs FS isolation + credit/filters/Order Lab deep-links). Engineering roadmap + README/FEATURESET aligned to package `1.97.16`.
 
 This root `CHANGELOG.md` is **deprecated for the product UI**. Prefer [ring-platform.org/changelog](https://ring-platform.org/changelog) and edit the locale JSON files when shipping notes.

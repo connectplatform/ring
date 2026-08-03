@@ -38,9 +38,10 @@ import {
 } from 'lucide-react'
 import {
   OPPORTUNITY_FILTER_CATEGORY_IDS,
-  OPPORTUNITY_FILTER_CURRENCIES,
+  getOpportunityFilterCurrencies,
 } from '@/features/opportunities/lib/opportunity-filter-presets'
 import { davinciTerminalSurface } from '@/lib/ui/davinci'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
 
 interface FilterState {
   search: string
@@ -78,8 +79,6 @@ const opportunityTypes = [
 
 const categories = [...OPPORTUNITY_FILTER_CATEGORY_IDS]
 
-const currencies = [...OPPORTUNITY_FILTER_CURRENCIES]
-
 const ANY_PRIORITY = '__any__'
 
 const priorities = [
@@ -97,6 +96,8 @@ export default function OpportunitiesFiltersPanel({
 }: OpportunitiesFiltersPanelProps) {
   const t = useTranslations('modules.opportunities')
   const tf = useTranslations('modules.opportunities.filters')
+  const mainCurrency = getClientMainCurrency()
+  const currencies = getOpportunityFilterCurrencies(mainCurrency)
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['types']))
 
   // React 19 useTransition for non-blocking filter updates
@@ -153,7 +154,7 @@ export default function OpportunitiesFiltersPanel({
     location: '',
     budgetMin: '',
     budgetMax: '',
-    currency: 'USD',
+    currency: mainCurrency,
     priority: '',
     deadline: '',
     entityVerified: null,
@@ -240,7 +241,7 @@ export default function OpportunitiesFiltersPanel({
       location: '',
       budgetMin: '',
       budgetMax: '',
-      currency: 'USD',
+      currency: mainCurrency,
       priority: '',
       deadline: '',
       entityVerified: null,
@@ -285,7 +286,7 @@ export default function OpportunitiesFiltersPanel({
            filters.location ||
            filters.budgetMin ||
            filters.budgetMax ||
-           filters.currency !== 'USD' ||
+           filters.currency !== mainCurrency ||
            filters.priority ||
            filters.deadline ||
            filters.entityVerified !== null ||

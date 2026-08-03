@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ExternalLink, Share2 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import type { Message, ShareCardMetadata } from '@/features/chat/types'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,16 @@ function parseShareCard(message: Message): ShareCardMetadata | null {
   if (!meta || meta.kind !== 'share_card') return null
   if (typeof meta.title !== 'string' || typeof meta.url !== 'string') return null
   return meta as unknown as ShareCardMetadata
+}
+
+function resolveShareHref(card: ShareCardMetadata, userId: string | undefined): string {
+  if (card.targetType !== 'source_commit' || !card.commit) return card.url
+  const { buyerId, integratorId, buyerUrl } = card.commit
+  // Pure buyer (not also integrator) → my-orders; lab/admin → my-jobs default url
+  if (userId && buyerId && userId === buyerId && userId !== integratorId && buyerUrl) {
+    return buyerUrl
+  }
+  return card.url
 }
 
 export interface ShareCardMessageWidgetProps {
@@ -24,10 +35,13 @@ export function ShareCardMessageWidget({
   isOwn,
   className,
 }: ShareCardMessageWidgetProps) {
+  const { data: session } = useSession()
   const card = parseShareCard(message)
   if (!card) {
     return <div className="whitespace-pre-wrap">{message.content}</div>
   }
+
+  const href = resolveShareHref(card, session?.user?.id)
 
   return (
     <div
@@ -51,7 +65,7 @@ export function ShareCardMessageWidget({
         </div>
       </div>
       <Button asChild size="sm" variant={isOwn ? 'secondary' : 'default'} className="h-8 gap-1 text-xs">
-        <Link href={card.url}>
+        <Link href={href}>
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           Open
         </Link>

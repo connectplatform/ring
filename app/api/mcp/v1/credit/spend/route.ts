@@ -2,6 +2,18 @@ import { CreditBalanceService } from '@/features/wallet/services/credit-balance-
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
 import { readJsonBody } from '@/app/api/mcp/v1/_lib/query'
+import { z } from 'zod'
+
+function resolveMainCurrencyRate(body: Record<string, unknown>): string {
+  const parsed = z
+    .object({
+      mainCurrencyRate: z.string().optional(),
+      usdRate: z.string().optional(),
+    })
+    .safeParse(body)
+  if (!parsed.success) return '1'
+  return String(parsed.data.mainCurrencyRate ?? parsed.data.usdRate ?? '1')
+}
 // TODO: Codemod - prefer Next.js 16 native middleware and built-in request validation
 // TODO: If available, use Next.js 16 request schema validation via next/headers and e.g. zod
 
@@ -36,7 +48,7 @@ export const POST = withMcpGuard(async (request) => {
       metadata: body.metadata as Record<string, unknown> | undefined, // Pass through metadata if present
     },
     (body.type as any) || 'purchase', // Default to "purchase" if no type provided (TODO: codemod: define supported types with Zod enum)
-    String(body.usdRate || '1') // Default exchange rate is "1" if not set
+    resolveMainCurrencyRate(body as Record<string, unknown>)
   )
 
   // TODO: Use Next.js 16 native request parsing & validation middleware—e.g.:

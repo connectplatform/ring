@@ -1,6 +1,6 @@
 # Ring Platform: Feature Set
 
-> React 19 + Next.js 16 open-source white-label platform (v1.97.13)  
+> React 19 + Next.js 16 open-source white-label platform (v1.97.16)  
 > AI-Matcher, SSE tunnel, messaging, Web3 (Solana/EVM), store, CRM, wiki, file cabinet — MCP-orchestrated for any org.
 
 ---
@@ -9,7 +9,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | **1.97.13** |
+| Version | **1.97.16** |
 | Feature modules (`features/`) | **41** |
 | API route handlers | **~300** |
 | App Router pages | **~165** |
@@ -26,16 +26,24 @@ Live release notes: [ring-platform.org/changelog](https://ring-platform.org/chan
 
 ## Recent Highlights (newest first)
 
-### v1.97.4 (2026-07-21)
-- **File Cabinet, Tasks, Peer Games** — plus roadmap/changelog saturation (2024→now across all locales)
+### v1.97.16 (2026-08-04)
+- Docs layout FS isolation + loading/not-found locale wiring; credit `mainCurrencyRate`; opportunity main-currency filters; Order Lab share/source deep-links
+
+### v1.97.15 (2026-08-04)
+- Optional Postgres LISTEN/NOTIFY Tunnel fan-out (`TUNNEL_POSTGRES_FANOUT`, default off); live-only delivery; FCM vs VAPID keyspace docs
+
+### v1.97.14 (2026-08-04)
+- Personal page RIP3 (blocklist, NFT/media pins, private views, skills hydrate); Ring Oracle/FX cron; docs-path-url NFT-safe joins
 
 ### v1.97.13 / 1.97.5 (2026-07-21)
 - Changelog page — locale JSON SSOT, DaVinci-glass cards, GFM/TTFB fixes (`force-static`)
 - Shared markdown prose tokens; math viewer fullscreen / Copy LaTeX
+- Order Lab clone-bridge / Forgejo source editor / registry OCI SSOT
 
 ### v1.97.4 (2026-07-18)
 - **Ring Mailer** — first-party SMTP (`lib/mailer.ts`) for OTP, magic link, password reset, CRM outbound
 - Auth Credentials: `email-otp` / `email-magic` / `credentials` — **no Resend**
+- File Cabinet, Tasks, Peer Games — roadmap/changelog saturation
 
 ### v1.97.3 (2026-07-17)
 - Owner project CRM lab (`/my-orders`, `/my-jobs`), admin CRM under `/admin/crm/*`

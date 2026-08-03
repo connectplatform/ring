@@ -1,7 +1,7 @@
 'use client'
 
 import type { PricingResult, SubscriptionResult } from '@/app/_actions/membership'
-import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import { getClientMainCurrency, getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 
 interface Props {
   pricing: PricingResult
@@ -17,6 +17,7 @@ interface Props {
  */
 export function MembershipPricingClient({ pricing, status }: Props) {
   const symbol = getClientNativeTokenSymbol()
+  const mainCurrency = getClientMainCurrency()
 
   if (!pricing.success) {
     return (
@@ -32,7 +33,7 @@ export function MembershipPricingClient({ pricing, status }: Props) {
         <h3 className="text-lg font-semibold">Membership</h3>
         <p className="text-sm text-muted-foreground">
           {pricing.membershipFee} {pricing.currency || symbol}
-          {pricing.usdEquivalent ? ` ≈ $${pricing.usdEquivalent}` : ''}
+          {pricing.mainCurrencyEquivalent ? ` ≈ ${pricing.mainCurrencyEquivalent} ${mainCurrency}` : ''}
         </p>
       </div>
 
@@ -57,7 +58,7 @@ export function MembershipPricingClient({ pricing, status }: Props) {
             <div className="font-medium">{opt.title}</div>
             <div className="text-muted-foreground">{opt.description}</div>
             <div className="mt-1">
-              {opt.cost.token_amount} · ${opt.cost.main_currency_equivalent}
+              {opt.cost.token_amount} · {opt.cost.main_currency_equivalent} {mainCurrency}
               {!opt.available ? ' · unavailable' : ''}
             </div>
           </li>

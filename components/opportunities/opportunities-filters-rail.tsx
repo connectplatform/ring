@@ -6,10 +6,12 @@ import { usePathname, useRouter } from '@/i18n/routing'
 import { useTranslations } from 'next-intl'
 import { Filter } from 'lucide-react'
 import OpportunitiesFiltersPanel from '@/components/opportunities/opportunities-filters-panel'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
 
 type FilterState = Parameters<NonNullable<Parameters<typeof OpportunitiesFiltersPanel>[0]['onFiltersApplied']>>[0]
 
 function filtersFromSearchParams(searchParams: URLSearchParams): Partial<FilterState> {
+  const mainCurrency = getClientMainCurrency()
   return {
     search: searchParams.get('q') || '',
     types: searchParams.get('types')?.split(',').filter(Boolean) || [],
@@ -17,7 +19,7 @@ function filtersFromSearchParams(searchParams: URLSearchParams): Partial<FilterS
     location: searchParams.get('location') || '',
     budgetMin: searchParams.get('budgetMin') || '',
     budgetMax: searchParams.get('budgetMax') || '',
-    currency: searchParams.get('currency') || 'USD',
+    currency: searchParams.get('currency') || mainCurrency,
     priority: searchParams.get('priority') || '',
     deadline: searchParams.get('deadline') || '',
     entityVerified:
@@ -37,6 +39,7 @@ function filtersFromSearchParams(searchParams: URLSearchParams): Partial<FilterS
 
 function filtersToSearchParams(filters: FilterState, current: URLSearchParams): URLSearchParams {
   const params = new URLSearchParams(current.toString())
+  const mainCurrency = getClientMainCurrency()
 
   const setOrDelete = (key: string, value: string | null | undefined) => {
     if (value) params.set(key, value)
@@ -49,7 +52,7 @@ function filtersToSearchParams(filters: FilterState, current: URLSearchParams): 
   setOrDelete('location', filters.location || null)
   setOrDelete('budgetMin', filters.budgetMin || null)
   setOrDelete('budgetMax', filters.budgetMax || null)
-  if (filters.currency && filters.currency !== 'USD') params.set('currency', filters.currency)
+  if (filters.currency && filters.currency !== mainCurrency) params.set('currency', filters.currency)
   else params.delete('currency')
   setOrDelete('priority', filters.priority || null)
   setOrDelete('deadline', filters.deadline || null)

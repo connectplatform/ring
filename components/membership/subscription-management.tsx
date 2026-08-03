@@ -47,7 +47,7 @@ interface SubscriptionData {
     payment_overdue?: boolean
   } | null
   balance: {
-    ring_amount: string
+    native_token_amount: string
     sufficient_for_renewal: boolean
   }
   actions: {

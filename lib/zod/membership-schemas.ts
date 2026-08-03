@@ -97,6 +97,12 @@ export const initiateMembershipPaymentSchema = z.object({
   billingPeriod: membershipBillingPeriodSchema.optional().default('monthly'),
 })
 
+/** Canonical membership payment rails. Legacy `on_chain_ring` → `on_chain_native_token` on inbound API parse. */
+export const membershipPaymentRailSchema = z.preprocess(
+  (val) => (val === 'on_chain_ring' ? 'on_chain_native_token' : val),
+  z.enum(['account_credit', 'on_chain_native_token']).optional(),
+)
+
 /** Shared JSON body schema for membership payment API routes (card / paypal / token). */
 export const membershipApiPaymentBodySchema = z.object({
   type: membershipPaymentTypeSchema,
@@ -107,7 +113,7 @@ export const membershipApiPaymentBodySchema = z.object({
   auto_subscribe: z.boolean().default(true),
   billingPeriod: membershipBillingPeriodSchema.optional().default('monthly'),
   provider: z.enum(['stripe', 'wayforpay']).optional(),
-  rail: z.enum(['account_credit', 'on_chain_ring']).optional(),
+  rail: membershipPaymentRailSchema,
   toAddress: z.string().optional(),
 })
 

@@ -220,7 +220,7 @@ export function MemberUpgradeGate({
               type: 'membership_upgrade',
               amount,
               auto_subscribe: period === 'monthly',
-              rail: 'on_chain_ring',
+              rail: 'on_chain_native_token',
             }),
           })
           const data = await res.json()

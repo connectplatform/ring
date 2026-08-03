@@ -90,13 +90,27 @@ export const CreditBalanceTopUpRequestSchema = z.object({
 
 export type CreditBalanceTopUpRequest = z.infer<typeof CreditBalanceTopUpRequestSchema>;
 
-export const CreditSpendRequestSchema = z.object({
-  amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a positive number string'),
-  description: z.string().min(1).max(200),
-  order_id: z.string().optional(),
-  reference_id: z.string().optional(),
-  metadata: z.record(z.any(), z.any()).optional(),
-});
+export const CreditSpendRequestSchema = z
+  .object({
+    amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a positive number string'),
+    description: z.string().min(1).max(200),
+    order_id: z.string().optional(),
+    reference_id: z.string().optional(),
+    metadata: z.record(z.any(), z.any()).optional(),
+    mainCurrencyRate: z
+      .string()
+      .regex(/^\d+(\.\d+)?$/, 'Main currency rate must be a positive number string')
+      .optional(),
+    /** @deprecated Use mainCurrencyRate */
+    usdRate: z
+      .string()
+      .regex(/^\d+(\.\d+)?$/, 'Main currency rate must be a positive number string')
+      .optional(),
+  })
+  .transform(({ usdRate, mainCurrencyRate, ...rest }) => ({
+    ...rest,
+    mainCurrencyRate: mainCurrencyRate ?? usdRate,
+  }));
 
 export type CreditSpendRequest = z.infer<typeof CreditSpendRequestSchema>;
 

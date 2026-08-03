@@ -2,6 +2,18 @@ import { CreditBalanceService } from '@/features/wallet/services/credit-balance-
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
 import { readJsonBody } from '@/app/api/mcp/v1/_lib/query'
+import { z } from 'zod'
+
+function resolveMainCurrencyRate(body: Record<string, unknown>): string {
+  const parsed = z
+    .object({
+      mainCurrencyRate: z.string().optional(),
+      usdRate: z.string().optional(),
+    })
+    .safeParse(body)
+  if (!parsed.success) return '1'
+  return String(parsed.data.mainCurrencyRate ?? parsed.data.usdRate ?? '1')
+}
 
 // TODO: Move towards using Next.js 16 native request/response helpers (e.g., standardized parsing, validation).
 // TODO: Add schema validation using Zod for request body (see implementation comment below).
@@ -35,6 +47,7 @@ export const POST = withMcpGuard(async (request) => {
       description: z.string().optional(),
       metadata: z.record(z.unknown()).optional(),
       type: z.string().optional(),
+      mainCurrencyRate: z.string().optional(),
       usdRate: z.string().optional(),
     });
     // const parsed = CreditAddSchema.safeParse(await request.json());
@@ -55,7 +68,7 @@ export const POST = withMcpGuard(async (request) => {
       metadata: body.metadata as Record<string, unknown> | undefined, // Metadata is optional
     },
     (body.type as any) || 'bonus',              // Default type to 'bonus' if not given
-    String(body.usdRate || '1')                 // USD rate as string, default '1'
+    resolveMainCurrencyRate(body as Record<string, unknown>)
   )
 
   // Return unified "OK" response including all result data from addCredits workflow

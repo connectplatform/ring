@@ -35,3 +35,13 @@ export const OPPORTUNITY_FILTER_CATEGORY_IDS = [
 export type OpportunityFilterCategoryId = (typeof OPPORTUNITY_FILTER_CATEGORY_IDS)[number]
 
 export const OPPORTUNITY_FILTER_CURRENCIES = ['USD', 'EUR', 'UAH', 'GBP'] as const
+
+/**
+ * Presentment currencies for opportunity budget filters.
+ * Main currency is always first; remaining codes follow without duplicating main.
+ */
+export function getOpportunityFilterCurrencies(mainCurrency: string): string[] {
+  const main = String(mainCurrency || 'USD').toUpperCase()
+  const rest = OPPORTUNITY_FILTER_CURRENCIES.filter((c) => c !== main)
+  return [main, ...rest]
+}

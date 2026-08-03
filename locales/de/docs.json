@@ -41,5 +41,10 @@
   },
   "mobile": {
     "message": "Bitte öffnen Sie diese Seite auf einem Desktop-Gerät für die vollständige Dokumentationsansicht."
+  },
+  "loading": {
+    "title": "Dokumentation wird geladen…",
+    "subtitle": "Ring-Platform-Inhalte werden vorbereitet",
+    "logoAlt": "Ring Platform Logo"
   }
 }

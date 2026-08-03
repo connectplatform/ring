@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       } : null,
       // Wallet and eligibility
       balance: {
-        ring_amount: creditBalance?.amount || '0',
+        native_token_amount: creditBalance?.amount || '0',
         main_currency_equivalent: creditBalance?.main_currency_equivalent || '0',
         sufficient_for_renewal: creditBalance ? parseFloat(creditBalance.amount) >= 1.0 : false,
       },
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
         // If no membership, show member benefits as upgrade incentive; else empty array.
         upgrade_benefits: hasActiveMembership ? [] : membershipBenefits[UserRolesArray.member],
         monthly_cost: {
-          ring_amount: '1.0',
+          native_token_amount: '1.0',
           main_currency_equivalent: '~$1.00', // Approximate; consider fetching live fx for precision in future iter.
         },
       },

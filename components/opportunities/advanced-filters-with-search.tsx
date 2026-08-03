@@ -20,6 +20,7 @@ interface FilterState {
 import { searchOpportunities, SearchOpportunitiesParams, SearchOpportunitiesResult } from '@/lib/client-search'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import { getClientMainCurrency } from '@/lib/ring-config-client'
 
 interface AdvancedFiltersWithSearchProps {
   onSearchStart?: () => void
@@ -28,18 +29,20 @@ interface AdvancedFiltersWithSearchProps {
   className?: string
 }
 
-const defaultFilterState: FilterState = {
-  search: '',
-  types: [],
-  categories: [],
-  location: '',
-  budgetMin: '',
-  budgetMax: '',
-  currency: 'USD',
-  priority: 'all',
-  deadline: 'any',
-  entityVerified: null,
-  hasDeadline: null
+function buildDefaultFilterState(): FilterState {
+  return {
+    search: '',
+    types: [],
+    categories: [],
+    location: '',
+    budgetMin: '',
+    budgetMax: '',
+    currency: getClientMainCurrency(),
+    priority: 'all',
+    deadline: 'any',
+    entityVerified: null,
+    hasDeadline: null,
+  }
 }
 
 export function AdvancedFiltersWithSearch({
@@ -52,7 +55,7 @@ export function AdvancedFiltersWithSearch({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [filters, setFilters] = useState<FilterState>({
-    ...defaultFilterState,
+    ...buildDefaultFilterState(),
     ...defaultFilters
   })
 
@@ -142,7 +145,7 @@ export function AdvancedFiltersWithSearch({
   }, [performSearch])
 
   const handleClearFilters = useCallback(() => {
-    const clearedFilters = { ...defaultFilterState }
+    const clearedFilters = buildDefaultFilterState()
     setFilters(clearedFilters)
 
     // Clear filter parameters from URL
@@ -153,6 +156,7 @@ export function AdvancedFiltersWithSearch({
     url.searchParams.delete('location')
     url.searchParams.delete('budgetMin')
     url.searchParams.delete('budgetMax')
+    url.searchParams.delete('currency')
     url.searchParams.delete('priority')
     url.searchParams.delete('deadline')
     url.searchParams.delete('entityVerified')
@@ -238,7 +242,7 @@ export function urlParamsToFilters(searchParams: URLSearchParams): Partial<Filte
   if (searchParams.has('location')) filters.location = searchParams.get('location') || ''
   if (searchParams.has('budgetMin')) filters.budgetMin = searchParams.get('budgetMin') || ''
   if (searchParams.has('budgetMax')) filters.budgetMax = searchParams.get('budgetMax') || ''
-  if (searchParams.has('currency')) filters.currency = searchParams.get('currency') || 'USD'
+  if (searchParams.has('currency')) filters.currency = searchParams.get('currency') || getClientMainCurrency()
   if (searchParams.has('priority')) filters.priority = searchParams.get('priority') as any
   if (searchParams.has('deadline')) filters.deadline = searchParams.get('deadline') as any
   if (searchParams.has('entityVerified')) filters.entityVerified = searchParams.get('entityVerified') === 'true'
