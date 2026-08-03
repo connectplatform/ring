@@ -8,9 +8,11 @@
  *
  * BACKLOG (documented in docs/en/features/tunnel-protocol.mdx FutureFeatureBacklog):
  * - TUNNEL_HUB_MODE=redis|connect for multi-replica hub fan-out
- * - Postgres LISTEN/NOTIFY bridge for k8s-postgres mode (replace in-process-only fan-out)
  * - Subscribe/unsubscribe telemetry endpoint for ops (duplicate /api/tunnel/subscribe detection)
  * - Optional: migrate useSync tunnel leg fully to useTunnelChannel
+ *
+ * Done 2026-08-04 (1.97.15): Postgres LISTEN/NOTIFY bridge — PostgresFanoutTunnelHub when
+ * TUNNEL_HUB_MODE=k8s-postgres and TUNNEL_POSTGRES_FANOUT=enabled (default disabled).
  *
  * Done 2026-07-21 (Tunnel User Channel Upgrade): call-invite/call-event return Message for
  * local thread append; syncDiscovery optional snippet; entity detail/confidential/my live;

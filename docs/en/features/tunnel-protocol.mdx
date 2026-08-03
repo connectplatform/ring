@@ -427,9 +427,9 @@ The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSC
 
 <FutureFeatureWidget
   name="Postgres LISTEN/NOTIFY hub bridge"
-  description="k8s-postgres mode today persists but fan-out is in-process only — NOTIFY would decouple publish from replica memory."
+  description="Shipped 1.97.15 (default off): PostgresFanoutTunnelHub via TUNNEL_POSTGRES_FANOUT=enabled. Leave replicas at 1 until enabled + smoked; Redis/Connect hubs remain backlog."
   implementationCost={48}
-  labels={['tunnel', 'postgres', 'k8s']}
+  labels={['tunnel', 'postgres', 'k8s', 'shipped']}
   voteCount={0}
 />
 
