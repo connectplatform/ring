@@ -1,14 +1,20 @@
 /**
  * Connection config for tunnel fan-out LISTEN Client / NOTIFY queries.
  * Prefers DATABASE_URL; falls back to DB_* (same env surface as k8s secrets).
+ * SSL mirrors DatabaseService (`DB_SSL=true`).
  */
 
 import type { ClientConfig } from 'pg';
 
+function sslOption(): boolean | undefined {
+  return process.env.DB_SSL === 'true' ? true : undefined;
+}
+
 export function getTunnelFanoutPgConfig(): ClientConfig {
   const url = process.env.DATABASE_URL?.trim();
+  const ssl = sslOption();
   if (url) {
-    return { connectionString: url };
+    return ssl ? { connectionString: url, ssl } : { connectionString: url };
   }
 
   return {
@@ -17,5 +23,6 @@ export function getTunnelFanoutPgConfig(): ClientConfig {
     database: process.env.DB_NAME || 'ring_platform',
     user: process.env.DB_USER || 'ring_user',
     password: process.env.DB_PASSWORD || 'ring_dev_password',
+    ...(ssl ? { ssl } : {}),
   };
 }

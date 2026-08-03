@@ -13,6 +13,7 @@
  *
  * Done 2026-08-04 (1.97.15): Postgres LISTEN/NOTIFY bridge — PostgresFanoutTunnelHub when
  * TUNNEL_HUB_MODE=k8s-postgres and TUNNEL_POSTGRES_FANOUT=enabled (default disabled).
+ * Fan-out path is live-only (stable message.id; no per-pod offline ghost queues).
  *
  * Done 2026-07-21 (Tunnel User Channel Upgrade): call-invite/call-event return Message for
  * local thread append; syncDiscovery optional snippet; entity detail/confidential/my live;

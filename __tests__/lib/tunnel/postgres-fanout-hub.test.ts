@@ -6,8 +6,8 @@ import { TunnelMessageType, type TunnelMessage } from '@/lib/tunnel/types'
 
 /** Structural stand-in — avoid importing InMemoryTunnelHub (pulls nanoid via protocol in Jest). */
 type LocalHubLike = {
-  publishToUser(userId: string, message: TunnelMessage): PublishToUserResult
-  publishToChannel(channel: string, message: TunnelMessage): void
+  publishToUserLive(userId: string, message: TunnelMessage): PublishToUserResult
+  publishToChannelLive(channel: string, message: TunnelMessage): void
 }
 
 function createMockTransport(): PostgresFanoutTransport & {
@@ -33,10 +33,10 @@ function createMockTransport(): PostgresFanoutTransport & {
   }
 }
 
-/** Minimal local hub stand-in — avoids pulling nanoid via InMemoryTunnelHub in Jest. */
+/** Minimal local hub stand-in — tracks live-only publish paths used by the decorator. */
 function createMockLocalHub() {
-  const publishedUsers: Array<{ userId: string; message: TunnelMessage }> = []
-  const publishedChannels: Array<{ channel: string; message: TunnelMessage }> = []
+  const publishedUsers: Array<{ userId: string; message: TunnelMessage; via: 'live' }> = []
+  const publishedChannels: Array<{ channel: string; message: TunnelMessage; via: 'live' }> = []
 
   const local: LocalHubLike & {
     publishedUsers: typeof publishedUsers
@@ -44,12 +44,12 @@ function createMockLocalHub() {
   } = {
     publishedUsers,
     publishedChannels,
-    publishToUser(userId: string, message: TunnelMessage): PublishToUserResult {
-      publishedUsers.push({ userId, message })
-      return { sseDelivered: false, wsDelivered: true, queued: true }
+    publishToUserLive(userId: string, message: TunnelMessage): PublishToUserResult {
+      publishedUsers.push({ userId, message, via: 'live' })
+      return { sseDelivered: false, wsDelivered: true, queued: false }
     },
-    publishToChannel(channel: string, message: TunnelMessage): void {
-      publishedChannels.push({ channel, message })
+    publishToChannelLive(channel: string, message: TunnelMessage): void {
+      publishedChannels.push({ channel, message, via: 'live' })
     },
   }
 
@@ -62,7 +62,7 @@ function wrapHub(local: LocalHubLike, transport: PostgresFanoutTransport, instan
 }
 
 describe('PostgresFanoutTunnelHub', () => {
-  it('delivers locally and NOTIFYs on publishToUser', async () => {
+  it('delivers locally via live path and NOTIFYs on publishToUser', async () => {
     const local = createMockLocalHub()
     const transport = createMockTransport()
     const hub = wrapHub(local, transport, 'pod-a:1')
@@ -78,17 +78,40 @@ describe('PostgresFanoutTunnelHub', () => {
     })
 
     expect(result.wsDelivered).toBe(true)
+    expect(result.queued).toBe(false)
     expect(local.publishedUsers).toHaveLength(1)
+    expect(local.publishedUsers[0]!.via).toBe('live')
     expect(transport.envelopes).toHaveLength(1)
     expect(transport.envelopes[0]).toMatchObject({
       v: 1,
       origin: 'pod-a:1',
       op: 'user',
       userId: 'user-1',
+      message: { id: 'm1' },
     })
   })
 
-  it('applies remote envelopes to local hub and skips self-echo', async () => {
+  it('assigns a stable message.id shared by local publish and NOTIFY envelope', async () => {
+    const local = createMockLocalHub()
+    const transport = createMockTransport()
+    const hub = wrapHub(local, transport, 'pod-a:1')
+    await hub.startFanout()
+
+    hub.publishToUser('user-1', {
+      type: TunnelMessageType.NOTIFICATION,
+      channel: 'notifications',
+      event: 'update',
+      payload: { text: 'hi' },
+      metadata: { timestamp: Date.now() },
+    } as TunnelMessage)
+
+    const localId = local.publishedUsers[0]!.message.id
+    const envelopeId = transport.envelopes[0]!.message.id
+    expect(localId).toBeTruthy()
+    expect(envelopeId).toBe(localId)
+  })
+
+  it('applies remote envelopes via live path and skips self-echo', async () => {
     const localA = createMockLocalHub()
     const localB = createMockLocalHub()
     const transportA = createMockTransport()
@@ -115,6 +138,7 @@ describe('PostgresFanoutTunnelHub', () => {
     // Self-echo on A must not call local.publish again
     expect(localA.publishedUsers).toHaveLength(1)
     expect(localB.publishedUsers).toHaveLength(1)
+    expect(localB.publishedUsers[0]!.via).toBe('live')
     expect(localB.publishedUsers[0]!.message.id).toBe('cross')
   })
 
@@ -140,5 +164,25 @@ describe('PostgresFanoutTunnelHub', () => {
 
     expect(transport.envelopes).toHaveLength(0)
     expect(local.publishedUsers).toHaveLength(1)
+    expect(local.publishedUsers[0]!.via).toBe('live')
+  })
+
+  it('publishes channels via live path with stable id on NOTIFY', async () => {
+    const local = createMockLocalHub()
+    const transport = createMockTransport()
+    const hub = wrapHub(local, transport, 'pod-a:1')
+    await hub.startFanout()
+
+    hub.publishToChannel('conversation:abc', {
+      type: TunnelMessageType.DATA,
+      channel: 'conversation:abc',
+      event: 'message',
+      payload: { body: 'x' },
+      metadata: { timestamp: 1 },
+    } as TunnelMessage)
+
+    expect(local.publishedChannels).toHaveLength(1)
+    expect(local.publishedChannels[0]!.via).toBe('live')
+    expect(transport.envelopes[0]!.message.id).toBe(local.publishedChannels[0]!.message.id)
   })
 })

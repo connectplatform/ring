@@ -275,7 +275,12 @@ export class InMemoryTunnelHub implements TunnelHub {
     return delivered;
   }
 
-  private deliverToChannelSubscribers(channel: string, message: TunnelMessage): void {
+  private deliverToChannelSubscribers(
+    channel: string,
+    message: TunnelMessage,
+    options: { enqueueOfflineIfMiss?: boolean } = {},
+  ): void {
+    const enqueueOfflineIfMiss = options.enqueueOfflineIfMiss !== false;
     const subscribers = this.channelSubscribers.get(channel);
     if (!subscribers) return;
 
@@ -283,7 +288,7 @@ export class InMemoryTunnelHub implements TunnelHub {
       const wsDelivered = this.deliverWsToUser(userId, message);
       if (!wsDelivered) {
         const sseDelivered = this.deliverSseToUser(userId, message);
-        if (!sseDelivered) {
+        if (!sseDelivered && enqueueOfflineIfMiss) {
           this.enqueueOffline(userId, message);
         }
       }
@@ -309,6 +314,18 @@ export class InMemoryTunnelHub implements TunnelHub {
     return { sseDelivered, wsDelivered, queued: true };
   }
 
+  /**
+   * Live SSE/WS only — no offline or poll enqueue.
+   * Used by PostgresFanoutTunnelHub so publishing pods do not accumulate
+   * ghost offline queues for users connected on other replicas (double-delivery).
+   */
+  publishToUserLive(userId: string, message: TunnelMessage): PublishToUserResult {
+    const msg = ensureMessageId(message);
+    const sseDelivered = this.deliverSseToUser(userId, msg);
+    const wsDelivered = this.deliverWsToUser(userId, msg);
+    return { sseDelivered, wsDelivered, queued: false };
+  }
+
   publishToChannel(channel: string, message: TunnelMessage): void {
     const msg = ensureMessageId(message);
 
@@ -321,6 +338,16 @@ export class InMemoryTunnelHub implements TunnelHub {
 
     this.deliverToChannelSubscribers(channel, msg);
 
+    pushQueue(this.channelMessages, `channel:${channel}`, msg);
+  }
+
+  /**
+   * Live channel subscribers only — no offline enqueue, no broadcast to all SSE users.
+   * Still records `channelMessages` for poll on this pod.
+   */
+  publishToChannelLive(channel: string, message: TunnelMessage): void {
+    const msg = ensureMessageId(message);
+    this.deliverToChannelSubscribers(channel, msg, { enqueueOfflineIfMiss: false });
     pushQueue(this.channelMessages, `channel:${channel}`, msg);
   }
 

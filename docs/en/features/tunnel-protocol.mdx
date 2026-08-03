@@ -65,7 +65,8 @@ Your clone feels **alive**: unread badges update, chat messages appear, marketpl
 
 ### Operator expectations
 
-- **Single replica today** — `TUNNEL_HUB_MODE=k8s-postgres` uses in-process fan-out; scale-out requires backlog hub modes (widgets below).
+- **Replicas** — default is single-pod in-process hub. Multi-replica publish needs `TUNNEL_HUB_MODE=k8s-postgres` **and** `TUNNEL_POSTGRES_FANOUT=enabled` (Postgres LISTEN/NOTIFY). Leave replicas at 1 until enabled + smoked. Redis/Connect hubs remain backlog.
+- **Fan-out delivery** — when Postgres fan-out is on, publish is **live-only** (SSE/WS). No per-pod offline ghost queues (avoids double-delivery). Missed tabs use FCM / DB history / client refetch on reconnect.
 - **FCM is the offline path** — tunnel covers active tabs only.
 - **Stale UI after deploy** — check `/api/tunnel/test` and browser network for repeated subscribe calls (should be one per channel per session).
 
@@ -78,6 +79,7 @@ Your clone feels **alive**: unread badges update, chat messages appear, marketpl
 ```
 server.ts → Next handler + attachTunnelWss (k8s/self-hosted)
 TUNNEL_HUB_MODE=k8s-postgres → getTunnelHub() → InMemoryTunnelHub
+  (+ PostgresFanoutTunnelHub when TUNNEL_POSTGRES_FANOUT=enabled)
 Server services → lib/tunnel/publisher.ts → getTunnelHub()
 /api/tunnel/* → getTunnelHub()
 Client → TunnelProvider → channel-subscription-registry → TransportManager → WSS | SSE | poll
@@ -273,6 +275,9 @@ Production chat uses **`hooks/use-messaging.ts`** (`useMessages`, `useTyping`) �
 RING_DEPLOY_TARGET=k8s
 NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
 TUNNEL_HUB_MODE=k8s-postgres
+# Multi-replica only — keep disabled until smoke:
+# TUNNEL_POSTGRES_FANOUT=enabled
+# TUNNEL_NOTIFY_CHANNEL=ring_tunnel_fanout
 NEXT_PUBLIC_TUNNEL_TRANSPORT=auto
 # NEXT_PUBLIC_TUNNEL_WS_URL=wss://your-host/api/tunnel/ws
 ```
@@ -301,7 +306,9 @@ Override via env (optional): `NEXT_PUBLIC_TUNNEL_TIMING_STRATEGY`, `NEXT_PUBLIC_
 
 ### Boot race, offline queue, and publisher logging
 
-During login, `DeviceTelemetryProvider` may POST `/api/analytics/device` **before** the tunnel socket is live. Server `publishToUserTunnel` then sees `sse=false, ws=false` — the hub **queues** the message instead of dropping it.
+During login (single-pod / fan-out **off**), `DeviceTelemetryProvider` may POST `/api/analytics/device` **before** the tunnel socket is live. Server `publishToUserTunnel` then sees `sse=false, ws=false` — `InMemoryTunnelHub` **queues** the message instead of dropping it.
+
+With `TUNNEL_POSTGRES_FANOUT=enabled`, the decorator uses **live-only** delivery so publishing pods do not create ghost offline queues for users connected on other replicas. Brief disconnects miss Tunnel replay; FCM and REST refetch cover offline.
 
 <Mermaid title="Offline queue drain on connect">
 {`sequenceDiagram
@@ -427,7 +434,7 @@ The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSC
 
 <FutureFeatureWidget
   name="Postgres LISTEN/NOTIFY hub bridge"
-  description="Shipped 1.97.15 (default off): PostgresFanoutTunnelHub via TUNNEL_POSTGRES_FANOUT=enabled. Leave replicas at 1 until enabled + smoked; Redis/Connect hubs remain backlog."
+  description="Shipped (default off): PostgresFanoutTunnelHub via TUNNEL_POSTGRES_FANOUT=enabled — live-only cross-pod delivery, stable message.id, DB_SSL-aware LISTEN. Leave replicas at 1 until enabled + smoked; Redis/Connect hubs remain backlog."
   implementationCost={48}
   labels={['tunnel', 'postgres', 'k8s', 'shipped']}
   voteCount={0}

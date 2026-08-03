@@ -1,6 +1,13 @@
 /**
  * Decorator hub: local InMemoryTunnelHub + Postgres LISTEN/NOTIFY cross-pod fan-out.
  * Overrides publishToUser / publishToChannel only; registries stay in-process.
+ *
+ * Delivery policy (multi-pod safe):
+ * - Always assign a stable message.id before local + NOTIFY (same id on all pods).
+ * - Use live-only local delivery (no offline/poll ghost queues on the publishing pod).
+ * - Remote envelopes also live-only — never offline-queue on a pod that merely heard NOTIFY.
+ * - Brief disconnect / truly offline users rely on DB history + FCM; Tunnel replay across
+ *   pods would need distributed presence (out of scope for NOTIFY MVP).
  */
 
 import type { TunnelMessage } from '../../types';
@@ -21,6 +28,14 @@ export function isTunnelHubLifecycle(hub: TunnelHub): hub is TunnelHub & TunnelH
     typeof (hub as TunnelHub & Partial<TunnelHubLifecycle>).startFanout === 'function' &&
     typeof (hub as TunnelHub & Partial<TunnelHubLifecycle>).stopFanout === 'function'
   );
+}
+
+function ensureFanoutMessageId(message: TunnelMessage): TunnelMessage {
+  if (message.id) return message;
+  return {
+    ...message,
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  };
 }
 
 export class PostgresFanoutTunnelHub implements TunnelHub, TunnelHubLifecycle {
@@ -52,11 +67,11 @@ export class PostgresFanoutTunnelHub implements TunnelHub, TunnelHubLifecycle {
     if (envelope.origin === this.instanceId) return;
 
     if (envelope.op === 'user' && envelope.userId) {
-      this.local.publishToUser(envelope.userId, envelope.message);
+      this.local.publishToUserLive(envelope.userId, envelope.message);
       return;
     }
     if (envelope.op === 'channel' && envelope.channel) {
-      this.local.publishToChannel(envelope.channel, envelope.message);
+      this.local.publishToChannelLive(envelope.channel, envelope.message);
     }
   }
 
@@ -67,25 +82,27 @@ export class PostgresFanoutTunnelHub implements TunnelHub, TunnelHubLifecycle {
   // —— publish overrides ——
 
   publishToUser(userId: string, message: TunnelMessage): PublishToUserResult {
-    const result = this.local.publishToUser(userId, message);
+    const msg = ensureFanoutMessageId(message);
+    const result = this.local.publishToUserLive(userId, msg);
     this.enqueueFanout({
       v: 1,
       origin: this.instanceId,
       op: 'user',
       userId,
-      message,
+      message: msg,
     });
     return result;
   }
 
   publishToChannel(channel: string, message: TunnelMessage): void {
-    this.local.publishToChannel(channel, message);
+    const msg = ensureFanoutMessageId(message);
+    this.local.publishToChannelLive(channel, msg);
     this.enqueueFanout({
       v: 1,
       origin: this.instanceId,
       op: 'channel',
       channel,
-      message,
+      message: msg,
     });
   }
 
