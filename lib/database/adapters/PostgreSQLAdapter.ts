@@ -176,6 +176,12 @@ export class PostgreSQLAdapter implements IDatabaseService {
     generated_videos: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    generated_docs_media: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    docs_article_enrichment: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     conversations: new Set([
       'id', 'created_at', 'updated_at'
     ]),

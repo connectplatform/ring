@@ -50,7 +50,7 @@ export const AudioConductor = {
     try {
       const provider = getAudioProvider(ctx.provider)
       const output = await synthesizeFromProvider(provider, ctx)
-      const objectKey = buildObjectKey()
+      const objectKey = ctx.objectKey?.trim() || buildObjectKey()
       const upload = await file().upload(objectKey, output.buffer, {
         access: 'public',
         contentType: output.contentType,

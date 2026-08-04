@@ -1,38 +1,43 @@
 ---
 title: MediaConductor
-description: Domain facade that orchestrates scripted media and docs-article walkthroughs over the Image/Video/Audio/Text conductors — with content-hash caching for docs narration and walkthroughs.
-last_modified: "2026-07-10"
+description: Domain facade for scripted media plus docs Audible (radio-host TTS), Visual walkthroughs, and Agent NODUS — SHA-keyed enrichment with background first-load generation.
+last_modified: "2026-08-04"
 audience: both
 ---
 
 # MediaConductor
 
-MediaConductor is Ring Platform's **domain facade** for multi-step media generation. It does not reimplement any provider logic — it compiles prompts and delegates to the existing `VideoConductor`, `ImageConductor`, `AudioConductor`, and `TextConductor`. Its most visible use is the **docs article media** feature: any docs page can be turned into spoken narration or a short walkthrough, cached by content hash so the cost is paid once.
+MediaConductor is Ring Platform's **domain facade** for multi-step media generation. It does not reimplement providers — it compiles prompts and delegates to `VideoConductor`, `ImageConductor`, `AudioConductor`, and `TextConductor`. Its most visible surface is **docs article media**: every docs page can offer **Audible** (radio-host narration → TTS), **Visual** (optional member+ walkthrough video), and **Agent** (minimized NODUS at `/docs/.../nodus.json`, indexed from `/llms.txt`).
 
 <Callout type="info">
-  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see what the feature does and its cost controls; developers see modules, the cache contract, and the docs-media server actions.
+  Use **Founder** / **Developer** tabs in the docs sidebar to filter this page. Founders see the article-header buttons and cost controls; developers see enrichment modules, SHA cache contracts, `after()` background work, and verified routes.
 </Callout>
 
 ## What it powers
 
 | Surface | Entry | Output |
 |---------|-------|--------|
-| Docs narration | `generateDocNarration` (`app/_actions/docs-media.ts`) | TTS audio of the article (public, cached) |
-| Docs walkthrough | `generateDocWalkthrough` | Summary TTS + optional draft video (video = member+) |
+| Docs Audible | Header **Audible** → `generateDocNarration` → `ensureTtsAudio` | Radio-host `audible-text` → TTS (`tts-audio`), public, SHA-cached |
+| Docs Visual | Header **Visual** → `generateDocWalkthrough` | Summary TTS + optional draft video (video = member+) |
+| Docs Agent | Header **Create** / **Agent** → `ensureLlmText` | Minimized `docs_article` NODUS (`llm-text`) + clipboard |
+| Agent index | `/llms.txt` | Markdown index linking each article's `/nodus.json` |
+| Background enrich | RSC `after(ensureDocsArticleEnrichmentBackground)` | Audible + Agent warmed on first article load when missing |
 | Scripted media | `MediaConductor.generateScript` / `generateClip` | Per-clip video from a `ScriptedVideoGenerationRequest` |
 
 <Audience for="founder">
 
 ## Why this matters for your clone
 
-- **Docs that talk** — visitors can press Play on any docs page to hear a spoken summary instead of reading. Great for accessibility and for members who prefer audio.
-- **Pay once, reuse forever** — the first Play generates and stores the media keyed by a hash of the page content. Every later Play reuses the stored file. Editing the MDX changes the hash, so narration regenerates only when the content actually changes.
-- **Cost-controlled video** — audio narration is open to any visitor; the heavier **video walkthrough** requires a signed-in member or higher, so video spend stays bounded.
-- **One media brain** — the same conductor drives scripted marketing clips and docs walkthroughs, reusing your configured image / video / audio providers. No separate integration to maintain.
+- **Docs that talk** — the article header **Audible** button plays a warm radio-host script (cold open, gist, pitfalls, next step) — not a robotic dump of every heading and table. Expand **Show transcript** beside the player when you want the spoken text.
+- **Pay once, reuse forever** — first generation stores `audible-text` + MP3 keyed by a full content SHA-256. Later visits reuse the file. Editing the MDX changes the SHA, so narration regenerates (with an align pass that weaves new facts into the prior script).
+- **Ready while you read** — on first open, the server schedules background enrichment. Buttons show **Generating…** and the client polls every 2s until Audible and Agent are ready.
+- **Agent-friendly** — `/llms.txt` lists docs; each page exposes `/nodus.json`. The **Create** button builds the payload once; **Agent** (+ copy) copies JSON or the absolute NODUS URL when ready.
+- **Cost-controlled Visual** — Audible is public; **Visual** video requires a signed-in **member+** role so heavy video spend stays bounded.
+- **One media brain** — the same conductor drives scripted marketing clips and docs walkthroughs via your configured image / video / audio / text providers.
 
 <Cards>
   <Card title="Wallet" href="/docs/features/wallet">
-    Member roles that unlock video walkthroughs.
+    Member roles that unlock Visual video walkthroughs.
   </Card>
   <Card title="VideoConductor" href="/docs/features/video-conductor">
     The scripted-video engine MediaConductor delegates to.
@@ -42,56 +47,83 @@ MediaConductor is Ring Platform's **domain facade** for multi-step media generat
   </Card>
 </Cards>
 
+<Callout type="tip">
+  Look at the top-right of any docs article: **Audible** · **Visual** · **Create** / **Agent**. If you just opened a page for the first time, wait for Generating… to finish — Play will then hit the cache.
+</Callout>
+
 </Audience>
 
 <Audience for="developer">
 
 ## Architecture
 
-`lib/media/conductor/media-conductor.ts` exports the `MediaConductor` object. It compiles a clip into a video body (`clipToGenerateVideoBody`) then calls `VideoConductor.generate` / `.remaster`; for docs it also calls `TextConductor.generate` (summary) and `AudioConductor.synthesize` (TTS).
+`lib/media/conductor/media-conductor.ts` exports the `MediaConductor` object. Docs **Audible** / **Agent** prefer the enrichment SSOT in `lib/docs/docs-article-enrichment.ts` (TextConductor radio-host → AudioConductor TTS → Filebase). Walkthrough **Visual** still goes through `MediaConductor.generateDocWalkthrough` and mirrors into `generated_docs_media`.
 
 ### Modules
 
 | Module | Path | Role |
 |--------|------|------|
 | MediaConductor | `lib/media/conductor/media-conductor.ts` | `generateClip`, `generateScript`, `generateDocWalkthrough` |
-| Docs media actions | `app/_actions/docs-media.ts` | `generateDocNarration`, `generateDocWalkthrough` (server actions) |
-| Content-hash cache | `lib/docs/docs-media-cache.ts` | `hashDocsContent`, `findDocsMediaCache`, `saveDocsMediaCache` |
+| Docs enrichment SSOT | `lib/docs/docs-article-enrichment.ts` | `ensureAudibleText`, `ensureTtsAudio`, `ensureLlmText`, `getDocsArticleMediaStatus`, `ensureDocsArticleEnrichmentBackground` |
+| Docs media actions | `app/_actions/docs-media.ts` | `getDocMediaStatus`, `ensureDocMediaBackground`, `generateDocNarration`, `createOrGetDocAgentNodus`, `generateDocWalkthrough` |
+| Article chrome | `components/docs/docs-article-shell.tsx` | Loads status; `after()` schedules background enrich when `shouldEnrich` |
+| Header buttons | `components/docs/docs-article-media-actions.tsx` | Audible / Visual / Agent UI; 2s poll while generating |
+| Legacy URL mirror | `lib/docs/docs-media-cache.ts` | `generated_docs_media` rows (short hash mirror for walkthrough / narration URLs) |
+| Agent NODUS API | `app/api/docs/nodus/[locale]/[[...slug]]/route.ts` | Public JSON via `next.config.mjs` rewrites |
+| LLM index | `app/llms.txt/route.ts` | `/llms.txt` curated Markdown index |
+| Schema | `data/migrations/045_docs_media_and_enrichment.sql` | `generated_docs_media` + `docs_article_enrichment` (applied local + prod) |
 | Delegates | `lib/video`, `lib/images`, `lib/audio`, `lib/text` | Video / Image / Audio / Text conductors |
 
 ### Docs media flow
 
-<Mermaid title="Docs narration / walkthrough">
+<Mermaid title="Audible enrichment + after() background">
 {`sequenceDiagram
-  participant C as Docs page (Play)
-  participant SA as docs-media server action
-  participant H as hashDocsContent
-  participant DB as generated_docs_media
-  participant MC as MediaConductor
-  participant AV as Audio/Video conductors
+  participant Shell as docs-article-shell RSC
+  participant After as Next.js after()
+  participant UI as DocsArticleMediaActions
+  participant SA as docs-media actions
+  participant EN as docs-article-enrichment
+  participant TC as TextConductor
+  participant AC as AudioConductor
+  participant DB as docs_article_enrichment
 
-  C->>SA: generateDocNarration | generateDocWalkthrough
-  SA->>SA: resolveDocFilePath + readDocMatter
-  SA->>H: hash(locale:slug:content)
-  SA->>DB: findDocsMediaCache(contentHash)
-  alt cache hit
-    DB-->>SA: audioUrl / videoUrl
-    SA-->>C: { success, cached: true }
-  else cache miss
-    SA->>MC: generate (narration/walkthrough)
-    MC->>AV: TTS (+ optional draft video)
-    AV-->>SA: url(s)
-    SA->>DB: saveDocsMediaCache(...)
-    SA-->>C: { success, cached: false }
-  end`}
+  Shell->>EN: getDocsArticleMediaStatus
+  alt shouldEnrich
+    Shell->>After: ensureDocsArticleEnrichmentBackground
+    After->>EN: ensureTtsAudio then ensureLlmText
+  end
+  UI->>SA: poll getDocMediaStatus every 2s
+  SA->>EN: status snapshot
+  Note over UI: Audible click if still missing
+  UI->>SA: generateDocNarration
+  SA->>EN: ensureTtsAudio
+  EN->>TC: radio-host or ALIGN_EXISTING_AUDIBLE
+  TC-->>EN: audibleText
+  EN->>AC: synthesize objectKey docs/sha256.mp3
+  AC-->>EN: audioUrl
+  EN->>DB: save enrichment + invalidate history
+  SA-->>UI: audioUrl + status`}
 </Mermaid>
 
-### Content-hash cache contract
+### SHA-256 cache contract
 
-- Collection: **`generated_docs_media`** (via `db()` — `findDocById` / `createDoc` / `updateDoc`).
-- Hash: `sha256(input).slice(0, 24)` of `locale:slug:plainContent` (walkthrough hash also folds in `walkthrough:<enableVideo>`).
-- Record id: `docs-media-<kind>-<locale>-<hash>` where `kind` is `narration | walkthrough`.
-- First request synthesizes and stores; later identical requests return `cached: true`. Editing the MDX changes the hash → fresh generation.
+- **Collections:** `docs_article_enrichment` (audible-text / tts-audio / llm-text + `history`) and `generated_docs_media` (URL mirror for narration/walkthrough) via `db()` — registered in `BackendSelector` + `PostgreSQLAdapter`.
+- **Content SHA:** `hashArticleContentSha256(locale, slug, plain)` = full `sha256(\`${locale}:${slug.join('/')}:${plain}\`)`. Ready state requires `contentSha256` match on enrichment + `ttsAudio.contentSha256`.
+- **Row id:** `docs-enrich-{locale}-{sha256(slug).slice(0,24)}` (stable per locale/slug; content SHA lives in the document body).
+- **TTS objectKey:** `{AUDIO_STORAGE_PREFIX||generated/audio}/docs/{fullSha256}.mp3` — reuse only when URL, objectKey, and SHA all match; otherwise regenerate.
+- **SHA change:** prior `ttsAudio` / `audibleText` / `llmText` pushed to `history.audibles` / `history.llmTexts` with `status: 'invalidated'`. New audible uses TextConductor `TASK_MODE: ALIGN_EXISTING_AUDIBLE` when a prior script exists.
+- **Agent path:** `ensureLlmText` builds minimized NODUS (`object_type: docs_article`, `source_content_hash`). Public URLs: `/docs/<slug>/nodus.json` and `/:locale/docs/.../nodus.json` → rewrite → API route.
+- **Index:** `GET /llms.txt` lists absolute `/nodus.json` links (DEFAULT_LOCALE scan).
+
+### Article header UX (verified)
+
+| Control | Missing | Generating | Ready |
+|---------|---------|------------|-------|
+| **Audible** | Triggers `generateDocNarration` | Spinner label | Plays `[data-docs-audible-player]`; optional show/hide transcript |
+| **Visual** | `generateDocWalkthrough({ enableVideo: true })` | Spinner | Shows video when returned; member+ gated |
+| **Agent** | Label **Create** (`agentCreate`) → `createOrGetDocAgentNodus` then clipboard | Spinner | Label **Agent** + copy icon — copies NODUS JSON or absolute URL |
+
+Client fallback: if `shouldEnrich` and RSC `after()` did not finish, `ensureDocMediaBackground` runs from the client; poll interval is **2000 ms**.
 
 ### Access rules (verified)
 
@@ -99,15 +131,15 @@ MediaConductor is Ring Platform's **domain facade** for multi-step media generat
 
 <Step>
 
-**Narration is public**
+**Audible is public**
 
-`generateDocNarration` has no auth gate — any visitor may trigger it; cost is amortized via the cache.
+`generateDocNarration` has no auth gate — any visitor may trigger it; cost is amortized via the SHA cache / background enrich.
 
 </Step>
 
 <Step>
 
-**Video requires member+**
+**Visual video requires member+**
 
 In `generateDocWalkthrough`, `enableVideo: true` requires a session (`AUTH_REQUIRED`) and `hasMemberPrivileges(session.user.role)` (`MEMBER_REQUIRED`). Audio-only walkthroughs have no role gate.
 
@@ -135,40 +167,56 @@ MediaConductor is one of several thin domain facades that reuse the shared media
 
 </Audience>
 
-## Related
+## Related documentation
 
-<Cards>
-  <Card title="Generative Gallery" href="/docs/features/generative-media">
-    NFT + product Upload \| Generate field (ImageConductor / Ghost-write) — sibling surface, not docs walkthrough.
-  </Card>
-  <Card title="VideoConductor" href="/docs/features/video-conductor">
-    Scripted AI video generation.
-  </Card>
-  <Card title="News" href="/docs/features/news">
-    NewsConductor article + media enrichment.
-  </Card>
-  <Card title="Doc System" href="/docs/features/doc-system">
-    MDX docs rendering and the audience-curated sidebar.
-  </Card>
-  <Card title="Wallet" href="/docs/features/wallet">
-    WalletConductor and member roles.
-  </Card>
-</Cards>
+<RelatedDocs>
+
+<RelatedArticle
+  slug="features/doc-system"
+  relation="Prerequisite: MDX docs chrome and audience-curated sidebar that host the Audible / Visual / Agent header."
+/>
+
+<RelatedArticle
+  slug="features/video-conductor"
+  relation="Depends-on: VideoConductor is the draft walkthrough engine MediaConductor calls for Visual."
+/>
+
+<RelatedArticle
+  slug="features/generative-media"
+  relation="See-also: Generative Gallery Upload \| Generate — sibling media surface, not docs walkthrough."
+/>
+
+<RelatedArticle
+  slug="features/news"
+  relation="Same-workflow: NewsConductor enriches news articles with TTS and images using the same conductor family."
+/>
+
+<RelatedArticle
+  slug="features/wallet"
+  relation="Next-step: member roles that unlock Visual video generation."
+/>
+
+<RelatedArticle
+  slug="development/scripted-media-pipeline"
+  relation="Deep-dive: scripted clip pipeline behind MediaConductor.generateScript / generateClip."
+/>
+
+</RelatedDocs>
 
 <FutureFeatureBacklog title="Backlog — MediaConductor (TBD)">
 
 <FutureFeatureWidget
-  name="Docs media Play UI on every article"
-  description="Server actions generateDocNarration/generateDocWalkthrough and the generated_docs_media cache are live. A universal in-page Play/listen control on all docs pages (with progress + language toggle) is the remaining UX surface."
-  implementationCost={40}
-  labels={['docs', 'media', 'ux']}
+  name="Docs audible language toggle"
+  description="Audible TTS already follows the article locale (en/uk/ru/es/de). Remaining UX: an explicit language toggle when the article locale differs from the UI locale so operators can regenerate narration in another language without switching the page locale."
+  implementationCost={22}
+  labels={['docs', 'media', 'ux', 'i18n']}
 />
 
 <FutureFeatureWidget
-  name="Cache invalidation dashboard"
-  description="Admin view to inspect and purge generated_docs_media rows per locale/slug. Today cache entries are regenerated implicitly when MDX content hash changes."
-  implementationCost={24}
-  labels={['docs', 'media', 'admin']}
+  name="Enrichment GC collector (>1 year)"
+  description="Invalidated audibles and llm-text are retained on docs_article_enrichment.history (and Filebase objects). Ship a collector that garbage-collects invalidated history rows and ring-filebase objects older than 1 year — TODO(gc) in docs-article-enrichment.ts."
+  implementationCost={28}
+  labels={['docs', 'media', 'ops', 'storage']}
 />
 
 </FutureFeatureBacklog>

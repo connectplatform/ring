@@ -16,6 +16,7 @@
 import 'server-only'
 
 import { logger } from '@/lib/logger'
+import { parseResponseJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 export class ForgejoApiError extends Error {
   constructor(
@@ -119,6 +120,15 @@ async function forgejoFetch(
   }
 }
 
+
+async function readJson<T>(res: Response): Promise<T> {
+  const parsed = await parseResponseJsonSafe<T>(res)
+  if (parsed.data == null) {
+    throw new ForgejoApiError(parsed.error || 'Empty Forgejo JSON', res.status)
+  }
+  return parsed.data
+}
+
 async function readError(res: Response): Promise<string> {
   try {
     const text = await res.text()
@@ -146,7 +156,7 @@ export async function getTree(
       await readError(res),
     )
   }
-  const data = (await res.json()) as { tree?: ForgejoTreeEntry[] }
+  const data = await readJson<{ tree?: ForgejoTreeEntry[] }>(res)
   return Array.isArray(data.tree) ? data.tree : []
 }
 
@@ -172,13 +182,13 @@ export async function getFile(
       await readError(res),
     )
   }
-  const data = (await res.json()) as {
+  const data = await readJson<{
     content?: string
     encoding?: string
     sha?: string
     path?: string
     type?: string
-  }
+  }>(res)
   if (data.type && data.type !== 'file') {
     throw new ForgejoApiError('Path is not a file', 400)
   }
@@ -240,10 +250,10 @@ export async function commitFile(
       await readError(res),
     )
   }
-  const data = (await res.json()) as {
+  const data = await readJson<{
     content?: { sha?: string }
     commit?: { sha?: string }
-  }
+  }>(res)
   return {
     commitSha: String(data.commit?.sha || ''),
     contentSha: String(data.content?.sha || ''),
@@ -268,7 +278,7 @@ export async function listCommits(
       await readError(res),
     )
   }
-  const data = (await res.json()) as Array<{
+  const data = await readJson<Array<{
     sha?: string
     commit?: {
       message?: string
@@ -276,7 +286,7 @@ export async function listCommits(
     }
     html_url?: string
     url?: string
-  }>
+  }>>(res)
   if (!Array.isArray(data)) return []
   return data.map((c) => ({
     sha: String(c.sha || ''),
@@ -306,7 +316,7 @@ export async function getCommit(
       await readError(res),
     )
   }
-  const data = (await res.json()) as {
+  const data = await readJson<{
     sha?: string
     commit?: {
       message?: string
@@ -321,7 +331,7 @@ export async function getCommit(
       deletions?: number
       patch?: string
     }>
-  }
+  }>(res)
 
   let files = Array.isArray(data.files) ? data.files : []
   if (!files.length) {
@@ -332,7 +342,7 @@ export async function getCommit(
         opts,
       )
       if (cmp.ok) {
-        const full = (await cmp.json()) as { files?: typeof files }
+        const full = await readJson<{ files?: typeof files }>(cmp)
         if (Array.isArray(full.files)) files = full.files
       }
     } catch {

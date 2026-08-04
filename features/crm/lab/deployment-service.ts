@@ -8,6 +8,7 @@ import {
   type MaskedEnvValue,
 } from '@/features/crm/lab/lab-secret-crypto'
 import { getEnvTemplateManifest, isAllowedEnvKey } from '@/features/crm/lab/env-template-parser'
+import { ENV_ESSENTIALS } from '@/features/crm/lab/env-essentials'
 import { isBrandMirrorEnvKey } from '@/features/crm/lab/env-key-ownership'
 import {
   projectConfigToConfigMapEnv,
@@ -81,6 +82,72 @@ export type ProjectDeployment = {
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+async function probeCloneHealth(dep: ProjectDeployment): Promise<{
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unreachable' | 'not_deployed'
+  database?: string | null
+  responseMs?: number | null
+  error?: string | null
+}> {
+  const base =
+    dep.projectUrl?.replace(/\/$/, '') ||
+    (() => {
+      const raw = dep.envConfig.NEXT_PUBLIC_BASE_URL?.value
+      if (!raw || raw.startsWith('v2:')) return null
+      return raw.replace(/\/$/, '')
+    })()
+
+  if (!base) {
+    return { status: 'not_deployed', database: null, responseMs: null, error: null }
+  }
+
+  const url = `${base}/api/health`
+  const started = Date.now()
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000),
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    })
+    const responseMs = Date.now() - started
+    const text = await res.text()
+    if (!text.trim()) {
+      return {
+        status: res.ok ? 'degraded' : 'unhealthy',
+        responseMs,
+        error: 'Empty health body',
+      }
+    }
+    let json: Record<string, unknown> = {}
+    try {
+      json = JSON.parse(text) as Record<string, unknown>
+    } catch {
+      return { status: 'degraded', responseMs, error: 'Invalid health JSON' }
+    }
+    const statusRaw = String(json.status || '').toLowerCase()
+    const status =
+      statusRaw === 'healthy' || statusRaw === 'degraded' || statusRaw === 'unhealthy'
+        ? (statusRaw as 'healthy' | 'degraded' | 'unhealthy')
+        : res.ok
+          ? 'healthy'
+          : 'unhealthy'
+    const services = json.services as Record<string, unknown> | undefined
+    const database =
+      typeof services?.database === 'string'
+        ? services.database
+        : typeof json.database === 'string'
+          ? json.database
+          : null
+    return { status, database, responseMs, error: null }
+  } catch (e) {
+    return {
+      status: 'unreachable',
+      responseMs: Date.now() - started,
+      error: e instanceof Error ? e.message : 'Health probe failed',
+    }
+  }
 }
 
 function parseSourceAuth(raw: unknown): SourceAuth | null {
@@ -479,5 +546,75 @@ export const ProjectDeploymentService = {
     const namespace = dep.namespace || defaultNamespaceForEdge(dep.edge)
     if (!namespace) throw new Error('Namespace is required')
     await deletePod(dep.edge, namespace, pod)
+  },
+
+  /**
+   * Consolidated hero/tab status payload — pods summary + server-side clone health.
+   * Browser must not probe clone /api/health (CORS); this runs on the Ring server.
+   */
+  async getStatusSummary(orderId: string): Promise<{
+    deployment: {
+      edge: RingEdgeId
+      namespace: string
+      deploymentName: string
+      projectUrl: string | null
+      imageTag: string | null
+      lastDeployStatus: ProjectDeployment['lastDeployStatus']
+      lastError: string | null
+      lastDeployAt: string | null
+    }
+    pods: { total: number; ready: number; restarts: number }
+    health: {
+      status: 'healthy' | 'degraded' | 'unhealthy' | 'unreachable' | 'not_deployed'
+      database?: string | null
+      responseMs?: number | null
+      error?: string | null
+    }
+    envEssentialsMissing: string[]
+  }> {
+    const dep = await this.getOrCreate(orderId)
+    let podsList: K8sPodInfo[] = []
+    try {
+      if (dep.namespace || defaultNamespaceForEdge(dep.edge)) {
+        podsList = await this.listPods(orderId)
+      }
+    } catch {
+      podsList = []
+    }
+
+    let ready = 0
+    let restarts = 0
+    for (const p of podsList) {
+      const readyStr = String(p.ready || '')
+      if (readyStr.includes('/') ? readyStr.split('/')[0] === readyStr.split('/')[1] && readyStr !== '0/0' : p.phase === 'Running') {
+        ready += 1
+      }
+      restarts += Number(p.restarts || 0)
+    }
+
+    const essentialsMissing: string[] = []
+    for (const key of ENV_ESSENTIALS) {
+      const entry = dep.envConfig[key]
+      const val = entry?.value ? String(entry.value) : ''
+      if (!val.trim()) essentialsMissing.push(key)
+    }
+
+    const health = await probeCloneHealth(dep)
+
+    return {
+      deployment: {
+        edge: dep.edge,
+        namespace: dep.namespace || '',
+        deploymentName: dep.deploymentName || '',
+        projectUrl: dep.projectUrl,
+        imageTag: dep.imageTag,
+        lastDeployStatus: dep.lastDeployStatus,
+        lastError: dep.lastError,
+        lastDeployAt: dep.lastDeployAt,
+      },
+      pods: { total: podsList.length, ready, restarts },
+      health,
+      envEssentialsMissing: essentialsMissing,
+    }
   },
 }

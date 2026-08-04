@@ -22,6 +22,7 @@ import type { Locale } from '@/i18n/shared'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { RINGIZATION_PLAYBOOK_DOCS_PATH } from '@/features/crm/lab/ringization-playbook'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 function UserRow({
   user,
@@ -37,12 +38,12 @@ function UserRow({
       <div className="flex min-w-0 items-center gap-2">
         <Avatar
           className="h-8 w-8"
-          fallback={user.name.slice(0, 2).toUpperCase()}
+          fallback={(user.name || '?').slice(0, 2).toUpperCase()}
           size="sm"
           src={user.photoURL}
         />
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{user.name}</div>
+          <div className="truncate text-sm font-medium">{user.name || user.id}</div>
           {user.email ? <div className="truncate text-xs text-muted-foreground">{user.email}</div> : null}
         </div>
       </div>
@@ -73,19 +74,21 @@ export function CrmOrderDetailClient({
   const patch = (body: Record<string, unknown>) => {
     setError(null)
     startTransition(async () => {
-      const res = await fetch(`/api/admin/crm/orders/${order.id}`, {
+      const { ok, data, error: parseErr } = await fetchJsonSafe<{
+        error?: string
+        order?: ProjectOrder
+      }>(`/api/admin/crm/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const json = await res.json()
-      if (!res.ok) {
-        setError(json.error || 'Update failed')
+      if (!ok || !data?.order) {
+        setError(data?.error || parseErr || 'Update failed')
         return
       }
-      setOrder(json.order)
-      setProgress(json.order.progress)
-      setIntegratorId(json.order.integratorId ?? '')
+      setOrder(data.order)
+      setProgress(data.order.progress ?? 0)
+      setIntegratorId(data.order.integratorId ?? '')
       router.refresh()
     })
   }

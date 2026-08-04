@@ -5,6 +5,8 @@ export interface SynthesizeAudioContext {
   voiceId?: string
   language?: string
   provider?: AudioProviderId
+  /** When set, upload uses this object key (e.g. docs SHA256.mp3) instead of random UUID. */
+  objectKey?: string
 }
 
 export interface SynthesizeAudioResult {

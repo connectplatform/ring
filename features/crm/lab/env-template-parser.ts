@@ -6,9 +6,11 @@ import {
   isBrandMirrorEnvKey,
   type EnvKeyOwner,
 } from '@/features/crm/lab/env-key-ownership'
+import { ENV_ESSENTIALS } from '@/features/crm/lab/env-essentials'
 
 export type EnvKeyClass = 'public' | 'secret'
 export type { EnvKeyOwner }
+export { ENV_ESSENTIALS } from '@/features/crm/lab/env-essentials'
 
 export interface EnvTemplateKey {
   key: string
@@ -36,23 +38,10 @@ export interface EnvTemplateManifest {
   essentials: string[]
 }
 
-const ESSENTIALS = [
-  'NEXT_PUBLIC_BASE_URL',
-  'NEXT_PUBLIC_APP_URL',
-  'NEXTAUTH_URL',
-  'BLOB_READ_WRITE_TOKEN',
-  'NEXT_PUBLIC_STORAGE_PROVIDER',
-  'RINGBASE_API_URL',
-  'RINGBASE_PUBLIC_URL',
-  'RINGBASE_API_TOKEN',
-  'AUTH_SECRET',
-  'DB_HOST',
-  'DB_PORT',
-  'DB_NAME',
-  'DB_USER',
-  'DB_PASSWORD',
-  'DATABASE_URL',
-] as const
+/** Clone essentials — SSOT in env-essentials.ts (re-exported above). */
+
+/** @deprecated Use ENV_ESSENTIALS */
+const ESSENTIALS = ENV_ESSENTIALS
 
 const BANNER_RE = /^#\s*={10,}\s*$/
 const SUBSECTION_RE = /^#\s*---\s*(.+?)\s*---\s*$/

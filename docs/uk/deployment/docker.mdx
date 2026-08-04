@@ -92,7 +92,7 @@ open http://localhost:3000`}
 
 <Code language="bash" title="terminal">
 {`docker build --platform linux/amd64 \
-  -t registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 \
+  -t registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64 \
   -f Dockerfile .`}
 </Code>
 
@@ -107,13 +107,13 @@ open http://localhost:3000`}
 <Code language="bash" title="terminal">
 {`cd ring-platform.org
 docker build --platform linux/amd64 \
-  -t registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 \
+  -t registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64 \
   -f Dockerfile .`}
 </Code>
 
 #### Крок 2: Надіслати до реєстру
 <Code language="bash" title="terminal">
-{`docker push registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64`}
+{`docker push registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64`}
 </Code>
 
 #### Крок 3: Розгорнути в Kubernetes
@@ -121,7 +121,7 @@ ssh k8s-control-01 'kubectl -n ring-platform-org set image \
 
 <Code language="bash" title="terminal">
 {`deployment/ring-platform \
-  ring-platform=registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64'`}
+  ring-platform=registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64'`}
 </Code>
 
 #### Крок 4: Моніторити розгортання
@@ -194,7 +194,7 @@ spec:
     spec:
       containers:
       - name: ring-platform
-        image: registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64
+        image: registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64
         ports:
         - containerPort: 3000
           name: http

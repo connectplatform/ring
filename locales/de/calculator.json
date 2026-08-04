@@ -473,7 +473,28 @@
       "scaffoldClone": "Clone scaffolden",
       "buildImage": "Image bauen",
       "refreshJob": "Job aktualisieren",
-      "cloneBridgeFiHint": "Scaffold/Build benötigt RING_EDGE_FI_* (k3s-3 BuildKit)."
+      "cloneBridgeFiHint": "Scaffold/Build benötigt RING_EDGE_FI_* (k3s-3 BuildKit).",
+      "sections": "Order Lab",
+      "tabs": {
+        "overview": "Übersicht",
+        "manage": "Verwalten",
+        "project": "Projekt",
+        "secrets": "Secrets",
+        "env": "Env",
+        "source": "Quelle",
+        "deploy": "Deploy",
+        "chats": "Chats",
+        "wiki": "Wiki"
+      },
+      "hero": {
+        "pods": "Pods bereit",
+        "restarts": "Restarts",
+        "deploy": "Deploy",
+        "db": "DB / health",
+        "notDeployed": "n/v",
+        "noNamespace": "Kein Namespace",
+        "unreachable": "Unerreichbar"
+      }
     },
     "buyerBadge": "Meine Projekte",
     "buyerTitle": "Meine Projektaufträge",

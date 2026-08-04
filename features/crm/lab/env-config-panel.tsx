@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { labFieldClassName, toneForEmpty } from '@/features/crm/lab/lab-field-tone'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
+import { ENV_ESSENTIALS } from '@/features/crm/lab/env-essentials'
 import { toast } from '@/hooks/use-toast'
 
 type MaskedValue =
@@ -22,6 +26,7 @@ type Group = {
 
 export function EnvConfigPanel({ orderId }: { orderId: string }) {
   const t = useTranslations('calculator')
+  const tabStatus = useOptionalOrderLabTabStatus()
   const [pending, startTransition] = useTransition()
   const [envConfig, setEnvConfig] = useState<Record<string, MaskedValue>>({})
   const [groups, setGroups] = useState<Group[]>([])
@@ -31,15 +36,42 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
   const [saved, setSaved] = useState(false)
   const [requesting, setRequesting] = useState<string | null>(null)
 
+  const bumpEnvTab = useCallback(
+    (nextEnv: Record<string, MaskedValue>, nextDrafts: Record<string, string> = {}) => {
+      if (!tabStatus) return
+      const flat: Record<string, string> = {}
+      for (const [k, v] of Object.entries(nextEnv)) {
+        if (v?.set) flat[k] = 'set'
+      }
+      for (const [k, v] of Object.entries(nextDrafts)) {
+        if (v.trim()) flat[k] = v
+      }
+      const missingRequired = ENV_ESSENTIALS.filter((k) => !flat[k])
+      tabStatus.setTabStatus('env', {
+        status: missingRequired.length > 0 ? 'error' : 'ok',
+        missingRequired,
+        missingRecommended: [],
+        errors: [],
+      })
+    },
+    [tabStatus],
+  )
+
   const load = useCallback(async () => {
     setError(null)
-    const res = await fetch(`/api/my-jobs/${orderId}/deployment`)
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error || 'Failed to load deployment')
-    setEnvConfig(json.deployment?.envConfig || {})
-    setGroups(json.groups || [])
-    setEssentials(json.essentials || [])
-  }, [orderId])
+    const { ok, data, error: parseErr } = await fetchJsonSafe<{
+      error?: string
+      deployment?: { envConfig?: Record<string, MaskedValue> }
+      groups?: Group[]
+      essentials?: string[]
+    }>(`/api/my-jobs/${orderId}/deployment`)
+    if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to load deployment')
+    if (data.error) throw new Error(data.error)
+    setEnvConfig(data.deployment?.envConfig || {})
+    setGroups(data.groups || [])
+    setEssentials(data.essentials || [])
+    bumpEnvTab(data.deployment?.envConfig || {})
+  }, [bumpEnvTab, orderId])
 
   useEffect(() => {
     startTransition(() => {
@@ -57,18 +89,24 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
     setSaved(false)
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/deployment`, {
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          deployment?: { envConfig?: Record<string, MaskedValue> }
+        }>(`/api/my-jobs/${orderId}/deployment`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ envConfig: drafts }),
         })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Save failed')
-        setEnvConfig(json.deployment?.envConfig || {})
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Save failed')
+        if (data.error) throw new Error(data.error)
+        const next = data.deployment?.envConfig || {}
+        setEnvConfig(next)
         setDrafts({})
         setSaved(true)
+        bumpEnvTab(next)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Save failed')
+        tabStatus?.markTabError('env', e instanceof Error ? e.message : 'save_failed')
       }
     })
   }
@@ -81,13 +119,16 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
         : keys.some((k) => k.includes('RINGBASE') || k.includes('BLOB'))
           ? '/docs/integrations/ring-filebase'
           : '/docs/backend/firebase'
-      const res = await fetch('/api/my-jobs/env-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, keys, docsPath }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Request failed')
+      const { ok, data, error: parseErr } = await fetchJsonSafe<{ error?: string }>(
+        '/api/my-jobs/env-request',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, keys, docsPath }),
+        },
+      )
+      if (!ok || !data) throw new Error(parseErr || data?.error || 'Request failed')
+      if (data.error) throw new Error(data.error)
       toast({
         title: t('order.lab.requestSent'),
         description: keys.join(', '),
@@ -103,8 +144,23 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
     }
   }
 
-  const renderKey = (key: string, cls: 'public' | 'secret', owner?: string) => {
+  const renderKey = (
+    key: string,
+    cls: 'public' | 'secret',
+    owner?: string,
+    optional?: boolean,
+  ) => {
     const masked = envConfig[key]
+    const isEssential = essentials.includes(key)
+    const draftVal = drafts[key] ?? ''
+    const empty =
+      !draftVal.trim() &&
+      !(masked?.set)
+    const tone = toneForEmpty({
+      empty,
+      required: isEssential && !optional,
+      recommended: optional || (!isEssential && empty),
+    })
     const isOwnerPrivate = owner === 'owner_private' || masked?.owner === 'owner_private'
     if (isOwnerPrivate) {
       return (
@@ -117,7 +173,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
           </Label>
           <div className="flex flex-wrap items-center gap-2">
             <Input
-              className="font-mono text-xs"
+              className={labFieldClassName(tone, 'font-mono text-xs')}
               disabled
               placeholder={masked?.set ? '•••••••• (set)' : t('order.lab.missing')}
               type="password"
@@ -153,7 +209,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
           ) : null}
         </Label>
         <Input
-          className="font-mono text-xs"
+          className={labFieldClassName(tone, 'font-mono text-xs')}
           disabled={pending}
           placeholder={placeholder || (cls === 'secret' ? t('order.lab.enterSecret') : '')}
           type={cls === 'secret' ? 'password' : 'text'}
@@ -182,7 +238,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
             <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
               {t('order.lab.cloneEssentials')}
             </p>
-            {essentialKeys.map((k) => renderKey(k.key, k.class, k.owner))}
+            {essentialKeys.map((k) => renderKey(k.key, k.class, k.owner, k.optional))}
           </div>
         ) : null}
 
@@ -193,7 +249,7 @@ export function EnvConfigPanel({ orderId }: { orderId: string }) {
               <div className="mt-3 space-y-3">
                 {g.keys
                   .filter((k) => !essentials.includes(k.key))
-                  .map((k) => renderKey(k.key, k.class, k.owner))}
+                  .map((k) => renderKey(k.key, k.class, k.owner, true))}
               </div>
             </details>
           ))}

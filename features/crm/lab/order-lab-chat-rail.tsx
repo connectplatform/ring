@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { Loader2, MessageSquare, FlaskConical, X } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -39,11 +40,15 @@ export function OrderLabChatRail({
       setBooting(true)
       setBootError(null)
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/chat`)
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Failed to open chats')
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          labConversationId?: string
+          orderLabConversationId?: string
+        }>(`/api/my-jobs/${orderId}/chat`)
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to open chats')
+        if (data.error) throw new Error(data.error)
         if (!cancelled) {
-          setLabId(json.labConversationId || json.orderLabConversationId)
+          setLabId(data.labConversationId || data.orderLabConversationId || null)
         }
       } catch (e) {
         if (!cancelled) setBootError(e instanceof Error ? e.message : 'Chat bootstrap failed')

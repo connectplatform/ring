@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react'
+import { after } from 'next/server'
 import { Link } from '@/i18n/routing'
 import { Calendar, Clock } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -9,6 +10,10 @@ import {
   loadDocsArticleContext,
   type DocsBreadcrumbItem,
 } from '@/lib/docs/docs-article'
+import {
+  ensureDocsArticleEnrichmentBackground,
+  getDocsArticleMediaStatus,
+} from '@/lib/docs/docs-article-enrichment'
 import { DocsArticleBackButton } from '@/components/docs/docs-article-back-button'
 import { DocsArticleMediaActions } from '@/components/docs/docs-article-media-actions'
 
@@ -59,6 +64,7 @@ function DocsArticleBreadcrumbs({ items }: { items: DocsBreadcrumbItem[] }) {
 /**
  * Docs center-pane article chrome: back + breadcrumbs, meta row, separators.
  * Hidden on `/docs` hub (empty slug) per doc-system contract.
+ * On first load, schedules audible + NODUS enrichment via `after()` when missing.
  */
 export async function DocsArticleShell({
   locale: rawLocale,
@@ -78,6 +84,21 @@ export async function DocsArticleShell({
   const formattedDate = article.lastModified
     ? formatDocsLastModified(article.lastModified, locale)
     : null
+
+  const mediaStatus = await getDocsArticleMediaStatus({
+    locale,
+    slug: article.slug,
+  })
+
+  if (mediaStatus?.shouldEnrich) {
+    after(() =>
+      ensureDocsArticleEnrichmentBackground({
+        locale,
+        slug: article.slug,
+        title: article.title,
+      }),
+    )
+  }
 
   return (
     <header
@@ -113,7 +134,11 @@ export async function DocsArticleShell({
               {t('listenMinutes', { minutes: article.readingTime.minutes })}
             </span>
           </div>
-          <DocsArticleMediaActions slug={article.slug} title={article.title} />
+          <DocsArticleMediaActions
+            slug={article.slug}
+            title={article.title}
+            initialStatus={mediaStatus}
+          />
         </div>
 
         <hr className="border-border" />

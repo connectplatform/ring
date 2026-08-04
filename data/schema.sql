@@ -786,6 +786,44 @@ COMMENT ON TABLE public.generated_videos IS 'AI-generated videos stored in ring-
 
 
 --
+-- Name: generated_docs_media; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.generated_docs_media (
+    id character varying(255) NOT NULL,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE generated_docs_media; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.generated_docs_media IS 'Cached docs narration/walkthrough media URLs keyed by locale+slug+contentHash';
+
+
+--
+-- Name: docs_article_enrichment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.docs_article_enrichment (
+    id character varying(255) NOT NULL,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE docs_article_enrichment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.docs_article_enrichment IS 'Derived docs fields: audible-text (radio-host script), tts-audio meta, llm-text NODUS subtree';
+
+
+--
 -- Name: inventory_levels; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2559,6 +2597,22 @@ ALTER TABLE ONLY public.file_cabinet_nodes
 
 ALTER TABLE ONLY public.generated_images
     ADD CONSTRAINT generated_images_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: generated_docs_media generated_docs_media_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.generated_docs_media
+    ADD CONSTRAINT generated_docs_media_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: docs_article_enrichment docs_article_enrichment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.docs_article_enrichment
+    ADD CONSTRAINT docs_article_enrichment_pkey PRIMARY KEY (id);
 
 
 --
@@ -6928,6 +6982,7 @@ INSERT INTO public.schema_versions (version, description, applied_at, applied_by
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('025', 'Subscription ledger: subscription_ledger JSONB SSOT for multi-provider subscriptions', '2026-07-24 00:09:59.234145+03', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('037', 'Auth tables PRIMARY KEY + unique provider/providerAccountId on accounts', '2026-07-24 00:09:59.547543+03', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('043', 'Peer games: peer_game_sessions + user_peer_games JSONB collections', '2026-07-24 00:09:59.712105+03', 'ring_user');
+INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('045', '045_docs_media_and_enrichment: generated_docs_media + docs_article_enrichment', '2026-08-04 00:00:00+03', 'ring_user');
 
 
 --

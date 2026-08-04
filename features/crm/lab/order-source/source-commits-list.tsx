@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 export type SourceCommitRow = {
   sha: string
@@ -48,10 +49,13 @@ export function SourceCommitsList({
     setError(null)
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/source/commits/${sha}`)
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Failed to load commit')
-        setDetail(json.commit)
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          commit?: CommitDetail
+        }>(`/api/my-jobs/${orderId}/source/commits/${sha}`)
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to load commit')
+        if (data.error) throw new Error(data.error)
+        setDetail(data.commit || null)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed')
         setDetail(null)

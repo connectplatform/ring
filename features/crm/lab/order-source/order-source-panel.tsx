@@ -13,6 +13,8 @@ import {
   SourceCommitsList,
   type SourceCommitRow,
 } from '@/features/crm/lab/order-source/source-commits-list'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+
 type SourcePanelRole = 'admin' | 'integrator' | 'buyer'
 type TreeEntry = { path: string; type: 'file' | 'dir'; size?: number }
 
@@ -55,15 +57,23 @@ export function OrderSourcePanel({
   const loadTreeAndCommits = useCallback(async () => {
     setError(null)
     setScaffoldFirst(false)
-    const [treeRes, commitsRes] = await Promise.all([
-      fetch(`/api/my-jobs/${orderId}/source/tree`),
-      fetch(`/api/my-jobs/${orderId}/source/commits?limit=30`),
+    const [treeParsed, commitsParsed] = await Promise.all([
+      fetchJsonSafe<{
+        error?: string
+        code?: string
+        tree?: TreeEntry[]
+      }>(`/api/my-jobs/${orderId}/source/tree`),
+      fetchJsonSafe<{
+        error?: string
+        code?: string
+        commits?: SourceCommitRow[]
+      }>(`/api/my-jobs/${orderId}/source/commits?limit=30`),
     ])
-    const treeJson = await treeRes.json()
-    const commitsJson = await commitsRes.json()
+    const treeJson = treeParsed.data || {}
+    const commitsJson = commitsParsed.data || {}
 
     if (
-      treeRes.status === 409 &&
+      treeParsed.status === 409 &&
       (treeJson.code === 'SOURCE_NOT_SCAFFOLDED' || commitsJson.code === 'SOURCE_NOT_SCAFFOLDED')
     ) {
       setScaffoldFirst(true)
@@ -71,9 +81,11 @@ export function OrderSourcePanel({
       setCommits([])
       return
     }
-    if (!treeRes.ok) throw new Error(treeJson.error || 'Failed to load tree')
-    if (!commitsRes.ok && commitsRes.status !== 409) {
-      throw new Error(commitsJson.error || 'Failed to load commits')
+    if (!treeParsed.ok) {
+      throw new Error(treeJson.error || treeParsed.error || 'Failed to load tree')
+    }
+    if (!commitsParsed.ok && commitsParsed.status !== 409) {
+      throw new Error(commitsJson.error || commitsParsed.error || 'Failed to load commits')
     }
     const files = ((treeJson.tree || []) as TreeEntry[]).filter((e) => e.type === 'file')
     setTree(files)
@@ -87,15 +99,17 @@ export function OrderSourcePanel({
   const loadFile = useCallback(
     async (path: string) => {
       setError(null)
-      const res = await fetch(
-        `/api/my-jobs/${orderId}/source/file?path=${encodeURIComponent(path)}`,
-      )
-      const json = await res.json()
-      if (res.status === 409 && json.code === 'SOURCE_NOT_SCAFFOLDED') {
+      const { ok, status, data, error: parseErr } = await fetchJsonSafe<{
+        error?: string
+        code?: string
+        file?: { content: string; sha?: string }
+      }>(`/api/my-jobs/${orderId}/source/file?path=${encodeURIComponent(path)}`)
+      const json = data || {}
+      if (status === 409 && json.code === 'SOURCE_NOT_SCAFFOLDED') {
         setScaffoldFirst(true)
         return
       }
-      if (!res.ok) throw new Error(json.error || 'Failed to load file')
+      if (!ok || !json.file) throw new Error(json.error || parseErr || 'Failed to load file')
       setContent(json.file.content)
       setBaseline(json.file.content)
       setSha(json.file.sha)
@@ -141,7 +155,11 @@ export function OrderSourcePanel({
     setError(null)
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/source/file`, {
+        const { ok, status, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          code?: string
+          contentSha?: string
+        }>(`/api/my-jobs/${orderId}/source/file`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -151,13 +169,13 @@ export function OrderSourcePanel({
             sha,
           }),
         })
-        const json = await res.json()
-        if (res.status === 409 && json.code === 'SOURCE_CONFLICT') {
+        const json = data || {}
+        if (status === 409 && json.code === 'SOURCE_CONFLICT') {
           setError(t('order.source.conflictReload'))
           await loadFile(selectedPath)
           return
         }
-        if (!res.ok) throw new Error(json.error || 'Commit failed')
+        if (!ok) throw new Error(json.error || parseErr || 'Commit failed')
         setSha(json.contentSha || sha)
         setBaseline(content)
         setMessage('')

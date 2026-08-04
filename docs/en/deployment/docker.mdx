@@ -86,7 +86,7 @@ Always build with explicit platform for Kubernetes AMD64 nodes
 
 <Code language="bash" title="terminal">
 {`docker build --platform linux/amd64 \
-  -t registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 \
+  -t registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64 \
   -f Dockerfile .`}
 </Code>
 
@@ -101,13 +101,13 @@ Always build with explicit platform for Kubernetes AMD64 nodes
 <Code language="bash" title="terminal">
 {`cd ring-platform.org
 docker build --platform linux/amd64 \
-  -t registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 \
+  -t registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64 \
   -f Dockerfile .`}
 </Code>
 
 #### Step 2: Push to Registry
 <Code language="bash" title="terminal">
-{`docker push registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64`}
+{`docker push registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64`}
 </Code>
 
 #### Step 3: Deploy to Kubernetes
@@ -115,7 +115,7 @@ ssh k8s-control-01 'kubectl -n ring-platform-org set image \
 
 <Code language="bash" title="terminal">
 {`deployment/ring-platform \
-  ring-platform=registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64'`}
+  ring-platform=registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64'`}
 </Code>
 
 #### Step 4: Monitor Deployment
@@ -188,7 +188,7 @@ spec:
     spec:
       containers:
       - name: ring-platform
-        image: registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64
+        image: registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64
         ports:
         - containerPort: 3000
           name: http
@@ -358,7 +358,7 @@ Update to new version Check rollout status Rollback if needed
 
 <Code language="bash" title="terminal">
 {`kubectl set image deployment/ring-platform \
-  ring-platform=registry.ringdom.org/ringdom/ring:v0.9.18-ring-platform.org-amd64 \
+  ring-platform=registry.ringdom.org/ringdom-clones/ring:v0.9.18-ring-platform.org-amd64 \
   -n ring-platform-org
 
 kubectl rollout status deployment/ring-platform -n ring-platform-org
@@ -457,7 +457,7 @@ Update with new version Check rollout status Rollback if needed
 
 <Code language="bash" title="terminal">
 {`kubectl set image deployment/ring-platform \
-  ring-platform=registry.ringdom.org/ringdom/ring:v0.9.19-ring-platform.org-amd64 \
+  ring-platform=registry.ringdom.org/ringdom-clones/ring:v0.9.19-ring-platform.org-amd64 \
   -n ring-platform-org
 
 kubectl rollout status deployment/ring-platform -n ring-platform-org

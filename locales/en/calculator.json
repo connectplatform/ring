@@ -474,7 +474,28 @@
       "scaffoldClone": "Scaffold clone",
       "buildImage": "Build image",
       "refreshJob": "Refresh job",
-      "cloneBridgeFiHint": "Clone scaffold/build requires RING_EDGE_FI_* (k3s-3 BuildKit)."
+      "cloneBridgeFiHint": "Clone scaffold/build requires RING_EDGE_FI_* (k3s-3 BuildKit).",
+      "sections": "Order Lab",
+      "tabs": {
+        "overview": "Overview",
+        "manage": "Manage",
+        "project": "Project",
+        "secrets": "Secrets",
+        "env": "Env",
+        "source": "Source",
+        "deploy": "Deploy",
+        "chats": "Chats",
+        "wiki": "Wiki"
+      },
+      "hero": {
+        "pods": "Pods ready",
+        "restarts": "Restarts",
+        "deploy": "Deploy",
+        "db": "DB / health",
+        "notDeployed": "n/a",
+        "noNamespace": "No namespace",
+        "unreachable": "Unreachable"
+      }
     },
     "secrets": {
       "title": "Owner secrets",

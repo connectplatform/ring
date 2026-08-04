@@ -343,13 +343,13 @@ function FeatureCard({ feature }: { feature: ShowcaseFeature }) {
         {/* ── Icon row — top centre ── */}
         <span
           className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-xl border text-lg',
-            'bg-background/70',
+            'flex size-9 shrink-0 items-center justify-center rounded-xl border',
+            'bg-background/70 text-foreground',
             style.border.replace('/30', '/25'),
           )}
           aria-hidden
         >
-          {feature.emoji}
+          <feature.icon className="h-4 w-4" strokeWidth={1.5} />
         </span>
 
         {/* ── Title ── */}

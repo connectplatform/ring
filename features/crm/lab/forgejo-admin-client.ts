@@ -10,6 +10,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 
 import { logger } from '@/lib/logger'
+import { parseResponseJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 export class ForgejoAdminError extends Error {
   constructor(
@@ -80,6 +81,15 @@ async function adminFetch(path: string, init: RequestInit = {}): Promise<Respons
   } finally {
     clearTimeout(timeout)
   }
+}
+
+
+async function readJson<T>(res: Response): Promise<T> {
+  const parsed = await parseResponseJsonSafe<T>(res)
+  if (parsed.data == null) {
+    throw new ForgejoAdminError(parsed.error || 'Empty Forgejo JSON', res.status)
+  }
+  return parsed.data
 }
 
 async function readError(res: Response): Promise<string> {
@@ -185,13 +195,13 @@ export async function mintUserToken(
       await readError(res),
     )
   }
-  const data = (await res.json()) as {
+  const data = await readJson<{
     id?: number
     sha1?: string
     name?: string
     scopes?: string[]
     token_last_eight?: string
-  }
+  }>(res)
   const sha1 = String(data.sha1 || '')
   if (!sha1) {
     throw new ForgejoAdminError('mintUserToken response missing sha1', 502)
@@ -243,13 +253,13 @@ export async function listUsers(opts?: {
         await readError(res),
       )
     }
-    const data = (await res.json()) as Array<{
+    const data = await readJson<Array<{
       id?: number
       login?: string
       email?: string
       created?: string
       created_at?: string
-    }>
+    }>>(res)
     if (!Array.isArray(data) || data.length === 0) break
     for (const u of data) {
       out.push({
@@ -272,7 +282,7 @@ export async function deleteUser(username: string): Promise<void> {
       `/users/${encodeURIComponent(username)}/tokens?${new URLSearchParams({ sudo: username })}`,
     )
     if (list.ok) {
-      const tokens = (await list.json()) as Array<{ id?: number }>
+      const tokens = await readJson<Array<{ id?: number }>>(list)
       if (Array.isArray(tokens)) {
         for (const t of tokens) {
           if (t.id) {

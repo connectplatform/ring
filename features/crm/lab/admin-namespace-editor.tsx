@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 type EdgeId = 'us' | 'fi' | 'ua'
 
@@ -29,10 +30,18 @@ export function AdminNamespaceEditor({ orderId }: { orderId: string }) {
   const [saved, setSaved] = useState(false)
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/my-jobs/${orderId}/deployment`)
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error || 'Failed to load')
-    const d = json.deployment
+    const { ok, data, error: parseErr } = await fetchJsonSafe<{
+      error?: string
+      deployment?: {
+        edge?: EdgeId
+        namespace?: string
+        projectName?: string
+        deploymentName?: string
+      }
+    }>(`/api/my-jobs/${orderId}/deployment`)
+    if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to load')
+    if (data.error) throw new Error(data.error)
+    const d = data.deployment
     if (!d) throw new Error('Deployment missing')
     setEdge(d.edge || 'us')
     setNamespace(d.namespace || '')
@@ -51,18 +60,21 @@ export function AdminNamespaceEditor({ orderId }: { orderId: string }) {
     setSaved(false)
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/deployment`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            edge,
-            namespace,
-            projectName: projectName || null,
-            deploymentName: deploymentName || namespace,
-          }),
-        })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Save failed')
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{ error?: string }>(
+          `/api/my-jobs/${orderId}/deployment`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              edge,
+              namespace,
+              projectName: projectName || null,
+              deploymentName: deploymentName || namespace,
+            }),
+          },
+        )
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Save failed')
+        if (data.error) throw new Error(data.error)
         setSaved(true)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Save failed')

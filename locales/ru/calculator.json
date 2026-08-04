@@ -474,7 +474,28 @@
       "scaffoldClone": "Создать клон",
       "buildImage": "Собрать образ",
       "refreshJob": "Обновить Job",
-      "cloneBridgeFiHint": "Scaffold/build требует RING_EDGE_FI_* (k3s-3 BuildKit)."
+      "cloneBridgeFiHint": "Scaffold/build требует RING_EDGE_FI_* (k3s-3 BuildKit).",
+      "sections": "Order Lab",
+      "tabs": {
+        "overview": "Обзор",
+        "manage": "Управление",
+        "project": "Проект",
+        "secrets": "Секреты",
+        "env": "Env",
+        "source": "Код",
+        "deploy": "Деплой",
+        "chats": "Чаты",
+        "wiki": "Wiki"
+      },
+      "hero": {
+        "pods": "Поды",
+        "restarts": "Рестарты",
+        "deploy": "Деплой",
+        "db": "БД / health",
+        "notDeployed": "н/д",
+        "noNamespace": "Без namespace",
+        "unreachable": "Недоступно"
+      }
     },
     "buyerBadge": "Мои проекты",
     "buyerTitle": "Мои заказы проектов",

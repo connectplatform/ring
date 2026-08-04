@@ -16,6 +16,7 @@ import type { Locale } from '@/i18n/shared'
 import type { ProjectOrder } from '@/features/crm/orders/types'
 import type { CrmUserChip } from '@/features/crm/orders/resolve-users'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 import { Loader2 } from 'lucide-react'
 
 function nicheTitle(order: ProjectOrder): string {
@@ -44,18 +45,20 @@ export function MyJobDetailClient({
   const patch = (body: Record<string, unknown>) => {
     setError(null)
     startTransition(async () => {
-      const res = await fetch(`/api/my-jobs/${order.id}`, {
+      const { ok, data, error: parseErr } = await fetchJsonSafe<{
+        error?: string
+        order?: ProjectOrder
+      }>(`/api/my-jobs/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(json.error || t('order.updateFailed'))
+      if (!ok || !data?.order) {
+        setError(parseErr || data?.error || t('order.updateFailed'))
         return
       }
-      setOrder(json.order)
-      setProgress(json.order.progress)
+      setOrder(data.order)
+      setProgress(data.order.progress)
       router.refresh()
     })
   }

@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-08-04",
+    "version": "1.97.20",
+    "mods": [
+      "### Added\n- **Order Lab right-rail tabs** — shared `OrderLabPageShell` (`RingRightRailLayout` + `DavinciCenterPane`) on admin CRM `/admin/crm/orders/[id]`, integrator `/my-jobs/[id]`, buyer `/my-orders/[id]` with role-filtered tabs and `?tab=` deep-links\n- **Hero + status SSOT** — `DavinciGlassStatBlock` strip fed by consolidated `GET /api/my-jobs/[id]/deployment/status` (server-side clone `/api/health` probe; no browser CORS)\n- **Color-coded completion chips** — red/orange/mint via `computeOrderLabTabStatuses` + `LabPanelBoundary.onError`; ownership-aware secrets vs env essentials\n- **Empty-JSON digest hardening** — `fetchJsonSafe` / `parseResponseJsonSafe` across Order Lab panels; File Cabinet action contract stays `{ ok, error|node }`",
+      "### Changed\n- **Owner Project Lab chrome** — vertical Card stacks replaced by profile-like rails; field tones on Env/Project/Secrets; `#project-config` / `?source=` preserved through tab hydrate"
+    ]
+  },
+  {
+    "date": "2026-08-04",
+    "version": "1.97.19",
+    "mods": [
+      "### Added\n- **Docs Audible / Visual / Agent controls** — article header buttons with background enrichment on first load (`after()` + status poll); Audible = radio-host TTS; Agent = Create or copy `/nodus.json`; Visual = walkthrough video (member+)\n- **SHA-256 Filebase keys** — TTS objects stored as `generated/audio/docs/{sha256}.mp3` with invalidate history for prior audibles/llm-text\n- **`/llms.txt` + `/docs/.../nodus.json`** — agent index + per-article NODUS rewrite surfaces\n- **Migration 045** — `generated_docs_media` + `docs_article_enrichment`",
+      "### Changed\n- **Home right rail** — removed LegioX+Connect.Software and Ringdom settler promo blocks (calculator CTA remains)\n- **Feature showcase gallery** — lucide outlined icons (no emoji); gallery fills full center pane width\n- **MediaConductor docs** — radio-host audible path + agent NODUS contract documented"
+    ]
+  },
+  {
+    "date": "2026-08-04",
     "version": "1.97.18",
     "mods": [
       "### Added\n- **NativeWsClient auto-reconnect** — unexpected WSS close self-heals with exponential backoff (`computeReconnectDelay`), fresh `/api/tunnel/token`, channel resubscribe; `reconnect` while retrying, `disconnect` only on intentional close or exhaustion so TransportManager can fall back to SSE\n- **Connect abort safety** — `connectGeneration` + handshake abort so `disconnect()` cannot leave a zombie connected socket",

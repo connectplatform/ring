@@ -177,6 +177,8 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'process_runs', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'generated_images', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'generated_videos', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'generated_docs_media', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'docs_article_enrichment', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'payments', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'merchant_configs', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'payout_batches', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },

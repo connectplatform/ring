@@ -64,40 +64,46 @@ export async function createFolderAction(name: string, parentId?: string | null)
   return node
 }
 
-export async function uploadCabinetFileAction(formData: FormData) {
-  const session = await requireMember()
-  const file = formData.get('file')
-  const parentIdRaw = formData.get('parentId')
-  const parentId =
-    typeof parentIdRaw === 'string' && parentIdRaw.length > 0 ? parentIdRaw : null
+export async function uploadCabinetFileAction(
+  formData: FormData,
+): Promise<{ ok: true; node: Awaited<ReturnType<typeof FileCabinet.createFileNode>> } | { ok: false; error: string }> {
+  try {
+    const session = await requireMember()
+    const file = formData.get('file')
+    const parentIdRaw = formData.get('parentId')
+    const parentId =
+      typeof parentIdRaw === 'string' && parentIdRaw.length > 0 ? parentIdRaw : null
 
-  if (!(file instanceof File)) throw new Error('file required')
+    if (!(file instanceof File)) return { ok: false, error: 'file required' }
 
-  const config = getCabinetStorageConfig()
-  const validation = validateFile(file, config)
-  if (!validation.valid) throw new Error(validation.error || 'Invalid file')
+    const config = getCabinetStorageConfig()
+    const validation = validateFile(file, config)
+    if (!validation.valid) return { ok: false, error: validation.error || 'Invalid file' }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const uploaded = await fileService().upload(file.name, buffer, {
-    access: 'private',
-    contentType: file.type,
-    ringbaseType: file.type.startsWith('image/') ? 'image' : 'document',
-    derivativesProfile: file.type.startsWith('image/') ? 'gallery' : 'none',
-  })
-  if (!uploaded.success || !uploaded.url) {
-    throw new Error(uploaded.error || 'Upload failed')
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const uploaded = await fileService().upload(file.name, buffer, {
+      access: 'private',
+      contentType: file.type,
+      ringbaseType: file.type.startsWith('image/') ? 'image' : 'document',
+      derivativesProfile: file.type.startsWith('image/') ? 'gallery' : 'none',
+    })
+    if (!uploaded.success || !uploaded.url) {
+      return { ok: false, error: uploaded.error || 'Upload failed' }
+    }
+
+    const node = await FileCabinet.createFileNode(session.user.id, {
+      name: file.name,
+      parentId,
+      storageUrl: uploaded.url,
+      storageFileId: uploaded.fileId,
+      mime: uploaded.contentType || file.type,
+      size: uploaded.size || file.size,
+    })
+    revalidatePath('/file-cabinet')
+    return { ok: true, node }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Upload failed' }
   }
-
-  const node = await FileCabinet.createFileNode(session.user.id, {
-    name: file.name,
-    parentId,
-    storageUrl: uploaded.url,
-    storageFileId: uploaded.fileId,
-    mime: uploaded.contentType || file.type,
-    size: uploaded.size || file.size,
-  })
-  revalidatePath('/file-cabinet')
-  return node
 }
 
 export async function deleteCabinetNodeAction(nodeId: string) {

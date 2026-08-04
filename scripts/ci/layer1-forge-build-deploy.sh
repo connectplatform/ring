@@ -105,15 +105,37 @@ env_or() {
   fi
 }
 
+# Shell-quote a value for embedding into the remote buildctl script.
+sq() { printf '%q' "$1"; }
+
 write_remote_buildctl_script() {
   local pod="$1"
   # Public build-args only — AUTH_SECRET / DB passwords stay in K8s at runtime.
-  local g_id fb_key fb_app fb_vapid wc
+  local g_id fb_key fb_app fb_vapid wc next_url app_url api_url fb_proj fb_auth fb_bucket fb_sender fb_meas \
+    db_mode db_host db_port db_name db_user poly wc_id wfp_acct wfp_dom allow_tok allow_pp
   g_id="$(env_or NEXT_PUBLIC_AUTH_GOOGLE_ID '943600517697-dcl8js3nfu0fci1grkrvi9kqraduvgf4.apps.googleusercontent.com')"
   fb_key="$(env_or NEXT_PUBLIC_FIREBASE_API_KEY 'AIzaSyCJGCDpjjP4DrBulMvgQ2vkxt0PFI5dsjA')"
   fb_app="$(env_or NEXT_PUBLIC_FIREBASE_APP_ID '1:943600517697:web:6def92b494dd06f601bcc0')"
   fb_vapid="$(env_or NEXT_PUBLIC_FIREBASE_VAPID_KEY 'BDk39Wsdf1u-8z82smv00xq13gmtK507GmpowQOMzlijT9fcZ6zsX55f6FIgsvR2wP3_anAVWtMM8GSemAN45tM')"
   wc="$(env_or NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID '03531d834dcd14038f2a7d78576e0d41')"
+  next_url="$(env_or NEXTAUTH_URL 'https://ring-platform.org')"
+  app_url="$(env_or NEXT_PUBLIC_APP_URL 'https://ring-platform.org')"
+  api_url="$(env_or NEXT_PUBLIC_API_URL 'https://ring-platform.org')"
+  fb_proj="$(env_or NEXT_PUBLIC_FIREBASE_PROJECT_ID 'ring-platform')"
+  fb_auth="$(env_or NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN 'ring-platform.firebaseapp.com')"
+  fb_bucket="$(env_or NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET 'ring-platform.firebasestorage.app')"
+  fb_sender="$(env_or NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID '943600517697')"
+  fb_meas="$(env_or NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID 'G-P88CYTGMSC')"
+  db_mode="$(env_or DB_BACKEND_MODE 'k8s-postgres-fcm')"
+  db_host="$(env_or DB_HOST 'postgres.ring-platform-org.svc.cluster.local')"
+  db_port="$(env_or DB_PORT '5432')"
+  db_name="$(env_or DB_NAME 'ring_platform')"
+  db_user="$(env_or DB_USER 'ring_user')"
+  poly="$(env_or POLYGON_RPC_URL 'https://polygon-rpc.com')"
+  wfp_acct="$(env_or WAYFORPAY_MERCHANT_ACCOUNT '')"
+  wfp_dom="$(env_or WAYFORPAY_DOMAIN '')"
+  allow_tok="$(env_or NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN 'false')"
+  allow_pp="$(env_or NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL 'false')"
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     log "DRY-RUN: write ${SCRIPT_REMOTE} for pod=${pod} image=${IMAGE}"
@@ -123,41 +145,41 @@ write_remote_buildctl_script() {
   ssh "$BUILD_HOST" "cat > '${SCRIPT_REMOTE}'" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-POD='${pod}'
-IMAGE='${IMAGE}'
-LOG='${LOG_REMOTE}'
-POD_CTX='${POD_CTX}'
+POD=$(sq "$pod")
+IMAGE=$(sq "$IMAGE")
+LOG=$(sq "$LOG_REMOTE")
+POD_CTX=$(sq "$POD_CTX")
 echo "=== START \$(date -u +%Y-%m-%dT%H:%M:%SZ) IMAGE=\$IMAGE ===" > "\$LOG"
 kubectl -n ${BUILDKIT_NS} exec "\$POD" -- buildctl --addr unix:///run/buildkit/buildkitd.sock build \\
   --frontend dockerfile.v0 \\
   --local context=\$POD_CTX \\
   --local dockerfile=\$POD_CTX \\
   --opt platform=linux/amd64 \\
-  --opt build-arg:NEXT_PUBLIC_AUTH_GOOGLE_ID=${g_id} \\
-  --opt build-arg:NEXT_PUBLIC_GOOGLE_CLIENT_ID=${g_id} \\
-  --opt build-arg:NEXTAUTH_URL=$(env_or NEXTAUTH_URL 'https://ring-platform.org') \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(env_or NEXT_PUBLIC_FIREBASE_PROJECT_ID 'ring-platform') \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_API_KEY=${fb_key} \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_APP_ID=${fb_app} \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(env_or NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN 'ring-platform.firebaseapp.com') \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$(env_or NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET 'ring-platform.firebasestorage.app') \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(env_or NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID '943600517697') \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=$(env_or NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID 'G-P88CYTGMSC') \\
-  --opt build-arg:NEXT_PUBLIC_FIREBASE_VAPID_KEY=${fb_vapid} \\
-  --opt build-arg:NEXT_PUBLIC_APP_URL=$(env_or NEXT_PUBLIC_APP_URL 'https://ring-platform.org') \\
-  --opt build-arg:NEXT_PUBLIC_API_URL=$(env_or NEXT_PUBLIC_API_URL 'https://ring-platform.org') \\
+  --opt build-arg:NEXT_PUBLIC_AUTH_GOOGLE_ID=$(sq "$g_id") \\
+  --opt build-arg:NEXT_PUBLIC_GOOGLE_CLIENT_ID=$(sq "$g_id") \\
+  --opt build-arg:NEXTAUTH_URL=$(sq "$next_url") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(sq "$fb_proj") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_API_KEY=$(sq "$fb_key") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_APP_ID=$(sq "$fb_app") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(sq "$fb_auth") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$(sq "$fb_bucket") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(sq "$fb_sender") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=$(sq "$fb_meas") \\
+  --opt build-arg:NEXT_PUBLIC_FIREBASE_VAPID_KEY=$(sq "$fb_vapid") \\
+  --opt build-arg:NEXT_PUBLIC_APP_URL=$(sq "$app_url") \\
+  --opt build-arg:NEXT_PUBLIC_API_URL=$(sq "$api_url") \\
   --opt build-arg:RING_BUILD_SKIP_DB=1 \\
-  --opt build-arg:DB_BACKEND_MODE=$(env_or DB_BACKEND_MODE 'k8s-postgres-fcm') \\
-  --opt build-arg:DB_HOST=$(env_or DB_HOST 'postgres.ring-platform-org.svc.cluster.local') \\
-  --opt build-arg:DB_PORT=$(env_or DB_PORT '5432') \\
-  --opt build-arg:DB_NAME=$(env_or DB_NAME 'ring_platform') \\
-  --opt build-arg:DB_USER=$(env_or DB_USER 'ring_user') \\
-  --opt build-arg:POLYGON_RPC_URL=$(env_or POLYGON_RPC_URL 'https://polygon-rpc.com') \\
-  --opt build-arg:NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${wc} \\
-  --opt build-arg:WAYFORPAY_MERCHANT_ACCOUNT=$(env_or WAYFORPAY_MERCHANT_ACCOUNT '') \\
-  --opt build-arg:WAYFORPAY_DOMAIN=$(env_or WAYFORPAY_DOMAIN '') \\
-  --opt build-arg:NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN=$(env_or NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN 'false') \\
-  --opt build-arg:NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=$(env_or NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL 'false') \\
+  --opt build-arg:DB_BACKEND_MODE=$(sq "$db_mode") \\
+  --opt build-arg:DB_HOST=$(sq "$db_host") \\
+  --opt build-arg:DB_PORT=$(sq "$db_port") \\
+  --opt build-arg:DB_NAME=$(sq "$db_name") \\
+  --opt build-arg:DB_USER=$(sq "$db_user") \\
+  --opt build-arg:POLYGON_RPC_URL=$(sq "$poly") \\
+  --opt build-arg:NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=$(sq "$wc") \\
+  --opt build-arg:WAYFORPAY_MERCHANT_ACCOUNT=$(sq "$wfp_acct") \\
+  --opt build-arg:WAYFORPAY_DOMAIN=$(sq "$wfp_dom") \\
+  --opt build-arg:NEXT_PUBLIC_PAYMENT_STORE_ALLOW_TOKEN=$(sq "$allow_tok") \\
+  --opt build-arg:NEXT_PUBLIC_PAYMENT_STORE_ALLOW_PAYPAL=$(sq "$allow_pp") \\
   --output type=image,name=\$IMAGE,push=true \\
   >>"\$LOG" 2>&1
 EC=\$?

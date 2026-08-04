@@ -8,6 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, ExternalLink, KeyRound } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { labFieldClassName, toneForEmpty } from '@/features/crm/lab/lab-field-tone'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
+import { ENV_ESSENTIALS } from '@/features/crm/lab/env-essentials'
+import { getEnvKeyOwner } from '@/features/crm/lab/env-key-ownership'
 
 type MaskedValue =
   | { set: true; class: 'secret' | 'public'; owner?: string; value?: string }
@@ -24,22 +29,58 @@ type Group = {
  */
 export function OwnerSecretsPanel({ orderId }: { orderId: string }) {
   const t = useTranslations('calculator')
+  const tabStatus = useOptionalOrderLabTabStatus()
   const [pending, startTransition] = useTransition()
   const [envConfig, setEnvConfig] = useState<Record<string, MaskedValue>>({})
   const [groups, setGroups] = useState<Group[]>([])
+  const [essentials, setEssentials] = useState<string[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
 
+  const bumpSecretsTab = useCallback(
+    (nextEnv: Record<string, MaskedValue>, nextDrafts: Record<string, string> = {}) => {
+      if (!tabStatus) return
+      const flat: Record<string, string> = {}
+      for (const [k, v] of Object.entries(nextEnv)) {
+        if (v?.set) flat[k] = 'set'
+      }
+      for (const [k, v] of Object.entries(nextDrafts)) {
+        if (v.trim()) flat[k] = v
+      }
+      const missingRequired = ENV_ESSENTIALS.filter((k) => {
+        const owner = getEnvKeyOwner(k)
+        if (owner !== 'owner_private' && owner !== 'public_shared') return false
+        return !flat[k]
+      })
+      tabStatus.setTabStatus('secrets', {
+        status: missingRequired.length > 0 ? 'error' : 'ok',
+        missingRequired,
+        missingRecommended: [],
+        errors: [],
+      })
+    },
+    [tabStatus],
+  )
+
   const load = useCallback(async () => {
-    const res = await fetch(`/api/my-orders/${orderId}/env`)
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error || 'Failed to load secrets')
-    setEnvConfig(json.envConfig || {})
-    setGroups(json.groups || [])
-    setReadOnly(Boolean(json.readOnly))
-  }, [orderId])
+    const { ok, data, error: parseErr } = await fetchJsonSafe<{
+      error?: string
+      envConfig?: Record<string, MaskedValue>
+      groups?: Group[]
+      essentials?: string[]
+      readOnly?: boolean
+    }>(`/api/my-orders/${orderId}/env`)
+    if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to load secrets')
+    if (data.error) throw new Error(data.error)
+    const next = data.envConfig || {}
+    setEnvConfig(next)
+    setGroups(data.groups || [])
+    setEssentials(data.essentials || [])
+    setReadOnly(Boolean(data.readOnly))
+    bumpSecretsTab(next)
+  }, [bumpSecretsTab, orderId])
 
   useEffect(() => {
     startTransition(() => {
@@ -53,21 +94,29 @@ export function OwnerSecretsPanel({ orderId }: { orderId: string }) {
     setSaved(false)
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/my-orders/${orderId}/env`, {
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          envConfig?: Record<string, MaskedValue>
+        }>(`/api/my-orders/${orderId}/env`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ envConfig: drafts }),
         })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Save failed')
-        setEnvConfig(json.envConfig || {})
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Save failed')
+        if (data.error) throw new Error(data.error)
+        const next = data.envConfig || {}
+        setEnvConfig(next)
         setDrafts({})
         setSaved(true)
+        bumpSecretsTab(next)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Save failed')
+        tabStatus?.markTabError('secrets', e instanceof Error ? e.message : 'save_failed')
       }
     })
   }
+
+  const essentialSet = new Set(essentials)
 
   return (
     <Card id="secrets">
@@ -79,7 +128,7 @@ export function OwnerSecretsPanel({ orderId }: { orderId: string }) {
         <p className="text-sm text-muted-foreground">
           {readOnly
             ? t('order.secrets.readOnlySubtitle', {
-                defaultValue: 'Owner secrets — ask buyer to fill).',
+                defaultValue: 'Owner secrets — ask buyer to fill.',
               })
             : t('order.secrets.subtitle')}
         </p>
@@ -109,6 +158,14 @@ export function OwnerSecretsPanel({ orderId }: { orderId: string }) {
             <div className="grid gap-3 sm:grid-cols-2">
               {g.keys.map((k) => {
                 const masked = envConfig[k.key]
+                const draftVal = drafts[k.key] ?? ''
+                const empty = !draftVal.trim() && !masked?.set
+                const isEssential = essentialSet.has(k.key)
+                const tone = toneForEmpty({
+                  empty,
+                  required: isEssential,
+                  recommended: !isEssential && empty,
+                })
                 const placeholder =
                   masked?.set && (k.class === 'secret' || masked.class === 'secret')
                     ? '•••••••• (set)'
@@ -119,7 +176,7 @@ export function OwnerSecretsPanel({ orderId }: { orderId: string }) {
                   <div key={k.key} className="space-y-1">
                     <Label className="font-mono text-xs">{k.key}</Label>
                     <Input
-                      className="font-mono text-xs"
+                      className={labFieldClassName(tone, 'font-mono text-xs')}
                       disabled={pending || readOnly}
                       placeholder={placeholder}
                       type={k.class === 'secret' ? 'password' : 'text'}

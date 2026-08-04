@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LabThread, EmbeddedConversation } from '@/features/crm/lab/order-lab-chat-rail'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 /**
  * Admin CRM chat — three tabs: shared Project room | Integrator DM | Client DM.
@@ -23,13 +24,20 @@ export function AdminCrmChatTabs({ orderId }: { orderId: string }) {
     const boot = async () => {
       setBooting(true)
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/chat`)
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Failed to open chats')
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          labConversationId?: string
+          orderLabConversationId?: string
+          integratorDmId?: string | null
+          clientDmId?: string | null
+          customerConversationId?: string | null
+        }>(`/api/my-jobs/${orderId}/chat`)
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to open chats')
+        if (data.error) throw new Error(data.error)
         if (!cancelled) {
-          setLabId(json.labConversationId || json.orderLabConversationId)
-          setIntegratorDmId(json.integratorDmId || null)
-          setClientDmId(json.clientDmId || json.customerConversationId || null)
+          setLabId(data.labConversationId || data.orderLabConversationId || null)
+          setIntegratorDmId(data.integratorDmId || null)
+          setClientDmId(data.clientDmId || data.customerConversationId || null)
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Chat failed')

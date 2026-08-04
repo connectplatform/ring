@@ -129,17 +129,19 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
         </div>
       </section>
 
-      <div style={containerStyle}>
-        {/* ───────── FEATURE SHOWCASE GALLERY ───────── */}
+      <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
+        {/* ───────── FEATURE SHOWCASE GALLERY (full center-pane width) ───────── */}
         <motion.section
-          className="motion-safe motion-element mb-16"
+          className="motion-safe motion-element mb-16 w-full max-w-none"
           variants={mounted ? linksVariants : undefined}
           initial={mounted ? 'hidden' : false}
           animate={mounted ? 'visible' : false}
         >
           <FeatureShowcaseGallery />
         </motion.section>
+      </div>
 
+      <div style={containerStyle}>
         {/* ───────── GIT CLONE ───────── */}
         <motion.div
           style={{

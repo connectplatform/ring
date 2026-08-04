@@ -15,6 +15,9 @@ import { ProjectConfigPanel } from '@/features/crm/orders/project-config-panel'
 import { RingizationPlaybookPanel } from '@/features/crm/lab/ringization-playbook-panel'
 import { OrderSourcePanel } from '@/features/crm/lab/order-source/order-source-panel'
 import { WikiDeskPanel } from '@/features/wiki/components/wiki-desk-panel'
+import { OrderLabPageShell } from '@/features/crm/lab/order-lab-page-shell'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import type { OrderLabTabId, OrderLabTabStatus } from '@/features/crm/lab/order-lab-tabs'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { ProjectOrder } from '@/features/crm/orders/types'
@@ -36,10 +39,12 @@ export function BuyerOrderPanel({
   order: initial,
   integrator,
   locale,
+  initialStatuses = {},
 }: {
   order: ProjectOrder
   integrator: CrmUserChip | null
   locale: Locale
+  initialStatuses?: Partial<Record<OrderLabTabId, OrderLabTabStatus>>
 }) {
   const t = useTranslations('calculator')
   const { data: session } = useSession()
@@ -54,18 +59,30 @@ export function BuyerOrderPanel({
     const boot = async () => {
       setLoading(true)
       try {
-        const [detailRes, chatRes] = await Promise.all([
-          fetch(`/api/my-orders/${order.id}`),
-          fetch(`/api/my-jobs/${order.id}/chat`),
+        const [detail, chat] = await Promise.all([
+          fetchJsonSafe<{
+            error?: string
+            order?: ProjectOrder
+            deployment?: DeploySummary
+          }>(`/api/my-orders/${order.id}`),
+          fetchJsonSafe<{
+            error?: string
+            labConversationId?: string
+            orderLabConversationId?: string
+          }>(`/api/my-jobs/${order.id}/chat`),
         ])
-        const detail = await detailRes.json()
-        const chat = await chatRes.json()
-        if (!detailRes.ok) throw new Error(detail.error || 'Failed to load order')
-        if (!chatRes.ok) throw new Error(chat.error || 'Failed to open project room')
+        if (!detail.ok || !detail.data) {
+          throw new Error(detail.error || detail.data?.error || 'Failed to load order')
+        }
+        if (detail.data.error) throw new Error(detail.data.error)
+        if (!chat.ok || !chat.data) {
+          throw new Error(chat.error || chat.data?.error || 'Failed to open project room')
+        }
+        if (chat.data.error) throw new Error(chat.data.error)
         if (!cancelled) {
-          if (detail.order) setOrder(detail.order)
-          setDeployment(detail.deployment)
-          setLabId(chat.labConversationId || chat.orderLabConversationId)
+          if (detail.data.order) setOrder(detail.data.order)
+          setDeployment(detail.data.deployment ?? null)
+          setLabId(chat.data.labConversationId || chat.data.orderLabConversationId || null)
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Load failed')
@@ -82,21 +99,23 @@ export function BuyerOrderPanel({
   const userId = session?.user?.id
   const niche = order.snapshot?.inputs?.niche?.trim() || order.id
 
-  return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6 pb-24">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-            {t('order.buyerBadge')}
-          </p>
-          <h1 className="text-2xl font-bold">{niche}</h1>
-          <p className="text-muted-foreground">{t('order.buyerSubtitle')}</p>
-        </div>
-        <Button asChild size="sm" variant="outline">
-          <Link href={ROUTES.MY_ORDERS(locale)}>{t('order.backToOrders')}</Link>
-        </Button>
+  const header = (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+          {t('order.buyerBadge')}
+        </p>
+        <h1 className="text-2xl font-bold">{niche}</h1>
+        <p className="text-muted-foreground">{t('order.buyerSubtitle')}</p>
       </div>
+      <Button asChild size="sm" variant="outline">
+        <Link href={ROUTES.MY_ORDERS(locale)}>{t('order.backToOrders')}</Link>
+      </Button>
+    </div>
+  )
 
+  const overview = (
+    <div className="space-y-6">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Card>
@@ -133,7 +152,7 @@ export function BuyerOrderPanel({
             <p className="text-sm text-muted-foreground">{t('order.awaitingIntegrator')}</p>
           )}
           <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded border bg-muted/30 p-3 text-xs">
-            {order.details}
+            {order.details || '—'}
           </pre>
         </CardContent>
       </Card>
@@ -191,8 +210,6 @@ export function BuyerOrderPanel({
       </Card>
 
       <RingizationPlaybookPanel locale={locale} role="buyer" />
-      <ProjectConfigPanel mode="buyer" orderId={order.id} />
-      <OwnerSecretsPanel orderId={order.id} />
       <OrderSourcePanel orderId={order.id} role="buyer" />
       <WikiDeskPanel orderId={order.id} locale={locale} />
 
@@ -218,5 +235,20 @@ export function BuyerOrderPanel({
         </CardContent>
       </Card>
     </div>
+  )
+
+  return (
+    <OrderLabPageShell
+      orderId={order.id}
+      role="buyer"
+      initialStatuses={initialStatuses}
+      showHero
+      header={header}
+      panels={{
+        overview,
+        project: <ProjectConfigPanel mode="buyer" orderId={order.id} />,
+        secrets: <OwnerSecretsPanel orderId={order.id} />,
+      }}
+    />
   )
 }

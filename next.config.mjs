@@ -75,10 +75,27 @@ const nextConfig = {
   },
   async rewrites() {
     // Serve KEYS collection metadata as application/json (avoid [locale]/[username] HTML catch-all).
+    // Docs NODUS agent payloads: /docs/.../nodus.json (and locale-prefixed) → API handler.
     return [
       {
         source: '/nft/gates/collection.json',
         destination: '/api/nft/gates/collection',
+      },
+      {
+        source: '/docs/nodus.json',
+        destination: '/api/docs/nodus/en',
+      },
+      {
+        source: '/docs/:path*/nodus.json',
+        destination: '/api/docs/nodus/en/:path*',
+      },
+      {
+        source: '/:locale/docs/nodus.json',
+        destination: '/api/docs/nodus/:locale',
+      },
+      {
+        source: '/:locale/docs/:path*/nodus.json',
+        destination: '/api/docs/nodus/:locale/:path*',
       },
     ]
   },

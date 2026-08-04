@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { logger } from '@/lib/logger'
+import { parseResponseJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 export type RingEdgeId = 'us' | 'fi' | 'ua'
 
@@ -31,6 +32,15 @@ export function getEdgeAvailability(): Record<RingEdgeId, boolean> {
     fi: Boolean(loadEdge('fi')),
     ua: Boolean(loadEdge('ua')),
   }
+}
+
+
+async function readJson<T>(res: Response): Promise<T> {
+  const parsed = await parseResponseJsonSafe<T>(res)
+  if (parsed.data == null) {
+    throw new Error(parsed.error || `Empty k8s JSON (HTTP ${res.status})`)
+  }
+  return parsed.data
 }
 
 async function k8sFetch(
@@ -93,7 +103,7 @@ export async function getDeployment(
     const text = await res.text().catch(() => '')
     throw new Error(`getDeployment failed: ${res.status} ${text.slice(0, 200)}`)
   }
-  return (await res.json()) as Record<string, unknown>
+  return await readJson<Record<string, unknown>>(res)
 }
 
 export async function ensureNamespace(edge: RingEdgeId, namespace: string): Promise<void> {
@@ -384,9 +394,9 @@ export async function ensureForgejoRegistryPullSecret(
       `ensureForgejoRegistryPullSecret get failed: ${existingRes.status} ${text.slice(0, 200)}`,
     )
   }
-  const existing = (await existingRes.json()) as {
+  const existing = await readJson<{
     metadata?: { resourceVersion?: string; name?: string }
-  }
+  }>(existingRes)
   const updateBody = {
     apiVersion: 'v1',
     kind: 'Secret',
@@ -426,7 +436,7 @@ export async function listPods(
     const text = await res.text().catch(() => '')
     throw new Error(`listPods failed: ${res.status} ${text.slice(0, 200)}`)
   }
-  const json = (await res.json()) as {
+  const json = await readJson<{
     items?: Array<{
       metadata?: { name?: string; creationTimestamp?: string }
       status?: {
@@ -435,7 +445,7 @@ export async function listPods(
       }
       spec?: { nodeName?: string }
     }>
-  }
+  }>(res)
   return (json.items || []).map((pod) => {
     const statuses = pod.status?.containerStatuses || []
     const readyCount = statuses.filter((s) => s.ready).length
@@ -524,7 +534,7 @@ export async function createJob(
     const text = await res.text().catch(() => '')
     throw new Error(`createJob failed: ${res.status} ${text.slice(0, 300)}`)
   }
-  return (await res.json()) as Record<string, unknown>
+  return await readJson<Record<string, unknown>>(res)
 }
 
 export async function getJob(
@@ -541,7 +551,7 @@ export async function getJob(
     const text = await res.text().catch(() => '')
     throw new Error(`getJob failed: ${res.status} ${text.slice(0, 200)}`)
   }
-  const json = (await res.json()) as {
+  const json = await readJson<{
     metadata?: { name?: string }
     status?: {
       active?: number
@@ -551,7 +561,7 @@ export async function getJob(
       startTime?: string
       conditions?: K8sJobStatus['conditions']
     }
-  }
+  }>(res)
   return {
     name: json.metadata?.name || name,
     active: json.status?.active || 0,

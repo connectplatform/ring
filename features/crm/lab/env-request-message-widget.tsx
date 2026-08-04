@@ -10,6 +10,7 @@ import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 function parseEnvRequest(message: Message): EnvRequestMetadata | null {
   const meta = message.metadata
@@ -59,13 +60,16 @@ export function EnvRequestMessageWidget({
   const handleCancel = async () => {
     try {
       setCancelling(true)
-      const res = await fetch('/api/my-jobs/env-request/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId: message.id }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Cancel failed')
+      const { ok, data, error: parseErr } = await fetchJsonSafe<{ error?: string }>(
+        '/api/my-jobs/env-request/cancel',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageId: message.id }),
+        },
+      )
+      if (!ok || !data) throw new Error(parseErr || data?.error || 'Cancel failed')
+      if (data.error) throw new Error(data.error)
       setLocalMeta({ status: 'cancelled', cancelledAt: new Date().toISOString() })
       toast({ title: 'Cancelled', description: 'Key update request cancelled' })
     } catch (error) {

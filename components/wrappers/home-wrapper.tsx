@@ -7,13 +7,11 @@ import { useSession } from 'next-auth/react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
-import { CONNECT_SOFTWARE_LINKS } from '@/lib/constants/connect-software-urls'
 import { BookOpen, Briefcase, Building2 } from 'lucide-react'
 import HomeContent from '@/components/pages/home-content-resolver'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { DavinciRailLink, DavinciGlassStatBlock } from '@/lib/ui/davinci'
-import { davinciPanelSurface } from '@/lib/ui/davinci/glass-surface'
 import { DeploymentCalculatorCta } from '@/components/home/deployment-calculator-cta'
 import { getHomePreset } from '@/lib/ring-config-core'
 import { resolveOverlayHomeRail } from '@/lib/overlay/runtime'
@@ -155,56 +153,6 @@ function PlatformHomeRightRail({ locale }: { locale: Locale }) {
         </div>
       </div>
 
-      <div className={cn(davinciPanelSurface, 'space-y-3 p-4')}>
-        <h4 className="font-semibold text-sm mb-1">{tRail('ringdomSettler.title')}</h4>
-        <p className="text-xs text-muted-foreground mb-3">{tRail('ringdomSettler.body')}</p>
-        <a
-          href="https://ringdom.org/en/settler"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline"
-        >
-          {tRail('ringdomSettler.cta')} <span className="text-[10px]">&#8599;</span>
-        </a>
-      </div>
-
-      <div className={cn(davinciPanelSurface, 'space-y-3 p-4')}>
-        <h4 className="font-semibold text-sm">{tRail('legiox.title')}</h4>
-        <p className="text-xs text-muted-foreground">{tRail('legiox.body')}</p>
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={CONNECT_SOFTWARE_LINKS.marketplace}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline"
-          >
-            {tRail('legiox.connectMarketplace')} &#8599;
-          </a>
-          <a
-            href={CONNECT_SOFTWARE_LINKS.skillsets}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-medium text-violet-600/90 dark:text-violet-400/90 hover:underline"
-          >
-            {tRail('legiox.connectSkillsets')}
-          </a>
-          <a
-            href={CONNECT_SOFTWARE_LINKS.mcpServers}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-medium text-violet-600/90 dark:text-violet-400/90 hover:underline"
-          >
-            {tRail('legiox.connectMcp')}
-          </a>
-        </div>
-        <p className="text-[10px] text-muted-foreground/70">{tRail('legiox.nftNote')}</p>
-        <Link
-          href={`${ROUTES.DOCS(locale)}/legiox-nft-access`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline"
-        >
-          {tRail('legiox.cta')}
-        </Link>
-      </div>
     </div>
   )
 }

@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Loader2, RefreshCw, Rocket, GitBranch, Hammer } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 type EdgeId = 'us' | 'fi' | 'ua'
 type Pod = {
@@ -56,27 +57,43 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/my-jobs/${orderId}/deployment`)
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error || 'Failed to load')
-    const d = json.deployment
+    const { ok, data, error: parseErr } = await fetchJsonSafe<{
+      error?: string
+      deployment?: {
+        edge?: EdgeId
+        namespace?: string
+        deploymentName?: string
+        imageTag?: string
+        gitUrl?: string | null
+        lastDeployStatus?: string
+        lastError?: string | null
+      }
+      edges?: Record<EdgeId, boolean>
+      edgeLabels?: Array<{ id: EdgeId; label: string }>
+    }>(`/api/my-jobs/${orderId}/deployment`)
+    if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to load')
+    if (data.error) throw new Error(data.error)
+    const d = data.deployment
     if (!d) throw new Error('Deployment missing')
     setEdge(d.edge || 'us')
-    setEdges(json.edges || {})
-    setEdgeLabels(json.edgeLabels || [])
+    setEdges(data.edges || { us: false, fi: false, ua: false })
+    setEdgeLabels(data.edgeLabels || [])
     setNamespace(d.namespace || '')
     setDeploymentName(d.deploymentName || '')
     setImageTag(d.imageTag || '')
     setGitUrl(d.gitUrl || null)
     setStatus(d.lastDeployStatus || 'idle')
-    setLastError(d.lastError)
+    setLastError(d.lastError ?? null)
   }, [orderId])
 
   const loadPods = useCallback(async () => {
-    const res = await fetch(`/api/my-jobs/${orderId}/deployment/pods`)
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error || 'Failed to list pods')
-    setPods(json.pods || [])
+    const { ok, data, error: parseErr } = await fetchJsonSafe<{
+      error?: string
+      pods?: Pod[]
+    }>(`/api/my-jobs/${orderId}/deployment/pods`)
+    if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to list pods')
+    if (data.error) throw new Error(data.error)
+    setPods(data.pods || [])
   }, [orderId])
 
   useEffect(() => {
@@ -96,14 +113,17 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
           imageTag: imageTag || null,
         }
       : { imageTag: imageTag || null }
-    const res = await fetch(`/api/my-jobs/${orderId}/deployment`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error || 'Save failed')
-    return json
+    const { ok, data, error: parseErr } = await fetchJsonSafe<{ error?: string }>(
+      `/api/my-jobs/${orderId}/deployment`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    )
+    if (!ok || !data) throw new Error(parseErr || data?.error || 'Save failed')
+    if (data.error) throw new Error(data.error)
+    return data
   }
 
   const saveMeta = () => {
@@ -123,12 +143,16 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
       try {
         // Must await real PATCH — previous saveMeta() returned void (race → empty namespace)
         await persistMeta()
-        const res = await fetch(`/api/my-jobs/${orderId}/deployment/deploy`, { method: 'POST' })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Deploy failed')
-        if (json.error && json.success === false) throw new Error(json.error)
-        setStatus(json.deployment?.lastDeployStatus || 'success')
-        setLastError(json.deployment?.lastError || null)
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          success?: boolean
+          deployment?: { lastDeployStatus?: string; lastError?: string | null }
+        }>(`/api/my-jobs/${orderId}/deployment/deploy`, { method: 'POST' })
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Deploy failed')
+        if (data.error && data.success === false) throw new Error(data.error)
+        if (data.error && !data.deployment) throw new Error(data.error)
+        setStatus(data.deployment?.lastDeployStatus || 'success')
+        setLastError(data.deployment?.lastError || null)
         await loadPods()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Deploy failed')
@@ -145,15 +169,19 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
           action === 'scaffold'
             ? `/api/my-jobs/${orderId}/deployment/clone-bridge/scaffold`
             : `/api/my-jobs/${orderId}/deployment/clone-bridge/build`
-        const res = await fetch(path, { method: 'POST' })
-        const json = await res.json()
-        if (!res.ok || json.success === false) {
-          throw new Error(json.error || `${action} failed`)
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          success?: boolean
+          jobName?: string
+          plan?: { gitUrl?: string; imageTag?: string }
+        }>(path, { method: 'POST' })
+        if (!ok || !data || data.success === false) {
+          throw new Error(data?.error || parseErr || `${action} failed`)
         }
-        setBridgeJob(json.jobName || null)
+        setBridgeJob(data.jobName || null)
         setBridgeAction(action)
-        setGitUrl(json.plan?.gitUrl || gitUrl)
-        if (json.plan?.imageTag) setImageTag(json.plan.imageTag)
+        setGitUrl(data.plan?.gitUrl || gitUrl)
+        if (data.plan?.imageTag) setImageTag(data.plan.imageTag)
         setStatus('pending')
         await load()
       } catch (e) {
@@ -167,12 +195,15 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
     if (!bridgeJob) return
     startTransition(async () => {
       try {
-        const res = await fetch(
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          job?: { succeeded: number; failed: number }
+        }>(
           `/api/my-jobs/${orderId}/deployment/clone-bridge/scaffold?job=${encodeURIComponent(bridgeJob)}`,
         )
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Job status failed')
-        const j = json.job
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Job status failed')
+        if (data.error) throw new Error(data.error)
+        const j = data.job
         if (!j) {
           setError('Job not found')
           return
@@ -189,11 +220,14 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
   const viewLogs = (pod: string) => {
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/deployment/pods/${encodeURIComponent(pod)}/logs`)
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Logs failed')
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          logs?: string
+        }>(`/api/my-jobs/${orderId}/deployment/pods/${encodeURIComponent(pod)}/logs`)
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Logs failed')
+        if (data.error) throw new Error(data.error)
         setLogPod(pod)
-        setLogs(json.logs || '')
+        setLogs(data.logs || '')
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Logs failed')
       }
@@ -203,12 +237,12 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
   const restart = (pod: string) => {
     startTransition(async () => {
       try {
-        const res = await fetch(
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{ error?: string }>(
           `/api/my-jobs/${orderId}/deployment/pods/${encodeURIComponent(pod)}/restart`,
           { method: 'POST' },
         )
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Restart failed')
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Restart failed')
+        if (data.error) throw new Error(data.error)
         await loadPods()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Restart failed')

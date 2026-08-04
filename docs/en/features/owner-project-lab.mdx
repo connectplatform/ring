@@ -1,7 +1,7 @@
 ---
 title: Owner Project Lab
-description: Buyer My Projects (/my-orders), shared order_lab chat with integrator and Reggie, and admin CRM order desk under /admin/crm
-last_modified: "2026-07-18"
+description: Buyer My Projects (/my-orders), shared order_lab chat with integrator and Reggie, and admin CRM order desk under /admin/crm — right-rail tabs + hero status
+last_modified: "2026-08-04"
 audience: both
 ---
 
@@ -12,15 +12,19 @@ audience: both
 </Callout>
 
 <Callout type="success" title="Executive summary">
-After a calculator **project order** is paid, the **buyer (owner)** opens **My Projects** at `/my-orders` — status, **Order Project Config** (name/slogan/logo), **owner secrets** (Firebase/RingBase), masked deploy summary, and one shared **Project room** with integrator and Reggie. Integrators work the same room from `/my-jobs/[id]` with ops env + full projectConfig (no owner secrets plaintext). Admins manage orders under `/admin/crm/orders/[id]`. Deploy is integrator/admin only; Reggie never deploys.
+After a calculator **project order** is paid, the **buyer (owner)** opens **My Projects** at `/my-orders` — status, **Order Project Config** (name/slogan/logo), **owner secrets** (Firebase/RingBase), masked deploy summary, and one shared **Project room** with integrator and Reggie. Integrators work the same room from `/my-jobs/[id]` with ops env + full projectConfig (no owner secrets plaintext). Admins manage orders under `/admin/crm/orders/[id]`. All three detail surfaces share **Order Lab right-rail tabs** (color-coded completion) plus a slim **pods / deploy / DB health** hero. Deploy is integrator/admin only; Reggie never deploys.
 </Callout>
 
 | Role | Surface | What they can do |
 |------|---------|------------------|
-| **Buyer** | `/my-orders`, `/my-orders/[id]` | Status; vital **projectConfig**; **owner_private** env; Project room chat — **no** deploy |
-| **Integrator** | `/my-jobs/[id]` Order Lab | Same room; ops env + `imageTag`; full projectConfig; **Request update** for owner keys; deploy |
-| **Admin** | `/admin/crm/orders/[id]` | Three chat tabs + namespace lock; all env + projectConfig |
+| **Buyer** | `/my-orders`, `/my-orders/[id]` | Tabs: overview · project · secrets; vital **projectConfig**; **owner_private** env; Project room chat — **no** deploy |
+| **Integrator** | `/my-jobs/[id]` Order Lab | Tabs: overview · project · secrets · wiki · env · source · deploy (+ floating chat rail); ops env + `imageTag`; full projectConfig; **Request update** for owner keys; deploy |
+| **Admin** | `/admin/crm/orders/[id]` | Tabs: overview · manage · project · secrets · env · source · deploy · chats; namespace lock; all env + projectConfig |
 | **Reggie** | Poller on `order_lab` | Locked to metadata namespace/project; chat plans only — **no deploy** |
+
+### Order Lab chrome (1.97.20)
+
+Shared shell: `OrderLabPageShell` → `RingRightRailLayout` + `DavinciCenterPane` + `OrderLabNavRail` (mint/orange/red chips) + `OrderLabHeroStats`. Deep-links: `?tab=<id>`, `?source=<path>` (opens Source tab), `#project-config` / `#secrets`. Status SSOT: `computeOrderLabTabStatuses` (server first paint) + `GET /api/my-jobs/[id]/deployment/status` (server-side clone `/api/health` — no browser CORS). Client fetches use `fetchJsonSafe` (empty-body digest hardening).
 
 ### Order Project Config SSOT
 
@@ -40,21 +44,21 @@ Control-plane store: `project_orders.data.projectConfig` (allowlisted ring-confi
 
 ## Why this matters for your clone
 
-Custom Ringization orders need a **buyer-facing control panel** that is not the integrator desk. Owners see progress and talk in one room; they never see cluster secrets. Admins keep private escalation DMs while the Project room stays the single source of project talk.
+Custom Ringization orders need a **buyer-facing control panel** that is not the integrator desk. Owners see progress and talk in one room; they never see cluster secrets. Admins keep private escalation DMs while the Project room stays the single source of project talk. Color-coded tabs show what still needs filling (red = required, orange = recommended, mint = ready).
 
 <Cards>
   <Card title="Pay → My Projects" description="Calculator success CTA opens /my-orders/[id] (ROUTES.MY_ORDER), not My Jobs." />
   <Card title="One Project room" description="Buyer, integrator, and Reggie share one order_lab thread; Reggie stays locked to that namespace/project." />
-  <Card title="CRM under one shell" description="Orders, inbox, drafts, contacts, tasks, and analytics share horizontal CRM tabs at /admin/crm/*." />
+  <Card title="CRM under one shell" description="Orders, inbox, drafts, contacts, tasks, and analytics share horizontal CRM tabs at /admin/crm/*; order detail uses Order Lab right rail." />
 </Cards>
 
 ### Operator checklist
 
 1. Buyer pays via calculator → lands on **My Projects** detail for that order.
 2. Nav label **My Projects** (`navigation.myProjectOrders`) lists paid/in-progress work.
-3. Detail shows payment/work status, progress, project URL / last deploy status (masked — no env secrets).
+3. Detail shows payment/work status, progress, project URL / last deploy status (masked — no env secrets) in the hero + Overview tab.
 4. Chat: single **Project room** tab — same room the integrator and Reggie use.
-5. Admin opens `/admin/crm/orders/[id]` for Reggie room | Integrator DM | Client DM, and sets namespace lock when ready.
+5. Admin opens `/admin/crm/orders/[id]` for Manage + Chats (Reggie room | Integrator DM | Client DM), and sets namespace lock when ready.
 
 <Callout type="warning" title="Clean break — no redirects">
 Old `/admin/email-*` page URLs are **gone**. Bookmarks must use `/admin/crm/{inbox,drafts,contacts,tasks,analytics,orders}`. API paths remain `/api/admin/email/*`.
@@ -69,15 +73,17 @@ Old `/admin/email-*` page URLs are **gone**. Bookmarks must use `/admin/crm/{inb
 | Piece | Path |
 |-------|------|
 | List page | `app/[locale]/my-orders/page.tsx` → `MyOrdersListClient` |
-| Detail page | `app/[locale]/my-orders/[id]/page.tsx` → `BuyerOrderPanel` |
+| Detail page | `app/[locale]/my-orders/[id]/page.tsx` → `BuyerOrderPanel` → `OrderLabPageShell` |
 | List API | `GET /api/my-orders` — `ProjectOrderService.listForUser` (session owner) |
 | Detail API | `GET /api/my-orders/[id]` — owner or platform admin; deployment summary **without** env secrets |
+| Status (hero) | `GET /api/my-jobs/[id]/deployment/status` — `allowBuyer`; pods + deploy meta + server health probe |
 | Owner env | `GET/PATCH /api/my-orders/[id]/env` — `owner_private` + `public_shared` only |
 | Project config | `GET/PATCH /api/my-orders/[id]/project-config` — buyer vital mask |
 | Integrator project config | `GET/PATCH /api/my-jobs/[id]/project-config` — full allowlist |
 | Env request | `POST /api/my-jobs/env-request` (+ `/cancel`) — posts `env_request` into `order_lab` |
 | Routes | `ROUTES.MY_ORDERS`, `ROUTES.MY_ORDER(id)` in `constants/routes.ts` |
 | Success CTA | `app/[locale]/calculator/success/page.tsx` → `ROUTES.MY_ORDER(order.id)` |
+| Shell SSOT | `features/crm/lab/order-lab-page-shell.tsx`, `order-lab-tabs.ts`, `order-lab-tab-status.ts`, `safe-fetch-json.ts` |
 
 Detail response includes order + optional `{ edge, namespace, projectName, deploymentName, projectUrl, lastDeployAt, lastDeployStatus, lastError? }` and `edgeLabels` from `RING_EDGES`.
 

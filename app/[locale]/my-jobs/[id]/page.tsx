@@ -12,6 +12,8 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { ProjectOrderService } from '@/features/crm/orders/project-order-service'
 import { resolveCrmUserChips } from '@/features/crm/orders/resolve-users'
+import { ProjectDeploymentService } from '@/features/crm/lab/deployment-service'
+import { computeOrderLabTabStatuses } from '@/features/crm/lab/order-lab-tab-status'
 import { OrderLabShell } from '@/features/crm/lab/order-lab-shell'
 
 export default async function MyJobDetailPage({
@@ -45,5 +47,40 @@ export default async function MyJobDetailPage({
   const users = await resolveCrmUserChips([order.userId])
   const buyer = users[order.userId] ?? null
 
-  return <OrderLabShell buyer={buyer} isAdmin={admin} locale={locale} order={order} />
+  let envConfig: Record<string, { value?: string | null }> | null = null
+  let deployment: {
+    lastDeployStatus?: string | null
+    lastError?: string | null
+    namespace?: string | null
+    projectUrl?: string | null
+  } | null = null
+  try {
+    const dep = await ProjectDeploymentService.getOrCreate(id)
+    envConfig = dep.envConfig
+    deployment = {
+      lastDeployStatus: dep.lastDeployStatus,
+      lastError: dep.lastError,
+      namespace: dep.namespace,
+      projectUrl: dep.projectUrl,
+    }
+  } catch {
+    /* status chips degrade to project-only */
+  }
+
+  const initialStatuses = computeOrderLabTabStatuses({
+    order,
+    projectConfig: order.projectConfig,
+    envConfig,
+    deployment,
+  })
+
+  return (
+    <OrderLabShell
+      buyer={buyer}
+      isAdmin={admin}
+      initialStatuses={initialStatuses}
+      locale={locale}
+      order={order}
+    />
+  )
 }

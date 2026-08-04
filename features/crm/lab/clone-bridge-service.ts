@@ -311,6 +311,10 @@ export function buildBuildkitJobManifest(opts: {
                   },
                 },
               ],
+              resources: {
+                requests: { cpu: '500m', memory: '1Gi' },
+                limits: { cpu: '2', memory: '4Gi' },
+              },
               volumeMounts: [
                 { name: 'bin', mountPath: '/opt/bin' },
                 {
@@ -325,8 +329,16 @@ export function buildBuildkitJobManifest(opts: {
                 `set -euo pipefail
 apk add --no-cache libc6-compat ca-certificates curl tar >/dev/null
 : "\${FORGEJO_TOKEN:?forgejo-write token required}"
+# Inject Forgejo oauth2 only for forge.ringdom.org — never for GitHub/other remotes
 auth_url() {
-  echo "$1" | sed "s#https://#https://oauth2:\${FORGEJO_TOKEN}@#"
+  case "$1" in
+    https://forge.ringdom.org/*)
+      echo "$1" | sed "s#https://#https://oauth2:\${FORGEJO_TOKEN}@#"
+      ;;
+    *)
+      echo "$1"
+      ;;
+  esac
 }
 echo "Cloning platform SSOT..."
 git clone --depth 1 "$(auth_url "$PLATFORM_GIT_URL")" /workspace/platform
@@ -364,7 +376,10 @@ echo "PUSHED \${IMAGE}"
                 items: [{ key: '.dockerconfigjson', path: 'config.json' }],
               },
             },
-            { name: 'workspace', emptyDir: {} },
+            {
+              name: 'workspace',
+              emptyDir: { sizeLimit: '12Gi' },
+            },
           ],
         },
       },

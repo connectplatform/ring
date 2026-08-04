@@ -398,7 +398,8 @@ export function FileCabinetDesktop({ scope, className }: Props) {
             const fd = new FormData()
             fd.append('file', f)
             if (parentId) fd.append('parentId', parentId)
-            await uploadCabinetFileAction(fd)
+            const result = await uploadCabinetFileAction(fd)
+            if (!result.ok) throw new Error(result.error)
           }
           reload()
         } catch (e) {

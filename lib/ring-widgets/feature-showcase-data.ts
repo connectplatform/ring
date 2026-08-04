@@ -8,24 +8,44 @@
  * Developer tab features are sourced from the existing welcome-features.ts
  * TypeScript data with built-in locale support (en/uk/ru).
  *
- * @author LegioX Commander
- * @version 1.0.0
+ * Icons: lucide-react outlined (no emoji).
  */
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type ComponentType } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
+import type { LucideProps } from 'lucide-react'
+import {
+  Store,
+  Building2,
+  Wallet,
+  Gem,
+  MessageCircle,
+  Target,
+  Palette,
+  Bot,
+  Factory,
+  Layers,
+  Database,
+  KeyRound,
+  Radio,
+  CreditCard,
+  Video,
+  Shield,
+  Code2,
+  Cable,
+  Wrench,
+} from 'lucide-react'
 import {
   getWelcomeFeatureExplorerCopy,
   type WelcomeFeatureItem,
 } from '@/lib/ring-widgets/welcome-features'
 
-/* ─────────── Types ─────────── */
-
 export type AudienceTab = 'founder' | 'developer'
 
-/** A feature item as stored in pages.json locale files */
+export type ShowcaseIcon = ComponentType<LucideProps>
+
 export interface FeatureSystemItem {
   title: string
   description: string
@@ -34,10 +54,9 @@ export interface FeatureSystemItem {
   benefits: string
 }
 
-/** Resolved feature for the gallery — combines locale data with display metadata */
 export interface ShowcaseFeature {
   id: string
-  emoji: string
+  icon: ShowcaseIcon
   title: string
   description: string
   purpose: string
@@ -46,38 +65,45 @@ export interface ShowcaseFeature {
   href: string
 }
 
-/* ─────────── Founder tab: resolved from pages.json via useTranslations ─────────── */
-
-const FOUNDER_FEATURE_META: Array<{ id: string; emoji: string; href: string }> = [
-  { id: 'store', emoji: '🏪', href: '/docs/features/store' },
-  { id: 'entities', emoji: '🏢', href: '/docs/features/entities' },
-  { id: 'wallet', emoji: '💰', href: '/docs/features/wallet' },
-  { id: 'staking', emoji: '💎', href: '/docs/features/staking' },
-  { id: 'messaging', emoji: '💬', href: '/docs/features/messaging' },
-  { id: 'opportunities', emoji: '🎯', href: '/docs/features/opportunities' },
-  { id: 'nft', emoji: '🎨', href: '/docs/features/nft-market' },
-  { id: 'aiMatcher', emoji: '🤖', href: '/docs/features/opportunities' },
-  { id: 'erp', emoji: '🏭', href: '/docs/features/erp' },
+const FOUNDER_FEATURE_META: Array<{ id: string; icon: ShowcaseIcon; href: string }> = [
+  { id: 'store', icon: Store, href: '/docs/features/store' },
+  { id: 'entities', icon: Building2, href: '/docs/features/entities' },
+  { id: 'wallet', icon: Wallet, href: '/docs/features/wallet' },
+  { id: 'staking', icon: Gem, href: '/docs/features/staking' },
+  { id: 'messaging', icon: MessageCircle, href: '/docs/features/messaging' },
+  { id: 'opportunities', icon: Target, href: '/docs/features/opportunities' },
+  { id: 'nft', icon: Palette, href: '/docs/features/nft-market' },
+  { id: 'aiMatcher', icon: Bot, href: '/docs/features/opportunities' },
+  { id: 'erp', icon: Factory, href: '/docs/features/erp' },
 ]
 
-/** Hook providing the 9 founder-showcase features with full i18n support */
+const DEVELOPER_ICON_BY_ID: Record<string, ShowcaseIcon> = {
+  architecture: Layers,
+  'data-model': Database,
+  authentication: KeyRound,
+  tunnel: Radio,
+  'payment-conductor': CreditCard,
+  'video-conductor': Video,
+  security: Shield,
+  api: Code2,
+  mcp: Cable,
+}
+
 export function useFounderFeatures(): ShowcaseFeature[] {
   const t = useTranslations('pages.home.hero.featureSystems.items')
 
   return useMemo(() => {
-    return FOUNDER_FEATURE_META.map(({ id, emoji, href }) => {
+    return FOUNDER_FEATURE_META.map(({ id, icon, href }) => {
       const title = t(`${id}.title`)
       const description = t(`${id}.description`)
       const purpose = t(`${id}.purpose`)
       const benefits = t(`${id}.benefits`)
       const terms = (t.raw(`${id}.terms`) as string[]) ?? []
 
-      return { id, emoji, title, description, purpose, benefits, terms, href }
+      return { id, icon, title, description, purpose, benefits, terms, href }
     })
   }, [t])
 }
-
-/* ─────────── Developer tab: sourced from welcome-features.ts ─────────── */
 
 const DEVELOPER_FEATURE_IDS: ReadonlyArray<string> = [
   'architecture',
@@ -91,7 +117,6 @@ const DEVELOPER_FEATURE_IDS: ReadonlyArray<string> = [
   'mcp',
 ]
 
-/** Developer-tab feature terms — locale-driven via welcome-features descriptions */
 const DEVELOPER_TERMS: Record<string, string[]> = {
   architecture: ['System Design', 'Data Flow', 'Backend', 'Scalability'],
   'data-model': ['PostgreSQL', 'JSONB', 'PostGIS', 'Schema v4'],
@@ -104,7 +129,6 @@ const DEVELOPER_TERMS: Record<string, string[]> = {
   mcp: ['MCP Gateway', 'Cursor', 'CI Tools', 'Automation'],
 }
 
-/** Build a flat item map from welcome-features sections */
 function buildItemMap(
   sections: ReadonlyArray<{ label: string; items: ReadonlyArray<WelcomeFeatureItem> }>,
 ): Map<string, WelcomeFeatureItem> {
@@ -117,7 +141,6 @@ function buildItemMap(
   return map
 }
 
-/** Hook providing the 9 developer-showcase features */
 export function useDeveloperFeatures(): ShowcaseFeature[] {
   const locale = useLocale() as Locale
   const copy = getWelcomeFeatureExplorerCopy(locale)
@@ -128,7 +151,7 @@ export function useDeveloperFeatures(): ShowcaseFeature[] {
       const item = developerMap.get(id)
       return {
         id,
-        emoji: item?.emoji ?? '🔧',
+        icon: DEVELOPER_ICON_BY_ID[id] ?? Wrench,
         title: item?.title ?? id,
         description: item?.description ?? '',
         purpose: '',
@@ -140,10 +163,8 @@ export function useDeveloperFeatures(): ShowcaseFeature[] {
   }, [developerMap])
 }
 
-/** Resolve features for a given audience tab */
 export function useShowcaseFeatures(tab: AudienceTab): ShowcaseFeature[] {
   const founder = useFounderFeatures()
   const developer = useDeveloperFeatures()
-  const features = tab === 'founder' ? founder : developer
-  return features
+  return tab === 'founder' ? founder : developer
 }

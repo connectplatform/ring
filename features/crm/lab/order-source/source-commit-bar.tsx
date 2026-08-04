@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader2, Save, Sparkles } from 'lucide-react'
+import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
 
 export function SourceCommitBar({
   orderId,
@@ -40,7 +41,10 @@ export function SourceCommitBar({
     setSuggestError(null)
     startSuggest(async () => {
       try {
-        const res = await fetch(`/api/my-jobs/${orderId}/source/suggest-message`, {
+        const { ok, data, error: parseErr } = await fetchJsonSafe<{
+          error?: string
+          suggestion?: string
+        }>(`/api/my-jobs/${orderId}/source/suggest-message`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -49,10 +53,10 @@ export function SourceCommitBar({
             newContent,
           }),
         })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Suggest failed')
-        if (typeof json.suggestion === 'string' && json.suggestion.trim()) {
-          onMessageChange(json.suggestion.trim())
+        if (!ok || !data) throw new Error(parseErr || data?.error || 'Suggest failed')
+        if (data.error) throw new Error(data.error)
+        if (typeof data.suggestion === 'string' && data.suggestion.trim()) {
+          onMessageChange(data.suggestion.trim())
         }
       } catch (e) {
         setSuggestError(e instanceof Error ? e.message : 'Suggest failed')
