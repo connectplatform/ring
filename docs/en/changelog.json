@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-08-04",
+    "version": "1.97.18",
+    "mods": [
+      "### Added\n- **NativeWsClient auto-reconnect** — unexpected WSS close self-heals with exponential backoff (`computeReconnectDelay`), fresh `/api/tunnel/token`, channel resubscribe; `reconnect` while retrying, `disconnect` only on intentional close or exhaustion so TransportManager can fall back to SSE\n- **Connect abort safety** — `connectGeneration` + handshake abort so `disconnect()` cannot leave a zombie connected socket",
+      "### Changed\n- **SSE** — uses shared reconnect backoff helper\n- **Tunnel docs** — operator notes for Native WSS reconnect + fan-out live-only delivery"
+    ]
+  },
+  {
+    "date": "2026-08-04",
     "version": "1.97.17",
     "mods": [
       "### Added\n- **Share & Earn username tags** — share format `path#username`; client hash claim via `/api/refcodes/track`; `RefcodeService.getOrCreateForUsername`\n- **Referral credit payout** — assisted sales settle as `credit.creditBalanceUnitLabel` when on-chain minter unset / username tag / credit_balance rail",

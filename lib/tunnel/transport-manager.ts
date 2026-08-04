@@ -304,7 +304,10 @@ export class TunnelTransportManager implements TunnelTransport {
       });
     }
 
-    // Handle disconnect for automatic fallback
+    // Handle disconnect for automatic fallback.
+    // NativeWsClient owns WSS self-heal and emits `reconnect` (not `disconnect`) while retrying.
+    // This handler runs on intentional disconnect or reconnect exhaustion — then same-provider
+    // retry / SSE|poll fallback is appropriate.
     transport.on('disconnect', async (data: any) => {
       this.log('Transport disconnected:', data);
       

@@ -67,6 +67,7 @@ Your clone feels **alive**: unread badges update, chat messages appear, marketpl
 
 - **Replicas** — default is single-pod in-process hub. Multi-replica publish needs `TUNNEL_HUB_MODE=k8s-postgres` **and** `TUNNEL_POSTGRES_FANOUT=enabled` (Postgres LISTEN/NOTIFY). Leave replicas at 1 until enabled + smoked. Redis/Connect hubs remain backlog.
 - **Fan-out delivery** — when Postgres fan-out is on, publish is **live-only** (SSE/WS). No per-pod offline ghost queues (avoids double-delivery). Missed tabs use FCM / DB history / client refetch on reconnect.
+- **Native WSS reconnect** — `NativeWsClient` self-heals unexpected closes (exponential backoff, fresh `/api/tunnel/token`, resubscribe retained channels). Emits `reconnect` while retrying; `disconnect` only on intentional close or exhausted attempts so TransportManager can fall back to SSE/poll.
 - **FCM is the offline path** — tunnel covers active tabs only.
 - **Stale UI after deploy** — check `/api/tunnel/test` and browser network for repeated subscribe calls (should be one per channel per session).
 
@@ -262,7 +263,7 @@ Production chat uses **`hooks/use-messaging.ts`** (`useMessages`, `useTyping`) �
 
 | Transport | When used |
 |-----------|-----------|
-| **Native WebSocket** | `RING_DEPLOY_TARGET` is `k8s` or `self-hosted` — primary on custom `server.ts` |
+| **Native WebSocket** | `RING_DEPLOY_TARGET` is `k8s` or `self-hosted` — primary on custom `server.ts`. Auto-reconnect on unexpected close (shared `computeReconnectDelay` with SSE). |
 | **SSE** | Fallback and primary on `RING_DEPLOY_TARGET=vercel` |
 | **Long-polling** | Ultimate fallback via `/api/tunnel/poll` |
 | **Supabase Realtime** | When `NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase` and Supabase URL/anon key are set |

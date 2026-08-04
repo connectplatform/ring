@@ -15,6 +15,7 @@ import {
   TunnelEventHandler,
 } from '../types';
 import { MessageConverter, createTunnelMessage, TunnelMessageType } from '../protocol';
+import { computeReconnectDelay } from '../reconnect-backoff';
 
 export class SSETransport implements TunnelTransport {
   private eventSource: EventSource | null = null;
@@ -314,11 +315,8 @@ export class SSETransport implements TunnelTransport {
 
     this.connectionState = TunnelConnectionState.RECONNECTING;
     this.reconnectAttempts++;
-    
-    const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
-      30000
-    );
+
+    const delay = computeReconnectDelay(this.reconnectAttempts, this.reconnectDelay);
 
     this.emit('reconnect', { attempt: this.reconnectAttempts });
 

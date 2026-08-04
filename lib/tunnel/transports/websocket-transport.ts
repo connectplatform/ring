@@ -34,6 +34,7 @@ export class WebSocketTransport implements TunnelTransport {
     const url = options?.url ?? this.resolveDefaultUrl();
     this.client = new NativeWsClient({
       url,
+      reconnect: options?.reconnect,
       reconnectDelay: options?.reconnectDelay,
       maxReconnectAttempts: options?.maxReconnectAttempts,
       heartbeatInterval: options?.heartbeatInterval,
@@ -67,7 +68,18 @@ export class WebSocketTransport implements TunnelTransport {
       this.connectionState = TunnelConnectionState.CONNECTING;
     });
 
+    this.client.on('reconnect', (payload: { attempt: number }) => {
+      this.connectionState = TunnelConnectionState.RECONNECTING;
+      this.emit('reconnect', payload);
+    });
+
     this.client.on('error', (error: Error) => {
+      // Self-heal emits transient errors; keep RECONNECTING until exhaustion disconnect.
+      if (this.client.getState().status === 'reconnecting') {
+        this.errors++;
+        this.lastError = error.message;
+        return;
+      }
       this.connectionState = TunnelConnectionState.ERROR;
       this.errors++;
       this.lastError = error.message;
