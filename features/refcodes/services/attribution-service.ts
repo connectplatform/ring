@@ -64,6 +64,19 @@ export async function getBuyerWalletAddresses(userId: string): Promise<string[]>
   return getWalletAddressesForUser(userId)
 }
 
+/** Count users who signed up with this referrer (users.referredBy.referrerUserId). */
+export async function countSignupReferrals(referrerUserId: string): Promise<number> {
+  const result = await db().queryDocs({
+    collection: 'users',
+    filters: [
+      { field: 'referredBy.referrerUserId', operator: '=', value: referrerUserId },
+    ],
+    pagination: { limit: 500 },
+  })
+  if (!result.success) return 0
+  return result.data.length
+}
+
 /** Persist signup referral attribution from ring_ref cookie (first session only). */
 export async function persistSignupReferralAttribution(
   userId: string,
@@ -93,10 +106,15 @@ export async function persistSignupReferralAttribution(
 }
 
 /** Increment visit counter on a refcode (beacon / track endpoint). */
-export async function trackRefcodeVisit(code: string): Promise<{ ok: boolean; visits?: number }> {
-  const normalized = code.trim()
-  if (!normalized) return { ok: false }
+export async function trackRefcodeVisit(code: string): Promise<{
+  ok: boolean
+  visits?: number
+  resolvedCode?: string
+}> {
+  const resolved = await RefcodeService.resolveCode(code)
+  if (!resolved) return { ok: false }
 
+  const normalized = resolved.code
   const read = await db().findDocById<Record<string, unknown>>(REFCODE_COLLECTION, normalized)
   if (!read.success || !read.data) return { ok: false }
 
@@ -111,5 +129,5 @@ export async function trackRefcodeVisit(code: string): Promise<{ ok: boolean; vi
     lastVisitAt: new Date().toISOString(),
   })
 
-  return { ok: true, visits }
+  return { ok: true, visits, resolvedCode: normalized }
 }

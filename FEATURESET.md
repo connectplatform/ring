@@ -1,6 +1,6 @@
 # Ring Platform: Feature Set
 
-> React 19 + Next.js 16 open-source white-label platform (v1.97.16)  
+> React 19 + Next.js 16 open-source white-label platform (v1.97.17)  
 > AI-Matcher, SSE tunnel, messaging, Web3 (Solana/EVM), store, CRM, wiki, file cabinet — MCP-orchestrated for any org.
 
 ---
@@ -9,7 +9,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | **1.97.16** |
+| Version | **1.97.17** |
 | Feature modules (`features/`) | **41** |
 | API route handlers | **~300** |
 | App Router pages | **~165** |
@@ -25,6 +25,9 @@
 Live release notes: [ring-platform.org/changelog](https://ring-platform.org/changelog) (`docs/{locale}/changelog.json`) — **99+ feature releases from 2024 genesis** (dates are narrative markers).
 
 ## Recent Highlights (newest first)
+
+### v1.97.17 (2026-08-04)
+- Share & Earn username `#tag` (hash claim + credit payout); /refcodes hero + analytics; personal-page widget / Page Builder UX
 
 ### v1.97.16 (2026-08-04)
 - Docs layout FS isolation + loading/not-found locale wiring; credit `mainCurrencyRate`; opportunity main-currency filters; Order Lab share/source deep-links

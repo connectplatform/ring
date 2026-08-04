@@ -19,16 +19,118 @@ import {
   getReferralMintNotificationCopy,
   getUserPreferredLocaleForNotifications,
 } from '@/lib/i18n/refcodes-labels'
+import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
+import {
+  getCreditUnitToMainCurrencyRate,
+  getMainCurrencyCreditAccountingRate,
+} from '@/lib/ring-oracle'
 
 function orderRefBytes32(orderReference: string): `0x${string}` {
   return keccak256(toBytes(orderReference))
 }
 
-export async function mintReferralReward(rewardId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
-  if (!isReferralMinterConfigured()) {
-    return { success: false, error: 'Referral minter not configured' }
+function prefersCreditPayout(reward: ReferralRewardRecord): boolean {
+  if (reward.rail === 'credit_balance') return true
+  if (!isReferralMinterConfigured()) return true
+  if (reward.referrerWallet?.startsWith('username:')) return true
+  return false
+}
+
+async function payReferralAsCredits(
+  rewardId: string,
+  reward: ReferralRewardRecord,
+): Promise<{ success: boolean; error?: string }> {
+  const unitPerMain = getCreditUnitToMainCurrencyRate()
+  const percent = typeof reward.rewardPercent === 'number' ? reward.rewardPercent : 5
+  const mainReward =
+    typeof reward.orderAmount === 'number' && reward.orderAmount > 0
+      ? (reward.orderAmount * percent) / 100
+      : parseFloat(reward.rewardAmount || '0')
+  const creditAmount = Math.max(0, mainReward / (unitPerMain > 0 ? unitPerMain : 0.1))
+  const amountStr = creditAmount.toFixed(2)
+
+  if (creditAmount <= 0) {
+    return { success: false, error: 'Zero credit reward' }
   }
 
+  await db().updateDoc(REFERRAL_REWARDS_COLLECTION, rewardId, {
+    status: 'minting',
+    updatedAt: new Date().toISOString(),
+  })
+
+  try {
+    const rate = getMainCurrencyCreditAccountingRate()
+    await creditBalanceService.addCredits(
+      reward.referrerUserId,
+      {
+        amount: amountStr,
+        description: `Referral assisted sale (${reward.refCode})`,
+        reference_id: `referral_reward:${rewardId}`,
+        metadata: {
+          rewardId,
+          orderReference: reward.orderReference,
+          refCode: reward.refCode,
+          rail: reward.rail,
+        },
+      },
+      'bonus',
+      rate,
+    )
+
+    await db().updateDoc(REFERRAL_REWARDS_COLLECTION, rewardId, {
+      status: 'minted',
+      rewardAmount: amountStr,
+      displayUnit: 'credit_balance',
+      updatedAt: new Date().toISOString(),
+    })
+
+    try {
+      const { createNotification } = await import(
+        '@/features/notifications/services/notification-service'
+      )
+      const { NotificationType, NotificationPriority } = await import(
+        '@/features/notifications/types'
+      )
+      const locale =
+        (await getUserPreferredLocaleForNotifications(reward.referrerUserId)) ??
+        DEFAULT_LOCALE
+      const copy = await getReferralMintNotificationCopy(locale, {
+        amount: amountStr,
+        token: 'credits',
+      })
+      await createNotification({
+        userId: reward.referrerUserId,
+        type: NotificationType.REFERRAL_REWARD_MINTED,
+        priority: NotificationPriority.NORMAL,
+        title: copy.title,
+        body: copy.body,
+        data: {
+          amount: amountStr,
+          metadata: {
+            rewardId,
+            orderReference: reward.orderReference,
+            payout: 'credit_balance',
+          },
+        },
+      })
+    } catch (notifyError) {
+      logger.warn('Referral credit notification skipped', { rewardId, notifyError })
+    }
+
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Credit payout failed'
+    logger.error('Referral credit payout failed', { rewardId, error })
+    await db().updateDoc(REFERRAL_REWARDS_COLLECTION, rewardId, {
+      status: 'failed',
+      failureReason: message,
+      updatedAt: new Date().toISOString(),
+    })
+    return { success: false, error: message }
+  }
+}
+
+export async function mintReferralReward(rewardId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
   const read = await db().findDocById<ReferralRewardRecord & { id: string }>(
     REFERRAL_REWARDS_COLLECTION,
     rewardId
@@ -38,11 +140,15 @@ export async function mintReferralReward(rewardId: string): Promise<{ success: b
   }
 
   const reward = read.data
-  if (reward.status === 'minted' && reward.txHash) {
+  if (reward.status === 'minted' && (reward.txHash || reward.displayUnit === 'credit_balance')) {
     return { success: true, txHash: reward.txHash }
   }
   if (reward.status !== 'approved' && reward.status !== 'failed') {
     return { success: false, error: `Invalid reward status: ${reward.status}` }
+  }
+
+  if (prefersCreditPayout(reward)) {
+    return payReferralAsCredits(rewardId, reward)
   }
 
   const walletClient = getReferralMinterWalletClient()

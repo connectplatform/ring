@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-08-04",
+    "version": "1.97.17",
+    "mods": [
+      "### Added\n- **Share & Earn username tags** — share format `path#username`; client hash claim via `/api/refcodes/track`; `RefcodeService.getOrCreateForUsername`\n- **Referral credit payout** — assisted sales settle as `credit.creditBalanceUnitLabel` when on-chain minter unset / username tag / credit_balance rail",
+      "### Changed\n- **/refcodes** — wallet CTA removed; hero program terms; tagged-traffic + signup analytics\n- **Profile widgets** — personal-page URL copy + ON/OFF status dot + Page Builder CTA; Share & Earn copies current page + `#username`; fullscreen Page Builder modal; save overlay (no toggle flicker)"
+    ]
+  },
+  {
+    "date": "2026-08-04",
     "version": "1.97.16",
     "mods": [
       "### Añadido\n- **i18n de carga de docs** — `docs.loading` (en/uk/ru/de/es); `loading`/`not-found` siguen el locale de la petición\n- **Credit spend mainCurrencyRate** — Zod + MCP/wallet/membership; `usdRate` deprecado → transform",

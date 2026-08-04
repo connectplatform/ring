@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.97.16-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.97.17-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/Next.js-16.2-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -33,7 +33,7 @@ React 19 + Next.js 16 open-source platform: AI-Matcher, SSE-push tunnel, direct 
 
 Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** — the First Digital Kingdom for global abundance. This repository is the full open-source codebase; Ringdom adds turn-key K8s hosting, Legiox skillsets, and **Reggie** to ringize settler requirements into a customization plan.
 
-**Version**: 1.97.16 | **Site**: [ring-platform.org](https://ring-platform.org) | **Changelog**: [/changelog](https://ring-platform.org/changelog) | **Origin**: Built by Ray Sorkin, a free person of Ukraine
+**Version**: 1.97.17 | **Site**: [ring-platform.org](https://ring-platform.org) | **Changelog**: [/changelog](https://ring-platform.org/changelog) | **Origin**: Built by Ray Sorkin, a free person of Ukraine
 
 ## Ringdom Ecosystem
 
@@ -58,17 +58,15 @@ Ringdom.org (Turn-key service layer)
   |-- Legiox-Access NFT (Token-gated skillset distribution)
 ```
 
-## What's New in v1.97.16 (August 2026)
+## What's New in v1.97.17 (August 2026)
 
 Full history: [ring-platform.org/changelog](https://ring-platform.org/changelog). Newest highlights:
 
-- **Docs FS isolation + i18n** — Pass-through docs layout; article shell on page path; `docs.loading` / not-found follow request locale
-- **Postgres Tunnel fan-out (1.97.15)** — Optional `TUNNEL_POSTGRES_FANOUT` LISTEN/NOTIFY multi-pod publish (default off); live-only delivery
-- **Personal page RIP3 (1.97.14)** — Blocklist, NFT/media pins, private-view analytics, skills hydrate
-- **Credit `mainCurrencyRate`** — Zod + MCP/wallet/membership; deprecate `usdRate`
-- **Opportunity filters** — Main currency first via `getOpportunityFilterCurrencies`
-- **Order Lab share cards** — Buyer deep-link to my-orders; source panel `?source=` path
-- **Ring Oracle / FX** — Feed refresh cron + desk SSOT; docs-path-url NFT-safe joins
+- **Share & Earn username tags** — Share any page as `path#username`; hash claim stamps `ring_ref`; assisted sales pay `credit` units
+- **Personal page / Page Builder UX** — URL copy + status dot + fullscreen builder; save overlay (no toggle flicker)
+- **Docs FS isolation + i18n (1.97.16)** — Pass-through docs layout; locale-aware loading/not-found
+- **Postgres Tunnel fan-out (1.97.15)** — Optional LISTEN/NOTIFY multi-pod publish (default off)
+- **Personal page RIP3 (1.97.14)** — Blocklist, NFT/media pins, private-view analytics
 - **Foundation** — File Cabinet, CRM lab, PaymentConductor, Tunnel, AI Matcher, multi-vendor store, DE/ES locales
 
 > **Note:** The Ring CLI (`ring` command) is **not** included in the public OSS tree. Community developers use [`install.sh`](install.sh) and [`scripts/setup-dev.sh`](scripts/setup-dev.sh). Enterprise/K8s tooling is available through [Ringdom](https://ringdom.org) settlers. See also [FEATURESET.md](FEATURESET.md) and [ROADMAP.md](ROADMAP.md).
@@ -212,7 +210,7 @@ Ring Platform implements a tiered access model for professional networking:
 
 ### Platform Statistics
 
-- **Version**: 1.97.16
+- **Version**: 1.97.17
 - **API route handlers**: ~300
 - **App Router pages**: ~165
 - **Feature modules**: 41 (`features/`)

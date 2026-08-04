@@ -1,9 +1,16 @@
+/** How the code was issued — wallet codes stay for legacy; username is primary share tag. */
+export type RefcodeKind = 'wallet' | 'username'
+
 export interface RefcodeRecord {
   code: string
   ownerUserId: string
+  /** Lowercased EVM address, or `username:<handle>` sentinel for username tags. */
   walletAddress: string
   active: boolean
   createdAt: string
+  kind?: RefcodeKind
+  /** Canonical username when kind === 'username'. */
+  username?: string
   visits?: number
   /** Daily visit buckets (UTC YYYY-MM-DD → count), retained ~28 days. */
   visitDaily?: Record<string, number>
@@ -68,4 +75,6 @@ export interface ResolvedRefcode {
   code: string
   ownerUserId: string
   walletAddress: string
+  kind?: RefcodeKind
+  username?: string
 }

@@ -768,7 +768,6 @@ export default function ProfileContent({
                     />
                     <ShareEarnWidget
                       username={user?.username || null}
-                      publicProfile={readPublicProfile(user)}
                     />
                   </div>
                 </div>

@@ -331,7 +331,7 @@
   "personalPageViewsToday": "Aufrufe heute",
   "personalPageViews7d": "Letzte 7 Tage",
   "shareEarnWidgetTitle": "Teilen & Verdienen",
-  "shareEarnWidgetHint": "Lade andere ein und verdiene Empfehlungsprämien",
+  "shareEarnWidgetHint": "Teile Seiten mit deinem #username-Tag und verdiene Credits",
   "professionalProfile": "Berufliches Profil",
   "editNickname": "Nickname bearbeiten",
   "personalPageUnique24h": "Einzigartig 24h",
@@ -371,7 +371,7 @@
   "acceptProfileDmsHint": "Wenn aus, können Abonnenten dich nicht über die persönliche Seite kontaktieren",
   "pageBuilderFooterLive": "Abschnitte und Felder umschalten. Änderungen werden sofort gespeichert.",
   "shareEarnPrivateHint": "Link öffnet eine private Seite — aktiviere «Persönliche Seite» zum Veröffentlichen.",
-  "shareEarnNeedUsername": "Lege einen Benutzernamen fest, um deinen Seitenlink zu teilen.",
+  "shareEarnNeedUsername": "Lege einen Benutzernamen fest, um Seiten mit Referral-Tag zu teilen.",
   "field_bio_text": "Bio-Text",
   "field_messengers_telegram": "Telegram",
   "field_messengers_whatsapp": "WhatsApp",
@@ -393,5 +393,7 @@
   "mediaPlayer": "Player",
   "mediaGames": "Spiele",
   "mediaGallery": "Galerie",
-  "personalPagePrivateHits": "Private Aufrufe"
+  "personalPagePrivateHits": "Private Aufrufe",
+  "shareEarnCopyPage": "Seite + Tag kopieren",
+  "shareEarnCopyPageHint": "Aktuelle Seiten-URL mit deinem #username-Referral-Tag kopieren."
 }

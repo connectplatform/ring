@@ -331,7 +331,7 @@
   "personalPageViewsToday": "Просмотры сегодня",
   "personalPageViews7d": "За 7 дней",
   "shareEarnWidgetTitle": "Поделиться и заработать",
-  "shareEarnWidgetHint": "Приглашайте других и получайте реферальные награды",
+  "shareEarnWidgetHint": "Делитесь страницами с тегом #username и получайте кредиты",
   "professionalProfile": "Профессиональный профиль",
   "editNickname": "Редактировать никнейм",
   "personalPageUnique24h": "Уникальные 24ч",
@@ -371,7 +371,7 @@
   "acceptProfileDmsHint": "Когда выключено, подписчики не могут писать через личную страницу",
   "pageBuilderFooterLive": "Переключайте секции и поля. Изменения сохраняются сразу.",
   "shareEarnPrivateHint": "Ссылка открывает приватную страницу — включите «Личная страница», чтобы опубликовать.",
-  "shareEarnNeedUsername": "Установите username, чтобы поделиться ссылкой на личную страницу.",
+  "shareEarnNeedUsername": "Установите username, чтобы делиться страницами с реферальным тегом.",
   "field_bio_text": "Текст био",
   "field_messengers_telegram": "Telegram",
   "field_messengers_whatsapp": "WhatsApp",
@@ -393,5 +393,7 @@
   "mediaPlayer": "Плеер",
   "mediaGames": "Игры",
   "mediaGallery": "Галерея",
-  "personalPagePrivateHits": "Приватные просмотры"
+  "personalPagePrivateHits": "Приватные просмотры",
+  "shareEarnCopyPage": "Скопировать страницу + тег",
+  "shareEarnCopyPageHint": "Скопировать URL текущей страницы с вашим реферальным тегом #username."
 }

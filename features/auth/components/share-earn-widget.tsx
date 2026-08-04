@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Check, Copy, Share2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Link, toAppHref } from '@/i18n/routing'
@@ -9,68 +9,34 @@ import type { Locale } from '@/i18n/shared'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { appendReferralFragment } from '@/features/refcodes/lib/referral-share-url'
 
 type ShareEarnWidgetProps = {
   username?: string | null
-  publicProfile?: boolean
-  /** Active referral code for ?ref= attribution (optional). */
-  refCode?: string | null
   className?: string
 }
 
-/** Share & Earn interactive widget — profile overview (refcodes + public URL copy). */
-export function ShareEarnWidget({
-  username,
-  publicProfile = false,
-  refCode,
-  className,
-}: ShareEarnWidgetProps) {
+/**
+ * Share & Earn overview widget — links to /refcodes + copies current page URL with #username.
+ * Personal-page public URL copy lives on PersonalPageWidget.
+ */
+export function ShareEarnWidget({ username, className }: ShareEarnWidgetProps) {
   const locale = useLocale() as Locale
   const t = useTranslations('modules.profile')
   const tNav = useTranslations('navigation')
   const [copied, setCopied] = useState(false)
-  const [origin, setOrigin] = useState('')
-  const [resolvedRef, setResolvedRef] = useState<string | null>(refCode ?? null)
 
-  useEffect(() => {
-    setOrigin(typeof window !== 'undefined' ? window.location.origin : '')
-  }, [])
-
-  useEffect(() => {
-    if (refCode) {
-      setResolvedRef(refCode)
-      return
-    }
-    let cancelled = false
-    void fetch('/api/refcodes')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { codes?: Array<{ code?: string; active?: boolean }> } | null) => {
-        if (cancelled || !data?.codes?.length) return
-        const active = data.codes.find((c) => c.active !== false && c.code)
-        if (active?.code) setResolvedRef(active.code)
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [refCode])
-
-  const profilePath = username ? ROUTES.PUBLIC_PROFILE(username, locale) : null
-  const shareUrl =
-    origin && profilePath
-      ? `${origin}${profilePath}${resolvedRef ? `?ref=${encodeURIComponent(resolvedRef)}` : ''}`
-      : ''
-
-  const copyShareUrl = useCallback(async () => {
-    if (!shareUrl) return
+  const copyPageWithTag = useCallback(async () => {
+    if (!username || typeof window === 'undefined') return
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      const tagged = appendReferralFragment(window.location.href, username)
+      await navigator.clipboard.writeText(tagged)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
       setCopied(false)
     }
-  }, [shareUrl])
+  }, [username])
 
   return (
     <div className={cn(davinciGlassSurface, 'flex flex-col gap-3 p-4', className)}>
@@ -89,7 +55,8 @@ export function ShareEarnWidget({
             {t('shareEarnWidgetTitle') || tNav('refcodes') || 'Share & Earn'}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {t('shareEarnWidgetHint') || 'Invite others and earn referral rewards'}
+            {t('shareEarnWidgetHint') ||
+              'Share pages with your #username tag and earn credits'}
           </p>
         </div>
       </Link>
@@ -97,35 +64,28 @@ export function ShareEarnWidget({
       {!username ? (
         <p className="border-t border-border/40 pt-3 text-xs text-muted-foreground">
           {t('shareEarnNeedUsername') ||
-            'Set a username to share your personal page link.'}
+            'Set a username to share pages with your referral tag.'}
         </p>
-      ) : shareUrl ? (
+      ) : (
         <div className="space-y-2 border-t border-border/40 pt-3">
-          {!publicProfile ? (
-            <p className="text-xs text-muted-foreground">
-              {t('shareEarnPrivateHint') ||
-                'Link opens a private page — enable Personal page to publish.'}
-            </p>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
-              {shareUrl.replace(/^https?:\/\//, '')}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1.5"
-              onClick={() => void copyShareUrl()}
-            >
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copied
-                ? t('shareEarnCopied') || 'Copied'
-                : t('shareEarnCopyProfile') || 'Copy link'}
-            </Button>
-          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {t('shareEarnCopyPageHint') ||
+              'Copy the current page URL with your #username referral tag.'}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5 sm:w-auto"
+            onClick={() => void copyPageWithTag()}
+          >
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+            {copied
+              ? t('shareEarnCopied') || 'Copied'
+              : t('shareEarnCopyPage') || 'Copy page + tag'}
+          </Button>
         </div>
-      ) : null}
+      )}
     </div>
   )
 }

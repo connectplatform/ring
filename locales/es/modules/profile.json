@@ -331,7 +331,7 @@
   "personalPageViewsToday": "Vistas hoy",
   "personalPageViews7d": "Últimos 7 días",
   "shareEarnWidgetTitle": "Compartir y ganar",
-  "shareEarnWidgetHint": "Invita a otros y gana recompensas por referidos",
+  "shareEarnWidgetHint": "Comparte páginas con tu etiqueta #username y gana créditos",
   "professionalProfile": "Perfil profesional",
   "editNickname": "Editar apodo",
   "personalPageUnique24h": "Únicos 24h",
@@ -371,7 +371,7 @@
   "acceptProfileDmsHint": "Si está desactivado, los suscriptores no pueden contactarte desde tu página",
   "pageBuilderFooterLive": "Activa secciones y campos. Los cambios se guardan al instante.",
   "shareEarnPrivateHint": "El enlace abre una página privada — activa «Página personal» para publicarla.",
-  "shareEarnNeedUsername": "Define un nombre de usuario para compartir el enlace de tu página.",
+  "shareEarnNeedUsername": "Define un nombre de usuario para compartir páginas con tu etiqueta.",
   "field_bio_text": "Texto de bio",
   "field_messengers_telegram": "Telegram",
   "field_messengers_whatsapp": "WhatsApp",
@@ -393,5 +393,7 @@
   "mediaPlayer": "Reproductor",
   "mediaGames": "Juegos",
   "mediaGallery": "Galería",
-  "personalPagePrivateHits": "Visitas privadas"
+  "personalPagePrivateHits": "Visitas privadas",
+  "shareEarnCopyPage": "Copiar página + etiqueta",
+  "shareEarnCopyPageHint": "Copia la URL de la página actual con tu etiqueta de referido #username."
 }
