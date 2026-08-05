@@ -86,9 +86,16 @@ export function validateFirebaseConfig(): boolean {
   return true
 }
 
+/** Web Push certificate from Firebase Console (public). Trimmed; null if missing/placeholder. */
+export function getFcmVapidKey(): string | null {
+  const key = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
+  if (!key || isPlaceholderValue(key)) return null
+  return key
+}
+
 /** Web Push VAPID key — Firebase Console → Cloud Messaging → Web Push certificates. */
 export function validateFcmVapidKey(): boolean {
-  return !isPlaceholderValue(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY)
+  return getFcmVapidKey() !== null
 }
 
 /**
@@ -96,7 +103,7 @@ export function validateFcmVapidKey(): boolean {
  * causes FCM `token-subscribe-failed` / missing authentication credential in the browser.
  */
 export function isKnownCrossProjectVapidLeak(): boolean {
-  const vapid = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
+  const vapid = getFcmVapidKey()
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()
   if (!vapid || !projectId) return false
   const isRingMainVapid =

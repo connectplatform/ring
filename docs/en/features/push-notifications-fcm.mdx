@@ -1,7 +1,7 @@
 ---
 title: Push Notifications with FCM (Ring-Powered)
-description: Shipped FCM push today — Firebase Web Push certificate vs planned RFC Web Push VAPID keys; token register, Admin send, and dual-stack roadmap.
-last_modified: "2026-08-04"
+description: Shipped FCM push — Firebase Console Web Push certificate for getToken, Admin send, staged VAPID_* for planned dual-stack, and build-time bake rules.
+last_modified: "2026-08-05"
 audience: both
 ---
 
@@ -13,10 +13,10 @@ audience: both
 
 Ring stores FCM device tokens in your primary database (PostgreSQL or Firestore by backend mode), one row per user per device. Browser clients obtain a token with the Firebase Messaging SDK; the server sends with the **Firebase Admin SDK**.
 
-<Callout type="warning" title="Two different “VAPID” concepts — do not mix them">
-  **Today (shipped):** `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is the **Firebase Console → Cloud Messaging → Web Push certificates** public key. It is passed to Firebase `getToken()` as `vapidKey` only. It is **not** an app-owned RFC 8292 VAPID keypair.
+<Callout type="warning" title="Firebase Web Push certificate vs staged VAPID_*">
+  **Shipped (required for browser FCM):** `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is the public key from **Firebase Console → Project Settings → Cloud Messaging → Web Push certificates** for the same Firebase project as `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. Only this variable is passed to `getToken({ vapidKey })`. Confirmed for **ring-platform**.
 
-  **Planned (not shipped):** RFC Web Push via the `web-push` npm package will use a **separate** app-owned trio: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`. Never paste the Firebase certificate into those vars. The `web-push` package, `services/push/`, and `push-sw.js` are **not** in the tree yet.
+  **Staged (not consumed by Ring code yet):** `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` live in `env.local.template`, clone secrets, and k8s for the planned `web-push` dual-stack. FCM send still uses `AUTH_FIREBASE_*` Admin credentials — not `VAPID_PRIVATE_KEY`. The `web-push` package, `services/push/`, and `push-sw.js` are not in the tree yet.
 </Callout>
 
 <Cards>
@@ -40,16 +40,17 @@ Ring stores FCM device tokens in your primary database (PostgreSQL or Firestore 
 | Scenario | What to do |
 |----------|------------|
 | New clone / white-label | Create (or reuse) a Firebase project for **that** clone; generate Web Push certificates there; set `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_FIREBASE_VAPID_KEY` |
-| Push “not working” after copy-paste env | Suspect cross-project VAPID leak — regenerate certificates for the clone’s `NEXT_PUBLIC_FIREBASE_PROJECT_ID` |
-| Future: no Firebase dependency for browser push | Dual-stack RFC Web Push (planned) — separate VAPID trio; keep FCM for mobile / existing tokens until you migrate |
+| Push “not working” after copy-paste env | Suspect cross-project certificate leak — regenerate Web Push certificates for the clone’s `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, then **rebuild** the image (browser bundle is build-time) |
+| Staging dual-stack secrets early | You may set `VAPID_PUBLIC_KEY` to the same Console public key and store `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` in secrets; Ring code does not read them until `web-push` ships |
 
 ### Operator checklist (shipped FCM)
 
 1. Firebase project with Cloud Messaging enabled
-2. Web Push **certificate** generated in that same project → `NEXT_PUBLIC_FIREBASE_VAPID_KEY`
+2. Web Push **certificate** generated in that same project → `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (also as Docker build-arg)
 3. Server service account → `AUTH_FIREBASE_PROJECT_ID` / `AUTH_FIREBASE_CLIENT_EMAIL` / `AUTH_FIREBASE_PRIVATE_KEY`
 4. HTTPS (or localhost) for browser permission + service worker at `/firebase-messaging-sw.js`
 5. Signed-in users (Auth.js) before token registration
+6. After rotating the certificate: rebuild/redeploy the image — ConfigMap alone does not refresh the browser bundle
 
 </Audience>
 
@@ -59,27 +60,40 @@ Ring stores FCM device tokens in your primary database (PostgreSQL or Firestore 
 
 | Layer | Today (verified) | Planned (not in tree) |
 |-------|------------------|------------------------|
-| Client subscribe | `hooks/use-fcm.ts` → Firebase `getToken()` with `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | `web-push` + PushSubscription; app-owned `VAPID_PUBLIC_KEY` |
+| Client subscribe | `hooks/use-fcm.ts` → Firebase `getToken()` with `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | `web-push` + PushSubscription; `VAPID_PUBLIC_KEY` |
 | Service worker | `public/firebase-messaging-sw.js` | Planned `push-sw.js` (not present) |
 | Register token / sub | `POST /api/notifications/fcm/register` (preferred by `use-fcm` to avoid RSC revalidation); Server Action `upsertFcmToken` still available | Planned `/api/push/register` |
 | Token store | `fcm_tokens` via `lib/notifications/fcm-token-db.ts` | Extended schema / provider partition (plan) |
 | Server send | `features/notifications/services/fcm-service.ts` + `FirebaseAdapter.sendFcm*` (Admin HTTP v1 `sendEach`) | Planned `webpush-service.ts` using `web-push` |
 | npm | `firebase`, `firebase-admin` | `web-push` **not** installed yet |
 
-### VAPID env map (critical)
+### Env map (critical)
 
 | Variable | Role | Status |
 |----------|------|--------|
-| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Firebase Web Push **certificate** (public) for `getToken()` | **Required today** — listed under FIREBASE CLIENT SDK in `env.local.template` |
-| `VAPID_PUBLIC_KEY` | App-owned RFC VAPID public key for `web-push` | **Planned** — commented section in `env.local.template`; do not set to the Firebase cert |
-| `VAPID_PRIVATE_KEY` | App-owned RFC VAPID private key (server-only) | **Planned** — generate with `npx web-push generate-vapid-keys` |
-| `VAPID_SUBJECT` | `mailto:` or `https:` contact URI for Web Push | **Planned** |
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Firebase Console Web Push **certificate** (public) for `getToken()` | **Required** — build-arg + client; only FCM subscribe reader |
+| `VAPID_PUBLIC_KEY` | Staged public for future `web-push` | **Staged in secrets/env** — no `process.env.VAPID_*` readers yet; may equal the Console public when preparing dual-stack |
+| `VAPID_PRIVATE_KEY` | Staged private for future `web-push` (server-only) | **Staged** — unused by FCM Admin send |
+| `VAPID_SUBJECT` | `mailto:` or `https:` contact URI for Web Push | **Staged** |
 
-Firebase does **not** expose an app-owned VAPID private key for the FCM browser path. Server send uses the Admin SDK credentials (`AUTH_FIREBASE_*`), not a VAPID private key. There are no `FCM_SERVER_KEY` / `FCM_VAPID_KEY` env vars in Ring.
+FCM server send uses Admin SDK credentials (`AUTH_FIREBASE_*`), not `VAPID_PRIVATE_KEY`. Do not invent `FCM_SERVER_KEY`, `FCM_VAPID_KEY`, or `FIREBASE_WEB_PUSH_*` names — those are retired / never were Ring SSOT.
 
-<Callout type="error" title="Cross-clone VAPID leak">
-  `lib/firebase-client.ts` detects known ring-main certificate prefixes (`BKQ4OAwA…`) when `NEXT_PUBLIC_FIREBASE_PROJECT_ID` is not `ring-main`. Symptom: `token-subscribe-failed` / missing authentication credential. Always generate Web Push certificates in the **same** Firebase project as the clone’s client config.
+<Callout type="error" title="Cross-clone certificate leak">
+  `lib/firebase-client.ts` detects known ring-main certificate prefixes (`BKQ4OAwA…`) when `NEXT_PUBLIC_FIREBASE_PROJECT_ID` is not `ring-main`. Symptom: `token-subscribe-failed` / missing authentication credential. Always use the Web Push certificate from the **same** Firebase project as the clone’s client config.
 </Callout>
+
+<Callout type="tip" title="Build-time vs runtime">
+  `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is baked into the Next.js client bundle at **image build**. Cluster ConfigMap `envFrom` can update process env, but browsers keep the previous inlined value until rebuild. Stage `VAPID_*` in Secret for future dual-stack without waiting on that rebuild.
+</Callout>
+
+<FutureFeatureBacklog>
+  <FutureFeatureWidget
+    name="RFC Web Push dual-stack"
+    description="Install web-push; add services/push + push-sw.js; read VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT for browser PushSubscription delivery alongside FCM."
+    implementationCost={56}
+    labels={['push', 'vapid', 'fcm']}
+  />
+</FutureFeatureBacklog>
 
 ## Token flow (shipped)
 
@@ -167,23 +181,24 @@ const token = await getToken(messaging, { vapidKey })`}
 
 PostgreSQL schema: `data/migrations/016_fcm_jsonb_schema.sql`.
 
-### Environment (shipped + planned)
+### Environment (shipped + staged)
 
 | Purpose | Variables | Where |
 |---------|-----------|--------|
-| Firebase client + FCM subscribe | `NEXT_PUBLIC_FIREBASE_API_KEY`, `…_AUTH_DOMAIN`, `…_PROJECT_ID`, `…_MESSAGING_SENDER_ID`, `…_APP_ID`, **`NEXT_PUBLIC_FIREBASE_VAPID_KEY`** | Client / build |
+| Firebase client + FCM subscribe | `NEXT_PUBLIC_FIREBASE_API_KEY`, `…_AUTH_DOMAIN`, `…_PROJECT_ID`, `…_MESSAGING_SENDER_ID`, `…_APP_ID`, **`NEXT_PUBLIC_FIREBASE_VAPID_KEY`** | Client / **Docker build-arg** |
 | Admin send | `AUTH_FIREBASE_PROJECT_ID`, `AUTH_FIREBASE_CLIENT_EMAIL`, `AUTH_FIREBASE_PRIVATE_KEY`; `DB_BACKEND_MODE` | Server-only |
-| RFC Web Push (`web-push`) | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | **Planned** — server keeps private key; never copy Firebase cert here |
+| RFC Web Push (`web-push`) | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | **Staged** in secrets / env — no code readers until dual-stack lands |
 
 ### Troubleshooting
 
 | Issue | Cause | Fix |
 |-------|--------|-----|
-| token-subscribe-failed / auth credential | VAPID cert from another Firebase project | Regenerate Web Push certificates for this `PROJECT_ID` |
+| token-subscribe-failed / auth credential | Certificate from another Firebase project (e.g. ring-main `BKQ4…` on a non-ring-main project) | Regenerate Web Push certificates for this `PROJECT_ID`; rebuild image |
+| ConfigMap updated but browser still old | `NEXT_PUBLIC_*` inlined at build | Rebuild/redeploy with matching build-arg |
 | Permission denied | User denied notifications | Request permission before `getToken()` |
 | 401 on register | No session | Cookie / Bearer required |
 | UNREGISTERED on send | Stale token | `FCMService` / `sendFcmToUser` marks row invalid |
-| Expecting `web-push` dual delivery | Not shipped | Keep FCM path; track dual-stack plan — do not invent routes |
+| Expecting `web-push` dual delivery | Not shipped | Keep FCM path; `VAPID_*` stay staged only |
 
 </Audience>
 

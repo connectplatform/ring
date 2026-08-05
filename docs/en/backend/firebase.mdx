@@ -1,7 +1,7 @@
 ---
 title: Firebase Integration
 description: Firebase Admin SDK v14, FirebaseAdapter, FCM, Hosting rewrites, and ProcessConductor scheduled jobs via Cloud Scheduler (same /api/cron/* contracts as Vercel) for firebase-full mode.
-last_modified: "2026-08-03"
+last_modified: "2026-08-05"
 audience: both
 ---
 
@@ -605,8 +605,11 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-YCZKPV315E
 NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key
+# ↑ Cloud Messaging → Web Push certificates (same project). Rebuild after rotate.
 NEXT_PUBLIC_FIREBASE_USE_EMULATOR=1  # Enables Firebase Local Emulator Suite auto-connect
 ```
+
+`isFcmConfigured()` / `validateFcmVapidKey()` in `lib/firebase-client.ts` require a non-placeholder `NEXT_PUBLIC_FIREBASE_VAPID_KEY`. Cross-project ring-main certificate leak detection: `isKnownCrossProjectVapidLeak()`. Deep push map: [Push notifications (FCM)](/docs/features/push-notifications-fcm).
 
 ## Key differences between the two Firebase paths
 

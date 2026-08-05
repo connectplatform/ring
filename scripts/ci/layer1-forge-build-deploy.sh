@@ -116,7 +116,18 @@ write_remote_buildctl_script() {
   g_id="$(env_or NEXT_PUBLIC_AUTH_GOOGLE_ID '943600517697-dcl8js3nfu0fci1grkrvi9kqraduvgf4.apps.googleusercontent.com')"
   fb_key="$(env_or NEXT_PUBLIC_FIREBASE_API_KEY 'AIzaSyCJGCDpjjP4DrBulMvgQ2vkxt0PFI5dsjA')"
   fb_app="$(env_or NEXT_PUBLIC_FIREBASE_APP_ID '1:943600517697:web:6def92b494dd06f601bcc0')"
-  fb_vapid="$(env_or NEXT_PUBLIC_FIREBASE_VAPID_KEY 'BDk39Wsdf1u-8z82smv00xq13gmtK507GmpowQOMzlijT9fcZ6zsX55f6FIgsvR2wP3_anAVWtMM8GSemAN45tM')"
+  # FCM Web Push certificate — Console cert for ring-platform (BMQk…). Never hardcode stale BDk39/BKQ4.
+  fb_vapid="$(env_or NEXT_PUBLIC_FIREBASE_VAPID_KEY '')"
+  if [[ -z "$fb_vapid" ]]; then
+    local secrets_json="${RING_SECRETS_JSON:-$ROOT/../AI-SECRETS/ring-platform.org/ring-platform.org-secrets.json}"
+    if [[ -f "$secrets_json" ]] && command -v jq >/dev/null 2>&1; then
+      fb_vapid="$(jq -r '.build_args.NEXT_PUBLIC_FIREBASE_VAPID_KEY // empty' "$secrets_json")"
+    fi
+  fi
+  if [[ -z "$fb_vapid" ]]; then
+    echo "FATAL: NEXT_PUBLIC_FIREBASE_VAPID_KEY required (export env, RING_BUILD_ARG_NEXT_PUBLIC_FIREBASE_VAPID_KEY, or AI-SECRETS build_args)." >&2
+    exit 1
+  fi
   wc="$(env_or NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID '03531d834dcd14038f2a7d78576e0d41')"
   next_url="$(env_or NEXTAUTH_URL 'https://ring-platform.org')"
   app_url="$(env_or NEXT_PUBLIC_APP_URL 'https://ring-platform.org')"

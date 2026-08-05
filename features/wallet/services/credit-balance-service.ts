@@ -4,6 +4,8 @@ import {
   UserCreditBalance,
   CreditBalanceTopUpRequest,
   CreditSpendRequest,
+  CreditSpendRequestInput,
+  CreditSpendRequestSchema,
   CreditHistoryRequest,
   CreditHistoryResponse,
 } from '@/lib/zod/credit-schemas';
@@ -385,11 +387,12 @@ export class CreditBalanceService {
    */
   async spendCredits(
     userId: string,
-    request: CreditSpendRequest,
+    requestInput: CreditSpendRequestInput,
     type: CreditBalanceTransactionType,
     mainCurrencyRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
+      const request: CreditSpendRequest = CreditSpendRequestSchema.parse(requestInput);
       const now = new Date();
 
       const applySpend = (
@@ -544,7 +547,7 @@ export class CreditBalanceService {
         newBalance: applied.newBalance,
       };
     } catch (error) {
-      logger.error('Failed to spend credits.', { userId, request, error });
+      logger.error('Failed to spend credits.', { userId, request: requestInput, error });
       throw new Error(`Failed to spend credits: ${error}`);
     }
   }
@@ -678,7 +681,7 @@ export class CreditBalanceService {
   ): Promise<{ success: true; transaction: CreditTransaction }> {
     try {
       // Prepare spend request struct for this specific business logic (membership fee)
-      const request: CreditSpendRequest = {
+      const request: CreditSpendRequestInput = {
         amount: membershipFee,
         description: 'Monthly membership fee',
         metadata: {

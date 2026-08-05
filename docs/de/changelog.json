@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-08-05",
+    "version": "1.97.23",
+    "mods": [
+      "### Fixed\n- **FCM Web Push certificate bake** — `getFcmVapidKey()` SSOT in `lib/firebase-client.ts`; `use-fcm` init + `refreshToken` share one path; Layer1 CI fail-closed (no stale `BDk39` default) — bake Console `BMQk…` for ring-platform\n- **Credit spend types** — `CreditSpendRequestInput` after Oracle `mainCurrencyRate` transform; File Cabinet upload discriminant; postgres-fanout-hub import paths",
+      "### Changed\n- **Push docs / env template** — Console cert vs staged `VAPID_*` dual-stack truth (EN + UK notifications API cleanup)"
+    ]
+  },
+  {
+    "date": "2026-08-05",
     "version": "1.97.22",
     "mods": [
       "### Fixed\n- **Tunnel session auth** — `verifyAuth` prefers Auth.js `auth()` for encrypted JWE session cookies so `POST /api/tunnel/token` issues user-scoped JWTs (stops anonymous token spam while publishes use real `userId`)\n- **NativeWs reconnect** — cache tunnel JWT until near expiry; generation/`activeSocket` stale-close guards; TransportManager `fallbackReconnectInFlight` prevents reconnect storms on fallback",

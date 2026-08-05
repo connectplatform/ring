@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging'
-import { app, isFcmConfigured, isKnownCrossProjectVapidLeak, validateFirebaseConfig } from '@/lib/firebase-client'
+import { app, getFcmVapidKey, isFcmConfigured, isKnownCrossProjectVapidLeak, validateFirebaseConfig } from '@/lib/firebase-client'
 import { getOrCreateDeviceFingerprint } from '@/lib/notifications/device-fingerprint'
 
 interface FCMState {
@@ -182,8 +182,8 @@ export function useFCM(): FCMHookReturn {
           }
 
           // Only get token if permission is already granted
-          const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
-          if (!vapidKey?.trim()) {
+          const vapidKey = getFcmVapidKey()
+          if (!vapidKey) {
             setState(prev => ({ ...prev, isLoading: false }))
             fcmInitializationInProgress = false
             return
@@ -267,8 +267,8 @@ export function useFCM(): FCMHookReturn {
 
       if (!app) return
 
-      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
-      if (!vapidKey?.trim()) return
+      const vapidKey = getFcmVapidKey()
+      if (!vapidKey) return
 
       const messaging = getMessaging(app)
       const newToken = await getToken(messaging, { vapidKey })

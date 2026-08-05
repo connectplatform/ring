@@ -24,6 +24,6 @@ Append-only JSON — not this Markdown file:
 
 **History origin:** 2024 (Ring Platform 0.1 genesis; 99+ feature releases).
 
-**Latest docs note (1.97.22):** Tunnel session auth (`auth()` for JWE cookies) + NativeWs reconnect token reuse / storm guards. Changelog UI tops at **1.97.22**. Package `1.97.22`.
+**Latest docs note (1.97.23):** FCM Console Web Push cert bake (`getFcmVapidKey` + Layer1 fail-closed) + credit-spend/fan-out typecheck fixes. Changelog UI tops at **1.97.23**. Package `1.97.23`.
 
 This root `CHANGELOG.md` is **deprecated for the product UI**. Prefer [ring-platform.org/changelog](https://ring-platform.org/changelog) and edit the locale JSON files when shipping notes.

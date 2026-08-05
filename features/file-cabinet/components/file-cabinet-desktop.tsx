@@ -399,7 +399,7 @@ export function FileCabinetDesktop({ scope, className }: Props) {
             fd.append('file', f)
             if (parentId) fd.append('parentId', parentId)
             const result = await uploadCabinetFileAction(fd)
-            if (!result.ok) throw new Error(result.error)
+            if (result.ok === false) throw new Error(result.error)
           }
           reload()
         } catch (e) {

@@ -1,7 +1,7 @@
 ---
 title: Environment Configuration
 description: Required and optional environment variables for Ring Platform — database backend, Firebase Admin SDK, FCM, Auth.js (Google / Telegram / Apple), payments, locales, Tunnel, and file storage.
-last_modified: "2026-07-20"
+last_modified: "2026-08-05"
 audience: both
 ---
 
@@ -104,7 +104,7 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-YCZKPV315E
 NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key
 ```
 
-Get these from **Firebase Console → Project Settings → General → Web apps**.
+Get client SDK keys from **Firebase Console → Project Settings → General → Web apps**. Set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` from **Cloud Messaging → Web Push certificates** for that same project (build-time for the browser). Staged dual-stack: `VAPID_*` — see [Push notifications (FCM)](/docs/features/push-notifications-fcm).
 
 ## Auth providers
 

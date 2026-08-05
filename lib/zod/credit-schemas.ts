@@ -109,10 +109,14 @@ export const CreditSpendRequestSchema = z
   })
   .transform(({ usdRate, mainCurrencyRate, ...rest }) => ({
     ...rest,
-    mainCurrencyRate: mainCurrencyRate ?? usdRate,
+    /** Always present after parse; callers may omit and rely on spendCredits 4th arg / accounting rate. */
+    mainCurrencyRate: mainCurrencyRate ?? usdRate ?? '1',
   }));
 
-export type CreditSpendRequest = z.infer<typeof CreditSpendRequestSchema>;
+/** Pre-parse / construction shape — mainCurrencyRate optional. */
+export type CreditSpendRequestInput = z.input<typeof CreditSpendRequestSchema>;
+/** Post-parse shape — mainCurrencyRate always set. */
+export type CreditSpendRequest = z.output<typeof CreditSpendRequestSchema>;
 
 /**
  * Credit balance response schema

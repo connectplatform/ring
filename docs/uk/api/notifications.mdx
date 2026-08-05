@@ -738,17 +738,16 @@ trackEvent('notification_delivered', {
 
 ### Змінні середовища
 
-Конфігурація FCM Налаштування повідомлень Redis (необов'язково)
+FCM (клієнт + Admin). Див. також [Push notifications (FCM)](/docs/features/push-notifications-fcm) (EN).
 
-<Code language="bash" title="terminal">
-{`FCM_SERVER_KEY=your-fcm-server-key
-FCM_VAPID_KEY=your-vapid-public-key
-
-NOTIFICATION_RATE_LIMIT=100
-NOTIFICATION_BULK_LIMIT=50
-NOTIFICATION_RETENTION_DAYS=90
-
-REDIS_URL=redis://localhost:6379`}
+<Code language="bash" title="FCM env">
+{`NEXT_PUBLIC_FIREBASE_PROJECT_ID=…
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=…   # Console → Cloud Messaging → Web Push certificates
+AUTH_FIREBASE_PROJECT_ID=…
+AUTH_FIREBASE_CLIENT_EMAIL=…
+AUTH_FIREBASE_PRIVATE_KEY="…"
+DB_BACKEND_MODE=k8s-postgres-fcm
+# Staged (not read yet): VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT`}
 </Code>
 
 ### Схема бази даних

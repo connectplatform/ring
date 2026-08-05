@@ -10,9 +10,9 @@
  *   pods would need distributed presence (out of scope for NOTIFY MVP).
  */
 
-import type { TunnelMessage } from '../../types';
-import type { InMemoryTunnelHub } from '../in-memory-hub';
-import type { PublishToUserResult, TunnelHub, TunnelWsSocket } from '../types';
+import type { TunnelMessage } from '../types';
+import type { InMemoryTunnelHub } from './in-memory-hub';
+import type { PublishToUserResult, TunnelHub, TunnelWsSocket } from './types';
 import type { TunnelFanoutEnvelope } from './postgres-fanout/envelope';
 import { getTunnelInstanceId } from './postgres-fanout/instance-id';
 import type { PostgresFanoutTransport } from './postgres-fanout/transport';
