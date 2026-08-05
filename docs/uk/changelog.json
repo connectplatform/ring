@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-08-05",
+    "version": "1.97.22",
+    "mods": [
+      "### Fixed\n- **Tunnel session auth** — `verifyAuth` prefers Auth.js `auth()` for encrypted JWE session cookies so `POST /api/tunnel/token` issues user-scoped JWTs (stops anonymous token spam while publishes use real `userId`)\n- **NativeWs reconnect** — cache tunnel JWT until near expiry; generation/`activeSocket` stale-close guards; TransportManager `fallbackReconnectInFlight` prevents reconnect storms on fallback",
+      "### Changed\n- **Tunnel docs** — operator notes for session cookie → tunnel JWT + reconnect token reuse"
+    ]
+  },
+  {
+    "date": "2026-08-05",
     "version": "1.97.21",
     "mods": [
       "### Added\n- **Profile account widgets** — Organization Davinci-droplist (`GET /api/entities`), Position/Skills `ProfileTagCloud`, My Curriculum Vitae (`WikiRichEditor` FsModal + `profile:cv` upload → `users.data.curriculumVitae`)\n- **CV editor chrome** — two-row toolbar (Style · B/I/U/S · Close; link/table/hr/image/lists/quote · Raw .md); image gallery FsModal; localStorage drafts; footer Undo/Redo + Cancel / Save & Exit\n- **Docs** — `/docs/features/profile-account`; WIDGETS-README App UI profile widgets + `ring_widgets.app_ui_profile`",

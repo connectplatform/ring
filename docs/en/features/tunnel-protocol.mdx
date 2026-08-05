@@ -67,7 +67,8 @@ Your clone feels **alive**: unread badges update, chat messages appear, marketpl
 
 - **Replicas** — default is single-pod in-process hub. Multi-replica publish needs `TUNNEL_HUB_MODE=k8s-postgres` **and** `TUNNEL_POSTGRES_FANOUT=enabled` (Postgres LISTEN/NOTIFY). Leave replicas at 1 until enabled + smoked. Redis/Connect hubs remain backlog.
 - **Fan-out delivery** — when Postgres fan-out is on, publish is **live-only** (SSE/WS). No per-pod offline ghost queues (avoids double-delivery). Missed tabs use FCM / DB history / client refetch on reconnect.
-- **Native WSS reconnect** — `NativeWsClient` self-heals unexpected closes (exponential backoff, fresh `/api/tunnel/token`, resubscribe retained channels). Emits `reconnect` while retrying; `disconnect` only on intentional close or exhausted attempts so TransportManager can fall back to SSE/poll.
+- **Native WSS reconnect** — `NativeWsClient` self-heals unexpected closes (exponential backoff, JWT reuse until near expiry, force refresh on `AUTH_FAILED`, resubscribe retained channels). Emits `reconnect` while retrying; `disconnect` only on intentional close or exhausted attempts so TransportManager can fall back to SSE/poll.
+- **Session → tunnel JWT** — `POST /api/tunnel/token` resolves the Auth.js session via `auth()` (encrypted JWE cookies) before minting a tunnel JWT; anonymous tokens must not be issued for logged-in tabs.
 - **FCM is the offline path** — tunnel covers active tabs only.
 - **Stale UI after deploy** — check `/api/tunnel/test` and browser network for repeated subscribe calls (should be one per channel per session).
 

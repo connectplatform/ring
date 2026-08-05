@@ -97,6 +97,8 @@ export class TunnelTransportManager implements TunnelTransport {
   private maxConnectionAttempts = 3;
   private isConnecting = false;
   private connectInFlight: Promise<void> | null = null;
+  /** Prevents stacked disconnect→connectToProvider storms. */
+  private fallbackReconnectInFlight = false;
   private debug = false;
   // Adaptive health checking
   private consecutiveFailures = 0;
@@ -310,12 +312,18 @@ export class TunnelTransportManager implements TunnelTransport {
     // retry / SSE|poll fallback is appropriate.
     transport.on('disconnect', async (data: any) => {
       this.log('Transport disconnected:', data);
-      
+
+      if (this.fallbackReconnectInFlight || this.connectInFlight) {
+        this.log('Skipping disconnect fallback — connect already in flight');
+        return;
+      }
+
       if (this.config.retry?.enabled && this.connectionAttempts < this.maxConnectionAttempts) {
         this.connectionAttempts++;
-        
-        // Try to reconnect with same provider first
+        this.fallbackReconnectInFlight = true;
+
         try {
+          // Try to reconnect with same provider first
           await this.connectToProvider(this.currentProvider!, this.config.connection);
         } catch (error) {
           // Try next in fallback chain
@@ -323,6 +331,8 @@ export class TunnelTransportManager implements TunnelTransport {
           if (this.fallbackIndex < this.fallbackChain.length) {
             await this.connectWithFallback(this.config.connection);
           }
+        } finally {
+          this.fallbackReconnectInFlight = false;
         }
       }
     });

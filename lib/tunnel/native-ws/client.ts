@@ -48,6 +48,8 @@ export class NativeWsClient extends EventEmitter {
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private subscribedChannels = new Set<string>();
   private token: string | null = null;
+  /** Epoch ms when `token` should be refreshed (from /api/tunnel/token expiresIn). */
+  private tokenExpiresAt = 0;
   /** When true, close must not schedule reconnect. */
   private intentionalClose = false;
   private connectPromise: Promise<void> | null = null;
@@ -56,6 +58,8 @@ export class NativeWsClient extends EventEmitter {
   private pendingPongHandler?: (pongId: string) => void;
   /** Rejects the in-flight WS handshake when disconnect() races connect(). */
   private activeHandshakeAbort: ((error: Error) => void) | null = null;
+  /** Socket instance currently owned — ignore close events from disposed sockets. */
+  private activeSocket: WebSocket | null = null;
 
   constructor(config: NativeWsClientConfig) {
     super();
@@ -76,7 +80,16 @@ export class NativeWsClient extends EventEmitter {
     return this.state.status === 'connected' && this.socket?.readyState === WebSocket.OPEN;
   }
 
-  private async fetchToken(): Promise<string> {
+  private async fetchToken(force = false): Promise<string> {
+    const now = Date.now();
+    if (
+      !force &&
+      this.token &&
+      this.tokenExpiresAt > now + 60_000
+    ) {
+      return this.token;
+    }
+
     const response = await fetch('/api/tunnel/token', {
       method: 'POST',
       credentials: 'include',
@@ -84,8 +97,16 @@ export class NativeWsClient extends EventEmitter {
     if (!response.ok) {
       throw new Error(`Tunnel token failed: ${response.status}`);
     }
-    const data = (await response.json()) as { token: string };
+    const data = (await response.json()) as { token: string; expiresIn?: number };
+    this.token = data.token;
+    const ttlSec = typeof data.expiresIn === 'number' && data.expiresIn > 0 ? data.expiresIn : 3600;
+    this.tokenExpiresAt = now + ttlSec * 1000;
     return data.token;
+  }
+
+  private clearTokenCache(): void {
+    this.token = null;
+    this.tokenExpiresAt = 0;
   }
 
   private emitError(error: unknown): void {
@@ -122,6 +143,9 @@ export class NativeWsClient extends EventEmitter {
     if (!this.socket) return;
     const socket = this.socket;
     this.socket = null;
+    if (this.activeSocket === socket) {
+      this.activeSocket = null;
+    }
     this.detachSocketHandlers(socket);
     try {
       if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
@@ -181,9 +205,18 @@ export class NativeWsClient extends EventEmitter {
     }, delay);
   }
 
-  private handleUnexpectedClose(): void {
+  private handleUnexpectedClose(closedSocket: WebSocket | null, generation: number): void {
+    // Ignore closes from disposed / superseded sockets (reconnect races).
+    if (this.isConnectStale(generation)) return;
+    if (closedSocket && this.activeSocket && closedSocket !== this.activeSocket) return;
+
     this.stopHeartbeat();
-    this.socket = null;
+    if (this.socket === closedSocket) {
+      this.socket = null;
+    }
+    if (this.activeSocket === closedSocket) {
+      this.activeSocket = null;
+    }
     this.state.isAuthenticated = false;
 
     if (this.intentionalClose) {
@@ -191,6 +224,9 @@ export class NativeWsClient extends EventEmitter {
       this.state.status = 'disconnected';
       return;
     }
+
+    // Already waiting on a reconnect timer — don't stack another schedule.
+    if (this.reconnectTimer) return;
 
     if (this.canScheduleReconnect()) {
       this.scheduleReconnect();
@@ -205,6 +241,7 @@ export class NativeWsClient extends EventEmitter {
 
   private attachPersistentHandlers(generation: number): void {
     if (!this.socket) return;
+    const socket = this.socket;
 
     this.socket.onmessage = (event) => {
       if (this.isConnectStale(generation)) return;
@@ -221,7 +258,7 @@ export class NativeWsClient extends EventEmitter {
     };
 
     this.socket.onclose = () => {
-      this.handleUnexpectedClose();
+      this.handleUnexpectedClose(socket, generation);
     };
 
     this.socket.onerror = () => {
@@ -256,7 +293,12 @@ export class NativeWsClient extends EventEmitter {
     this.disposeSocket();
 
     try {
-      this.token = await this.fetchToken();
+      // Force a fresh token after AUTH_FAILED; otherwise reuse until near expiry
+      // so reconnect storms do not hammer POST /api/tunnel/token.
+      const forceToken =
+        this.state.lastError?.includes('Authentication failed') ||
+        this.state.lastError?.includes('AUTH_FAILED');
+      this.token = await this.fetchToken(Boolean(forceToken));
       if (this.isConnectStale(generation)) {
         throw this.abortError();
       }
@@ -266,6 +308,7 @@ export class NativeWsClient extends EventEmitter {
         typeof window !== 'undefined' ? window.location.origin : undefined,
       );
       this.socket = new WebSocket(url.toString());
+      this.activeSocket = this.socket;
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('WebSocket connection timeout')), 15000);
@@ -281,7 +324,7 @@ export class NativeWsClient extends EventEmitter {
         this.activeHandshakeAbort = fail;
 
         socket.onopen = () => {
-          if (this.isConnectStale(generation)) {
+          if (this.isConnectStale(generation) || this.activeSocket !== socket) {
             fail(this.abortError());
             return;
           }
@@ -294,6 +337,9 @@ export class NativeWsClient extends EventEmitter {
         };
 
         socket.onclose = () => {
+          if (this.isConnectStale(generation) || this.activeSocket !== socket) {
+            return;
+          }
           if (this.state.status === 'connecting' || this.state.status === 'reconnecting') {
             fail(new Error('WebSocket closed before auth'));
           }
@@ -304,7 +350,7 @@ export class NativeWsClient extends EventEmitter {
           if (!frame) return;
 
           if (frame.op === 'auth_ok') {
-            if (this.isConnectStale(generation)) {
+            if (this.isConnectStale(generation) || this.activeSocket !== socket) {
               fail(this.abortError());
               return;
             }
@@ -325,7 +371,12 @@ export class NativeWsClient extends EventEmitter {
           }
 
           if (frame.op === 'error' && this.state.status !== 'connected') {
-            fail(new Error((frame as { message: string }).message));
+            const message = (frame as { message?: string; code?: string }).message || 'Authentication failed';
+            const code = (frame as { code?: string }).code;
+            if (code === 'AUTH_FAILED' || /auth/i.test(message)) {
+              this.clearTokenCache();
+            }
+            fail(new Error(message));
             return;
           }
 
@@ -367,6 +418,7 @@ export class NativeWsClient extends EventEmitter {
     this.stopHeartbeat();
     this.clearReconnectTimer();
     this.connectPromise = null;
+    this.clearTokenCache();
     const abortHandshake = this.activeHandshakeAbort;
     this.activeHandshakeAbort = null;
     abortHandshake?.(this.abortError());
@@ -375,6 +427,7 @@ export class NativeWsClient extends EventEmitter {
       const socket = this.socket;
       this.detachSocketHandlers(socket);
       this.socket = null;
+      this.activeSocket = null;
       try {
         socket.close();
       } catch {

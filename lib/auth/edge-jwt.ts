@@ -93,16 +93,8 @@ export async function verifySessionToken(sessionToken: string): Promise<{ userId
         email: payload.email as string | undefined,
       };
     } catch {
-      // If not a JWT, it might be an encrypted session token
-      // In production, you'd decrypt this using the same method Auth.js uses
-      // For now, we'll try to extract user ID from the token structure
-      
-      // Auth.js v5 uses encrypted tokens by default for better security
-      // This is expected behavior and not an error
-      // For Edge Runtime, we'll generate our own JWT tokens for tunnel auth
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Auth.js encrypted session token detected (expected behavior)');
-      }
+      // Auth.js v5 default session cookie is encrypted (JWE), not HS256 JWT.
+      // Callers should resolve the user via auth() — see verifyAuth().
       return null;
     }
   } catch (error) {
@@ -112,10 +104,12 @@ export async function verifySessionToken(sessionToken: string): Promise<{ userId
 }
 
 /**
- * Extract and verify authentication from request
+ * Extract and verify authentication from request.
+ * Prefer Auth.js `auth()` for session cookies (JWE/encrypted sessions cannot be
+ * jwtVerify'd). Fall back to Bearer / query tunnel JWTs for WS/SSE frames.
  */
 export async function verifyAuth(request: Request): Promise<{ userId: string; email?: string } | null> {
-  // Check for Bearer token in Authorization header
+  // Check for Bearer token in Authorization header (tunnel JWT)
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
@@ -123,7 +117,7 @@ export async function verifyAuth(request: Request): Promise<{ userId: string; em
     if (result) return result;
   }
 
-  // Check for token in query parameters
+  // Check for token in query parameters (tunnel JWT)
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
   if (token) {
@@ -131,7 +125,21 @@ export async function verifyAuth(request: Request): Promise<{ userId: string; em
     if (result) return result;
   }
 
-  // Check for session cookie
+  // Auth.js session (handles encrypted JWE cookies — do NOT jwtVerify the cookie)
+  try {
+    const { auth } = await import('@/auth');
+    const session = await auth();
+    if (session?.user?.id) {
+      return {
+        userId: session.user.id,
+        email: session.user.email ?? undefined,
+      };
+    }
+  } catch {
+    // Non-route / edge contexts without auth() — fall through to legacy cookie JWT
+  }
+
+  // Legacy: unencrypted JWT session cookies only (rare; Auth.js v5 default is JWE)
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
     const cookies = Object.fromEntries(
@@ -141,9 +149,8 @@ export async function verifyAuth(request: Request): Promise<{ userId: string; em
       })
     );
 
-    // Try Auth.js session tokens (both secure and non-secure variants)
-    const sessionToken = 
-      cookies['authjs.session-token'] || 
+    const sessionToken =
+      cookies['authjs.session-token'] ||
       cookies['__Secure-authjs.session-token'] ||
       cookies['next-auth.session-token'] ||
       cookies['__Secure-next-auth.session-token'];

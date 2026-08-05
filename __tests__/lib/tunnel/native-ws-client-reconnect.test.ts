@@ -135,7 +135,7 @@ describe('NativeWsClient auto-reconnect', () => {
 
     const second = MockWebSocket.instances[MockWebSocket.instances.length - 1]!
     expect(second).not.toBe(first)
-    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(global.fetch).toHaveBeenCalledTimes(1)
 
     if (second.readyState !== MockWebSocket.OPEN) {
       second.readyState = MockWebSocket.OPEN
