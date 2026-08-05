@@ -184,7 +184,54 @@ export function computeOrderLabTabStatuses(
     ),
     chats: withCrash('chats', emptyTabStatus('ok')),
     wiki: withCrash('wiki', emptyTabStatus('ok')),
+    playbook: withCrash('playbook', emptyTabStatus('ok')),
+    room: withCrash('room', emptyTabStatus('ok')),
   }
 
   return out
+}
+
+/** Live deploy-tab chip from DeployStatusWidget local state (keeps SSOT rules). */
+export function tabStatusFromDeploySnapshot(input: {
+  lastDeployStatus?: string | null
+  lastError?: string | null
+  namespace?: string | null
+  projectUrl?: string | null
+  pods?: Array<{ ready?: string; phase?: string }> | null
+}): OrderLabTabStatus {
+  const deployErrors: string[] = []
+  if (input.lastDeployStatus === 'failed' || input.lastError) {
+    deployErrors.push(input.lastError || 'deploy_failed')
+  }
+  const deployRequired: string[] = []
+  if (!input.namespace) deployRequired.push('namespace')
+  const deployRecommended: string[] = []
+  if (!input.projectUrl) deployRecommended.push('projectUrl')
+  const pods = input.pods || []
+  if (pods.length > 0) {
+    let ready = 0
+    for (const p of pods) {
+      const readyStr = String(p.ready || '')
+      if (
+        readyStr.includes('/')
+          ? readyStr.split('/')[0] === readyStr.split('/')[1] && readyStr !== '0/0'
+          : p.phase === 'Running'
+      ) {
+        ready += 1
+      }
+    }
+    if (ready < pods.length) deployRecommended.push('pods_not_ready')
+  }
+  return finalize(deployRequired, deployRecommended, deployErrors)
+}
+
+/** Source tab: empty tree / scaffold-first → incomplete (orange), never error. */
+export function tabStatusFromSourceTree(input: {
+  scaffoldFirst?: boolean
+  fileCount: number
+}): OrderLabTabStatus {
+  if (input.scaffoldFirst || input.fileCount === 0) {
+    return finalize([], ['source_empty'], [])
+  }
+  return emptyTabStatus('ok')
 }

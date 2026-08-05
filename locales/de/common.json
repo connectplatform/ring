@@ -127,7 +127,8 @@
       "country": "Land",
       "timezone": "Zeitzone",
       "representative": "Vertreter",
-      "vendor": "Anbieter"
+      "vendor": "Anbieter",
+      "organization": "Organisation"
     },
     "searching": "Suche…"
   }

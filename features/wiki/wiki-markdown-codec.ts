@@ -21,6 +21,7 @@ function escapeAttr(s: string): string {
 
 function inlineFormat(s: string): string {
   return escapeHtml(s)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -230,6 +231,12 @@ function serializeInline(node: Node): string {
     if (href) return `[${inner}](${href})`
     return inner
   }
+  if (tag === 'img') {
+    const src = el.getAttribute('src') || ''
+    const alt = el.getAttribute('alt') || ''
+    if (!src) return ''
+    return `![${alt}](${src})`
+  }
   return inner
 }
 
@@ -307,6 +314,12 @@ function serializeBlock(el: HTMLElement): string {
     )
   }
   if (tag === 'hr') return '---\n\n'
+  if (tag === 'img') {
+    const src = el.getAttribute('src') || ''
+    const alt = el.getAttribute('alt') || ''
+    if (!src) return ''
+    return `![${alt}](${src})\n\n`
+  }
   if (tag === 'div' || tag === 'span') {
     return Array.from(el.childNodes)
       .map((n) =>

@@ -23,6 +23,8 @@ import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { RINGIZATION_PLAYBOOK_DOCS_PATH } from '@/features/crm/lab/ringization-playbook'
 import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
+import { computeOrderLabTabStatuses } from '@/features/crm/lab/order-lab-tab-status'
 
 function UserRow({
   user,
@@ -65,6 +67,7 @@ export function CrmOrderDetailClient({
   locale: Locale
 }) {
   const router = useRouter()
+  const tabCtx = useOptionalOrderLabTabStatus()
   const [order, setOrder] = useState(initial)
   const [progress, setProgress] = useState(initial.progress)
   const [integratorId, setIntegratorId] = useState(initial.integratorId ?? '')
@@ -89,6 +92,9 @@ export function CrmOrderDetailClient({
       setOrder(data.order)
       setProgress(data.order.progress ?? 0)
       setIntegratorId(data.order.integratorId ?? '')
+      const next = computeOrderLabTabStatuses({ order: data.order })
+      if (next.overview) tabCtx?.setTabStatus('overview', next.overview)
+      if (next.manage) tabCtx?.setTabStatus('manage', next.manage)
       router.refresh()
     })
   }

@@ -39,35 +39,35 @@ const DOCUMENT_TYPES = [
     label: 'Passport',
     description: 'Government-issued passport',
     icon: FileText,
-    acceptedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    acceptedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
   },
   {
     type: KYCDocumentType.ID_CARD,
     label: 'ID Card',
     description: 'National ID or identity card',
     icon: Shield,
-    acceptedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    acceptedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
   },
   {
     type: KYCDocumentType.DRIVERS_LICENSE,
     label: 'Driver\'s License',
     description: 'Valid driver\'s license',
     icon: File,
-    acceptedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    acceptedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
   },
   {
     type: KYCDocumentType.DIIA_CERTIFICATE,
     label: 'Diia Certificate',
     description: 'Ukrainian Diia digital certificate',
     icon: Shield,
-    acceptedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    acceptedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
   },
   {
     type: KYCDocumentType.BANK_ID_CERTIFICATE,
     label: 'Bank ID Certificate',
     description: 'Bank-issued digital certificate',
     icon: Shield,
-    acceptedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    acceptedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
   }
 ]
 

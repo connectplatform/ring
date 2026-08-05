@@ -75,6 +75,40 @@ export function previewNativeTokenFromCreditPoints(
 }
 
 /**
+ * Points → main-currency fiat via ring-config `credit.creditBalanceUnitToMainCurrency`
+ * (same rate as `@/lib/ring-oracle` `getCreditUnitToMainCurrencyRate` — client-safe path).
+ * Never uses desk/Chainlink oracle.
+ */
+export function previewMainCurrencyFromCreditPoints(points: number): string {
+  if (!Number.isFinite(points) || points < 0) return '0.00'
+  const rate = getCreditUnitToMainCurrencyRate()
+  const main = points * (rate > 0 && Number.isFinite(rate) ? rate : 0.1)
+  if (!Number.isFinite(main)) return '0.00'
+  return main.toFixed(2)
+}
+
+/**
+ * Resolve display fiat for credit points. Prefer recomputing from SSOT rate when
+ * stored ledger `main_currency_equivalent` is missing, NaN, or non-finite (legacy corruption).
+ */
+export function resolveCreditMainCurrencyEquivalent(
+  points: string | number | null | undefined,
+  storedEquivalent?: string | null,
+): string {
+  const pts = typeof points === 'number' ? points : Number.parseFloat(String(points ?? '0'))
+  const safePoints = Number.isFinite(pts) ? pts : 0
+  const computed = previewMainCurrencyFromCreditPoints(safePoints)
+
+  if (storedEquivalent == null || storedEquivalent === '') return computed
+  const stored = Number.parseFloat(String(storedEquivalent).replace(/,/g, ''))
+  if (!Number.isFinite(stored) || String(storedEquivalent).toLowerCase().includes('nan')) {
+    return computed
+  }
+  // Prefer SSOT recompute so UI matches current creditBalanceUnitToMainCurrency
+  return computed
+}
+
+/**
  * Returns the configured name of the native token, or a human readable default.
  */
 export function getClientNativeTokenName(): string {

@@ -1,11 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+} from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
@@ -21,15 +29,15 @@ import {
   List,
   ListOrdered,
   Quote,
-  Code,
   Undo,
   Redo,
   FileCode2,
   Link as LinkIcon,
-  MoreHorizontal,
+  ChevronDown,
   Table as TableIcon,
-  Code2,
   Minus,
+  ImageIcon,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -52,7 +60,9 @@ import {
   markdownToEditorHtml,
 } from '@/features/wiki/wiki-markdown-codec'
 import type { ParsedWikiLink } from '@/features/wiki/types'
+import { WikiImageGalleryFsModal } from '@/features/wiki/components/wiki-image-gallery-fs-modal'
 import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 
 /** TipTap Link that preserves wiki data-* attrs through the HTML round-trip. */
 const WikiLink = Link.extend({
@@ -95,7 +105,7 @@ const WikiLink = Link.extend({
 
 /** Tailwind preflight resets h1–h6 size; restore hierarchy without @tailwindcss/typography. */
 const EDITOR_PROSE_CLASS = [
-  'wiki-tiptap max-w-none min-h-[380px] px-4 py-3 focus:outline-none',
+  'wiki-tiptap max-w-none min-h-[380px] px-4 py-3 pb-10 focus:outline-none',
   'text-sm leading-relaxed text-foreground',
   '[&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:tracking-tight',
   '[&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-2xl [&_h2]:font-semibold',
@@ -113,7 +123,18 @@ const EDITOR_PROSE_CLASS = [
   '[&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold',
   '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5',
   '[&_a]:text-primary [&_a]:underline',
+  '[&_img]:my-3 [&_img]:max-h-80 [&_img]:max-w-full [&_img]:rounded-md [&_img]:object-contain',
 ].join(' ')
+
+export type WikiRichEditorHistoryApi = {
+  undo: () => void
+  redo: () => void
+}
+
+export type WikiRichEditorHistoryState = {
+  canUndo: boolean
+  canRedo: boolean
+}
 
 type Props = {
   value: string
@@ -122,19 +143,17 @@ type Props = {
   placeholder?: string
   className?: string
   onNavigateWikiLink?: (link: ParsedWikiLink) => void
+  /** Shows Close (X) on the toolbar — typically closes the host FsModal. */
+  onRequestClose?: () => void
+  /**
+   * When set, undo/redo stay out of the toolbar; parent renders them (e.g. Cancel/Save row).
+   * Also keeps an always-fresh API on the ref.
+   */
+  historyRef?: React.MutableRefObject<WikiRichEditorHistoryApi | null>
+  onHistoryChange?: (state: WikiRichEditorHistoryState) => void
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function escapeAttr(s: string): string {
-  return escapeHtml(s).replace(/'/g, '&#39;')
-}
+type HeadingLevel = 1 | 2 | 3 | 4
 
 function ToolbarButton({
   onClick,
@@ -163,8 +182,8 @@ function ToolbarButton({
             disabled={disabled}
             aria-pressed={active}
             className={cn(
-              'h-8 gap-1 px-2',
-              !className && 'w-8 p-0',
+              'h-10 gap-1 px-2.5',
+              !className && 'w-10 p-0',
               active && 'bg-muted text-foreground',
               className,
             )}
@@ -180,363 +199,434 @@ function ToolbarButton({
 }
 
 /**
- * Single-column wiki editor: rich TipTap preview/edit by default,
- * with Format toolbar + Source Markdown toggle (body SSOT stays Markdown).
+ * Single-column wiki / CV editor: rich TipTap by default, Raw .md toggle.
+ * Toolbar: row1 Style + B/I/U/S (+ optional Close); row2 insert tools + lists + quote + Raw .md.
  */
-export function WikiRichEditor({
-  value,
-  onChange,
-  disabled = false,
-  placeholder = 'Write wiki Markdown…',
-  className,
-  onNavigateWikiLink,
-}: Props) {
-  const [sourceMode, setSourceMode] = useState(false)
-  const lastEmitted = useRef(value)
-  const applyingExternal = useRef(false)
-  const sourceModeRef = useRef(sourceMode)
-  sourceModeRef.current = sourceMode
-  const onNavigateRef = useRef(onNavigateWikiLink)
-  onNavigateRef.current = onNavigateWikiLink
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    editable: !disabled && !sourceMode,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
-        codeBlock: {
-          HTMLAttributes: { class: 'wiki-code-block' },
-        },
-      }),
-      Placeholder.configure({ placeholder }),
-      Underline,
-      WikiLink.configure({
-        openOnClick: false,
-      }),
-      Table.configure({
-        resizable: true,
-        HTMLAttributes: { class: 'wiki-table' },
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-    ],
-    content: markdownToEditorHtml(value || ''),
-    onUpdate: ({ editor: ed }) => {
-      if (applyingExternal.current || sourceModeRef.current) return
-      const md = editorHtmlToMarkdown(ed.getHTML())
-      lastEmitted.current = md
-      onChange(md)
+export const WikiRichEditor = forwardRef<WikiRichEditorHistoryApi | null, Props>(
+  function WikiRichEditor(
+    {
+      value,
+      onChange,
+      disabled = false,
+      placeholder = 'Write wiki Markdown…',
+      className,
+      onNavigateWikiLink,
+      onRequestClose,
+      historyRef,
+      onHistoryChange,
     },
-    editorProps: {
-      attributes: {
-        class: EDITOR_PROSE_CLASS,
-      },
-      handleClick: (_view, _pos, event) => {
-        const navigate = onNavigateRef.current
-        const a = (event.target as HTMLElement).closest(
-          'a[data-wiki-kind]',
-        ) as HTMLAnchorElement | null
-        if (!a || !navigate) return false
-        event.preventDefault()
-        const kind =
-          a.dataset.wikiKind === 'tenant_ref' ? 'tenant_ref' : 'local'
-        const target = a.dataset.wikiTarget || ''
-        navigate({
-          raw: a.dataset.wikiRaw || `[[${target}]]`,
-          display: a.textContent || target,
-          target,
-          linkKind: kind,
-        })
-        return true
-      },
-    },
-  })
-
-  // Sync external value → editor when not typing locally
-  useEffect(() => {
-    if (!editor || sourceMode) return
-    if (value === lastEmitted.current) return
-    applyingExternal.current = true
-    editor.commands.setContent(markdownToEditorHtml(value || ''), {
-      emitUpdate: false,
+    ref,
+  ) {
+    const t = useTranslations('editor.toolbar')
+    const [sourceMode, setSourceMode] = useState(false)
+    const [galleryOpen, setGalleryOpen] = useState(false)
+    const [historyState, setHistoryState] = useState<WikiRichEditorHistoryState>({
+      canUndo: false,
+      canRedo: false,
     })
-    lastEmitted.current = value
-    applyingExternal.current = false
-  }, [value, editor, sourceMode])
+    const lastEmitted = useRef(value)
+    const applyingExternal = useRef(false)
+    const sourceModeRef = useRef(sourceMode)
+    sourceModeRef.current = sourceMode
+    const onNavigateRef = useRef(onNavigateWikiLink)
+    onNavigateRef.current = onNavigateWikiLink
+    const externalHistory = Boolean(historyRef || onHistoryChange)
 
-  useEffect(() => {
-    if (!editor) return
-    editor.setEditable(!disabled && !sourceMode)
-  }, [editor, disabled, sourceMode])
+    const editor = useEditor({
+      immediatelyRender: false,
+      editable: !disabled && !sourceMode,
+      extensions: [
+        StarterKit.configure({
+          heading: { levels: [1, 2, 3, 4] },
+          codeBlock: {
+            HTMLAttributes: { class: 'wiki-code-block' },
+          },
+        }),
+        Placeholder.configure({ placeholder }),
+        Underline,
+        WikiLink.configure({
+          openOnClick: false,
+        }),
+        Image.configure({
+          inline: false,
+          allowBase64: false,
+        }),
+        Table.configure({
+          resizable: true,
+          HTMLAttributes: { class: 'wiki-table' },
+        }),
+        TableRow,
+        TableHeader,
+        TableCell,
+      ],
+      content: markdownToEditorHtml(value || ''),
+      onUpdate: ({ editor: ed }) => {
+        if (applyingExternal.current || sourceModeRef.current) return
+        const md = editorHtmlToMarkdown(ed.getHTML())
+        lastEmitted.current = md
+        onChange(md)
+      },
+      onTransaction: ({ editor: ed }) => {
+        const next = {
+          canUndo: ed.can().undo(),
+          canRedo: ed.can().redo(),
+        }
+        setHistoryState((prev) =>
+          prev.canUndo === next.canUndo && prev.canRedo === next.canRedo ? prev : next,
+        )
+      },
+      editorProps: {
+        attributes: {
+          class: EDITOR_PROSE_CLASS,
+        },
+        handleClick: (_view, _pos, event) => {
+          const navigate = onNavigateRef.current
+          const a = (event.target as HTMLElement).closest(
+            'a[data-wiki-kind]',
+          ) as HTMLAnchorElement | null
+          if (!a || !navigate) return false
+          event.preventDefault()
+          const kind =
+            a.dataset.wikiKind === 'tenant_ref' ? 'tenant_ref' : 'local'
+          const target = a.dataset.wikiTarget || ''
+          navigate({
+            raw: a.dataset.wikiRaw || `[[${target}]]`,
+            display: a.textContent || target,
+            target,
+            linkKind: kind,
+          })
+          return true
+        },
+      },
+    })
 
-  const toggleSource = useCallback(() => {
-    if (!editor) {
-      setSourceMode((s) => !s)
-      return
+    useEffect(() => {
+      onHistoryChange?.(historyState)
+    }, [historyState, onHistoryChange])
+
+    const historyApi: WikiRichEditorHistoryApi = {
+      undo: () => editor?.chain().focus().undo().run(),
+      redo: () => editor?.chain().focus().redo().run(),
     }
-    if (!sourceMode) {
-      const md = editorHtmlToMarkdown(editor.getHTML())
-      lastEmitted.current = md
-      onChange(md)
-      setSourceMode(true)
-    } else {
+
+    useImperativeHandle(ref, () => historyApi, [editor])
+
+    useEffect(() => {
+      if (!historyRef) return
+      historyRef.current = historyApi
+      return () => {
+        historyRef.current = null
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editor, historyRef, historyState.canUndo, historyState.canRedo])
+
+    useEffect(() => {
+      if (!editor || sourceMode) return
+      if (value === lastEmitted.current) return
       applyingExternal.current = true
       editor.commands.setContent(markdownToEditorHtml(value || ''), {
         emitUpdate: false,
       })
+      lastEmitted.current = value
       applyingExternal.current = false
-      setSourceMode(false)
+    }, [value, editor, sourceMode])
+
+    useEffect(() => {
+      if (!editor) return
+      editor.setEditable(!disabled && !sourceMode)
+    }, [editor, disabled, sourceMode])
+
+    const toggleSource = useCallback(() => {
+      if (!editor) {
+        setSourceMode((s) => !s)
+        return
+      }
+      if (!sourceMode) {
+        const md = editorHtmlToMarkdown(editor.getHTML())
+        lastEmitted.current = md
+        onChange(md)
+        setSourceMode(true)
+      } else {
+        applyingExternal.current = true
+        editor.commands.setContent(markdownToEditorHtml(value || ''), {
+          emitUpdate: false,
+        })
+        applyingExternal.current = false
+        setSourceMode(false)
+      }
+    }, [editor, sourceMode, onChange, value])
+
+    const insertLink = () => {
+      if (!editor || sourceMode) return
+      const prev = editor.getAttributes('link').href as string | undefined
+      const url = window.prompt(t('url'), prev || 'https://')
+      if (url === null) return
+      if (url.trim() === '') {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run()
+        return
+      }
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
     }
-  }, [editor, sourceMode, onChange, value])
 
-  const insertWikiLink = () => {
-    if (!editor || sourceMode) return
-    const selected = editor.state.doc.textBetween(
-      editor.state.selection.from,
-      editor.state.selection.to,
-      ' ',
-    )
-    const target = selected.trim() || 'Page Title'
-    const safeAttr = escapeAttr(target)
-    const safeText = escapeHtml(target)
-    const safeRaw = escapeAttr(`[[${target}]]`)
-    editor
-      .chain()
-      .focus()
-      .insertContent(
-        `<a class="wiki-link wiki-link-local text-primary underline" href="#wiki/${encodeURIComponent(target)}" data-wiki-kind="local" data-wiki-target="${safeAttr}" data-wiki-raw="${safeRaw}">${safeText}</a>`,
+    const setParagraph = () => {
+      if (!editor) return
+      editor.chain().focus().setParagraph().run()
+    }
+
+    const setHeading = (level: HeadingLevel) => {
+      if (!editor) return
+      editor.chain().focus().setHeading({ level }).run()
+    }
+
+    const iconClass = 'h-5 w-5'
+    const toolsDisabled = sourceMode || disabled
+
+    if (!editor) {
+      return (
+        <div className={cn('overflow-hidden', className)}>
+          <Textarea
+            className="min-h-[420px] border-0 font-mono text-sm shadow-none focus-visible:ring-0"
+            value={value}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+          />
+        </div>
       )
-      .run()
-  }
+    }
 
-  if (!editor) {
     return (
-      <div className={cn('rounded border border-border', className)}>
-        <Textarea
-          className="min-h-[420px] font-mono text-sm"
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-        />
-      </div>
-    )
-  }
+      <div className={cn('flex min-h-0 flex-col overflow-hidden', className)}>
+        <div className="sticky top-0 z-10 shrink-0 border-b border-border bg-muted/50 backdrop-blur-sm">
+          {/* Row 1: Style · B I U S · Close */}
+          <div className="flex flex-wrap items-center gap-0.5 px-2 pt-1.5 pb-0.5">
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-10 min-w-[5.5rem] justify-between gap-1 px-2.5 text-sm font-medium"
+                  disabled={toolsDisabled}
+                >
+                  {t('style')}
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="z-[9300]">
+                <DropdownMenuItem
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={setParagraph}
+                >
+                  {t('normal')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => setHeading(1)}
+                  className="text-xl font-bold"
+                >
+                  <Heading1 className="mr-2 h-5 w-5" /> {t('heading1')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => setHeading(2)}
+                  className="text-lg font-semibold"
+                >
+                  <Heading2 className="mr-2 h-5 w-5" /> {t('heading2')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => setHeading(3)}
+                  className="text-base font-semibold"
+                >
+                  <Heading3 className="mr-2 h-5 w-5" /> {t('heading3')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => setHeading(4)}
+                >
+                  {t('heading4')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-  const formatLabel = editor.isActive('heading', { level: 1 })
-    ? 'Heading 1'
-    : editor.isActive('heading', { level: 2 })
-      ? 'Heading 2'
-      : editor.isActive('heading', { level: 3 })
-        ? 'Heading 3'
-        : editor.isActive('heading', { level: 4 })
-          ? 'Heading 4'
-          : 'Normal'
+            <Separator orientation="vertical" className="mx-1 h-7" />
 
-  return (
-    <div className={cn('overflow-hidden rounded border border-border', className)}>
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/50 px-2 py-1.5 backdrop-blur-sm">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo() || sourceMode}
-          title="Undo"
-        >
-          <Undo className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo() || sourceMode}
-          title="Redo"
-        >
-          <Redo className="h-4 w-4" />
-        </ToolbarButton>
-
-        <Separator orientation="vertical" className="mx-1 h-6" />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 min-w-[110px] justify-between gap-1 px-2 text-sm"
-              disabled={sourceMode || disabled}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              active={editor.isActive('bold')}
+              disabled={toolsDisabled}
+              title={t('bold')}
             >
-              {formatLabel}
-              <MoreHorizontal className="h-3 w-3 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().setParagraph().run()}
+              <Bold className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              active={editor.isActive('italic')}
+              disabled={toolsDisabled}
+              title={t('italic')}
             >
-              Normal
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              className="text-xl font-bold"
+              <Italic className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              active={editor.isActive('underline')}
+              disabled={toolsDisabled}
+              title={t('underline')}
             >
-              <Heading1 className="mr-2 h-4 w-4" /> Heading 1
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              className="text-lg font-semibold"
+              <UnderlineIcon className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              active={editor.isActive('strike')}
+              disabled={toolsDisabled}
+              title={t('strikethrough')}
             >
-              <Heading2 className="mr-2 h-4 w-4" /> Heading 2
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              className="text-base font-semibold"
+              <Strikethrough className={iconClass} />
+            </ToolbarButton>
+
+            {onRequestClose ? (
+              <>
+                <div className="ml-auto" />
+                <ToolbarButton
+                  onClick={onRequestClose}
+                  disabled={false}
+                  title={t('close')}
+                >
+                  <X className={iconClass} />
+                </ToolbarButton>
+              </>
+            ) : null}
+          </div>
+
+          {/* Row 2: link · table · hr · image · lists · quote · Raw .md */}
+          <div className="flex flex-wrap items-center gap-0.5 px-2 pb-1.5 pt-0.5">
+            <ToolbarButton
+              onClick={insertLink}
+              active={editor.isActive('link')}
+              disabled={toolsDisabled}
+              title={t('insertLink')}
             >
-              <Heading3 className="mr-2 h-4 w-4" /> Heading 3
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+              <LinkIcon className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() =>
+                editor
+                  .chain()
+                  .focus()
+                  .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                  .run()
+              }
+              active={editor.isActive('table')}
+              disabled={toolsDisabled}
+              title={t('insertTable')}
             >
-              Heading 4
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <TableIcon className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+              disabled={toolsDisabled}
+              title={t('horizontalRule')}
+            >
+              <Minus className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => setGalleryOpen(true)}
+              disabled={toolsDisabled}
+              title={t('insertImage')}
+            >
+              <ImageIcon className={iconClass} />
+            </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-6" />
+            <Separator orientation="vertical" className="mx-1 h-7" />
 
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive('bold')}
-          disabled={sourceMode || disabled}
-          title="Bold"
-        >
-          <Bold className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive('italic')}
-          disabled={sourceMode || disabled}
-          title="Italic"
-        >
-          <Italic className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          active={editor.isActive('underline')}
-          disabled={sourceMode || disabled}
-          title="Underline"
-        >
-          <UnderlineIcon className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          active={editor.isActive('strike')}
-          disabled={sourceMode || disabled}
-          title="Strikethrough"
-        >
-          <Strikethrough className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          active={editor.isActive('code')}
-          disabled={sourceMode || disabled}
-          title="Inline code"
-        >
-          <Code className="h-4 w-4" />
-        </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              active={editor.isActive('bulletList')}
+              disabled={toolsDisabled}
+              title={t('bulletList')}
+            >
+              <List className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              active={editor.isActive('orderedList')}
+              disabled={toolsDisabled}
+              title={t('numberedList')}
+            >
+              <ListOrdered className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              active={editor.isActive('blockquote')}
+              disabled={toolsDisabled}
+              title={t('quote')}
+            >
+              <Quote className={iconClass} />
+            </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-6" />
+            <div className="ml-auto" />
+            <ToolbarButton
+              onClick={toggleSource}
+              active={sourceMode}
+              disabled={disabled}
+              title={sourceMode ? t('switchToRich') : t('editRawMd')}
+              className="min-w-0 px-2.5"
+            >
+              <FileCode2 className={cn(iconClass, 'shrink-0')} />
+              <span className="text-xs font-medium whitespace-nowrap">{t('rawMd')}</span>
+            </ToolbarButton>
+          </div>
+        </div>
 
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          active={editor.isActive('bulletList')}
-          disabled={sourceMode || disabled}
-          title="Bullet list"
-        >
-          <List className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive('orderedList')}
-          disabled={sourceMode || disabled}
-          title="Numbered list"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          active={editor.isActive('blockquote')}
-          disabled={sourceMode || disabled}
-          title="Quote"
-        >
-          <Quote className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          active={editor.isActive('codeBlock')}
-          disabled={sourceMode || disabled}
-          title="Code block"
-        >
-          <Code2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor
-              .chain()
-              .focus()
-              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-              .run()
-          }
-          active={editor.isActive('table')}
-          disabled={sourceMode || disabled}
-          title="Insert table"
-        >
-          <TableIcon className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          disabled={sourceMode || disabled}
-          title="Horizontal rule"
-        >
-          <Minus className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={insertWikiLink}
-          disabled={sourceMode || disabled}
-          title="Insert [[wikilink]]"
-        >
-          <LinkIcon className="h-4 w-4" />
-        </ToolbarButton>
+        {sourceMode ? (
+          <Textarea
+            className="min-h-[420px] flex-1 rounded-none border-0 px-4 py-3 font-mono text-sm shadow-none focus-visible:ring-0"
+            value={value}
+            disabled={disabled}
+            placeholder={placeholder}
+            onChange={(e) => {
+              lastEmitted.current = e.target.value
+              onChange(e.target.value)
+            }}
+          />
+        ) : (
+          <EditorContent editor={editor} className="min-h-0 flex-1 overflow-y-auto" />
+        )}
 
-        <Separator orientation="vertical" className="mx-1 h-6" />
+        {/* Embedded history when parent does not own Cancel/Save row */}
+        {!externalHistory ? (
+          <div className="flex shrink-0 items-center gap-1 border-t border-border px-2 py-1.5">
+            <ToolbarButton
+              onClick={() => historyApi.undo()}
+              disabled={!historyState.canUndo || sourceMode}
+              title={t('undo')}
+            >
+              <Undo className={iconClass} />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => historyApi.redo()}
+              disabled={!historyState.canRedo || sourceMode}
+              title={t('redo')}
+            >
+              <Redo className={iconClass} />
+            </ToolbarButton>
+          </div>
+        ) : null}
 
-        <ToolbarButton
-          onClick={toggleSource}
-          active={sourceMode}
-          disabled={disabled}
-          title={
-            sourceMode ? 'Switch to rich preview' : 'Edit Source Markdown'
-          }
-          className="min-w-0 px-2"
-        >
-          <FileCode2 className="h-4 w-4 shrink-0" />
-          <span className="text-xs font-medium">Source Markdown</span>
-        </ToolbarButton>
-      </div>
-
-      {sourceMode ? (
-        <Textarea
-          className="min-h-[420px] rounded-none border-0 font-mono text-sm focus-visible:ring-0"
-          value={value}
-          disabled={disabled}
-          placeholder={placeholder}
-          onChange={(e) => {
-            lastEmitted.current = e.target.value
-            onChange(e.target.value)
+        <WikiImageGalleryFsModal
+          open={galleryOpen}
+          onOpenChange={setGalleryOpen}
+          onPick={({ src, alt }) => {
+            editor.chain().focus().setImage({ src, alt }).run()
           }}
         />
-      ) : (
-        <EditorContent editor={editor} />
-      )}
-    </div>
-  )
-}
+      </div>
+    )
+  },
+)
+
+WikiRichEditor.displayName = 'WikiRichEditor'
+
+export default WikiRichEditor

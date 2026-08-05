@@ -83,7 +83,18 @@
     "imageDesc": "Опис зображення",
     "tableDialogDesc": "Виберіть кількість рядків і стовпців",
     "rows": "Рядки",
-    "columns": "Стовпці"
+    "columns": "Стовпці",
+    "rawMd": "Raw .md",
+    "editRawMd": "Редагувати raw Markdown",
+    "switchToRich": "Повернутись до rich-перегляду",
+    "insertWikiLink": "Вставити [[wikilink]]",
+    "style": "Стиль",
+    "close": "Закрити",
+    "imageGalleryTitle": "Вставити зображення",
+    "imageGalleryDesc": "Оберіть з галереї або File Cabinet.",
+    "galleryEmpty": "Ще немає зображень — додайте у Профіль → Галерея або File Cabinet.",
+    "galleryLoadFailed": "Не вдалося завантажити галерею",
+    "galleryLoading": "Завантаження зображень…"
   },
   "versionHistory": {
     "title": "Історія версій",

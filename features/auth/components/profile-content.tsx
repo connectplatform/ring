@@ -28,7 +28,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from '@/i18n/routing'
+import { usePathname, useRouter } from '@/i18n/routing'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
@@ -40,6 +41,11 @@ import { Label } from '@/components/ui/label'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { OrganizationEntitySelect } from '@/components/profile/organization-entity-select'
+import { PositionTagCloud } from '@/components/profile/position-tag-cloud'
+import { SkillsTagCloud } from '@/components/profile/skills-tag-cloud'
+import { CurriculumVitaeWidget } from '@/components/profile/curriculum-vitae-widget'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
 import { UserRolesArray } from '@/features/auth/user-role'
@@ -57,7 +63,6 @@ import {
   AlertCircle,
   CheckCircle,
   X,
-  Settings,
   Building,
   MapPin,
   Award,
@@ -102,6 +107,29 @@ import { UserProgressWidget } from './user-progress-widget'
 import { ProfileHeroBalances } from './profile-hero-balances'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import type { AuthUser } from '@/features/auth/types'
+
+const PROFILE_TABS = [
+  'overview',
+  'communications',
+  'professional',
+  'regional',
+  'verification',
+  'security',
+] as const
+
+type ProfileTabId = (typeof PROFILE_TABS)[number]
+
+/** URL ?tab=notifications opens messengers (communications). */
+function resolveProfileTab(raw: string | null | undefined): ProfileTabId {
+  if (!raw) return 'overview'
+  if (raw === 'notifications') return 'communications'
+  if ((PROFILE_TABS as readonly string[]).includes(raw)) return raw as ProfileTabId
+  return 'overview'
+}
+
+function tabToUrlParam(tab: ProfileTabId): string {
+  return tab === 'communications' ? 'notifications' : tab
+}
 
 function isPublicProfileEnabled(value: unknown): boolean {
   return value === true || value === 'true' || value === 1 || value === '1'
@@ -164,12 +192,44 @@ export default function ProfileContent({
   const locale = useLocale() as Locale
   const t = useTranslations('modules.profile')
   const router = useRouter()
+  const pathname = usePathname()
+  const clientSearchParams = useSearchParams()
   const { getKycStatus, refreshSession, signOut } = useAuth()
   const { update: updateSession } = useSession() // TODO: Consider React 19 cache API and server-initiated data
   const [isEditing, setIsEditing] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('overview')
+  const initialTabParam =
+    typeof searchParams?.tab === 'string'
+      ? searchParams.tab
+      : Array.isArray(searchParams?.tab)
+        ? searchParams.tab[0]
+        : null
+  const [activeTab, setActiveTabState] = useState<ProfileTabId>(() =>
+    resolveProfileTab(initialTabParam),
+  )
+
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      const next = resolveProfileTab(tab)
+      setActiveTabState(next)
+      const params = new URLSearchParams(clientSearchParams?.toString() || '')
+      if (next === 'overview') params.delete('tab')
+      else params.set('tab', tabToUrlParam(next))
+      const qs = params.toString()
+      router.replace(
+        (qs ? `${pathname}?${qs}` : pathname) as Parameters<typeof router.replace>[0],
+        { scroll: false },
+      )
+    },
+    [clientSearchParams, pathname, router],
+  )
+
+  useEffect(() => {
+    const fromUrl = resolveProfileTab(clientSearchParams?.get('tab'))
+    setActiveTabState((prev) => (prev === fromUrl ? prev : fromUrl))
+  }, [clientSearchParams])
+
   // Priority: initialUser (preferred, freshly fetched) > session user
   const user = initialUser || session?.user
   // Current user's KYC status - always from auth context for up-to-date info
@@ -607,33 +667,6 @@ export default function ProfileContent({
               <div className="w-full min-w-0 flex-1 space-y-3 text-center md:text-left">
                 <h1 className="text-2xl font-bold md:text-3xl">{user.name || 'Anonymous User'}</h1>
 
-                {/* Username */}
-                <div className="flex items-center justify-center gap-2 md:justify-start">
-                  {user.username ? (
-                    <>
-                      <span className="font-mono text-sm text-muted-foreground">@{user.username}</span>
-                      <button
-                        type="button"
-                        className="text-xs text-[var(--davinci-beam)] hover:underline"
-                        onClick={() => setSetUsernameModalOpen(true)}
-                      >
-                        {t('changeUsername')}
-                      </button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      className="gap-1.5 text-xs"
-                      onClick={() => setSetUsernameModalOpen(true)}
-                    >
-                      <User className="h-3.5 w-3.5" />
-                      {t('setUsername')}
-                    </Button>
-                  )}
-                </div>
-
                 {/* Bio editable */}
                 <div>
                   {(user as any)?.bio ? (
@@ -773,27 +806,54 @@ export default function ProfileContent({
                 </div>
               )}
 
-              {/* Communications (Messengers) tab */}
+              {/* Communications / notifications (?tab=notifications) */}
               {activeTab === 'communications' && (
-                <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5" />
-                        {t('communications')}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground">{t('communicationsDescription')}</p>
-                      {/* Telegram — linked only when verified telegramId (UID) is present */}
-                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-full shrink-0">
-                          <Send className="w-5 h-5 text-blue-500" />
+                <div className="space-y-3">
+                  {/* Username — sits above Telegram link widget */}
+                  <div
+                    className={cn(
+                      davinciGlassSurface,
+                      'flex items-center gap-3 p-3 transition-colors hover:bg-accent/20',
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)]">
+                      <User className="h-5 w-5 text-[var(--davinci-beam)]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{t('username')}</p>
+                      {user.username ? (
+                        <p className="truncate font-mono text-xs text-muted-foreground">
+                          @{user.username}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">{t('setUsername')}</p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant={user.username ? 'outline' : 'default'}
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setSetUsernameModalOpen(true)}
+                    >
+                      {user.username ? t('changeUsername') : t('setUsername')}
+                    </Button>
+                  </div>
+
+                  {/* Telegram */}
+                  <div
+                    className={cn(
+                      davinciGlassSurface,
+                      'flex items-center gap-3 p-3 transition-colors hover:bg-accent/20',
+                    )}
+                  >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950">
+                          <Send className="h-5 w-5 text-blue-500" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{t('telegramAccount')}</p>
                           {isTelegramLinked((user as any)?.communication) ? (
-                            <div className="text-xs text-muted-foreground truncate space-y-0.5">
+                            <div className="space-y-0.5 truncate text-xs text-muted-foreground">
                               <p className="font-medium text-foreground/80">
                                 {formatTelegramProfileLabel((user as any).communication)}
                               </p>
@@ -806,7 +866,7 @@ export default function ProfileContent({
                           )}
                         </div>
                         {isTelegramLinked((user as any)?.communication) ? (
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex shrink-0 items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -860,89 +920,105 @@ export default function ProfileContent({
                             {t('addTelegramAccount')}
                           </Button>
                         )}
-                      </div>
-                      {/* WhatsApp */}
-                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 bg-green-50 dark:bg-green-950 rounded-full shrink-0">
-                          <Phone className="w-5 h-5 text-green-500" />
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div
+                    className={cn(
+                      davinciGlassSurface,
+                      'flex items-center gap-3 p-3 transition-colors hover:bg-accent/20',
+                    )}
+                  >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-50 dark:bg-green-950">
+                          <Phone className="h-5 w-5 text-green-500" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{t('whatsappAccount')}</p>
-                          {/* STUB: Provide value, onChange, and server update on blur. */}
                           <Input
                             placeholder={t('inputPlaceholder', { platform: 'WhatsApp' }) || 'Enter your WhatsApp number'}
-                            className="h-8 mt-1 text-sm"
+                            className="mt-1 h-8 text-sm"
                             defaultValue={(user as any)?.communication?.whatsappNumber || ''}
                           />
                         </div>
-                      </div>
-                      {/* Instagram */}
-                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 bg-pink-50 dark:bg-pink-950 rounded-full shrink-0">
-                          <MessageSquare className="w-5 h-5 text-pink-500" />
+                  </div>
+
+                  {/* Instagram */}
+                  <div
+                    className={cn(
+                      davinciGlassSurface,
+                      'flex items-center gap-3 p-3 transition-colors hover:bg-accent/20',
+                    )}
+                  >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-pink-50 dark:bg-pink-950">
+                          <MessageSquare className="h-5 w-5 text-pink-500" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{t('instagramAccount')}</p>
-                          {/* STUB: Implement value change and save logic */}
                           <Input
                             placeholder={t('inputPlaceholder', { platform: 'Instagram' }) || 'Enter your Instagram username'}
-                            className="h-8 mt-1 text-sm"
+                            className="mt-1 h-8 text-sm"
                             defaultValue={(user as any)?.communication?.instagramUsername || ''}
                           />
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  </div>
                 </div>
               )}
 
               {/* Professional tab */}
               {activeTab === 'professional' && (
                 <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Briefcase className="h-5 w-5" />
-                        {t('professional')}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <p className="text-sm text-muted-foreground">{t('professionalDescription')}</p>
-                      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  <div className={cn(davinciGlassSurface, 'space-y-6 p-4 sm:p-5')}>
+                      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label>{t('organization')}</Label>
-                          <p className="font-medium">{(user as any)?.organization || 'Not set'}</p>
+                          <OrganizationEntitySelect
+                            value={(user as any)?.organization || ''}
+                            onSaved={(organization) => {
+                              if (initialUser) {
+                                ;(initialUser as AuthUser).organization = organization || undefined
+                              }
+                            }}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label>{t('position')}</Label>
-                          <p className="font-medium">{(user as any)?.position || 'Not set'}</p>
+                          <PositionTagCloud
+                            value={(user as any)?.position || ''}
+                            onSaved={(position) => {
+                              if (initialUser) {
+                                ;(initialUser as AuthUser).position = position || undefined
+                              }
+                            }}
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label>{t('professionalBio')}</Label>
-                        <p className="text-sm text-muted-foreground">{(user as any)?.bio || 'No bio set'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(user as any)?.bio || t('noBio')}
+                        </p>
                       </div>
                       <Separator />
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold">{t('socialMediaProfiles')}</h3>
                         <div className="grid gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-10 h-10 bg-blue-50 dark:bg-blue-950 rounded-lg flex-shrink-0">
-                              <span className="text-blue-600 font-bold text-sm">in</span>
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
+                              <span className="text-sm font-bold text-blue-600">in</span>
                             </div>
                             <Input
                               readOnly
-                              value={(user as any)?.integrations?.socialProfiles?.linkedin || 'Not set'}
+                              value={(user as any)?.integrations?.socialProfiles?.linkedin || t('noProfessionalInfo')}
                               className="bg-muted"
                             />
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-10 h-10 bg-sky-50 dark:bg-sky-950 rounded-lg flex-shrink-0">
-                              <span className="text-sky-500 font-bold text-sm">𝕏</span>
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-950">
+                              <span className="text-sm font-bold text-sky-500">𝕏</span>
                             </div>
                             <Input
                               readOnly
-                              value={(user as any)?.integrations?.socialProfiles?.twitter || 'Not set'}
+                              value={(user as any)?.integrations?.socialProfiles?.twitter || t('noProfessionalInfo')}
                               className="bg-muted"
                             />
                           </div>
@@ -951,25 +1027,25 @@ export default function ProfileContent({
                       <Separator />
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold">{t('skillsExpertise')}</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {((user as any)?.skills || []).length > 0 ? (
-                            (user as any)?.skills.map((skill: string, i: number) => (
-                              <Badge key={i} variant="secondary" className="text-sm py-1">{skill}</Badge>
-                            ))
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No skills added yet</p>
-                          )}
-                        </div>
+                        <SkillsTagCloud
+                          value={(user as any)?.skills || []}
+                          onSaved={(skills) => {
+                            if (initialUser) {
+                              ;(initialUser as AuthUser).skills = skills.length ? skills : undefined
+                            }
+                          }}
+                        />
                       </div>
-                    </CardContent>
-                  </Card>
-                  <div className="flex justify-end">
-                    {/* Settings navigation to full edit */}
-                    <Button variant="outline" size="sm" onClick={() => handleNavigateSettings()}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Edit in Settings
-                    </Button>
                   </div>
+
+                  <CurriculumVitaeWidget
+                    value={(user as AuthUser)?.curriculumVitae || null}
+                    onSaved={(curriculumVitae) => {
+                      if (initialUser) {
+                        ;(initialUser as AuthUser).curriculumVitae = curriculumVitae
+                      }
+                    }}
+                  />
                 </div>
               )}
 

@@ -17,14 +17,14 @@ After a calculator **project order** is paid, the **buyer (owner)** opens **My P
 
 | Role | Surface | What they can do |
 |------|---------|------------------|
-| **Buyer** | `/my-orders`, `/my-orders/[id]` | Tabs: overview · project · secrets; vital **projectConfig**; **owner_private** env; Project room chat — **no** deploy |
-| **Integrator** | `/my-jobs/[id]` Order Lab | Tabs: overview · project · secrets · wiki · env · source · deploy (+ floating chat rail); ops env + `imageTag`; full projectConfig; **Request update** for owner keys; deploy |
+| **Buyer** | `/my-orders`, `/my-orders/[id]` | Tabs: overview · playbook · project · secrets · wiki · source · room; vital **projectConfig**; **owner_private** env; **writable** Forgejo overlay source (after scaffold); Project room — **no** deploy/scaffold |
+| **Integrator** | `/my-jobs/[id]` Order Lab | Tabs: overview · playbook · project · secrets · wiki · env · source · deploy (+ floating chat rail); ops env + `imageTag`; full projectConfig; **Request update** for owner keys; deploy |
 | **Admin** | `/admin/crm/orders/[id]` | Tabs: overview · manage · project · secrets · env · source · deploy · chats; namespace lock; all env + projectConfig |
 | **Reggie** | Poller on `order_lab` | Locked to metadata namespace/project; chat plans only — **no deploy** |
 
-### Order Lab chrome (1.97.20)
+### Order Lab chrome (1.97.20+)
 
-Shared shell: `OrderLabPageShell` → `RingRightRailLayout` + `DavinciCenterPane` + `OrderLabNavRail` (mint/orange/red chips) + `OrderLabHeroStats`. Deep-links: `?tab=<id>`, `?source=<path>` (opens Source tab), `#project-config` / `#secrets`. Status SSOT: `computeOrderLabTabStatuses` (server first paint) + `GET /api/my-jobs/[id]/deployment/status` (server-side clone `/api/health` — no browser CORS). Client fetches use `fetchJsonSafe` (empty-body digest hardening).
+Shared shell: `OrderLabPageShell` → `RingRightRailLayout` + `DavinciCenterPane` + `OrderLabNavRail` (active = beam chrome; status via StatusDot) + `OrderLabHeroStats`. Deep-links: `?tab=<id>`, `?source=<path>` (opens Source tab), `#project-config` / `#secrets`. Status SSOT: `computeOrderLabTabStatuses` (server first paint) + live client bumps (`refreshHero`, `tabStatusFromDeploySnapshot`, `tabStatusFromSourceTree` — empty/scaffold → orange incomplete). `GET /api/my-jobs/[id]/deployment/status` (server-side clone `/api/health` — no browser CORS). Client fetches use `fetchJsonSafe`. Manage client lives at `features/crm/orders/crm-order-detail-client.tsx`.
 
 ### Order Project Config SSOT
 
@@ -91,8 +91,8 @@ Detail response includes order + optional `{ edge, namespace, projectName, deplo
 
 | Piece | Path / contract |
 |-------|-----------------|
-| Auth | `features/crm/lab/lab-auth.ts` — roles `admin` \| `integrator` \| `buyer`; `allowBuyer` for chat/read surfaces |
-| Reject buyer mutate | Deploy/env/progress routes omit `allowBuyer` (403); explicit `role === 'buyer'` guards where `allowBuyer` is used |
+| Auth | `features/crm/lab/lab-auth.ts` — roles `admin` \| `integrator` \| `buyer`; `allowBuyer` for chat/read + source file PUT/suggest-message |
+| Reject buyer mutate | Deploy/env/scaffold routes omit `allowBuyer` (403); source overlay commits allowed for buyer |
 | Chat bootstrap | `GET /api/my-jobs/[id]/chat` with `allowBuyer: true` |
 | Shared payload | `labConversationId` (+ deprecated `orderLabConversationId`) for all roles |
 | Admin-only extras | `integratorDmId`, `clientDmId` (aliases include deprecated `customerConversationId`) |

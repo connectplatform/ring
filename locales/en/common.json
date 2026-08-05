@@ -127,7 +127,8 @@
       "country": "country",
       "timezone": "timezone",
       "representative": "representative",
-      "vendor": "vendor"
+      "vendor": "vendor",
+      "organization": "organization"
     },
     "searching": "Searching…"
   }

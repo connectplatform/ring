@@ -24,6 +24,6 @@ Append-only JSON — not this Markdown file:
 
 **History origin:** 2024 (Ring Platform 0.1 genesis; 99+ feature releases).
 
-**Latest docs note (1.97.20):** Order Lab right-rail tabs + hero status SSOT + empty-JSON digest hardening; ships with pending 1.97.19 docs Audible/Agent/Visual controls. Changelog UI tops at **1.97.20**. README/FEATURESET aligned to package `1.97.20`.
+**Latest docs note (1.97.21):** Profile account widgets (Organization / tag clouds / My CV editor) + Order Lab rails polish + credit main-currency display SSOT. Changelog UI tops at **1.97.21**. Package `1.97.21`.
 
 This root `CHANGELOG.md` is **deprecated for the product UI**. Prefer [ring-platform.org/changelog](https://ring-platform.org/changelog) and edit the locale JSON files when shipping notes.

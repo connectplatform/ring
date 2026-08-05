@@ -92,6 +92,7 @@ const CHAT_ALLOWED_TYPES = [
 const OPPORTUNITY_ALLOWED_TYPES = [
   'application/pdf',
   'image/jpeg',
+  'image/jpg',
   'image/png',
   'image/webp',
   'application/msword',
@@ -350,6 +351,26 @@ const policies: Record<string, UploadPolicy> = {
       const ext = sanitizeExtension(file.name)
       const extensionSuffix = ext ? `.${ext}` : ''
       return `${tenantPrefix}/opportunities/${safeOpportunity}/${actor.userId || 'unknown'}_${Date.now()}_${sanitizeSegment(fileName)}${extensionSuffix}`
+    },
+  },
+  'profile:cv': {
+    purpose: 'profile:cv',
+    authMode: 'authenticated',
+    maxSizeBytes: 10 * 1024 * 1024,
+    allowedTypes: [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    ],
+    requiresRole: ['subscriber', 'member', 'confidential', 'admin', 'superadmin'],
+    keyBuilder: async ({ actor, tenantPrefix, file }) => {
+      const fileName = sanitizeNameWithoutExtension(file.name)
+      const ext = sanitizeExtension(file.name)
+      return `${tenantPrefix}/profile/cv/${actor.userId || 'unknown'}_${Date.now()}_${sanitizeSegment(fileName)}.${ext || 'bin'}`
     },
   },
   'entity:logo': {

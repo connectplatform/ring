@@ -127,7 +127,8 @@
       "country": "країну",
       "timezone": "часовий пояс",
       "representative": "представника",
-      "vendor": "вендора"
+      "vendor": "вендора",
+      "organization": "організацію"
     },
     "searching": "Пошук…"
   }

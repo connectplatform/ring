@@ -23,7 +23,7 @@ import {
   davinciGlassSurface,
   HeroAmbient,
 } from '@/lib/ui/davinci'
-import { getClientCreditUnitLabel, getClientMainCurrency } from '@/lib/ring-config-client'
+import { getClientCreditUnitLabel, getClientMainCurrency, resolveCreditMainCurrencyEquivalent } from '@/lib/ring-config-client'
 
 export interface RingWalletBalanceProps {
   /** Formatted credit amount, e.g. "12.50" */
@@ -59,6 +59,10 @@ export function RingWalletBalance({
   const t = useTranslations('modules.wallet')
   const creditUnit = getClientCreditUnitLabel()
   const mainCurrency = getClientMainCurrency()
+  const fiatEquivalent = resolveCreditMainCurrencyEquivalent(
+    displayBalance,
+    mainCurrencyEquivalent,
+  )
 
   // TODO: For Next.js 16, explore useFormStatus or useFormState for tight button state integration (if applicable).
 
@@ -158,7 +162,7 @@ export function RingWalletBalance({
             </div>
             {/* Main-currency equivalent display */}
             <p className="mt-1.5 text-sm text-muted-foreground">
-              ≈ {mainCurrencyEquivalent} {mainCurrency}
+              ≈ {fiatEquivalent} {mainCurrency}
             </p>
           </div>
 

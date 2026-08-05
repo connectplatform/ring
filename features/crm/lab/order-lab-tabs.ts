@@ -9,6 +9,7 @@ import {
   MessagesSquare,
   BookOpen,
   LayoutDashboard,
+  ListChecks,
 } from 'lucide-react'
 
 export type OrderLabRole = 'admin' | 'integrator' | 'buyer'
@@ -16,6 +17,7 @@ export type OrderLabRole = 'admin' | 'integrator' | 'buyer'
 export type OrderLabTabId =
   | 'overview'
   | 'manage'
+  | 'playbook'
   | 'project'
   | 'secrets'
   | 'env'
@@ -23,6 +25,7 @@ export type OrderLabTabId =
   | 'deploy'
   | 'chats'
   | 'wiki'
+  | 'room'
 
 export type OrderLabTabStatusKind = 'ok' | 'incomplete' | 'error'
 
@@ -56,6 +59,12 @@ export const ORDER_LAB_TABS: OrderLabTabDef[] = [
     roles: ['admin'],
   },
   {
+    id: 'playbook',
+    labelKey: 'playbook',
+    icon: ListChecks,
+    roles: ['buyer', 'integrator'],
+  },
+  {
     id: 'project',
     labelKey: 'project',
     icon: Settings2,
@@ -71,7 +80,7 @@ export const ORDER_LAB_TABS: OrderLabTabDef[] = [
     id: 'wiki',
     labelKey: 'wiki',
     icon: BookOpen,
-    roles: ['integrator'],
+    roles: ['integrator', 'buyer'],
   },
   {
     id: 'env',
@@ -83,13 +92,19 @@ export const ORDER_LAB_TABS: OrderLabTabDef[] = [
     id: 'source',
     labelKey: 'source',
     icon: FolderGit2,
-    roles: ['admin', 'integrator'],
+    roles: ['admin', 'integrator', 'buyer'],
   },
   {
     id: 'deploy',
     labelKey: 'deploy',
     icon: Rocket,
     roles: ['admin', 'integrator'],
+  },
+  {
+    id: 'room',
+    labelKey: 'room',
+    icon: MessagesSquare,
+    roles: ['buyer'],
   },
   {
     id: 'chats',

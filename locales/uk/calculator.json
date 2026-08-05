@@ -479,13 +479,15 @@
       "tabs": {
         "overview": "Огляд",
         "manage": "Керування",
+        "playbook": "Плейбук",
         "project": "Проєкт",
         "secrets": "Секрети",
         "env": "Env",
         "source": "Код",
         "deploy": "Деплой",
         "chats": "Чати",
-        "wiki": "Wiki"
+        "wiki": "Wiki",
+        "room": "Кімната проєкту"
       },
       "hero": {
         "pods": "Поди",

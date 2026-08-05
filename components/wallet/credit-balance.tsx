@@ -17,7 +17,12 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import CreditAddFsModal from '@/features/wallet/components/credit-add-fs-modal'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { getClientCreditCurrencyCode, formatClientCreditAmount } from '@/lib/payments/credit-balance-client'
+import { getClientCreditCurrencyCode } from '@/lib/payments/credit-balance-client'
+import {
+  getClientCreditUnitLabel,
+  getClientMainCurrency,
+  resolveCreditMainCurrencyEquivalent,
+} from '@/lib/ring-config-client'
 
 interface CreditBalanceProps {
   className?: string
@@ -34,16 +39,24 @@ export function CreditBalance({
 }: CreditBalanceProps) {
   const t = useTranslations('modules.wallet')
   const [showTopUpModal, setShowTopUpModal] = useState(false)
+  const creditUnit = getClientCreditUnitLabel()
+  const mainCurrency = getClientMainCurrency()
+  // Legacy prop name in locale keys — keep for title i18n fallback only
   const creditCurrency = getClientCreditCurrencyCode()
-  
-  const { 
-    balance, 
-    subscription, 
-    isLoading, 
+
+  const {
+    balance,
+    subscription,
+    isLoading,
     isRefreshing,
-    error, 
-    refresh 
+    error,
+    refresh,
   } = useCreditBalanceContext()
+
+  const mainEquivalent = resolveCreditMainCurrencyEquivalent(
+    balance?.amount,
+    balance?.main_currency_equivalent,
+  )
 
   // Notify parent of balance changes
   useEffect(() => {
@@ -157,10 +170,10 @@ export function CreditBalance({
             <div className="flex items-baseline justify-between">
               <div className="space-y-1">
                 <div className={cn('font-bold', compact ? 'text-lg' : 'text-2xl', balanceColors[balanceStatus])}>
-                  {balance?.amount ? formatClientCreditAmount(balance.amount, creditCurrency) : `0 ${creditCurrency}`}
+                  {balance?.amount ? `${balance.amount} ${creditUnit}` : `0 ${creditUnit}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  ≈ {balance?.main_currency_equivalent || '0.00'} {creditCurrency}
+                  ≈ {mainEquivalent} {mainCurrency}
                 </div>
               </div>
               

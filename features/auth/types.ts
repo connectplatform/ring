@@ -355,6 +355,21 @@ export interface ProjectUserDataService {
   getUserFeedback(globalUserId: string, projectSlug: string): Promise<UserProjectFeedback[]>;
 }
 
+/** Profile CV — markdown body + optional uploaded file (users.data JSONB). */
+export interface CurriculumVitaeFile {
+  objectKey: string
+  fileName: string
+  contentType?: string
+  url?: string
+  uploadedAt?: string
+}
+
+export interface CurriculumVitae {
+  markdown?: string
+  file?: CurriculumVitaeFile
+  updatedAt?: string
+}
+
 // Enhanced AuthUser interface with global user identity
 export interface AuthUser extends GlobalUserIdentity {
   // Backward compatibility: include both id and globalUserId
@@ -418,6 +433,8 @@ export interface AuthUser extends GlobalUserIdentity {
   position?: string;
   /** Expertise tags shown on public professional section when enabled. */
   skills?: string[];
+  /** Curriculum vitae — markdown body + optional uploaded file metadata. */
+  curriculumVitae?: CurriculumVitae;
   lastRoleUpgrade?: RoleUpgradeHistory;
 
   // Metadata
@@ -511,6 +528,8 @@ export type ProfileFormData = Partial<ExtendedProfile> & Pick<AuthUser, 'name' |
   experience?: UIExperiencePreferences | string; // Can be object or JSON string from FormData
   // User settings (stored as JSONB in PostgreSQL)
   settings?: UserSettings | string; // Can be object or JSON string from FormData
+  /** Curriculum vitae JSON (markdown + file meta) */
+  curriculumVitae?: CurriculumVitae | string;
 }
 
 /**

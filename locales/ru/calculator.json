@@ -479,13 +479,15 @@
       "tabs": {
         "overview": "Обзор",
         "manage": "Управление",
+        "playbook": "Плейбук",
         "project": "Проект",
         "secrets": "Секреты",
         "env": "Env",
         "source": "Код",
         "deploy": "Деплой",
         "chats": "Чаты",
-        "wiki": "Wiki"
+        "wiki": "Wiki",
+        "room": "Комната проекта"
       },
       "hero": {
         "pods": "Поды",

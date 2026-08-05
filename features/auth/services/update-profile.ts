@@ -116,6 +116,15 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
         console.warn('Services: updateProfile - Failed to parse experience JSON:', e);
       }
     }
+
+    // Parse curriculum vitae JSONB blob
+    if (typeof processedData.curriculumVitae === 'string') {
+      try {
+        processedData.curriculumVitae = JSON.parse(processedData.curriculumVitae);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse curriculumVitae JSON:', e);
+      }
+    }
     
     // Parse settings field if it's a JSON string
     if (typeof processedData.settings === 'string') {

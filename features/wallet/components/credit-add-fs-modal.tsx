@@ -74,7 +74,8 @@ export default function CreditAddFsModal({
   const t = useTranslations('modules.wallet')
   const locale = useLocale() as Locale
   const mainCurrency = getClientMainCurrency()
-  const creditBalanceUnit = getClientCreditUnitLabel()
+  /** Locale keys use `{creditUnit}` — ring-config `credit.creditBalanceUnitLabel` via client SSOT. */
+  const creditUnit = getClientCreditUnitLabel()
   const nativeSymbol = getClientNativeTokenSymbol()
 
   const [tab, setTab] = useState<'card' | 'paypal'>('card')
@@ -147,9 +148,9 @@ export default function CreditAddFsModal({
         <TabsContent value="card">
           <p className="mb-3 text-xs text-muted-foreground">
             {t('topup.methods.card.description', {
-              creditBalanceUnit,
+              creditUnit,
               token: nativeSymbol,
-              defaultValue: `Card → credit (${creditBalanceUnit}). Convert to ${nativeSymbol} later via Token Desk.`,
+              defaultValue: `Card → credit (${creditUnit}). Convert to ${nativeSymbol} later via Token Desk.`,
             })}
           </p>
           <form action={creditAction} className="space-y-4">
@@ -188,9 +189,9 @@ export default function CreditAddFsModal({
         <TabsContent value="paypal">
           <p className="mb-3 text-xs text-muted-foreground">
             {t('topup.methods.paypal.description', {
-              creditBalanceUnit,
+              creditUnit,
               token: nativeSymbol,
-              defaultValue: `PayPal → credit (${creditBalanceUnit}). Convert to ${nativeSymbol} later via Token Desk.`,
+              defaultValue: `PayPal → credit (${creditUnit}). Convert to ${nativeSymbol} later via Token Desk.`,
             })}
           </p>
           <form action={creditAction} className="space-y-4">

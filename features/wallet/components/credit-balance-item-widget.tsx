@@ -17,6 +17,7 @@ import {
   getClientCreditUnitLabel,
   getClientNativeTokenSymbol,
   previewNativeTokenFromCreditPoints,
+  resolveCreditMainCurrencyEquivalent,
 } from '@/lib/ring-config-client'
 import { formatCreditPoints } from '@/lib/wallet/format-credit-points'
 import type { WalletActivityScope } from '@/components/providers/wallet-activity-provider'
@@ -26,6 +27,7 @@ import CreditAddFsModal from '@/features/wallet/components/credit-add-fs-modal'
 
 export interface CreditBalanceItemWidgetProps {
   creditAmount: string
+  /** Optional stored ledger fiat — ignored when NaN; SSOT is points × creditBalanceUnitToMainCurrency */
   creditMainCurrencyEquivalent?: string
   selected: boolean
   onSelect: () => void
@@ -46,9 +48,13 @@ export default function CreditBalanceItemWidget({
   className,
 }: CreditBalanceItemWidgetProps) {
   const t = useTranslations('modules.wallet')
-  const creditBalanceUnit = getClientCreditUnitLabel()
+  const creditUnit = getClientCreditUnitLabel()
   const mainCurrency = getClientMainCurrency()
   const nativeSymbol = getClientNativeTokenSymbol()
+  const mainEquivalent = resolveCreditMainCurrencyEquivalent(
+    creditAmount,
+    creditMainCurrencyEquivalent,
+  )
 
   const [convertOpen, setConvertOpen] = useState(false)
   const [addCreditOpen, setAddCreditOpen] = useState(false)
@@ -86,6 +92,30 @@ export default function CreditBalanceItemWidget({
     void onRefresh?.()
   }
 
+  const identity = (
+    <>
+      <span
+        className={cn(
+          'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[99px]',
+          'border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)]',
+          'bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)]',
+          'text-[var(--davinci-beam)]',
+        )}
+        aria-hidden
+      >
+        <Sparkles className="h-5 w-5" />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
+            {t('creditBalanceItem.title')}
+          </span>
+          <DavinciGlassChip>{creditUnit}</DavinciGlassChip>
+        </div>
+      </div>
+    </>
+  )
+
   return (
     <>
       <BorderBeam
@@ -98,41 +128,26 @@ export default function CreditBalanceItemWidget({
           selected && 'ring-1 ring-[var(--davinci-beam)]/35',
           className,
         )}
-        innerClassName={cn(davinciBeamInnerSurface, 'space-y-3 p-3.5 sm:p-4')}
+        innerClassName={cn(davinciBeamInnerSurface, 'p-3.5 sm:p-4')}
       >
-        <button
-          type="button"
-          onClick={onSelect}
-          className="flex w-full items-start gap-3 text-left"
-        >
-          <span
-            className={cn(
-              'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[99px]',
-              'border border-[color-mix(in_oklch,var(--davinci-beam)_28%,transparent)]',
-              'bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)]',
-              'text-[var(--davinci-beam)]',
-            )}
-            aria-hidden
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            onClick={onSelect}
+            className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left"
           >
-            <Sparkles className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
-                {t('creditBalanceItem.title')}
-              </p>
-              <DavinciGlassChip>{creditBalanceUnit}</DavinciGlassChip>
-            </div>
-            <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-[var(--davinci-beam)] sm:text-2xl">
+            {identity}
+          </button>
+
+          <div className="min-w-[5.5rem] shrink-0 text-right">
+            <p className="text-xl font-bold tabular-nums tracking-tight text-[var(--davinci-beam)] sm:text-2xl">
               {formatCreditAmount(creditAmount)}
             </p>
-            {creditMainCurrencyEquivalent ? (
-              <p className="text-xs text-muted-foreground">
-                ≈ {creditMainCurrencyEquivalent} {mainCurrency}
-              </p>
-            ) : null}
+            <p className="text-[11px] font-medium text-muted-foreground">
+              ≈ {mainEquivalent} {mainCurrency}
+            </p>
             {convertPreview && parseFloat(creditAmount) > 0 ? (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
                 {t('creditBalanceItem.convertHint', {
                   amount: convertPreview,
                   token: nativeSymbol,
@@ -140,9 +155,9 @@ export default function CreditBalanceItemWidget({
               </p>
             ) : null}
           </div>
-        </button>
+        </div>
 
-        <div className="flex flex-wrap gap-2 border-t border-[var(--davinci-glass-border)] pt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--davinci-glass-border)] pt-3">
           <Button
             type="button"
             variant="outline"

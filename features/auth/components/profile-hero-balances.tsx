@@ -2,7 +2,7 @@
 
 /**
  * Compact credit + native balance tiles for the profile hero.
- * Unified left-aligned glass tiles — native tile links to /wallet.
+ * Both tiles link to /wallet — labels use ring-config credit unit + main currency SSOT.
  */
 
 import { Coins, Wallet } from 'lucide-react'
@@ -11,12 +11,15 @@ import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { usePrimaryNativeBalance } from '@/hooks/use-primary-native-balance'
-import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
+import {
+  getClientCreditUnitLabel,
+  getClientMainCurrency,
+  resolveCreditMainCurrencyEquivalent,
+} from '@/lib/ring-config-client'
 import { formatCreditPoints } from '@/lib/wallet/format-credit-points'
 import { Link, toAppHref } from '@/i18n/routing'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
-import { useEffect, useState } from 'react'
 
 type ProfileHeroBalancesProps = {
   locale: string
@@ -36,7 +39,8 @@ const iconShell = cn(
 export function ProfileHeroBalances({ locale, className }: ProfileHeroBalancesProps) {
   const t = useTranslations('modules.profile')
   const credit = useCreditBalanceContext()
-  const creditBalanceUnitFallback = getClientCreditUnitLabel()
+  const creditUnit = getClientCreditUnitLabel()
+  const mainCurrency = getClientMainCurrency()
   const {
     nativeTokenBalance,
     formatted: nativeFormatted,
@@ -45,13 +49,11 @@ export function ProfileHeroBalances({ locale, className }: ProfileHeroBalancesPr
     symbol: nativeSymbol,
   } = usePrimaryNativeBalance({ enabled: true })
 
-  const [unitLabel, setUnitLabel] = useState(creditBalanceUnitFallback)
-  useEffect(() => {
-    setUnitLabel(getClientCreditUnitLabel())
-  }, [])
-
   const creditBalance = formatCreditPoints(credit?.balance?.amount ?? '0')
-  const creditUsd = credit?.balance?.main_currency_equivalent ?? '0.00'
+  const creditMainEquivalent = resolveCreditMainCurrencyEquivalent(
+    credit?.balance?.amount,
+    credit?.balance?.main_currency_equivalent,
+  )
   const creditLoading = Boolean(credit?.isLoading && !credit?.balance)
 
   const loc = locale.toLowerCase() as Locale
@@ -65,7 +67,16 @@ export function ProfileHeroBalances({ locale, className }: ProfileHeroBalancesPr
 
   return (
     <div className={cn('mt-5 grid grid-cols-2 gap-2 sm:gap-3', className)}>
-      <div className={cn(tileShell, 'border-primary/15 bg-primary/5')}>
+      <Link
+        href={walletHref}
+        className={cn(
+          tileShell,
+          'border-primary/15 bg-primary/5',
+          'transition-colors hover:brightness-[1.04]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
+        )}
+        aria-label={t('rewardQuests.openWallet')}
+      >
         <div className={cn(iconShell, 'bg-primary/10')}>
           <Coins className="h-4 w-4 text-primary sm:h-5 sm:w-5" aria-hidden />
         </div>
@@ -83,19 +94,19 @@ export function ProfileHeroBalances({ locale, className }: ProfileHeroBalancesPr
               <p className="truncate text-base font-bold leading-tight sm:text-lg">
                 {Number(creditBalance).toLocaleString()}{' '}
                 <span className="text-[10px] font-normal text-muted-foreground sm:text-xs">
-                  {unitLabel}
+                  {creditUnit}
                 </span>
               </p>
               <p className="truncate text-[10px] text-muted-foreground">
                 {t('rewardQuests.approxFiat', {
-                  amount: Number(creditUsd).toFixed(2),
-                  currency: 'USD',
+                  amount: creditMainEquivalent,
+                  currency: mainCurrency,
                 })}
               </p>
             </>
           )}
         </div>
-      </div>
+      </Link>
 
       <Link
         href={walletHref}

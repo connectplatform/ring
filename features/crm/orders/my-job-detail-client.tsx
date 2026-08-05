@@ -17,6 +17,8 @@ import type { ProjectOrder } from '@/features/crm/orders/types'
 import type { CrmUserChip } from '@/features/crm/orders/resolve-users'
 import { MessageUserButton } from '@/features/auth/components/message-user-button'
 import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
+import { computeOrderLabTabStatuses } from '@/features/crm/lab/order-lab-tab-status'
 import { Loader2 } from 'lucide-react'
 
 function nicheTitle(order: ProjectOrder): string {
@@ -36,6 +38,7 @@ export function MyJobDetailClient({
 }) {
   const t = useTranslations('calculator')
   const router = useRouter()
+  const tabCtx = useOptionalOrderLabTabStatus()
   const [order, setOrder] = useState(initial)
   const [progress, setProgress] = useState(initial.progress)
   const [pending, startTransition] = useTransition()
@@ -59,6 +62,8 @@ export function MyJobDetailClient({
       }
       setOrder(data.order)
       setProgress(data.order.progress)
+      const next = computeOrderLabTabStatuses({ order: data.order })
+      if (next.overview) tabCtx?.setTabStatus('overview', next.overview)
       router.refresh()
     })
   }

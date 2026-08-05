@@ -29,7 +29,7 @@ export default function WalletRechargeFsModal({
 }: WalletRechargeFsModalProps) {
   const t = useTranslations('modules.wallet')
   const token = wallet.tokenSymbol ?? getClientNativeTokenSymbol()
-  const creditBalanceUnit = getClientCreditUnitLabel()
+  const creditUnit = getClientCreditUnitLabel()
   const [addCreditOpen, setAddCreditOpen] = useState(false)
 
   return (
@@ -41,7 +41,11 @@ export default function WalletRechargeFsModal({
       >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {t('rechargeModalHint', { token, creditBalanceUnit, address: `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}` })}
+            {t('rechargeModalHint', {
+              token,
+              creditUnit,
+              address: `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`,
+            })}
           </p>
           <DeskWidget
             variant="embedded"

@@ -33,11 +33,12 @@ Client-only widgets show a pulse placeholder during SSR (`mdx-heavy-components.t
 5. [Visualization — onboarding & integrations (MDX)](#visualization--onboarding--integrations-mdx)
 6. [Contact & explore (MDX + site)](#contact--explore-mdx--site)
 7. [Site-only ring-widgets](#site-only-ring-widgets)
-8. [Docs components not in MDX map](#docs-components-not-in-mdx-map)
-9. [Embeddable custom element](#embeddable-custom-element)
-10. [Authoring rules](#authoring-rules)
-11. [Adding a new widget](#adding-a-new-widget)
-12. [Related docs](#related-docs)
+8. [App UI profile widgets (not MDX)](#app-ui-profile-widgets-not-mdx)
+9. [Docs components not in MDX map](#docs-components-not-in-mdx-map)
+10. [Embeddable custom element](#embeddable-custom-element)
+11. [Authoring rules](#authoring-rules)
+12. [Adding a new widget](#adding-a-new-widget)
+13. [Related docs](#related-docs)
 13. [RelatedArticle widget](#relatedarticle-widget)
 14. [Adding a new widget](#adding-a-new-widget)
 
@@ -198,6 +199,34 @@ Import example:
 ```tsx
 import { PublisherGetStartedFlow, RingWalletBalance } from '@/components/ring-widgets'
 ```
+
+---
+
+## App UI profile widgets (not MDX)
+
+Account `/profile` Professional tab surfaces. **Not** registered in `docsMdxComponents` or `components/ring-widgets/` — app composition under `components/profile/`. Documented here so ring-docs / theme agents share one human SSOT with the Davinci-droplist call-site list.
+
+| Widget | File | Description |
+|--------|------|-------------|
+| **OrganizationEntitySelect** | `organization-entity-select.tsx` | **Davinci-droplist** over `GET /api/entities` — Organization field; persists via `updateProfile`. |
+| **ProfileTagCloud** | `profile-tag-cloud.tsx` | Shared FsModal tag picker — selected chips **inside + outside** modal; `DavinciDroplistItem` rows + QuickSearchFilter. |
+| **PositionTagCloud** | `position-tag-cloud.tsx` | Thin wrapper → `ProfileTagCloud` + `KNOWN_POSITION_TAGS`. |
+| **SkillsTagCloud** | `skills-tag-cloud.tsx` | Thin wrapper → `ProfileTagCloud` + `KNOWN_SKILL_TAGS`. |
+| **CurriculumVitaeWidget** | `curriculum-vitae-widget.tsx` | My CV — `WikiRichEditor` markdown in full-viewport `FsModal` + `profile:cv` upload; `users.data.curriculumVitae` JSONB. Mobile: zero body padding, Close bottom-left, **Save & Exit** bottom-right; drafts via `useLocalStorage` (`profile_cv_draft_{userId}`). |
+
+### Davinci-droplist call sites (app UI)
+
+Shared widget: `components/ui/davinci-droplist.tsx` (FsModal + QuickSearchFilter + thick ScrollBar). Theme recipe: `.cursor/agents/ring-theme-enhancer.md` §7.
+
+| Call site | Notes |
+|-----------|--------|
+| `CountrySelect` | Migrated |
+| `TimezoneSelect` | Migrated |
+| `ProductRepSelect` / `VendorEntitySelect` | Migrated |
+| **OrganizationEntitySelect** | Profile Organization |
+| **ProfileTagCloud** | Position / Skills — multi-tag confirm (uses `DavinciDroplistItem`, not single-select close-on-tap) |
+
+See also: [Profile account widgets](/docs/features/profile-account).
 
 ---
 

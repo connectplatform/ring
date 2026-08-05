@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Code2, FileCode, RefreshCw } from 'lucide-react'
@@ -14,6 +13,8 @@ import {
   type SourceCommitRow,
 } from '@/features/crm/lab/order-source/source-commits-list'
 import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
+import { tabStatusFromSourceTree } from '@/features/crm/lab/order-lab-tab-status'
 
 type SourcePanelRole = 'admin' | 'integrator' | 'buyer'
 type TreeEntry = { path: string; type: 'file' | 'dir'; size?: number }
@@ -26,7 +27,7 @@ export function OrderSourcePanel({
   role: SourcePanelRole
 }) {
   const t = useTranslations('calculator')
-  const readOnly = role === 'buyer'
+  const tabCtx = useOptionalOrderLabTabStatus()
   const [tree, setTree] = useState<TreeEntry[]>([])
   const [commits, setCommits] = useState<SourceCommitRow[]>([])
   const [deepLinkPath, setDeepLinkPath] = useState<string | null>(null)
@@ -41,6 +42,14 @@ export function OrderSourcePanel({
   const [pending, startTransition] = useTransition()
 
   const dirty = content !== baseline
+  const isBuyer = role === 'buyer'
+
+  const publishSourceStatus = useCallback(
+    (next: { scaffoldFirst: boolean; fileCount: number }) => {
+      tabCtx?.setTabStatus('source', tabStatusFromSourceTree(next))
+    },
+    [tabCtx],
+  )
 
   useEffect(() => {
     const source = new URLSearchParams(window.location.search).get('source')
@@ -79,6 +88,7 @@ export function OrderSourcePanel({
       setScaffoldFirst(true)
       setTree([])
       setCommits([])
+      publishSourceStatus({ scaffoldFirst: true, fileCount: 0 })
       return
     }
     if (!treeParsed.ok) {
@@ -90,11 +100,12 @@ export function OrderSourcePanel({
     const files = ((treeJson.tree || []) as TreeEntry[]).filter((e) => e.type === 'file')
     setTree(files)
     setCommits((commitsJson.commits || []) as SourceCommitRow[])
+    publishSourceStatus({ scaffoldFirst: false, fileCount: files.length })
     setSelectedPath((prev) => {
       if (deepLinkPath && files.some((f) => f.path === deepLinkPath)) return deepLinkPath
       return prev ?? files[0]?.path ?? null
     })
-  }, [orderId, deepLinkPath])
+  }, [orderId, deepLinkPath, publishSourceStatus])
 
   const loadFile = useCallback(
     async (path: string) => {
@@ -107,6 +118,7 @@ export function OrderSourcePanel({
       const json = data || {}
       if (status === 409 && json.code === 'SOURCE_NOT_SCAFFOLDED') {
         setScaffoldFirst(true)
+        publishSourceStatus({ scaffoldFirst: true, fileCount: 0 })
         return
       }
       if (!ok || !json.file) throw new Error(json.error || parseErr || 'Failed to load file')
@@ -115,7 +127,7 @@ export function OrderSourcePanel({
       setSha(json.file.sha)
       setMessage('')
     },
-    [orderId],
+    [orderId, publishSourceStatus],
   )
 
   useEffect(() => {
@@ -151,7 +163,7 @@ export function OrderSourcePanel({
   }, [selectedPath, scaffoldFirst, loadFile])
 
   const commit = () => {
-    if (!selectedPath || readOnly || !dirty || !message.trim()) return
+    if (!selectedPath || !dirty || !message.trim()) return
     setError(null)
     startTransition(async () => {
       try {
@@ -192,9 +204,6 @@ export function OrderSourcePanel({
         <div className="flex items-center gap-2">
           <Code2 className="h-4 w-4 text-amber-600" />
           <CardTitle className="text-base">{t('order.source.title')}</CardTitle>
-          {readOnly ? (
-            <Badge variant="outline">{t('order.source.readOnlyBadge')}</Badge>
-          ) : null}
         </div>
         <Button
           disabled={loading || pending}
@@ -227,7 +236,7 @@ export function OrderSourcePanel({
 
         {scaffoldFirst ? (
           <p className="text-sm text-muted-foreground">
-            {readOnly
+            {isBuyer
               ? t('order.source.scaffoldFirstBuyer')
               : t('order.source.scaffoldFirst')}
           </p>
@@ -268,7 +277,7 @@ export function OrderSourcePanel({
                       <div className="min-h-0 flex-1">
                         <SourceEditor
                           path={selectedPath}
-                          readOnly={readOnly}
+                          readOnly={false}
                           value={content}
                           onChange={setContent}
                           onSave={commit}
@@ -280,7 +289,7 @@ export function OrderSourcePanel({
                         oldContent={baseline}
                         newContent={content}
                         dirty={dirty}
-                        disabled={readOnly}
+                        disabled={false}
                         message={message}
                         pending={pending}
                         onCommit={commit}

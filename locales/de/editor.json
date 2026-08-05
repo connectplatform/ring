@@ -83,7 +83,18 @@
     "imageDesc": "Bildbeschreibung",
     "tableDialogDesc": "Anzahl der Zeilen und Spalten wählen",
     "rows": "Zeilen",
-    "columns": "Spalten"
+    "columns": "Spalten",
+    "rawMd": "Raw .md",
+    "editRawMd": "Raw-Markdown bearbeiten",
+    "switchToRich": "Zur Rich-Vorschau wechseln",
+    "insertWikiLink": "[[wikilink]] einfügen",
+    "style": "Stil",
+    "close": "Schließen",
+    "imageGalleryTitle": "Bild einfügen",
+    "imageGalleryDesc": "Aus Galerie oder File Cabinet wählen.",
+    "galleryEmpty": "Noch keine Bilder — füge welche unter Profil → Galerie oder File Cabinet hinzu.",
+    "galleryLoadFailed": "Galerie konnte nicht geladen werden",
+    "galleryLoading": "Bilder werden geladen…"
   },
   "versionHistory": {
     "title": "Versionsverlauf",

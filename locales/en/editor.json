@@ -83,7 +83,18 @@
     "imageDesc": "Image description",
     "tableDialogDesc": "Choose the number of rows and columns",
     "rows": "Rows",
-    "columns": "Columns"
+    "columns": "Columns",
+    "rawMd": "Raw .md",
+    "editRawMd": "Edit raw Markdown",
+    "switchToRich": "Switch to rich preview",
+    "insertWikiLink": "Insert [[wikilink]]",
+    "style": "Style",
+    "close": "Close",
+    "imageGalleryTitle": "Insert image",
+    "imageGalleryDesc": "Pick from your gallery or File Cabinet images.",
+    "galleryEmpty": "No images yet — add some in Profile → Gallery or File Cabinet.",
+    "galleryLoadFailed": "Could not load gallery images",
+    "galleryLoading": "Loading images…"
   },
   "versionHistory": {
     "title": "Version History",

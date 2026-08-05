@@ -209,6 +209,10 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     organization: userData?.organization,
     position: userData?.position,
     skills: normalizeSkills(userData?.skills),
+    curriculumVitae:
+      userData?.curriculumVitae && typeof userData.curriculumVitae === 'object'
+        ? (userData.curriculumVitae as AuthUser['curriculumVitae'])
+        : undefined,
     lastRoleUpgrade: userData?.lastRoleUpgrade,
     dataVersion: userData?.data_version || 1,
     lastProfileUpdate: userData?.last_profile_update ? convertTimestamp(userData.last_profile_update) : undefined,

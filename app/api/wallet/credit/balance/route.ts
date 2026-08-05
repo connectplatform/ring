@@ -4,13 +4,22 @@ import { isPlatformAdmin } from '@/features/auth/user-role';
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service';
 import { CreditBalanceResponseSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
-import { getMainCurrencySymbol } from '@/lib/ring-config-core';
+import { getMainCurrencySymbol, getCreditUnitToMainCurrencyRate } from '@/lib/ring-config-core';
 import { userMigrationService } from '@/features/auth/services/user-migration';
 
 // Simple in-memory cache for balance responses
 // TODO: Replace with Next.js 16 Edge Runtime caching for improved scalability and SSR/ISR alignment (see: https://nextjs.org/docs/app/building-your-application/caching)
 const balanceCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 30 * 1000; // 30 seconds TTL for cached balance data
+
+/** Points × credit.creditBalanceUnitToMainCurrency (ring-oracle / ring-config SSOT). */
+function mainCurrencyFromCreditPoints(amount: string | number | undefined): string {
+  const points = typeof amount === 'number' ? amount : Number.parseFloat(String(amount ?? '0'))
+  const safe = Number.isFinite(points) ? points : 0
+  const rate = getCreditUnitToMainCurrencyRate()
+  const main = safe * (rate > 0 && Number.isFinite(rate) ? rate : 0.1)
+  return Number.isFinite(main) ? main.toFixed(2) : '0.00'
+}
 
 /**
  * GET /api/wallet/credit/balance
@@ -102,12 +111,12 @@ export async function GET(request: NextRequest) {
     const remainingMonthlyLimit = '750' // STUB — do not display
     const minBalanceWarning = '12' // STUB — do not display
 
-    // Assemble response object in well-structured format (validated shape optional)
-    // limits kept for schema compatibility; consumers must treat as non-authoritative stubs.
+    // Assemble response — always recompute fiat from points × creditBalanceUnitToMainCurrency
+    // so corrupted ledger `main_currency_equivalent` (e.g. "NaN") never reaches the UI.
     const response = {
       balance: {
         amount: creditBalance.amount,
-        main_currency_equivalent: creditBalance.main_currency_equivalent,
+        main_currency_equivalent: mainCurrencyFromCreditPoints(creditBalance.amount),
         last_updated: creditBalance.last_updated,
       },
       subscription: subscriptionStatus,

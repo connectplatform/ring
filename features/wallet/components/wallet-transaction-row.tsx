@@ -136,13 +136,13 @@ export default function WalletTransactionRow({
   } else if (isNativeReceive || (isDeskBuy && source === 'chain')) {
     kindLabel = t('nativetoken_receive', { token })
   } else if (isDeskBuy) {
-    kindLabel = t('desk_buy_spend_credit', { creditBalanceUnit })
+    kindLabel = t('desk_buy_spend_credit', { creditUnit: creditBalanceUnit })
   } else if (isDeskSell && source === 'chain') {
     kindLabel = t('desk_sell', { token })
   } else if (isDeskSell) {
-    kindLabel = t('desk_sell_credit', { creditBalanceUnit })
+    kindLabel = t('desk_sell_credit', { creditUnit: creditBalanceUnit })
   } else if (isDeskRefund) {
-    kindLabel = t('desk_refund', { creditBalanceUnit })
+    kindLabel = t('desk_refund', { creditUnit: creditBalanceUnit })
   } else if (kindKey === 'payment_request_sent') {
     kindLabel = t('payment_request_sent', { token })
   } else if (kindKey === 'payment_request_received') {
@@ -161,7 +161,10 @@ export default function WalletTransactionRow({
       'penalty',
     ])
     if (knownKinds.has(kindKey)) {
-      kindLabel = t(kindKey as 'payment', { token, creditBalanceUnit })
+      kindLabel = t(kindKey as 'payment', {
+        token,
+        creditUnit: creditBalanceUnit,
+      })
     } else {
       kindLabel = transaction.description?.trim() || transaction.type.replace(/_/g, ' ')
     }

@@ -31,7 +31,7 @@ export async function GET(
 /**
  * PUT /api/my-jobs/[id]/source/file
  * Body: { path, content, message, sha? }
- * Integrator/admin only (no allowBuyer).
+ * Buyer/integrator/admin (scaffold/deploy stay integrator/admin-only elsewhere).
  */
 export async function PUT(
   request: Request,
@@ -39,7 +39,7 @@ export async function PUT(
 ) {
   await connection()
   const { id } = await context.params
-  const access = await requireOrderLabAccess(id)
+  const access = await requireOrderLabAccess(id, { allowBuyer: true })
   if (labAuthDenied(access)) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }

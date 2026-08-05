@@ -56,6 +56,8 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
   overlayClassName?: string
   /** Merged onto the close control (defaults include `.modal-close-button`). */
   closeClassName?: string
+  /** Hide the built-in top-right close (e.g. mobile editors that relocate Close into the footer). */
+  hideCloseButton?: boolean
 }
 
 /**
@@ -65,7 +67,7 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
 const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, overlayClassName, closeClassName, ...props }, ref) => (
+>(({ className, children, overlayClassName, closeClassName, hideCloseButton = false, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
@@ -77,12 +79,14 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close
-        className={cn("modal-close-button", closeClassName)}
-      >
-        <X aria-hidden />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {!hideCloseButton ? (
+        <DialogPrimitive.Close
+          className={cn("modal-close-button", closeClassName)}
+        >
+          <X aria-hidden />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      ) : null}
     </DialogPrimitive.Content>
   </DialogPortal>
 ))

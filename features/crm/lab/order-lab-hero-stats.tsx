@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { DavinciGlassStatBlock } from '@/lib/ui/davinci'
 import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
 import { cn } from '@/lib/utils'
 
 type StatusPayload = {
@@ -30,6 +31,8 @@ export function OrderLabHeroStats({
   className?: string
 }) {
   const t = useTranslations('calculator')
+  const tabCtx = useOptionalOrderLabTabStatus()
+  const heroEpoch = tabCtx?.heroEpoch ?? 0
   const [data, setData] = useState<StatusPayload | null>(null)
 
   useEffect(() => {
@@ -42,7 +45,7 @@ export function OrderLabHeroStats({
     return () => {
       cancelled = true
     }
-  }, [orderId])
+  }, [orderId, heroEpoch])
 
   const pods = data?.pods
   const health = data?.health

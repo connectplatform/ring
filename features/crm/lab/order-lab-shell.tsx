@@ -86,10 +86,10 @@ export function OrderLabShell({
       }
       panels={{
         overview: (
-          <div className="space-y-6">
-            <MyJobDetailClient buyer={buyer} hidePageTitle locale={locale} order={order} />
-            <RingizationPlaybookPanel locale={locale} role={isAdmin ? 'admin' : 'integrator'} />
-          </div>
+          <MyJobDetailClient buyer={buyer} hidePageTitle locale={locale} order={order} />
+        ),
+        playbook: (
+          <RingizationPlaybookPanel locale={locale} role={isAdmin ? 'admin' : 'integrator'} />
         ),
         project: <ProjectConfigPanel mode="integrator" orderId={order.id} />,
         secrets: <OwnerSecretsPanel orderId={order.id} />,

@@ -1,6 +1,7 @@
 export const UPLOAD_PURPOSES = [
   'profile:avatar',
   'profile:kyc',
+  'profile:cv',
   'chat:attachment',
   'opportunity:cv',
   'entity:logo',

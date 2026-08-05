@@ -39,6 +39,10 @@ export interface FsModalProps {
    * Description (if set) stays visible unless `descriptionClassName` hides it.
    */
   hideTitleOnMobile?: boolean
+  /** Merged onto the built-in `.modal-close-button` (e.g. `max-sm:hidden`). */
+  closeClassName?: string
+  /** Hide built-in top-right close (caller supplies Close in footer). */
+  hideCloseButton?: boolean
 }
 
 /**
@@ -64,12 +68,16 @@ export function FsModal({
   hideHeaderSeparator = false,
   hideFooterSeparator = false,
   hideTitleOnMobile = false,
+  closeClassName,
+  hideCloseButton = false,
 }: FsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         // Literal z-[9200] required for Tailwind JIT (see FS_MODAL_Z).
         overlayClassName="z-[9200]"
+        hideCloseButton={hideCloseButton}
+        closeClassName={closeClassName}
         className={cn(
           'z-[9200] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0',
           'max-sm:min-h-[100dvh] max-sm:rounded-none max-sm:pt-10 sm:max-w-lg',

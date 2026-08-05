@@ -70,7 +70,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
   const showCard = isClientFiatCardTopupEnabled()
   const showPaypal = isClientFiatPaypalTopupEnabled()
   const nativeSymbol = getClientNativeTokenSymbol()
-  const creditBalanceUnit = getClientCreditUnitLabel()
+  const creditUnit = getClientCreditUnitLabel()
   const processorLabel = getClientWalletTopupProcessorLabel()
   const mainCurrency = getClientMainCurrency()
   const { balance: creditBalance, refresh: refreshCreditBalance } = useCreditBalanceContext()
@@ -184,7 +184,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
       >
         <TabsList className={`mb-8 grid h-auto w-full gap-1 p-1 ${tabCols}`}>
           <TabsTrigger value="credit_desk" className="flex h-auto min-h-10 items-center gap-1.5 px-2 py-2 text-xs sm:text-sm">
-            <span className="truncate">{creditBalanceUnit}</span>
+            <span className="truncate">{creditUnit}</span>
             <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{nativeSymbol}</span>
           </TabsTrigger>
@@ -224,8 +224,8 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                   {t('topup.oracleRateBubble', {
                     symbol: nativeSymbol,
                     rate: oracleRate ?? '…',
-                    creditBalanceUnit,
-                    defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditBalanceUnit}.`,
+                    creditUnit,
+                    defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditUnit}.`,
                   })}
                 </AlertDescription>
               </Alert>
@@ -284,9 +284,9 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                   </CardTitle>
                   <CardDescription>
                     {t('topup.methods.fiat.description', {
-                      creditBalanceUnit,
+                      creditUnit,
                       token: nativeSymbol,
-                      defaultValue: `Purchase account credit (${creditBalanceUnit}).`,
+                      defaultValue: `Purchase account credit (${creditUnit}).`,
                     })}
                   </CardDescription>
                 </CardHeader>
@@ -310,8 +310,8 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                       {t('topup.oracleRateBubble', {
                         symbol: nativeSymbol,
                         rate: oracleRate ?? '…',
-                        creditBalanceUnit,
-                        defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditBalanceUnit}.`,
+                        creditUnit,
+                        defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditUnit}.`,
                       })}
                     </AlertDescription>
                   </Alert>
@@ -395,9 +395,9 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                   </CardTitle>
                   <CardDescription>
                     {t('topup.methods.paypal.description', {
-                      creditBalanceUnit,
+                      creditUnit,
                       token: nativeSymbol,
-                      defaultValue: `Purchase account credit (${creditBalanceUnit}) with PayPal.`,
+                      defaultValue: `Purchase account credit (${creditUnit}) with PayPal.`,
                     })}
                   </CardDescription>
                 </CardHeader>
@@ -415,8 +415,8 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                       {t('topup.oracleRateBubble', {
                         symbol: nativeSymbol,
                         rate: oracleRate ?? '…',
-                        creditBalanceUnit,
-                        defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditBalanceUnit}.`,
+                        creditUnit,
+                        defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditUnit}.`,
                       })}
                     </AlertDescription>
                   </Alert>

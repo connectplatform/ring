@@ -208,33 +208,31 @@ export function BuyerOrderPanel({
           )}
         </CardContent>
       </Card>
-
-      <RingizationPlaybookPanel locale={locale} role="buyer" />
-      <OrderSourcePanel orderId={order.id} role="buyer" />
-      <WikiDeskPanel orderId={order.id} locale={locale} />
-
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2 space-y-0">
-          <FlaskConical className="h-4 w-4 text-amber-600" />
-          <CardTitle className="text-base">{t('order.lab.projectRoom')}</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[480px] p-0">
-          {loading || !userId ? (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            </div>
-          ) : labId ? (
-            <EmbeddedConversation
-              conversationId={labId}
-              userId={userId}
-              variant="order_lab"
-            />
-          ) : (
-            <p className="p-4 text-sm text-muted-foreground">{t('order.lab.noProjectRoom')}</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
+  )
+
+  const room = (
+    <Card>
+      <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+        <FlaskConical className="h-4 w-4 text-amber-600" />
+        <CardTitle className="text-base">{t('order.lab.projectRoom')}</CardTitle>
+      </CardHeader>
+      <CardContent className="h-[480px] p-0">
+        {loading || !userId ? (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          </div>
+        ) : labId ? (
+          <EmbeddedConversation
+            conversationId={labId}
+            userId={userId}
+            variant="order_lab"
+          />
+        ) : (
+          <p className="p-4 text-sm text-muted-foreground">{t('order.lab.noProjectRoom')}</p>
+        )}
+      </CardContent>
+    </Card>
   )
 
   return (
@@ -246,8 +244,12 @@ export function BuyerOrderPanel({
       header={header}
       panels={{
         overview,
+        playbook: <RingizationPlaybookPanel locale={locale} role="buyer" />,
         project: <ProjectConfigPanel mode="buyer" orderId={order.id} />,
         secrets: <OwnerSecretsPanel orderId={order.id} />,
+        wiki: <WikiDeskPanel orderId={order.id} locale={locale} />,
+        source: <OrderSourcePanel orderId={order.id} role="buyer" />,
+        room,
       }}
     />
   )

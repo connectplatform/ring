@@ -478,13 +478,15 @@
       "tabs": {
         "overview": "Übersicht",
         "manage": "Verwalten",
+        "playbook": "Playbook",
         "project": "Projekt",
         "secrets": "Secrets",
         "env": "Env",
         "source": "Quelle",
         "deploy": "Deploy",
         "chats": "Chats",
-        "wiki": "Wiki"
+        "wiki": "Wiki",
+        "room": "Projektraum"
       },
       "hero": {
         "pods": "Pods bereit",

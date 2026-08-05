@@ -29,6 +29,7 @@ function StatusDot({ status }: { status: OrderLabTabStatus['status'] }) {
 }
 
 function chipClass(active: boolean, status: OrderLabTabStatus['status']) {
+  // Active: beam chrome only — status stays on StatusDot (theme checklist A)
   if (active) {
     return cn(
       'w-full justify-start border-[var(--davinci-beam)] bg-[color-mix(in_oklch,var(--davinci-beam)_16%,transparent)] text-foreground',

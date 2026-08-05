@@ -37,7 +37,11 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { getClientCreditCurrencyCode } from '@/lib/payments/credit-balance-client'
+import {
+  getClientCreditUnitLabel,
+  getClientMainCurrency,
+  resolveCreditMainCurrencyEquivalent,
+} from '@/lib/ring-config-client'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
@@ -55,7 +59,8 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
   const { data: session } = useSession()
   const [copied, setCopied] = useState(false)
 
-  const creditCurrency = getClientCreditCurrencyCode()
+  const creditUnit = getClientCreditUnitLabel()
+  const mainCurrency = getClientMainCurrency()
 
   const {
     balance: creditBalance,
@@ -64,6 +69,11 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
     error,
     refresh: refetchBalance
   } = useCreditBalanceContext()
+
+  const mainEquivalent = resolveCreditMainCurrencyEquivalent(
+    creditBalance?.amount,
+    creditBalance?.main_currency_equivalent,
+  )
 
   const handleCopyAddress = async () => {
     if (session?.user?.wallets?.[0]?.address) {
@@ -127,10 +137,10 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 {creditBalance?.amount
                   ? Number(creditBalance.amount).toLocaleString()
                   : '0'}{' '}
-                <span className="text-sm font-normal text-muted-foreground">{creditCurrency}</span>
+                <span className="text-sm font-normal text-muted-foreground">{creditUnit}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ≈ {creditBalance?.main_currency_equivalent || '0.00'} {creditCurrency}
+                ≈ {mainEquivalent} {mainCurrency}
               </p>
             </div>
           </div>

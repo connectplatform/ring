@@ -127,7 +127,8 @@
       "country": "país",
       "timezone": "zona horaria",
       "representative": "representante",
-      "vendor": "vendedor"
+      "vendor": "vendedor",
+      "organization": "organización"
     },
     "searching": "Buscando…"
   }

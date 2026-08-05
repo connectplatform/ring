@@ -83,7 +83,18 @@
     "imageDesc": "Описание изображения",
     "tableDialogDesc": "Выберите число строк и столбцов",
     "rows": "Строки",
-    "columns": "Столбцы"
+    "columns": "Столбцы",
+    "rawMd": "Raw .md",
+    "editRawMd": "Редактировать raw Markdown",
+    "switchToRich": "Вернуться к rich-просмотру",
+    "insertWikiLink": "Вставить [[wikilink]]",
+    "style": "Стиль",
+    "close": "Закрыть",
+    "imageGalleryTitle": "Вставить изображение",
+    "imageGalleryDesc": "Выберите из галереи или File Cabinet.",
+    "galleryEmpty": "Пока нет изображений — добавьте в Профиль → Галерея или File Cabinet.",
+    "galleryLoadFailed": "Не удалось загрузить галерею",
+    "galleryLoading": "Загрузка изображений…"
   },
   "versionHistory": {
     "title": "История версий",

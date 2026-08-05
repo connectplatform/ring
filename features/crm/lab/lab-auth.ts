@@ -28,7 +28,7 @@ export type LabAuthOptions = {
 
 /**
  * Lab access: platform admin, assigned integrator, or (opt-in) buyer/owner.
- * Buyers are allowed for chat + read-only order surfaces only.
+ * Buyers: chat, project/secrets, writable source commits; not scaffold/deploy/env.
  */
 export async function requireOrderLabAccess(
   orderId: string,

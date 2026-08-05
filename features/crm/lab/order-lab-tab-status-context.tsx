@@ -16,6 +16,9 @@ type OrderLabTabStatusContextValue = {
   statuses: TabStatusMap
   setTabStatus: (tabId: OrderLabTabId, status: OrderLabTabStatus) => void
   markTabError: (tabId: OrderLabTabId, error?: string) => void
+  /** Bump so OrderLabHeroStats re-fetches consolidated /deployment/status */
+  heroEpoch: number
+  refreshHero: () => void
 }
 
 const OrderLabTabStatusContext = createContext<OrderLabTabStatusContextValue | null>(null)
@@ -28,6 +31,7 @@ export function OrderLabTabStatusProvider({
   children: ReactNode
 }) {
   const [statuses, setStatuses] = useState<TabStatusMap>(initial)
+  const [heroEpoch, setHeroEpoch] = useState(0)
 
   const setTabStatus = useCallback((tabId: OrderLabTabId, status: OrderLabTabStatus) => {
     setStatuses((prev) => ({ ...prev, [tabId]: status }))
@@ -48,9 +52,13 @@ export function OrderLabTabStatusProvider({
     })
   }, [])
 
+  const refreshHero = useCallback(() => {
+    setHeroEpoch((n) => n + 1)
+  }, [])
+
   const value = useMemo(
-    () => ({ statuses, setTabStatus, markTabError }),
-    [statuses, setTabStatus, markTabError],
+    () => ({ statuses, setTabStatus, markTabError, heroEpoch, refreshHero }),
+    [statuses, setTabStatus, markTabError, heroEpoch, refreshHero],
   )
 
   return (

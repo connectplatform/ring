@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/dialog'
 import { Loader2, RefreshCw, Rocket, GitBranch, Hammer } from 'lucide-react'
 import { fetchJsonSafe } from '@/features/crm/lab/safe-fetch-json'
+import { useOptionalOrderLabTabStatus } from '@/features/crm/lab/order-lab-tab-status-context'
+import { tabStatusFromDeploySnapshot } from '@/features/crm/lab/order-lab-tab-status'
 
 type EdgeId = 'us' | 'fi' | 'ua'
 type Pod = {
@@ -38,6 +40,7 @@ type Pod = {
 export function DeployStatusWidget({ orderId }: { orderId: string }) {
   const t = useTranslations('calculator')
   const { data: session } = useSession()
+  const tabCtx = useOptionalOrderLabTabStatus()
   const canEditNamespace = isPlatformAdmin(session?.user?.role)
   const [pending, startTransition] = useTransition()
   const [edge, setEdge] = useState<EdgeId>('us')
@@ -56,6 +59,19 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
   const [logPod, setLogPod] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const bumpShell = useCallback(
+    (snap: {
+      lastDeployStatus?: string | null
+      lastError?: string | null
+      namespace?: string
+      pods?: Pod[]
+    }) => {
+      tabCtx?.refreshHero()
+      tabCtx?.setTabStatus('deploy', tabStatusFromDeploySnapshot(snap))
+    },
+    [tabCtx],
+  )
+
   const load = useCallback(async () => {
     const { ok, data, error: parseErr } = await fetchJsonSafe<{
       error?: string
@@ -67,6 +83,7 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
         gitUrl?: string | null
         lastDeployStatus?: string
         lastError?: string | null
+        projectUrl?: string | null
       }
       edges?: Record<EdgeId, boolean>
       edgeLabels?: Array<{ id: EdgeId; label: string }>
@@ -84,6 +101,7 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
     setGitUrl(d.gitUrl || null)
     setStatus(d.lastDeployStatus || 'idle')
     setLastError(d.lastError ?? null)
+    return d
   }, [orderId])
 
   const loadPods = useCallback(async () => {
@@ -93,14 +111,30 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
     }>(`/api/my-jobs/${orderId}/deployment/pods`)
     if (!ok || !data) throw new Error(parseErr || data?.error || 'Failed to list pods')
     if (data.error) throw new Error(data.error)
-    setPods(data.pods || [])
+    const nextPods = data.pods || []
+    setPods(nextPods)
+    return nextPods
   }, [orderId])
 
   useEffect(() => {
     startTransition(() => {
-      void load().catch((e) => setError(e instanceof Error ? e.message : 'Load failed'))
+      void (async () => {
+        try {
+          const d = await load()
+          const nextPods = await loadPods().catch(() => [] as Pod[])
+          bumpShell({
+            lastDeployStatus: d.lastDeployStatus,
+            lastError: d.lastError,
+            namespace: d.namespace || '',
+            pods: nextPods,
+          })
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Load failed')
+        }
+      })()
     })
-  }, [load])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + orderId via load
+  }, [load, loadPods, bumpShell])
 
   const persistMeta = async () => {
     // Namespace / edge / deploymentName are admin-only (CRM namespace lock).
@@ -123,6 +157,12 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
     )
     if (!ok || !data) throw new Error(parseErr || data?.error || 'Save failed')
     if (data.error) throw new Error(data.error)
+    bumpShell({
+      lastDeployStatus: status,
+      lastError,
+      namespace,
+      pods,
+    })
     return data
   }
 
@@ -151,12 +191,26 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
         if (!ok || !data) throw new Error(parseErr || data?.error || 'Deploy failed')
         if (data.error && data.success === false) throw new Error(data.error)
         if (data.error && !data.deployment) throw new Error(data.error)
-        setStatus(data.deployment?.lastDeployStatus || 'success')
-        setLastError(data.deployment?.lastError || null)
-        await loadPods()
+        const nextStatus = data.deployment?.lastDeployStatus || 'success'
+        const nextErr = data.deployment?.lastError || null
+        setStatus(nextStatus)
+        setLastError(nextErr)
+        const nextPods = await loadPods().catch(() => pods)
+        bumpShell({
+          lastDeployStatus: nextStatus,
+          lastError: nextErr,
+          namespace,
+          pods: nextPods,
+        })
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Deploy failed')
         setStatus('failed')
+        bumpShell({
+          lastDeployStatus: 'failed',
+          lastError: e instanceof Error ? e.message : 'Deploy failed',
+          namespace,
+          pods,
+        })
       }
     })
   }
@@ -183,10 +237,23 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
         setGitUrl(data.plan?.gitUrl || gitUrl)
         if (data.plan?.imageTag) setImageTag(data.plan.imageTag)
         setStatus('pending')
-        await load()
+        const d = await load()
+        const nextPods = await loadPods().catch(() => pods)
+        bumpShell({
+          lastDeployStatus: d.lastDeployStatus || 'pending',
+          lastError: d.lastError,
+          namespace: d.namespace || namespace,
+          pods: nextPods,
+        })
       } catch (e) {
         setError(e instanceof Error ? e.message : `${action} failed`)
         setStatus('failed')
+        bumpShell({
+          lastDeployStatus: 'failed',
+          lastError: e instanceof Error ? e.message : `${action} failed`,
+          namespace,
+          pods,
+        })
       }
     })
   }
@@ -211,6 +278,13 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
         if (j.succeeded > 0) setStatus('success')
         else if (j.failed > 0) setStatus('failed')
         else setStatus('pending')
+        bumpShell({
+          lastDeployStatus:
+            j.succeeded > 0 ? 'success' : j.failed > 0 ? 'failed' : 'pending',
+          lastError: j.failed > 0 ? 'bridge_job_failed' : null,
+          namespace,
+          pods,
+        })
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Job status failed')
       }
@@ -243,7 +317,14 @@ export function DeployStatusWidget({ orderId }: { orderId: string }) {
         )
         if (!ok || !data) throw new Error(parseErr || data?.error || 'Restart failed')
         if (data.error) throw new Error(data.error)
-        await loadPods()
+        await loadPods().then((nextPods) => {
+          bumpShell({
+            lastDeployStatus: status,
+            lastError,
+            namespace,
+            pods: nextPods,
+          })
+        })
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Restart failed')
       }

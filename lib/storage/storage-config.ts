@@ -171,6 +171,7 @@ export function getKYCStorageConfig(): StorageConfig {
     maxFileSize: 10 * 1024 * 1024, // 10MB for KYC documents
     allowedTypes: [
       'image/jpeg',
+      'image/jpg',
       'image/png',
       'image/webp',
       'application/pdf',

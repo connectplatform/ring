@@ -190,7 +190,7 @@ export default function ExternalWalletTopupPanel({
           {t('topup.oracleRateBubble', {
             symbol: nativeSymbol,
             rate: oracleRate ?? '…',
-            creditBalanceUnit,
+            creditUnit: creditBalanceUnit,
             defaultValue: `Tokens are calculated in accordance with exchange rate: 1 ${nativeSymbol} is ${oracleRate ?? '…'} ${creditBalanceUnit}.`,
           })}
         </AlertDescription>
