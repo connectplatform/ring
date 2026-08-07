@@ -1,8 +1,0 @@
-{
-  "title": "Интеграции",
-  "description": "Интеграции Ring Platform — платежи, Web3, OAuth, push, email, API и MCP",
-  "pages": [
-    "index",
-    "ethereum-wallets"
-  ]
-}

@@ -1,0 +1,142 @@
+{
+  "title": "Sonoratek LLC — видавець Connect Platform і Ring",
+  "description": "Sonoratek LLC (Темпе, Аризона) видає Connect Platform — корпоративний Erlang ASN.1/BERT realtime-бекенд — і Ring, open-source webOS, що працює на Connect, Firebase, Supabase, Vercel та k8s/Postgres.",
+  "hero": {
+    "description": "Sonoratek LLC — видавець Connect Platform і Ring. Connect забезпечує комерційний Erlang realtime; Ring — open-source webOS, що дає enterprise-рівень кожному фаундеру на планеті."
+  },
+  "badges": {
+    "openSource": "Відкритий код",
+    "aiPowered": "AI-оркестрація",
+    "weaponOfPeace": "Enterprise webOS"
+  },
+  "sections": {
+    "origin": {
+      "title": "Хто ми",
+      "subtitle": "IT у Phoenix Valley з 2013 — Connect для дроту, Ring для продуктової поверхні",
+      "stories": {
+        "crisis": {
+          "title": "Connect Platform",
+          "description": "Connect Platform — комерційний Erlang-бекенд Sonoratek для високонавантажених enterprise-навантажень. ASN.1/BERT на дроті, OTP GenServer, pub/sub, стійкі snapshots та інші комерційні стандарти — коли latency рівня Firebase недостатньо."
+        },
+        "liberation": {
+          "title": "Ring webOS",
+          "description": "Ring — open-source webOS, що працює на Connect, Firebase, Supabase, Vercel і k8s/Postgres. Один white-label стек — entities, opportunities, store, messaging, wallet, docs — щоб фаундери запускали нішеві продукти без збірки платформи з нуля."
+        },
+        "gratitude": {
+          "title": "Sonoratek LLC",
+          "description": "Офіс у Tempe / Phoenix Valley, Arizona (1127 E Curry Rd #6, Tempe, AZ 85281). Понад десятиліття допомагаємо компаніям автоматизувати процеси, триматися в хмарі та випускати цифрові продукти. Видаємо Connect для enterprise realtime і Ring — щоб кожен фаундер мав enterprise-клас."
+        }
+      }
+    },
+    "mission": {
+      "title": "Наша місія",
+      "subtitle": "Enterprise-клас для кожного фаундера",
+      "visionLabel": "Наше бачення:",
+      "vision": "Connect несе жорсткий realtime-шлях; клони Ring збирають продуктову поверхню — з AI-оркестрацією, white-label і деплоєм там, де фаундер уже працює.",
+      "cards": {
+        "unite": {
+          "title": "Realtime, що масштабується",
+          "description": "Erlang OTP стек Connect — GenServer, pub/sub, snapshots, ASN.1/BERT — тримає високу конкурентність швидкою й передбачуваною."
+        },
+        "democratize": {
+          "title": "webOS для фаундерів",
+          "description": "Ring пакує marketplace, спільноту, wallet і AI-matching як open-source webOS: клонуйте, кастомізуйте, хостіть на Connect або в commodity-хмарах."
+        },
+        "endDeficit": {
+          "title": "Без податку на привілеї",
+          "description": "Enterprise-патерни не повинні бути лише для бюджетів Fortune 500. Ring + Connect закривають розрив між ідеєю фаундера й production-рівнем."
+        }
+      }
+    },
+    "impact": {
+      "title": "Розгортання в полі",
+      "subtitle": "Клони Ring на видавничому стеку Sonoratek",
+      "stats": {
+        "deployments": "Розгортання Ring",
+        "value": "Створена економічна цінність",
+        "benefiting": "Людей, що отримують користь",
+        "countries": "Досягнутих країн"
+      },
+      "stories": {
+        "title": "Історії успіху",
+        "story1": {
+          "name": "GreenFood Organic Food Marketplace",
+          "description": "Мульти-вендорний маркетплейс органічних продуктів з нативною криптовалютою DAAR, ERP для продавців і нульовим складом"
+        },
+        "story2": {
+          "name": "SubiWorx Auto Parts Marketplace",
+          "description": "Незалежна мережа ентузіастів Subaru зі стрічкою можливостей для кастомних збірок, оголошеннями авто та запчастин і чатом"
+        },
+        "story3": {
+          "name": "Pet Friend App",
+          "description": "Pet-friendly застосунок для пошуку та обміну місцями, подіями й акціями з чатом на pet-friendly картах"
+        }
+      },
+      "democratization": {
+        "title": "Суверенітет через технології",
+        "description": "Ring дає фаундерам технологічну незалежність: розвивайте платформу через ring-config і модулі, а не через дорожню карту вендора. Connect лишається опційним enterprise realtime-хребтом, коли потрібні HA і fan-out.",
+        "quote": "Connect — комерційний Erlang realtime. Ring — open-source webOS, який фаундер може запустити на Connect, Firebase, Supabase, Vercel або k8s/Postgres."
+      }
+    },
+    "future": {
+      "title": "Бачення майбутнього",
+      "description": "Попросіть інстанс Ring додати можливість природною мовою — модулі, контракти й UI з’являться з AI-оркестрацією. Connect тримає realtime enterprise-готовим, поки Ring розвиває продуктову поверхню.",
+      "roadmapLabel": "Наша дорожня карта:",
+      "roadmap": "Від ручної збірки платформ до AI-оркестрованих white-label клонів. Від прив’язки до однієї хмари — до Connect + Firebase + Supabase + Vercel + k8s/Postgres. Від дефіциту enterprise-інструментів до достатку для фаундерів.",
+      "features": {
+        "autonomous": {
+          "title": "Автономна еволюція ШІ",
+          "description": "Платформи, що розширюються з природномовних вимог"
+        },
+        "learning": {
+          "title": "Навчання між платформами",
+          "description": "Інстанси Ring діляться патернами, щоб наступний клон стартував далі"
+        },
+        "adaptation": {
+          "title": "Адаптація в реальному часі",
+          "description": "Продуктові поверхні еволюціонують із використанням, поки Connect тримає HA-дріт"
+        }
+      }
+    }
+  },
+  "thankYou": {
+    "title": "Будуйте з нами",
+    "subtitle": "Connect для дроту. Ring для продукту. Sonoratek як видавець.",
+    "description": "Потрібен Erlang-рівень realtime для enterprise або open-source webOS для нішевої платформи — Sonoratek видає обидва: Connect Platform і Ring, щоб фаундери запускали enterprise-клас без збірки стеку з нуля.",
+    "slogan": "Enterprise-клас для кожного фаундера",
+    "message": "Sonoratek LLC · Tempe, Arizona · Connect Platform + Ring\nДля фаундерів, які не миряться зі стеками споживчого класу."
+  },
+  "founders": {
+    "contactTitle": "Засновник і видавець",
+    "contactSubtitle": "Ray Sorkin — архітектор Connect Platform, Sonoratek LLC"
+  },
+  "actions": {
+    "cloneRing": "Клонувати Ring зараз",
+    "learnTokens": "Дізнатися про токени RING",
+    "viewSource": "Переглянути вихідний код"
+  },
+  "sidebar": {
+    "publisher_title": "Sonoratek LLC — видавець",
+    "publisher_desc": "Видавець Connect Platform (Erlang ASN.1/BERT) і open-source webOS Ring. Tempe, Arizona.",
+    "quick_actions": "Почати",
+    "clone_hint": "install.sh → ring-config → перший деплой",
+    "tokens_hint": "Токен RING та економіка членства",
+    "source_hint": "connectplatform/ring на GitHub",
+    "help_title": "Документація",
+    "help_desc": "Клонуйте Ring, налаштуйте ring-config.json і розгорніть white-label.",
+    "view_docs": "Відкрити документацію",
+    "docs_hint": "Архітектура, модулі та гайди з розгортання",
+    "impact": {
+      "deployments": "Активні клони Ring та white-label спільноти",
+      "value": "Економічна цінність, створена на платформі",
+      "benefiting": "Люди, яких охоплюють Ring-платформи",
+      "countries": "Країни з живими або пілотними інстансами Ring"
+    },
+    "flow": {
+      "step_install": "install.sh",
+      "step_config": "ring-config",
+      "step_deploy": "перший деплой",
+      "quick_start": "Швидкий старт"
+    }
+  }
+}

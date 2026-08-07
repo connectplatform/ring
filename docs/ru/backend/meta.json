@@ -1,8 +1,0 @@
-{
-  "title": "Бекенд Сервисы",
-  "description": "Firebase Admin SDK, адаптеры базы данных, сервис кеширования и конфигурация бекенд сервисов для Ring Platform.",
-  "pages": [
-    "k8s-postgres-fcm",
-    "firebase"
-  ]
-}

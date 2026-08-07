@@ -1,0 +1,135 @@
+{
+  "title": "Hoja de ruta de Ring Platform",
+  "description": "Desliza el cohete por lanzamientos publicados y hitos futuros — historial real del changelog y el camino por delante.",
+  "hero": {
+    "badge": "Journey",
+    "subtitle": "Emprende el viaje al futuro Ring-powered",
+    "ringCta": "Explorar economía RING",
+    "walletCta": "Abrir wallet",
+    "cloneCta": "Clonar en GitHub"
+  },
+  "timeline": {
+    "title": "Pista de lanzamiento",
+    "subtitle": "Scrubber de cohete — releases pasados del changelog, futuro de la hoja de ruta de ingeniería."
+  },
+  "journey": {
+    "nowLabel": "Versión de production actual",
+    "changelogCta": "Changelog completo",
+    "futureBadge": "Próximo",
+    "inProgressBadge": "En progreso",
+    "plannedBadge": "Planificado",
+    "releaseBadge": "Publicado",
+    "dragHint": "Arrastra el cohete",
+    "empty": "Aún no hay datos del viaje.",
+    "axisFuture": "Futuro",
+    "axisPast": "Pasado",
+    "githubCta": "GitHub",
+    "ringdomCta": "GitHub"
+  },
+  "futureMilestones": [
+    {
+      "id": "file-cabinet-depth",
+      "period": "Q3 2026",
+      "title": "Profundidad File Cabinet",
+      "summary": "Foundation + gallery/trustee/share shipped (1.97.6). Remaining: nested folders polish, ContactPicker share UX, shared FileTree parity.",
+      "status": "in_progress"
+    },
+    {
+      "id": "generative-gallery",
+      "period": "Q3 2026",
+      "title": "Generative Gallery SSOT",
+      "summary": "Cabinet media targets + gallery routes shipped. Remaining: unify NFT/store Upload|Generate SSOT + WebP on every display path.",
+      "status": "in_progress"
+    },
+    {
+      "id": "messenger-call-ui",
+      "period": "Q3 2026",
+      "title": "Messenger Call UI",
+      "summary": "1:1 WebRTC on Tunnel + STUNner — call-event/invite polish only; full Call UI still open.",
+      "status": "in_progress"
+    },
+    {
+      "id": "erp-hub",
+      "period": "Q3 2026",
+      "title": "Ring ERP hub depth",
+      "summary": "Wave 1 shipped (1.97.10): cart soft-holds, MCP stock tools, inventory-drift, DAGI chat. Wave 2+ RMA/PO/lots remain.",
+      "status": "in_progress"
+    },
+    {
+      "id": "treasury-swap",
+      "period": "Q3 2026",
+      "title": "Wagmi treasury swap",
+      "summary": "RingTreasurySwap.sol + quote/execute APIs + oracle/FX desk shipped (1.97.12). Remaining: production allowlist hardening + ops runbook closeout.",
+      "status": "in_progress"
+    },
+    {
+      "id": "solana-nft-gate",
+      "period": "Q4 2026",
+      "title": "Solana NFT Gate production",
+      "summary": "Gate TS + membership/public-pool program source advanced (1.97.12). Remaining: GateEscrow PDA production deploy + sponsored feePayer.",
+      "status": "in_progress"
+    },
+    {
+      "id": "intent-ring-assembly",
+      "period": "2027+",
+      "title": "Ensamblaje de rings por intención",
+      "summary": "Platform release train continues — see CHANGELOG for details.",
+      "status": "in_progress"
+    },
+    {
+      "id": "push-vapid",
+      "period": "Q3 2026",
+      "title": "Mejora de notificaciones push",
+      "summary": "VAPID Web Push junto a FCM — arquitectura de alertas más limpia.",
+      "status": "planned"
+    },
+    {
+      "id": "reward-system",
+      "period": "Q4 2026",
+      "title": "Ring Reward System",
+      "summary": "Points → credit configurables para bucles de engagement.",
+      "status": "planned"
+    },
+    {
+      "id": "tunnel-wss",
+      "period": "Q4 2026",
+      "title": "Tunnel + native WSS",
+      "summary": "Remediación de Tunnel y WebSocket nativo en production. Optional Postgres LISTEN/NOTIFY fan-out shipped 1.97.15 (default off); native WSS + remediation remain.",
+      "status": "partial"
+    },
+    {
+      "id": "dao-governance-v2",
+      "period": "2027+",
+      "title": "DAO governance v2",
+      "summary": "Voto on-chain más allá de pools/jars — ciclo completo de propuestas.",
+      "status": "planned"
+    }
+  ],
+  "docs": {
+    "title": "Documentación",
+    "subtitle": "Profundidad técnica para due diligence.",
+    "cta": "Abrir documentación",
+    "links": [
+      {
+        "title": "Primeros pasos",
+        "description": "Clonar, configurar, primer deploy.",
+        "href": "/docs/getting-started"
+      },
+      {
+        "title": "Changelog",
+        "description": "Cada release con notas GFM completas.",
+        "href": "/changelog"
+      },
+      {
+        "title": "Economía del token",
+        "description": "Utilidad RING, reservas y participación.",
+        "href": "/token-economy"
+      }
+    ]
+  },
+  "labels": {
+    "version": "Spec v{version}",
+    "updated": "Actualizado {date}",
+    "components": "{count} componentes"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "title": "Tokenökonomie — Ring Platform",
+  "description": "Wie Rings dreischichtige Ökonomie funktioniert: Reward-Credit-Balance, gesponserter Solana-Nativtoken (RING), Token-Desk-Austausch, Beitragsbelohnungen, Mitgliedschaft, MicroDAO-Abstimmungen und Vendor-KEYS-NFT-RWA.",
+  "badge": "Nativtoken-Ökonomie",
+  "hero": {
+    "title": "RING ist ein Utility-Token",
+    "subtitle": "Wir verkaufen ihn nicht im Vorverkauf und laden Sie ein, über spekulative Krypto-Gier hinauszuschreiten. Ein neues Zeitalter ist da: Ring-Klone betreiben eine dreischichtige Ökonomie — eine Off-Chain-Reward-Credit-Balance, ein gesponserter Solana-SPL-Nativtoken für die On-Chain-Wallet und optionale NFT- / Referral-Rails. Credits sind Fiat-Punkte (stabiler Wert ohne Absurdität); RING ist der Nativtoken. Credits werden am Token Desk in Token getauscht."
+  },
+  "layers": {
+    "title": "Drei Schichten eigener Wert",
+    "subtitle": "Ihre unverkauften Produkte im ERP und gekauften Bestellungen im CRM, Nutzer-Credit-Balance für Rückerstattungen und Belohnungen sowie Nativtoken für NFT-gated Zugang und langfristige Nutzerloyalität. Setzen Sie Ihre eigenen Credits-zu-Währung- und Token-zu-Credits-Kurse über den Brand Oracle. Seien Sie Ihr eigener Kaiser.",
+    "credit": {
+      "title": "Reward-Credit-Balance",
+      "description": "credit_balance ist in der Standardwährung Ihres Stores denominiert (USD auf ring-platform.org). Mitglieder laden per Karte oder PayPal auf, verdienen Beitragsbelohnungen und nutzen Credits für Rückerstattungen, Store-Checkout, generative Media und ausgewählte Mitgliedschaftspfade über PaymentConductors internal_credit-Rail."
+    },
+    "native": {
+      "title": "Gesponserter Nativ-SPL (RING)",
+      "description": "RING ist der Solana-SPL-Utility-Token dieses Klons. Custodial Wallets werden beim Anmelden bereitgestellt. Die Treasury sponsert Gas, sodass Mitglieder senden und abrechnen können, ohne SOL zu halten. Desk-Käufe folgen der treasury_transfer-Policy: Nativtoken bewegen sich aus der Klon-Treasury in Mitglieder-Wallets."
+    },
+    "rails": {
+      "title": "NFT-RWA, MicroDAO, Referrals",
+      "description": "Vendor-KEYS-Gates sind On-Chain-Zugangszertifikate — handelbare Deeds und Lizenzen, abgerechnet in RING. MicroDAO-Pools sammeln Nativtoken-Beiträge zur Lieferung. ReferralRewards ist eine dedizierte Growth-Rail, die Contribution-Credit-Rewards ergänzt."
+    }
+  },
+  "desk": {
+    "title": "Token Desk — Credits ↔ RING",
+    "subtitle": "Subscriber+ tauscht Credit-Punkte und Nativtoken am Ihrem live Brand Oracle. Desk-Konversion und alltägliche Credit-Ausgaben haben jeweils ihren eigenen klaren Kurs.",
+    "oracle": {
+      "title": "Brand-Oracle-Kurse",
+      "description": "Credits-zu-Währung nutzt credit.creditBalanceUnitToMainCurrency (meist 1). Token-zu-Credits nutzt platform_settings.web3.oracle.nativePerMainCurrency am Token Desk. Sie setzen beides — Ihre Kurse, Ihre Ökonomie."
+    },
+    "firstSettler": {
+      "title": "First-Member-Willkommen",
+      "description": "Ein konfigurierter First-Member-Rabatt (2000 bps / 20 % auf diesem Klon) kann einmal gelten, wenn Wallet-, Username-, Geburtsdatum- und Verifizierungs-Gates abgeschlossen sind — ein warmer Einstieg in Desk-Trades für fertige Profile."
+    },
+    "quotes": {
+      "title": "Signierte Quotes",
+      "description": "Desk-Quotes tragen TTL und max slippage. Mitglieder bestätigen; WalletConductor executeDesk validiert die Signatur, bewegt Treasury-RING oder schreibt Credits ins Ledger und protokolliert die History."
+    }
+  },
+  "rewards": {
+    "title": "Wie Mitglieder Credit-Rewards verdienen",
+    "subtitle": "Echter Beitrag vergibt Credit-Punkte — idempotent, rollenmultipliziert und UTC-täglich gedeckelt, damit das Ledger fair und auditierbar bleibt.",
+    "profile": {
+      "title": "Profil & Verifizierung",
+      "description": "Published Events belohnen Username, Bio, Location, Website, Messenger, Profilvollständigkeit und Admin-Verifizierung — einmal pro Nutzer, wo konfiguriert."
+    },
+    "contribution": {
+      "title": "Inhalte & Anfragen",
+      "description": "Genehmigte News Stories, Comments, Reviews und Opportunity Requests können einmal pro Objekt Credits vergeben. Subscriber+-Rollen beginnen zu verdienen; Visitors wachsen in die Ökonomie ein, indem sie beitreten."
+    },
+    "caps": {
+      "title": "Multiplikatoren & Tageslimits",
+      "description": "Rollen-Multiplikatoren (z. B. member 1,5×, confidential 2×) skalieren Basisbeträge. Daily earn caps schützen das UTC-Budget, damit Belohnungen für die ganze Community nachhaltig bleiben."
+    }
+  },
+  "utility": {
+    "title": "Wo Wert abgerechnet wird",
+    "membership": {
+      "title": "Mitgliedschaft",
+      "description": "SubscriptionConductor unterstützt credit_balance, native_token (Solana RingMembership), Card-Rails und nft_gate. Die On-Chain-Referenzgebühr beträgt 1 RING pro 30 Tage mit Grace-Handling — ein klarer, dauerhafter Mitgliedschaftspfad.",
+      "note": "1 RING / Monat (Native Path)"
+    },
+    "store": {
+      "title": "Store & Services",
+      "description": "Checkout kann Credits oder Nativtoken belasten, wenn aktiviert. Credits bleiben im Fiat-Ledger; Native-Rails übertragen SPL an die Treasury, damit ERP-Bestand und CRM-Bestellungen mit der Wallet-Wahrheit kohärent bleiben.",
+      "note": "Credit- oder Native-Rail"
+    },
+    "send": {
+      "title": "P2P-Sends & Kontakte",
+      "description": "Gaslose custodial RING-Transfers an Kontakte oder Adressen. Treasury ist Fee Payer; optionaler P2P-Tax ist config-gesteuert und getrennt vom Desk-Sell-Tax.",
+      "note": "Gesponserter SPL"
+    },
+    "dao": {
+      "title": "MicroDAO-Abstimmungen",
+      "description": "Public Pools lassen Communities liken und RING auf ein gemeinsames Ziel einzahlen. Admins und Confidential Operators erstellen DAOs und drücken Priorität durch Nativtoken-Commitment aus.",
+      "note": "Nativtoken-Abstimmung"
+    }
+  },
+  "nftRwa": {
+    "title": "Vendor-NFT-RWA (KEYS)",
+    "subtitle": "Metaplex-Core-Gate-NFTs werden für RING verkauft. Handelbare Vendor-Deeds und Lizenzen sind Access-RWA: Ownership wechselt auf dem Exhibition Marketplace; Produktfeatures entsperren nach GateEscrow-Stake.",
+    "primary": {
+      "title": "Primärverkauf",
+      "description": "Kauf auf /nft/gates mit RING transferChecked, dann Mint. Membership-Gates können soulbound sein; Vendor-Store-Deed-, DAGI- und License-Gates sind handelbar, wenn unstaked."
+    },
+    "secondary": {
+      "title": "Sekundärmarkt",
+      "description": "KEYS-Lane listet verifizierte Gates für RING. Ein Kauf überträgt Ownership; staken, damit GateResolver Product Access gewährt. Member-Lane-Collections feiern Ownership und kreatives Minting auf der Plattform."
+    },
+    "why": {
+      "title": "Loyalität, die man halten kann",
+      "description": "Vendor-Zugang wird ein übertragbares Zertifikat, abgerechnet in Ihrem Nativtoken — Marketplace-Liquidität verbunden mit echten Unlocks, langfristiger Loyalität und der eigenen Brand-Ökonomie des Klons."
+    }
+  },
+  "principles": {
+    "title": "Operator-Prinzipien",
+    "utilityFirst": {
+      "title": "Utility-first",
+      "description": "Der Nativtoken öffnet Zugang und rechnet Gebühren innerhalb Ihres Ökosystems ab. Bauen Sie dauerhafte Utility für Mitglieder; halten Sie spekulativen Hype außerhalb der Produktgeschichte."
+    },
+    "cloneBranding": {
+      "title": "Branding pro Klon",
+      "description": "Symbol und Name kommen aus ring-config (RING hier; DAAR / DAARION auf Agricultural Clones). Die UI nutzt getNativeTokenSymbol(), damit jede Oberfläche Ihre Marke spricht."
+    },
+    "ownOracle": {
+      "title": "Seien Sie Ihr eigener Kaiser",
+      "description": "Treasury policy, desk supplyPolicy, Referral-Queues und Brand-Oracle-Kurse gehören Ihnen. Credits-to-currency und token-to-credits antworten Ihrem Klon — Ihre Kurse, Ihr Reich."
+    }
+  },
+  "gettingStarted": {
+    "title": "Starten Sie in Ihrer Ökonomie",
+    "step1": {
+      "title": "Anmelden",
+      "description": "Custodial Wallets werden automatisch über alle aktivierten Chains bereitgestellt."
+    },
+    "step2": {
+      "title": "Credits verdienen oder aufladen",
+      "description": "Reward Actions abschließen oder Credits per Karte hinzufügen — dann Token Desk öffnen, wenn On-Chain-RING gewünscht ist."
+    },
+    "step3": {
+      "title": "Dort abrechnen, wo es zählt",
+      "description": "An Kontakte senden, Mitgliedschaft finanzieren, in MicroDAO abstimmen oder Vendor-KEYS kaufen und staken — mit treasury-gesponsertem Gas, kein SOL erforderlich."
+    }
+  },
+  "cta": {
+    "title": "Die Klon-Ökonomie betreiben",
+    "subtitle": "Wallet für Token Desk und Salden öffnen oder Token Economics Setup lesen, um Brand Oracle und Rails zu konfigurieren.",
+    "getRing": "Wallet öffnen",
+    "learnMore": "Token-Economics-Docs"
+  }
+}

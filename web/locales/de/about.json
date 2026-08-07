@@ -1,0 +1,99 @@
+{
+  "title": "Über dieses Projekt",
+  "description": "Erfahren Sie, wofür dieses Ring-Projekt steht, wen es bedient, wie Sie starten und wo Sie den Publisher hinter der Plattform finden.",
+  "hero": {
+    "badge": "Ihr Ring-Clone",
+    "title": "Über dieses Projekt",
+    "description": "Diese Site läuft auf Ring — einer Open-Source-Plattform für Communities, Opportunities und Marktplätze. Hier erfahren Sie, was dieses Projekt aufbaut und wie Sie mitmachen können."
+  },
+  "badges": {
+    "openSource": "Open Source",
+    "community": "Community-getrieben",
+    "modular": "Modular by design"
+  },
+  "sections": {
+    "origin": {
+      "title": "Wie es begann",
+      "subtitle": "Von der Idee zur lebendigen Plattform",
+      "content": "Jeder Ring-Clone beginnt mit einem klaren Bedarf: Menschen verbinden, Opportunities sichtbar machen und die tägliche Zusammenarbeit an einem Ort bündeln. Dieses Projekt packt diese Fähigkeiten für die eigene Community — abgestimmt über ring-config.json und eigene Inhalte, ohne Vendor-Lock-in."
+    },
+    "founders": {
+      "title": "Wer hinter der Plattform steht",
+      "subtitle": "Publisher vs. Projekt",
+      "description": "Diese Seite beschreibt das Projekt, das Sie nutzen. Der rechtliche Publisher und das Gründungsteam — die Organisation, die den Ring-Stack liefert und pflegt — hat eine eigene Story mit Kontakten und Dank.",
+      "ctaLabel": "Publisher kennenlernen",
+      "ctaHint": "Ursprungsgeschichte, Rechtsträger und Teamkontakte",
+      "contactTitle": "Publisher-Gründer",
+      "contactSubtitle": "Architekt hinter diesem Ring-Deployment — Sonoratek LLC"
+    },
+    "goals": {
+      "title": "Worauf wir hinarbeiten",
+      "subtitle": "Ziele für dieses Deployment",
+      "items": {
+        "connect": {
+          "title": "Die richtigen Menschen verbinden",
+          "description": "Profile, Entities und Messaging, damit Mitglieder schneller Kollaborateure finden als über verstreute Chats und Tabellen."
+        },
+        "opportunities": {
+          "title": "Opportunities sichtbar machen",
+          "description": "Strukturierte Listings, Matching und Benachrichtigungen, damit relevante Arbeit ohne Lärm auftaucht."
+        },
+        "sovereignty": {
+          "title": "Eigenen Stack besitzen",
+          "description": "Self-hosted, White-Label und konfigurierbar — das Produkt nach Ihrem Zeitplan weiterentwickeln, nicht nach einer SaaS-Roadmap."
+        }
+      },
+      "roadmapTitle": "Plattform-Roadmap",
+      "roadmapDescription": "Gelieferte Fähigkeiten, Token-Economy-Pläne und Dokumentations-Meilensteine für dieses Ring-Deployment.",
+      "roadmapCta": "Roadmap ansehen"
+    },
+    "audience": {
+      "title": "Für wen das ist",
+      "subtitle": "Typische Teilnehmende",
+      "items": [
+        "Gründer und Betreiber, die eine Nischen-Community oder einen Marktplatz aufbauen",
+        "Mitglieder, die Kollaborateure, Vendoren oder lokale Expertise suchen",
+        "Organisationen, die Entities, Opportunities und News veröffentlichen",
+        "Contributoren, die Module (Store, Web3, KI-Matching) nach Bedarf erweitern"
+      ]
+    },
+    "gettingStarted": {
+      "title": "So starten Sie",
+      "subtitle": "Erste Schritte auf dieser Site",
+      "steps": [
+        "Konto erstellen und Profil vervollständigen",
+        "Für Sie relevante Entities und Opportunities durchsuchen",
+        "Mitglieder folgen oder anschreiben, mit denen Sie arbeiten möchten",
+        "Opportunity oder Entity posten, wenn Sie beitragen möchten",
+        "Docs und Einstellungen erkunden, um Benachrichtigungen und Datenschutz anzupassen"
+      ]
+    },
+    "capabilities": {
+      "title": "Was Sie hier tun können",
+      "description": "Ring verbindet Community-Profile, Opportunity-Matching, optionale Store- und Web3-Module sowie KI-gestützte Entdeckung — aktivieren Sie nur, was dieses Deployment braucht."
+    }
+  },
+  "actions": {
+    "contact": "Team kontaktieren",
+    "documentation": "Docs lesen"
+  },
+  "sidebar": {
+    "platformInfo": "Plattform-Info",
+    "platformInfoDesc": "Ring Platform ist eine Open-Source-Lösung zum Aufbau dezentraler Communities und Marktplätze.",
+    "version": "Version",
+    "license": "Lizenz",
+    "quickLinks": "Schnelllinks",
+    "aboutUs": "Über uns",
+    "tokenEconomy": "Token Economy",
+    "aiWeb3": "KI & Web3",
+    "globalImpact": "Global Impact",
+    "contact": "Kontakt",
+    "community": "Community",
+    "github": "GitHub",
+    "discord": "Discord",
+    "needHelp": "Hilfe nötig?",
+    "needHelpDesc": "Fragen? Schauen Sie in die Dokumentation oder schreiben Sie uns.",
+    "documentation": "Dokumentation →",
+    "contactSupport": "Support kontaktieren →"
+  }
+}

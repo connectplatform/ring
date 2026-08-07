@@ -1,0 +1,135 @@
+{
+  "title": "Дорожня карта Ring Platform",
+  "description": "Керуйте ракетою крізь випущені релізи та майбутні віхи — жива історія changelog і шлях уперед.",
+  "hero": {
+    "badge": "Journey",
+    "subtitle": "Подорож у Ring-powered майбутнє",
+    "ringCta": "Економіка токена RING",
+    "walletCta": "Відкрити гаманець",
+    "cloneCta": "Клонувати на GitHub"
+  },
+  "timeline": {
+    "title": "Стартова траса",
+    "subtitle": "Скрабер ракети — минулі релізи з changelog, майбутнє з інженерної дорожньої карти."
+  },
+  "journey": {
+    "nowLabel": "Поточна production-версія",
+    "changelogCta": "Повний changelog",
+    "futureBadge": "Незабаром",
+    "inProgressBadge": "В роботі",
+    "plannedBadge": "Заплановано",
+    "releaseBadge": "Випущено",
+    "dragHint": "Тягніть ракету",
+    "empty": "Ще немає даних подорожі.",
+    "axisFuture": "Майбутнє",
+    "axisPast": "Минуле",
+    "githubCta": "GitHub",
+    "ringdomCta": "GitHub"
+  },
+  "futureMilestones": [
+    {
+      "id": "file-cabinet-depth",
+      "period": "Q3 2026",
+      "title": "Глибина File Cabinet",
+      "summary": "Foundation + gallery/trustee/share shipped (1.97.6). Remaining: nested folders polish, ContactPicker share UX, shared FileTree parity.",
+      "status": "in_progress"
+    },
+    {
+      "id": "generative-gallery",
+      "period": "Q3 2026",
+      "title": "Generative Gallery SSOT",
+      "summary": "Cabinet media targets + gallery routes shipped. Remaining: unify NFT/store Upload|Generate SSOT + WebP on every display path.",
+      "status": "in_progress"
+    },
+    {
+      "id": "messenger-call-ui",
+      "period": "Q3 2026",
+      "title": "Messenger Call UI",
+      "summary": "1:1 WebRTC on Tunnel + STUNner — call-event/invite polish only; full Call UI still open.",
+      "status": "in_progress"
+    },
+    {
+      "id": "erp-hub",
+      "period": "Q3 2026",
+      "title": "Ring ERP hub depth",
+      "summary": "Wave 1 shipped (1.97.10): cart soft-holds, MCP stock tools, inventory-drift, DAGI chat. Wave 2+ RMA/PO/lots remain.",
+      "status": "in_progress"
+    },
+    {
+      "id": "treasury-swap",
+      "period": "Q3 2026",
+      "title": "Wagmi treasury swap",
+      "summary": "RingTreasurySwap.sol + quote/execute APIs + oracle/FX desk shipped (1.97.12). Remaining: production allowlist hardening + ops runbook closeout.",
+      "status": "in_progress"
+    },
+    {
+      "id": "solana-nft-gate",
+      "period": "Q4 2026",
+      "title": "Solana NFT Gate production",
+      "summary": "Gate TS + membership/public-pool program source advanced (1.97.12). Remaining: GateEscrow PDA production deploy + sponsored feePayer.",
+      "status": "in_progress"
+    },
+    {
+      "id": "intent-ring-assembly",
+      "period": "2027+",
+      "title": "Intent-driven збірка кілець",
+      "summary": "Platform release train continues — see CHANGELOG for details.",
+      "status": "in_progress"
+    },
+    {
+      "id": "push-vapid",
+      "period": "Q3 2026",
+      "title": "Оновлення push-сповіщень",
+      "summary": "VAPID Web Push поруч із FCM — чистіша архітектура алертів.",
+      "status": "planned"
+    },
+    {
+      "id": "reward-system",
+      "period": "Q4 2026",
+      "title": "Ring Reward System",
+      "summary": "Конфіг-керовані points → credit для engagement-циклів.",
+      "status": "planned"
+    },
+    {
+      "id": "tunnel-wss",
+      "period": "Q4 2026",
+      "title": "Tunnel + native WSS",
+      "summary": "Ремедіація Tunnel і production native WebSocket. Optional Postgres LISTEN/NOTIFY fan-out shipped 1.97.15 (default off); native WSS + remediation remain.",
+      "status": "partial"
+    },
+    {
+      "id": "dao-governance-v2",
+      "period": "2027+",
+      "title": "DAO governance v2",
+      "summary": "Ончейн-голосування поза pools/jars — повний lifecycle пропозицій.",
+      "status": "planned"
+    }
+  ],
+  "docs": {
+    "title": "Документація",
+    "subtitle": "Глибокі матеріали для технічного due diligence.",
+    "cta": "Відкрити документацію",
+    "links": [
+      {
+        "title": "Початок роботи",
+        "description": "Клон, конфіг, перший деплой.",
+        "href": "/docs/getting-started"
+      },
+      {
+        "title": "Changelog",
+        "description": "Кожен реліз із повними GFM-нотами.",
+        "href": "/changelog"
+      },
+      {
+        "title": "Економіка токена",
+        "description": "RING utility, резерви та участь.",
+        "href": "/token-economy"
+      }
+    ]
+  },
+  "labels": {
+    "version": "Спека v{version}",
+    "updated": "Оновлено {date}",
+    "components": "{count} компонентів"
+  }
+}

@@ -1,0 +1,560 @@
+/* DaVinci UI — Grok-inspired border beam + glass tokens */
+
+@property --davinci-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes davinci-border-beam {
+  to {
+    --davinci-angle: 360deg;
+  }
+}
+
+@layer base {
+  :root {
+    --davinci-beam: oklch(0.72 0.14 195);
+    --davinci-beam-highlight: color-mix(in oklch, var(--davinci-beam), white 30%);
+    --davinci-glass-bg: oklch(1 0 0 / 0.05);
+    --davinci-glass-border: oklch(1 0 0 / 0.1);
+    --davinci-surface-bg: hsl(var(--card));
+  }
+
+  .dark {
+    --davinci-beam: oklch(0.78 0.12 195);
+    --davinci-glass-bg: oklch(1 0 0 / 0.05);
+    --davinci-glass-border: oklch(1 0 0 / 0.1);
+    --davinci-surface-bg: hsl(var(--card));
+  }
+}
+
+@layer utilities {
+  .animate-davinci-border-beam {
+    animation: davinci-border-beam var(--davinci-beam-duration, 4s) linear infinite;
+  }
+
+  /** Animated DaVinci glass — gradient clipped to glyphs (no plate). */
+  .davinci-animated-glass-text {
+    --davinci-beam-duration: 5.8s;
+    background-image: conic-gradient(
+      from var(--davinci-angle),
+      color-mix(in oklch, var(--davinci-beam) 40%, white) 0deg,
+      var(--davinci-beam-highlight) 55deg,
+      oklch(0.92 0.1 195) 110deg,
+      var(--davinci-beam) 175deg,
+      oklch(0.82 0.16 280) 240deg,
+      var(--davinci-beam-highlight) 305deg,
+      color-mix(in oklch, var(--davinci-beam) 40%, white) 360deg
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: davinci-border-beam var(--davinci-beam-duration, 5.8s) linear infinite;
+    /* Dark vibrant glow — deep violet / magenta / beam halo */
+    filter:
+      drop-shadow(0 0 1px oklch(0.55 0.2 300))
+      drop-shadow(0 0 6px oklch(0.42 0.24 310 / 0.95))
+      drop-shadow(0 0 14px oklch(0.32 0.22 280 / 0.85))
+      drop-shadow(0 0 22px oklch(0.28 0.18 195 / 0.7))
+      drop-shadow(0 0 34px oklch(0.22 0.16 330 / 0.55));
+  }
+
+  /** Roadmap hyperspace love label — richer dark glow on top of glass text. */
+  .ring-roadmap-love-label {
+    filter:
+      drop-shadow(0 0 2px oklch(0.62 0.22 305))
+      drop-shadow(0 0 8px oklch(0.38 0.26 320 / 0.95))
+      drop-shadow(0 0 16px oklch(0.3 0.24 280 / 0.9))
+      drop-shadow(0 0 28px oklch(0.24 0.2 195 / 0.75))
+      drop-shadow(0 0 42px oklch(0.18 0.18 340 / 0.6));
+  }
+
+  .davinci-border-beam-glow {
+    background: conic-gradient(
+      from var(--davinci-angle),
+      transparent 50%,
+      var(--davinci-beam) 65%,
+      var(--davinci-beam-highlight) 75%,
+      transparent 90%
+    );
+  }
+
+  /* Beam visible on the border ring only — center punched out */
+  .davinci-border-beam-glow-ring {
+    padding: 2px;
+    border-radius: 15px;
+    background: conic-gradient(
+      from var(--davinci-angle),
+      transparent 40%,
+      var(--davinci-beam) 58%,
+      var(--davinci-beam-highlight) 72%,
+      transparent 88%
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  .davinci-glass-surface {
+    background: var(--davinci-glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--davinci-glass-border);
+    border-radius: 15px;
+  }
+
+  .davinci-panel-surface {
+    background: color-mix(in oklch, var(--davinci-surface-bg) 88%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--davinci-glass-border);
+    border-radius: 15px;
+    box-shadow: 0 1px 0 oklch(1 0 0 / 0.04) inset;
+  }
+
+  .davinci-terminal-surface {
+    background: color-mix(in oklch, var(--davinci-surface-bg) 92%, transparent);
+    border: 1px solid color-mix(in oklch, var(--davinci-beam) 22%, transparent);
+    border-radius: 15px;
+    box-shadow: 0 0 0 1px oklch(0 0 0 / 0.02);
+  }
+
+  .davinci-cta-primary {
+    background: linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--davinci-beam) 18%, transparent),
+      color-mix(in oklch, var(--davinci-beam) 8%, transparent)
+    );
+    border: 1px solid color-mix(in oklch, var(--davinci-beam) 35%, transparent);
+    border-radius: 99px;
+    color: hsl(var(--foreground));
+    transition:
+      transform 200ms cubic-bezier(0.23, 1, 0.32, 1),
+      box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1),
+      border-color 200ms ease;
+  }
+
+  .davinci-cta-primary:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklch, var(--davinci-beam) 55%, transparent);
+    box-shadow: 0 12px 40px -16px color-mix(in oklch, var(--davinci-beam) 45%, transparent);
+  }
+
+  .davinci-cta-primary:active {
+    transform: translateY(0);
+  }
+
+  /**
+   * FsModal / Dialog close control — circular hit target above mobile chrome.
+   * Used by `components/ui/dialog.tsx` DialogContent close + FsModal shells.
+   * Keep in sync with `.cursor/agents/ring-theme-enhancer.md` § G (fs-modal).
+   */
+  .modal-close-button {
+    @apply absolute right-3 z-10 flex h-11 w-11 items-center justify-center
+      rounded-full border border-border bg-background/90 text-foreground
+      opacity-90 shadow-sm backdrop-blur-sm transition-[opacity,background-color,transform]
+      hover:opacity-100 hover:bg-muted active:scale-95
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+      disabled:pointer-events-none;
+    top: max(0.75rem, env(safe-area-inset-top, 0px));
+  }
+
+  .modal-close-button svg {
+    @apply h-5 w-5 shrink-0;
+  }
+
+  /**
+   * Center-pane FsModal open — hide iPad/mobile floating right-rail toggle
+   * (modal already covers it at z-[9200]; attribute is belt-and-suspenders).
+   */
+  :root[data-fs-modal-center-pane='open'] [data-floating-sidebar-toggle-btn] {
+    display: none !important;
+  }
+
+  /**
+   * Wiki / CV TipTap caret — terminal block cursor (not native `|`).
+   *
+   * Native caret blink runs on a separate browser clock; animating `caret-color`
+   * fights it and looks random. We hide the native caret and draw
+   * `.wiki-terminal-caret` via TipTap decorations (`WikiTerminalCaret` extension).
+   * Blink uses `steps(1, end)` — classic CRT/terminal invite-to-type cadence.
+   */
+  @keyframes wiki-terminal-caret-blink {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes wiki-terminal-caret-glow {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px color-mix(in oklch, var(--davinci-beam) 55%, transparent),
+        0 0 10px color-mix(in oklch, var(--davinci-beam) 45%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px color-mix(in oklch, var(--davinci-beam) 70%, transparent),
+        0 0 18px color-mix(in oklch, var(--davinci-beam) 65%, transparent);
+    }
+  }
+
+  .wiki-tiptap.ProseMirror {
+    caret-color: transparent;
+  }
+
+  .wiki-tiptap.ProseMirror:focus {
+    outline: none;
+  }
+
+  .wiki-terminal-caret {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.1em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    border-radius: 1px;
+    background: var(--davinci-beam);
+    pointer-events: none;
+    /* 1.06s steps — same family as ring-roadmap-hud-blink; 50/50 duty cycle */
+    animation:
+      wiki-terminal-caret-blink 1.06s steps(1, end) infinite,
+      wiki-terminal-caret-glow 2.12s ease-in-out infinite;
+  }
+
+  .wiki-tiptap.ProseMirror::selection,
+  .wiki-tiptap.ProseMirror *::selection,
+  .wiki-tiptap.ProseMirror::-moz-selection,
+  .wiki-tiptap.ProseMirror *::-moz-selection {
+    /* Match terminal-caret beam glow — invite “this is selected” like CRT hilite */
+    background: color-mix(in oklch, var(--davinci-beam) 38%, transparent);
+    color: inherit;
+    text-shadow:
+      0 0 6px color-mix(in oklch, var(--davinci-beam) 55%, transparent),
+      0 0 14px color-mix(in oklch, var(--davinci-beam) 40%, transparent),
+      0 0 22px color-mix(in oklch, var(--davinci-beam) 25%, transparent);
+  }
+
+  /** Editable body chrome — static rounded glass (beam reserved for Save&Exit pulse) */
+  .wiki-editor-glass-pane {
+    @apply relative min-h-0 flex-1 overflow-hidden rounded-[15px];
+    border: 1px solid color-mix(in oklch, var(--davinci-beam) 28%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--davinci-beam) 12%, transparent),
+      0 8px 28px -18px color-mix(in oklch, var(--davinci-beam) 35%, transparent);
+  }
+
+  /** Save&Exit — BorderBeam rounds to pill when this class is on the outer wrapper */
+  .wiki-save-exit-beam {
+    @apply relative inline-flex rounded-[99px];
+  }
+  .wiki-save-exit-beam > [aria-hidden].davinci-border-beam-glow-ring,
+  .wiki-save-exit-beam > [aria-hidden].davinci-border-beam-glow {
+    border-radius: 99px;
+  }
+  .wiki-save-exit-beam > .relative {
+    border-radius: 99px;
+  }
+
+  @keyframes davinci-ambient-drift {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(2%, -3%) scale(1.05);
+    }
+  }
+
+  .davinci-ambient-orb {
+    pointer-events: none;
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(64px);
+    animation: davinci-ambient-drift 18s ease-in-out infinite;
+  }
+
+  .davinci-feature-dot {
+    height: 0.375rem;
+    width: 0.375rem;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--davinci-beam) 35%, transparent);
+    transition: all 300ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .davinci-feature-dot[data-active='true'] {
+    width: 1.25rem;
+    background: var(--davinci-beam);
+  }
+
+  /* Roadmap rocket journey — CSS-driven FX (longhand only; avoid React shorthand/longhand mix) */
+  @keyframes ring-roadmap-star-twinkle {
+    0%,
+    100% {
+      opacity: var(--star-o);
+      transform: scale(1);
+    }
+    50% {
+      opacity: calc(var(--star-o) * 0.32);
+      transform: scale(0.62);
+    }
+  }
+
+  @keyframes ring-roadmap-hyperspace-streak {
+    0% {
+      transform: translate3d(0, -40%, 0) scaleY(0.4);
+      opacity: 0;
+    }
+    15% {
+      opacity: var(--star-o);
+    }
+    100% {
+      transform: translate3d(0, 140%, 0) scaleY(1.8);
+      opacity: 0;
+    }
+  }
+
+  @keyframes ring-roadmap-ionic-beam {
+    0% {
+      transform: translate3d(var(--bx, 0px), 0, 0) scaleY(0.2);
+      opacity: 0.9;
+    }
+    100% {
+      transform: translate3d(var(--bx, 0px), 72px, 0) scaleY(1.4);
+      opacity: 0;
+    }
+  }
+
+  /* Soft radial drift — fade before the rectangular clip edge; per-star --start-t */
+  @keyframes ring-roadmap-perspective-out {
+    0% {
+      transform: translate3d(
+          calc(var(--hx, 0px) * var(--start-t, 0.08)),
+          calc(var(--hy, 0px) * var(--start-t, 0.08)),
+          0
+        )
+        scale(0.5);
+      opacity: var(--star-o);
+    }
+    62% {
+      opacity: var(--star-o);
+    }
+    100% {
+      transform: translate3d(var(--hx, 0px), var(--hy, 0px), 0) scale(1.15);
+      opacity: 0;
+    }
+  }
+
+  @keyframes ring-roadmap-star-glow {
+    0% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 0 transparent);
+      opacity: 1;
+    }
+    45% {
+      transform: scale(1.45);
+      filter: drop-shadow(0 0 10px var(--davinci-beam));
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 2px color-mix(in oklch, var(--davinci-beam) 55%, transparent));
+      opacity: 1;
+    }
+  }
+
+  @keyframes ring-roadmap-hud-blink {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0.22;
+    }
+  }
+
+  .ring-roadmap-hud-blink {
+    animation: ring-roadmap-hud-blink 1.05s steps(1, end) infinite;
+  }
+
+  @keyframes ring-roadmap-quest-line-flash {
+    0% {
+      opacity: 1;
+      filter: brightness(1);
+      text-shadow: none;
+    }
+    35% {
+      opacity: 1;
+      filter: brightness(1.55);
+      text-shadow: 0 0 10px oklch(0.78 0.18 145);
+    }
+    70% {
+      opacity: 0.35;
+    }
+    100% {
+      opacity: 1;
+      filter: brightness(1.2);
+      text-shadow: 0 0 6px oklch(0.72 0.19 145);
+    }
+  }
+
+  .ring-roadmap-quest-line-flash {
+    animation: ring-roadmap-quest-line-flash 0.32s steps(2, end) 2;
+  }
+
+  @keyframes ring-roadmap-quest-set-flash {
+    0%,
+    100% {
+      box-shadow: 0 0 0 transparent;
+    }
+    40% {
+      box-shadow: 0 0 18px oklch(0.72 0.19 145 / 0.65);
+    }
+  }
+
+  .ring-roadmap-quest-set-flash {
+    animation: ring-roadmap-quest-set-flash 0.38s ease-out 1;
+  }
+
+  .ring-roadmap-quest-green {
+    animation: ring-roadmap-hud-blink 0.28s steps(1, end) 3;
+  }
+
+  @keyframes ring-roadmap-logo-swirl {
+    0% {
+      filter: hue-rotate(0deg) saturate(1.35) brightness(1.05);
+    }
+    50% {
+      filter: hue-rotate(180deg) saturate(1.7) brightness(1.15);
+    }
+    100% {
+      filter: hue-rotate(360deg) saturate(1.35) brightness(1.05);
+    }
+  }
+
+  .ring-roadmap-logo-swirl {
+    animation: ring-roadmap-logo-swirl 7.2s linear infinite;
+  }
+
+  .ring-roadmap-star {
+    animation-name: ring-roadmap-star-twinkle;
+    animation-duration: var(--star-twinkle, 8s);
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-delay: var(--star-delay, 0s);
+  }
+
+  .ring-roadmap-perspective-star {
+    transform-origin: 50% 50%;
+    animation-name: ring-roadmap-perspective-out;
+    animation-duration: var(--hyper-dur, 0.55s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: var(--hyper-delay, 0s);
+  }
+
+  .ring-roadmap-perspective-layer[data-mode='warp'] .ring-roadmap-perspective-star {
+    animation: none;
+  }
+
+  .ring-roadmap-warp-line {
+    will-change: width, opacity;
+  }
+
+  .ring-roadmap-star-glow {
+    animation-name: ring-roadmap-star-glow;
+    animation-duration: 320ms;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+
+  .ring-roadmap-ionic-beam {
+    animation-name: ring-roadmap-ionic-beam;
+    animation-duration: 0.42s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-delay: var(--beam-delay, 0s);
+  }
+
+  .ring-roadmap-ionic-beams[data-boost='true'] .ring-roadmap-ionic-beam {
+    animation-duration: 0.18s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .davinci-ambient-orb {
+      animation: none;
+    }
+
+    .davinci-cta-primary:hover {
+      transform: none;
+    }
+    .animate-davinci-border-beam {
+      animation: none;
+    }
+
+    .davinci-animated-glass-text {
+      animation: none;
+      background-image: none;
+      color: var(--davinci-beam);
+      -webkit-text-fill-color: var(--davinci-beam);
+      /* Keep dark vibrant glow even when motion is reduced */
+      filter:
+        drop-shadow(0 0 2px oklch(0.55 0.2 300))
+        drop-shadow(0 0 10px oklch(0.35 0.24 310 / 0.9))
+        drop-shadow(0 0 20px oklch(0.26 0.2 280 / 0.75))
+        drop-shadow(0 0 32px oklch(0.2 0.16 195 / 0.55));
+    }
+
+    .ring-roadmap-love-label {
+      filter:
+        drop-shadow(0 0 3px oklch(0.58 0.22 305))
+        drop-shadow(0 0 12px oklch(0.34 0.26 320 / 0.95))
+        drop-shadow(0 0 24px oklch(0.24 0.22 280 / 0.85))
+        drop-shadow(0 0 36px oklch(0.18 0.18 340 / 0.65));
+    }
+
+    .davinci-border-beam-glow {
+      background: linear-gradient(
+        135deg,
+        var(--davinci-glass-border),
+        var(--davinci-beam),
+        var(--davinci-glass-border)
+      );
+      opacity: 0.55;
+    }
+
+    .ring-roadmap-star,
+    .ring-roadmap-perspective-star,
+    .ring-roadmap-ionic-beam,
+    .ring-roadmap-star-glow,
+    .ring-roadmap-hud-blink,
+    .ring-roadmap-quest-line-flash,
+    .ring-roadmap-quest-set-flash,
+    .ring-roadmap-quest-green,
+    .ring-roadmap-logo-swirl {
+      animation: none !important;
+    }
+
+    .wiki-terminal-caret {
+      animation: none;
+      opacity: 1;
+      box-shadow:
+        0 0 0 1px color-mix(in oklch, var(--davinci-beam) 55%, transparent),
+        0 0 10px color-mix(in oklch, var(--davinci-beam) 45%, transparent);
+    }
+  }
+}

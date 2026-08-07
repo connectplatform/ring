@@ -1,0 +1,368 @@
+{
+  "login": {
+    "title": "Bienvenido de nuevo",
+    "subtitle": "Inicie sesión en Connect.Software",
+    "description": "Acceso a la cuenta de Marketplace, suscripciones y herramientas para editores."
+  },
+  "walletConnect": {
+    "title": "Conecta tu wallet",
+    "subtitle": "Inicia sesión con MetaMask, WalletConnect o Coinbase Wallet",
+    "description": "Autentícate con tu wallet Web3 para acceder a Ring Platform."
+  },
+  "marketplace": {
+    "title": "Conectar mercado",
+    "subtitle": "Descubra y obtenga conjuntos de habilidades de IA, integraciones de MCP, enrutadores, paquetes y ofertas seleccionadas de editores verificados.",
+    "tabs": {
+      "vendors": "Proveedores de búsqueda",
+      "services": "Paquetes de servicios"
+    },
+    "search": {
+      "placeholder": "Buscar",
+      "allCategories": "Todas las categorias",
+      "allAvailability": "Todas las disponibilidades",
+      "availableNow": "Disponible ahora",
+      "currentlyBusy": "Actualmente ocupado",
+      "sortBy": "Ordenar por",
+      "highestRated": "Mejor valorados",
+      "mostReviews": "La mayoría de las reseñas",
+      "hourlyRate": "Tarifa por hora",
+      "price": "Precio"
+    },
+    "vendor": {
+      "featured": "Recomendado",
+      "verified": "Verificado",
+      "busy": "Ocupado",
+      "specialties": "Especialidades:",
+      "skills": "Skills:",
+      "projects": "Proyectos",
+      "message": "Noticias",
+      "hireNow": "Involúcrate ahora",
+      "unavailable": "No disponible",
+      "more": "más"
+    },
+    "service": {
+      "featured": "Recomendado",
+      "orderService": "Servicio de pedidos"
+    },
+    "empty": {
+      "title": "No se encontró {type}",
+      "description": "Ajusta tu búsqueda o vuelve a intentarlo más tarde."
+    },
+    "categories": {
+      "platformSetup": "Configuración de la plataforma",
+      "web3Integration": "Integración web3",
+      "security": "Seguridad",
+      "uiUx": "UI/UX"
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "Suscríbase a la pila de IA que su equipo realmente puede ejecutar en producción.",
+      "subtitlePrefix": "Organizaciones, oportunidades, comercio, mensajería y Web3 en un stack white-label que puedes clonar gratis hoy desde ",
+      "subtitleLink": "GitHub",
+      "subtitleSuffix": " y self-host en su propia infraestructura.",
+      "pitch": "Ring Platform es la implementación de referencia detrás de cada ring impulsado por Ring: Entities verificadas, Opportunities por niveles, Store multi-vendor, wallet y pagos integrados, Messenger, News y matching de oportunidades con IA — construido sobre React 19, Next.js 16, Auth.js v5 y una capa de datos PostgreSQL-first.",
+      "ringdomCta": "Ver en GitHub",
+      "ringdomUrl": "https://github.com/connectplatform/ring",
+      "appPublisher": "Publicado por Sonoratek LLC (Arizona) 🇺🇦 — nuestro regalo al mundo, con gratitud a quienes ayudaron a Ucrania a demostrar su derecho a la independencia",
+      "description": "Compare la compatibilidad y los precios en un solo flujo, valide las señales de confianza y pase del piloto a la producción, con rutas empresariales según demanda.",
+      "features": [
+        "Store System — multi-vendor e-commerce with WayForPay, wallet rails, orders, and settlements",
+        "Entities System — organization profiles with public → confidential visibility tiers",
+        "Wallet System — Web3 wallet with RING token, multi-chain, staking and NFT marketplace",
+        "Messaging System — real-time user-to-user and group communications",
+        "Opportunities System — job board, volunteering, and opportunity management with AI matcher",
+        "AI Matcher System — vector similarity matching, preference learning, smart recommendations",
+        "NFT Market System — minting, trading, collection management, royalty system, IPFS",
+        "Staking System — multi-pool staking, rewards, APR tracking, governance voting",
+        "ERP Systems — inventory, supply chain, vendor management, tokenization, commerce"
+      ],
+      "gitClone": "git clone https://github.com/connectplatform/ring",
+      "gitCloneText": "Anillo clonado: código abierto para siempre:",
+      "featuresLabel": "Qué incluye el paquete",
+      "cta": "empezar",
+      "learnMore": "Más información",
+      "ctaCards": {
+        "postOpportunity": {
+          "title": "Publica un brief de personalización",
+          "description": "Branding, módulos, integraciones o despliegue — describe lo que necesita tu clon Ring."
+        },
+        "browseContractor": {
+          "title": "Encuentra proyectos Ring para construir",
+          "description": "Freelancers y dev shops descubren trabajo de clon y reciben alertas del matcher cuando los listados encajan."
+        },
+        "clone": {
+          "title": "Clonar el repositorio",
+          "description": "Haz fork de la baseline OSS, personaliza ring-config y locales, y despliega en tu propia infraestructura."
+        },
+        "entities": {
+          "title": "Explorar Entities",
+          "description": "Empresas, startups, instituciones y comunidades activas en este ring."
+        },
+        "wallet": {
+          "title": "Economía del token RING",
+          "description": "Wallet, créditos y rails on-chain para listados, servicios y operaciones de plataforma."
+        },
+        "docs": {
+          "title": "Leer la documentación",
+          "description": "Arquitectura, despliegue, modos de base de datos y personalización — EN / UK / RU."
+        },
+        "settler": {
+          "title": "Ruta self-host",
+          "description": "Clone desde GitHub, configure ring-config y locales, despliegue en su infraestructura."
+        },
+        "connectSoftware": {
+          "title": "Marketplace Connect.Software",
+          "description": "Listados gobernados de skillsets LegioX, servidores MCP, routers y bundles AI-CONTEXT — sobre los mismos rails de comercio Ring que el Store.",
+          "marketplaceLink": "Explorar marketplace",
+          "skillsetsLink": "Skillsets",
+          "mcpLink": "Servidores MCP"
+        }
+      },
+      "featureSystems": {
+        "title": "Catálogo completo de funciones",
+        "items": {
+          "store": {
+            "title": "Sistema Store",
+            "description": "Plataforma e-commerce completa con gestión de vendors, pagos multi-moneda, liquidaciones automatizadas, catálogo con categorías, carrito y checkout, integración de pagos (tokens RING, fiat WayForPay), gestión y seguimiento de pedidos, sistema de comisiones, inventario.",
+            "terms": [
+              "E-commerce",
+              "Vendor Mgmt",
+              "Multi-currency",
+              "Checkout"
+            ],
+            "purpose": "Opera un marketplace multi-vendor completo con pagos y liquidaciones automatizadas.",
+            "benefits": "Lanza un store en horas, no meses. Los vendors reciben splits de comisión automáticos, los clientes pagan con RING o tarjeta, y tú mantienes el control total."
+          },
+          "entities": {
+            "title": "Sistema Entities",
+            "description": "Estructura organizativa para empresas, cooperativas y comunidades en Ring Platform — creación y gestión de entidades, estructuras jerárquicas, roles de miembro, perfiles y branding, permisos basados en entidad, membresía multi-entidad.",
+            "terms": [
+              "Organizations",
+              "Hierarchy",
+              "Profiles",
+              "Permissions"
+            ],
+            "purpose": "Crea estructuras organizativas para empresas, cooperativas y comunidades.",
+            "benefits": "Membresía multi-entidad con acceso por roles, niveles de visibilidad de público a confidencial y descubrimiento en directorio."
+          },
+          "wallet": {
+            "title": "Sistema Wallet",
+            "description": "Wallet Web3 moderna con token RING, soporte multi-chain (Ethereum, Polygon, Arbitrum, Optimism, Base), wagmi v2 + viem + RainbowKit, saldo en tiempo real, envío/recepción, historial, contactos, Google Auth con creación automática de wallet, cifrado de claves con PIN para auth social, compra de tokens.",
+            "terms": [
+              "Web3 Wallet",
+              "Multi-chain",
+              "RING Token",
+              "Transactions"
+            ],
+            "purpose": "Wallet Web3 moderna con token RING y soporte multi-chain.",
+            "benefits": "Envía y recibe tokens en 5 chains, crea wallets vía Google Auth, cifrado seguro con PIN y compra tokens en la app."
+          },
+          "staking": {
+            "title": "Sistema Staking",
+            "description": "Staking de token RING con rewards e integración de governance — arquitectura multi-pool, stake/unstake, cálculo de rewards, tracking de APR, voting de governance, liquidity mining.",
+            "terms": [
+              "DeFi Pools",
+              "Rewards",
+              "Governance",
+              "APR"
+            ],
+            "purpose": "Staking de token RING con rewards y voting de governance.",
+            "benefits": "Ingresos pasivos con staking multi-pool, participa en la governance del protocolo y sigue el APR en tiempo real."
+          },
+          "messaging": {
+            "title": "Sistema de mensajería",
+            "description": "Mensajería en tiempo real user-to-user y de grupo — mensajes directos, chat de grupo, entrega en tiempo real, historial y búsqueda, compartir archivos, integración de notificaciones.",
+            "terms": [
+              "Real-time",
+              "Chat",
+              "Groups",
+              "File Share"
+            ],
+            "purpose": "Mensajería en tiempo real para comunicaciones user-to-user y de grupo.",
+            "benefits": "Mensajes directos, chats de grupo, archivos, historial — conectados a oportunidades y deals vía protocolo Tunnel."
+          },
+          "opportunities": {
+            "title": "Sistema Opportunities",
+            "description": "Job board, voluntariado y gestión de oportunidades — creación y gestión, organización por categorías, sistema de candidaturas, búsqueda y filtros, tracking de usuario, publicación basada en entidad.",
+            "terms": [
+              "Job Board",
+              "AI Matching",
+              "Applications",
+              "Search"
+            ],
+            "purpose": "Job board, voluntariado y gestión de oportunidades con matching IA.",
+            "benefits": "Publica oportunidades por categorías, recibe candidaturas matched por IA y deja que el sistema notifique candidatos automáticamente."
+          },
+          "nft": {
+            "title": "Sistema NFT Market",
+            "description": "Marketplace NFT con minting, trading y gestión de colecciones — interfaz de minting, listados, compra/venta, gestión de colecciones, royalties, integración IPFS.",
+            "terms": [
+              "NFT Minting",
+              "Marketplace",
+              "Collections",
+              "Royalty"
+            ],
+            "purpose": "Marketplace NFT con minting, trading y gestión de colecciones.",
+            "benefits": "Mintea NFTs directamente, lista en el marketplace, gana royalties en ventas secundarias y gestiona colecciones con IPFS."
+          },
+          "aiMatcher": {
+            "title": "Sistema AI Matcher",
+            "description": "Matching impulsado por IA para oportunidades, productos y conexiones — similitud vectorial, aprendizaje de preferencias, recomendaciones inteligentes, búsqueda semántica, reconocimiento de patrones.",
+            "terms": [
+              "Vector Search",
+              "Recommendations",
+              "Semantic",
+              "Learning"
+            ],
+            "purpose": "Matching impulsado por IA para oportunidades, productos y conexiones.",
+            "benefits": "La similitud vectorial encuentra a las personas adecuadas, aprende preferencias con el tiempo y ofrece recomendaciones inteligentes sin búsqueda manual."
+          },
+          "erp": {
+            "title": "Sistemas ERP",
+            "description": "Módulos de Enterprise Resource Planning — inventario, supply chain, gestión de vendors, métricas de sostenibilidad, tokenización, integración de comercio.",
+            "terms": [
+              "Inventory",
+              "Supply Chain",
+              "Vendor Ops",
+              "Tokenization"
+            ],
+            "purpose": "Enterprise Resource Planning para inventario, supply chain y vendors.",
+            "benefits": "Sigue el inventario en tiempo real, gestiona vendors, integra tokenización y cumple métricas de sostenibilidad — desde un módulo."
+          }
+        },
+        "tabFounder": "Fundadores",
+        "tabDeveloper": "Developers"
+      }
+    },
+    "appPublisher": {
+      "title": "Sonoratek LLC — Publisher de la app",
+      "heroLegalName": "Sonoratek LLC",
+      "subtitle": "Sonoratek LLC (Tempe, Arizona) publica Ring Platform — con gratitud a quienes ayudaron a Ucrania a demostrar su derecho a la independencia 🇺🇦",
+      "impactStats": {
+        "globalDeployments": "Despliegues globales",
+        "peopleServed": "Personas atendidas",
+        "countriesReached": "Países alcanzados",
+        "communitiesEmpowered": "Comunidades empoderadas"
+      },
+      "teamMembers": {
+        "ray": {
+          "role": "Fundador y editor",
+          "specialty": "Visionario y fundador"
+        },
+        "max": {
+          "role": "Tesorero",
+          "specialty": "Contabilidad y vaults"
+        },
+        "dima": {
+          "role": "Espíritu de la comunidad",
+          "specialty": "Estrategia global y desarrollo"
+        }
+      },
+      "mission": "Nuestra misión",
+      "missionText": "La tecnología debe unir, no dividir. Ring permite a cualquiera, en cualquier lugar, resolver necesidades colectivas sin desarrolladores caros ni vendor lock-in.",
+      "philosophy": "Nuestra filosofía",
+      "philosophyText": "Los agricultores ucranianos pueden desplegar la misma plataforma sofisticada que startups de Silicon Valley. Los artesanos africanos acceden al mismo marketplace con IA que Amazon.",
+      "originStory": "Nuestra historia de origen",
+      "originSubtitle": "Cómo se construyó Ring Platform durante la lucha de Ucrania por la independencia",
+      "beginning": "El comienzo",
+      "beginningText": "Cuando Rusia invadió Ucrania, vimos cómo la tecnología puede ser un arma de opresión. Las plataformas centralizadas controladas por entidades extranjeras pueden apagarse o manipularse. Decidimos construir algo distinto.",
+      "building": "Construir Ring",
+      "buildingText": "Trabajando desde sótanos y cafés durante alertas aéreas, desarrollamos Ring — una plataforma que devuelve el poder a las comunidades. Sin vendor lock-in, sin desarrolladores caros, sin control centralizado.",
+      "impact": "Impacto global",
+      "impactText": "Los despliegues Ring ayudan a comunidades en todo el mundo. Desde cooperativas agrícolas en Ucrania hasta marketplaces de artesanos en Kenia, Ring demuestra que la tecnología sofisticada puede ser accesible para todos.",
+      "globalImpact": "Impacto global",
+      "globalImpactSubtitle": "Despliegues Ring alrededor del mundo",
+      "worldMapTitle": "Mapa mundial interactivo próximamente",
+      "worldMapText": "Ve despliegues Ring, casos de uso por región y métricas de éxito de despliegues en vivo en todo el mundo.",
+      "futureVision": "Visión de futuro",
+      "futureQuote": "Imagina pedirle a tu plataforma Ring: «Añade un sistema de certificados verificados en blockchain para cursos educativos» — y ver cómo genera el módulo de forma autónoma, despliega smart contracts, actualiza la UI y se prueba a sí misma. Sin desarrolladores en medio. Hablas directamente con tu plataforma. Esa es nuestra hoja de ruta.",
+      "roadmapPhase1Title": "Baseline entregada",
+      "roadmapPhase2Title": "En desarrollo",
+      "roadmapPhase3Title": "Próximo horizonte",
+      "roadmap2025q2": "✅ En vivo en rings insignia: Next.js 16 + Turbopack, React 19, Auth.js v5, PostgreSQL/PostGIS, i18n modular, marketplace y oportunidades, integraciones tipo maps y despliegues white-label (linaje Ring Platform v1.49+).",
+      "roadmap2025q3": "🔧 En progreso: LegioX MCP y flujos de operador alineados con NODUS, AI-CONTEXT más rico, personalización gobernada por prompts, rutas de despliegue ConnectPlatform/Firebase y Cache Components por etapas donde las rutas son seguras con auth/headers.",
+      "roadmap2026q1": "🔭 Siguiente: orquestación durable, controles multi-tenant auditables y rings que ensamblan progresivamente módulos validados desde intención en lenguaje natural — con aprobación human-in-the-loop.",
+      "meetTeam": "Conoce al equipo detrás de Ring",
+      "teamSubtitle": "Sonoratek LLC y contribuidores de Ring Platform",
+      "joinMission": "Únete a nuestra misión",
+      "joinMissionText": "Ayúdanos a democratizar el acceso a la tecnología en todo el mundo. Seas developer, organización o líder comunitario — hay un lugar para ti en el ecosistema Ring.",
+      "cloneRing": "Clonar Ring ahora",
+      "findProjects": "Encontrar proyectos Ring"
+    },
+    "rightRail": {
+      "ecosystemTitle": "Por qué Ring Platform",
+      "stats": {
+        "oss": {
+          "value": "OSS",
+          "label": "Gratis para siempre",
+          "hint": "Clona, personaliza, self-host — sin licencia"
+        },
+        "modules": {
+          "value": "20+",
+          "label": "Módulos de plataforma",
+          "hint": "Entities, opportunities, store, wallet, NFT, messaging…"
+        },
+        "matcher": {
+          "value": "AI",
+          "label": "Matcher de oportunidades",
+          "hint": "Muestra listados relevantes; gates de auto-aprobación opcionales"
+        },
+        "ringdom": {
+          "value": "⚡",
+          "label": "Listo para self-host",
+          "hint": "Despliegue con install.sh en su stack"
+        },
+        "audience": {
+          "value": "🌍",
+          "label": "Distribución global",
+          "hint": "CEOs, CTOs, academia, entusiastas, contractors"
+        }
+      },
+      "twoPaths": {
+        "title": "Dos puertas, un ecosistema Ring",
+        "platformTitle": "ring-platform.org — marketplace abierto",
+        "platformBody": "La app de referencia OSS y la plaza pública. Clona Ring gratis, publica solicitudes de personalización como oportunidades y deja que contractors registrados exploren listados, postulen y se matching con IA.",
+        "ringdomTitle": "Self-host Ring",
+        "ringdomBody": "Ejecute Ring Platform en sus propios servidores: clone el repo OSS, configure ring-config y publique su community stack."
+      },
+      "freelanceMarket": {
+        "title": "Mercado de personalización de alto valor y bajo coste",
+        "body": "Publica lo que necesita tu próximo clon Ring — branding, módulos, integraciones, despliegue. Freelancers y agencias descubren trabajo en /opportunities, responden a listados y reciben alertas del matcher IA cuando el fit es alto.",
+        "postCta": "Publicar solicitud de personalización",
+        "browseCta": "Explorar oportunidades como builder"
+      },
+      "audiences": {
+        "title": "A quién sirve",
+        "ceos": "Líderes que lanzan una comunidad o marketplace white-label sin una cotización de agencia de seis cifras.",
+        "developers": "Ingenieros que quieren una baseline moderna Next.js 16 + React 19 en lugar de reconstruir auth, i18n y pagos.",
+        "contractors": "Freelancers registrados que ganan trabajo Ring entregando personalizaciones de clon para comunidades en el mundo."
+      },
+      "ringdomSettler": {
+        "title": "¿Necesitas entrega gestionada?",
+        "body": "¿Prefiere operaciones gestionadas? Pregunte por despliegues white-label de Ring — o quédese fully self-hosted con la community edition.",
+        "cta": "Leer getting started"
+      },
+      "legiox": {
+        "title": "LegioX + Connect.Software",
+        "body": "Las truth lenses LegioX impulsan operadores Cursor en clones Ring. Para la compra gobernada de skillsets instalables, servidores MCP, routers y bundles, usa Connect.Software — el marketplace de integraciones agent-native sobre Ring Platform.",
+        "connectMarketplace": "Marketplace Connect.Software",
+        "connectSkillsets": "Catálogo de skillsets",
+        "connectMcp": "Servidores MCP",
+        "nftNote": "Packs avanzados de operador LegioX vía Legiox-Access NFT",
+        "cta": "Docs de acceso NFT LegioX"
+      },
+      "exploreClone": {
+        "title": "Empieza desde el código",
+        "docsCta": "Guía de clon y despliegue",
+        "docsHint": "install.sh → ring-config → primer despliegue"
+      }
+    },
+    "links": {
+      "entities": "Explorar entidades",
+      "entitiesDescription": "Organizaciones, laboratorios y comunidades en Internet.",
+      "opportunities": "Explorar oportunidades",
+      "opportunitiesDescription": "Roles, subvenciones, integraciones y demanda iniciada por el comprador."
+    }
+  }
+}

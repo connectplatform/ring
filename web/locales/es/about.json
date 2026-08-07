@@ -1,0 +1,99 @@
+{
+  "title": "Sobre este proyecto",
+  "description": "Conoce qué es este proyecto impulsado por Ring, a quién sirve, cómo empezar y dónde encontrar al publisher detrás de la plataforma.",
+  "hero": {
+    "badge": "Tu clon Ring",
+    "title": "Sobre este proyecto",
+    "description": "Este sitio funciona con Ring — una plataforma de código abierto para comunidades, oportunidades y marketplaces. Aquí verás qué construye este proyecto y cómo puedes participar."
+  },
+  "badges": {
+    "openSource": "Código abierto",
+    "community": "Impulsado por la comunidad",
+    "modular": "Modular por diseño"
+  },
+  "sections": {
+    "origin": {
+      "title": "Cómo empezó",
+      "subtitle": "De la idea a la plataforma viva",
+      "content": "Cada clon Ring nace de una necesidad clara: conectar personas, mostrar oportunidades y centralizar la colaboración diaria. Este proyecto empaqueta esas capacidades para su propia comunidad — ajustado con ring-config.json y tu contenido, sin vendor lock-in."
+    },
+    "founders": {
+      "title": "Quién está detrás de la plataforma",
+      "subtitle": "Publisher vs. proyecto",
+      "description": "Esta página describe el proyecto que estás usando. El publisher legal y el equipo fundador — la organización que entrega y mantiene el stack Ring — tiene su propia historia con contactos y agradecimientos.",
+      "ctaLabel": "Conoce al publisher",
+      "ctaHint": "Historia de origen, entidad legal y contactos del equipo",
+      "contactTitle": "Fundador del publisher",
+      "contactSubtitle": "Arquitecto detrás de este despliegue Ring — Sonoratek LLC"
+    },
+    "goals": {
+      "title": "Hacia dónde construimos",
+      "subtitle": "Objetivos de este despliegue",
+      "items": {
+        "connect": {
+          "title": "Conectar a las personas adecuadas",
+          "description": "Perfiles, entidades y mensajería para que los miembros encuentren colaboradores más rápido que con chats y hojas de cálculo dispersos."
+        },
+        "opportunities": {
+          "title": "Hacer visibles las oportunidades",
+          "description": "Listados estructurados, matching y notificaciones para que el trabajo relevante aparezca sin ruido."
+        },
+        "sovereignty": {
+          "title": "Poseer tu stack",
+          "description": "Self-hosted, white-label y configurable — evoluciona el producto a tu ritmo, no según una hoja de ruta SaaS."
+        }
+      },
+      "roadmapTitle": "Hoja de ruta de la plataforma",
+      "roadmapDescription": "Capacidades entregadas, planes de economía de tokens e hitos de documentación de este despliegue Ring.",
+      "roadmapCta": "Ver hoja de ruta"
+    },
+    "audience": {
+      "title": "Para quién es",
+      "subtitle": "Participantes habituales",
+      "items": [
+        "Fundadores y operadores que construyen una comunidad o marketplace de nicho",
+        "Miembros que buscan colaboradores, vendors o expertise local",
+        "Organizaciones que publican entidades, oportunidades y noticias",
+        "Contribuidores que amplían módulos (store, Web3, matching con IA) según necesidad"
+      ]
+    },
+    "gettingStarted": {
+      "title": "Cómo empezar",
+      "subtitle": "Primeros pasos en este sitio",
+      "steps": [
+        "Crea una cuenta y completa tu perfil",
+        "Explora entidades y oportunidades relevantes para ti",
+        "Sigue o escribe a miembros con los que quieras colaborar",
+        "Publica una oportunidad o entidad cuando quieras contribuir",
+        "Explora docs y ajustes para afinar notificaciones y privacidad"
+      ]
+    },
+    "capabilities": {
+      "title": "Qué puedes hacer aquí",
+      "description": "Ring combina perfiles de comunidad, matching de oportunidades, módulos opcionales de store y Web3, y descubrimiento asistido por IA — activa solo lo que este despliegue necesita."
+    }
+  },
+  "actions": {
+    "contact": "Contactar al equipo",
+    "documentation": "Leer la documentación"
+  },
+  "sidebar": {
+    "platformInfo": "Info de la plataforma",
+    "platformInfoDesc": "Ring Platform es una solución de código abierto para construir comunidades y marketplaces descentralizados.",
+    "version": "Versión",
+    "license": "Licencia",
+    "quickLinks": "Enlaces rápidos",
+    "aboutUs": "Sobre nosotros",
+    "tokenEconomy": "Economía de tokens",
+    "aiWeb3": "IA y Web3",
+    "globalImpact": "Impacto global",
+    "contact": "Contacto",
+    "community": "Comunidad",
+    "github": "GitHub",
+    "discord": "Discord",
+    "needHelp": "¿Necesitas ayuda?",
+    "needHelpDesc": "¿Tienes preguntas? Consulta la documentación o escríbenos.",
+    "documentation": "Documentación →",
+    "contactSupport": "Contactar soporte →"
+  }
+}

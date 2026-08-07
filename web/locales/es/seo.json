@@ -1,0 +1,518 @@
+{
+  "meta": {
+    "title": "{page} | {platform}",
+    "description": "{description}"
+  },
+  "home": {
+    "title": "Connect.Software: mercado agente para conjuntos de habilidades, servidores MCP y enrutadores",
+    "description": "Clone y despliegue un Ring white-label: Entities, Opportunities, Store multi-vendor, wallet, mensajería y matching con IA. React 19, Next.js 16, Auth.js v5. OSS gratis en GitHub.",
+    "keywords": [
+      "Ring Platform",
+      "open source",
+      "white-label",
+      "community platform",
+      "marketplace",
+      "opportunities",
+      "Next.js 16",
+      "React 19",
+      "LegioX"
+    ],
+    "ogTitle": "Connect.Software: mercado global para API agentes",
+    "ogDescription": "El stack open-source para comunidades que colaboran, comercian y crecen — clone, personalice y self-host.",
+    "ogImage": "/og-home-1200x630.jpg",
+    "twitterTitle": "Connect.Software",
+    "twitterDescription": "Infraestructura de IA con reconocimiento de protocolos: conjuntos de habilidades, servidores MCP, enrutadores, paquetes y memoria alojada."
+  },
+  "store": {
+    "title": "Connect Store – Comercio, Suscripciones y Catálogo",
+    "description": "Capa de comercio detrás de las suscripciones, paquetes y ofertas del mercado de Connect.Software.",
+    "keywords": [
+      "Ring Store",
+      "products",
+      "services",
+      "blockchain",
+      "RING tokens",
+      "secure checkout"
+    ],
+    "list": {
+      "title": "Conectar Tienda – {{count}} Ofertas",
+      "description": "{{count}} Explore ofertas, suscripciones y paquetes del mercado."
+    },
+    "product": {
+      "title": "{{name}} – Conectar tienda",
+      "description": "{{description}}",
+      "keywords": [
+        "{{name}}",
+        "Ring Store",
+        "product",
+        "blockchain",
+        "RING tokens"
+      ]
+    },
+    "checkout": {
+      "title": "Pago seguro – Conectar tienda",
+      "description": "Completa tu compra de forma segura en la plataforma Connect.Software.",
+      "status": {
+        "title": "Pagar {{status}} – Conectar tienda",
+        "description": "Su estado de pago: {{status}}. Ver el estado del pedido y los próximos pasos."
+      }
+    },
+    "cart": {
+      "title": "Carrito de compras – Conectar tienda",
+      "description": "Verifique los artículos seleccionados y realice el pago de forma segura."
+    },
+    "orders": {
+      "title": "Mis pedidos – Conectar tienda",
+      "description": "Administre el historial de pedidos en Connect.Software.",
+      "list": {
+        "title": "Historial de pedidos: {{count}} pedidos",
+        "description": "Historial completo con {{count}} pedidos."
+      },
+      "detail": {
+        "title": "Orden #{{orderId}} – Conectar tienda",
+        "description": "Detalles del pedido n.°{{orderId}}."
+      }
+    },
+    "settings": {
+      "title": "Configuración de la tienda – Connect Store",
+      "description": "Administre las preferencias de Connect Store y la configuración comercial."
+    }
+  },
+  "auth": {
+    "title": "Autenticación – Connect.Software",
+    "description": "Registro seguro para compradores, editores y operaciones empresariales en Connect.Software.",
+    "login": {
+      "title": "Iniciar sesión – Connect.Software",
+      "description": "Inicie sesión en catálogos, flujos de editores, suscripciones e interfaces de colaboración."
+    },
+    "walletConnect": {
+      "title": "Conectar wallet - Ring Platform",
+      "description": "Inicia sesión con tu wallet Web3 usando MetaMask, WalletConnect o Coinbase Wallet."
+    },
+    "status": {
+      "title": "{{action}} {{status}} – Connect.Software",
+      "description": "Su problema \"{{action}}\" tiene el estado \"{{status}}\"."
+    }
+  },
+  "entities": {
+    "title": "Editores y socios – Connect.Software",
+    "description": "Editores, socios de integración, operadores de plataformas y organizaciones empresariales en Connect.Software.",
+    "keywords": [
+      "entities",
+      "organizations",
+      "businesses",
+      "professional directory",
+      "verification",
+      "Ring Platform"
+    ],
+    "list": {
+      "title": "Directorio de editores: {{count}} organizaciones",
+      "description": "{{count}} Explore editores, socios y organizaciones del mercado."
+    },
+    "detail": {
+      "title": "{{name}} – Perfil del editor",
+      "description": "{{description}}",
+      "keywords": [
+        "{{name}}",
+        "professional entity",
+        "organization",
+        "Ring Platform",
+        "{{type}}"
+      ]
+    },
+    "add": {
+      "title": "Únase como editor – Connect.Software",
+      "description": "Registre una organización para publicar conjuntos de habilidades, servidores MCP, enrutadores y paquetes en Connect.Software."
+    },
+    "my": {
+      "title": "Mis entidades - Ring Platform",
+      "description": "Gestiona organizaciones que posees, stores que operas y entidades de las que eres miembro."
+    },
+    "edit": {
+      "title": "Editar entidad - Ring Platform",
+      "description": "Actualiza el perfil de tu organización en Ring Platform."
+    },
+    "delete": {
+      "title": "Eliminar entidad - Ring Platform",
+      "description": "Elimina permanentemente tu organización de Ring Platform."
+    },
+    "status": {
+      "title": "Institución {{action}} {{status}} – Connect.Software",
+      "description": "Evento institucional “{{action}}”: estado “{{status}}”."
+    }
+  },
+  "opportunities": {
+    "title": "Demanda de Integración – Connect.Software",
+    "description": "Órdenes de integración, recompensas y señales de demanda en el ecosistema Connect.Software.",
+    "keywords": [
+      "opportunities",
+      "business",
+      "partnerships",
+      "collaborations",
+      "professional networking",
+      "Ring Platform"
+    ],
+    "list": {
+      "title": "Tablero de demanda: {{count}} solicitudes activas",
+      "description": "{{count}} solicitudes de implementación activas, recompensas y señales de demanda."
+    },
+    "detail": {
+      "title": "{{title}} – Solicitud de integración",
+      "description": "{{description}}",
+      "keywords": [
+        "{{title}}",
+        "business opportunity",
+        "partnership",
+        "collaboration",
+        "Ring Platform",
+        "{{type}}"
+      ]
+    },
+    "add": {
+      "title": "Establecer demanda – Connect.Software",
+      "description": "Publicar una nueva solicitud de implementación, recompensa o señal relevante para el ecosistema."
+    },
+    "edit": {
+      "title": "Editar oportunidad - Ring Platform",
+      "description": "Actualiza tu anuncio de oportunidad — título, descripción, presupuesto y visibilidad."
+    },
+    "my": {
+      "title": "Mis oportunidades - Ring Platform",
+      "description": "Gestiona oportunidades que publicaste — borradores, pendientes de revisión y listados activos."
+    },
+    "status": {
+      "title": "Oportunidad {{action}} {{status}} – Connect.Software",
+      "description": "Oportunidad “{{action}}”: Estado “{{status}}”."
+    }
+  },
+  "news": {
+    "title": "Noticias y actualizaciones de Connect.Software",
+    "description": "Noticias de Connect.Software y la comunidad científica.",
+    "keywords": [
+      "news",
+      "updates",
+      "announcements",
+      "Ring Platform",
+      "blockchain",
+      "decentralized"
+    ],
+    "list": {
+      "title": "Últimas noticias: {{count}} artículos",
+      "description": "Lea los últimos artículos y actualizaciones de {{count}}."
+    },
+    "article": {
+      "title": "{{title}} – Conectar Noticias",
+      "description": "{{excerpt}}",
+      "keywords": [
+        "{{title}}",
+        "Ring News",
+        "blockchain",
+        "decentralized",
+        "{{category}}"
+      ]
+    },
+    "category": {
+      "title": "{{categoryName}} - Noticias Ring Platform",
+      "description": "{{description}}"
+    }
+  },
+  "profile": {
+    "title": "Mi perfil – Connect.Software",
+    "description": "Administre la configuración de perfil y búsqueda en Connect.Software.",
+    "user": {
+      "title": "Perfil de {{username}} – Connect.Software",
+      "description": "Perfil de investigación de {{username}} en Connect.Software."
+    }
+  },
+  "settings": {
+    "title": "Configuración de cuenta – Connect.Software",
+    "description": "Configuración y preferencias de Connect.Software.",
+    "notifications": {
+      "title": "Notificaciones – Connect.Software",
+      "description": "Preferencias de notificación para Connect.Software."
+    }
+  },
+  "notifications": {
+    "title": "Notificaciones – Connect.Software",
+    "description": "Ver y administrar notificaciones de Connect.Software.",
+    "status": {
+      "title": "Notificación {{action}} {{status}} – Connect.Software",
+      "description": "Notificación “{{action}}”: Estado “{{status}}”."
+    }
+  },
+  "about": {
+    "title": "Acerca de Connect.Software: mercado de inteligencia artificial",
+    "description": "Cómo Connect.Software está construyendo el mercado para conjuntos de habilidades, servidores MCP, enrutadores, paquetes y CONTEXTO de IA alojado.",
+    "keywords": [
+      "about",
+      "Ring Platform",
+      "decentralized",
+      "professional network",
+      "blockchain",
+      "mission",
+      "vision"
+    ]
+  },
+  "about-publisher": {
+    "title": "Sonoratek LLC — editor de Connect Platform y Ring",
+    "description": "Sonoratek LLC (Tempe, Arizona) publica Connect Platform — Erlang ASN.1/BERT realtime empresarial — y Ring, el webOS open-source para fundadores en Connect, Firebase, Supabase, Vercel y k8s/Postgres.",
+    "ogTitle": "Sonoratek LLC — editor de Connect Platform y Ring",
+    "ogDescription": "Editor de Connect Platform y Ring webOS open-source — software de clase empresarial para cada fundador.",
+    "keywords": [
+      "Sonoratek LLC",
+      "Connect Platform",
+      "Ring",
+      "Erlang",
+      "webOS",
+      "Tempe",
+      "open source"
+    ]
+  },
+  "token-economy": {
+    "title": "Economía del token — utility RING",
+    "description": "Economía Ring de tres capas: credit ledger, RING Solana patrocinado, Token Desk, rewards, membership, MicroDAO y KEYS NFT RWA de vendor.",
+    "keywords": [
+      "RING",
+      "Token Desk",
+      "credit balance",
+      "Solana SPL",
+      "NFT KEYS",
+      "MicroDAO",
+      "Ring Platform"
+    ],
+    "ogTitle": "Economía del token RING",
+    "ogDescription": "Créditos, SPL patrocinado, Token Desk, rewards, membership, MicroDAO y NFT RWA de vendor — utility-first, sin gráficos de asignación inventados."
+  },
+  "global-impact": {
+    "title": "Impacto global - Ring Platform",
+    "description": "Experimenta la resolución colectiva de problemas orquestada por IA de Ring, clonación white-label y abundancia tecnológica para comunidades en todo el mundo.",
+    "keywords": [
+      "Ring Platform",
+      "Global Impact",
+      "Collective Intelligence",
+      "White-label",
+      "Sonoratek LLC",
+      "Open Source",
+      "AI",
+      "Web3"
+    ],
+    "ogTitle": "Impacto global de Ring Platform",
+    "ogDescription": "De la oscuridad a la luz — Ring conecta a la humanidad mediante colaboración orquestada por IA y plataformas clonables abiertas."
+  },
+  "ai-web3": {
+    "title": "IA + Web3 — Ring Platform",
+    "description": "Emparejamiento de oportunidades con IA, recompensas credit-balance, SPL Solana patrocinado, Token Desk, envíos sin gas, puertas NFT y mercado NFT secundario.",
+    "keywords": [
+      "IA",
+      "Web3",
+      "Solana",
+      "Token Desk",
+      "credit balance",
+      "puertas NFT",
+      "Ring Platform",
+      "sponsored SPL"
+    ],
+    "ogTitle": "IA + Web3 en Ring Platform",
+    "ogDescription": "Matching con IA. Recompensas credit. Token Desk. SPL patrocinado. Puertas NFT y marketplace."
+  },
+  "roadmap": {
+    "title": "Hoja de ruta de Ring Platform",
+    "description": "Dónde está Ring hoy y hacia dónde va — para fundadores y CTOs que evalúan una plataforma white-label y la economía del token RING.",
+    "keywords": [
+      "Ring Platform",
+      "roadmap",
+      "RING token",
+      "white-label",
+      "founders",
+      "CTO",
+      "LegioX"
+    ],
+    "ogTitle": "Hoja de ruta de Ring Platform",
+    "ogDescription": "Capacidades entregadas, planes de economía de tokens e hitos de documentación para clones Ring."
+  },
+  "calculator": {
+    "title": "Calculadora de proyecto Ring",
+    "description": "La calculadora de coste de proyecto está en el overlay gestionado de Ring Platform, no en esta community edition.",
+    "keywords": [
+      "Ring Platform",
+      "self-host",
+      "open source"
+    ],
+    "ogTitle": "Calculadora de proyecto Ring",
+    "ogDescription": "Packs de nicho, módulos, RingBase/CDN/mail/DNS — costes realistas únicos y mensuales para fundadores."
+  },
+  "contact": {
+    "title": "Contacto Connect.Software",
+    "description": "Póngase en contacto con el equipo para obtener soporte, asociaciones o consultas generales.",
+    "keywords": [
+      "contact",
+      "support",
+      "Ring Platform",
+      "partnerships",
+      "inquiries"
+    ]
+  },
+  "privacy": {
+    "title": "Protección de datos – Connect.Software",
+    "description": "Política de privacidad de Connect.Software: protección de su investigación y la información de su cuenta.",
+    "keywords": [
+      "privacy policy",
+      "data protection",
+      "Ring Platform",
+      "privacy",
+      "security"
+    ]
+  },
+  "terms": {
+    "title": "Términos de uso – Connect.Software",
+    "description": "Términos y condiciones y acuerdo de usuario de Connect.Software.",
+    "keywords": [
+      "terms of service",
+      "user agreement",
+      "Ring Platform",
+      "terms",
+      "conditions"
+    ]
+  },
+  "membership": {
+    "title": "Membresía Connect – Planes de acceso",
+    "description": "Planes de membresía y equipo para compradores, editores y catálogos empresariales en Connect.Software.",
+    "keywords": [
+      "membership",
+      "premium",
+      "benefits",
+      "Ring Platform",
+      "upgrade",
+      "exclusive"
+    ]
+  },
+  "wallet": {
+    "title": "Créditos del mercado – Connect.Software",
+    "description": "Créditos, consumo de suscripción y interfaces de facturación en Connect.Software.",
+    "keywords": [
+      "wallet",
+      "RING tokens",
+      "balance",
+      "transactions",
+      "blockchain",
+      "crypto"
+    ],
+    "topup": {
+      "title": "Recargar créditos – Connect.Software",
+      "description": "Añada créditos del mercado a su monedero de Connect.Software."
+    }
+  },
+  "docs": {
+    "title": "Documentación - Ring Platform",
+    "description": "Documentación de Ring Platform: arquitectura, despliegue, módulos y guías de integración para builders y operadores.",
+    "keywords": [
+      "documentation",
+      "Ring Platform",
+      "guides",
+      "deployment",
+      "integration"
+    ]
+  },
+  "marketplace": {
+    "title": "Mercado – Connect.Software",
+    "description": "Explore skillsets, servidores MCP, routers, bundles y alojamiento AI-CONTEXT en Connect.Software.",
+    "keywords": [
+      "marketplace",
+      "vendors",
+      "services",
+      "Ring Platform",
+      "development",
+      "membership"
+    ]
+  },
+  "messages": {
+    "title": "Mensajes - Ring Platform",
+    "description": "Mensajería privada en Ring Platform. Inicia sesión para acceder a conversaciones y colaboración en tiempo real."
+  },
+  "blog": {
+    "index": {
+      "title": "Blog de {{username}} - Ring Platform",
+      "description": "Lee artículos publicados por {{username}} en Ring Platform."
+    },
+    "article": {
+      "title": "{{title}} - {{username}} | Ring Platform",
+      "description": "{{excerpt}}"
+    }
+  },
+  "nft": {
+    "title": "Publicaciones – Connect.Software",
+    "description": "Explora y administra documentos compartidos y artefactos de publicación vinculados a tu cuenta. El pulso editorial científico profundo vive en ring-zemna-ai; aquí el foco es el marketplace de integraciones.",
+    "keywords": [
+      "NFT",
+      "marketplace",
+      "digital assets",
+      "collections",
+      "Ring Platform",
+      "blockchain"
+    ],
+    "collections": {
+      "title": "Colecciones de publicaciones – Connect.Software",
+      "description": "Organiza documentos compartidos y colecciones ligadas a tu espacio de trabajo."
+    },
+    "collection": {
+      "title": "{{slug}} - Colección NFT | Ring Platform",
+      "description": "Explora la colección NFT {{slug}} en Ring Platform. Ver ítems, estadísticas y listados."
+    },
+    "search": {
+      "title": "Buscar publicaciones – Connect.Software",
+      "description": "Busca en tus documentos y artefactos de publicación compartidos en Connect.Software."
+    },
+    "item": {
+      "title": "NFT #{{tokenId}} en {{chain}} - Ring Platform",
+      "description": "Ver detalles del NFT, contrato {{contract}} e historial de trading en Ring Platform."
+    }
+  },
+  "tunnel": {
+    "title": "Prueba de transporte Tunnel - Ring Platform",
+    "description": "Página de prueba interna para la abstracción de transporte tunnel de Ring Platform y fallback en tiempo real."
+  },
+  "admin": {
+    "title": "Panel de administración – Connect.Software",
+    "description": "Interfaz de gestión para Connect.Software.",
+    "analytics": {
+      "title": "Análisis de plataforma: administrador de conexión",
+      "description": "Análisis de uso de Connect.Software."
+    },
+    "users": {
+      "title": "Gestión de usuarios – Connect Admin",
+      "description": "Administre usuarios y permisos en Connect.Software."
+    },
+    "moderation": {
+      "title": "Moderación – Conectar Administrador",
+      "description": "Moderar contenidos y publicaciones."
+    },
+    "security": {
+      "title": "Panel de seguridad: administrador de Connect",
+      "description": "Supervise la seguridad y los registros de Connect.Software."
+    }
+  },
+  "fcm": {
+    "prompt": {
+      "title": "Habilitar notificaciones push",
+      "description": "Actualizaciones en tiempo real sobre colaboraciones, comentarios y estado de publicación.",
+      "enable": "Activar",
+      "notNow": "Más tarde"
+    }
+  },
+  "changelog": {
+    "title": "Registro de cambios — Ring Platform",
+    "description": "Notas de versión e historial de Ring Platform.",
+    "keywords": [
+      "changelog",
+      "release notes",
+      "Ring Platform",
+      "version"
+    ],
+    "ogTitle": "Registro de cambios — Ring Platform",
+    "ogDescription": "Notas de versión desde docs changelog"
+  },
+  "fileCabinet": {
+    "title": "Archivador",
+    "description": "Tu gestor de archivos personal de Ring."
+  }
+}

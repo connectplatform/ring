@@ -1,0 +1,541 @@
+---
+title: Tunnel Protocol
+description: Realtime inbox and topic channels for Ring clones — SSOT subscriptions, transports, and publishing for founders and integrators
+last_modified: "2026-07-24"
+audience: both
+---
+
+# Tunnel Protocol
+
+<Callout type="info">
+  Filter this page with **Founder** / **Developer** in the docs sidebar. Founders learn *what* stays live without reload; developers get modules, hooks, and verified subscribe patterns.
+</Callout>
+
+Ring Platform's realtime layer pushes **per-user inbox** updates (notifications, credit balance, account status) and **topic channels** (chat, opportunities, discovery) over a single shared connection. Production k8s runs a **custom Node entrypoint** (`server.ts`) so native WSS attaches at `/api/tunnel/ws`. Vercel uses serverless routes with **SSE + long-polling only**.
+
+Pair with [Push notifications (FCM)](/docs/features/push-notifications-fcm) when the tab is closed — `lib/tunnel/disconnected-tunnel-context.ts` keeps the UI usable while disconnected.
+
+| Layer | Module | Role |
+|-------|--------|------|
+| Transport dedup | `lib/tunnel/channel-subscription-registry.ts` | One transport subscribe per channel; pending-promise guard |
+| App hook | `hooks/use-tunnel-channel.ts` | Stable refs; effect deps `[resolvedChannel, isConnected]` only |
+| Provider | `components/providers/tunnel-provider.tsx` | Shared connection + registry instance |
+| Connect timing | `lib/tunnel/tunnel-timing.ts` | Progressive connect; `priorityRoutes` / `deferredRoutes` via `matchesRoutePrefix()` |
+| Root listeners | `components/providers/global-tunnel-listeners.tsx` | Single mount point for global tunnel side-effects (`AccountStatusTunnelListener`, …) |
+| HTTP dedup (non-tunnel) | `hooks/use-vendor-status.ts`, `hooks/use-credit-balance.ts` | Single-flight REST guards for sidebar Strict Mode / provider remounts |
+| Locale SSOT | `lib/pathname-without-locale.ts` | `localeFromPathname` for root shell (`next/navigation`, not `@/i18n/routing`) |
+| Campaign SSOT | `lib/tunnel/SUBSCRIPTION-SSOT.md` | Deprecated hooks removed, provider order, 2026-07-07 timing + queue parity; **2026-07-20** credit publish + `wallet:list`; **2026-07-21** call system messages + discovery snippets + entity live surfaces |
+
+<Callout type="warning">
+  Do **not** call `useTunnel().subscribe()` inside `useEffect` with `subscribe` in the dependency array. Use **`useTunnelChannel`** or **`useSync`** with `subscribeRef` pattern instead.
+</Callout>
+
+<Callout type="info">
+  A `TunnelPublisher: Queued for user … (no live socket yet)` line right after login is **expected**, not an error — it logs at **`console.debug`** in `lib/tunnel/publisher.ts` (not `console.log`). HTTP ingest (e.g. `POST /api/analytics/device`) persists first; tunnel connect follows a short auth-grace delay in `components/providers/tunnel-provider.tsx`. The hub queues the message and **drains on connect** — SSE via `drainUserQueueForSse`, native WSS via `hub.drainUserQueue()` on `auth_ok` (2026-07-07 parity). See `lib/tunnel/SUBSCRIPTION-SSOT.md` § "Tunnel timing + duplicate fetch consolidation".
+</Callout>
+
+<Audience for="founder">
+
+## What founders get from Tunnel
+
+Your clone feels **alive**: unread badges update, chat messages appear, marketplace cards refresh after someone posts — without asking users to reload.
+
+### Typical scenarios
+
+<Cards>
+  <Card title="Notification inbox" href="/docs/features/notifications">
+    New opportunity matches, order updates, and admin alerts appear in the bell icon while the user stays on the page.
+  </Card>
+  <Card title="Live chat" href="/docs/api/messaging">
+    Members see replies and typing indicators on `conversation:*` channels — critical for vendor and matcher workflows.
+  </Card>
+  <Card title="Marketplace freshness" href="/docs/architecture/discovery-mutation-sync">
+    When a listing is approved, open `/opportunities` tabs update via the `opportunities` channel.
+  </Card>
+  <Card title="Account enforcement" href="/docs/features/admin">
+    Suspend/reactivate pushes on `account:status` redirect or refresh the session without a manual logout.
+  </Card>
+  <Card title="Credit balance" href="/docs/features/store">
+    Wallet and subscription UI reflects chip-ins and spend limits in real time on `credit:balance` — one shared subscription via `CreditBalanceProvider` inside `TunnelProvider`.
+  </Card>
+  <Card title="Custodial wallet list" href="/docs/features/wallet">
+    Native balances and primary wallet updates push on `wallet:list` so open `/wallet` tabs refresh without a 60s poll when Tunnel is connected.
+  </Card>
+</Cards>
+
+### Operator expectations
+
+- **Replicas** — on single-node **k3s-or** stay at **1** Next replica (4 vCPU / ~8 Gi cannot run two — dual pods caused load ~250 / OOM thrash). Keep `TUNNEL_POSTGRES_FANOUT=disabled` at 1 replica (restores offline hub queue; live-only fan-out is for multi-pod only). Cookie affinity (`ring_tunnel_affinity`) stays armed for a future larger node; do **not** raise replicas until CPU/RAM headroom exists. Redis/Connect hubs remain backlog.
+- **Channel ACL** — shared `lib/tunnel/channel-acl.ts` on HTTP + WSS subscribe/publish (`game:*` participants; inbox client-publish denied including `calls:incoming` / `games:incoming` / `file-cabinet:desktop-icons`; owner-suffixed channels; stable guest cookie `ring_tunnel_anon`). In tree for next Layer1 — not yet in prod `1.97.23`.
+- **Fan-out delivery** — when Postgres fan-out is on, publish is **live-only** (SSE/WS). No per-pod offline ghost queues (avoids double-delivery). Missed tabs use FCM / DB history / client refetch on reconnect.
+- **Native WSS reconnect** — `NativeWsClient` self-heals unexpected closes (exponential backoff, JWT reuse until near expiry, force refresh on `AUTH_FAILED`, resubscribe retained channels). **Heartbeat watchdog** force-closes if a matching `pong` never arrives (half-open links). **Browser `online` / `visibilitychange`→visible** kicks reconnect when the socket is not OPEN. Emits `reconnect` while retrying; `disconnect` only on intentional close or exhausted attempts so TransportManager can fall back to SSE/poll.
+- **Session → tunnel JWT** — `POST /api/tunnel/token` resolves the Auth.js session via `auth()` (encrypted JWE cookies) before minting a tunnel JWT; anonymous tokens must not be issued for logged-in tabs.
+- **FCM is the offline path** — tunnel covers active tabs only.
+- **Stale UI after deploy** — check `/api/tunnel/test` and browser network for repeated subscribe calls (should be one per channel per session).
+
+</Audience>
+
+<Audience for="developer">
+
+## Architecture
+
+```
+server.ts → Next handler + attachTunnelWss (k8s/self-hosted)
+TUNNEL_HUB_MODE=k8s-postgres → getTunnelHub() → InMemoryTunnelHub
+  (+ PostgresFanoutTunnelHub when TUNNEL_POSTGRES_FANOUT=enabled)
+Server services → lib/tunnel/publisher.ts → getTunnelHub()
+/api/tunnel/* → getTunnelHub()
+Client → TunnelProvider → channel-subscription-registry → TransportManager → WSS | SSE | poll
+Features → useTunnelChannel (preferred) | useSync (REST + tunnel refresh)
+```
+
+<Mermaid title="Subscribe path (SSOT)">
+{`sequenceDiagram
+    participant C as Component
+    participant H as useTunnelChannel
+    participant P as TunnelProvider
+    participant R as channel-subscription-registry
+    participant API as POST /api/tunnel/subscribe
+
+    C->>H: mount (channel, onTunnelMessage)
+    H->>P: subscribeRef.current(channel, handler)
+    P->>R: register handler
+    alt first handler on channel
+      R->>API: transport subscribe (once)
+    else reuse
+      R-->>P: handler only
+    end
+    API-->>R: subscription ack
+    R-->>C: dispatch messages`}
+</Mermaid>
+
+### API routes
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/tunnel/sse` | GET | SSE stream; registers user with TunnelHub |
+| `/api/tunnel/ws` | WS | Native WebSocket (k8s/self-hosted custom server only) |
+| `/api/tunnel/token` | POST | JWT for tunnel auth (SSE + WSS) |
+| `/api/tunnel/poll` | GET/POST | Long-polling inbox for restrictive networks |
+| `/api/tunnel/subscribe` | POST | Channel subscription (deduped client-side) |
+| `/api/tunnel/unsubscribe` | POST | Channel unsubscription |
+| `/api/tunnel/publish` | POST | Authenticated publish (admin/tools) |
+| `/api/tunnel/test` | GET | Environment and provider diagnostics |
+
+### Server publishing
+
+Topic fan-out (chat, discovery, matcher):
+
+```typescript
+import { publishToChannel } from '@/lib/tunnel/publisher'
+
+await publishToChannel(`conversation:${conversationId}`, 'message:new', message)
+await publishToChannel('opportunities', 'opportunity:created', { id })
+```
+
+Per-user inbox (unread counts, credit balance, wallet list):
+
+```typescript
+import { publishToUserTunnel } from '@/lib/tunnel/publisher'
+
+await publishToUserTunnel(userId, 'notifications:inbox', { action: 'notification', notification })
+await publishToUserTunnel(userId, 'credit:balance', balanceData)
+await publishToUserTunnel(userId, 'wallet:list', { action: 'updated', timestamp: Date.now() })
+```
+
+<Callout type="warning">
+  **2026-07-20 remediation:** never call `publishToChannel(userId, 'credit:balance', data)` — that treats `userId` as the **channel name**. Credit and wallet-list pushes must use **`publishToUserTunnel`**. Clients subscribe to the base channel (`credit:balance`, `wallet:list`) with `userScoped: false`.
+</Callout>
+
+Wallet list helper (invalidate signal — client re-fetches `GET /api/wallet/list`):
+
+```typescript
+import { publishWalletListUpdate } from '@/lib/wallet/publish-wallet-list'
+
+await publishWalletListUpdate(userId, 'updated') // | 'refreshed' | 'provisioned'
+```
+
+Publish sites: `ensure-wallet.ts`, `refreshBalancesForUser`, `setPrimaryWallet`, `WalletConductor.transferNative`. Do **not** publish from `getCachedBalancesForUser` (read path — avoids fetch→publish loops).
+
+`lib/discovery/sync-discovery.ts` wraps `publishToChannel` for opportunity and entity CRUD — see [Discovery mutation sync](/docs/architecture/discovery-mutation-sync).
+
+### Provider tree (`AppClientShell`)
+
+Tunnel consumers must be **descendants of `TunnelProvider`**. `CreditBalanceProvider` and `GlobalTunnelListeners` mount inside the provider so they share one registry (fix 2026-06-23):
+
+```tsx
+// components/providers/app-client-shell.tsx (simplified)
+<TunnelProvider autoConnect={false} debug={false}>
+  <CreditBalanceProvider>
+    <GlobalTunnelListeners />  {/* AccountStatusTunnelListener */}
+    <Web3ScopeProvider>
+      {/* …children, GoogleOneTap, StoreProvider… */}
+    </Web3ScopeProvider>
+  </CreditBalanceProvider>
+</TunnelProvider>
+```
+
+`AccountStatusTunnelListener` lives under `GlobalTunnelListeners` — do **not** delete it; add future global listeners there instead of mounting siblings directly in `AppClientShell`. Root shell uses `next/navigation` (`usePathname`, `useRouter`); locale resolution is **`localeFromPathname`** from `lib/pathname-without-locale.ts` (same contract as `GoogleOneTap`).
+
+### Client subscriptions (SSOT)
+
+Wrap the app in **`TunnelProvider`** (`AppClientShell`). Prefer **`useTunnelChannel`** for feature subscriptions:
+
+```typescript
+'use client'
+
+import { useCallback } from 'react'
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel'
+import type { TunnelMessage } from '@/lib/tunnel/types'
+
+export function OpportunityLiveListener() {
+  const handleUpdate = useCallback((message: TunnelMessage) => {
+    // Prefer parseDiscoveryTunnelMessage(message) — syncDiscovery payload is { id, event, snippet? }
+    // Production: hooks/use-realtime-opportunities.ts
+  }, [])
+
+  useTunnelChannel({
+    channel: 'opportunities',
+    enabled: true,
+    onTunnelMessage: handleUpdate,
+  })
+
+  return null
+}
+```
+
+Payload + state hook (credit balance pattern):
+
+```typescript
+useTunnelChannel<CreditBalanceData>({
+  channel: 'credit:balance',
+  userScoped: false, // server scopes via publishToUserTunnel — do not suffix :userId on client
+  onMessage: (payload) => setBalance(payload),
+})
+```
+
+Production uses **`CreditBalanceProvider`** (`components/providers/credit-balance-provider.tsx`) — one `useCreditBalance()` call, many context consumers. Polling falls back to 60s **only when tunnel is disconnected**.
+
+Custodial wallet list (same poll-when-disconnected pattern):
+
+```typescript
+// components/providers/wallet-list-provider.tsx (mounted by wallet-wrapper)
+useTunnelChannel({
+  channel: 'wallet:list',
+  enabled: true,
+  onMessage: () => void fetchWallets(false), // invalidate → GET /api/wallet/list
+})
+```
+
+REST fetch + tunnel-driven refresh (notifications unread, entity lists):
+
+```typescript
+import { useSync } from '@/hooks/use-sync'
+
+const { data, usingTunnel, tunnelConnected } = useSync({
+  fetcher: () => fetch('/api/notifications/unread-count').then((r) => r.json()),
+  tunnel: {
+    channel: 'notifications:unread',
+    enabled: true,
+    onMessage: (message) => ({
+      nextData: message.payload as { count: number },
+    }),
+  },
+})
+```
+
+Production chat uses **`hooks/use-messaging.ts`** (`useMessages`, `useTyping`) — both delegate to `useTunnelChannel` on `conversation:${id}`.
+
+<Steps>
+  <Step title="Verify provider tree in AppClientShell">
+    Confirm `TunnelProvider` wraps `CreditBalanceProvider`, `GlobalTunnelListeners`, and route children. No standalone `useTunnel({ autoConnect: true })` parallel to the app provider.
+  </Step>
+  <Step title="Subscribe via useTunnelChannel">
+    Pass stable `useCallback` handlers to `onMessage` or `onTunnelMessage`. Never put `subscribe` in effect deps.
+  </Step>
+  <Step title="Publish from server actions / services">
+    Use `publishToChannel` or `publishToUserTunnel` after DB commit — not client `publish()` for authoritative state.
+  </Step>
+  <Step title="Smoke-test transport">
+    `curl http://localhost:3000/api/tunnel/test` — confirm deploy target and hub mode.
+  </Step>
+</Steps>
+
+### Transports (alpha)
+
+| Transport | When used |
+|-----------|-----------|
+| **Native WebSocket** | `RING_DEPLOY_TARGET` is `k8s` or `self-hosted` — primary on custom `server.ts`. Auto-reconnect on unexpected close (shared `computeReconnectDelay` with SSE). |
+| **SSE** | Fallback and primary on `RING_DEPLOY_TARGET=vercel` |
+| **Long-polling** | Ultimate fallback via `/api/tunnel/poll` |
+| **Supabase Realtime** | When `NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase` and Supabase URL/anon key are set |
+
+`TransportManager` picks the first working provider in the configured fallback chain. Tunnel realtime is **orthogonal** to `DB_BACKEND_MODE` — see [Backend modes and databases](/docs/architecture/backend-modes-and-databases).
+
+### Configuration
+
+```bash
+RING_DEPLOY_TARGET=k8s
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+TUNNEL_HUB_MODE=k8s-postgres
+# Single-replica prod (k3s-or today): keep disabled — restores offline queue, no LISTEN cost.
+# TUNNEL_POSTGRES_FANOUT=disabled
+# Multi-replica only (needs node headroom):
+# TUNNEL_POSTGRES_FANOUT=enabled
+# TUNNEL_NOTIFY_CHANNEL=ring_tunnel_fanout
+NEXT_PUBLIC_TUNNEL_TRANSPORT=auto
+# NEXT_PUBLIC_TUNNEL_WS_URL=wss://your-host/api/tunnel/ws
+```
+
+Ingress (nginx) sticky cookie — subscriptions stay per-pod; fan-out covers **publish** when enabled:
+
+```yaml
+nginx.ingress.kubernetes.io/affinity: "cookie"
+nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+nginx.ingress.kubernetes.io/session-cookie-name: "ring_tunnel_affinity"
+```
+
+Verify (local):
+
+```bash
+curl "http://localhost:3000/api/tunnel/test"
+```
+
+### Multi-replica fan-out smoke (k3s-or)
+
+**Capacity gate:** do **not** leave `replicas: 2` on current k3s-or (4 vCPU / ~8 Gi) — that caused load ~250 and site outage (2026-08-06). Smoke only with temporary scale-up, then return to **1** + `TUNNEL_POSTGRES_FANOUT=disabled` (restores offline queue). Cookie affinity stays armed for a future larger node.
+
+Order: ingress cookie affinity → temporary `TUNNEL_POSTGRES_FANOUT=enabled` → recreate pods → temporary `replicas: 2` (RollingUpdate `maxSurge: 0`) → run:
+
+```bash
+KUBECONFIG=~/.kube/clusters/k3s-or.yaml \
+  bash scripts/ci/smoke-tunnel-postgres-fanout.sh
+```
+
+Then scale back to **1** and set fan-out **disabled**. The script asserts env on every ready pod, affinity annotations, `[tunnel-fanout] LISTEN … ready`, and a Postgres `pg_notify` invalid-payload probe that both pods must log. Manual UI: clear `ring_tunnel_affinity` → land on different pods → publish → both tabs update.
+
+### Tunnel timing and priority routes
+
+`lib/tunnel/tunnel-timing.ts` controls **when** `TunnelProvider` auto-connects. Default strategy is **progressive** (immediate on desktop, ~500ms delay on mobile). Routes in `priorityRoutes` connect after `authRoutesDelay` (~50ms); routes in `deferredRoutes` require manual connect.
+
+| `priorityRoutes` (default) | `deferredRoutes` (default) |
+|----------------------------|----------------------------|
+| `/profile`, `/wallet`, `/notifications`, `/dashboard`, **`/admin`** | `/docs`, `/about`, `/contact`, `/blog`, `/login`, `/auth/status` |
+
+**2026-07-07 fixes:**
+
+- **`/admin` in `priorityRoutes`** — admin analytics/forensics sessions get a live tunnel instead of staying on the HTTP-only boot path.
+- **`matchesRoutePrefix()`** — prefix match (`/admin` matches `/admin/analytics`). Replaced exact `.includes()` checks that missed nested admin paths.
+- **`normalizeTunnelRoute()`** — strips locale prefix (`/en/notifications` → `/notifications`) before matching.
+
+Override via env (optional): `NEXT_PUBLIC_TUNNEL_TIMING_STRATEGY`, `NEXT_PUBLIC_TUNNEL_PRIORITY_ROUTES` (comma-separated).
+
+### Boot race, offline queue, and publisher logging
+
+During login (single-pod / fan-out **off**), `DeviceTelemetryProvider` may POST `/api/analytics/device` **before** the tunnel socket is live. Server `publishToUserTunnel` then sees `sse=false, ws=false` — `InMemoryTunnelHub` **queues** the message instead of dropping it.
+
+With `TUNNEL_POSTGRES_FANOUT=enabled`, the decorator uses **live-only** delivery so publishing pods do not create ghost offline queues for users connected on other replicas. Brief disconnects miss Tunnel replay; FCM and REST refetch cover offline.
+
+<Mermaid title="Offline queue drain on connect">
+{`sequenceDiagram
+    participant HTTP as DeviceTelemetry / services
+    participant Hub as InMemoryTunnelHub
+    participant WSS as /api/tunnel/ws
+    participant SSE as /api/tunnel/sse
+
+    HTTP->>Hub: publishToUser (no live socket)
+    Hub-->>Hub: enqueue offline user queue
+    Note over Hub: publisher logs console.debug (queued)
+
+    alt Native WSS (k8s)
+        WSS->>Hub: auth_ok frame
+        Hub->>WSS: drainUserQueue(userId)
+    else SSE (vercel / fallback)
+        SSE->>Hub: registerSseConnection
+        Hub->>SSE: drainUserQueueForSse(userId)
+    end`}
+</Mermaid>
+
+`lib/tunnel/native-ws/attach.ts` drains `hub.drainUserQueue(verified.userId)` immediately after sending `{ op: 'auth_ok' }` — same offline queue SSE already drained, so WSS no longer waits for a second SSE session to deliver boot-race messages.
+
+### HTTP fetch dedup (not tunnel channels)
+
+Some sidebar/provider mounts are **not** tunnel subscriptions — they coalesce duplicate REST calls across React Strict Mode remounts and layout breakpoint swaps:
+
+| Concern | Module | Endpoint | Pattern |
+|---------|--------|----------|---------|
+| Vendor sidebar gate | `hooks/use-vendor-status.ts` | `GET /api/vendor/status` | Module-scope **single-flight** + **30s TTL** keyed by `userId` |
+| Credit balance bootstrap | `hooks/use-credit-balance.ts` | `GET /api/wallet/credit/balance` | Module-scope **single-flight** + **5s TTL** keyed by `userId` for **initial bootstrap only**; `refresh()` bypasses cache; live updates via `useTunnelChannel('credit:balance')` |
+
+Documented in `lib/tunnel/SUBSCRIPTION-SSOT.md` and `hooks/HOOKS-README.md` Provider matrix.
+
+### Channel patterns
+
+| Pattern | Example | Publisher | Consumer hook / module |
+|---------|---------|-----------|------------------------|
+| Per-user inbox | `notifications:inbox` | `notification-service` | `use-notifications.ts`, `use-realtime.ts` |
+| Per-user inbox | `credit:balance` | `creditBalanceService.publishBalanceUpdate` → **`publishToUserTunnel`** | `CreditBalanceProvider` → `use-credit-balance.ts` — bootstrap `fetchCreditBalanceBootstrap()` (5s TTL); tunnel via `useTunnelChannel` (`userScoped: false`); 60s poll only if tunnel down |
+| Per-user inbox | `wallet:list` | `lib/wallet/publish-wallet-list.ts` | `WalletListProvider` → `useTunnelChannel('wallet:list')`; 60s poll only if tunnel down |
+| Per-user inbox | `account:status` | `app/_actions/admin-account-status.ts` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` (`userScoped: false`) |
+| HTTP (not tunnel) | vendor sidebar | — | `useVendorStatus()` → `GET /api/vendor/status` (30s TTL, single-flight) |
+| Conversation | `conversation:${id}` | chat `MessageService` / `sendSystemMessage`; call-invite/call-event return `data.message` for local append; peer-games `game:invite|accept|decline|resign|move` | `use-messaging.ts` (`message:new` + `conversation-message` CustomEvent + quiet poll when tunnel down); peer-games banner/session hooks |
+| Peer games session | `game:${sessionId}` | `features/peer-games/service.ts` (`game:accept|decline|resign|move|expire|dc-signal`) | `use-peer-game-session` / mini-app hydrate then `useTunnelChannel` — **subscribe ACL participant-only (HTTP + native WS via `getSessionForParticipant`)** |
+| Peer games inbox | `games:incoming` | `publishToUserTunnel(peer, 'games:incoming', …)` | `IncomingGameBanner` on MessagesShell + `/games` layout |
+| Discovery | `opportunities`, `entities` | `sync-discovery.ts` (`{ id, event, snippet? }`) | `use-realtime-opportunities.ts`, `use-realtime-entities.ts` (+ `parseDiscoveryTunnelMessage`); entity-details / confidential / my-entities subscribed |
+| Matcher | `matcher` | matcher services | matcher moderation UI |
+
+Subscribe to the **base channel name** on the client. User scoping is enforced by server delivery (`publishToUserTunnel` / `TunnelHub.publishToUser`), not by suffixing `:userId` in `useTunnelChannel`.
+
+### Removed deprecated hooks
+
+The following were **removed** from `hooks/use-tunnel.ts` (see `lib/tunnel/SUBSCRIPTION-SSOT.md`):
+
+| Removed | Superseded by |
+|---------|---------------|
+| `useTunnelNotifications()` | `useTunnelChannel({ channel: 'notifications:inbox' })` |
+| `useTunnelMessages(channel)` | `useTunnelChannel` + `use-messaging.ts` for chat |
+| `useTunnelPresence(channel)` | `useTunnelChannel({ channel: 'presence', onTunnelMessage })` |
+
+</Audience>
+
+## Alpha limitations
+
+- **Single-process hub** — `memory` and `k8s-postgres` (fan-out **off**) use `InMemoryTunnelHub`; correct for **one replica**. Horizontal scale: enable `TUNNEL_POSTGRES_FANOUT` (LISTEN/NOTIFY decorator) on hardware that can run ≥2 Next pods; Redis/Connect hubs remain backlog alternatives.
+- **Poll fan-out** — poll clients receive subscribed channel messages via the poll inbox; SSE is preferred when available.
+
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="architecture/real-time"
+    relation="Deep-dive: TunnelHub broker flow, offline queue drain, and feature publish/subscribe matrix."
+  />
+  <RelatedArticle
+    slug="architecture/discovery-mutation-sync"
+    relation="Same-workflow: topic channel publishes after opportunity and entity CRUD."
+  />
+  <RelatedArticle
+    slug="api/wallet"
+    relation="Depends-on: wallet list + credit balance HTTP surface that tunnel invalidate signals refresh."
+  />
+  <RelatedArticle
+    slug="api/notifications"
+    relation="See-also: inbox REST + `notifications:inbox` / `notifications:unread` channels."
+  />
+  <RelatedArticle
+    slug="api/messaging"
+    relation="See-also: `conversation:${id}` channel patterns for live chat."
+  />
+  <RelatedArticle
+    slug="features/peer-games"
+    relation="Same-workflow: `game:{sessionId}` participant ACL, `games:incoming` (incl. terminal), and conversation `game:*` events."
+  />
+  <RelatedArticle
+    slug="features/webrtc-calls"
+    relation="Same-workflow: call signaling events on `conversation:${id}`."
+  />
+  <RelatedArticle
+    slug="features/file-cabinet"
+    relation="Same-workflow: desktop icon sync publishes on `file-cabinet:desktop-icons` via publishToUserTunnel."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — tunnel protocol">
+
+<FutureFeatureWidget
+  name="TUNNEL_HUB_MODE=redis multi-replica fan-out"
+  description="Replace InMemoryTunnelHub with Redis pub/sub so multiple k8s replicas share channel subscriptions and publish delivery."
+  implementationCost={80}
+  labels={['tunnel', 'k8s', 'scale']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="TUNNEL_HUB_MODE=connect (ConnectPlatform bridge)"
+  description="Fan-out through ConnectPlatform ASN.1 broker for on-premise rings already running connect-brand.com infrastructure."
+  implementationCost={120}
+  labels={['tunnel', 'connect', 'scale']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Postgres LISTEN/NOTIFY hub bridge"
+  description="Shipped + smoked (2026-08-05) then **replicas reverted to 1** (2026-08-06): dual Next pods thrashed single-node k3s-or (4 vCPU / 8Gi). Keep `TUNNEL_POSTGRES_FANOUT=disabled` at 1 replica (restores offline queue; live-only is multi-pod only). Cookie affinity armed. Re-enable fan-out + temporary 2-replica smoke only when the node has headroom (`scripts/ci/smoke-tunnel-postgres-fanout.sh`). Redis/Connect hubs remain backlog."
+  implementationCost={48}
+  labels={['tunnel', 'postgres', 'k8s', 'shipped']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Subscribe telemetry (/api/tunnel/metrics)"
+  description="Ops endpoint exposing per-channel subscribe/unsubscribe counts and duplicate-subscribe warnings from channel-subscription-registry."
+  implementationCost={24}
+  labels={['tunnel', 'ops', 'observability']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Spectate ACL for game:* channels"
+  description="Read-only subscribe for non-participants on game:{sessionId} — participant ACL already ships on HTTP + native WS; spectate is P2 with Peer Games."
+  implementationCost={24}
+  labels={['tunnel', 'acl', 'peer-games', 'spectate']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="useSync full migration to useTunnelChannel"
+  description="Optional consolidation — useSync currently uses subscribeRef; could delegate tunnel leg entirely to useTunnelChannel for one hook path."
+  implementationCost={16}
+  labels={['tunnel', 'hooks', 'refactor']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Remove publisher.publish() deprecated alias"
+  description="lib/tunnel/publisher.ts publish() is deprecated — migrate remaining callers to publishToUserTunnel / publishToChannel and delete alias."
+  implementationCost={8}
+  labels={['tunnel', 'api', 'cleanup']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Long-poll channel fan-out parity tests"
+  description="Automated integration tests ensuring poll transport receives the same channel events as SSE/WSS after subscribe dedup."
+  implementationCost={32}
+  labels={['tunnel', 'testing', 'poll']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Tunnel subscribe integration test suite in CI"
+  description="Extend __tests__/hooks/use-tunnel-channel.test.ts with provider + registry e2e smoke against mock transport manager."
+  implementationCost={24}
+  labels={['tunnel', 'testing', 'ci']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="StoreProvider full route unmount"
+  description="StoreProvider now defers GET /api/store/products until /store route or cart has items (2026-07-07). Full unmount-gating of store context outside /store remains backlog."
+  implementationCost={12}
+  labels={['tunnel', 'providers', 'store']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="AppClientShell provider-tier flattening"
+  description="Reduce nested provider depth in app-client-shell.tsx — extract composable shells (session+tunnel vs commerce vs web3) without breaking single registry SSOT."
+  implementationCost={24}
+  labels={['tunnel', 'providers', 'refactor']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Root-shell locale lint guard"
+  description="ESLint rule or codemod guard: components under AppClientShell must use localeFromPathname / next/navigation — block @/i18n/routing useRouter imports in root shell subtree."
+  implementationCost={12}
+  labels={['tunnel', 'i18n', 'lint']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

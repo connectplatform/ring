@@ -1,0 +1,117 @@
+# Dependencies & build output
+node_modules/
+**/node_modules/
+.next/
+out/
+tsconfig.tsbuildinfo
+
+# Solana / Hardhat build artifacts (mirror .dockerignore — never commit)
+solana/target/
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+**/*.rlib
+**/*.rmeta
+*.bak
+*.bak-*
+
+# Environment files & credentials (never commit real values)
+.env
+.env.*
+!.env.local.template
+!.env.portal.template
+!docker.env.template
+.env.local
+.env*.local
+*.env.production
+svc.json
+.firebaserc
+
+# Hosting / platform local state
+.firebase/
+.vercel
+.svc/*
+
+# Logs & runtime
+log/*.json
+*.log
+
+# OS
+.DS_Store
+
+# Kingdom-internal context (not for public OSS)
+AI-CONTEXT/*
+AI-CONTEXT-INTRO.json
+.reggie-session.json
+propagation/
+
+# Empire infrastructure — not shared with community
+k8s/
+cli/
+.forgejo/
+
+# Internal ops scripts (community uses install.sh, scripts/setup-dev.sh, scripts/setup-env.js, scripts/run-migration.sh)
+scripts/file-registry-schema.sql
+scripts/svc.json
+scripts/setup-github-secrets.sh
+scripts/setup-vercel-env.sh
+scripts/import-firebase-service-account.sh
+scripts/add-products-production.js
+scripts/apply-news-migrations-dev.sh
+scripts/apply-news-migrations-ringdom-prod.sh
+scripts/sync-news-kingdom-to-clones.sh
+scripts/sync-payment-conductor-to-clones.sh
+scripts/repair-payment-conductor-sync.sh
+scripts/patch-telegram-webhook-news-callbacks.sh
+scripts/migrate-i18n-kingdom.mjs
+scripts/migrate-seo-generate-metadata.mjs
+scripts/migrate-seo-pages.mjs
+scripts/port-missing-generate-metadata.mjs
+scripts/verify-public-seo-metadata.mjs
+
+# Legacy internal doc snapshots
+docs/2025-*
+
+# Local IDE / one-off validation (not for public OSS)
+.cursor/
+PHASE_S5_VALIDATION_REPORT.md
+scripts/patch-admin-i18n-nav.mjs
+scripts/smoke-matcher-analytics-pipeline.cts
+scripts/validate-provider-ssot.sh
+scripts/verify-admin-nav-paths.mjs
+
+# Final-Split: org overlay + lifted tooling (local DX symlinks only — never commit)
+features/crm/lab
+features/crm/lab/
+k8s/
+scripts/
+cli/
+scripts/ci/
+.forgejo/
+# ring-config.json is committed Layer1 community SSOT (never DX-symlink; empire via merge)
+.env.local
+.dev-merge/
+REFERRAL-ONCHAIN-OPS.md
+WAYFORPAY-DEPLOYMENT-GUIDE.md
+
+# Empire Layer3 product surfaces (DX symlinks / merge-only — never commit full trees)
+features/calculator/
+app/[locale]/my-orders/
+app/[locale]/my-jobs/
+app/[locale]/admin/crm/orders/
+app/[locale]/calculator/
+app/[locale]/deployment-calculator/
+app/api/my-orders/
+app/api/my-jobs/
+app/api/admin/crm/orders/
+app/api/calculator/
+locales/*/calculator.json
+
+app/api/cron/forgejo-robot-gc/
+app/api/cron/forgejo-token-rotate/
+# Local pointer only (optional)
+docs-org
+
+# DX stash (setup-org-dx)
+.docs-community-hub/
+.locale-stubs/

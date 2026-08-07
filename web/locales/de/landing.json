@@ -1,0 +1,39 @@
+{
+  "title": "Willkommen bei Connect.Software",
+  "subtitle": "Marktplatz für KI-orchestrierte Integrationen — Skillsets, MCP-Server, Router und Bundles auf Ring Platform",
+  "hero": {
+    "title": "Beschaffen Sie agentennahe Infrastruktur in einem Flow",
+    "subtitle": "Vergleichen Sie Kompatibilität und Preise, prüfen Sie Vertrauenssignale, dann abonnieren, installieren oder Enterprise eskalieren — Skillsets, MCP-Toolserver, Orchestrierungs-Router, Bundles und gehostetes AI-CONTEXT-Gedächtnis von verifizierten Publishern.",
+    "cta": "Jetzt starten",
+    "learnMore": "Mehr erfahren"
+  },
+  "features": {
+    "title": "Warum Connect.Software",
+    "networking": {
+      "title": "Publisher-Graph",
+      "description": "Treffen Sie Publisher, die NODUS-ausgerichtete Skillsets, MCP-Server und Router-Control-Planes liefern, die Sie sachlich bewerten können."
+    },
+    "opportunities": {
+      "title": "Nachfrage-Signale",
+      "description": "Posten Sie Integrations-RFIs, Bounties und Partneranfragen als Opportunities — Angebot folgt echtem Käuferschmerz auf demselben Ring-Substrat."
+    },
+    "resources": {
+      "title": "Vertrauen & Docs",
+      "description": "Dokumentation, Kompatibilitätsmatrizen und Assurance-Pfade, damit Security-Reviews Substanz statt Folien prüfen."
+    },
+    "community": {
+      "title": "Ring-Ökosystem",
+      "description": "Dieselben Commerce- und Identitäts-Schienen wie Ring-Klone weltweit — veröffentlicht von Sonoratek LLC (Arizona) 🇺🇦, offen für Teams mit operator-eigenen Stacks."
+    }
+  },
+  "sections": {
+    "about": {
+      "title": "Über die Plattform",
+      "content": "Connect.Software ist die kommerzielle Schicht zum Katalogisieren und Kaufen agentennaher Module: Skillsets, MCP, Router, Bundles und gehostetes AI-CONTEXT. Tiefe wissenschaftliche Publikations-UX liegt in ring-zemna-ai; hier optimieren wir Integrationsökonomie und Governance."
+    },
+    "join": {
+      "title": "Netzwerk mitgestalten",
+      "content": "Legen Sie ein Konto an, erkunden Sie den Marketplace und verdrahten Sie Listings in Ihr Ring-Deployment. Publisher: einmal listen, Kompatibilitäts- und Abrechnungsmuster erben, in Partner- und Private-Catalog-Programme wachsen."
+    }
+  }
+}

@@ -1,0 +1,34 @@
+---
+title: Протокол Tunnel
+description: Брокер TunnelHub с native WSS, SSE и long-polling (alpha)
+last_modified: "2026-08-07"
+audience: both
+---
+
+# Протокол Tunnel
+
+Realtime-слой Ring Platform: inbox на пользователя (уведомления, баланс) и topic-каналы (чат, discovery, matcher).
+
+- **Сервер:** `server.ts` — Next.js + native WSS (`/api/tunnel/ws`) при `RING_DEPLOY_TARGET=k8s|self-hosted`
+- **Брокер:** `lib/tunnel/hub/` → `InMemoryTunnelHub`
+- **Клиент:** `TunnelProvider` / `useTunnelChannel` → WSS → SSE → poll
+- **Reconnect:** `NativeWsClient` — backoff, heartbeat watchdog (force-close без `pong`), kick на `online` / `visibilitychange`
+
+## Маршруты API
+
+| Маршрут | Метод | Назначение |
+|---------|-------|------------|
+| `/api/tunnel/ws` | WS | Native WebSocket (k8s/self-hosted) |
+| `/api/tunnel/sse` | GET | SSE-поток |
+| `/api/tunnel/token` | POST | JWT для tunnel auth |
+| `/api/tunnel/poll` | GET/POST | Long-polling fallback |
+
+## Конфигурация
+
+```bash
+RING_DEPLOY_TARGET=k8s
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+# На однонодовом k3s-or: replicas=1 + TUNNEL_POSTGRES_FANOUT=disabled
+```
+
+Полный гид — [английская версия](/en/docs/features/tunnel-protocol).

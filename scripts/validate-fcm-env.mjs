@@ -29,8 +29,12 @@ const SERVER_VARS = [
   'AUTH_FIREBASE_PRIVATE_KEY',
 ]
 
+/** Staged RFC web-push dual-stack — warn if incomplete; never required for FCM-only. */
+const WEBPUSH_VARS = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']
+
 const PLACEHOLDER = /^(your_|demo-|changeme|replace_me|xxx|todo|your-)/i
-const RING_MAIN_VAPID_PREFIX = 'BKQ4OAwA-'
+/** Known ring-main Console Web Push certificate prefixes (legacy + current). */
+const RING_MAIN_VAPID_PREFIXES = ['BKQ4OAwA-', 'BMQkJfOd']
 
 function parseArgs() {
   const fileIdx = process.argv.indexOf('--file')
@@ -63,7 +67,7 @@ function parseDotenv(content) {
 
 function parseYamlFirebase(content) {
   const env = {}
-  for (const key of [...CLIENT_VARS, ...SERVER_VARS]) {
+  for (const key of [...CLIENT_VARS, ...SERVER_VARS, ...WEBPUSH_VARS]) {
     const re = new RegExp(`^\\s*${key}:\\s*["']?([^"'\\n#]+)`, 'm')
     const m = content.match(re)
     if (m) env[key] = m[1].trim()
@@ -117,7 +121,9 @@ function main() {
   }
 
   const vapid = env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
-  if (vapid && projectId && vapid.startsWith(RING_MAIN_VAPID_PREFIX) && projectId !== 'ring-main') {
+  const isRingMainVapid =
+    !!vapid && RING_MAIN_VAPID_PREFIXES.some((p) => vapid.startsWith(p))
+  if (vapid && projectId && isRingMainVapid && projectId !== 'ring-main') {
     console.log(
       `\nFAIL  Cross-project VAPID leak: key prefix matches ring-main but NEXT_PUBLIC_FIREBASE_PROJECT_ID=${projectId}`,
     )
@@ -135,6 +141,41 @@ function main() {
       `\nWARN  APP_ID sender segment may not match MESSAGING_SENDER_ID (${sender}) — verify Firebase web app config`,
     )
     warn++
+  }
+
+  console.log('\nRFC Web Push (VAPID_* dual-stack — staged; dedicated keypair):')
+  const webpushPresent = WEBPUSH_VARS.map((k) => Boolean(env[k]?.trim()))
+  const webpushAny = webpushPresent.some(Boolean)
+  const webpushAll = webpushPresent.every(Boolean)
+  for (const key of WEBPUSH_VARS) {
+    const value = env[key]
+    if (!value?.trim()) {
+      console.log(`  ${webpushAny ? 'WARN' : 'SKIP'}  ${key}: MISSING`)
+      if (webpushAny) warn++
+      continue
+    }
+    if (PLACEHOLDER.test(value.trim())) {
+      console.log(`  WARN  ${key}: PLACEHOLDER`)
+      warn++
+      continue
+    }
+    console.log(`  OK    ${key}: set (${value.trim().length} chars)`)
+  }
+  if (webpushAny && !webpushAll) {
+    console.log(
+      '  WARN  Partial VAPID_* set — web-push send requires PUBLIC + PRIVATE + SUBJECT',
+    )
+    warn++
+  }
+  const rfcPublic = env.VAPID_PUBLIC_KEY?.trim()
+  if (rfcPublic && vapid && rfcPublic === vapid) {
+    console.log(
+      '  WARN  VAPID_PUBLIC_KEY equals NEXT_PUBLIC_FIREBASE_VAPID_KEY — prefer a dedicated RFC keypair (Console cert has no usable private for web-push)',
+    )
+    warn++
+  }
+  if (webpushAll) {
+    console.log('  NOTE  Never pass VAPID_* into firebase getToken({ vapidKey })')
   }
 
   console.log(`\nSummary: ${fail} error(s), ${warn} warning(s)`)

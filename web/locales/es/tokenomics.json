@@ -1,0 +1,132 @@
+{
+  "title": "Economía del token — Ring Platform",
+  "description": "Cómo funciona la economía de tres capas de Ring: balance de crédito de recompensa, token nativo Solana patrocinado (RING), intercambio Token Desk, recompensas por contribución, membresía, votos MicroDAO y vendor KEYS NFT RWA.",
+  "badge": "Economía del token nativo",
+  "hero": {
+    "title": "RING es un token de utilidad",
+    "subtitle": "No lo vendemos en preventa y le invitamos a trascender la codicia especulativa de las cripto. Ha llegado una nueva era: los clones Ring operan una economía de tres capas — un balance de crédito de recompensa off-chain, un token nativo SPL Solana patrocinado para la wallet on-chain y rails opcionales de NFT / referral. Los créditos son puntos fiat (valor estable sin absurdidad); RING es el token nativo. Los créditos se intercambian por tokens en Token Desk."
+  },
+  "layers": {
+    "title": "Tres capas de valor propio",
+    "subtitle": "Sus productos sin vender en ERP y pedidos comprados en CRM, balance de crédito del usuario para reembolsos y recompensas, y token nativo para acceso NFT-gated y lealtad a largo plazo. Establezca sus propias tasas créditos-a-moneda y token-a-créditos vía brand oracle. Sea su propio Emperador.",
+    "credit": {
+      "title": "Balance de crédito de recompensa",
+      "description": "credit_balance está denominado en la moneda predeterminada de su tienda (USD en ring-platform.org). Los miembros recargan con tarjeta o PayPal, ganan recompensas por contribución y usan créditos para reembolsos, checkout de tienda, generative media y rutas de membresía seleccionadas vía el rail internal_credit de PaymentConductor."
+    },
+    "native": {
+      "title": "SPL nativo patrocinado (RING)",
+      "description": "RING es el token de utilidad SPL Solana de este clone. Las custodial wallets se provisionan al iniciar sesión. La treasury patrocina gas para que los miembros envíen y liquiden sin mantener SOL. Las compras en desk siguen la política treasury_transfer: los tokens nativos pasan de la treasury del clone a las wallets de los miembros."
+    },
+    "rails": {
+      "title": "NFT RWA, MicroDAO, referrals",
+      "description": "Los vendor KEYS gates son certificados de acceso on-chain — deeds y licenses negociables liquidados en RING. Los pools MicroDAO recogen contribuciones con token nativo hacia la entrega. ReferralRewards es un rail de crecimiento dedicado que complementa las contribution credit rewards."
+    }
+  },
+  "desk": {
+    "title": "Token Desk — créditos ↔ RING",
+    "subtitle": "Subscriber+ intercambia puntos de crédito y token nativo en su brand oracle en vivo. La conversión en desk y el gasto cotidiano de créditos mantienen cada uno su propia ruta de tasa clara.",
+    "oracle": {
+      "title": "Tasas del brand oracle",
+      "description": "Créditos-a-moneda usa credit.creditBalanceUnitToMainCurrency (normalmente 1). Token-a-créditos usa platform_settings.web3.oracle.nativePerMainCurrency en Token Desk. Usted fija ambos — sus tasas, su economía."
+    },
+    "firstSettler": {
+      "title": "Bienvenida first-member",
+      "description": "Un descuento first-member configurado (2000 bps / 20 % en este clone) puede aplicarse una vez cuando se cumplen los gates de wallet, username, date of birth y verification — un camino cálido a desk trades para perfiles completos."
+    },
+    "quotes": {
+      "title": "Cotizaciones firmadas",
+      "description": "Las desk quotes llevan TTL y max slippage. Los miembros confirman; WalletConductor executeDesk valida la firma, mueve RING de treasury o acredita el ledger y registra history."
+    }
+  },
+  "rewards": {
+    "title": "Cómo los miembros ganan credit rewards",
+    "subtitle": "La contribución real otorga credit points — idempotente, multiplicado por rol y con daily caps UTC para que el ledger permanezca justo y auditable.",
+    "profile": {
+      "title": "Perfil y verificación",
+      "description": "Los published events recompensan username, bio, location, website, messengers, profile completion y admin verification — una vez por usuario donde esté configurado."
+    },
+    "contribution": {
+      "title": "Contenido y solicitudes",
+      "description": "News stories, comments, reviews y opportunity requests aprobados pueden otorgar créditos una vez por objeto. Los roles Subscriber+ comienzan a ganar; los visitors entran en la economía al unirse."
+    },
+    "caps": {
+      "title": "Multiplicadores y límites diarios",
+      "description": "Los role multipliers (p. ej. member 1,5×, confidential 2×) escalan importes base. Los daily earn caps protegen el presupuesto UTC para que las recompensas sigan siendo sostenibles para toda la comunidad."
+    }
+  },
+  "utility": {
+    "title": "Dónde se liquida el valor",
+    "membership": {
+      "title": "Membresía",
+      "description": "SubscriptionConductor admite credit_balance, native_token (Solana RingMembership), card rails y nft_gate. La tarifa de referencia on-chain es 1 RING por 30 días con grace handling — un camino de membresía claro y duradero.",
+      "note": "1 RING / mes (native path)"
+    },
+    "store": {
+      "title": "Tienda y servicios",
+      "description": "El checkout puede debitar créditos o token nativo cuando está habilitado. Los créditos permanecen en el ledger fiat; los native rails transfieren SPL a treasury para que ERP stock y CRM orders sigan coherentes con wallet truth.",
+      "note": "Rail credit o native"
+    },
+    "send": {
+      "title": "P2P sends y contactos",
+      "description": "Transferencias custodial RING sin gas a contactos o direcciones. Treasury es fee payer; el P2P tax opcional es config-driven y separado del desk sell tax.",
+      "note": "SPL patrocinado"
+    },
+    "dao": {
+      "title": "Votos MicroDAO",
+      "description": "Los public pools permiten a las comunidades dar like y aportar RING hacia un objetivo compartido. Admins y confidential operators crean DAOs para expresar prioridad con commitment de token nativo.",
+      "note": "Voto con token nativo"
+    }
+  },
+  "nftRwa": {
+    "title": "Vendor NFT RWA (KEYS)",
+    "subtitle": "Los Metaplex Core gate NFTs se venden por RING. Deeds y licenses de vendor negociables son access RWA: la ownership se transfiere en Exhibition Marketplace; las features del producto se desbloquean tras GateEscrow stake.",
+    "primary": {
+      "title": "Venta primaria",
+      "description": "Compra en /nft/gates con RING transferChecked, luego mint. Los membership gates pueden ser soulbound; vendor store-deed, DAGI y license gates son negociables cuando unstaked."
+    },
+    "secondary": {
+      "title": "Mercado secundario",
+      "description": "La KEYS lane lista gates verificados por RING. Una compra transfiere ownership; stake para que GateResolver conceda product access. Las member-lane collections celebran ownership y creative minting en la plataforma."
+    },
+    "why": {
+      "title": "Lealtad que se puede sostener",
+      "description": "El acceso de vendor se convierte en un certificado transferible liquidado en su token nativo — liquidez del marketplace ligada a desbloqueos reales, lealtad a largo plazo y la propia brand economy del clone."
+    }
+  },
+  "principles": {
+    "title": "Principios del operador",
+    "utilityFirst": {
+      "title": "Utility-first",
+      "description": "El token nativo abre acceso y liquida comisiones dentro de su ecosistema. Construya utilidad duradera para los miembros; mantenga el hype especulativo fuera de la historia del producto."
+    },
+    "cloneBranding": {
+      "title": "Branding por clone",
+      "description": "Symbol y name provienen de ring-config (RING aquí; DAAR / DAARION en agricultural clones). La UI usa getNativeTokenSymbol() para que cada superficie hable su marca."
+    },
+    "ownOracle": {
+      "title": "Sea su propio Emperador",
+      "description": "Treasury policy, desk supplyPolicy, referral queues y tasas del brand oracle son suyas. Credits-to-currency y token-to-credits responden a su clone — sus tasas, su reino."
+    }
+  },
+  "gettingStarted": {
+    "title": "Comience en su economía",
+    "step1": {
+      "title": "Iniciar sesión",
+      "description": "Las custodial wallets se provisionan automáticamente en todas las chains habilitadas."
+    },
+    "step2": {
+      "title": "Gane o recargue créditos",
+      "description": "Complete reward actions o añada créditos con tarjeta — luego abra Token Desk cuando quiera RING on-chain."
+    },
+    "step3": {
+      "title": "Liquide donde importa",
+      "description": "Envíe a contactos, financie membresía, vote en MicroDAO o compre y stake vendor KEYS — con gas patrocinado por treasury, sin SOL requerido."
+    }
+  },
+  "cta": {
+    "title": "Operar la economía del clone",
+    "subtitle": "Abra el wallet para Token Desk y balances, o lea Token Economics setup para configurar su brand oracle y rails.",
+    "getRing": "Abrir wallet",
+    "learnMore": "Docs de token economics"
+  }
+}

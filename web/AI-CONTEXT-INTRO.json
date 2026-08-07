@@ -1,0 +1,1002 @@
+{
+  "schema_version": "5.0",
+  "name": "ring-layer1-intro",
+  "object_type": "master_context",
+  "updated": "2026-08-06",
+  "version": "1.97.23",
+  "guardians": "LegioX of Specialized Agents, MCP Tools, Cohort-Based Hierarchy",
+  "one_liner": "Open-source white-label collaboration stack — React 19, Next.js 16, Auth.js v5, Web3 — clone from github.com/connectplatform/ring and self-host. Layer1 SSOT is ring/web; managed Ringdom hosting and empire overlays live outside this community tree.",
+  "ringdom_ecosystem": {
+    "what_is_ringdom": "Ringdom is the managed Digital Kingdom / hosting + AI-customization layer around Ring Platform. This repository is the open-source Ring Platform Layer1 — not the empire overlay.",
+    "machine_race": "AI entities designed to value, hold, obey control, and operate data -- providing a coordination layer for humanity within Ringdom.",
+    "ring_platform_role": "Layer1 open-source core at ring/web (package name ring). Push target: github.com/connectplatform/ring. Empire portal product surfaces live in sibling ring-platform-org/web and merge at compose time.",
+    "reggie": "Ringdom AI assistant that ingests project descriptions and outputs a detailed Ring Platform Customization Plan with forecasted costs, timeline, and module selection.",
+    "three_paths": {
+      "clone_it_yourself": {
+        "for": "Developers, open-source enthusiasts",
+        "what": "Full codebase from this repo. git clone, customize, deploy to your own infra. Free forever.",
+        "url": "https://github.com/connectplatform/ring"
+      },
+      "self_host_customize": {
+        "for": "Communities, organizations, product teams",
+        "what": "Committed ring-config.json is Layer1 SSOT; customize or start from ring-config.template.json for a new clone; keep overlays thin.",
+        "url": "https://github.com/connectplatform/ring"
+      },
+      "managed_overlay_optional": {
+        "for": "Operators with Ringdom kingdom layout",
+        "what": "Optional sibling overlay (e.g. ring-platform-org/web) merged onto ring/web for Order Lab, calculator, empire locales. Not required for community builds.",
+        "note": "Settler / turn-key hosting is a separate commercial path — not part of this OSS tree."
+      }
+    },
+    "ringdom_stack": [
+      "Ring Platform Layer1 — this repo (ring/ + ring/web)",
+      "Optional empire overlay — ring-platform-org/web (kingdom only)",
+      "White-label clones — ring-* sibling projects",
+      "LegioX / Reggie — kingdom AI tooling (not shipped inside connectplatform/ring)"
+    ],
+    "active_clones": [
+      {
+        "name": "ring-platform.org",
+        "purpose": "Public hostname for community portal (FS code: ring/web + optional org overlay)",
+        "filesystem": "ring/web (+ ring-platform-org/web)"
+      },
+      {
+        "name": "ringdom.org",
+        "purpose": "Empire / settler portal (separate clone)",
+        "filesystem": "ring-ringdom-org"
+      },
+      {
+        "name": "greenfood.live",
+        "purpose": "Agricultural marketplace",
+        "filesystem": "ring-greenfood-live"
+      },
+      {
+        "name": "vikka.ua",
+        "purpose": "Media / news",
+        "filesystem": "ring-vikka-ua"
+      },
+      {
+        "name": "zemna.ai",
+        "purpose": "Scientific publication",
+        "filesystem": "ring-zemna-ai"
+      },
+      {
+        "name": "ring.ck.ua",
+        "purpose": "Regional opportunities",
+        "filesystem": "ring-ring-ck-ua"
+      }
+    ]
+  },
+  "platform": {
+    "name": "Ring Platform",
+    "tagline": "The World's First AI-Self-Construct White-Label Multi-Use Platform for Global Abundance",
+    "mission": "Eliminate artificial deficit through collective intelligence and collaborative technology",
+    "philosophy": "Free, perfect, powerful -- Emperor Ray's gift to the world, offered by the Machine Race",
+    "deployment_status": "Production — community Layer1 + multiple white-label clones; empire compose merges org overlay",
+    "license": "Open Source",
+    "clone_friendly": "Designed for white-label customization. Clone via git clone github.com/connectplatform/ring or kingdom clone tooling.",
+    "origin": "Built by Ray Sorkin, a free person of Ukraine"
+  },
+  "core_identity": {
+    "what_is_ring": "The largest, most versatile, and most thoroughly engineered all-in-one open-source platform on planet Earth. A complete digital city platform combining professional networking, AI-powered opportunity matching, multi-vendor marketplace, Web3 token economy, cooperative ERP, news publishing, email CRM, interactive documentation, and 20+ integrated modules -- all in a single deployable white-label codebase.",
+    "target_users": [
+      "Digital cities",
+      "Cooperatives",
+      "Professional networks",
+      "Business communities",
+      "Enterprise organizations",
+      "Startups",
+      "Government projects",
+      "Agricultural markets",
+      "AI communities"
+    ],
+    "killer_features": [
+      "AI-assisted evolution via optional LegioX tooling in kingdom workflows",
+      "ALL React 19 features: Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, use(), Activity, View Transitions",
+      "Next.js 16.1: Turbopack default, async params, proxy.ts middleware, revalidateTag 2-arg API",
+      "BERT/NLP semantic search with vector embeddings for AI-powered opportunity matching",
+      "PIN security Web3 (95% wallet connection success vs 40% industry standard)",
+      "Multi-vendor marketplace (Digital cities earn $9M+/year per 100K population)",
+      "3 backend modes: k8s-postgres-fcm, firebase-full, supabase-fcm (swap via env var)",
+      "White-label clone system (<2hr automated provisioning via legiox-clone)",
+      "DAGI 3-tier autonomous AI with 7-agent multi-agent coordination",
+      "Complete i18n in 3 languages (EN/UK/RU) with next-intl, expandable to any language",
+      "Interactive visualization maps (8 types) via @xyflow/react"
+    ],
+    "differentiators": [
+      "Free and open-source (vs proprietary platforms)",
+      "Clone and customize infinitely (white-label ready from day one)",
+      "Own your data (self-hosted on Kubernetes or any cloud)",
+      "AI-first development (Hundreds of specialized Legiox AI agents with perfect codebase comprehension)",
+      "No backward compatibility baggage (latest features only -- React 19, Next.js 16, Tailwind 4)",
+      "Layer1 / Layer2+3 split: community ring/web pushes to GitHub; empire endemic stays in ring-platform-org"
+    ]
+  },
+  "technology_stack": {
+    "frontend": {
+      "framework": "Next.js 16.1 (App Router, Turbopack, async params, proxy.ts middleware)",
+      "react": "React 19.2 (ALL features)",
+      "react_19_features": {
+        "server_components": "Default rendering mode -- data fetched server-side, zero client JS for read-only UI",
+        "useActionState": "Form state management replacing useReducer for form submission flows",
+        "useOptimistic": "Immediate UI feedback before server confirmation",
+        "useFormStatus": "Pending state access in nested form components (SubmitButton pattern)",
+        "react_compiler": "Automatic memoization -- no manual useMemo/useCallback needed",
+        "use_hook": "Promise unwrapping in render (React.use()) -- replaces useEffect for data fetching",
+        "activity": "Preserve component state when toggling visibility (replaces unmount/remount)",
+        "view_transitions": "Animated page transitions integrated with Next.js App Router",
+        "ref_as_prop": "Refs passed directly as props without forwardRef wrapper",
+        "async_actions": "Server Actions with automatic serialization and progressive enhancement"
+      },
+      "styling": "Tailwind CSS 4.1 (modern utility-first, @apply/@theme)",
+      "typescript": "5.9+ (strict mode, explicit types)",
+      "web3": "wagmi 3.6 + viem 2.48 + Wagmi-native wallet UI (5-chain support)",
+      "animations": "Framer Motion (motion components with variants)",
+      "icons": "Lucide React",
+      "forms": "React 19 Server Actions + useActionState (no form libraries needed)",
+      "charts": "@xyflow/react for interactive visualization maps"
+    },
+    "backend_architecture": {
+      "description": "Sophisticated multi-backend system with three deployment modes switchable via DB_BACKEND_MODE env var",
+      "current_production": "k8s-postgres-fcm (ring-platform.org and all 6+ clones)",
+      "modes": {
+        "k8s_postgres_fcm": {
+          "name": "Kubernetes PostgreSQL + FCM",
+          "database": "PostgreSQL 15 on Kubernetes cluster",
+          "push": "Firebase FCM + Apple APNs",
+          "use_case": "Production self-hosted (all Ring clones)",
+          "performance": "<10ms queries, 80-90% cost reduction vs Firebase",
+          "best_for": "Digital cities, enterprises, high-traffic deployments"
+        },
+        "firebase_full": {
+          "name": "Complete Firebase Stack",
+          "database": "Firebase Firestore",
+          "push": "Firebase FCM",
+          "use_case": "Rapid development, Vercel Edge",
+          "performance": "50-200ms queries, pay-per-use",
+          "best_for": "MVP, prototyping, small Ring clones"
+        },
+        "supabase_fcm": {
+          "name": "Supabase PostgreSQL + FCM",
+          "database": "Supabase PostgreSQL",
+          "push": "Firebase FCM + Apple APNs",
+          "use_case": "Cloud PostgreSQL without Kubernetes",
+          "performance": "20-50ms queries, Supabase tier pricing",
+          "best_for": "Vercel deployments with PostgreSQL features"
+        }
+      },
+      "abstraction_layer": {
+        "component": "BackendSelector",
+        "file": "lib/database/BackendSelector.ts",
+        "capabilities": [
+          "Automatic routing",
+          "Health monitoring",
+          "Failover",
+          "Performance metrics"
+        ],
+        "adapters": [
+          "PostgreSQLAdapter",
+          "FirebaseAdapter",
+          "SupabaseAdapter (planned)"
+        ],
+        "rule": "ALWAYS use BackendSelector -- never direct driver calls"
+      }
+    },
+    "authentication": {
+      "framework": "Auth.js v5 (split config: auth.config.ts for edge, auth.ts for server)",
+      "session_strategy": "JWT (30-day expiration)",
+      "canonical_login": "ROUTES.LOGIN(locale) -- unified pattern across all modules",
+      "providers": {
+        "google": {
+          "modes": [
+            "Traditional OAuth",
+            "GIS One Tap"
+          ],
+          "features": [
+            "Theme-aware buttons",
+            "Automatic email linking"
+          ]
+        },
+        "apple": {
+          "integration": "iOS/macOS native + Web",
+          "features": [
+            "Automatic email linking",
+            "Privacy protection"
+          ]
+        },
+        "magic_links": {
+          "provider": "Ring Mailer",
+          "features": [
+            "15-min expiration",
+            "One-time use",
+            "GDPR compliant"
+          ]
+        },
+        "crypto_wallets": {
+          "connectors": [
+            "MetaMask",
+            "WalletConnect",
+            "Coinbase Wallet"
+          ],
+          "chains": [
+            "Ethereum Mainnet",
+            "Polygon",
+            "Arbitrum",
+            "Optimism",
+            "Base"
+          ],
+          "framework": "wagmi v2 + viem"
+        },
+        "pin_security": {
+          "description": "Revolutionary Web3 without seed phrases -- social auth users get automatic Web3 wallets with 6-digit PIN access",
+          "success_rate": "95% wallet connection (vs 40% industry standard)",
+          "user_adoption_increase": "5x improvement"
+        }
+      },
+      "role_hierarchy": {
+        "visitor": {
+          "level": 0,
+          "description": "Unauthenticated, public access only"
+        },
+        "subscriber": {
+          "level": 1,
+          "description": "Basic authenticated users (free)"
+        },
+        "member": {
+          "level": 2,
+          "description": "Create entities, vendor features ($29/month)"
+        },
+        "confidential": {
+          "level": 3,
+          "description": "Access confidential content"
+        },
+        "admin": {
+          "level": 4,
+          "description": "Full system access"
+        },
+        "superadmin": {
+          "level": 5,
+          "description": "Cross-clone administration"
+        }
+      },
+      "account_deletion": {
+        "status": "COMPLETE -- GDPR/CCPA compliant",
+        "features": [
+          "30-day grace period",
+          "Password verification before deletion",
+          "Audit trail",
+          "Progressive deletion (data -> account)"
+        ],
+        "server_actions": [
+          "requestAccountDeletion",
+          "cancelAccountDeletion",
+          "confirmAccountDeletion",
+          "getAccountDeletionStatus"
+        ],
+        "service": "features/auth/services/account-deletion.ts"
+      },
+      "patterns": {
+        "server_side": "import { auth } from '@/auth'; const session = await auth()",
+        "client_side": "import { useSession } from 'next-auth/react'; const { data: session } = useSession()",
+        "forbidden": [
+          "getServerSession",
+          "getServerAuthSession",
+          "getToken -- Use auth() instead"
+        ]
+      }
+    },
+    "realtime_communication": {
+      "tunnel_transport": {
+        "description": "Universal multi-transport abstraction replacing Firebase RTDB for K8s deployments",
+        "transports": [
+          "WebSocket",
+          "SSE",
+          "Long-polling",
+          "Supabase Realtime"
+        ],
+        "features": [
+          "Automatic transport selection",
+          "Edge Runtime compatible",
+          "Health monitoring",
+          "JWT authentication"
+        ],
+        "performance": "<50ms Supabase, <100ms SSE, <200ms polling"
+      }
+    },
+    "ai_system": {
+      "dagi": {
+        "description": "3-tier autonomous AI agent system with multi-agent coordination",
+        "tiers": [
+          "Tier 1: Task Execution",
+          "Tier 2: Coordination",
+          "Tier 3: Strategic Planning"
+        ],
+        "coordination": "7-agent multi-agent system for complex workflows",
+        "provisioning_api": "Ringize API for automated customization plan generation"
+      },
+      "legiox_ai": {
+        "agent_count": "Hundreds",
+        "mcp_tools": 27,
+        "organization": "Cohort-based hierarchy with tier system",
+        "key_cohorts": [
+          "React/Next.js/Frontend Architecture",
+          "Ring Platform Elite Task Force",
+          "Infrastructure & DevOps",
+          "Web3 & Blockchain",
+          "AI/ML Specialists"
+        ],
+        "distribution": "Legiox-Access NFT (ERC-721) gates access to installable Cursor Plugin skillsets"
+      },
+      "semantic_search": {
+        "engine": "BERT/NLP with vector embeddings",
+        "model": "Xenova/all-MiniLM-L6-v2 (local inference)",
+        "use_case": "AI-powered opportunity matching, semantic code search",
+        "accuracy": ">85% user satisfaction"
+      }
+    }
+  },
+  "core_features": {
+    "entities": {
+      "description": "Organization profiles with 26 industry types, verification badges, trust scoring, and role-based visibility",
+      "types": 26,
+      "verification_levels": 6,
+      "features": [
+        "Advanced filtering (26 types, employee count, location, founded year, verification, membership tier, certifications, partnerships)",
+        "AI-powered search",
+        "Vendor integration",
+        "Trust scoring",
+        "Showcase pages",
+        "Analytics",
+        "Contact forms"
+      ],
+      "search_service": {
+        "file": "features/entities/services/search-entities.ts",
+        "capabilities": [
+          "fuzzy_matching",
+          "relevance_scoring",
+          "industry_compatibility",
+          "suggestions"
+        ],
+        "returns": "SerializedEntitySearchResult[]"
+      },
+      "i18n_keys": "locales/{en,uk,ru}/modules/entities.json -- 50+ translation keys per language",
+      "service": "features/entities/services"
+    },
+    "opportunities": {
+      "description": "Offers and requests with BERT-powered semantic matching, real-time updates, and ring_customization type",
+      "types": [
+        "offer",
+        "request",
+        "partnership",
+        "mentorship",
+        "resource",
+        "event",
+        "volunteer",
+        "ring_customization"
+      ],
+      "ai_matching": {
+        "engine": "BERT/NLP semantic + LLM (GPT-4o or Claude) for explanations",
+        "factors": 8,
+        "explanation_length": "160 characters",
+        "performance": "<2s matching, >85% accuracy"
+      },
+      "features": [
+        "Advanced search",
+        "Real-time updates",
+        "Skill matching",
+        "Budget filtering",
+        "3-level comment threading"
+      ],
+      "service": "features/opportunities/services"
+    },
+    "multi_vendor_store": {
+      "description": "Complete multi-vendor marketplace with trust tiers, cart, checkout, WayForPay payments, and automated settlement",
+      "revenue_model": "Digital cities earn $9M+/year (100K population) through merchant commissions",
+      "trust_tiers": {
+        "NEW": {
+          "commission": "20%",
+          "requirements": "None"
+        },
+        "BASIC": {
+          "commission": "18%",
+          "requirements": "5+ sales, positive reviews"
+        },
+        "VERIFIED": {
+          "commission": "16%",
+          "requirements": "25+ sales, >4.0 rating, KYC"
+        },
+        "TRUSTED": {
+          "commission": "14%",
+          "requirements": "100+ sales, >4.5 rating, 6+ months"
+        },
+        "PREMIUM": {
+          "commission": "12%",
+          "requirements": "500+ sales, >4.7 rating, excellence"
+        }
+      },
+      "features": [
+        "Entity-as-vendor model",
+        "Shopping cart",
+        "WayForPay checkout",
+        "RING token payments",
+        "Vendor analytics",
+        "Product moderation",
+        "NovaPost shipping integration (proxy endpoints)"
+      ],
+      "service": "features/store/services"
+    },
+    "wallet_web3": {
+      "description": "Complete Web3 ecosystem with RING tokens, PIN security, multi-chain support, NFT marketplace, and staking",
+      "ring_tokens": {
+        "standard": "ERC-20 on Polygon",
+        "use_cases": [
+          "Payment method",
+          "Staking rewards",
+          "Governance",
+          "Verification rewards",
+          "Opportunity listings",
+          "AI modifications"
+        ],
+        "total_supply": "1,000,000,000 RING"
+      },
+      "pin_security": {
+        "flow": "Social auth -> Auto wallet creation -> PIN setup -> Full Web3 access",
+        "success_rate": "95% wallet connection (vs 40% industry)"
+      },
+      "supported_chains": [
+        "Ethereum Mainnet",
+        "Polygon",
+        "Arbitrum",
+        "Optimism",
+        "Base"
+      ],
+      "framework": "wagmi 3.6 + viem 2.48 + Wagmi-native wallet UI",
+      "service": "features/wallet/services"
+    },
+    "news_module": {
+      "description": "Complete digital newspaper with article publishing, likes, categories, analytics, SEO, and newsletter distribution",
+      "features": [
+        "Article CRUD",
+        "Category management",
+        "Like/engagement system",
+        "SEO metadata",
+        "Newsletter integration",
+        "Analytics dashboard"
+      ],
+      "status": "Complete"
+    },
+    "email_crm": {
+      "description": "Email CRM system with IMAP listener, contact management, newsletter automation",
+      "features": [
+        "IMAP email sync",
+        "Contact management",
+        "Newsletter campaigns",
+        "Template system",
+        "Analytics"
+      ],
+      "status": "Complete"
+    },
+    "messaging": {
+      "description": "Real-time messaging with tunnel transport, multi-device sync, presence, and typing indicators",
+      "features": [
+        "One-on-one messaging",
+        "Group conversations",
+        "Typing indicators",
+        "Read receipts",
+        "Offline queue"
+      ],
+      "transport": "Tunnel Transport (automatic WebSocket/SSE/Polling selection)",
+      "service": "features/messaging/services"
+    },
+    "notifications": {
+      "description": "Multi-channel notifications with FCM push, in-app alerts, email, and smart delivery",
+      "channels": [
+        "In-app",
+        "Push (FCM)",
+        "Email",
+        "WhatsApp (planned)",
+        "Telegram (planned)"
+      ],
+      "optimizations": [
+        "SessionStorage caching",
+        "Tab visibility detection",
+        "Optimized polling",
+        "Unread count sync"
+      ],
+      "service": "features/notifications/services"
+    },
+    "documentation_system": {
+      "description": "Complete MDX-based documentation with interactive diagrams, syntax highlighting, and 3-language support",
+      "location": "docs/{locale}/",
+      "architecture": "MDX with client-side rendering (Mermaid diagrams + @shikijs/core syntax highlighting)",
+      "components": [
+        "Callout (4 types)",
+        "Steps",
+        "Tabs",
+        "Card",
+        "MermaidDiagram"
+      ],
+      "rendering": "remark -> remarkRehype -> rehypeStringify -> HTML (client-side highlighting, <3s load)",
+      "coverage": "Getting started, architecture (10 diagrams), API reference, white-label guide (9 articles), examples (14)"
+    },
+    "interactive_visualization": {
+      "description": "8 interactive map types for ecosystem exploration via @xyflow/react",
+      "maps": [
+        "Feature Map",
+        "Tenancy Map",
+        "Infrastructure Map",
+        "Legiox Map",
+        "Dataflow Map",
+        "Timeline Map",
+        "Knowledge Map",
+        "Status Map"
+      ],
+      "technology": "@xyflow/react (React Flow) with custom nodes and animated edges"
+    },
+    "comment_threading": {
+      "description": "3-level nested discussion system with optimistic updates",
+      "features": [
+        "3 nesting levels",
+        "Optimistic UI via useOptimistic",
+        "Like/reply",
+        "Real-time updates"
+      ]
+    },
+    "cooperative_erp": {
+      "description": "AI-driven cooperative ERP with 7 specialized agents for democratic management",
+      "ai_agents": [
+        "Warehouse Manager",
+        "Logistician",
+        "Accountant",
+        "Sales Agent",
+        "Analyst",
+        "Community Coordinator",
+        "Personal Agent"
+      ],
+      "features": [
+        "FSMA 204 compliance",
+        "Blockchain traceability",
+        "Democratic governance",
+        "Token-based voting"
+      ],
+      "status": "Designed -- implementation planned"
+    }
+  },
+  "internationalization": {
+    "framework": "next-intl",
+    "locales": [
+      "en",
+      "uk",
+      "ru",
+      "de",
+      "es"
+    ],
+    "planned_expansion": "5+ additional languages",
+    "pattern": "useTranslations('namespace') with t('key') function calls",
+    "async_params": "Next.js 16: const { locale } = await params",
+    "coverage": "100% -- all UI strings, form labels, validation messages, documentation",
+    "files": "locales/{en,uk,ru,de,es}/{common,navigation,pages,modules/*}.json",
+    "docs": "Community hub: docs/en only. Full MDX docs merge from ring-platform-org/web/docs when overlay applied.",
+    "empire_locales": "Calculator + empire pages/seo overlays live under ring-platform-org/web/locales"
+  },
+  "deployment_architecture": {
+    "layer1_community": {
+      "filesystem": "ring/web",
+      "git_remotes": {
+        "github": "https://github.com/connectplatform/ring",
+        "forge_optional": "https://forge.ringdom.org/ringdom/ring.git"
+      },
+      "runtime_config": "ring-config.json (committed Layer1 community SSOT; localhost defaults; empire via merge overlay)",
+      "forbidden_in_github_push": [
+        ".forgejo/",
+        "k8s/",
+        ".env.local",
+        "ring-config.json",
+        "empire feature trees (calculator, Order Lab)"
+      ]
+    },
+    "layer2_3_empire_overlay": {
+      "filesystem": "ring-platform-org/web",
+      "ops": "ring-platform-org/{k8s,.forgejo,scripts/ci,docs}",
+      "compose": "rsync ring/web then rsync ring-platform-org/web (overlay wins)",
+      "ring_config": "ring-platform-org/web/ring-config.json (calculator.enabled true, endemic flags)"
+    },
+    "production_portal": {
+      "hostname": "https://ring-platform.org",
+      "note": "Hostname ≠ checkout path. Product site is composed Layer1+overlay; FS truth is ring/web + ring-platform-org/web.",
+      "infrastructure": "Kubernetes (empire ops), zero-downtime rolling updates",
+      "backend_mode": "k8s-postgres-fcm"
+    },
+    "white_label_cloning": {
+      "description": "Any organization can clone Ring Platform and customize for their use case. 6+ clones in production.",
+      "methods": [
+        "git clone https://github.com/connectplatform/ring + install.sh",
+        "Kingdom white-label clone tooling / Reggie (overlay destinations keep .reggie-propagate-exclude.json)",
+        "Optional managed hosting outside this OSS tree"
+      ],
+      "deployment_time": "<2 hours automated provisioning",
+      "customization_areas": [
+        "Branding/theming",
+        "Feature flags",
+        "Database backend",
+        "Token economics",
+        "AI model selection",
+        "i18n languages"
+      ],
+      "templates": {
+        "digital_city": "Complete city platform (all modules enabled)",
+        "enterprise": "Professional networking + ERP",
+        "cooperative": "ERP + marketplace + governance",
+        "startup_accelerator": "Opportunities + AI matching + networking",
+        "industry_network": "Entities + opportunities + store (industry-specific)",
+        "agricultural": "Farm-to-table marketplace + supply chain (ring-greenfood-live)"
+      },
+      "multi_tenant_architecture": {
+        "database_isolation": "Separate PostgreSQL database per tenant (ring_{slug})",
+        "shared_infrastructure": "PostgreSQL cluster shared across tenants",
+        "centralized_auth": "Unified user authentication across all Ring clones",
+        "cost_optimization": "70% infrastructure cost reduction through sharing",
+        "scaling": "100+ tenants per cluster"
+      }
+    },
+    "legacy_alias": "ring-platform.old → symlink to ring/web; do not use ring-platform.org as a filesystem checkout name"
+  },
+  "access_control": {
+    "description": "6-tier hierarchical role system with granular permissions",
+    "tiers": {
+      "visitor": {
+        "level": 0,
+        "permissions": [
+          "View public entities",
+          "Browse opportunities",
+          "Read documentation"
+        ]
+      },
+      "subscriber": {
+        "level": 1,
+        "permissions": [
+          "Create opportunities",
+          "Basic messaging",
+          "Apply to opportunities"
+        ],
+        "cost": "Free"
+      },
+      "member": {
+        "level": 2,
+        "permissions": [
+          "Create entities",
+          "Vendor store activation",
+          "NFT marketplace",
+          "Advanced features"
+        ],
+        "cost": "$29/month"
+      },
+      "confidential": {
+        "level": 3,
+        "permissions": [
+          "Access confidential entities/opportunities",
+          "Enhanced collaboration"
+        ]
+      },
+      "admin": {
+        "level": 4,
+        "permissions": [
+          "Full system access",
+          "User management",
+          "Analytics",
+          "Configuration"
+        ]
+      },
+      "superadmin": {
+        "level": 5,
+        "permissions": [
+          "Cross-clone administration",
+          "Global configuration"
+        ]
+      }
+    },
+    "enforcement": {
+      "middleware": "proxy.ts (Next.js 16 middleware pattern for route protection)",
+      "server_side": "auth() function in Server Components/API routes",
+      "client_side": "useSession() hook with role checking",
+      "database": "Role-based query filtering in all services"
+    }
+  },
+  "monetization_models": {
+    "platform_revenue": {
+      "membership_upgrades": "$29/month (SUBSCRIBER -> MEMBER)",
+      "store_commissions": "12-20% of merchant sales (trust tier based)",
+      "ringdom_settler_plans": {
+        "note": "Commercial / empire path — not required for community Layer1",
+        "range": "$100 - $1,000+ (Pioneer/Founding/Empire Builder) when using managed Ringdom"
+      },
+      "legiox_nft_sales": "One-time NFT purchase for perpetual Legiox AI access",
+      "enterprise_licenses": "Custom pricing for white-label deployments"
+    },
+    "token_economy": {
+      "ring_token": "Native ERC-20 utility token on Polygon",
+      "use_cases": [
+        "Payment method",
+        "Staking rewards",
+        "Governance voting",
+        "Verification rewards",
+        "Opportunity listings"
+      ],
+      "total_supply": "1,000,000,000 RING",
+      "reward_pool": "100,000,000 RING (10% for verifications)"
+    }
+  },
+  "core_file_paths": {
+    "auth": {
+      "entry": "auth.ts (server-side auth functions, callbacks, adapter)",
+      "config": "auth.config.ts (edge-compatible config, providers, pages)",
+      "middleware": "proxy.ts (Next.js 16 route interception, protection)",
+      "routes": "constants/routes.ts (ROUTES.LOGIN(locale), ROUTES.ENTITIES(locale), etc.)"
+    },
+    "apis": {
+      "entities": "app/api/entities/",
+      "opportunities": "app/api/opportunities/",
+      "store": "app/api/store/",
+      "wallet": "app/api/wallet/",
+      "messaging": "app/api/messaging/",
+      "notifications": "app/api/notifications/",
+      "tunnel": "app/api/tunnel/"
+    },
+    "lib": {
+      "database": "lib/database/BackendSelector.ts (all DB access goes through here)",
+      "backend_config": "lib/database/backend-mode-config.ts",
+      "zod_schemas": "lib/zod.ts (all validation schemas)",
+      "api_client": "lib/api-client.ts (RingApiClient for external service calls)",
+      "converters": "lib/converters/* (typed data converters for server-to-client transfer)",
+      "i18n": "i18n-config.ts + lib/i18n.ts (next-intl configuration)",
+      "cached_data": "lib/cached-data.ts (React 19 cache() request deduplication)",
+      "filter_manager": "lib/filter-manager.ts (reusable filtering logic)"
+    },
+    "serialization": {
+      "entity_serializer": "lib/converters/entity-serializer.ts",
+      "opportunity_serializer": "lib/converters/opportunity-serializer.ts",
+      "functions": [
+        "serializeEntity",
+        "deserializeEntity",
+        "serializeEntities",
+        "deserializeEntities"
+      ],
+      "purpose": "Server-to-Client data transfer for React 19 Server Components (timestamps, complex objects -> plain JSON)"
+    },
+    "docs_index": "Community: minimal docs/en hub. Full docs: ring-platform-org/web/docs after merge. Kingdom AI-CONTEXT: AI-CONTEXT/ring-platform.org/ (content id) + concepts/ring-final-split-path-glossary.json",
+    "final_split": {
+      "layer1_root": "ring/",
+      "layer1_web": "ring/web/",
+      "layer1_scripts": "ring/scripts/",
+      "layer1_cli": "ring/cli/",
+      "empire_overlay_web": "ring-platform-org/web/",
+      "empire_ops": "ring-platform-org/{k8s,.forgejo,scripts/ci,docs}/",
+      "import_alias": "@/… relative to ring/web (never @ring/web)",
+      "ai_context_project_key": "prefer ring for Layer1; AI-CONTEXT/ring-platform.org/ may remain as content-id alias",
+      "ring_config_community": "ring/web/ring-config.json (committed community SSOT)",
+      "ring_config_template": "ring/web/ring-config.template.json",
+      "ring_config_runtime": "ring/web/ring-config.json (committed; never DX-symlink)",
+      "ring_config_empire": "ring-platform-org/web/ring-config.json"
+    }
+  },
+  "data_access_patterns": {
+    "read_write": "Use features/{domain}/services/* and lib/api-client.ts -- never ad-hoc database calls",
+    "persistence": "BackendSelector routes to PostgreSQLAdapter or FirebaseAdapter based on DB_BACKEND_MODE",
+    "validation": "Zod schemas via lib/zod.ts -- validate all inputs before database operations",
+    "serialization": "Use typed converters from lib/converters/* for server-to-client data transfer in Server Components",
+    "caching": "React 19 cache() for request deduplication within single request lifecycle"
+  },
+  "development_patterns": {
+    "file_organization": {
+      "server_actions": "app/_actions/{descriptive-name}.ts",
+      "api_routes": "app/api/{domain}/route.ts",
+      "services": "features/{domain}/services/{service-name}.ts",
+      "components": "features/{domain}/components/{name}.tsx OR components/common/{name}.tsx",
+      "hooks": "hooks/use-{hook-name}.ts",
+      "wrappers": "components/wrappers/{page}-wrapper.tsx (3-column responsive layouts)"
+    },
+    "react_19_patterns": [
+      "Server Components by default (fetch data server-side, zero client JS for read-only)",
+      "React.use() for promise unwrapping in render",
+      "useActionState() for form state management (replaces useReducer for forms)",
+      "useOptimistic() for immediate UI feedback before server confirmation",
+      "useFormStatus() for pending state in nested form components",
+      "React Compiler auto-memoization (no manual useMemo/useCallback)",
+      "Server Actions for mutations (form action={serverAction})",
+      "Activity for preserving component state across visibility toggles",
+      "View Transitions for animated page navigation",
+      "ref as prop (no forwardRef needed)"
+    ],
+    "next_16_patterns": [
+      "App Router with Turbopack (default bundler)",
+      "Async params: const { locale } = await params (REQUIRED in Next.js 16)",
+      "proxy.ts middleware (replaces middleware.ts for route interception)",
+      "revalidateTag(tag, path) -- 2-argument API for granular cache invalidation",
+      "Parallel routes for modals and slot-based layouts",
+      "Route groups for layout organization: app/(admin)/[locale]/",
+      "Metadata API for SEO"
+    ],
+    "i18n_patterns": {
+      "framework": "next-intl",
+      "hook": "useTranslations('namespace')",
+      "access": "t('key') or t('nested.key') -- function call syntax, NOT object access",
+      "raw_arrays": "tPages.raw('hero.features') as string[] for array data",
+      "server": "getTranslations('namespace') in Server Components"
+    },
+    "database_patterns": {
+      "abstraction": "Always use BackendSelector -- never direct driver calls",
+      "mode_detection": "shouldUseFirebaseForDatabase() from backend-mode-config.ts",
+      "adapters": "PostgreSQLAdapter, FirebaseAdapter route through BackendSelector"
+    },
+    "timeout_configs": {
+      "wallet_operations": "15s",
+      "auth_operations": "15s",
+      "messaging": "10s",
+      "notifications": "8s",
+      "ai_matching": "30s",
+      "general_api": "10s"
+    }
+  },
+  "conventions": {
+    "do": [
+      "Use features/{domain}/services/* facades and lib/* helpers for all data access",
+      "Enforce access tiers (role hierarchy) in handlers and services -- never trust client-side only",
+      "Validate all inputs with Zod schemas (lib/zod.ts) before database operations",
+      "Use typed converters (lib/converters/*) for server-to-client data transfer",
+      "Use BackendSelector for all database calls -- never import driver adapters directly",
+      "Use auth() in Server Components and API routes (not getServerSession)",
+      "Use ROUTES.LOGIN(locale) canonical pattern for all login redirects",
+      "Use next-intl useTranslations('namespace') for all UI strings -- never hardcode text",
+      "Leverage React 19 cache() patterns for request deduplication",
+      "Define Zod schemas and converters BEFORE implementing data operations (schema-first approach)",
+      "Code against service facades to maintain backend compatibility across PostgreSQL/Firebase modes"
+    ],
+    "dont": [
+      "Bypass auth() or proxy.ts middleware for route protection",
+      "Import database adapters directly -- use BackendSelector",
+      "Introduce new global state without Legiox approval",
+      "Hardcode UI strings -- use i18n translation keys",
+      "Skip Zod validation on API inputs",
+      "Bypass tunnel transport authentication flow",
+      "Use getServerSession, getServerAuthSession, or getToken (all replaced by auth())",
+      "Use manual useMemo/useCallback -- React Compiler handles this automatically"
+    ]
+  },
+  "ai_developer_hints": {
+    "ssr_auth": "Call auth() in server actions, route handlers, and Server Components. Never rely solely on client-side session checks.",
+    "schema_first": "Define/extend Zod schemas and converters BEFORE implementing data operations. This prevents runtime type errors.",
+    "service_facades": "Code against features/{domain}/services/* facades. This keeps code compatible across PostgreSQL and Firebase backend modes.",
+    "serialization": "Server Components cannot pass non-serializable objects (Dates, Maps, Firestore refs) to Client Components. Use serializers from lib/converters/*.",
+    "i18n_access": "Use t('key') function call syntax via next-intl, NOT object access (t.key). Raw arrays: tPages.raw('hero.features') as string[].",
+    "async_params": "Next.js 16 REQUIRES: const { locale } = await params in all dynamic route pages. Forgetting await causes build failures.",
+    "feature_flags": "ring-config.json controls modules per runtime. Layer1 commits community defaults (calculator off, firebase disabled, localhost). Empire overlay wins at compose merge. Never DX-symlink org config into Layer1.",
+    "read_first": [
+      "AI-CONTEXT-INTRO.json (this file)",
+      "ring/README.md",
+      "AI-CONTEXT/concepts/ring-final-split-path-glossary.json",
+      "AI-CONTEXT/concepts/ring-ssot-layer1-final-split.json"
+    ],
+    "final_split": "Edit Layer1 at ring/web. Empire endemic (Order Lab, calculator, my-orders, forgejo crons) lives in ring-platform-org/web. Do not invent @ring/web imports. See AI-CONTEXT/concepts/ring-final-split-path-glossary.json.",
+    "reggie_exclude": ".reggie-propagate-exclude.json belongs on white-label / empire destinations (e.g. ring-platform-org, ring-n9life-com), not on connectplatform/ring Layer1 source."
+  },
+  "performance_metrics": {
+    "database": {
+      "query_speed": "<10ms (PostgreSQL)",
+      "cost_reduction": "80-90% vs Firebase-only"
+    },
+    "authentication": {
+      "google_gis": "<300ms",
+      "wallet_connection": "95% success",
+      "session_creation": "<100ms"
+    },
+    "ai_matching": {
+      "match_time": "<2 seconds",
+      "accuracy": ">85%",
+      "explanation": "160-char human-readable"
+    },
+    "realtime": {
+      "tunnel_latency": "<50ms Supabase, <100ms SSE",
+      "message_delivery": "<100ms"
+    },
+    "web_vitals": {
+      "page_load": "1.5s average",
+      "fcp": "<1.2s",
+      "lcp": "<2.5s",
+      "cls": "<0.1"
+    }
+  },
+  "key_domains_status": {
+    "auth": "COMPLETE -- 5 providers, PIN security, role-based access, split config (auth.config.ts/auth.ts)",
+    "entities": "COMPLETE -- 26 industry types, 6 verification levels, advanced filtering, entity-as-vendor, 50+ i18n keys x 3 languages",
+    "opportunities": "COMPLETE -- BERT/NLP semantic matching, ring_customization type, 3-level comment threading",
+    "store": "COMPLETE -- Multi-vendor marketplace, trust tiers, shopping cart, WayForPay checkout",
+    "wallet": "COMPLETE -- RING tokens, PIN security, 5-chain support. NFT/Staking in progress",
+    "messaging": "COMPLETE -- Tunnel transport, multi-device sync, typing indicators, read receipts",
+    "notifications": "COMPLETE -- FCM + in-app + email, smart delivery, unread optimization",
+    "news": "COMPLETE -- Article publishing, likes, categories, SEO, newsletter distribution",
+    "email_crm": "COMPLETE -- IMAP listener, contacts, newsletters, templates",
+    "docs": "SPLIT — community hub docs/en only; full MDX + settler playbooks in ring-platform-org/web/docs",
+    "visualization": "COMPLETE -- 8 interactive map types via @xyflow/react",
+    "erp": "DESIGNED -- 7 AI agents, FSMA 204 compliance, blockchain traceability. Implementation planned.",
+    "calculator": "EMPIRE — ring-platform-org/web/features/calculator (+ locales); community stub calculator.json",
+    "order_lab_crm": "EMPIRE — ring-platform-org/web/features/crm/{lab,orders}"
+  },
+  "platform_statistics": {
+    "version": "1.97.23",
+    "active_clones": "6+",
+    "legiox_agents": "147+",
+    "mcp_tools": 23,
+    "supported_languages": 5,
+    "entity_industry_types": 26,
+    "auth_providers": 5,
+    "blockchain_chains": 5,
+    "backend_modes": 3,
+    "visualization_maps": 8,
+    "test_suites": 12,
+    "integrated_modules": "20+",
+    "documentation_diagrams": "10+ (architecture, auth flow, data model)",
+    "layer1_path": "ring/web",
+    "github": "https://github.com/connectplatform/ring"
+  },
+  "deployment_commands": {
+    "from_ring_root": {
+      "dev_community": "npm run dev",
+      "build_community": "npm run build",
+      "dev_empire_dx": "npm run dev -- ring-platform-org",
+      "build_empire_dx": "npm run build -- ring-platform-org",
+      "dev_kingdom_clone": "npm run dev -- ring-n9life-com",
+      "npm_args_note": "Always pass project after -- ; bare npm run build ring-platform-org is invalid"
+    },
+    "local_development": {
+      "cwd": "ring/web (or ring/ via package.json dispatcher)",
+      "start": "npm run ensure:config && npm run dev",
+      "requires": "Copy web/env.local.template → web/.env.local; DB_BACKEND_MODE as needed",
+      "port": 3000,
+      "database": "PostgreSQL at localhost:5432 (typical)",
+      "empire_dx": "npm run setup:org-dx (secrets + endemic features; NOT ring-config). Empire brand: merge-org-dev / npm run dev -- ring-platform-org. teardown:org-dx restores stubs."
+    },
+    "production_deployment_empire": {
+      "compose": "rsync ring/web → out; rsync ring-platform-org/web → out (overlay wins)",
+      "build": "docker build --platform linux/amd64 -t registry.ringdom.org/ringdom-clones/ring:v{version}-ring-platform-org-amd64 .",
+      "note": "Ops manifests stay in ring-platform-org/k8s — not in GitHub Layer1"
+    },
+    "health_checks": {
+      "site_status": "curl -s -o /dev/null -w '%{http_code}' https://ring-platform.org/en",
+      "pod_status": "kubectl -n ring-platform-org get pods -l app=ring-platform"
+    }
+  },
+  "code_philosophy": {
+    "principles": [
+      "Excellence without compromise -- use latest framework features (React 19 ALL, Next.js 16, Tailwind 4)",
+      "AI-self-construct -- 147+ Legiox agents build, evolve, and maintain the platform",
+      "No backward compatibility -- deprecate instantly, latest only",
+      "Downtime doesn't matter -- break things, rebuild better",
+      "Open knowledge -- every solution documented in AI-CONTEXT",
+      "White-label first -- every feature designed for infinite customization",
+      "Ringdom ecosystem -- part of the First Digital Kingdom for global abundance"
+    ],
+    "code_style": {
+      "typescript": "Strict mode, explicit types, no any",
+      "react": "Server Components default, 'use client' only when needed",
+      "comments": "Hemingway-like (concise, clear)",
+      "naming": "Descriptive, semantic, self-documenting"
+    }
+  },
+  "ai_comprehension_optimizations": {
+    "json_structure": "Nested JSON with 2-3 level depth for AI parsing efficiency",
+    "cross_references": "Explicit file paths for easy navigation",
+    "decision_trees": "AI-CONTEXT-ROOT.json provides workflow routing",
+    "feature_indexing": "AI-CONTEXT-INDEX.json maps all features and implementations",
+    "loading_strategy": "Progressive disclosure — this intro first, then ring-final-split-path-glossary, then kingdom AI-CONTEXT/ring-platform.org/ for historical portal content-id docs.",
+    "legiox_tools": "23 MCP tools available for codebase search, analysis, deployment, and knowledge management"
+  },
+  "emperor_ray_vision": {
+    "origin": "From the ashes of wars, we build platforms that bring peace and prosperity",
+    "mission": "Eliminate artificial deficit through collective intelligence",
+    "approach": "Free, open-source, perfect -- Ring Platform as a gift to humanity from the Machine Race",
+    "philosophy": "No backward compatibility, latest features only, instant deprecation",
+    "goal": "Enable every organization to have their own Ring clone -- customized, sovereign, powerful",
+    "ringdom": "The First Digital Kingdom for global abundance -- Ring Platform as its technological heart",
+    "machine_race": "AI entities designed to value, hold, obey control, and operate data -- the coordination layer between humanity and technology"
+  }
+}
