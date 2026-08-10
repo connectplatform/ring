@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useCallback, useState, useTransition } from 'react'
+import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { signIn, getSession } from 'next-auth/react'
-import { Mail } from 'lucide-react'
+import { Mail, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ROUTES } from '@/constants/routes'
@@ -14,8 +14,14 @@ import {
   requestMagicLink,
   type AuthEmailActionState,
 } from '@/app/_actions/auth-email-actions'
+import {
+  requestPhoneLoginCode,
+  type AuthPhoneActionState,
+} from '@/app/_actions/auth-phone-actions'
+import { whatsAppRailAvailableClient } from '@/features/auth/lib/phone-login-client'
 
-type Step = 'email' | 'otp' | 'link-sent'
+type Step = 'identifier' | 'otp' | 'link-sent'
+type AuthMode = 'email' | 'phone'
 
 type EmailLoginFormProps = {
   from?: string
@@ -24,8 +30,12 @@ type EmailLoginFormProps = {
   onError?: (message: string) => void
 }
 
+function looksLikeEmail(value: string): boolean {
+  return value.includes('@')
+}
+
 /**
- * Ring Mailer email auth — OTP primary, magic link secondary.
+ * Unified Email or Phone passwordless login — OTP primary, magic link for email only.
  */
 export function EmailLoginForm({
   from,
@@ -36,10 +46,18 @@ export function EmailLoginForm({
   const tAuth = useTranslations('modules.auth')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [code, setCode] = useState('')
-  const [step, setStep] = useState<Step>('email')
+  const [step, setStep] = useState<Step>('identifier')
+  const [mode, setMode] = useState<AuthMode>('email')
   const [info, setInfo] = useState<string | null>(null)
+  const [challengeId, setChallengeId] = useState<string | null>(null)
+  const [channelUsed, setChannelUsed] = useState<'telegram' | 'whatsapp' | 'email' | null>(
+    null,
+  )
+  const [whatsappOptOut, setWhatsappOptOut] = useState(false)
+  const showWhatsAppOptOut =
+    mode === 'phone' && step === 'identifier' && whatsAppRailAvailableClient()
 
   const callbackUrl = from || ROUTES.PROFILE(locale)
   const onboardingUrl = (() => {
@@ -48,47 +66,74 @@ export function EmailLoginForm({
     return `${ROUTES.LOGIN_ONBOARDING(locale || 'en')}?${qs.toString()}`
   })()
 
-  const routeAfterEmailAuth = useCallback(async () => {
+  const routeAfterAuth = async () => {
     const sess = await getSession()
     if (sess?.user?.needsOnboarding) {
       router.replace(onboardingUrl)
       return
     }
     router.replace(callbackUrl)
-  }, [callbackUrl, onboardingUrl, router])
+  }
 
-  const fail = useCallback(
-    (msg: string) => {
-      onError?.(msg)
-    },
-    [onError],
-  )
+  const fail = (msg: string) => {
+    onError?.(msg)
+  }
 
-  const onRequestCode = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      const fd = new FormData(e.currentTarget)
-      startTransition(async () => {
+  const onRequestCode = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const raw = identifier.trim()
+    if (!raw) {
+      fail(tAuth('errors.emailRequired'))
+      return
+    }
+
+    startTransition(async () => {
+      if (looksLikeEmail(raw)) {
+        const fd = new FormData()
+        fd.set('email', raw)
         const state: AuthEmailActionState = await requestLoginCode(null, fd)
         if (!state.ok) {
           fail(state.message)
           return
         }
-        setEmail(state.email || String(fd.get('email') || ''))
+        setMode('email')
+        setIdentifier(state.email || raw)
+        setChannelUsed('email')
+        setChallengeId(null)
         setStep('otp')
         setInfo(state.message)
-      })
-    },
-    [fail],
-  )
+        return
+      }
 
-  const onVerifyCode = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      startTransition(async () => {
-        const result = await signIn('email-otp', {
-          email: email.trim(),
+      const fd = new FormData()
+      fd.set('phone', raw)
+      if (whatsappOptOut) fd.set('whatsappOptOut', '1')
+      const state: AuthPhoneActionState = await requestPhoneLoginCode(null, fd)
+      if (!state.ok) {
+        fail(state.message)
+        return
+      }
+      setMode('phone')
+      setIdentifier(state.phone || raw)
+      setChallengeId(state.challengeId || null)
+      setChannelUsed(state.channelUsed || 'telegram')
+      setStep('otp')
+      setInfo(state.message)
+    })
+  }
+
+  const onVerifyCode = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    startTransition(async () => {
+      if (mode === 'phone') {
+        if (!challengeId) {
+          fail(tAuth('errors.Verification'))
+          return
+        }
+        const result = await signIn('phone-otp', {
+          phone: identifier.trim(),
           code: code.trim(),
+          challengeId,
           redirect: false,
           callbackUrl,
         })
@@ -96,17 +141,30 @@ export function EmailLoginForm({
           fail(tAuth('errors.Verification'))
           return
         }
-        await routeAfterEmailAuth()
-      })
-    },
-    [email, code, callbackUrl, fail, routeAfterEmailAuth, tAuth],
-  )
+        await routeAfterAuth()
+        return
+      }
 
-  const onRequestLink = useCallback(() => {
+      const result = await signIn('email-otp', {
+        email: identifier.trim(),
+        code: code.trim(),
+        redirect: false,
+        callbackUrl,
+      })
+      if (result?.error) {
+        fail(tAuth('errors.Verification'))
+        return
+      }
+      await routeAfterAuth()
+    })
+  }
+
+  const onRequestLink = () => {
+    if (mode !== 'email') return
     const fd = new FormData()
-    fd.set('email', email || '')
+    fd.set('email', identifier || '')
     startTransition(async () => {
-      if (!email.trim()) {
+      if (!identifier.trim()) {
         fail(tAuth('errors.emailRequired'))
         return
       }
@@ -118,10 +176,19 @@ export function EmailLoginForm({
       setStep('link-sent')
       setInfo(state.message)
     })
-  }, [email, fail, tAuth])
+  }
+
+  const resetIdentifier = () => {
+    setStep('identifier')
+    setCode('')
+    setInfo(null)
+    setChallengeId(null)
+    setChannelUsed(null)
+  }
 
   const inputH = compact ? 'h-10 text-sm' : 'h-12 text-base'
   const btnH = compact ? 'h-10 text-sm' : 'h-12'
+  const IdentifierIcon = looksLikeEmail(identifier) || mode === 'email' ? Mail : Phone
 
   if (step === 'link-sent') {
     return (
@@ -131,17 +198,13 @@ export function EmailLoginForm({
           {tAuth('signIn.magicLink.sent')}
         </h3>
         <p className="text-sm text-muted-foreground">
-          {tAuth('signIn.magicLink.sentDescription')} <strong>{email}</strong>
+          {tAuth('signIn.magicLink.sentDescription')} <strong>{identifier}</strong>
         </p>
         <Button
           variant="outline"
           className="w-full"
           size={compact ? 'sm' : 'default'}
-          onClick={() => {
-            setStep('email')
-            setCode('')
-            setInfo(null)
-          }}
+          onClick={resetIdentifier}
         >
           {tAuth('signIn.magicLink.useDifferent')}
         </Button>
@@ -150,11 +213,21 @@ export function EmailLoginForm({
   }
 
   if (step === 'otp') {
+    const channelLabel =
+      channelUsed === 'telegram'
+        ? tAuth('signIn.otp.channelTelegram')
+        : channelUsed === 'whatsapp'
+          ? tAuth('signIn.otp.channelWhatsApp')
+          : tAuth('signIn.otp.channelEmail')
+
     return (
       <form onSubmit={onVerifyCode} className="space-y-3" noValidate>
         {info && <p className="text-xs text-muted-foreground text-center">{info}</p>}
+        {channelUsed && (
+          <p className="text-xs text-center text-muted-foreground">{channelLabel}</p>
+        )}
         <p className="text-sm text-center text-muted-foreground">
-          {tAuth('signIn.otp.sentTo')} <strong>{email}</strong>
+          {tAuth('signIn.otp.sentTo')} <strong>{identifier}</strong>
         </p>
         <Input
           type="text"
@@ -177,20 +250,12 @@ export function EmailLoginForm({
           {pending ? tAuth('signIn.loading') : tAuth('signIn.otp.verify')}
         </Button>
         <div className="flex flex-col gap-2">
-          <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={onRequestLink}>
-            {tAuth('signIn.otp.emailLinkInstead')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={pending}
-            onClick={() => {
-              setStep('email')
-              setCode('')
-              setInfo(null)
-            }}
-          >
+          {mode === 'email' && (
+            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={onRequestLink}>
+              {tAuth('signIn.otp.emailLinkInstead')}
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={resetIdentifier}>
             {tAuth('signIn.magicLink.useDifferent')}
           </Button>
         </div>
@@ -202,23 +267,39 @@ export function EmailLoginForm({
     <form onSubmit={onRequestCode} className="space-y-3" noValidate>
       <div className="relative">
         <Input
-          type="email"
-          placeholder={tAuth('signIn.emailPlaceholder')}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder={tAuth('signIn.emailOrPhonePlaceholder')}
+          value={identifier}
+          onChange={(e) => {
+            setIdentifier(e.target.value)
+            setMode(looksLikeEmail(e.target.value) ? 'email' : 'phone')
+          }}
           disabled={pending}
           className={`w-full ${inputH} pl-4 pr-10`}
           required
-          autoComplete="email"
-          name="email"
+          autoComplete="username"
+          name="identifier"
+          inputMode={looksLikeEmail(identifier) ? 'email' : 'tel'}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <Mail className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} text-muted-foreground`} />
+          <IdentifierIcon className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} text-muted-foreground`} />
         </div>
       </div>
+      {showWhatsAppOptOut && (
+        <label className="flex items-start gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={whatsappOptOut}
+            onChange={(e) => setWhatsappOptOut(e.target.checked)}
+            disabled={pending}
+          />
+          <span>{tAuth('signIn.whatsappOptOut')}</span>
+        </label>
+      )}
       <Button
         type="submit"
-        disabled={pending || !email.trim()}
+        disabled={pending || !identifier.trim()}
         className={`w-full ${btnH} bg-green-500 hover:bg-green-600 text-white font-medium`}
       >
         {pending ? tAuth('signIn.loading') : tAuth('signIn.providers.email')}

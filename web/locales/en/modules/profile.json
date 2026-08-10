@@ -428,5 +428,15 @@
   "cvSaveAndExit": "Save & Exit",
   "cvDraftSaved": "Draft saved",
   "cvOpenFile": "Open",
-  "cvRemoveFile": "Remove uploaded CV"
+  "cvRemoveFile": "Remove uploaded CV",
+  "linkEmail": "Link Email",
+  "changeEmail": "Change email",
+  "linkEmailHint": "Add a real email for receipts and recovery.",
+  "linkEmailTitle": "Link Email",
+  "linkEmailSubtitle": "Add your email address, then enter the verification code.",
+  "linkEmailPlaceholder": "email@example.com",
+  "linkEmailSendCode": "Send code",
+  "linkEmailVerify": "Verify code",
+  "linkEmailChangeAddress": "Use a different email",
+  "linkEmailSuccess": "Email linked"
 }

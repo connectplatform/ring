@@ -48,6 +48,7 @@ import { CurriculumVitaeWidget } from '@/components/profile/curriculum-vitae-wid
 import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
+import { PhoneOtpPanel } from '@/features/auth/components/phone-otp-panel'
 import { UserRolesArray } from '@/features/auth/user-role'
 import { useAuth } from '@/hooks/use-auth'
 import { useSession } from 'next-auth/react'
@@ -98,6 +99,7 @@ const LocationMapModal = dynamic(
   { ssr: false }
 )
 import TelegramLinkingModal from './telegram-linking-modal'
+import LinkEmailModal from './link-email-modal'
 import {
   formatTelegramProfileLabel,
   isTelegramLinked,
@@ -107,6 +109,7 @@ import { UserProgressWidget } from './user-progress-widget'
 import { ProfileHeroBalances } from './profile-hero-balances'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import type { AuthUser } from '@/features/auth/types'
+import { displayEmailClient, isVirtualEmailClient } from '@/lib/auth/virtual-email-client'
 
 const PROFILE_TABS = [
   'overview',
@@ -232,6 +235,21 @@ export default function ProfileContent({
 
   // Priority: initialUser (preferred, freshly fetched) > session user
   const user = initialUser || session?.user
+  const realEmail = user
+    ? displayEmailClient({
+        email: user.email,
+        emailKind: (user as AuthUser & { emailKind?: string }).emailKind,
+        isVirtualEmail: (user as AuthUser & { isVirtualEmail?: boolean }).isVirtualEmail,
+      })
+    : null
+  const needsLinkEmail = Boolean(
+    user &&
+      isVirtualEmailClient({
+        email: user.email,
+        emailKind: (user as AuthUser & { emailKind?: string }).emailKind,
+        isVirtualEmail: (user as AuthUser & { isVirtualEmail?: boolean }).isVirtualEmail,
+      }),
+  )
   // Current user's KYC status - always from auth context for up-to-date info
   const kycStatus = getKycStatus()
   // State for holding user's KYC (Know Your Customer) verification procedure
@@ -308,6 +326,7 @@ export default function ProfileContent({
   const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [telegramLinking, setTelegramLinking] = useState(false)
   const [telegramUnlinking, setTelegramUnlinking] = useState(false)
+  const [linkEmailOpen, setLinkEmailOpen] = useState(false)
 
   // Security/session forensics: list of recent authentication sessions
   const [forensicsEntries, setForensicsEntries] = useState<any[]>([])
@@ -691,15 +710,19 @@ export default function ProfileContent({
                   )}
                 </div>
 
-                {/* Email/phone display */}
+                {/* Email/phone display — never show virtual-email */}
                 <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground md:justify-start">
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3.5 w-3.5" />
-                    {user.email}
-                  </span>
+                  {realEmail ? (
+                    <span className="flex items-center gap-1">
+                      <Mail className="h-3.5 w-3.5" />
+                      {realEmail}
+                    </span>
+                  ) : null}
                   {(user as any)?.phoneNumber && (
                     <>
-                      <span className="hidden text-muted-foreground/40 md:inline">|</span>
+                      {realEmail ? (
+                        <span className="hidden text-muted-foreground/40 md:inline">|</span>
+                      ) : null}
                       <span className="flex items-center gap-1">
                         {formatPhone((user as any).phoneNumber)}
                       </span>
@@ -839,6 +862,47 @@ export default function ProfileContent({
                       {user.username ? t('changeUsername') : t('setUsername')}
                     </Button>
                   </div>
+
+                  {/* Email row — real address or Link Email CTA (never show virtual) */}
+                  <div
+                    className={cn(
+                      davinciGlassSurface,
+                      'flex items-center gap-3 p-3 transition-colors hover:bg-accent/20',
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)]">
+                      <Mail className="h-5 w-5 text-[var(--davinci-beam)]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{t('email')}</p>
+                      {realEmail ? (
+                        <p className="truncate text-xs text-muted-foreground">{realEmail}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">{t('linkEmailHint')}</p>
+                      )}
+                    </div>
+                    {(needsLinkEmail || !realEmail) && (
+                      <Button
+                        type="button"
+                        variant={realEmail ? 'outline' : 'default'}
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => setLinkEmailOpen(true)}
+                      >
+                        {realEmail ? t('changeEmail') : t('linkEmail')}
+                      </Button>
+                    )}
+                  </div>
+
+                  <PhoneOtpPanel
+                    initialPhone={
+                      (user as AuthUser).phoneNumber ||
+                      (user as { phone?: string }).phone ||
+                      (user as AuthUser).communication?.phoneNumber ||
+                      null
+                    }
+                    phoneVerifiedAt={(user as AuthUser).phoneVerifiedAt || null}
+                  />
 
                   {/* Telegram */}
                   <div
@@ -1234,6 +1298,7 @@ export default function ProfileContent({
         onOpenChange={setTelegramLinking}
         // STUB: Pass server-side logic for successful auth linking, update comms on save
       />
+      <LinkEmailModal open={linkEmailOpen} onOpenChange={setLinkEmailOpen} />
 
       {/* Modal: Location via map */}
       <LocationMapModal

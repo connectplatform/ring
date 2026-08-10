@@ -5,6 +5,7 @@ export type VitalsAuthProvider =
   | 'crypto-wallet'
   | 'email-otp'
   | 'email-magic'
+  | 'phone-otp'
   | string
   | undefined
   | null
@@ -47,7 +48,7 @@ export function userNeedsVitalsOnboarding(
     return !email || nameMissing
   }
 
-  if (provider === 'email-otp' || provider === 'email-magic') {
+  if (provider === 'email-otp' || provider === 'email-magic' || provider === 'phone-otp') {
     return nameMissing
   }
 
@@ -74,6 +75,7 @@ export function isVitalsGatedProvider(provider: VitalsAuthProvider): boolean {
     provider === 'crypto-wallet' ||
     provider === 'email-otp' ||
     provider === 'email-magic' ||
+    provider === 'phone-otp' ||
     provider === 'telegram' ||
     provider === 'google' ||
     provider === 'google-one-tap' ||

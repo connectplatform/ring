@@ -840,5 +840,9 @@
       "maxSlippageBps": 100,
       "creditBalanceUnitPerNativeToken": 100
     }
+  },
+  "auth": {
+    "_comment": "Optional phone-login override. Prefer clone.contactEmail domain as virtual-email SSOT (e.g. contact@greenfood.live → greenfood.live). Set virtualEmailDomain only when contact email domain must differ.",
+    "virtualEmailDomain": ""
   }
 }

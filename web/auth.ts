@@ -12,6 +12,19 @@ import {
 } from "@/features/wallet/services/verify-wallet-signature"
 import { consumeMagicToken, consumeOtpCode } from "@/features/auth/services/email-login-tokens"
 import { ensureEmailAuthUser } from "@/features/auth/services/ensure-email-auth-user"
+import {
+  bumpPhoneChallengeAttempt,
+  expirePhoneChallengeIfMaxAttempts,
+  getOpenPhoneChallenge,
+  markPhoneChallengeUsed,
+} from "@/features/auth/services/phone-login-tokens"
+import { verifyPhoneOtpCode } from "@/features/auth/services/phone-otp-delivery"
+import {
+  ensurePhoneAuthUser,
+  markPhoneVerified,
+} from "@/features/auth/services/ensure-phone-auth-user"
+import { normalizeToE164 } from "@/lib/phone/e164"
+import { isVirtualEmail } from "@/lib/auth/virtual-email"
 import { verifyPassword } from "@/lib/auth/email-tokens"
 import { isRingMailerConfigured } from "@/lib/mailer"
 import { OAuth2Client } from 'google-auth-library'
@@ -176,6 +189,63 @@ const nextAuthApp = NextAuth({
           }
         } catch (error) {
           authLog('email-otp authorize failed', error)
+          return null
+        }
+      },
+    }),
+
+    // Phone OTP — Telegram Gateway (virtual-email Auth.js identity)
+    CredentialsProvider({
+      id: 'phone-otp',
+      name: 'Phone OTP',
+      credentials: {
+        phone: { label: 'Phone', type: 'text' },
+        code: { label: 'Code', type: 'text' },
+        challengeId: { label: 'Challenge', type: 'text' },
+      },
+      async authorize(credentials) {
+        const phone = normalizeToE164(String(credentials?.phone || ''))
+        const code = String(credentials?.code || '').trim()
+        const challengeId = String(credentials?.challengeId || '').trim()
+        if (!phone || !code || !challengeId) return null
+        try {
+          const challenge = await getOpenPhoneChallenge({ phone, challengeId })
+          if (!challenge) return null
+
+          if (await expirePhoneChallengeIfMaxAttempts(challenge.id)) {
+            return null
+          }
+
+          const verified = await verifyPhoneOtpCode({
+            requestId: challenge.request_id,
+            code,
+            channel: challenge.channel,
+          })
+          if (verified.ok === false) {
+            await bumpPhoneChallengeAttempt(challenge.id)
+            await expirePhoneChallengeIfMaxAttempts(challenge.id)
+            return null
+          }
+
+          await markPhoneChallengeUsed(challenge.id)
+          const user = await ensurePhoneAuthUser(phone, { markVerified: true })
+          await markPhoneVerified(user.id, phone)
+
+          const virtual = isVirtualEmail(user)
+          return {
+            id: user.id,
+            email: normalizeAuthEmail(String(user.email || '')),
+            name: user.name ? String(user.name) : null,
+            image: user.image ? String(user.image) : null,
+            // Omit emailVerified for virtual mailboxes — Auth.js rejects null on User
+            ...(virtual ? {} : { emailVerified: new Date() }),
+            role: (user.role as UserRolesArray) || UserRolesArray.visitor,
+            phoneNumber: phone,
+            phoneVerifiedAt: new Date().toISOString(),
+            isVirtualEmail: virtual,
+          }
+        } catch (error) {
+          authLog('phone-otp authorize failed', error)
           return null
         }
       },
@@ -534,6 +604,8 @@ const nextAuthApp = NextAuth({
         token.isVerified = (user as any).isVerified ?? false
         token.username = (user as any).username
         token.phoneNumber = (user as any).phoneNumber
+        token.phoneVerifiedAt = (user as any).phoneVerifiedAt
+        token.isVirtualEmail = (user as any).isVirtualEmail
         token.bio = (user as any).bio
         token.organization = (user as any).organization
         token.position = (user as any).position
@@ -641,6 +713,8 @@ const nextAuthApp = NextAuth({
         // Add custom user fields persisted in DB
         ;(session.user as any).username = token.username as string
         ;(session.user as any).phoneNumber = token.phoneNumber as string
+        ;(session.user as any).phoneVerifiedAt = token.phoneVerifiedAt as string | undefined
+        ;(session.user as any).isVirtualEmail = token.isVirtualEmail as boolean | undefined
         ;(session.user as any).bio = token.bio as string
         ;(session.user as any).organization = token.organization as string
         ;(session.user as any).position = token.position as string

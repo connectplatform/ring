@@ -919,6 +919,14 @@ export interface RingConfig {
   nativeTokenPriceOracle?: NativeTokenPriceOracleConfig
   /** Airdrops configuration — user-credit-balance airdrops for completed actions. */
   rewardCreditAddEvents?: Record<RewardCreditAddEventTrigger, RewardCreditAddEventRule>
+  /**
+   * Auth rail settings — phone login virtual-email domain SSOT.
+   * Example (GreenFood): `{ "virtualEmailDomain": "greenfood.live" }`
+   */
+  auth?: {
+    /** Domain for `{e164Digits}@{domain}` phone-only accounts. Required for phone login clones. */
+    virtualEmailDomain?: string
+  }
   // TODO: Split admin-only props to RingConfigAdmin – safer SSR/CSR.
 }
 

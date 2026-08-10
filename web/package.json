@@ -1,6 +1,6 @@
 {
   "name": "ring",
-  "version": "1.97.24",
+  "version": "1.98.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -43,7 +43,7 @@
     "fix:service-migration": "node ../scripts/fix-service-migration.js",
     "fix:compilation-errors": "node ../scripts/fix-remaining-compilation-errors.js",
     "test:firebase-optimization": "node ../scripts/test-firebase-optimization.js",
-    "build:optimized": "BUILD_CACHE_DEBUG=true FIREBASE_DEBUG_LOGS=true npm run build && echo '\ud83d\udcca Check build logs for Firebase optimization results'",
+    "build:optimized": "BUILD_CACHE_DEBUG=true FIREBASE_DEBUG_LOGS=true npm run build && echo '📊 Check build logs for Firebase optimization results'",
     "build:analyze-performance": "BUILD_CACHE_DEBUG=true FIREBASE_DEBUG_LOGS=true time npm run build",
     "portal:health": "node ../scripts/check-portal-health.js",
     "portal:analytics": "node ../scripts/generate-portal-analytics.js",

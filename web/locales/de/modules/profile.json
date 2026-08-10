@@ -428,5 +428,15 @@
   "cvSaveAndExit": "Speichern & Beenden",
   "cvDraftSaved": "Entwurf gespeichert",
   "cvOpenFile": "Öffnen",
-  "cvRemoveFile": "Hochgeladenes CV entfernen"
+  "cvRemoveFile": "Hochgeladenes CV entfernen",
+  "linkEmail": "E-Mail verknüpfen",
+  "changeEmail": "E-Mail ändern",
+  "linkEmailHint": "Fügen Sie eine echte E-Mail für Belege und Wiederherstellung hinzu.",
+  "linkEmailTitle": "E-Mail verknüpfen",
+  "linkEmailSubtitle": "E-Mail hinzufügen und Bestätigungscode eingeben.",
+  "linkEmailPlaceholder": "email@example.com",
+  "linkEmailSendCode": "Code senden",
+  "linkEmailVerify": "Code bestätigen",
+  "linkEmailChangeAddress": "Andere E-Mail",
+  "linkEmailSuccess": "E-Mail verknüpft"
 }

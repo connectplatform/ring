@@ -76,8 +76,8 @@ function processEnhancedUserProfile(userData: any): AuthUser {
   // Combine nested or top-level communication details
   const commData = userData?.communication || {};
   const communication: CommunicationChannels | undefined = 
-    userData?.communication || userData?.telegram_username || userData?.whatsapp_number || userData?.preferred_contact_method ? {
-    phoneNumber: commData?.phoneNumber || userData?.phoneNumber,
+    userData?.communication || userData?.telegram_username || userData?.whatsapp_number || userData?.preferred_contact_method || userData?.phoneNumber || userData?.phone ? {
+    phoneNumber: commData?.phoneNumber || userData?.phoneNumber || userData?.phone,
     telegramUsername: commData?.telegramUsername || userData?.telegram_username,
     // Verified Telegram UID (Login Widget / OIDC / Mini App) — SSOT for "linked"
     telegramId: commData?.telegramId
@@ -205,7 +205,20 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     },
     kycVerification: userData?.kycVerification,
     pendingUpgradeRequest: userData?.pendingUpgradeRequest,
-    phoneNumber: userData?.phoneNumber,
+    phoneNumber: userData?.phoneNumber || userData?.phone || communication?.phoneNumber,
+    phoneVerifiedAt:
+      typeof userData?.phoneVerifiedAt === 'string'
+        ? userData.phoneVerifiedAt
+        : userData?.phoneVerifiedAt
+          ? String(userData.phoneVerifiedAt)
+          : undefined,
+    isVirtualEmail: Boolean(userData?.isVirtualEmail === true || userData?.emailKind === 'virtual_phone'),
+    emailKind:
+      typeof userData?.emailKind === 'string'
+        ? userData.emailKind
+        : userData?.isVirtualEmail
+          ? 'virtual_phone'
+          : undefined,
     organization: userData?.organization,
     position: userData?.position,
     skills: normalizeSkills(userData?.skills),

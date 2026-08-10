@@ -70,7 +70,16 @@ npm run dev -- ring-n9life-com
 
 Secrets: `../ring-platform-org/web/.env.local` (linked via `setup:org-dx` or present in merge). Community template: `web/env.local.template`.
 
-**GitHub purity:** `.forgejo/`, `k8s/`, `.env.local` may be DX links — never commit them. **Do** commit `web/ring-config.json`. No `.reggie-propagate-exclude.json` in Layer1 (that file belongs on white-label / org destinations).
+**GitHub purity:** Do **not** commit empire DX into `web/` (`.forgejo/`, `k8s/`, `.env.local` as real trees — see `check:org-leak`). **Do** commit `web/ring-config.json`.
+
+**Forge-only Actions:** repo-root `.forgejo/workflows/` may be tracked on **forge** `origin` (`ringdom/ring`) for Layer1 fan-out triggers. Keep it off public GitHub:
+
+```bash
+git push origin main              # forge — includes .forgejo
+bash scripts/push-github-oss.sh   # github — strips .forgejo
+```
+
+Never `git push github main` after adding `.forgejo` (that would publish Actions to OSS). No `.reggie-propagate-exclude.json` in Layer1 (that file belongs on white-label / org destinations).
 
 ## Prod (empire)
 

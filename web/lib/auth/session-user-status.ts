@@ -74,6 +74,11 @@ export function applyUserRowToJwt(token: JWT, userData: UserRow): void {
 
   token.username = userData.username as string | undefined
   token.phoneNumber = userData.phoneNumber as string | undefined
+  token.phoneVerifiedAt = (userData as { phoneVerifiedAt?: string }).phoneVerifiedAt
+  token.isVirtualEmail = Boolean(
+    (userData as { isVirtualEmail?: boolean }).isVirtualEmail === true ||
+      (userData as { emailKind?: string }).emailKind === 'virtual_phone',
+  )
   token.bio = userData.bio as string | undefined
   token.organization = userData.organization as string | undefined
   token.position = userData.position as string | undefined

@@ -518,6 +518,68 @@ COMMENT ON TABLE public.email_login_tokens IS 'Ring Mailer auth tokens — store
 
 
 --
+-- Name: phone_login_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.phone_login_tokens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    phone character varying(20) NOT NULL,
+    request_id character varying(128) NOT NULL,
+    channel character varying(32) DEFAULT 'telegram_gateway'::character varying NOT NULL,
+    user_id character varying(255),
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    ip_address inet,
+    attempt_count smallint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE phone_login_tokens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.phone_login_tokens IS 'Phone login OTP challenges — Gateway/WhatsApp request ids only; never store raw OTP codes';
+
+
+--
+-- Name: phone_login_tokens phone_login_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phone_login_tokens
+    ADD CONSTRAINT phone_login_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: phone_login_tokens_request_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX phone_login_tokens_request_uidx ON public.phone_login_tokens USING btree (request_id);
+
+
+--
+-- Name: phone_login_tokens_phone_rate_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX phone_login_tokens_phone_rate_idx ON public.phone_login_tokens USING btree (phone, created_at DESC) WHERE (used_at IS NULL);
+
+
+--
+-- Name: phone_login_tokens_cleanup_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX phone_login_tokens_cleanup_idx ON public.phone_login_tokens USING btree (expires_at) WHERE (used_at IS NULL);
+
+
+--
+-- Name: phone_login_tokens phone_login_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phone_login_tokens
+    ADD CONSTRAINT phone_login_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: email_messages; Type: TABLE; Schema: public; Owner: -
 --
 

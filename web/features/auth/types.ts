@@ -75,9 +75,10 @@ export interface GlobalUserIdentity {
   authProvider: string;
   authProviderId: string;
   isVerified: boolean;
-  createdAt: Date;
-  lastLogin: Date;
-  lastActivityAt?: Date;
+  /** ISO string preferred across RSC→client; Date accepted from legacy callers. */
+  createdAt: Date | string;
+  lastLogin: Date | string;
+  lastActivityAt?: Date | string;
   accountStatus: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
   deactivationReason?: string;
 }
@@ -429,6 +430,12 @@ export interface AuthUser extends GlobalUserIdentity {
   kycVerification?: KYCVerification;
   pendingUpgradeRequest?: RoleUpgradeRequest;
   phoneNumber?: string;
+  /** ISO timestamp when GSM phone possession was verified (Telegram Gateway / SMS). */
+  phoneVerifiedAt?: string;
+  /** True when email is a synthesized phone mailbox (not a real inbox). */
+  isVirtualEmail?: boolean;
+  /** `virtual_phone` | `real` — Auth.js uniqueness mailbox kind. */
+  emailKind?: 'virtual_phone' | 'real' | string;
   organization?: string;
   position?: string;
   /** Expertise tags shown on public professional section when enabled. */

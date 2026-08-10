@@ -97,7 +97,15 @@ export default function VitalsOnboardingForm({
   const locale = useLocale() as Locale
   const t = useTranslations('modules.auth.onboarding')
   const isWallet = session?.user?.provider === 'crypto-wallet'
-  const emailLocked = Boolean(session?.user?.email) && !isWallet
+  const hasVirtualMailbox = Boolean(
+    (session?.user as { isVirtualEmail?: boolean } | undefined)?.isVirtualEmail,
+  )
+  // Lock real inboxes only — phone OTP virtual-email is not a usable mailbox
+  const emailLocked =
+    Boolean(session?.user?.email) && !isWallet && !hasVirtualMailbox
+  // Hide virtual address in the field; Link Email on profile binds a real inbox
+  const defaultEmail = hasVirtualMailbox || isWallet ? '' : session?.user?.email || ''
+  const emailRequired = isWallet && !session?.user?.email
 
   const initialPhoto =
     (session?.user as { photoURL?: string } | undefined)?.photoURL ||
@@ -215,30 +223,38 @@ export default function VitalsOnboardingForm({
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">{t('fields.email')}</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required={!emailLocked}
-              readOnly={emailLocked}
-              defaultValue={session.user.email || ''}
-              placeholder={t('fields.emailPlaceholder')}
-              className={`pl-10 h-12 ${emailLocked ? 'bg-muted/50' : ''}`}
-              aria-invalid={!!state?.fieldErrors?.email}
-            />
+        {hasVirtualMailbox ? (
+          <div className="space-y-2 rounded-lg border border-border/60 p-3">
+            <p className="text-sm font-medium">{t('fields.email')}</p>
+            <p className="text-xs text-muted-foreground">{t('fields.emailLinkLater')}</p>
+            <input type="hidden" name="email" value="" />
           </div>
-          {emailLocked && (
-            <p className="text-xs text-muted-foreground">{t('fields.emailVerified')}</p>
-          )}
-          {state?.fieldErrors?.email && (
-            <p className="text-sm text-destructive">{state.fieldErrors.email}</p>
-          )}
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="email">{t('fields.email')}</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required={emailRequired || (!emailLocked && isWallet)}
+                readOnly={emailLocked}
+                defaultValue={defaultEmail}
+                placeholder={t('fields.emailPlaceholder')}
+                className={`pl-10 h-12 ${emailLocked ? 'bg-muted/50' : ''}`}
+                aria-invalid={!!state?.fieldErrors?.email}
+              />
+            </div>
+            {emailLocked && (
+              <p className="text-xs text-muted-foreground">{t('fields.emailVerified')}</p>
+            )}
+            {state?.fieldErrors?.email && (
+              <p className="text-sm text-destructive">{state.fieldErrors.email}</p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-3">
           <Label>{t('fields.avatar')}</Label>

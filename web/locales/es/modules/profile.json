@@ -428,5 +428,15 @@
   "cvSaveAndExit": "Guardar y salir",
   "cvDraftSaved": "Borrador guardado",
   "cvOpenFile": "Abrir",
-  "cvRemoveFile": "Quitar CV subido"
+  "cvRemoveFile": "Quitar CV subido",
+  "linkEmail": "Vincular correo",
+  "changeEmail": "Cambiar correo",
+  "linkEmailHint": "Añade un correo real para recibos y recuperación.",
+  "linkEmailTitle": "Vincular correo",
+  "linkEmailSubtitle": "Añade tu correo y luego introduce el código de verificación.",
+  "linkEmailPlaceholder": "email@example.com",
+  "linkEmailSendCode": "Enviar código",
+  "linkEmailVerify": "Verificar código",
+  "linkEmailChangeAddress": "Usar otro correo",
+  "linkEmailSuccess": "Correo vinculado"
 }

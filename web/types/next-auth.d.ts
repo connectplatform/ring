@@ -29,6 +29,9 @@ declare module "next-auth" {
       }
       /** Telegram numeric user id when linked via OIDC or Login Widget */
       telegramId?: string
+      phoneNumber?: string
+      phoneVerifiedAt?: string
+      isVirtualEmail?: boolean
     }
     accessToken?: string
     refreshToken?: string
@@ -54,6 +57,9 @@ declare module "next-auth" {
     provider?: string
     wallets?: Wallet[]
     telegramId?: string
+    phoneNumber?: string
+    phoneVerifiedAt?: string
+    isVirtualEmail?: boolean
   }
 }
 
@@ -74,6 +80,10 @@ declare module "next-auth/jwt" {
     provider?: string
     needsOnboarding?: boolean
     photoURL?: string
+    telegramId?: string
+    phoneNumber?: string
+    phoneVerifiedAt?: string
+    isVirtualEmail?: boolean
     telegramId?: string
   }
 }

@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger'
 import { userNeedsVitalsOnboarding } from '@/features/auth/lib/vitals-onboarding'
 import { maybeAwardProfileRewards } from '@/lib/wallet/profile-reward-hooks'
 import { db } from '@/lib/database'
+import { isVirtualEmail } from '@/lib/auth/virtual-email'
+import { normalizeAuthEmail } from '@/features/auth/services/user-resolve'
 
 export interface VitalsOnboardingFormState {
   success?: boolean
@@ -15,7 +17,8 @@ export interface VitalsOnboardingFormState {
 }
 
 /**
- * Complete shared vitals onboarding after email magic/OTP or crypto-wallet/wagmi sign-in.
+ * Complete shared vitals onboarding after email magic/OTP, phone-otp, or crypto-wallet/wagmi sign-in.
+ * Phone virtual-email users collect display name here; real inbox linking stays on profile Link Email OTP.
  */
 export async function completeVitalsOnboarding(
   prevState: VitalsOnboardingFormState | null,
@@ -36,17 +39,25 @@ export async function completeVitalsOnboarding(
   const emailRaw = String(formData.get('email') || '')
   const photoURL = String(formData.get('photoURL') || '').trim()
 
+  const sessionIsVirtual =
+    Boolean((session.user as { isVirtualEmail?: boolean }).isVirtualEmail) ||
+    isVirtualEmail(session.user.email)
+
   const fieldErrors: Record<string, string> = {}
   if (!name?.trim()) {
     fieldErrors.name = 'Name is required'
   }
 
-  const needsEmail = provider === 'crypto-wallet' || !session.user.email
+  // Wallet users need a real inbox; phone virtual-email links via profile Link Email OTP
+  const needsEmail = provider === 'crypto-wallet' || (!session.user.email && !sessionIsVirtual)
+
   if (needsEmail) {
     if (!emailRaw.trim()) {
       fieldErrors.email = 'Email is required'
     } else if (!/\S+@\S+\.\S+/.test(emailRaw.trim())) {
       fieldErrors.email = 'Please enter a valid email address'
+    } else if (isVirtualEmail(emailRaw.trim())) {
+      fieldErrors.email = 'Enter a real email inbox (not a phone placeholder)'
     }
   }
 
@@ -54,9 +65,10 @@ export async function completeVitalsOnboarding(
     return { fieldErrors }
   }
 
+  // Keep virtual mailbox until Link Email OTP proves possession
   const email = needsEmail
-    ? emailRaw.trim()
-    : session.user.email || emailRaw.trim()
+    ? normalizeAuthEmail(emailRaw)
+    : normalizeAuthEmail(session.user.email || emailRaw)
 
   try {
     let before: Record<string, unknown> | null = null

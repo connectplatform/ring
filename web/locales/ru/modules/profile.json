@@ -428,5 +428,15 @@
   "cvSaveAndExit": "Сохранить и выйти",
   "cvDraftSaved": "Черновик сохранён",
   "cvOpenFile": "Открыть",
-  "cvRemoveFile": "Удалить загруженное CV"
+  "cvRemoveFile": "Удалить загруженное CV",
+  "linkEmail": "Привязать email",
+  "changeEmail": "Изменить email",
+  "linkEmailHint": "Добавьте реальный email для квитанций и восстановления.",
+  "linkEmailTitle": "Привязка email",
+  "linkEmailSubtitle": "Добавьте email, затем введите код подтверждения.",
+  "linkEmailPlaceholder": "email@example.com",
+  "linkEmailSendCode": "Отправить код",
+  "linkEmailVerify": "Подтвердить код",
+  "linkEmailChangeAddress": "Другой email",
+  "linkEmailSuccess": "Email привязан"
 }

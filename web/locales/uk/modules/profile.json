@@ -428,5 +428,15 @@
   "cvSaveAndExit": "Зберегти й вийти",
   "cvDraftSaved": "Чернетку збережено",
   "cvOpenFile": "Відкрити",
-  "cvRemoveFile": "Видалити завантажене CV"
+  "cvRemoveFile": "Видалити завантажене CV",
+  "linkEmail": "Привʼязати email",
+  "changeEmail": "Змінити email",
+  "linkEmailHint": "Додайте справжній email для квитанцій і відновлення.",
+  "linkEmailTitle": "Привʼязка email",
+  "linkEmailSubtitle": "Додайте email, потім введіть код підтвердження.",
+  "linkEmailPlaceholder": "email@example.com",
+  "linkEmailSendCode": "Надіслати код",
+  "linkEmailVerify": "Підтвердити код",
+  "linkEmailChangeAddress": "Інший email",
+  "linkEmailSuccess": "Email привʼязано"
 }
