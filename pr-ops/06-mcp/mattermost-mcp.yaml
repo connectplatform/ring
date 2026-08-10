@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mattermost-mcp
+  namespace: pr-ops
+  labels:
+    app: mattermost-mcp
+    app.kubernetes.io/part-of: pr-ops
+    app.kubernetes.io/component: mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mattermost-mcp
+  template:
+    metadata:
+      labels:
+        app: mattermost-mcp
+        app.kubernetes.io/part-of: pr-ops
+        app.kubernetes.io/component: mcp-server
+    spec:
+      imagePullSecrets:
+        - name: ghcr-connectplatform-ring
+      containers:
+        - name: mattermost-mcp
+          image: ghcr.io/connectplatform/ring/pr-ops/mattermost-mcp:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3200
+          env:
+            - name: PORT
+              value: "3200"
+            - name: MATTERMOST_URL
+              value: https://chat.ringdom.org
+            - name: MATTERMOST_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: pr-ops-credentials
+                  key: MATTERMOST_BOT_TOKEN
+            - name: MATTERMOST_APPROVAL_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: pr-ops-credentials
+                  key: MATTERMOST_APPROVAL_WEBHOOK
+            - name: MATTERMOST_CRISIS_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: pr-ops-credentials
+                  key: MATTERMOST_CRISIS_WEBHOOK
+            - name: MATTERMOST_AGENT_LOG_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: pr-ops-credentials
+                  key: MATTERMOST_AGENT_LOG_WEBHOOK
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3200
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3200
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mattermost-mcp
+  namespace: pr-ops
+  labels:
+    app.kubernetes.io/part-of: pr-ops
+    app.kubernetes.io/component: mcp-server
+spec:
+  type: ClusterIP
+  selector:
+    app: mattermost-mcp
+  ports:
+    - name: http
+      port: 3200
+      targetPort: 3200

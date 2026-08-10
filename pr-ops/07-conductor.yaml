@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conductor-gateway
+  namespace: pr-ops
+  labels:
+    app: conductor-gateway
+    app.kubernetes.io/part-of: pr-ops
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: conductor-gateway
+  template:
+    metadata:
+      labels:
+        app: conductor-gateway
+        app.kubernetes.io/part-of: pr-ops
+    spec:
+      imagePullSecrets:
+        - name: ghcr-connectplatform-ring
+      containers:
+        - name: conductor-gateway
+          image: ghcr.io/connectplatform/ring/pr-ops/conductor-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - secretRef:
+                name: pr-ops-credentials
+          env:
+            - name: PORT
+              value: "4000"
+            - name: PLANE_WORKSPACE_SLUG
+              value: ringdom-pr
+            - name: ANTHROPIC_MODEL
+              value: claude-haiku-4-5-20251001
+            - name: XAI_MODEL
+              value: grok-3
+            - name: ENABLE_MCP_TOOLS
+              value: "true"
+            - name: XAI_TOOL_MAX_STEPS
+              value: "8"
+            - name: ENABLE_ANTHROPIC_REMOTE_MCP
+              value: "false"
+            - name: ENABLE_ANTHROPIC_MCP
+              value: "true"
+            - name: BOSS_SYSTEM_PROMPT
+              valueFrom:
+                configMapKeyRef:
+                  name: boss-system-prompt
+                  key: prompt
+            - name: TWENTY_MCP_URL
+              value: http://twenty-mcp.pr-ops.svc.cluster.local:5008/mcp
+            - name: PLANE_MCP_URL
+              value: "off"
+            - name: OUTLINE_MCP_URL
+              value: http://outline-mcp.pr-ops.svc.cluster.local:3100/mcp
+            - name: MATTERMOST_MCP_URL
+              value: http://mattermost-mcp.pr-ops.svc.cluster.local:3200/mcp
+            - name: TEMPORAL_MCP_URL
+              value: http://temporal-mcp.pr-ops.svc.cluster.local:3300/mcp
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conductor-gateway
+  namespace: pr-ops
+  labels:
+    app.kubernetes.io/part-of: pr-ops
+spec:
+  type: ClusterIP
+  selector:
+    app: conductor-gateway
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pr-ops-conductor-tls
+  namespace: pr-ops
+spec:
+  secretName: pr-ops-conductor-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  dnsNames:
+    - conductor.ringdom.org
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: conductor-gateway
+  namespace: pr-ops
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - conductor.ringdom.org
+      secretName: pr-ops-conductor-tls
+  rules:
+    - host: conductor.ringdom.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: conductor-gateway
+                port:
+                  number: 4000

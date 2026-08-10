@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outline-mcp
+  namespace: pr-ops
+  labels:
+    app: outline-mcp
+    app.kubernetes.io/part-of: pr-ops
+    app.kubernetes.io/component: mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: outline-mcp
+  template:
+    metadata:
+      labels:
+        app: outline-mcp
+        app.kubernetes.io/part-of: pr-ops
+        app.kubernetes.io/component: mcp-server
+    spec:
+      imagePullSecrets:
+        - name: ghcr-connectplatform-ring
+      containers:
+        - name: outline-mcp
+          image: ghcr.io/connectplatform/ring/pr-ops/outline-mcp:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3100
+          env:
+            - name: PORT
+              value: "3100"
+            - name: OUTLINE_API_URL
+              value: http://outline.pr-ops.svc.cluster.local:3000
+            - name: OUTLINE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: pr-ops-credentials
+                  key: OUTLINE_API_TOKEN
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3100
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3100
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: outline-mcp
+  namespace: pr-ops
+  labels:
+    app.kubernetes.io/part-of: pr-ops
+    app.kubernetes.io/component: mcp-server
+spec:
+  type: ClusterIP
+  selector:
+    app: outline-mcp
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100

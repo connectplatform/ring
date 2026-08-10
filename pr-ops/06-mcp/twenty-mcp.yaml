@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: twenty-mcp
+  namespace: pr-ops
+  labels:
+    app: twenty-mcp
+    app.kubernetes.io/part-of: pr-ops
+    app.kubernetes.io/component: mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: twenty-mcp
+  template:
+    metadata:
+      labels:
+        app: twenty-mcp
+        app.kubernetes.io/part-of: pr-ops
+        app.kubernetes.io/component: mcp-server
+    spec:
+      imagePullSecrets:
+        - name: ghcr-connectplatform-ring
+      containers:
+        - name: twenty-mcp
+          image: ghcr.io/connectplatform/ring/pr-ops/twenty-mcp:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5008
+          env:
+            - name: PORT
+              value: "5008"
+            - name: TWENTY_API_URL
+              value: http://twenty-crm-server.pr-ops.svc.cluster.local:3000
+            - name: TWENTY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pr-ops-credentials
+                  key: TWENTY_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5008
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5008
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: twenty-mcp
+  namespace: pr-ops
+  labels:
+    app.kubernetes.io/part-of: pr-ops
+    app.kubernetes.io/component: mcp-server
+spec:
+  type: ClusterIP
+  selector:
+    app: twenty-mcp
+  ports:
+    - name: http
+      port: 5008
+      targetPort: 5008
