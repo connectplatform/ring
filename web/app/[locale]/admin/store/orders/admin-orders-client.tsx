@@ -1,32 +1,29 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { updateOrderStatus, refreshOrders } from '@/app/_actions/admin-orders'
+import { updateOrderStatus, refreshOrders, loadMoreAdminOrders } from '@/app/_actions/admin-orders'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
+import type { AdminOrderDto } from '@/lib/admin/admin-list-dto'
+import { Button } from '@/components/ui/button'
 
 const ORDER_STATUSES = ['new', 'paid', 'processing', 'shipped', 'completed', 'canceled'] as const
 type OrderStatus = (typeof ORDER_STATUSES)[number]
 
-interface Order {
-  id: string
-  status?: string
-  userId?: string
-  createdAt?: string
-  items?: Array<{ name?: string; quantity?: number; price?: string; currency?: string }>
-  [key: string]: unknown
-}
-
 interface AdminOrdersClientProps {
-  initialOrders: Order[]
+  initialOrders: AdminOrderDto[]
+  initialHasMore: boolean
+  initialNextOffset: number
   currentStatusFilter?: string
   locale: Locale
 }
 
 export default function AdminOrdersClient({
   initialOrders,
+  initialHasMore,
+  initialNextOffset,
   currentStatusFilter = '',
   locale,
 }: AdminOrdersClientProps) {
@@ -35,6 +32,15 @@ export default function AdminOrdersClient({
   const t = useTranslations('modules.admin.storeHub.ordersPage')
   const [isPending, startTransition] = useTransition()
   const [updateError, setUpdateError] = useState<string | null>(null)
+  const [orders, setOrders] = useState(initialOrders)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [nextOffset, setNextOffset] = useState(initialNextOffset)
+
+  useEffect(() => {
+    setOrders(initialOrders)
+    setHasMore(initialHasMore)
+    setNextOffset(initialNextOffset)
+  }, [initialOrders, initialHasMore, initialNextOffset])
 
   const statusLabel = (status: string) => {
     if (ORDER_STATUSES.includes(status as OrderStatus)) {
@@ -60,6 +66,26 @@ export default function AdminOrdersClient({
     startTransition(async () => {
       await refreshOrders()
       router.refresh()
+    })
+  }
+
+  const handleLoadMore = () => {
+    startTransition(async () => {
+      setUpdateError(null)
+      const result = await loadMoreAdminOrders({
+        offset: nextOffset,
+        statusFilter: currentStatusFilter || undefined,
+      })
+      if (!result.success) {
+        setUpdateError(result.error || t('updateStatusError'))
+        return
+      }
+      setOrders((prev) => {
+        const seen = new Set(prev.map((o) => o.id))
+        return [...prev, ...result.items.filter((o) => !seen.has(o.id))]
+      })
+      setHasMore(result.hasMore)
+      setNextOffset(result.nextOffset)
     })
   }
 
@@ -117,11 +143,11 @@ export default function AdminOrdersClient({
         </div>
       )}
 
-      {initialOrders.length === 0 ? (
+      {orders.length === 0 ? (
         <div className="text-muted-foreground">{emptyMessage}</div>
       ) : (
         <div className="space-y-2">
-          {initialOrders.map((order) => (
+          {orders.map((order) => (
             <OrderCard
               key={order.id}
               order={order}
@@ -132,12 +158,25 @@ export default function AdminOrdersClient({
           ))}
         </div>
       )}
+
+      {hasMore && (
+        <div className="mt-4">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleLoadMore}
+            disabled={isPending}
+          >
+            {isPending ? t('refreshing') : t('showMore')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
 interface OrderCardProps {
-  order: Order
+  order: AdminOrderDto
   statusLabel: (status: string) => string
   onUpdateStatus: (orderId: string, status: string) => void
   isUpdating: boolean
@@ -235,6 +274,6 @@ function getStatusColor(status: string): string {
     case 'canceled':
       return 'text-red-600'
     default:
-      return 'text-muted-foreground'
+      return 'text-gray-600'
   }
 }

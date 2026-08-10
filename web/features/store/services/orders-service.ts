@@ -113,34 +113,40 @@ export const StoreOrdersService = {
     }
   }),
 
-  adminListAllOrders: cache(async (opts?: { 
-    limit?: number; 
-    startAfter?: string; 
-    statusFilter?: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled';
+  adminListAllOrders: cache(async (opts?: {
+    limit?: number
+    offset?: number
+    statusFilter?: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled'
   }) => {
     try {
       const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
-      
+      const offset = Math.max(opts?.offset ?? 0, 0)
+
       const filters: { field: string; operator: string; value: unknown }[] = []
-      if (opts?.statusFilter) {
+      if (opts?.statusFilter === 'canceled') {
+        // Include legacy SalesBox spelling "cancelled"
+        filters.push({ field: 'status', operator: 'in', value: ['canceled', 'cancelled'] })
+      } else if (opts?.statusFilter) {
         filters.push({ field: 'status', operator: '=', value: opts.statusFilter })
       }
-      
+
       const result = await db().queryDocs<OrderRow>({
         collection: 'orders',
         filters,
         orderBy: [{ field: 'createdAt', direction: 'desc' }],
-        pagination: { limit }
+        pagination: { limit, offset },
       })
-      
+
       if (!result.success) {
-        return { items: [], lastVisible: null }
+        return { items: [], lastVisible: null, hasMore: false, nextOffset: offset }
       }
-      
+
       const items = result.data
       const lastVisible = items.length > 0 ? items[items.length - 1].id : null
-        
-      return { items, lastVisible }
+      const hasMore = items.length >= limit
+      const nextOffset = hasMore ? offset + items.length : offset
+
+      return { items, lastVisible, hasMore, nextOffset }
     } catch (error) {
       console.error('[StoreOrdersService] Error listing all orders:', error)
       throw new Error('Failed to retrieve orders')

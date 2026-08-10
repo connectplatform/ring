@@ -1,0 +1,11 @@
+{
+    "schema_version": 1,
+    "commit": "1babc39bd05718c064dad41bb0f9d8b2a7092a4c",
+    "indexed_at": "2026-08-06T13:48:22Z",
+    "project": "Users-insight-code-ringdom-ring",
+    "nodes": 61801,
+    "edges": 117000,
+    "original_size": 108003328,
+    "compressed_size": 17401963,
+    "compression_level": 3
+}

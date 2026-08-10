@@ -107,6 +107,7 @@ export type StoreProductFormFields = z.infer<typeof storeProductFormFieldsSchema
 
 export const adminStoreProductListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
   approvalStatus: z.enum(['all', 'pending', 'approved', 'rejected']).default('all'),
   currency: z.enum(STORE_CURRENCIES).default(getMainCurrencySymbol()),
 })

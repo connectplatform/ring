@@ -24,6 +24,9 @@ function parseUsersTab(raw: string | null): UsersDashboardTab {
 
 interface AdminUsersDashboardClientProps {
   initialUsers: AuthUser[]
+  initialHasMore: boolean
+  initialNextOffset: number
+  totalUserCount: number
   locale: string
   labels: ModulesAdminLabels
   analytics: PlatformAnalyticsSummary
@@ -31,6 +34,9 @@ interface AdminUsersDashboardClientProps {
 
 export function AdminUsersDashboardClient({
   initialUsers,
+  initialHasMore,
+  initialNextOffset,
+  totalUserCount,
   locale,
   labels,
   analytics,
@@ -41,7 +47,10 @@ export function AdminUsersDashboardClient({
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const activeTab = parseUsersTab(searchParams.get('tab'))
-  const stats = useMemo(() => computeAdminUserStats(initialUsers), [initialUsers])
+  const stats = useMemo(() => {
+    const computed = computeAdminUserStats(initialUsers)
+    return { ...computed, totalUsers: totalUserCount || computed.totalUsers }
+  }, [initialUsers, totalUserCount])
 
   const setTab = (tab: string) => {
     const next = parseUsersTab(tab)
@@ -98,7 +107,13 @@ export function AdminUsersDashboardClient({
         </TabsContent>
 
         <TabsContent value="users">
-          <AdminUserManager initialUsers={initialUsers} locale={locale} mode="table" />
+          <AdminUserManager
+            initialUsers={initialUsers}
+            initialHasMore={initialHasMore}
+            initialNextOffset={initialNextOffset}
+            locale={locale}
+            mode="table"
+          />
         </TabsContent>
 
         <TabsContent value="verification">

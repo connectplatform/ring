@@ -423,6 +423,7 @@
       "delist": "Retirar del listado",
       "delistConfirm": "¿Retirar este producto del Main Store? La tienda del vendedor puede permanecer activa.",
       "delistError": "Error al retirar el producto del listado",
+      "showMore": "Mostrar más",
       "form": {
         "vendorOwner": "Propietario vendedor",
         "vendorOwnerPlaceholder": "Seleccionar vendedor activo"
@@ -465,6 +466,7 @@
       "itemsLabel": "Artículos",
       "update": "Actualizar",
       "updating": "Actualizando…",
+      "showMore": "Mostrar más",
       "statuses": {
         "new": "Nuevo",
         "paid": "Pagado",
@@ -768,7 +770,7 @@
   "activityHoursAgo": "{count, plural, one {hace # hora} other {hace # horas}}",
   "activityDaysAgo": "{count, plural, one {hace # día} other {hace # días}}",
   "usersSearchLabel": "Buscar usuarios",
-  "usersSearchPlaceholder": "Buscar por nombre, correo o ID…",
+  "usersSearchPlaceholder": "Buscar por nombre, correo, teléfono o ID…",
   "usersFilterRole": "Filtrar por rol",
   "usersFilterAllRoles": "Todos los roles",
   "usersFilterVerification": "Filtrar por verificación",
@@ -776,11 +778,13 @@
   "usersFilterVerified": "Verificados",
   "usersFilterUnverified": "No verificados",
   "usersColUser": "Usuario",
+  "usersColPhone": "Teléfono",
   "usersColRole": "Rol",
   "usersColStatus": "Estado",
   "usersColCreated": "Creado",
   "usersColLastLogin": "Último acceso",
   "usersColActions": "Acciones",
+  "showMore": "Mostrar más",
   "usersNoName": "Sin nombre",
   "usersViewPayments": "Ver usuario y pagos",
   "usersActionVerify": "Verificar",

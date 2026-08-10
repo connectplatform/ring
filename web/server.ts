@@ -3,8 +3,9 @@
  * Entrypoint for dev and k8s/self-hosted production (not used on Vercel serverless).
  */
 
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { createRequire } from 'node:module';
+import type { Duplex } from 'node:stream';
 import { parse } from 'node:url';
 import next from 'next';
 import { getDeployTarget } from './lib/tunnel/deploy-target';
@@ -21,13 +22,19 @@ const projectDir = process.cwd();
 loadEnvConfig(projectDir);
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = process.env.HOSTNAME ?? 'localhost';
+// Next internals should not use HOSTNAME=0.0.0.0 (k8s listen-all); keep bind separate.
+const listenHost = process.env.HOSTNAME ?? '0.0.0.0';
+const nextHostname =
+  !listenHost || listenHost === '0.0.0.0' || listenHost === '::'
+    ? 'localhost'
+    : listenHost;
 const port = Number(process.env.PORT ?? 3000);
 
-const app = next({ dev, hostname, port });
+const app = next({ dev, hostname: nextHostname, port });
 const handle = app.getRequestHandler();
 
 await app.prepare();
+const nextUpgrade = app.getUpgradeHandler();
 
 const server = createServer(async (req, res) => {
   try {
@@ -39,6 +46,26 @@ const server = createServer(async (req, res) => {
     res.end('Internal Server Error');
   }
 });
+
+/**
+ * Next's getRequestHandler() lazily registers its own `upgrade` listener on the
+ * first HTTP request (via setupWebSocketHandler → req.socket.server). That second
+ * listener runs after ours and destroys /api/tunnel/ws sockets right after 101.
+ * Own the upgrade event exclusively and dispatch ourselves.
+ */
+function exclusiveUpgradeRouter(
+  httpServer: Server,
+  route: (req: IncomingMessage, socket: Duplex, head: Buffer) => void,
+): void {
+  const originalOn = httpServer.on.bind(httpServer);
+  httpServer.on = ((event: string | symbol, listener: (...args: unknown[]) => void) => {
+    if (event === 'upgrade') {
+      return httpServer;
+    }
+    return originalOn(event, listener as never);
+  }) as Server['on'];
+  originalOn('upgrade', route);
+}
 
 const deployTarget = getDeployTarget();
 const hub = getTunnelHub();
@@ -56,11 +83,24 @@ if (isTunnelHubLifecycle(hub)) {
 }
 
 if (deployTarget !== 'vercel') {
-  attachTunnelWss(server, {
-    path: '/api/tunnel/ws',
+  const tunnelPath = '/api/tunnel/ws';
+  const { handleUpgrade } = attachTunnelWss(server, {
+    path: tunnelPath,
     hub,
+    bindUpgrade: false,
   });
-  console.log(`[server] Native WSS attached at /api/tunnel/ws (RING_DEPLOY_TARGET=${deployTarget})`);
+
+  exclusiveUpgradeRouter(server, (req, socket, head) => {
+    const pathname = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+      .pathname;
+    if (pathname === tunnelPath) {
+      handleUpgrade(req, socket, head);
+      return;
+    }
+    void nextUpgrade(req, socket, head);
+  });
+
+  console.log(`[server] Native WSS attached at ${tunnelPath} (RING_DEPLOY_TARGET=${deployTarget})`);
 } else {
   console.log('[server] SSE-only mode (RING_DEPLOY_TARGET=vercel)');
 }
@@ -93,6 +133,6 @@ process.on('SIGINT', () => {
   void gracefulShutdown('SIGINT');
 });
 
-server.listen(port, () => {
-  console.log(`> Ready on http://${hostname}:${port} [${deployTarget}]`);
+server.listen(port, listenHost === 'localhost' ? undefined : listenHost, () => {
+  console.log(`> Ready on http://${listenHost}:${port} [${deployTarget}]`);
 });

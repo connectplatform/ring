@@ -20,6 +20,18 @@ import {
 export interface AttachTunnelWssOptions {
   path?: string;
   hub: TunnelHub;
+  /**
+   * When false, only create the WSS + connection handlers; caller must route
+   * `upgrade` (needed so Next.js `getRequestHandler` cannot register a second
+   * upgrade listener that destroys tunnel sockets after 101).
+   */
+  bindUpgrade?: boolean;
+}
+
+export interface AttachTunnelWssResult {
+  wss: WebSocketServer;
+  path: string;
+  handleUpgrade: (request: IncomingMessage, socket: Duplex, head: Buffer) => void;
 }
 
 interface WsSession {
@@ -35,22 +47,30 @@ function sendJson(ws: WebSocket, frame: Record<string, unknown>): void {
   }
 }
 
-export function attachTunnelWss(server: HttpServer, options: AttachTunnelWssOptions): WebSocketServer {
+export function attachTunnelWss(
+  server: HttpServer,
+  options: AttachTunnelWssOptions,
+): AttachTunnelWssResult {
   const path = options.path ?? '/api/tunnel/ws';
   const hub = options.hub;
   const wss = new WebSocketServer({ noServer: true });
   const sessions = new WeakMap<WebSocket, WsSession>();
 
-  server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
-    const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
-    if (url.pathname !== path) {
-      return;
-    }
-
+  const handleUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
     });
-  });
+  };
+
+  if (options.bindUpgrade !== false) {
+    server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
+      const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
+      if (url.pathname !== path) {
+        return;
+      }
+      handleUpgrade(request, socket, head);
+    });
+  }
 
   wss.on('connection', (ws: WebSocket) => {
     let authed = false;
@@ -204,5 +224,5 @@ export function attachTunnelWss(server: HttpServer, options: AttachTunnelWssOpti
     });
   });
 
-  return wss;
+  return { wss, path, handleUpgrade };
 }

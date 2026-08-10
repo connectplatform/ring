@@ -29,19 +29,30 @@ import { useTranslations } from 'next-intl'
 import { AdminUserDetailSheet } from '@/features/auth/components/admin-user-detail-sheet'
 import { davinciPanelSurface } from '@/lib/ui/davinci'
 import { cn } from '@/lib/utils'
+import { loadMoreAdminUsers } from '@/app/_actions/admin-users'
+import { ADMIN_LIST_PAGE_SIZE } from '@/lib/admin/admin-list-dto'
 
 interface AdminUserManagerProps {
   initialUsers: AuthUser[]
+  initialHasMore?: boolean
+  initialNextOffset?: number
   locale: string
   /** @deprecated Tabs moved to dashboard action buttons; always table. */
   mode?: 'table'
 }
 
-export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps) {
+export function AdminUserManager({
+  initialUsers,
+  initialHasMore = false,
+  initialNextOffset = 0,
+  locale,
+}: AdminUserManagerProps) {
   const t = useTranslations('modules.admin')
   const [isPending, startTransition] = useTransition()
   const [users, setUsers] = useState<AuthUser[]>(initialUsers)
   const [filteredUsers, setFilteredUsers] = useState<AuthUser[]>(initialUsers)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [nextOffset, setNextOffset] = useState(initialNextOffset)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRolesArray | 'all'>('all')
   const [verificationFilter, setVerificationFilter] = useState<'all' | 'verified' | 'unverified'>('all')
@@ -53,7 +64,9 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
 
   useEffect(() => {
     setUsers(initialUsers)
-  }, [initialUsers])
+    setHasMore(initialHasMore)
+    setNextOffset(initialNextOffset)
+  }, [initialUsers, initialHasMore, initialNextOffset])
 
   const handleSearchChange = (value: string) => {
     startTransition(() => setSearchTerm(value))
@@ -63,12 +76,18 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
     let filtered = users
     if (searchTerm) {
       const q = searchTerm.toLowerCase()
-      filtered = filtered.filter(
-        (user) =>
+      const qDigits = searchTerm.replace(/\D/g, '')
+      filtered = filtered.filter((user) => {
+        const phone = user.phoneNumber?.toLowerCase() ?? ''
+        const phoneDigits = user.phoneNumber?.replace(/\D/g, '') ?? ''
+        return (
           user.name?.toLowerCase().includes(q) ||
           user.email.toLowerCase().includes(q) ||
-          user.id.toLowerCase().includes(q),
-      )
+          user.id.toLowerCase().includes(q) ||
+          phone.includes(q) ||
+          (qDigits.length >= 3 && phoneDigits.includes(qDigits))
+        )
+      })
     }
     if (roleFilter !== 'all') {
       filtered = filtered.filter((user) => user.role === roleFilter)
@@ -80,6 +99,26 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
     }
     setFilteredUsers(filtered)
   }, [users, searchTerm, roleFilter, verificationFilter])
+
+  const handleLoadMore = () => {
+    startTransition(async () => {
+      setError(null)
+      const result = await loadMoreAdminUsers({
+        offset: nextOffset,
+        limit: ADMIN_LIST_PAGE_SIZE,
+      })
+      if (!result.success) {
+        setError(result.error || t('usersActionRoleFailed'))
+        return
+      }
+      setUsers((prev) => {
+        const seen = new Set(prev.map((u) => u.id))
+        return [...prev, ...result.items.filter((u) => !seen.has(u.id))]
+      })
+      setHasMore(result.hasMore)
+      setNextOffset(result.nextOffset)
+    })
+  }
 
   const handleUpdateUserRole = async (userId: string, newRole: UserRolesArray) => {
     setLoading(true)
@@ -250,6 +289,7 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
             <TableHeader>
               <TableRow>
                 <TableHead>{t('usersColUser')}</TableHead>
+                <TableHead>{t('usersColPhone')}</TableHead>
                 <TableHead>{t('usersColRole')}</TableHead>
                 <TableHead>{t('usersColStatus')}</TableHead>
                 <TableHead>{t('usersColCreated')}</TableHead>
@@ -280,6 +320,24 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
                         <div className="font-medium">{user.name || t('usersNoName')}</div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {user.phoneNumber || '—'}
+                      </span>
+                      {user.phoneNumber ? (
+                        user.phoneVerifiedAt ? (
+                          <Badge variant="outline" className="border-green-600 text-green-600">
+                            {t('usersFilterVerified')}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-yellow-600 text-yellow-600">
+                            {t('usersFilterUnverified')}
+                          </Badge>
+                        )
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -356,6 +414,18 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
               ))}
             </TableBody>
           </Table>
+          {hasMore && (
+            <div className="p-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleLoadMore}
+                disabled={busy}
+              >
+                {t('showMore')}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

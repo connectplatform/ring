@@ -107,3 +107,64 @@ export async function refreshOrders() {
     }
   }
 }
+
+/**
+ * Load the next admin orders page (offset pagination; plain DTO for RSC/client).
+ */
+export async function loadMoreAdminOrders(input: {
+  offset: number
+  limit?: number
+  statusFilter?: string
+}) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      throw new Error('Authentication required')
+    }
+    if (!isPlatformAdmin(session.user.role)) {
+      throw new Error('Admin access required')
+    }
+
+    const statusFilter =
+      input.statusFilter === 'new' ||
+      input.statusFilter === 'paid' ||
+      input.statusFilter === 'processing' ||
+      input.statusFilter === 'shipped' ||
+      input.statusFilter === 'completed' ||
+      input.statusFilter === 'canceled'
+        ? input.statusFilter
+        : undefined
+
+    const { toAdminOrderDto, ADMIN_LIST_PAGE_SIZE } = await import('@/lib/admin/admin-list-dto')
+    const limit = Math.min(Math.max(input.limit ?? ADMIN_LIST_PAGE_SIZE, 1), 100)
+    const offset = Math.max(input.offset ?? 0, 0)
+
+    const result = await StoreOrdersService.adminListAllOrders({
+      limit,
+      offset,
+      statusFilter,
+    })
+
+    const items = result.items.map((row) =>
+      toAdminOrderDto(row as Record<string, unknown> & { id: string }),
+    )
+
+    return {
+      success: true as const,
+      items,
+      hasMore: result.hasMore,
+      nextOffset: result.nextOffset,
+      lastVisible: result.lastVisible,
+    }
+  } catch (error) {
+    console.error('AdminOrders: Error loading more orders:', error)
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : 'Failed to load orders',
+      items: [],
+      hasMore: false,
+      nextOffset: input.offset ?? 0,
+      lastVisible: null,
+    }
+  }
+}

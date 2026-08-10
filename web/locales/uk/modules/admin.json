@@ -422,6 +422,7 @@
       "delist": "Зняти з продажу",
       "delistConfirm": "Зняти товар з Main Store? Вітрина продавця може залишитися активною.",
       "delistError": "Не вдалося зняти товар з продажу",
+      "showMore": "Показати більше",
       "form": {
         "vendorOwner": "Продавець-власник",
         "vendorOwnerPlaceholder": "Оберіть активного продавця"
@@ -464,6 +465,7 @@
       "itemsLabel": "Товари",
       "update": "Оновити",
       "updating": "Оновлення…",
+      "showMore": "Показати більше",
       "statuses": {
         "new": "Нове",
         "paid": "Оплачено",
@@ -766,7 +768,7 @@
   "activityHoursAgo": "{count, plural, one {# годину тому} few {# години тому} many {# годин тому} other {# години тому}}",
   "activityDaysAgo": "{count, plural, one {# день тому} few {# дні тому} many {# днів тому} other {# дня тому}}",
   "usersSearchLabel": "Пошук користувачів",
-  "usersSearchPlaceholder": "Пошук за іменем, email або ID…",
+  "usersSearchPlaceholder": "Пошук за іменем, email, телефоном або ID…",
   "usersFilterRole": "Фільтр за роллю",
   "usersFilterAllRoles": "Усі ролі",
   "usersFilterVerification": "Фільтр за верифікацією",
@@ -774,11 +776,13 @@
   "usersFilterVerified": "Верифіковані",
   "usersFilterUnverified": "Неверифіковані",
   "usersColUser": "Користувач",
+  "usersColPhone": "Телефон",
   "usersColRole": "Роль",
   "usersColStatus": "Статус",
   "usersColCreated": "Створено",
   "usersColLastLogin": "Останній вхід",
   "usersColActions": "Дії",
+  "showMore": "Показати більше",
   "usersNoName": "Без імені",
   "usersViewPayments": "Переглянути користувача та платежі",
   "usersActionVerify": "Верифікувати",

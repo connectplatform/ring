@@ -423,6 +423,7 @@
       "delist": "Снять с продажи",
       "delistConfirm": "Снять товар с Main Store? Витрина продавца может остаться активной.",
       "delistError": "Не удалось снять товар с продажи",
+      "showMore": "Показать ещё",
       "form": {
         "vendorOwner": "Продавец-владелец",
         "vendorOwnerPlaceholder": "Выберите активного продавца"
@@ -465,6 +466,7 @@
       "itemsLabel": "Товары",
       "update": "Обновить",
       "updating": "Обновление…",
+      "showMore": "Показать ещё",
       "statuses": {
         "new": "Новый",
         "paid": "Оплачен",
@@ -768,7 +770,7 @@
   "activityHoursAgo": "{count, plural, one {# час назад} few {# часа назад} many {# часов назад} other {# часа назад}}",
   "activityDaysAgo": "{count, plural, one {# день назад} few {# дня назад} many {# дней назад} other {# дня назад}}",
   "usersSearchLabel": "Поиск пользователей",
-  "usersSearchPlaceholder": "Поиск по имени, email или ID…",
+  "usersSearchPlaceholder": "Поиск по имени, email, телефону или ID…",
   "usersFilterRole": "Фильтр по роли",
   "usersFilterAllRoles": "Все роли",
   "usersFilterVerification": "Фильтр по верификации",
@@ -776,11 +778,13 @@
   "usersFilterVerified": "Верифицированные",
   "usersFilterUnverified": "Неверифицированные",
   "usersColUser": "Пользователь",
+  "usersColPhone": "Телефон",
   "usersColRole": "Роль",
   "usersColStatus": "Статус",
   "usersColCreated": "Создан",
   "usersColLastLogin": "Последний вход",
   "usersColActions": "Действия",
+  "showMore": "Показать ещё",
   "usersNoName": "Без имени",
   "usersViewPayments": "Просмотр пользователя и платежей",
   "usersActionVerify": "Верифицировать",

@@ -157,10 +157,11 @@ yarn.lock
 *.sw?
 .cursor/*
 
-# Infrastructure scripts
+# Infrastructure scripts (repo root scripts/ only — keep public/scripts for analytics beacons)
 infrastructure/*
 k8s/*
-scripts/*
+/scripts/*
+!public/scripts/
 
 # Solana / Hardhat build artifacts (never needed in Next image)
 solana/target/

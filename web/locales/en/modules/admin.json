@@ -424,6 +424,7 @@
       "delist": "Delist",
       "delistConfirm": "Delist this product from the Main Store? The vendor storefront may remain active.",
       "delistError": "Failed to delist product",
+      "showMore": "Show more",
       "form": {
         "vendorOwner": "Vendor owner",
         "vendorOwnerPlaceholder": "Select active vendor"
@@ -466,6 +467,7 @@
       "itemsLabel": "Items",
       "update": "Update",
       "updating": "Updating…",
+      "showMore": "Show more",
       "statuses": {
         "new": "New",
         "paid": "Paid",
@@ -769,7 +771,7 @@
   "activityHoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
   "activityDaysAgo": "{count, plural, one {# day ago} other {# days ago}}",
   "usersSearchLabel": "Search users",
-  "usersSearchPlaceholder": "Search by name, email, or ID…",
+  "usersSearchPlaceholder": "Search by name, email, phone, or ID…",
   "usersFilterRole": "Filter by role",
   "usersFilterAllRoles": "All roles",
   "usersFilterVerification": "Filter by verification",
@@ -777,11 +779,13 @@
   "usersFilterVerified": "Verified",
   "usersFilterUnverified": "Unverified",
   "usersColUser": "User",
+  "usersColPhone": "Phone",
   "usersColRole": "Role",
   "usersColStatus": "Status",
   "usersColCreated": "Created",
   "usersColLastLogin": "Last login",
   "usersColActions": "Actions",
+  "showMore": "Show more",
   "usersNoName": "No name",
   "usersViewPayments": "View user & payments",
   "usersActionVerify": "Verify",

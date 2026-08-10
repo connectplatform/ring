@@ -145,10 +145,16 @@ export interface AdminStoreProductRow {
   createdAt?: string
 }
 
+export interface AdminStoreProductListResult {
+  items: AdminStoreProductRow[]
+  hasMore: boolean
+  nextOffset: number
+}
+
 // List products for admin panel (with filters for approval status)
 export async function listAdminStoreProducts(
-  rawQuery: Partial<{ limit: number; approvalStatus: string }> = {},
-): Promise<AdminStoreProductRow[]> {
+  rawQuery: Partial<{ limit: number; offset: number; approvalStatus: string }> = {},
+): Promise<AdminStoreProductListResult> {
   await assertAdmin()
 
   // Validate input using Zod
@@ -164,15 +170,15 @@ export async function listAdminStoreProducts(
     collection: 'store_products',
     filters,
     orderBy: [{ field: 'created_at', direction: 'desc' }],
-    pagination: { limit: query.limit },
+    pagination: { limit: query.limit, offset: query.offset },
   })
 
   if (!result.success || !result.data) {
-    return []
+    return { items: [], hasMore: false, nextOffset: query.offset }
   }
 
   // Project fields for the row, with fallbacks
-  return result.data.map((row) => ({
+  const items = result.data.map((row) => ({
     id: row.id,
     name: String(row.name ?? row.id),
     vendorEntityId: resolveVendorEntityId(row) || '—',
@@ -183,6 +189,13 @@ export async function listAdminStoreProducts(
     approvalStatus: resolveApprovalStatus(row),
     createdAt: row.createdAt != null ? String(row.createdAt) : undefined,
   }))
+
+  const hasMore = items.length >= query.limit
+  return {
+    items,
+    hasMore,
+    nextOffset: hasMore ? query.offset + items.length : query.offset,
+  }
 }
 
 // Approve or reject a product; writes admin user and timestamp

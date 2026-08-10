@@ -423,6 +423,7 @@
       "delist": "Aus Listing entfernen",
       "delistConfirm": "Dieses Produkt aus dem Main Store entfernen? Der Händler-Storefront kann aktiv bleiben.",
       "delistError": "Produkt konnte nicht aus Listing entfernt werden",
+      "showMore": "Mehr anzeigen",
       "form": {
         "vendorOwner": "Händlerinhaber",
         "vendorOwnerPlaceholder": "Aktiven Händler auswählen"
@@ -465,6 +466,7 @@
       "itemsLabel": "Artikel",
       "update": "Aktualisieren",
       "updating": "Aktualisiere…",
+      "showMore": "Mehr anzeigen",
       "statuses": {
         "new": "Neu",
         "paid": "Bezahlt",
@@ -768,7 +770,7 @@
   "activityHoursAgo": "{count, plural, one {vor # Stunde} other {vor # Stunden}}",
   "activityDaysAgo": "{count, plural, one {vor # Tag} other {vor # Tagen}}",
   "usersSearchLabel": "Nutzer suchen",
-  "usersSearchPlaceholder": "Nach Name, E-Mail oder ID suchen…",
+  "usersSearchPlaceholder": "Nach Name, E-Mail, Telefon oder ID suchen…",
   "usersFilterRole": "Nach Rolle filtern",
   "usersFilterAllRoles": "Alle Rollen",
   "usersFilterVerification": "Nach Verifizierung filtern",
@@ -776,11 +778,13 @@
   "usersFilterVerified": "Verifiziert",
   "usersFilterUnverified": "Nicht verifiziert",
   "usersColUser": "Nutzer",
+  "usersColPhone": "Telefon",
   "usersColRole": "Rolle",
   "usersColStatus": "Status",
   "usersColCreated": "Erstellt",
   "usersColLastLogin": "Letzte Anmeldung",
   "usersColActions": "Aktionen",
+  "showMore": "Mehr anzeigen",
   "usersNoName": "Kein Name",
   "usersViewPayments": "Nutzer & Zahlungen anzeigen",
   "usersActionVerify": "Verifizieren",

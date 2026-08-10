@@ -14,6 +14,7 @@ import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
 import { connection } from 'next/server'
 import StoreHubTabs from '@/components/admin/store-hub-tabs'
 import { listAdminStoreProducts } from '@/app/_actions/admin-store-erp'
+import { ADMIN_LIST_PAGE_SIZE } from '@/lib/admin/admin-list-dto'
 import AdminProductsClient from './admin-products-client'
 
 export async function generateMetadata({
@@ -68,8 +69,9 @@ export default async function AdminStoreProductsPage({
       ? resolvedSearch.approval
       : 'all'
 
-  const products = await listAdminStoreProducts({
-    limit: 100,
+  const productPage = await listAdminStoreProducts({
+    limit: ADMIN_LIST_PAGE_SIZE,
+    offset: 0,
     approvalStatus: approvalFilter,
   })
 
@@ -78,7 +80,9 @@ export default async function AdminStoreProductsPage({
       <StoreHubTabs locale={locale} active="products" />
       <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded-lg" />}>
         <AdminProductsClient
-          products={products}
+          products={productPage.items}
+          initialHasMore={productPage.hasMore}
+          initialNextOffset={productPage.nextOffset}
           initialApprovalFilter={approvalFilter}
           locale={locale}
         />

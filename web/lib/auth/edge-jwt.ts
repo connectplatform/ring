@@ -5,15 +5,33 @@
 
 import { SignJWT, jwtVerify } from 'jose';
 
+/**
+ * Read secrets at runtime via dynamic keys.
+ * Next.js inlines `process.env.AUTH_SECRET` when that var is present during
+ * `next build` (Docker uses a placeholder). Static access would mint tunnel
+ * JWTs with the placeholder while native WSS (tsx `server.ts`) verifies with
+ * the real K8s secret → JWSSignatureVerificationFailed / "closed before auth".
+ */
+function runtimeSecret(name: string): string | undefined {
+  const value = process.env[name];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 // Tunnel/WebSocket JWT signing — optional dedicated secret, falls back to Auth.js secret
 const getJwtSecret = () => {
   const secret =
-    process.env.TUNNEL_JWT_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET;
+    runtimeSecret('TUNNEL_JWT_SECRET') ||
+    runtimeSecret('AUTH_SECRET') ||
+    runtimeSecret('NEXTAUTH_SECRET');
   if (!secret) {
     throw new Error(
       'TUNNEL_JWT_SECRET, AUTH_SECRET, or NEXTAUTH_SECRET must be set for tunnel token signing'
+    );
+  }
+  // Refuse the Docker build placeholder if it somehow reaches runtime.
+  if (secret === 'ring-docker-build-placeholder-not-for-runtime') {
+    throw new Error(
+      'Tunnel JWT secret is the Docker build placeholder — set AUTH_SECRET (or TUNNEL_JWT_SECRET) at runtime'
     );
   }
   return new TextEncoder().encode(secret);

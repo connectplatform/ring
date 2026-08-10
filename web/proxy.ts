@@ -117,5 +117,10 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  // Skip Next proxy for APIs, Next internals, and static public assets.
+  // Without this, missing public files still get locale HTML shells for /scripts/*.js
+  // (Unexpected token '<' in the browser). Explicit prefixes keep the early-return path honest.
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|scripts/|icons/|images/|fonts|styles/|acknowledgements/|firebase-messaging-sw\\.js|push-sw\\.js|.*\\..*).*)',
+  ],
 }

@@ -364,6 +364,9 @@ ENV SKIP_TYPE_CHECK=1
 # 4GiB Node heap + low static concurrency (next.config SKIP_TYPE_CHECK) — Colima VM >=12GiB.
 # Do not set NODE_OPTIONS inside npm scripts — it would override this RUN env.
 # Ephemeral AUTH_SECRET for Next compile only — production value comes from K8s at pod start.
+# WARNING: Next may inline process.env.AUTH_SECRET into server chunks when set here.
+# Tunnel JWT helpers MUST read secrets via dynamic keys (see lib/auth/edge-jwt.ts) or set
+# TUNNEL_JWT_SECRET at runtime (same value as AUTH_SECRET) so /api/tunnel/token ≠ WSS mismatch.
 RUN --mount=type=cache,target=/app/.next/cache \
     AUTH_SECRET=ring-docker-build-placeholder-not-for-runtime \
     NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types

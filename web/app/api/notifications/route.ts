@@ -159,17 +159,42 @@ export async function GET(req: NextRequest) {
           { status: 200 }
         );
       }
-      // Delegate stats fetch to service
-      const notificationStats = await getNotificationStats(userId);
-      console.log('API: /api/notifications - Stats retrieved');
-      return NextResponse.json(notificationStats, {
-        status: 200,
-        headers: {
-          'Cache-Control': 'no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
-      });
+      try {
+        // Delegate stats fetch to service — chrome badge must not 500 the shell
+        const notificationStats = await getNotificationStats(userId);
+        console.log('API: /api/notifications - Stats retrieved');
+        return NextResponse.json(notificationStats, {
+          status: 200,
+          headers: {
+            'Cache-Control': 'no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        });
+      } catch (statsError) {
+        console.error('API: /api/notifications - Stats failed (soft):', statsError);
+        return NextResponse.json(
+          {
+            unreadCount: 0,
+            totalCount: 0,
+            totalNotifications: 0,
+            todayCount: 0,
+            weekCount: 0,
+            byType: {},
+            byChannel: {},
+            byStatus: {},
+            message: 'Notification stats temporarily unavailable',
+          },
+          {
+            status: 200,
+            headers: {
+              'Cache-Control': 'no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+            },
+          },
+        );
+      }
     }
 
     // ----- [7] Fetch notifications for user -----

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
@@ -17,16 +17,26 @@ import {
 } from '@/components/ui/select'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
-import { updateAdminProductApproval, delistAdminStoreProduct, type AdminStoreProductRow } from '@/app/_actions/admin-store-erp'
+import {
+  listAdminStoreProducts,
+  updateAdminProductApproval,
+  delistAdminStoreProduct,
+  type AdminStoreProductRow,
+} from '@/app/_actions/admin-store-erp'
+import { ADMIN_LIST_PAGE_SIZE } from '@/lib/admin/admin-list-dto'
 
 interface AdminProductsClientProps {
   products: AdminStoreProductRow[]
+  initialHasMore: boolean
+  initialNextOffset: number
   initialApprovalFilter: 'all' | 'pending' | 'approved' | 'rejected'
   locale: Locale
 }
 
 export default function AdminProductsClient({
-  products,
+  products: initialProducts,
+  initialHasMore,
+  initialNextOffset,
   initialApprovalFilter,
   locale,
 }: AdminProductsClientProps) {
@@ -35,6 +45,15 @@ export default function AdminProductsClient({
   const t = useTranslations('modules.admin.storeHub.productsPage')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [products, setProducts] = useState(initialProducts)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [nextOffset, setNextOffset] = useState(initialNextOffset)
+
+  useEffect(() => {
+    setProducts(initialProducts)
+    setHasMore(initialHasMore)
+    setNextOffset(initialNextOffset)
+  }, [initialProducts, initialHasMore, initialNextOffset])
 
   const handleFilterChange = (value: typeof initialApprovalFilter) => {
     const params = new URLSearchParams(searchParams)
@@ -45,6 +64,27 @@ export default function AdminProductsClient({
     }
     startTransition(() => {
       router.push(`${ROUTES.ADMIN_STORE_PRODUCTS(locale)}?${params.toString()}`)
+    })
+  }
+
+  const handleLoadMore = () => {
+    startTransition(async () => {
+      setError(null)
+      try {
+        const page = await listAdminStoreProducts({
+          limit: ADMIN_LIST_PAGE_SIZE,
+          offset: nextOffset,
+          approvalStatus: initialApprovalFilter,
+        })
+        setProducts((prev) => {
+          const seen = new Set(prev.map((p) => p.id))
+          return [...prev, ...page.items.filter((p) => !seen.has(p.id))]
+        })
+        setHasMore(page.hasMore)
+        setNextOffset(page.nextOffset)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t('approvalError'))
+      }
     })
   }
 
@@ -195,6 +235,19 @@ export default function AdminProductsClient({
                 ))}
               </tbody>
             </table>
+          )}
+
+          {hasMore && (
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleLoadMore}
+                disabled={isPending}
+              >
+                {t('showMore')}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
