@@ -30,6 +30,9 @@ if ! git rev-parse --verify github/main >/dev/null 2>&1; then
   exit 1
 fi
 
+echo "[github-oss] compose-shadow-report (base=github/main, head=HEAD)…"
+bash "$ROOT/scripts/run-compose-shadow-report.sh" --base github/main --head HEAD
+
 WORK=$(mktemp -d /tmp/ring-gh-oss-XXXXXX)
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT

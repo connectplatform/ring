@@ -55,8 +55,20 @@ check_absent_or_link app/api/calculator
 check_absent_or_link k8s
 check_absent_or_link .forgejo
 check_absent_or_link .env.local
-check_absent_or_link scripts
 check_absent_or_link cli
+
+# Community may keep thin helpers under web/scripts (migrations, imports).
+# Empire CI must not land as a real web/scripts/ci tree (compose overlays org CI).
+if [[ -e "$WEB/scripts/ci" && ! -L "$WEB/scripts" && ! -L "$WEB/scripts/ci" ]]; then
+  echo "ORG LEAK: web/scripts/ci is a real path (empire CI belongs under ring-platform-org/scripts/ci)" >&2
+  fail=1
+fi
+for empire_ci in layer1-forge-build-deploy.sh push-layer1.sh clone-forge-build-deploy.sh; do
+  if [[ -f "$WEB/scripts/$empire_ci" && ! -L "$WEB/scripts/$empire_ci" ]]; then
+    echo "ORG LEAK: web/scripts/$empire_ci (empire CI script must not ship in Layer1 web)" >&2
+    fail=1
+  fi
+done
 
 check_must_be_file ring-config.json
 

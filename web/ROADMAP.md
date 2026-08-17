@@ -2,17 +2,24 @@
 
 ## CURRENT STATUS OVERVIEW
 
-**Last Updated**: August 4, 2026  
-**Ring Platform Version**: **1.97.16** (changelog blocks **1.97.6 → 1.97.16** on `/changelog`)  
+**Last Updated**: August 17, 2026  
+**Ring Platform Version**: **1.98.0** (changelog on empire overlay `/changelog`)  
 **Live changelog**: [ring-platform.org/changelog](https://ring-platform.org/changelog)  
 **Public roadmap UI**: [ring-platform.org/roadmap](https://ring-platform.org/roadmap) — rocket journey scrubber over live `docs/{locale}/changelog.json` (past) + `locales/*/roadmap.json` `futureMilestones` (ahead); page chrome in the same locale files.  
-**Ringdom**: Turnkey K8s + MCP ringization — [ringdom.org](https://ringdom.org)
+**Ringdom**: Turnkey K8s + MCP ringization — [ringdom.org](https://ringdom.org)  
+**Compose SSOT**: L1 `ring/web` → L2 `ring-presets/<pack>` → L3 `ringdom-clones/ring-*` (empire org: L1→L3, no pack)
 
 Sources reconciled from `.cursor/plans/completed/**`, production modules under `features/` + `lib/*/conductor/`, and open `.cursor/plans/*.plan.md`.
 
 ---
 
 ## COMPLETED — SHIPPED (newest clusters first)
+
+### 1.98.0 release cluster (2026-08-17)
+
+| Ver | Ship |
+|-----|------|
+| **1.98.0** | Final-Split L1/L2/L3 compose; WS1–3 (call-invite FCM offline, Redis invite dedupe, CallSession/media hooks, WebConductor enrich cron); RFC web-push dual-stack + `push_subscriptions` + dedicated runtime `VAPID_*`; compose-shadow / forgejo / github-oss tip gates |
 
 ### 1.97.14 → 1.97.16 release cluster (2026-08-04)
 
@@ -159,7 +166,7 @@ Prioritized from open `.cursor/plans/*.plan.md` (platform-relevant). Empire-only
 3. **Feed cursor SSOT** — ring-wide pagination + localStorage position (`.cursor/plans/ring-wide_feed_cursor_ssot_47218937.plan.md`)
 4. **Feature shell generalization** — tiered shells + CalculatorEngine config sidebars (`.cursor/plans/feature_shell_generalization_136ae48c.plan.md`)
 5. **Mobile menus refinement** — Admin vs Ring supermenu split (`.cursor/plans/mobile_menus_refinement_ce5a8cb6.plan.md`)
-6. **Push notifications upgrade** — VAPID Web Push + FCM architecture split (`.cursor/plans/ring_push_notifications_upgrade_08627441.plan.md`)
+6. **Push notifications upgrade** — ✅ **1.98.0**: FCM + dedicated RFC `VAPID_*` dual-stack, `push_subscriptions`, dual PUSH dispatch (plan `.cursor/plans/ring_ws1-2-3_upgrade_9c3a596e.plan.md`)
 7. **Contacts P5–P6** — ContactPicker in wallet send + messenger; signed RING transfer paths (`.cursor/plans/check_contacts_p5-p6_plan_32410f01.plan.md`)
 8. **Ring ERP Wave 2+** — RMA/PO/lots per expansion strategy `ring_erp_expansion_strategy_414d7d77`
 
