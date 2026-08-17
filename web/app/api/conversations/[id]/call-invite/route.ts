@@ -8,7 +8,7 @@ import { setNxPx } from '@/lib/redis/set-nx'
 /**
  * POST /api/conversations/[id]/call-invite
  * Fan-out call invite to conversation channel + peer user tunnel (global incoming).
- * Offline: FCM PUSH via peer-games deliveredLive → 500ms → isUserConnected pattern.
+ * Offline: CALL_INVITE via notification dual-stack (FCM + RFC web-push) after Tunnel miss.
  *
  * UPGRADE: Ephemeral TURN credentials per call via STUNner auth service instead of static.
  */
@@ -83,7 +83,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       payload,
     )
 
-    // Offline fallback: FCM CALL_INVITE — mid-connect may look offline briefly (TunnelProvider ~400ms).
+    // Offline fallback: CALL_INVITE on NotificationChannel.PUSH (FCM tokens + RFC
+    // push_subscriptions). Chrome stays FCM-primary; RFC is empty-PushManager only.
     if (!tunnelDelivery.deliveredLive) {
       await new Promise((r) => setTimeout(r, 500))
       const { getTunnelHub } = await import('@/lib/tunnel/hub')
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             NotificationChannel,
             NotificationPriority,
           } = await import('@/features/notifications/types')
-          const actionUrl = `/messages?conversation=${conversationId}&call=${parsed.callId}`
+          const actionUrl = `/messages?c=${conversationId}&call=${parsed.callId}`
           await createNotification({
             userId: parsed.peerUserId,
             type: NotificationType.CALL_INVITE,
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             actionUrl,
           })
         } catch (err) {
-          console.warn('call-invite: FCM CALL_INVITE fallback failed', err)
+          console.warn('call-invite: CALL_INVITE push fallback failed', err)
         }
       }
     }

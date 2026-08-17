@@ -3,6 +3,11 @@
 
 import { getMessaging, type BatchResponse, type Message } from 'firebase-admin/messaging'
 import { db } from '@/lib/database'
+import { isInteractivePushNotificationType } from '@/features/notifications/lib/push-ttl'
+import {
+  EMPTY_PUSH_STACK,
+  type PushStackResult,
+} from '@/lib/notifications/push-dual-dispatch'
 
 export interface FCMNotification {
   title: string
@@ -13,6 +18,8 @@ export interface FCMNotification {
   data?: Record<string, string>
   clickAction?: string
   tag?: string
+  /** Web Push / FCM TTL in seconds. CALL_INVITE uses a short window. */
+  ttlSeconds?: number
 }
 
 type FcmTokenRow = Record<string, unknown> & {
@@ -56,15 +63,15 @@ export class FCMService {
     return tokensResult.data
   }
 
-  async sendToUser(userId: string, notification: FCMNotification): Promise<void> {
+  async sendToUser(userId: string, notification: FCMNotification): Promise<PushStackResult> {
     try {
       const rows = await this.fetchActiveTokenRows(userId)
       if (rows.length === 0) {
         console.log(`No active FCM tokens found for user ${userId}`)
-        return
+        return EMPTY_PUSH_STACK
       }
 
-      await this.sendToTokenRows(rows, notification)
+      return await this.sendToTokenRows(rows, notification)
     } catch (error) {
       console.error(`Error sending notification to user ${userId}:`, error)
       throw new Error('Failed to send notification to user')
@@ -116,16 +123,37 @@ export class FCMService {
   }
 
   private buildMessageForToken(token: string, notification: FCMNotification): Message {
-    return {
+    const interactive = isInteractivePushNotificationType(notification.data?.type)
+    const data: Record<string, string> = {
+      ...(notification.data || {}),
+      title: notification.title,
+      body: notification.body,
+    }
+
+    const message: Message = {
       token,
-      notification: {
+      data,
+      webpush: {
+        ...(notification.ttlSeconds
+          ? { headers: { TTL: String(notification.ttlSeconds) } }
+          : {}),
+        fcmOptions: {
+          link: notification.clickAction || '/',
+        },
+      },
+    }
+
+    // Data-only for CALL_INVITE / GAME_REQUEST so the SW can set requireInteraction
+    // without a second OS banner from the FCM `notification` payload.
+    if (!interactive) {
+      message.notification = {
         title: notification.title,
         body: notification.body,
         ...(notification.icon && { icon: notification.icon }),
         ...(notification.image && { image: notification.image }),
-      },
-      data: notification.data || {},
-      webpush: {
+      }
+      message.webpush = {
+        ...message.webpush,
         notification: {
           title: notification.title,
           body: notification.body,
@@ -134,29 +162,36 @@ export class FCMService {
           ...(notification.image && { image: notification.image }),
           ...(notification.clickAction && { click_action: notification.clickAction }),
           ...(notification.tag && { tag: notification.tag }),
-          requireInteraction: true,
+          requireInteraction: false,
           silent: false,
         },
-        fcmOptions: {
-          link: notification.clickAction || '/',
-        },
-      },
+      }
     }
+
+    return message
   }
 
-  private async sendToTokenRows(rows: FcmTokenRow[], notification: FCMNotification): Promise<void> {
+  private async sendToTokenRows(
+    rows: FcmTokenRow[],
+    notification: FCMNotification,
+  ): Promise<PushStackResult> {
     const pairs = rows
       .map((row) => ({ row, token: extractToken(row) }))
       .filter((p): p is { row: FcmTokenRow; token: string } => p.token != null)
 
     if (pairs.length === 0) {
-      return
+      return EMPTY_PUSH_STACK
     }
 
     const messages = pairs.map(({ token }) => this.buildMessageForToken(token, notification))
     const response = await this.getMessagingInstance().sendEach(messages)
     await this.handleSendResponses(pairs, response)
     console.log(`FCM notification sent to ${response.successCount}/${messages.length} tokens`)
+    return {
+      attempted: messages.length,
+      sent: response.successCount,
+      failed: response.failureCount,
+    }
   }
 
   private async handleSendResponses(

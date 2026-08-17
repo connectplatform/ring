@@ -12,7 +12,7 @@ import type { BaseChainConfig, EnabledChains, EvmChainConfig, SolanaChainConfig 
  * Vertical preset id — selects typed catalogs under features/…/presets/{id}.ts
  * Names registered in ENTITIES_PRESET_REGISTRY (and product field/badge maps).
  */
-export type VerticalPresetId = 'platform' | 'agricultural'
+export type VerticalPresetId = 'platform' | string
 
 /** Rails a collective order may offer — the config-level mirror of CollectiveOrderRail. */
 export type CollectiveOrderConfigRail = 'credit_balance' | 'card' | 'paypal'
@@ -343,6 +343,15 @@ export interface DeploymentConfig {
 // =========================
 // Third-Party/External Integration
 // =========================
+
+export interface FirebaseIntegrationConfig {
+  /** Firebase Auth / general client (not required for FCM). */
+  enabled?: boolean
+  /** Cloud Messaging. Independent of Auth/Firestore. */
+  fcmEnabled?: boolean
+  /** Client Firestore. Independent of FCM. */
+  firestoreEnabled?: boolean
+}
 
 export interface IntegrationConfig {
   enabled?: boolean               // Toggle for integration
@@ -782,6 +791,7 @@ export interface RingConfig {
   deployment?: DeploymentConfig        // Ops/config (see above)
   integrations?: Record<string, unknown> & {
     demoUserEmail?: string             // Demo user email (login as demo)
+    firebase?: FirebaseIntegrationConfig
   }
   platform?: {
     baseUrl?: string                   // Canonical platform URL
@@ -858,7 +868,19 @@ export interface RingConfig {
   }
   /** Home landing preset — selects components/pages/home-presets/{preset}.tsx (default "platform") */
   home?: {
-    preset?: 'platform' | 'mvm-landing' | string
+    preset?: 'platform' | string
+  }
+  /**
+   * L2 pack id under ring-presets/<pack>/ (compose between L1 and L3).
+   * Omit on two-layer clones (n9life, platform-org). Examples: mvm-agricultural, news-station.
+   * Not a community preset — L1 platform is the only community default.
+   */
+  presets?: {
+    pack?: string
+  }
+  /** Tier-3 overlay runtime id. Clones set overlay.featureId (e.g. n9life, vikka). */
+  overlay?: {
+    featureId?: string
   }
   productFields?: {
     /** Vertical id: platform | agricultural | … */

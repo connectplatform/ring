@@ -2,13 +2,13 @@
  * Batch Analytics Service
  * =======================
  * Nightly batch processing for sentiment trends and classification analytics
- * Uses Anthropic Message Batches API for 50% cost discount
+ * Uses email_batch_analytics via completeEmailJson (OpenRouter DeepSeek primary)
  * Reference: Email Automation Specialist skillset
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '@/lib/logger';
 import { getCostTracker, CostTracker } from './cost-tracker';
+import { completeEmailJson } from './email-llm';
 
 export interface BatchJob {
   id: string;
@@ -108,15 +108,11 @@ Rate the response and suggest improvements in JSON:
 };
 
 export class BatchAnalyticsService {
-  private anthropic: Anthropic;
   private costTracker: CostTracker;
   private activeJobs: Map<string, BatchJob> = new Map();
   private jobCounter = 0;
   
   constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
     this.costTracker = getCostTracker();
   }
   
@@ -220,45 +216,32 @@ export class BatchAnalyticsService {
       // Apply template variables
       const prompt = this.applyTemplate(promptTemplate, item.data);
       
-      // Use Haiku for batch processing (cheapest model)
-      const response = await this.anthropic.messages.create({
-        model: 'claude-haiku-4-5-20250514',
-        max_tokens: 500,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-          {
-            role: 'assistant',
-            content: '{',
-          },
-        ],
-      });
-      
-      // Track cost (with 50% batch discount)
+      const llm = await completeEmailJson({
+        taskClass: 'email_batch_analytics',
+        system: 'You analyze email CRM batch items. Respond with a single JSON object only.',
+        user: prompt,
+        maxTokens: 500,
+      })
+
       const cost = await this.costTracker.recordUsage({
         emailId: item.id,
-        model: 'claude-haiku-4-5-20250514',
+        model: llm.model,
         operation: 'batch_analytics',
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
+        inputTokens: llm.tokens.input,
+        outputTokens: llm.tokens.output,
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
         latencyMs: 0,
         success: true,
         errorMessage: null,
+        providerLlmCallId: llm.providerLlmCallId ?? null,
       });
       
       job.costUsd += cost.costUsd;
-      
-      // Parse response
-      const textContent = response.content[0];
-      if (textContent.type !== 'text') {
-        throw new Error('Unexpected response type');
-      }
-      
-      const data = JSON.parse('{' + textContent.text);
+
+      const raw = llm.text.trim()
+      const jsonText = raw.startsWith('{') ? raw : `{${raw}`
+      const data = JSON.parse(jsonText);
       
       return {
         itemId: item.id,

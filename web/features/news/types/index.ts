@@ -20,20 +20,29 @@ export type MainPageStatus =
 // News status
 export type NewsStatus = 'draft' | 'published' | 'archived' | 'deleted';
 
-// News categories
-export type NewsCategory = 
-  | 'platform-updates'
-  | 'partnerships' 
-  | 'community'
-  | 'industry-news'
-  | 'events'
-  | 'announcements'
-  | 'security'
-  | 'press-releases'
-  | 'tutorials'
-  | 'other'
-  | 'blogs';
+/**
+ * News category slug (URL / filter key).
+ * Open string so WP-import clones (e.g. Vikka) can use arbitrary slugs.
+ * Platform seed UI still uses PLATFORM_NEWS_CATEGORIES.
+ */
+export type NewsCategory = string
 
+/** Closed preset slugs for Layer1 seed / admin category pickers. */
+export const PLATFORM_NEWS_CATEGORIES = [
+  'platform-updates',
+  'partnerships',
+  'community',
+  'industry-news',
+  'events',
+  'announcements',
+  'security',
+  'press-releases',
+  'tutorials',
+  'other',
+  'blogs',
+] as const
+
+export type PlatformNewsCategory = (typeof PLATFORM_NEWS_CATEGORIES)[number]
 // SEO metadata for news articles
 export interface NewsSEO {
   metaTitle: string;
@@ -140,10 +149,11 @@ export interface NewsCategoryInfo {
   description: string;
   color: string;
   icon: string;
+  /** URL/filter slug; falls back to id when absent in older docs. */
+  slug?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
-
 // News comment interface
 export interface NewsComment {
   id: string;

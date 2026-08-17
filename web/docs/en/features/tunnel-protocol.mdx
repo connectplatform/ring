@@ -380,7 +380,7 @@ Documented in `lib/tunnel/SUBSCRIPTION-SSOT.md` and `hooks/HOOKS-README.md` Prov
 | HTTP (not tunnel) | vendor sidebar | — | `useVendorStatus()` → `GET /api/vendor/status` (30s TTL, single-flight) |
 | Conversation | `conversation:${id}` | chat `MessageService` / `sendSystemMessage`; call-invite/call-event return `data.message` for local append; peer-games `game:invite|accept|decline|resign|move` | `use-messaging.ts` (`message:new` + `conversation-message` CustomEvent + quiet poll when tunnel down); peer-games banner/session hooks |
 | Peer games session | `game:${sessionId}` | `features/peer-games/service.ts` (`game:accept|decline|resign|move|expire|dc-signal`) | `use-peer-game-session` / mini-app hydrate then `useTunnelChannel` — **subscribe ACL participant-only (HTTP + native WS via `getSessionForParticipant`)** |
-| Peer games inbox | `games:incoming` | `publishToUserTunnel(peer, 'games:incoming', …)` | `IncomingGameBanner` on MessagesShell + `/games` layout |
+| Peer games inbox | `games:incoming` | `publishToUserTunnel(peer, 'games:incoming', …)` | `IncomingGameBanner` via `GlobalTunnelListeners` (app-wide) |
 | Discovery | `opportunities`, `entities` | `sync-discovery.ts` (`{ id, event, snippet? }`) | `use-realtime-opportunities.ts`, `use-realtime-entities.ts` (+ `parseDiscoveryTunnelMessage`); entity-details / confidential / my-entities subscribed |
 | Matcher | `matcher` | matcher services | matcher moderation UI |
 

@@ -1,6 +1,7 @@
 /**
  * Final-Split path SSOT for Ring CLI.
- * cli lives at ring/cli/; Next app at ring/web/; org overlay at ../ring-platform-org/.
+ * cli lives at ring/cli/; Next app at ring/web/;
+ * org overlay at ../ringdom-clones/ring-platform-org/ (legacy sibling ../ring-platform-org/).
  */
 import { existsSync } from 'fs'
 import { dirname, join } from 'path'
@@ -24,9 +25,18 @@ export const WEB_ROOT =
 /** Alias: most commands operate on the Next tree */
 export const PROJECT_ROOT = WEB_ROOT
 
-/** Empire overlay checkout */
+function firstExistingDir(...candidates) {
+  return candidates.find((p) => existsSync(p))
+}
+
+/** Empire overlay checkout (ringdom-clones/ first, then kingdom-root sibling). */
 export const ORG_ROOT =
-  process.env.RING_ORG_ROOT || join(KINGDOM_ROOT, 'ring-platform-org')
+  process.env.RING_ORG_ROOT ||
+  firstExistingDir(
+    join(KINGDOM_ROOT, 'ringdom-clones', 'ring-platform-org'),
+    join(KINGDOM_ROOT, 'ring-platform-org'),
+  ) ||
+  join(KINGDOM_ROOT, 'ringdom-clones', 'ring-platform-org')
 
 export const ORG_WEB_ROOT =
   process.env.RING_ORG_WEB_ROOT || join(ORG_ROOT, 'web')

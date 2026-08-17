@@ -6,11 +6,9 @@
  * Reference: Prompt Injection Prevention Specialist skillset
  */
 
-import { resolveModel } from '@/lib/ai/model-router'
-import Anthropic from '@anthropic-ai/sdk';
-import { SanitizationResult } from './input-sanitizer';
-import { logger } from '@/lib/logger';
-
+import { completeEmailJson } from '@/features/email-crm/pipeline/ai/email-llm'
+import { SanitizationResult } from './input-sanitizer'
+import { logger } from '@/lib/logger'
 export interface InjectionClassification {
   isAttack: boolean;
   confidence: number; // 0-1
@@ -18,6 +16,11 @@ export interface InjectionClassification {
   reasoning: string;
   shouldBlock: boolean;
   requiresReview: boolean;
+  tokens?: { input: number; output: number }
+  model?: string
+  provider?: string
+  providerLlmCallId?: string | null
+  llmCalled?: boolean
 }
 
 export type InjectionTechnique = 
@@ -63,15 +66,6 @@ Respond in JSON format only:
 }`;
 
 export class InjectionClassifier {
-  private anthropic: Anthropic;
-  private model = (() => { try { return resolveModel('email_injection_classify').modelId } catch { return 'claude-haiku-4-5-20250514' } })(); // Fast model for classification
-  
-  constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  
   /**
    * Classify email content for injection attempts
    */
@@ -84,58 +78,48 @@ export class InjectionClassifier {
       logger.warn('[InjectionClassifier] High risk from sanitizer, blocking', {
         riskScore: sanitizationResult.riskScore,
         patternCount: sanitizationResult.flaggedPatterns.length,
-      });
-      
+      })
+
       return {
         isAttack: true,
         confidence: sanitizationResult.riskScore,
         technique: this.inferTechniqueFromPatterns(sanitizationResult),
         reasoning: `High-risk patterns detected by sanitizer: ${sanitizationResult.flaggedPatterns
-          .map(p => p.type)
+          .map((p) => p.type)
           .join(', ')}`,
         shouldBlock: true,
         requiresReview: true,
-      };
-    }
-    
-    // Use AI classifier for ambiguous cases
-    try {
-      const response = await this.anthropic.messages.create({
-        model: this.model,
-        max_tokens: 300,
-        system: CLASSIFIER_SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `Analyze this email content for prompt injection attempts:\n\n${emailContent.slice(0, 3000)}`,
-          },
-        ],
-      });
-      
-      // Extract text content
-      const textContent = response.content[0];
-      if (textContent.type !== 'text') {
-        throw new Error('Unexpected response type');
       }
-      
-      // Parse JSON response
-      const classification = this.parseClassification(textContent.text);
-      
+    }
+
+    try {
+      const llm = await completeEmailJson({
+        taskClass: 'email_injection_classify',
+        system: CLASSIFIER_SYSTEM_PROMPT,
+        user: `Analyze this email content for prompt injection attempts:\n\n${emailContent.slice(0, 3000)}`,
+        maxTokens: 300,
+      })
+      const classification = this.parseClassification(llm.text)
+      classification.tokens = llm.tokens
+      classification.model = llm.model
+      classification.provider = llm.provider
+      classification.providerLlmCallId = llm.providerLlmCallId
+      classification.llmCalled = true
+
       logger.info('[InjectionClassifier] Classification complete', {
         isAttack: classification.isAttack,
         confidence: classification.confidence,
         technique: classification.technique,
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      });
-      
-      return classification;
+        model: llm.model,
+        provider: llm.provider,
+      })
+
+      return classification
     } catch (error) {
       logger.error('[InjectionClassifier] Classification failed', {
         error: (error as Error).message,
-      });
-      
-      // Fail safe: flag for review if classification fails
+      })
+
       return {
         isAttack: false,
         confidence: 0,
@@ -143,7 +127,7 @@ export class InjectionClassifier {
         reasoning: 'Classification failed, flagged for manual review',
         shouldBlock: false,
         requiresReview: true,
-      };
+      }
     }
   }
   

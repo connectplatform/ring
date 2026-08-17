@@ -16,6 +16,7 @@ import {
 } from '@/lib/docs/docs-article-enrichment'
 import { DocsArticleBackButton } from '@/components/docs/docs-article-back-button'
 import { DocsArticleMediaActions } from '@/components/docs/docs-article-media-actions'
+import { buildDocsMarkdownHref } from '@/lib/docs/docs-path-url'
 
 type DocsLinkHref = ComponentProps<typeof Link>['href']
 
@@ -100,11 +101,15 @@ export async function DocsArticleShell({
     )
   }
 
+  const markdownHref = buildDocsMarkdownHref(locale, article.slug)
+
   return (
     <header
       className={`sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm ${showOnDesktop ? '' : 'lg:hidden'}`}
       data-docs-article-shell
     >
+      {/* Agent discovery: AWS/Mintlify-style markdown twin */}
+      <link rel="alternate" type="text/markdown" href={markdownHref} />
       <div className="container mx-auto space-y-0 px-4">
         <div
           className="article-top-nav-row flex items-center gap-3 py-3"
@@ -138,6 +143,7 @@ export async function DocsArticleShell({
             slug={article.slug}
             title={article.title}
             initialStatus={mediaStatus}
+            markdownHref={markdownHref}
           />
         </div>
 

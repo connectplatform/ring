@@ -3,9 +3,14 @@
 # Uses ABSOLUTE symlink targets to avoid nested-path relative-depth bugs.
 set -euo pipefail
 RING_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib-ring-paths.sh
+source "$RING_ROOT/scripts/lib-ring-paths.sh"
 KINGDOM="$(cd "$RING_ROOT/.." && pwd)"
 WEB="$RING_ROOT/web"
-ORG_ROOT="$KINGDOM/ring-platform-org"
+ORG_ROOT="$(ring_clone_root "$KINGDOM" ring-platform-org)" || {
+  echo "FATAL: missing empire overlay at $KINGDOM/ringdom-clones/ring-platform-org" >&2
+  exit 1
+}
 ORG_WEB="${RING_ORG_WEB_ROOT:-$ORG_ROOT/web}"
 
 test -d "$ORG_WEB" || { echo "FATAL: missing $ORG_WEB" >&2; exit 1; }

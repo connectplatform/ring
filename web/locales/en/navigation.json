@@ -77,7 +77,11 @@
     "pets": "My Pets",
     "sellers": "Sellers",
     "groupBuy": "Group Buy",
-    "account": "Account"
+    "account": "Account",
+    "news": "News",
+    "live": "Live",
+    "categories": "Categories",
+    "directory": "Directory"
   },
   "sidebar": {
     "brandTagline": "Decentralized Self-building Future",

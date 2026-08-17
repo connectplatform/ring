@@ -6,10 +6,11 @@ import re
 from datetime import date
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]  # ring/
+WEB = ROOT / "web"
 DDL = Path("/tmp/ring-schema-ddl.sql")
 SEEDS = Path("/tmp/ring-schema-seeds.sql")
-OUT = ROOT / "data" / "schema.sql"
+OUT = Path(__import__("os").environ.get("RING_SCHEMA_OUT", str(WEB / "data" / "schema.sql")))
 
 SKIP_PREFIXES = (
     "-- Dumped by",
@@ -79,7 +80,7 @@ END $$;
 
 INSERT INTO schema_versions (version, description)
 SELECT '4.1.0',
-       'Flattened SSOT: schema.sql absorbs migrations through 043 + 2026-06-13 notification_preferences'
+       'Flattened SSOT: schema.sql absorbs migrations through 048_news_jsonb_fts + prior'
 WHERE NOT EXISTS (SELECT 1 FROM schema_versions WHERE version = '4.1.0');
 """
 

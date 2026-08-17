@@ -140,6 +140,10 @@ export class JsonbTaskRepository implements TaskRepository {
       limit: 500,
     })).map((row) => hydrateTask(row.id, row))
 
+    if (params.triggerReasonContains) {
+      const needle = params.triggerReasonContains.toLowerCase()
+      results = results.filter((t) => (t.triggerReason || '').toLowerCase().includes(needle))
+    }
     if (params.status) {
       const statuses = Array.isArray(params.status) ? params.status : [params.status]
       results = results.filter((t) => statuses.includes(t.status))

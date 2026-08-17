@@ -125,6 +125,21 @@ const DEFAULT_RULES: TaskAutoCreationRule[] = [
     },
     enabled: true,
   },
+  {
+    id: 'rule_pricing_inquiry',
+    name: 'Pricing Inquiry Lead',
+    conditions: {
+      intent: ['pricing_inquiry'],
+    },
+    action: {
+      taskType: 'follow_up',
+      titleTemplate: 'Pricing lead: {senderName}',
+      descriptionTemplate: 'Pricing inquiry — crm-email-lead follow-up for {subject}',
+      priority: 'high',
+      dueDays: 1,
+    },
+    enabled: true,
+  },
 ];
 
 // Database interface — types live in @/features/email-crm/types/task
@@ -405,6 +420,7 @@ export class EmailTaskService {
       escalation: 0,
       action_required: 0,
       review: 0,
+      unsubscribe_pending: 0,
     };
     
     let totalCompletionTime = 0;

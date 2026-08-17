@@ -23,6 +23,7 @@ export const EmailApiUsageService = {
         success: record.success,
         errorMessage: record.errorMessage,
         timestamp: record.timestamp.toISOString(),
+        providerLlmCallId: record.providerLlmCallId ?? null,
       }
     )
   },

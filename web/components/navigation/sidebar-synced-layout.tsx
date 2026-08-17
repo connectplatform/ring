@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
+import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -14,10 +15,8 @@ import {
 } from '@/features/auth/user-role'
 import {
   Bell,
-  Briefcase,
   Calculator,
   Coins,
-  Crown,
   FileText,
   Globe,
   Heart,
@@ -27,28 +26,23 @@ import {
   Gamepad2,
   Moon,
   Rocket,
-  ShoppingBag,
   ShoppingCart,
-  Store,
   Sun,
   User,
-  UserRound,
-  Users,
   Wallet,
   Zap,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/constants/routes'
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { getClientNativeTokenSymbol, getClientSiteName } from '@/lib/ring-config-client'
-import { getHomePreset } from '@/lib/ring-config-core'
 import {
-  getMvmPrimaryNavSpecs,
-  resolveNavLabel,
-} from '@/lib/navigation/mvm-primary-nav'
+  resolveDesktopPrimaryNav,
+  sidebarPathIsActive,
+} from '@/lib/navigation/desktop-primary-nav'
+import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 import { useStorePaymentMethods } from '@/features/store/currency-context'
 import { cn } from '@/lib/utils'
@@ -74,7 +68,7 @@ const RAIL_LOGO_SIZE = Math.round(64 * 0.9)
 const ICON = 'size-[22px]'
 
 type SyncedRow =
-  | { kind: 'pair'; key: string; href?: string; rail: React.ReactNode; aside: React.ReactNode; tall?: boolean; markActive?: boolean }
+  | { kind: 'pair'; key: string; href?: string; rail: React.ReactNode; aside: React.ReactNode; tall?: boolean; markActive?: boolean; active?: boolean }
   | { kind: 'aside-only'; key: string; href: string; icon: React.ReactNode; label: React.ReactNode }
   | { kind: 'section'; key: string; label: string }
   | { kind: 'admin-toggle'; key: string }
@@ -129,12 +123,10 @@ export function SidebarSyncedLayout({
   const [mounted, setMounted] = useState(false)
   const nativeSymbol = getClientNativeTokenSymbol()
   const siteName = getClientSiteName()
-  const isMvmNav = getHomePreset() === 'mvm-landing'
+  const searchParams = useSearchParams()
+  const search = searchParams.toString()
 
   const tNav = useTranslations('navigation')
-  const tEntities = useTranslations('modules.entities')
-  const tOpp = useTranslations('modules.opportunities')
-  const tStore = useTranslations('modules.store')
   const tFav = useTranslations('modules.store.favorites')
 
   const { unreadCount: notificationCount } = useNotificationContext()
@@ -151,13 +143,8 @@ export function SidebarSyncedLayout({
     setMounted(true)
   }, [])
 
-  const isActive = (href: string) => {
-    if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-    if (href === ROUTES.DOCS(locale)) {
-      return pathname === href || pathname === `${href}/`
-    }
-    return pathname === href || pathname.startsWith(`${href}/`)
-  }
+  const isActive = (href: string) =>
+    sidebarPathIsActive(pathname, href.split('?')[0] ?? href, locale)
 
   const rows = useMemo((): SyncedRow[] => {
     const list: SyncedRow[] = [
@@ -263,78 +250,19 @@ export function SidebarSyncedLayout({
       )
     }
 
-    const primaryNav: Array<{
-      key: string
-      href: string
-      label: string
-      icon: React.ReactNode
-      badge?: string
-      trailing?: React.ReactNode
-    }> = isMvmNav
-      ? getMvmPrimaryNavSpecs(locale).map((spec) => {
-          const icons = {
-            store: <Store className={ICON} strokeWidth={1.5} />,
-            entities: <Users className={ICON} strokeWidth={1.5} />,
-            groupBuy: <ShoppingBag className={ICON} strokeWidth={1.5} />,
-            account: <UserRound className={ICON} strokeWidth={1.5} />,
-          } as const
-          return {
-            key: spec.id,
-            href: spec.href,
-            label: resolveNavLabel(tNav, spec.labelKeys),
-            icon: icons[spec.id],
-          }
-        })
-      : [
-          {
-            key: 'entities',
-            href: ROUTES.ENTITIES(locale),
-            label: tEntities('title'),
-            icon: <Users className={ICON} strokeWidth={1.5} />,
-            trailing: (
-              <Crown
-                className="ml-auto size-[22px] shrink-0 text-amber-500"
-                strokeWidth={1.5}
-                aria-label="Membership"
-              />
-            ),
-          },
-          {
-            key: 'opportunities',
-            href: ROUTES.OPPORTUNITIES(locale),
-            label: tOpp('opportunities'),
-            icon: <Briefcase className={ICON} strokeWidth={1.5} />,
-            badge: 'New',
-          },
-          {
-            key: 'store-nav',
-            href: ROUTES.STORE(locale),
-            label: tStore('title'),
-            icon: <Store className={ICON} strokeWidth={1.5} />,
-          },
-          {
-            key: 'docs-nav',
-            href: ROUTES.DOCS(locale),
-            label: tNav('sidebar.documentation'),
-            icon: <FileText className={ICON} strokeWidth={1.5} />,
-          },
-        ]
+    const primaryNav = resolveDesktopPrimaryNav(locale, tNav, pathname, search)
 
     for (const item of primaryNav) {
+      const Icon = getPrimaryNavIcon(item.icon)
       list.push({
         kind: 'pair',
-        key: item.key,
+        key: item.id,
         href: item.href,
-        rail: item.icon,
+        active: item.active,
+        rail: <Icon className={ICON} strokeWidth={1.5} />,
         aside: (
           <div className="flex min-w-0 flex-1 items-center gap-2 text-[16px]">
             <span className="truncate">{item.label}</span>
-            {item.trailing}
-            {item.badge && (
-              <Badge variant="secondary" className="ml-auto h-5 shrink-0 px-1.5 py-0 text-[10px]">
-                {item.badge}
-              </Badge>
-            )}
           </div>
         ),
       })
@@ -421,7 +349,6 @@ export function SidebarSyncedLayout({
     cartCount,
     favorites.length,
     hideConcepts,
-    isMvmNav,
     locale,
     messagesCount,
     nativeSymbol,
@@ -429,11 +356,10 @@ export function SidebarSyncedLayout({
     session?.user,
     showAdminToggle,
     siteName,
-    tEntities,
     tFav,
     tNav,
-    tOpp,
     tStore,
+    search,
   ])
 
   const gridCells: React.ReactNode[] = []
@@ -473,7 +399,7 @@ export function SidebarSyncedLayout({
           href={toAppHref(row.href)}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(
-            'sidebar-nav-item sidebar-aside-col flex min-w-0 items-center gap-1 rounded-lg text-[16px] transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
+            'sidebar-nav-item sidebar-aside-col flex min-w-0 items-center gap-1 rounded-lg text-[16px] transition-colors hover:bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)] data-current:bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)]',
             ROW,
             ASIDE_PAD,
           )}
@@ -486,7 +412,14 @@ export function SidebarSyncedLayout({
     }
 
     const rowClass = row.tall ? BRAND_ROW : ROW
-    const showActive = row.markActive !== false && row.href ? isActive(row.href) : false
+    const showActive =
+      row.markActive === false
+        ? false
+        : row.active != null
+          ? row.active
+          : row.href
+            ? isActive(row.href)
+            : false
     gridCells.push(
       row.href ? (
         <Link
@@ -508,7 +441,7 @@ export function SidebarSyncedLayout({
           href={toAppHref(row.href)}
           data-current={showActive ? '' : undefined}
           className={cn(
-            'sidebar-nav-item sidebar-aside-col min-w-0 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
+            'sidebar-nav-item sidebar-aside-col min-w-0 rounded-lg transition-colors hover:bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)] data-current:bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)]',
             ASIDE_PAD,
             rowClass,
           )}

@@ -22,6 +22,9 @@ export interface EmailMessageRecord extends Record<string, unknown> {
   date: string
   processedAt: string
   contentHash?: string
+  /** crm-ops router outcome (OSINT queue / lead). */
+  routeFlag?: string | null
+  unsubscribeUrl?: string | null
   /** Human channel label for multi-mailbox CRM. */
   sourceChannel?: string
   channelId?: string
@@ -39,7 +42,8 @@ export const EmailMessageService = {
     threadId: string,
     intent?: IntentClassification,
     sentiment?: SentimentAnalysis,
-    channel?: { channelId?: string; channelName?: string; sourceChannel?: string }
+    channel?: { channelId?: string; channelName?: string; sourceChannel?: string },
+    crmOps?: { routeFlag?: string | null; unsubscribeUrl?: string | null }
   ): Promise<{ id: string }> {
     return upsertDoc<EmailMessageRecord>(
       COLLECTION,
@@ -62,6 +66,8 @@ export const EmailMessageService = {
         sourceChannel: channel?.sourceChannel || channel?.channelName,
         channelId: channel?.channelId,
         channelName: channel?.channelName,
+        routeFlag: crmOps?.routeFlag ?? null,
+        unsubscribeUrl: crmOps?.unsubscribeUrl ?? null,
       },
       {
         threadId,

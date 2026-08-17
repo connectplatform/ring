@@ -27,6 +27,15 @@ export interface EmailThreadRecord {
   supportConversationId?: string | null
   /** CRM contact id for this thread */
   contactId?: string | null
+  /** crm-ops: spam_osint_queue | crm_email_lead */
+  routeFlag?: string | null
+  unsubscribeUrl?: string | null
+  /** Human-only: last time an admin logged an unsubscribe request (no HTTP). */
+  lastUnsubscribeRequest?: {
+    at: string
+    by: string
+    url: string
+  } | null
 }
 
 const COLLECTION = 'email_threads'
@@ -35,14 +44,22 @@ export const EmailThreadService = {
   async listThreads(options: {
     status?: EmailThreadStatus
     sourceChannel?: string
+    routeFlag?: string
+    hasUnsubscribeUrl?: boolean
     limit?: number
   } = {}): Promise<Array<EmailThreadRecord & { id: string }>> {
-    const filters: Array<{ field: string; operator: '='; value: string }> = []
+    const filters: Array<{ field: string; operator: '=' | '<>'; value: string | null }> = []
     if (options.status) {
       filters.push({ field: 'status', operator: '=', value: options.status })
     }
     if (options.sourceChannel) {
       filters.push({ field: 'sourceChannel', operator: '=', value: options.sourceChannel })
+    }
+    if (options.routeFlag) {
+      filters.push({ field: 'routeFlag', operator: '=', value: options.routeFlag })
+    }
+    if (options.hasUnsubscribeUrl) {
+      filters.push({ field: 'unsubscribeUrl', operator: '<>', value: null })
     }
 
     const result = await db().queryDocs<EmailThreadRecord>({
@@ -53,6 +70,9 @@ export const EmailThreadService = {
     })
 
     if (!result.success || !result.data) return []
+    if (options.hasUnsubscribeUrl) {
+      return result.data.filter((t) => Boolean(t.unsubscribeUrl))
+    }
     return result.data
   },
 
@@ -68,6 +88,11 @@ export const EmailThreadService = {
       await db().updateDoc(COLLECTION, id, {
         ...current,
         ...record,
+        // Do not wipe crm-ops flags/URLs when a later message has none.
+        routeFlag: record.routeFlag ?? current.routeFlag ?? null,
+        unsubscribeUrl: record.unsubscribeUrl ?? current.unsubscribeUrl ?? null,
+        lastUnsubscribeRequest:
+          record.lastUnsubscribeRequest ?? current.lastUnsubscribeRequest ?? null,
         messageCount: (current.messageCount || 0) + (record.messageCount ?? 0),
         lastMessageAt: record.lastMessageAt || now,
       })
@@ -106,5 +131,22 @@ export const EmailThreadService = {
 
     const result = await db().updateDoc(COLLECTION, id, { ...existing.data, status })
     return result.success
+  },
+
+  async logUnsubscribeRequest(
+    id: string,
+    by: string
+  ): Promise<(EmailThreadRecord & { id: string }) | null> {
+    const existing = await db().readDoc<EmailThreadRecord>(COLLECTION, id)
+    if (!existing.success || !existing.data) return null
+    const url = existing.data.unsubscribeUrl
+    if (!url) return null
+    const lastUnsubscribeRequest = { at: new Date().toISOString(), by, url }
+    const result = await db().updateDoc(COLLECTION, id, {
+      ...existing.data,
+      lastUnsubscribeRequest,
+    })
+    if (!result.success) return null
+    return { ...existing.data, id, lastUnsubscribeRequest }
   },
 }

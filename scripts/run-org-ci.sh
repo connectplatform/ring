@@ -4,8 +4,11 @@
 # Do not vendor or symlink that tree into ring/scripts/ci.
 set -euo pipefail
 RING_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib-ring-paths.sh
+source "$RING_ROOT/scripts/lib-ring-paths.sh"
 KINGDOM="$(cd "$RING_ROOT/.." && pwd)"
-ORG_CI="$KINGDOM/ring-platform-org/scripts/ci"
+ORG_ROOT="$(ring_clone_root "$KINGDOM" ring-platform-org)" || true
+ORG_CI="${ORG_ROOT:+$ORG_ROOT/scripts/ci}"
 SCRIPT_NAME="${1:-}"
 shift || true
 
@@ -15,10 +18,10 @@ if [[ -z "$SCRIPT_NAME" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$ORG_CI" ]]; then
+if [[ -z "${ORG_CI:-}" || ! -d "$ORG_CI" ]]; then
   echo "FATAL: empire CI not found at $ORG_CI" >&2
   echo "  GitHub OSS checkouts of connectplatform/ring do not include forge compose." >&2
-  echo "  Kingdom layout requires sibling ring-platform-org/scripts/ci." >&2
+  echo "  Kingdom layout requires ringdom-clones/ring-platform-org/scripts/ci." >&2
   exit 1
 fi
 

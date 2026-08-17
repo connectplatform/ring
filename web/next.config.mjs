@@ -79,7 +79,7 @@ const nextConfig = {
   },
   async rewrites() {
     // Serve KEYS collection metadata as application/json (avoid [locale]/[username] HTML catch-all).
-    // Docs NODUS agent payloads: /docs/.../nodus.json (and locale-prefixed) → API handler.
+    // Docs agent payloads: /docs/.../nodus.json and /docs/....md (never 301 .md — .mdx strip stays redirects).
     return [
       {
         source: '/nft/gates/collection.json',
@@ -100,6 +100,23 @@ const nextConfig = {
       {
         source: '/:locale/docs/:path*/nodus.json',
         destination: '/api/docs/nodus/:locale/:path*',
+      },
+      // Markdown twin (AWS/Mintlify-style). Root + nested; locale-prefixed.
+      {
+        source: '/docs.md',
+        destination: '/api/docs/markdown/en',
+      },
+      {
+        source: '/docs/:path*.md',
+        destination: '/api/docs/markdown/en/:path*',
+      },
+      {
+        source: '/:locale/docs.md',
+        destination: '/api/docs/markdown/:locale',
+      },
+      {
+        source: '/:locale/docs/:path*.md',
+        destination: '/api/docs/markdown/:locale/:path*',
       },
     ]
   },

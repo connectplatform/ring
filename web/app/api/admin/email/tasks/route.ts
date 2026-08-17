@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { requireEmailAdmin } from '@/features/email-crm/lib/admin-auth'
 import { getEmailTaskService } from '@/features/email-crm/pipeline/crm/task-service'
+import { EmailThreadService } from '@/features/email-crm/services/email-thread-service'
 
 /**
  * Handles GET requests for email tasks.
@@ -17,19 +18,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status })
   }
 
-  // Extract 'status' filter from URL query parameters
   const url = new URL(req.url)
   const status = url.searchParams.get('status')
+  const chip = url.searchParams.get('chip')
+  const taskTypeParam = url.searchParams.get('taskType')
 
-  // Query for tasks, optionally filtered by status, with a max of 100 results
-  const tasks = await getEmailTaskService().searchTasks({
+  const chipTaskType =
+    chip === 'unsubscribe'
+      ? 'unsubscribe_pending'
+      : taskTypeParam || undefined
+
+  let tasks = await getEmailTaskService().searchTasks({
     status: status ? (status as never) : undefined,
-    limit: 100,
+    taskType: (chipTaskType as never) || undefined,
+    limit: chip === 'lead' || chip === 'osint' ? 500 : 100,
   })
 
-  // TODO: Consider using Next.js 16 caching/revalidation features if tasks don't always need to be fresh.
+  // Q1: Lead/OSINT chips follow thread routeFlag, not only crm-ops triggerReason.
+  if (chip === 'lead' || chip === 'osint') {
+    const routeFlag = chip === 'lead' ? 'crm_email_lead' : 'spam_osint_queue'
+    const threads = await EmailThreadService.listThreads({ routeFlag, limit: 500 })
+    const ids = new Set(threads.map((t) => t.id))
+    tasks = tasks.filter((t) => ids.has(t.threadId)).slice(0, 100)
+  }
 
-  return NextResponse.json({ tasks }) // return tasks as JSON response
+  return NextResponse.json({ tasks })
 }
 
 /**

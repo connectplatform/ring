@@ -35,6 +35,8 @@ interface EmailThread {
   createdAt: string;
   sourceChannel?: string | null;
   channelId?: string | null;
+  routeFlag?: string | null;
+  unsubscribeUrl?: string | null;
   contact: {
     type: string;
     company: string | null;
@@ -83,6 +85,7 @@ export default function EmailInboxPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
+  const [routeChip, setRouteChip] = useState<'all' | 'lead' | 'osint' | 'unsubscribe'>('all');
   const [channels, setChannels] = useState<ChannelStatus[]>([]);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,10 +95,12 @@ export default function EmailInboxPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const qs =
-        channelFilter !== 'all'
-          ? `?sourceChannel=${encodeURIComponent(channelFilter)}`
-          : '';
+      const params = new URLSearchParams();
+      if (channelFilter !== 'all') params.set('sourceChannel', channelFilter);
+      if (routeChip === 'lead') params.set('routeFlag', 'crm_email_lead');
+      if (routeChip === 'osint') params.set('routeFlag', 'spam_osint_queue');
+      if (routeChip === 'unsubscribe') params.set('hasUnsubscribeUrl', '1');
+      const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await fetch(`/api/admin/email/threads${qs}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Failed to load threads (${res.status})`);
       const json = await res.json();
@@ -106,7 +111,7 @@ export default function EmailInboxPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [channelFilter]);
+  }, [channelFilter, routeChip]);
 
   const loadChannels = React.useCallback(async () => {
     try {
@@ -209,6 +214,28 @@ export default function EmailInboxPage() {
             <option value="resolved">Resolved</option>
           </select>
 
+          <div className="flex items-center gap-2">
+            {([
+              ['all', 'All'],
+              ['lead', 'Lead'],
+              ['osint', 'OSINT'],
+              ['unsubscribe', 'Unsubscribe pending'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRouteChip(id)}
+                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                  routeChip === id
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <select
             value={channelFilter}
             onChange={(e) => setChannelFilter(e.target.value)}
@@ -286,6 +313,21 @@ export default function EmailInboxPage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[thread.priority]}`}>
                           {thread.priority}
                         </span>
+                        {thread.routeFlag === 'crm_email_lead' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                            Lead
+                          </span>
+                        )}
+                        {thread.routeFlag === 'spam_osint_queue' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                            OSINT
+                          </span>
+                        )}
+                        {thread.unsubscribeUrl && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200">
+                            Unsubscribe
+                          </span>
+                        )}
                       </div>
                       
                       <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">

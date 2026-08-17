@@ -60,9 +60,21 @@ export default function EmailThreadDetailPage() {
             </h1>
             <p className="text-sm text-gray-500">
               {String(thread.fromEmail)} · {String(thread.status)} · {String(thread.priority)}
+              {thread.routeFlag ? ` · ${String(thread.routeFlag)}` : ''}
             </p>
           </div>
         </div>
+
+        <UnsubscribePane
+          threadId={threadId}
+          unsubscribeUrl={typeof thread.unsubscribeUrl === 'string' ? thread.unsubscribeUrl : null}
+          last={
+            thread.lastUnsubscribeRequest && typeof thread.lastUnsubscribeRequest === 'object'
+              ? (thread.lastUnsubscribeRequest as { at?: string; by?: string; url?: string })
+              : null
+          }
+          onLogged={load}
+        />
 
         <section className="mb-6">
           <h2 className="font-semibold mb-2 text-gray-900 dark:text-white">Messages</h2>
@@ -104,4 +116,83 @@ export default function EmailThreadDetailPage() {
     </div>
     </CrmAdminShell>
   );
+}
+
+function UnsubscribePane({
+  threadId,
+  unsubscribeUrl,
+  last,
+  onLogged,
+}: {
+  threadId: string
+  unsubscribeUrl: string | null
+  last: { at?: string; by?: string; url?: string } | null
+  onLogged: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [logError, setLogError] = useState<string | null>(null)
+  if (!unsubscribeUrl) return null
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(unsubscribeUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const logRequest = async () => {
+    setBusy(true)
+    setLogError(null)
+    try {
+      const res = await fetch(`/api/admin/email/threads/${encodeURIComponent(threadId)}/unsubscribe-log`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => null)
+        throw new Error(
+          (json && typeof json.error === 'string' && json.error) || `Log failed (${res.status})`
+        )
+      }
+      onLogged()
+    } catch (err) {
+      setLogError(err instanceof Error ? err.message : 'Log failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
+      <h2 className="mb-2 font-semibold text-gray-900 dark:text-white">Unsubscribe (human-only)</h2>
+      <p className="mb-2 break-all text-sm text-gray-700 dark:text-gray-300">{unsubscribeUrl}</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="rounded-lg bg-white px-3 py-1.5 text-sm border dark:bg-gray-800"
+        >
+          {copied ? 'Copied' : 'Copy URL'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void logRequest()}
+          disabled={busy}
+          className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+        >
+          Log request
+        </button>
+      </div>
+      {last?.at && (
+        <p className="mt-2 text-xs text-gray-500">
+          Last request: {last.at}
+          {last.by ? ` · ${last.by}` : ''}
+        </p>
+      )}
+      {logError && <p className="mt-2 text-xs text-red-600">{logError}</p>}
+    </section>
+  )
 }

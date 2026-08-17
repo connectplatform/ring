@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { signIn, getSession } from 'next-auth/react'
@@ -18,7 +18,11 @@ import {
   requestPhoneLoginCode,
   type AuthPhoneActionState,
 } from '@/app/_actions/auth-phone-actions'
-import { whatsAppRailAvailableClient } from '@/features/auth/lib/phone-login-client'
+import {
+  whatsAppRailAvailableClient,
+  readWhatsappOptOut,
+  writeWhatsappOptOut,
+} from '@/features/auth/lib/phone-login-client'
 
 type Step = 'identifier' | 'otp' | 'link-sent'
 type AuthMode = 'email' | 'phone'
@@ -56,6 +60,9 @@ export function EmailLoginForm({
     null,
   )
   const [whatsappOptOut, setWhatsappOptOut] = useState(false)
+  useEffect(() => {
+    setWhatsappOptOut(readWhatsappOptOut())
+  }, [])
   const showWhatsAppOptOut =
     mode === 'phone' && step === 'identifier' && whatsAppRailAvailableClient()
 
@@ -291,7 +298,11 @@ export function EmailLoginForm({
             type="checkbox"
             className="mt-0.5"
             checked={whatsappOptOut}
-            onChange={(e) => setWhatsappOptOut(e.target.checked)}
+            onChange={(e) => {
+              const next = e.target.checked
+              setWhatsappOptOut(next)
+              writeWhatsappOptOut(next)
+            }}
             disabled={pending}
           />
           <span>{tAuth('signIn.whatsappOptOut')}</span>

@@ -214,6 +214,10 @@
     "category": {
       "title": "{{categoryName}} - Ring Platform News",
       "description": "{{description}}"
+    },
+    "categoriesIndex": {
+      "title": "News Categories - Ring Platform",
+      "description": "Browse Ring Platform news by topic and open a category archive."
     }
   },
   "profile": {

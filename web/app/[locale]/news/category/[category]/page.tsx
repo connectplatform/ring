@@ -5,6 +5,11 @@ import Link from 'next/link'
 import { db } from '@/lib/database'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
 import { NewsArticle, NewsCategory } from '@/features/news/types'
+import {
+  PLATFORM_CATEGORY_INFO,
+  type PlatformCategoryDisplay,
+} from '@/features/news/lib/platform-category-info'
+import { ROUTES } from '@/constants/routes'
 import { NewsList } from '@/features/news/components/news-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,93 +28,7 @@ interface CategoryPageParams {
   category: string
 }
 
-interface CategoryInfo {
-  name: string
-  description: string
-  color: string
-  icon: string
-  articleCount: number
-}
-
-const categoryInfo: Record<NewsCategory, CategoryInfo> = {
-  'platform-updates': {
-    name: 'Platform Updates',
-    description: 'Latest updates, features, and improvements to Ring Platform',
-    color: 'bg-blue-500',
-    icon: '🚀',
-    articleCount: 0
-  },
-  'partnerships': {
-    name: 'Partnerships',
-    description: 'Collaborations, integrations, and partnership announcements',
-    color: 'bg-green-500',
-    icon: '🤝',
-    articleCount: 0
-  },
-  'community': {
-    name: 'Community',
-    description: 'Community highlights, events, and member stories',
-    color: 'bg-purple-500',
-    icon: '👥',
-    articleCount: 0
-  },
-  'industry-news': {
-    name: 'Industry News',
-    description: 'Web3, blockchain, and decentralized technology news',
-    color: 'bg-orange-500',
-    icon: '📰',
-    articleCount: 0
-  },
-  'events': {
-    name: 'Events',
-    description: 'Upcoming events, webinars, and community gatherings',
-    color: 'bg-pink-500',
-    icon: '📅',
-    articleCount: 0
-  },
-  'announcements': {
-    name: 'Announcements',
-    description: 'Important announcements and platform communications',
-    color: 'bg-yellow-500',
-    icon: '📢',
-    articleCount: 0
-  },
-  'press-releases': {
-    name: 'Press Releases',
-    description: 'Official press releases and media communications',
-    color: 'bg-indigo-500',
-    icon: '📄',
-    articleCount: 0
-  },
-  'tutorials': {
-    name: 'Tutorials',
-    description: 'How-to guides, tutorials, and educational content',
-    color: 'bg-teal-500',
-    icon: '📚',
-    articleCount: 0
-  },
-  'other': {
-    name: 'Other',
-    description: 'Miscellaneous articles and content',
-    color: 'bg-gray-500',
-    icon: '📝',
-    articleCount: 0
-  },
-  security: {
-    name: 'Security',
-    description: 'Security updates and advisories',
-    color: 'bg-red-500',
-    icon: '🔒',
-    articleCount: 0
-  },
-  blogs: {
-    name: 'Blogs',
-    description: 'Member blog posts and community writing',
-    color: 'bg-slate-500',
-    icon: '✍️',
-    articleCount: 0
-  }
-}
+const categoryInfo = PLATFORM_CATEGORY_INFO
 
 /**
  * Get articles for a specific category
@@ -117,7 +36,7 @@ const categoryInfo: Record<NewsCategory, CategoryInfo> = {
 async function getCategoryArticles(category: NewsCategory, limit: number = 20): Promise<{
   articles: NewsArticle[]
   totalCount: number
-  categoryInfo: CategoryInfo
+  categoryInfo: PlatformCategoryDisplay
 }> {
   try {
     const result = await db().queryDocs({
@@ -135,7 +54,13 @@ async function getCategoryArticles(category: NewsCategory, limit: number = 20): 
       return {
         articles: [],
         totalCount: 0,
-        categoryInfo: categoryInfo[category],
+        categoryInfo: categoryInfo[category] ?? {
+          name: category,
+          description: '',
+          color: 'bg-gray-500',
+          icon: '📝',
+          articleCount: 0,
+        },
       }
     }
 
@@ -147,7 +72,16 @@ async function getCategoryArticles(category: NewsCategory, limit: number = 20): 
     ])
 
     const totalCount = countResult.success ? (countResult.data ?? 0) : 0
-    const info = { ...categoryInfo[category], articleCount: totalCount }
+    const info = {
+      ...(categoryInfo[category] ?? {
+        name: category,
+        description: '',
+        color: 'bg-gray-500',
+        icon: '📝',
+        articleCount: 0,
+      }),
+      articleCount: totalCount,
+    }
 
     return {
       articles,
@@ -159,7 +93,13 @@ async function getCategoryArticles(category: NewsCategory, limit: number = 20): 
     return {
       articles: [],
       totalCount: 0,
-      categoryInfo: categoryInfo[category]
+      categoryInfo: categoryInfo[category] ?? {
+        name: category,
+        description: '',
+        color: 'bg-gray-500',
+        icon: '📝',
+        articleCount: 0,
+      },
     }
   }
 }
@@ -222,7 +162,7 @@ export default async function CategoryPage({
         <div className="container mx-auto px-0 py-0">
         {/* Back Button */}
         <div className="mb-6">
-          <Link href={`/${validLocale}/news`}>
+          <Link href={ROUTES.NEWS(validLocale)}>
             <Button variant="ghost" className="pl-0">
               <ArrowLeft className="h-4 w-4 mr-2" />
               {t.news?.backToNews || 'Back to News'}
@@ -283,7 +223,7 @@ export default async function CategoryPage({
                 Check back later for updates.
               </p>
               <Button asChild>
-                <Link href={`/${validLocale}/news`}>
+                <Link href={ROUTES.NEWS(validLocale)}>
                   {t.news?.backToNews || 'Back to News'}
                 </Link>
               </Button>
@@ -314,7 +254,7 @@ export default async function CategoryPage({
                       {info.description}
                     </p>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/${validLocale}/news/category/${key}`}>
+                      <Link href={ROUTES.NEWS_CATEGORY(key, validLocale)}>
                         View Articles →
                       </Link>
                     </Button>

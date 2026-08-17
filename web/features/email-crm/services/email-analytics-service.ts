@@ -27,6 +27,20 @@ export const EmailAnalyticsService = {
     const totalCost = usage.reduce((sum, r) => sum + Number(r.costUsd ?? 0), 0)
     const cacheHits = usage.filter((r) => Number(r.cacheReadTokens ?? 0) > 0).length
     const cacheHitRate = usage.length > 0 ? cacheHits / usage.length : 0
+    const byModel: Record<string, number> = {}
+    const byOperation: Record<string, number> = {}
+    const byOperationCount: Record<string, number> = {}
+    let totalInputTokens = 0
+    let totalOutputTokens = 0
+    for (const r of usage) {
+      const model = String(r.model || 'unknown')
+      byModel[model] = (byModel[model] ?? 0) + Number(r.costUsd ?? 0)
+      const op = String(r.operation || 'unknown')
+      byOperation[op] = (byOperation[op] ?? 0) + Number(r.costUsd ?? 0)
+      byOperationCount[op] = (byOperationCount[op] ?? 0) + 1
+      totalInputTokens += Number(r.inputTokens ?? 0)
+      totalOutputTokens += Number(r.outputTokens ?? 0)
+    }
 
     const draftService = getEmailDraftService()
     const draftStats = await draftService.getStatistics()
@@ -63,6 +77,11 @@ export const EmailAnalyticsService = {
         requestCount: usage.length,
         cacheHitRate,
         avgCostPerEmail: recentThreads.length > 0 ? totalCost / recentThreads.length : 0,
+        byModel,
+        byOperation,
+        byOperationCount,
+        totalInputTokens,
+        totalOutputTokens,
       },
       draftStats,
       taskStats,

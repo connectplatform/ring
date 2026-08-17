@@ -135,7 +135,7 @@ Configuration is stored in `~/.ring-platform.org/config.json`. The CLI comes wit
     "storageBucket": "ring-main.appspot.com",
     "messagingSenderId": "919637187324",
     "measurementId": "G-WVDVCRX12R",
-    "vapidKey": "BKQ4OAwA-1wPgnqLXuvbf-RE-QetqqAJX-EENcmViZ97dhygWE6K7GFyNkB_fkQo_suVk06nbkDBnypsFaajSjw"
+    "vapidKey": "your_firebase_web_push_certificate"
   },
   "web3": {
     "polygonRpcUrl": "https://polygon-rpc.com"

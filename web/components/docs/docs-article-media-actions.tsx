@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, useTransition } from 'react'
-import { Headphones, Camera, Loader2, Copy, Bot, Sparkles } from 'lucide-react'
+import { Headphones, Camera, Loader2, Copy, Bot, Sparkles, FileText } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
@@ -19,6 +19,8 @@ type DocsArticleMediaActionsProps = {
   slug: string[]
   title: string
   initialStatus?: DocsArticleMediaStatus | null
+  /** Locale-aware path to `.md` twin (e.g. `/docs/foo.md`). */
+  markdownHref?: string
 }
 
 function GeneratingLabel({ label }: { label: string }) {
@@ -30,11 +32,12 @@ function GeneratingLabel({ label }: { label: string }) {
   )
 }
 
-/** Audible / Visual / Agent — radio-host TTS, walkthrough, NODUS copy. */
+/** Audible / Visual / Markdown / Agent — radio-host TTS, walkthrough, .md twin, NODUS copy. */
 export function DocsArticleMediaActions({
   slug,
   title,
   initialStatus = null,
+  markdownHref,
 }: DocsArticleMediaActionsProps) {
   const t = useTranslations('docs.article')
   const locale = useLocale()
@@ -229,6 +232,28 @@ export function DocsArticleMediaActions({
     }
   }
 
+  const handleMarkdown = () => {
+    const path =
+      markdownHref ||
+      (typeof window !== 'undefined'
+        ? `${window.location.pathname.replace(/\/$/, '')}.md`
+        : '')
+    const url =
+      typeof window !== 'undefined' ? `${window.location.origin}${path}` : path
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(url)
+        toast({ title: t('markdown'), description: t('markdownCopied') })
+      } catch {
+        toast({
+          title: t('markdown'),
+          description: t('markdownCopyFailed'),
+          variant: 'destructive',
+        })
+      }
+    })()
+  }
+
   const handleAgent = () => {
     if (agentState === 'ready') {
       void copyAgentPayload(
@@ -316,6 +341,19 @@ export function DocsArticleMediaActions({
               {t('visual')}
             </>
           )}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={handleMarkdown}
+          aria-label={t('markdown')}
+          title={t('markdownHint')}
+        >
+          <FileText className="h-3.5 w-3.5" aria-hidden />
+          {t('markdown')}
+          <Copy className="h-3 w-3 opacity-70" aria-hidden />
         </Button>
         <Button
           type="button"

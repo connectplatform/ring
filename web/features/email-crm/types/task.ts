@@ -2,7 +2,12 @@
  * Email CRM task types — no runtime deps (breaks Jsonb require cycle).
  */
 
-export type TaskType = 'follow_up' | 'escalation' | 'action_required' | 'review'
+export type TaskType =
+  | 'follow_up'
+  | 'escalation'
+  | 'action_required'
+  | 'review'
+  | 'unsubscribe_pending'
 export type TaskStatus = 'open' | 'in_progress' | 'completed' | 'cancelled' | 'overdue'
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent'
 
@@ -59,6 +64,8 @@ export interface TaskSearchParams {
   assignedTo?: string
   status?: TaskStatus | TaskStatus[]
   taskType?: TaskType
+  /** Substring match on triggerReason (crm-ops chips). */
+  triggerReasonContains?: string
   priority?: TaskPriority | TaskPriority[]
   dueBefore?: Date
   dueAfter?: Date

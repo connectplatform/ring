@@ -27,6 +27,7 @@ export type {
 export {
   buildDocsHref,
   buildDocsLinkPath,
+  buildDocsMarkdownHref,
   normalizeDocsSlug,
   slugFromDocRelativePath,
 }

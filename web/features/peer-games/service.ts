@@ -300,7 +300,7 @@ export async function createInvite(
   // Global banner (MessagesShell + /games layout). In-app notify via interactive kit on sendMessage.
   const tunnelDelivery = await publishToUserTunnel(peerUserId, 'games:incoming', invite)
 
-  // Offline fallback: FCM GAME_REQUEST only — never call ringtone / setPeerCallBusy.
+  // Offline fallback: PUSH GAME_REQUEST (FCM + RFC) — never call ringtone / setPeerCallBusy.
   // Mid-connect may queue games:incoming (!deliveredLive) while TunnelProvider grace (~400ms)
   // is still connecting — wait then recheck presence before push.
   if (!tunnelDelivery.deliveredLive) {
@@ -339,7 +339,7 @@ export async function createInvite(
           actionUrl: `/games/${input.slug}?session=${sessionId}`,
         })
       } catch (err) {
-        console.warn('createInvite: FCM GAME_REQUEST fallback failed', err)
+        console.warn('createInvite: GAME_REQUEST push fallback failed', err)
       }
     }
   }

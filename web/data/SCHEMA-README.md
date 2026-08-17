@@ -1,7 +1,7 @@
 # Ring Platform - PostgreSQL Schema
 
 **Version**: 4.1.0 (flattened SSOT)  
-**Last Updated**: 2026-07-24  
+**Last Updated**: 2026-08-10  
 **Database**: `ring_platform` (clones use `ring_<slug>`)
 
 ---
@@ -11,8 +11,9 @@
 Unified comprehensive PostgreSQL schema for Ring Platform. **Fresh installs apply this file only** — numbered files under `data/migrations/` are incremental history for existing DBs and for re-flattening.
 
 - **Fresh installations** — `./install.sh setup-db` or `./scripts/setup-clone-db.sh`
-- **Rebuild SSOT** — `./scripts/flatten-schema-from-migrations.sh` after adding a migration
+- **Rebuild SSOT** — from `ring/web`: `npm run db:flatten-schema` (scripts resolve **`ring/web/data`**, Final-Split)
 - JSONB document model, reference currencies/countries, PostGIS-ready
+- `048_news_jsonb_fts`: expression FTS GIN on title+excerpt+content + unique `data.wpPostId` for WP-import clones
 
 ---
 

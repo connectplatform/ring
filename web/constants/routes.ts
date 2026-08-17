@@ -262,6 +262,12 @@ export const ROUTES = {
     ),
   /** Public news listing. */
   NEWS: (locale: Locale = defaultLocale) => withLocale(locale, '/news'),
+  /** Public news category hub (`/news/categories`). */
+  NEWS_CATEGORIES: (locale: Locale = defaultLocale) =>
+    withLocale(locale, '/news/categories'),
+  /** Public news category archive (`/news/category/[slug]`). */
+  NEWS_CATEGORY: (category: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/news/category/${encodeURIComponent(category)}`),
   /** Public author blog listing (`/news/author/[username]`). */
   NEWS_AUTHOR: (username: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/news/author/${encodeURIComponent(username)}`),

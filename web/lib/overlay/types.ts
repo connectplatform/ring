@@ -33,6 +33,5 @@ export type OverlayHomeRailRegistry = Record<
   >
 >
 
-/** Allowlisted top-level ring-config domain keys for Tier-3 overlays. */
-export const OVERLAY_FEATURE_IDS = ['n9life', 'connect', 'greenfood', 'ringdom'] as const
-export type OverlayFeatureId = (typeof OVERLAY_FEATURE_IDS)[number]
+/** Overlay feature id is ring-config overlay.featureId (any clone slug). */
+export type OverlayFeatureId = string

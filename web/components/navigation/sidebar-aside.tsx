@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, forwardRef } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
+import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   Wallet,
@@ -9,7 +10,6 @@ import {
   Copy,
   Check,
   Coins,
-  Crown,
   Globe,
   Zap,
   Rocket,
@@ -25,10 +25,10 @@ import {
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
+import { resolveDesktopPrimaryNav, sidebarPathIsActive } from '@/lib/navigation/desktop-primary-nav'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { AdminSupermenuToggle } from './admin-supermenu'
 import { NavLegalFooter } from './nav-legal-footer'
@@ -37,12 +37,11 @@ interface NavigationItem {
   href: string
   label: string
   icon?: React.ReactNode
-  badge?: string | number
-  trailing?: React.ReactNode
   requiresAuth?: boolean
   divider?: string
   /** Mirrored in sidebar rail — aside shows label only (no duplicate icon). */
   railMirrored?: boolean
+  active?: boolean
 }
 
 interface SidebarAsideProps {
@@ -54,14 +53,16 @@ interface SidebarAsideProps {
 
 const ICON = 'size-[22px] shrink-0 text-[var(--color-contrast-medium)]'
 
+const ASIDE_NAV_ITEM =
+  'sidebar-nav-item flex items-center gap-2 rounded-lg transition-colors hover:bg-[color-mix(in_oklch,var(--davinci-beam)_10%,transparent)] data-current:bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)] h-11 min-h-11 px-2'
+
 export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
   function SidebarAside({ className, overlayMode, showIdentityAside }, ref) {
     const pathname = usePathname()
     const locale = useLocale() as Locale
+    const searchParams = useSearchParams()
+    const search = searchParams.toString()
     const { data: session } = useSession()
-    const tEntities = useTranslations('modules.entities')
-    const tOpp = useTranslations('modules.opportunities')
-    const tStore = useTranslations('modules.store')
     const tNav = useTranslations('navigation')
     const [mounted, setMounted] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -90,37 +91,15 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const formatAddress = (address: string) =>
       address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
 
+    const primaryItems = resolveDesktopPrimaryNav(locale, tNav, pathname, search)
+
     const navigationItems: NavigationItem[] = useMemo(() => {
-      const items: NavigationItem[] = [
-        {
-          href: ROUTES.ENTITIES(locale),
-          label: tEntities('title'),
-          trailing: (
-            <Crown
-              className="ml-auto size-[22px] shrink-0 text-amber-500"
-              strokeWidth={1.5}
-              aria-label="Membership"
-            />
-          ),
-          railMirrored: true,
-        },
-        {
-          href: ROUTES.OPPORTUNITIES(locale),
-          label: tOpp('opportunities'),
-          badge: 'New',
-          railMirrored: true,
-        },
-        {
-          href: ROUTES.STORE(locale),
-          label: tStore('title'),
-          railMirrored: true,
-        },
-        {
-          href: ROUTES.DOCS(locale),
-          label: tNav('sidebar.documentation'),
-          railMirrored: true,
-        },
-      ]
+      const items: NavigationItem[] = primaryItems.map((item) => ({
+        href: item.href,
+        label: item.label,
+        railMirrored: true,
+        active: item.active,
+      }))
 
       if (!hideConcepts) {
         items.push(
@@ -168,15 +147,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
       )
 
       return items
-    }, [hideConcepts, locale, nativeSymbol, tEntities, tNav, tOpp, tStore])
-
-    const isActive = (href: string) => {
-      if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-      if (href === ROUTES.DOCS(locale)) {
-        return pathname === href || pathname === `${href}/`
-      }
-      return pathname === href || pathname.startsWith(`${href}/`)
-    }
+    }, [hideConcepts, locale, nativeSymbol, primaryItems, tNav])
 
     const dividerLabels: Record<string, string> = {
       'divider-concepts': tNav('sidebar.concepts', { default: 'Platform Concepts' }),
@@ -203,10 +174,35 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
           <nav className="flex-1 space-y-0 px-0">
             {navigationItems
               .filter((item) => !item.requiresAuth || session?.user)
+              .filter((item) => item.railMirrored)
+              .map((item) => (
+                <Link
+                  key={item.href}
+                  href={toAppHref(item.href)}
+                  data-current={
+                    (item.active != null
+                      ? item.active
+                      : sidebarPathIsActive(pathname, item.href, locale))
+                      ? ''
+                      : undefined
+                  }
+                  className={ASIDE_NAV_ITEM}
+                >
+                  <span className="flex-1 truncate pl-0.5">{item.label}</span>
+                </Link>
+              ))}
+            {mounted && showAdminToggle && (
+              <div className="px-0 py-0.5">
+                <AdminSupermenuToggle />
+              </div>
+            )}
+            {navigationItems
+              .filter((item) => !item.requiresAuth || session?.user)
+              .filter((item) => !item.railMirrored)
               .map((item, index) => {
                 if (item.divider) {
                   return (
-                    <div key={index} className="my-3">
+                    <div key={item.divider} className="my-3">
                       <div
                         data-divider
                         className="h-px w-[calc(100%-32px)] mx-4 bg-border shadow-2xs shadow-white/80"
@@ -218,38 +214,21 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                   )
                 }
 
-                const active = isActive(item.href)
-                const mirrored = Boolean(item.railMirrored)
-                const isDocs = item.href === ROUTES.DOCS(locale)
+                const active = sidebarPathIsActive(pathname, item.href, locale)
                 return (
-                  <React.Fragment key={item.href}>
-                    <Link
-                      href={toAppHref(item.href)}
-                      data-current={active ? '' : undefined}
-                      className={cn(
-                        'sidebar-nav-item flex items-center gap-2 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
-                        'h-11 min-h-11 px-2',
-                      )}
-                    >
-                      {!mirrored && item.icon && (
-                        <span className="flex w-6 shrink-0 items-center justify-center text-[var(--color-contrast-medium)]">
-                          {item.icon}
-                        </span>
-                      )}
-                      <span className={cn('flex-1 truncate', mirrored && 'pl-0.5')}>{item.label}</span>
-                      {item.trailing}
-                      {item.badge && (
-                        <Badge variant="secondary" className="ml-auto h-5 px-1.5 py-0 text-[10px]">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </Link>
-                    {isDocs && mounted && showAdminToggle && (
-                      <div className="px-0 py-0.5">
-                        <AdminSupermenuToggle />
-                      </div>
+                  <Link
+                    key={item.href}
+                    href={toAppHref(item.href)}
+                    data-current={active ? '' : undefined}
+                    className={ASIDE_NAV_ITEM}
+                  >
+                    {item.icon && (
+                      <span className="flex w-6 shrink-0 items-center justify-center text-[var(--color-contrast-medium)]">
+                        {item.icon}
+                      </span>
                     )}
-                  </React.Fragment>
+                    <span className="flex-1 truncate">{item.label}</span>
+                  </Link>
                 )
               })}
           </nav>

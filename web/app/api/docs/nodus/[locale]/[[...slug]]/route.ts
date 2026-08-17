@@ -31,6 +31,7 @@ export async function GET(
         Vary: 'Accept',
         'Access-Control-Allow-Origin': '*',
         ETag: `"${llmText.source_content_hash}"`,
+        'Content-Signal': 'search=yes, ai-input=yes, ai-train=yes',
       },
     })
   } catch (e) {

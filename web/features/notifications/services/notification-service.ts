@@ -32,6 +32,15 @@ import {
 //import { getMessaging } from 'firebase-admin/messaging';
 //import { MulticastMessage } from 'firebase-admin/messaging';
 import { FCMService } from './fcm-service';
+import { determineChannels } from '@/features/notifications/lib/determine-channels';
+import { ttlSecondsForNotificationType, webPushUrgencyForType } from '@/features/notifications/lib/push-ttl';
+import {
+  dualPushDeliveryStatus,
+  EMPTY_PUSH_STACK,
+  settleToPushStack,
+  summarizeDualPush,
+  type PushStackResult,
+} from '@/lib/notifications/push-dual-dispatch';
 
 const fcmService = new FCMService();
 
@@ -655,36 +664,6 @@ function shouldSendNotification(
   return preferences.types[type] !== false; // Default to true if not specified
 }
 
-function determineChannels(
-  requestedChannels: NotificationChannel[] | undefined,
-  preferences: DetailedNotificationPreferences | null
-): NotificationChannel[] {
-  if (!preferences) {
-    return [NotificationChannel.IN_APP]; // Default to in-app only
-  }
-
-  const availableChannels: NotificationChannel[] = [];
-  
-  if (preferences.channels.inApp) {
-    availableChannels.push(NotificationChannel.IN_APP);
-  }
-  if (preferences.channels.email) {
-    availableChannels.push(NotificationChannel.EMAIL);
-  }
-  if (preferences.channels.sms) {
-    availableChannels.push(NotificationChannel.SMS);
-  }
-  if (preferences.channels.push) {
-    availableChannels.push(NotificationChannel.PUSH);
-  }
-
-  // If specific channels requested, filter by user preferences
-  if (requestedChannels) {
-    return requestedChannels.filter(channel => availableChannels.includes(channel));
-  }
-
-  return availableChannels;
-}
 
 async function processNotificationDelivery(notification: Notification): Promise<void> {
   console.log('NotificationService: Processing notification delivery', { id: notification.id });
@@ -714,15 +693,34 @@ async function processNotificationDelivery(notification: Notification): Promise<
               delivery.failureReason = 'SMS delivery not implemented';
               break;
 
-            case NotificationChannel.PUSH:
-              // Dual-stack: FCM Admin + RFC web-push (when VAPID_* configured)
-              await Promise.allSettled([
+            case NotificationChannel.PUSH: {
+              // Per-user fan-out: FCM Admin → fcm_tokens, RFC web-push → push_subscriptions.
+              // Chrome FCM-owned devices have empty RFC rows (no-op). Safari RFC-only has empty FCM.
+              const [fcmSettled, rfcSettled] = await Promise.allSettled([
                 sendFCMNotification(notification),
                 sendWebPushNotification(notification),
               ])
-              delivery.status = NotificationStatus.DELIVERED;
-              delivery.deliveredAt = new Date();
-              break;
+              const fcm = settleToPushStack(fcmSettled)
+              const rfc = settleToPushStack(rfcSettled)
+              const outcome = summarizeDualPush(fcm, rfc)
+              const dualStatus = dualPushDeliveryStatus(outcome)
+              console.log('[push-dual]', {
+                notificationId: notification.id,
+                userId: notification.userId,
+                type: notification.type,
+                fcm,
+                rfc,
+                status: dualStatus,
+              })
+              if (dualStatus === 'failed') {
+                delivery.status = NotificationStatus.FAILED
+                delivery.failureReason = `FCM ${fcm.sent}/${fcm.attempted} RFC ${rfc.sent}/${rfc.attempted}`
+              } else {
+                delivery.status = NotificationStatus.DELIVERED
+                delivery.deliveredAt = new Date()
+              }
+              break
+            }
 
             default:
               delivery.status = NotificationStatus.FAILED;
@@ -769,9 +767,9 @@ async function processNotificationDelivery(notification: Notification): Promise<
   }
 }
 
-async function sendFCMNotification(notification: Notification): Promise<void> {
+async function sendFCMNotification(notification: Notification): Promise<PushStackResult> {
   try {
-    await fcmService.sendToUser(notification.userId, {
+    return await fcmService.sendToUser(notification.userId, {
       title: notification.title,
       body: notification.body,
       icon: '/icons/notification-icon.png',
@@ -788,7 +786,8 @@ async function sendFCMNotification(notification: Notification): Promise<void> {
         ))
       },
       clickAction: notification.actionUrl,
-      tag: `${notification.type}-${notification.id}`
+      tag: `${notification.type}-${notification.id}`,
+      ttlSeconds: ttlSecondsForNotificationType(notification.type),
     });
   } catch (error) {
     console.error('Error sending FCM notification:', error);
@@ -796,11 +795,11 @@ async function sendFCMNotification(notification: Notification): Promise<void> {
   }
 }
 
-async function sendWebPushNotification(notification: Notification): Promise<void> {
+async function sendWebPushNotification(notification: Notification): Promise<PushStackResult> {
   try {
     const { webPushService, isWebPushConfigured } = await import('./webpush-service')
-    if (!isWebPushConfigured()) return
-    await webPushService.sendToUser(notification.userId, {
+    if (!isWebPushConfigured()) return EMPTY_PUSH_STACK
+    return await webPushService.sendToUser(notification.userId, {
       title: notification.title,
       body: notification.body,
       icon: '/icons/notification-icon.png',
@@ -819,8 +818,11 @@ async function sendWebPushNotification(notification: Notification): Promise<void
       },
       clickAction: notification.actionUrl,
       tag: `${notification.type}-${notification.id}`,
+      ttlSeconds: ttlSecondsForNotificationType(notification.type),
+      urgency: webPushUrgencyForType(notification.type),
     })
   } catch (error) {
     console.warn('Error sending web-push notification (non-fatal):', error)
+    return { attempted: 0, sent: 0, failed: 1 }
   }
 } 

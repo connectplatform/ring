@@ -214,6 +214,10 @@
     "category": {
       "title": "{{categoryName}} - Noticias Ring Platform",
       "description": "{{description}}"
+    },
+    "categoriesIndex": {
+      "title": "Categorías de noticias - Ring Platform",
+      "description": "Explore las noticias de Ring Platform por tema y abra el archivo de una categoría."
     }
   },
   "profile": {

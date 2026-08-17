@@ -471,7 +471,7 @@
       "testMode": true
     },
     "firebase": {
-      "enabled": true,
+      "enabled": false,
       "fcmEnabled": true,
       "firestoreEnabled": false
     },
@@ -695,17 +695,6 @@
         "dao",
         "other"
       ]
-    },
-    "agricultural": {
-      "storeCategories": [
-        "organic-produce",
-        "honey-sweets",
-        "essential-oils",
-        "dairy-eggs",
-        "meat-poultry",
-        "herbs-spices",
-        "grains-legumes"
-      ]
     }
   },
   "productBadgesPresets": {
@@ -715,17 +704,6 @@
         "featured",
         "popular",
         "best-seller"
-      ]
-    },
-    "agricultural": {
-      "productBadges": [
-        "organic",
-        "local",
-        "regenerative",
-        "seasonal",
-        "fair-trade",
-        "new",
-        "featured"
       ]
     }
   },

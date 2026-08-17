@@ -1,13 +1,15 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTheme } from 'next-themes'
-import { ROUTES } from '@/constants/routes'
 import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
 import { localeFromPathname } from '@/lib/pathname-without-locale'
+
+/** GIS One Tap `color_scheme` — must match next-themes app chrome, not OS alone. */
+type GisColorScheme = 'light' | 'dark'
 
 // Type declarations for Google Identity Services
 declare global {
@@ -15,13 +17,16 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (config: any) => void
-          prompt: (callback?: (notification: any) => void) => void
-          renderButton: (element: HTMLElement | null, config: any) => void
+          initialize: (config: Record<string, unknown>) => void
+          prompt: (callback?: (notification: {
+            isNotDisplayed: () => boolean
+            isSkippedMoment: () => boolean
+          }) => void) => void
+          renderButton: (element: HTMLElement | null, config: Record<string, unknown>) => void
           cancel: () => void
-          storeCredential: (credential: any) => void
-          getCredential: () => any
-          oneTap: (config?: any) => void
+          storeCredential: (credential: unknown) => void
+          getCredential: () => unknown
+          oneTap: (config?: Record<string, unknown>) => void
           shutdown: () => void
         }
       }
@@ -33,67 +38,71 @@ interface GoogleOneTapProps {
   redirectUrl?: string
 }
 
+function gisColorSchemeFromTheme(resolvedTheme: string | undefined): GisColorScheme | null {
+  if (resolvedTheme !== 'light' && resolvedTheme !== 'dark') return null
+  return resolvedTheme
+}
+
 /**
- * Global Google One Tap — mounted in root `app/layout.tsx` outside `NextIntlClientProvider`.
- * Use `next/navigation` only (not next-intl `useRouter`). Pending URL must use `ROUTES.AUTH_STATUS`
- * so `localePrefix: as-needed` does not get a bogus `/en/` prefix for default locale.
+ * Global Google One Tap — mounted in `AppClientShell` inside `ThemeProvider`.
+ * Use `next/navigation` only (not next-intl `useRouter`).
+ * Pass GIS `color_scheme` from next-themes `resolvedTheme` so the prompt matches
+ * app light/dark (class + enableColorScheme). Leaving GIS on system default while
+ * the page uses a forced or toggled theme produces a mismatched ("crooked") prompt.
  */
 export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { data: session, status } = useSession()
-  const { theme, resolvedTheme } = useTheme()
+  const { resolvedTheme } = useTheme()
   const [gisLoaded, setGisLoaded] = useState(false)
-  const [gisInitialized, setGisInitialized] = useState(false)
+  const promptedRef = useRef(false)
+  const appliedSchemeRef = useRef<GisColorScheme | null>(null)
 
   const locale = localeFromPathname(pathname)
   const oauthCallbackUrl = buildOAuthCallbackUrl(redirectUrl, locale)
+  const colorScheme = gisColorSchemeFromTheme(resolvedTheme)
 
   // Load GIS script globally
   useEffect(() => {
-    // Skip if already loaded
     if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-      console.log('🟢 GIS already loaded globally')
       setGisLoaded(true)
       return
     }
 
-    // Skip if script is already being loaded
-    if (document.querySelector('script[src*="accounts.google.com/gsi/client"]')) {
-      console.log('🟢 GIS script already in DOM')
+    const existing = document.querySelector(
+      'script[src*="accounts.google.com/gsi/client"]',
+    ) as HTMLScriptElement | null
+    if (existing) {
+      if (window.google?.accounts?.id) {
+        setGisLoaded(true)
+      } else {
+        existing.addEventListener('load', () => setGisLoaded(true), { once: true })
+      }
       return
     }
-
-    console.log('🟢 Loading Google Identity Services script globally...')
 
     const hl = localeFromPathname(pathname)
     const script = document.createElement('script')
     script.src = `https://accounts.google.com/gsi/client?hl=${encodeURIComponent(hl)}`
     script.async = true
     script.defer = true
-    script.onload = () => {
-      console.log('🟢 Google Identity Services loaded globally')
-      setGisLoaded(true)
-    }
+    script.onload = () => setGisLoaded(true)
     script.onerror = () => {
-      console.error('🟢 Failed to load Google Identity Services globally')
+      console.error('[GIS] Failed to load Google Identity Services')
     }
 
     document.head.appendChild(script)
-  }, [])
+  }, [pathname])
 
-  // Initialize GIS One Tap when script is loaded
+  // Initialize / re-bind One Tap when script + theme are ready
   useEffect(() => {
-    if (!gisLoaded || gisInitialized) return
+    if (!gisLoaded || !colorScheme) return
 
-    // Wait for session resolution — avoid One Tap while loading or when user is signed in
-    if (status === 'loading') {
-      return
-    }
+    if (status === 'loading') return
 
     const sessionUser = session?.user
     if (status === 'authenticated' || sessionUser?.email || sessionUser?.id) {
-      console.log('🟢 Skipping GIS One Tap - user already authenticated')
       if (window.google?.accounts?.id) {
         try {
           window.google.accounts.id.cancel()
@@ -101,25 +110,34 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
           // ignore
         }
       }
+      promptedRef.current = false
       return
     }
 
-    // Skip on login/auth pages
     if (pathname?.includes('/login') || pathname?.includes('/auth') || pathname?.includes('/admin')) {
-      console.log('🟢 Skipping GIS One Tap - on auth page')
       return
     }
+
+    if (!window.google?.accounts?.id) return
 
     try {
-      console.log('🟢 Initializing Google One Tap...')
+      const schemeChanged =
+        appliedSchemeRef.current != null && appliedSchemeRef.current !== colorScheme
+      if (schemeChanged && promptedRef.current) {
+        try {
+          window.google.accounts.id.cancel()
+        } catch {
+          // ignore
+        }
+        promptedRef.current = false
+      }
 
       window.google.accounts.id.initialize({
         client_id: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID!,
         locale: localeFromPathname(pathname),
-        callback: async (response: any) => {
-          console.log('🟢 One Tap callback received')
+        color_scheme: colorScheme,
+        callback: async (response: { credential?: string }) => {
           try {
-            // Send GIS credential to google-one-tap credentials provider
             const result = await signIn('google-one-tap', {
               credential: response.credential,
               redirect: false,
@@ -127,77 +145,79 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
             })
 
             if (result?.ok) {
-              console.log('🟢 One Tap authentication successful')
               router.push(oauthCallbackUrl)
             } else {
-              console.error('🟢 One Tap authentication failed:', result?.error)
+              console.error('[GIS] One Tap authentication failed:', result?.error)
             }
           } catch (error) {
-            console.error('🟢 One Tap authentication error:', error)
+            console.error('[GIS] One Tap authentication error:', error)
           }
         },
-        auto_select: false, // Don't auto-select accounts
+        auto_select: false,
         cancel_on_tap_outside: true,
         context: 'signin',
-        ux_mode: 'popup', // Use popup mode for better mobile compatibility
-        use_fedcm_for_prompt: true, // Use FedCM when available
+        ux_mode: 'popup',
+        use_fedcm_for_prompt: true,
       })
 
-      setGisInitialized(true)
-      console.log('🟢 Google One Tap initialized successfully')
+      appliedSchemeRef.current = colorScheme
 
-      // Only prompt on desktop/tablet - mobile has issues with One Tap popup
-      const isMobile = typeof window !== 'undefined' &&
+      const isMobile =
+        typeof window !== 'undefined' &&
         (window.innerWidth < 768 ||
-         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+          ))
 
-      if (!isMobile) {
-        // Prompt One Tap for desktop users
-        setTimeout(() => {
-          if (window.google?.accounts?.id) {
-            console.log('🟢 Prompting Google One Tap for desktop user')
-            window.google.accounts.id.prompt((notification: any) => {
+      if (!isMobile && !promptedRef.current) {
+        const timer = window.setTimeout(() => {
+          if (window.google?.accounts?.id && !promptedRef.current) {
+            promptedRef.current = true
+            window.google.accounts.id.prompt((notification) => {
               if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                console.log('🟢 One Tap not displayed or skipped')
+                promptedRef.current = false
               }
             })
           }
-        }, 1000) // Delay to ensure page is fully loaded
-      } else {
-        console.log('🟢 Skipping One Tap prompt on mobile device')
+        }, 1000)
+        return () => window.clearTimeout(timer)
       }
-
     } catch (error) {
-      console.error('🟢 Failed to initialize Google One Tap:', error)
+      console.error('[GIS] Failed to initialize Google One Tap:', error)
     }
-  }, [gisLoaded, gisInitialized, status, session, pathname, router, oauthCallbackUrl, redirectUrl])
+  }, [
+    gisLoaded,
+    colorScheme,
+    status,
+    session,
+    pathname,
+    router,
+    oauthCallbackUrl,
+  ])
 
-  // Handle authentication state changes
+  // Cancel when user becomes authenticated
   useEffect(() => {
     if (status === 'authenticated' && window.google?.accounts?.id) {
-      // Cancel any pending One Tap prompts when user becomes authenticated
       try {
         window.google.accounts.id.cancel()
-        console.log('🟢 Cancelled One Tap prompt - user authenticated')
+        promptedRef.current = false
       } catch (error) {
-        console.error('🟢 Error cancelling One Tap:', error)
+        console.error('[GIS] Error cancelling One Tap:', error)
       }
     }
   }, [status])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (window.google?.accounts?.id) {
         try {
           window.google.accounts.id.cancel()
-        } catch (error) {
-          // Ignore cleanup errors
+        } catch {
+          // ignore
         }
       }
     }
   }, [])
 
-  // This component doesn't render anything visible - it manages the global GIS state
   return null
 }

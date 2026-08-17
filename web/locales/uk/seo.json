@@ -214,6 +214,10 @@
     "category": {
       "title": "{{categoryName}} - Новини Ring Platform",
       "description": "{{description}}"
+    },
+    "categoriesIndex": {
+      "title": "Категорії новин - Ring Platform",
+      "description": "Переглядайте новини Ring Platform за темами та відкривайте архів категорії."
     }
   },
   "profile": {

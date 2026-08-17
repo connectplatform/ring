@@ -387,17 +387,6 @@
         "dao",
         "other"
       ]
-    },
-    "agricultural": {
-      "storeCategories": [
-        "organic-produce",
-        "honey-sweets",
-        "essential-oils",
-        "dairy-eggs",
-        "meat-poultry",
-        "herbs-spices",
-        "grains-legumes"
-      ]
     }
   },
   "productBadgesPresets": {
@@ -407,17 +396,6 @@
         "featured",
         "popular",
         "best-seller"
-      ]
-    },
-    "agricultural": {
-      "productBadges": [
-        "organic",
-        "local",
-        "regenerative",
-        "seasonal",
-        "fair-trade",
-        "new",
-        "featured"
       ]
     }
   },
@@ -435,17 +413,6 @@
           "nft",
           "dao",
           "other"
-        ]
-      },
-      "agricultural": {
-        "storeCategories": [
-          "organic-produce",
-          "honey-sweets",
-          "essential-oils",
-          "dairy-eggs",
-          "meat-poultry",
-          "herbs-spices",
-          "grains-legumes"
         ]
       }
     },
@@ -535,7 +502,7 @@
     "demoUserEmail": "vendor@ring-platform.org",
     "firebase": {
       "enabled": false,
-      "fcmEnabled": false,
+      "fcmEnabled": true,
       "firestoreEnabled": false
     },
     "openai": {

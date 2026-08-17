@@ -131,31 +131,48 @@ export const TASK_CLASS_ROUTES: Record<TaskClass, TaskClassRoute> = {
   },
   email_intent: {
     taskClass: 'email_intent',
-    requiredMethod: 'messages',
-    preferred: [{ provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' }],
+    requiredMethod: 'chat',
+    acceptedMethods: ['chat', 'messages'],
+    preferred: [
+      { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
+      { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
+    ],
   },
   email_sentiment: {
     taskClass: 'email_sentiment',
-    requiredMethod: 'messages',
-    preferred: [{ provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' }],
+    requiredMethod: 'chat',
+    acceptedMethods: ['chat', 'messages'],
+    preferred: [
+      { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
+      { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
+    ],
   },
   email_injection_classify: {
     taskClass: 'email_injection_classify',
-    requiredMethod: 'messages',
-    preferred: [{ provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' }],
+    requiredMethod: 'chat',
+    acceptedMethods: ['chat', 'messages'],
+    preferred: [
+      { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
+      { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
+    ],
   },
   email_batch_analytics: {
     taskClass: 'email_batch_analytics',
-    requiredMethod: 'messages',
-    preferred: [{ provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' }],
+    requiredMethod: 'chat',
+    acceptedMethods: ['chat', 'messages'],
+    preferred: [
+      { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
+      { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
+    ],
   },
   email_reply: {
     taskClass: 'email_reply',
-    requiredMethod: 'messages',
+    requiredMethod: 'chat',
+    acceptedMethods: ['chat', 'messages'],
     preferred: [
-      { provider: 'anthropic', modelId: 'claude-sonnet-4-20250514' },
+      { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
       { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
-      { provider: 'anthropic', modelId: 'claude-opus-4-20250514' },
+      { provider: 'anthropic', modelId: 'claude-sonnet-4-20250514' },
     ],
   },
 

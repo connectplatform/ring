@@ -11,6 +11,11 @@ import {
   listActivePushSubscriptionsForUser,
   type PushSubscriptionRecord,
 } from '@/lib/notifications/push-subscription-db'
+import { getFcmVapidKey } from '@/lib/firebase-public-env'
+import {
+  DEFAULT_WEBPUSH_TTL_SECONDS,
+  webPushUrgencyForType,
+} from '@/features/notifications/lib/push-ttl'
 
 export type WebPushPayload = {
   title: string
@@ -20,6 +25,8 @@ export type WebPushPayload = {
   tag?: string
   data?: Record<string, string>
   clickAction?: string
+  ttlSeconds?: number
+  urgency?: 'very-low' | 'low' | 'normal' | 'high'
 }
 
 function getVapidConfig(): {
@@ -32,7 +39,7 @@ function getVapidConfig(): {
   const subject = process.env.VAPID_SUBJECT?.trim()
   if (!publicKey || !privateKey || !subject) return null
   // Guard: never accidentally feed Firebase Console public into send path alone
-  const firebaseVapid = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
+  const firebaseVapid = getFcmVapidKey()
   if (firebaseVapid && publicKey === firebaseVapid) {
     console.warn(
       '[webpush] VAPID_PUBLIC_KEY equals NEXT_PUBLIC_FIREBASE_VAPID_KEY — use a dedicated RFC keypair (private required). Continuing only if private is set.',
@@ -86,10 +93,13 @@ export class WebPushService {
     let sent = 0
     let failed = 0
 
+    const ttl = payload.ttlSeconds ?? DEFAULT_WEBPUSH_TTL_SECONDS
+    const urgency = payload.urgency ?? webPushUrgencyForType(payload.data?.type)
+
     await Promise.all(
       subs.map(async (sub) => {
         try {
-          await this.sendOne(sub, body)
+          await this.sendOne(sub, body, ttl, urgency)
           sent += 1
         } catch {
           failed += 1
@@ -100,7 +110,12 @@ export class WebPushService {
     return { attempted: subs.length, sent, failed }
   }
 
-  private async sendOne(sub: PushSubscriptionRecord, body: string): Promise<void> {
+  private async sendOne(
+    sub: PushSubscriptionRecord,
+    body: string,
+    ttl: number,
+    urgency: 'very-low' | 'low' | 'normal' | 'high',
+  ): Promise<void> {
     try {
       await webpush.sendNotification(
         {
@@ -109,7 +124,10 @@ export class WebPushService {
           expirationTime: sub.expirationTime ?? undefined,
         },
         body,
-        { TTL: 60 * 60 * 12, urgency: 'high' },
+        {
+          TTL: ttl,
+          urgency,
+        },
       )
     } catch (err: unknown) {
       const statusCode =

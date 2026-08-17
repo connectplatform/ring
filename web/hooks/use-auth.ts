@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { AuthUser } from '@/features/auth/types'
 import { UserRolesArray } from '@/features/auth/user-role'
 import { hasConfidentialAccess, hasRoleAtLeast, resolveSessionUserRole } from '@/features/auth/user-role'
-import { unregisterCurrentDeviceFcmToken } from '@/lib/notifications/fcm-client-cleanup'
+import { unregisterCurrentDevicePush } from '@/lib/notifications/fcm-client-cleanup'
 import { clearSessionCache } from '@/hooks/use-session-cache'
 import type { Locale } from '@/i18n/shared'
 
@@ -189,7 +189,7 @@ export function useAuth(): UseAuthReturn {
   }
 
   const signOut = useCallback(async (options?: SignOutParams) => {
-    await unregisterCurrentDeviceFcmToken()
+    await unregisterCurrentDevicePush()
     clearSessionCache()
     return nextAuthSignOut(options)
   }, [])

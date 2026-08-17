@@ -1,16 +1,11 @@
 /**
- * Email Intent Classifier
- * =======================
- * Classifies incoming emails by intent using Claude Haiku
- * Reference: Email Automation Specialist skillset
+ * Email Intent Classifier — OpenRouter DeepSeek primary, Haiku fallback
  */
 
-import { resolveModel } from '@/lib/ai/model-router'
-import Anthropic from '@anthropic-ai/sdk';
-import { logger } from '@/lib/logger';
+import { completeEmailJson } from './email-llm'
+import { logger } from '@/lib/logger'
 
-// Intent categories for Ring Platform emails
-export type EmailIntent = 
+export type EmailIntent =
   | 'pricing_inquiry'
   | 'technical_support'
   | 'feature_request'
@@ -26,24 +21,26 @@ export type EmailIntent =
   | 'enterprise_inquiry'
   | 'complaint'
   | 'spam'
-  | 'unknown';
+  | 'newsletter_subscription'
+  | 'vendor_offer_ring_relevant'
+  | 'vendor_offer_irrelevant'
+  | 'unknown'
 
 export interface IntentClassification {
-  intent: EmailIntent;
-  confidence: number; // 0-1
-  secondaryIntent: EmailIntent | null;
-  secondaryConfidence: number | null;
-  suggestedActions: string[];
-  requiresHumanReview: boolean;
-  reasoning: string;
-  tokens: {
-    input: number;
-    output: number;
-  };
+  intent: EmailIntent
+  confidence: number
+  secondaryIntent: EmailIntent | null
+  secondaryConfidence: number | null
+  suggestedActions: string[]
+  requiresHumanReview: boolean
+  reasoning: string
+  tokens: { input: number; output: number }
+  model?: string
+  provider?: string
+  providerLlmCallId?: string | null
 }
 
-// Classification prompt
-const CLASSIFICATION_PROMPT = `You are an email classifier for Ring Platform (ringdom.org), an open-source React/Next.js Web3 platform.
+const CLASSIFICATION_PROMPT = `You are an email classifier for Ring Platform (ringdom.org / ring-platform.org), an open-source B2B/Web3 collaboration platform (Next.js, multi-tenant rings, opportunities, store, wiki, news).
 
 Classify the email intent into ONE of these categories:
 
@@ -51,7 +48,7 @@ Classify the email intent into ONE of these categories:
 - technical_support: Help with implementation, errors, debugging
 - feature_request: Suggestions for new features
 - bug_report: Reports of bugs, broken functionality
-- partnership: Business partnership proposals
+- partnership: Business partnership / collaboration proposals tied to Ring
 - documentation_help: Questions about documentation
 - getting_started: New users needing onboarding help
 - account_issue: Login, password, account access problems
@@ -61,7 +58,10 @@ Classify the email intent into ONE of these categories:
 - demo_request: Requests for product demos
 - enterprise_inquiry: Enterprise/large-scale deployment questions
 - complaint: Unhappy customer, formal complaint
-- spam: Unsolicited marketing, scams, irrelevant
+- newsletter_subscription: Mailing-list / newsletter / marketing blast with unsubscribe
+- vendor_offer_ring_relevant: Cold sales/offer that Ringdom could host or serve (marketplace listing, opportunity post, vendor onboarding, white-label ring, event on platform)
+- vendor_offer_irrelevant: Cold sales/offer unrelated to Ringdom (SEO, generic SaaS spam, unrelated products)
+- spam: Scams, phishing, pure junk (not a structured vendor pitch)
 - unknown: Cannot determine intent
 
 Respond in JSON only:
@@ -73,89 +73,73 @@ Respond in JSON only:
   "suggestedActions": ["action1", "action2"],
   "requiresHumanReview": boolean,
   "reasoning": "brief explanation"
-}`;
+}`
+
+const VALID_INTENTS: EmailIntent[] = [
+  'pricing_inquiry',
+  'technical_support',
+  'feature_request',
+  'bug_report',
+  'partnership',
+  'documentation_help',
+  'getting_started',
+  'account_issue',
+  'billing_question',
+  'general_inquiry',
+  'feedback',
+  'demo_request',
+  'enterprise_inquiry',
+  'complaint',
+  'spam',
+  'newsletter_subscription',
+  'vendor_offer_ring_relevant',
+  'vendor_offer_irrelevant',
+  'unknown',
+]
 
 export class IntentClassifier {
-  private anthropic: Anthropic;
-  private model = (() => { try { return resolveModel('email_intent').modelId } catch { return 'claude-haiku-4-5-20250514' } })();
-  
-  // Classification thresholds
   private thresholds = {
-    autoRespond: 0.85, // Auto-respond if confidence >= this
-    humanReview: 0.6,  // Flag for human review if confidence < this
-    spamThreshold: 0.75, // Auto-mark as spam if spam confidence >= this
-  };
-  
-  constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    autoRespond: 0.85,
+    humanReview: 0.6,
+    spamThreshold: 0.75,
   }
-  
-  /**
-   * Classify email intent
-   */
+
   async classify(emailContent: {
-    subject: string;
-    body: string;
-    from: string;
-    fromName?: string;
+    subject: string
+    body: string
+    from: string
+    fromName?: string
   }): Promise<IntentClassification> {
-    const emailText = this.formatEmailForClassification(emailContent);
-    
+    const emailText = this.formatEmailForClassification(emailContent)
+
     try {
-      const response = await this.anthropic.messages.create({
-        model: this.model,
-        max_tokens: 300,
+      const llm = await completeEmailJson({
+        taskClass: 'email_intent',
         system: CLASSIFICATION_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: emailText,
-          },
-          // JSON prefill for structured output
-          {
-            role: 'assistant',
-            content: '{',
-          },
-        ],
-      });
-      
-      // Extract and parse response
-      const textContent = response.content[0];
-      if (textContent.type !== 'text') {
-        throw new Error('Unexpected response type');
-      }
-      
-      // Prepend the opening brace we used for prefill
-      const jsonText = '{' + textContent.text;
-      const classification = this.parseClassification(jsonText);
-      
-      // Add token usage
-      classification.tokens = {
-        input: response.usage.input_tokens,
-        output: response.usage.output_tokens,
-      };
-      
-      // Apply review thresholds
+        user: emailText,
+        maxTokens: 350,
+      })
+      const classification = this.parseClassification(llm.text)
+      classification.tokens = llm.tokens
+      classification.model = llm.model
+      classification.provider = llm.provider
+      classification.providerLlmCallId = llm.providerLlmCallId
+
       if (classification.confidence < this.thresholds.humanReview) {
-        classification.requiresHumanReview = true;
+        classification.requiresHumanReview = true
       }
-      
+
       logger.info('[IntentClassifier] Classification complete', {
         intent: classification.intent,
         confidence: classification.confidence,
-        requiresHumanReview: classification.requiresHumanReview,
-        tokens: classification.tokens,
-      });
-      
-      return classification;
+        model: llm.model,
+        provider: llm.provider,
+      })
+      return classification
     } catch (error) {
       logger.error('[IntentClassifier] Classification failed', {
         error: (error as Error).message,
-      });
-      
-      // Return unknown on failure
+      })
       return {
         intent: 'unknown',
         confidence: 0,
@@ -165,55 +149,39 @@ export class IntentClassifier {
         requiresHumanReview: true,
         reasoning: 'Classification failed: ' + (error as Error).message,
         tokens: { input: 0, output: 0 },
-      };
+      }
     }
   }
-  
-  /**
-   * Format email for classification prompt
-   */
+
   private formatEmailForClassification(email: {
-    subject: string;
-    body: string;
-    from: string;
-    fromName?: string;
+    subject: string
+    body: string
+    from: string
+    fromName?: string
   }): string {
-    let formatted = `From: ${email.fromName ? `${email.fromName} <${email.from}>` : email.from}\n`;
-    formatted += `Subject: ${email.subject}\n\n`;
-    formatted += `Body:\n${email.body.slice(0, 2000)}`; // Limit body length
-    
-    return formatted;
+    let formatted = `From: ${email.fromName ? `${email.fromName} <${email.from}>` : email.from}\n`
+    formatted += `Subject: ${email.subject}\n\n`
+    formatted += `Body:\n${email.body.slice(0, 2000)}`
+    return formatted
   }
-  
-  /**
-   * Parse classifier response
-   */
+
   private parseClassification(jsonText: string): IntentClassification {
     try {
-      // Clean up JSON (handle markdown code blocks)
-      const cleanJson = jsonText
-        .replace(/```json\s*/gi, '')
-        .replace(/```\s*/gi, '')
-        .trim();
-      
-      const parsed = JSON.parse(cleanJson);
-      
+      const cleanJson = jsonText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
+      const parsed = JSON.parse(cleanJson)
       return {
         intent: this.validateIntent(parsed.intent),
         confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
         secondaryIntent: parsed.secondaryIntent ? this.validateIntent(parsed.secondaryIntent) : null,
-        secondaryConfidence: parsed.secondaryConfidence ? Math.max(0, Math.min(1, Number(parsed.secondaryConfidence))) : null,
+        secondaryConfidence: parsed.secondaryConfidence
+          ? Math.max(0, Math.min(1, Number(parsed.secondaryConfidence)))
+          : null,
         suggestedActions: Array.isArray(parsed.suggestedActions) ? parsed.suggestedActions : [],
         requiresHumanReview: Boolean(parsed.requiresHumanReview),
         reasoning: String(parsed.reasoning || 'No reasoning provided'),
-        tokens: { input: 0, output: 0 }, // Set later
-      };
-    } catch (error) {
-      logger.warn('[IntentClassifier] Failed to parse response', {
-        jsonText: jsonText.slice(0, 200),
-        error: (error as Error).message,
-      });
-      
+        tokens: { input: 0, output: 0 },
+      }
+    } catch {
       return {
         intent: 'unknown',
         confidence: 0,
@@ -223,43 +191,32 @@ export class IntentClassifier {
         requiresHumanReview: true,
         reasoning: 'Failed to parse classifier response',
         tokens: { input: 0, output: 0 },
-      };
+      }
     }
   }
-  
-  /**
-   * Validate intent against known types
-   */
+
   private validateIntent(intent: unknown): EmailIntent {
-    const validIntents: EmailIntent[] = [
-      'pricing_inquiry', 'technical_support', 'feature_request', 'bug_report',
-      'partnership', 'documentation_help', 'getting_started', 'account_issue',
-      'billing_question', 'general_inquiry', 'feedback', 'demo_request',
-      'enterprise_inquiry', 'complaint', 'spam', 'unknown',
-    ];
-    
-    if (typeof intent === 'string' && validIntents.includes(intent as EmailIntent)) {
-      return intent as EmailIntent;
+    if (typeof intent === 'string' && VALID_INTENTS.includes(intent as EmailIntent)) {
+      return intent as EmailIntent
     }
-    
-    return 'unknown';
+    return 'unknown'
   }
-  
-  /**
-   * Get suggested response type based on intent
-   */
+
   getSuggestedResponseType(intent: EmailIntent): {
-    autoRespondable: boolean;
-    templateCategory: string;
-    priority: 'low' | 'normal' | 'high' | 'urgent';
-    escalate: boolean;
+    autoRespondable: boolean
+    templateCategory: string
+    priority: 'low' | 'normal' | 'high' | 'urgent'
+    escalate: boolean
   } {
-    const config: Record<EmailIntent, {
-      autoRespondable: boolean;
-      templateCategory: string;
-      priority: 'low' | 'normal' | 'high' | 'urgent';
-      escalate: boolean;
-    }> = {
+    const config: Record<
+      EmailIntent,
+      {
+        autoRespondable: boolean
+        templateCategory: string
+        priority: 'low' | 'normal' | 'high' | 'urgent'
+        escalate: boolean
+      }
+    > = {
       pricing_inquiry: { autoRespondable: true, templateCategory: 'pricing', priority: 'high', escalate: false },
       technical_support: { autoRespondable: false, templateCategory: 'support', priority: 'normal', escalate: false },
       feature_request: { autoRespondable: true, templateCategory: 'product', priority: 'low', escalate: false },
@@ -275,35 +232,38 @@ export class IntentClassifier {
       enterprise_inquiry: { autoRespondable: false, templateCategory: 'enterprise', priority: 'urgent', escalate: true },
       complaint: { autoRespondable: false, templateCategory: 'support', priority: 'urgent', escalate: true },
       spam: { autoRespondable: false, templateCategory: 'spam', priority: 'low', escalate: false },
+      newsletter_subscription: { autoRespondable: false, templateCategory: 'spam', priority: 'low', escalate: false },
+      vendor_offer_ring_relevant: {
+        autoRespondable: false,
+        templateCategory: 'business',
+        priority: 'normal',
+        escalate: false,
+      },
+      vendor_offer_irrelevant: { autoRespondable: false, templateCategory: 'spam', priority: 'low', escalate: false },
       unknown: { autoRespondable: false, templateCategory: 'general', priority: 'normal', escalate: false },
-    };
-    
-    return config[intent];
+    }
+    return config[intent]
   }
-  
-  /**
-   * Check if intent should be auto-responded
-   */
+
   canAutoRespond(classification: IntentClassification): boolean {
-    const config = this.getSuggestedResponseType(classification.intent);
-    
+    const config = this.getSuggestedResponseType(classification.intent)
     return (
       config.autoRespondable &&
       classification.confidence >= this.thresholds.autoRespond &&
       !classification.requiresHumanReview &&
-      classification.intent !== 'spam'
-    );
+      classification.intent !== 'spam' &&
+      classification.intent !== 'newsletter_subscription' &&
+      classification.intent !== 'vendor_offer_irrelevant' &&
+      classification.intent !== 'vendor_offer_ring_relevant'
+    )
   }
 }
 
-// Singleton
-let classifierInstance: IntentClassifier | null = null;
+let classifierInstance: IntentClassifier | null = null
 
 export function getIntentClassifier(): IntentClassifier {
-  if (!classifierInstance) {
-    classifierInstance = new IntentClassifier();
-  }
-  return classifierInstance;
+  if (!classifierInstance) classifierInstance = new IntentClassifier()
+  return classifierInstance
 }
 
-export default IntentClassifier;
+export default IntentClassifier

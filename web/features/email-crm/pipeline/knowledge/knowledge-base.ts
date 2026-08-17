@@ -6,7 +6,6 @@
  * Reference: Email Automation Specialist skillset
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '@/lib/logger';
 
 export interface KnowledgeDocument {
@@ -39,7 +38,7 @@ export interface KnowledgeCreateInput {
 }
 
 // Embedding model configuration
-const EMBEDDING_MODEL = 'voyage-3'; // Or use Anthropic's embedding via proxy
+const EMBEDDING_MODEL = 'voyage-3';
 const EMBEDDING_DIMENSION = 1024;
 
 // Pre-defined Ring Platform knowledge base content
@@ -248,15 +247,10 @@ export interface KnowledgeRepository {
 }
 
 export class KnowledgeBaseService {
-  private anthropic: Anthropic;
   private cache: Map<string, { embedding: number[]; timestamp: number }> = new Map();
   private cacheTtl = 1000 * 60 * 60; // 1 hour
   
-  constructor(private repository: KnowledgeRepository) {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
+  constructor(private repository: KnowledgeRepository) {}
   
   /**
    * Search knowledge base for relevant content
@@ -343,7 +337,7 @@ export class KnowledgeBaseService {
     }
     
     // For now, use a simple hash-based pseudo-embedding
-    // In production, use Voyage AI, OpenAI, or Anthropic embeddings
+    // In production, use Voyage AI or OpenAI embeddings
     const embedding = this.pseudoEmbedding(text);
     
     // Cache result

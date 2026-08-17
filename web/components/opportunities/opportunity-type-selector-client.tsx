@@ -346,8 +346,8 @@ export function OpportunityTypeSelectorClient({
     <div
       className={cn(
         'grid min-h-0 flex-1 content-stretch',
-        // Always 2×2 so four types fill available space on all layouts
-        'grid-cols-2 grid-rows-2',
+        'grid-cols-2',
+        OPPORTUNITY_SELECTOR_TYPE_ORDER.length === 4 ? 'grid-rows-2' : '',
         density === 'compact' ? 'gap-2.5' : 'gap-4',
       )}
     >

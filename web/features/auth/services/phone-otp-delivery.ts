@@ -1,6 +1,6 @@
 /**
  * Shared phone OTP delivery surface — profile verify + passwordless login.
- * Rail order: Telegram Gateway → WhatsApp (env-gated) → clear error (SMS stub).
+ * Rail order: Telegram Gateway → WhatsApp (env-gated, on TG fallback or when TG unset) → clear error (SMS stub).
  */
 import 'server-only'
 
@@ -10,8 +10,19 @@ import {
   sendPhoneOtpViaGateway,
   type GatewayRequestStatus,
 } from '@/features/auth/services/telegram-gateway-otp'
+import {
+  isWhatsAppCloudConfigured,
+  sendPhoneOtpViaWhatsApp,
+} from '@/features/auth/services/whatsapp-cloud-otp'
+import {
+  getOpenPhoneChallengeByRequestId,
+  bumpPhoneChallengeAttempt,
+  expirePhoneChallengeIfMaxAttempts,
+  MAX_VERIFY_ATTEMPTS,
+  type PhoneOtpChannel,
+} from '@/features/auth/services/phone-login-tokens'
+import { hmacOTP, verifyOTPTiming } from '@/lib/auth/email-tokens'
 import { normalizeToE164 } from '@/lib/phone/e164'
-import type { PhoneOtpChannel } from '@/features/auth/services/phone-login-tokens'
 
 export type PhoneDeliveryRail = PhoneOtpChannel
 
@@ -21,6 +32,8 @@ export type SendPhoneOtpResult =
       phone: string
       requestId: string
       channel: PhoneDeliveryRail
+      /** Present for WhatsApp self-issued OTP — hash immediately; never log */
+      rawCode?: string
     }
   | {
       ok: false
@@ -30,15 +43,16 @@ export type SendPhoneOtpResult =
     }
 
 export type VerifyPhoneOtpResult =
-  | { ok: true; phone: string; requestId: string; status: GatewayRequestStatus }
+  | {
+      ok: true
+      phone: string
+      requestId: string
+      status?: GatewayRequestStatus | { status: string }
+    }
   | { ok: false; error: string; status?: string }
 
 function isWhatsAppRailConfigured(): boolean {
-  return Boolean(
-    process.env.WHATSAPP_CLOUD_TOKEN?.trim() &&
-      process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim() &&
-      process.env.WHATSAPP_AUTH_TEMPLATE_NAME?.trim(),
-  )
+  return isWhatsAppCloudConfigured()
 }
 
 export function whatsAppRailAvailable(): boolean {
@@ -46,8 +60,7 @@ export function whatsAppRailAvailable(): boolean {
 }
 
 /**
- * Select delivery rail.
- * WhatsApp opt-out skips WA even when configured.
+ * Preferred rail only (exclusive). Runtime TG→WA fallback lives in sendPhoneOtp.
  */
 export function selectPhoneDeliveryRail(opts?: {
   whatsappOptOut?: boolean
@@ -57,8 +70,29 @@ export function selectPhoneDeliveryRail(opts?: {
   return null
 }
 
+async function sendViaWhatsApp(
+  phone: string,
+): Promise<SendPhoneOtpResult> {
+  const sent = await sendPhoneOtpViaWhatsApp(phone)
+  if (sent.ok === false) {
+    return {
+      ok: false,
+      error: sent.error,
+      fallbackNeeded: sent.fallbackNeeded,
+      channelAttempted: 'whatsapp',
+    }
+  }
+  return {
+    ok: true,
+    phone,
+    requestId: sent.requestId,
+    channel: 'whatsapp',
+    rawCode: sent.rawCode,
+  }
+}
+
 /**
- * Send OTP via selected rail. P1: Gateway only; WhatsApp returns gated error.
+ * Send OTP via preferred rail; on Telegram fallbackNeeded try WhatsApp once.
  */
 export async function sendPhoneOtp(params: {
   phone: string
@@ -69,7 +103,8 @@ export async function sendPhoneOtp(params: {
     return { ok: false, error: 'Invalid phone number (use E.164 / UA mobile)' }
   }
 
-  const rail = selectPhoneDeliveryRail({ whatsappOptOut: params.whatsappOptOut })
+  const optOut = Boolean(params.whatsappOptOut)
+  const rail = selectPhoneDeliveryRail({ whatsappOptOut: optOut })
   if (!rail) {
     return {
       ok: false,
@@ -82,10 +117,19 @@ export async function sendPhoneOtp(params: {
   if (rail === 'telegram_gateway') {
     const sent = await sendPhoneOtpViaGateway(phone)
     if (sent.ok === false) {
+      if (
+        sent.fallbackNeeded &&
+        !optOut &&
+        isWhatsAppRailConfigured()
+      ) {
+        return sendViaWhatsApp(phone)
+      }
       return {
         ok: false,
         error: sent.fallbackNeeded
-          ? 'This number cannot receive Telegram OTP. SMS fallback is not enabled yet.'
+          ? optOut
+            ? 'This number cannot receive Telegram OTP. WhatsApp was opted out; SMS is not enabled yet.'
+            : 'This number cannot receive Telegram OTP. WhatsApp/SMS fallback is not available.'
           : sent.error,
         fallbackNeeded: sent.fallbackNeeded,
         channelAttempted: 'telegram_gateway',
@@ -100,12 +144,7 @@ export async function sendPhoneOtp(params: {
   }
 
   if (rail === 'whatsapp') {
-    return {
-      ok: false,
-      error: 'WhatsApp OTP rail is configured but not enabled in this build yet.',
-      fallbackNeeded: true,
-      channelAttempted: 'whatsapp',
-    }
+    return sendViaWhatsApp(phone)
   }
 
   return {
@@ -116,7 +155,7 @@ export async function sendPhoneOtp(params: {
   }
 }
 
-/** Verify user-entered code against Gateway (or future rails) via request_id. */
+/** Verify user-entered code against Gateway API or WhatsApp code_hash. */
 export async function verifyPhoneOtpCode(params: {
   requestId: string
   code: string
@@ -128,6 +167,31 @@ export async function verifyPhoneOtpCode(params: {
   }
 
   const channel = params.channel ?? 'telegram_gateway'
+
+  if (channel === 'whatsapp') {
+    const row = await getOpenPhoneChallengeByRequestId(params.requestId)
+    if (!row?.code_hash || row.channel !== 'whatsapp') {
+      return { ok: false, error: 'Invalid or expired code', status: 'expired' }
+    }
+    if (row.attempt_count >= MAX_VERIFY_ATTEMPTS) {
+      return { ok: false, error: 'Too many attempts', status: 'code_max_attempts_exceeded' }
+    }
+
+    const expected = hmacOTP(cleaned, row.phone)
+    if (!verifyOTPTiming(row.code_hash, expected)) {
+      await bumpPhoneChallengeAttempt(row.id)
+      await expirePhoneChallengeIfMaxAttempts(row.id)
+      return { ok: false, error: 'Invalid code', status: 'code_invalid' }
+    }
+
+    return {
+      ok: true,
+      phone: row.phone,
+      requestId: params.requestId,
+      status: { status: 'code_valid' },
+    }
+  }
+
   if (channel !== 'telegram_gateway') {
     return { ok: false, error: `OTP verify not implemented for channel ${channel}` }
   }

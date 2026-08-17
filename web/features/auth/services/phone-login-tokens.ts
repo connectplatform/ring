@@ -1,9 +1,11 @@
 /**
- * PostgreSQL persistence for phone login OTP challenges (Gateway request_id).
+ * PostgreSQL persistence for phone login OTP challenges.
+ * Telegram Gateway: request_id only. WhatsApp: request_id + code_hash (hmacOTP).
  */
 import 'server-only'
 
 import { getSharedPgPool } from '@/lib/database/shared-pg-pool'
+import { hmacOTP } from '@/lib/auth/email-tokens'
 import { normalizeToE164 } from '@/lib/phone/e164'
 
 const RATE_WINDOW = "INTERVAL '15 minutes'"
@@ -19,6 +21,7 @@ export type StoredPhoneTokenRow = {
   channel: PhoneOtpChannel
   user_id: string | null
   attempt_count: number
+  code_hash: string | null
 }
 
 async function pool() {
@@ -64,16 +67,27 @@ export async function insertPhoneLoginToken(params: {
   userId?: string | null
   expiresIn?: string
   ipAddress?: string | null
+  /** Self-issued OTP (WhatsApp) — hashed with hmacOTP(code, phone); never stored raw */
+  rawCode?: string
 }): Promise<{ id: string; requestId: string }> {
   const normalized = normalizeLoginPhone(params.phone)
   if (!normalized) throw new Error('Invalid phone for phone_login_tokens')
+
+  if (params.channel === 'whatsapp' && !params.rawCode?.trim()) {
+    throw new Error('WhatsApp phone_login_tokens require rawCode for hashing')
+  }
+
+  const codeHash =
+    params.rawCode && params.rawCode.trim()
+      ? hmacOTP(params.rawCode.trim(), normalized)
+      : null
 
   await invalidateOpenPhoneTokens(normalized)
 
   const pg = await pool()
   const { rows } = await pg.query<{ id: string; request_id: string }>(
-    `INSERT INTO phone_login_tokens (phone, request_id, channel, user_id, expires_at, ip_address)
-     VALUES ($1, $2, $3, $4, NOW() + $5::interval, $6::inet)
+    `INSERT INTO phone_login_tokens (phone, request_id, channel, user_id, expires_at, ip_address, code_hash)
+     VALUES ($1, $2, $3, $4, NOW() + $5::interval, $6::inet, $7)
      RETURNING id, request_id`,
     [
       normalized,
@@ -82,10 +96,14 @@ export async function insertPhoneLoginToken(params: {
       params.userId ?? null,
       params.expiresIn ?? '3 minutes',
       params.ipAddress || null,
+      codeHash,
     ],
   )
   return { id: rows[0].id, requestId: rows[0].request_id }
 }
+
+const SELECT_OPEN = `SELECT id, phone, request_id, channel, user_id, attempt_count, code_hash
+     FROM phone_login_tokens`
 
 export async function getOpenPhoneChallenge(params: {
   phone: string
@@ -98,8 +116,7 @@ export async function getOpenPhoneChallenge(params: {
 
   const pg = await pool()
   const { rows } = await pg.query<StoredPhoneTokenRow>(
-    `SELECT id, phone, request_id, channel, user_id, attempt_count
-     FROM phone_login_tokens
+    `${SELECT_OPEN}
      WHERE phone = $1
        AND used_at IS NULL
        AND expires_at > NOW()
@@ -119,14 +136,32 @@ export async function getLatestOpenPhoneChallenge(
   if (!normalized) return null
   const pg = await pool()
   const { rows } = await pg.query<StoredPhoneTokenRow>(
-    `SELECT id, phone, request_id, channel, user_id, attempt_count
-     FROM phone_login_tokens
+    `${SELECT_OPEN}
      WHERE phone = $1
        AND used_at IS NULL
        AND expires_at > NOW()
      ORDER BY created_at DESC
      LIMIT 1`,
     [normalized],
+  )
+  return rows[0] ?? null
+}
+
+/** Lookup open challenge by request_id (profile WA verify). */
+export async function getOpenPhoneChallengeByRequestId(
+  requestId: string,
+): Promise<StoredPhoneTokenRow | null> {
+  const id = requestId.trim()
+  if (!id) return null
+  const pg = await pool()
+  const { rows } = await pg.query<StoredPhoneTokenRow>(
+    `${SELECT_OPEN}
+     WHERE request_id = $1
+       AND used_at IS NULL
+       AND expires_at > NOW()
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [id],
   )
   return rows[0] ?? null
 }

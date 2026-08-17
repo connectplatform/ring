@@ -4,6 +4,7 @@
  */
 
 import { SignJWT, jwtVerify } from 'jose';
+import { sessionTokenCookieCandidates } from '@/lib/auth/auth-cookie-names';
 
 /**
  * Read secrets at runtime via dynamic keys.
@@ -167,11 +168,12 @@ export async function verifyAuth(request: Request): Promise<{ userId: string; em
       })
     );
 
-    const sessionToken =
-      cookies['authjs.session-token'] ||
-      cookies['__Secure-authjs.session-token'] ||
-      cookies['next-auth.session-token'] ||
-      cookies['__Secure-next-auth.session-token'];
+    const sessionToken = [
+      ...sessionTokenCookieCandidates(false),
+      ...sessionTokenCookieCandidates(true),
+    ]
+      .map((name) => cookies[name])
+      .find(Boolean);
 
     if (sessionToken) {
       const result = await verifySessionToken(sessionToken);

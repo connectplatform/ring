@@ -29,6 +29,7 @@ export interface CrmTaskRow {
   status: string
   priority: string
   taskType: string
+  triggerReason?: string | null
   dueDate: string | null
   createdAt?: string | null
 }
@@ -44,6 +45,9 @@ type TaskDetail = {
     intent?: string
     preferChat?: boolean
     supportConversationId?: string | null
+    routeFlag?: string | null
+    unsubscribeUrl?: string | null
+    lastUnsubscribeRequest?: { at: string; by: string; url: string } | null
   } | null
   messages: Array<{
     id: string
@@ -429,10 +433,12 @@ export function CrmTasksClient({ initialTasks = [] }: { initialTasks?: CrmTaskRo
   const [detail, setDetail] = useState<TaskDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [chip, setChip] = useState<'all' | 'lead' | 'osint' | 'unsubscribe'>('all')
   const deepLinkHandled = React.useRef(false)
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/admin/email/tasks', { cache: 'no-store' })
+    const qs = chip === 'all' ? '' : `?chip=${chip}`
+    const res = await fetch(`/api/admin/email/tasks${qs}`, { cache: 'no-store' })
     if (!res.ok) return [] as CrmTaskRow[]
     const json = await res.json()
     const mapped = (json.tasks ?? []).map((t: Record<string, unknown>) => ({
@@ -443,12 +449,13 @@ export function CrmTasksClient({ initialTasks = [] }: { initialTasks?: CrmTaskRo
       status: String(t.status),
       priority: String(t.priority),
       taskType: String(t.taskType),
+      triggerReason: t.triggerReason ? String(t.triggerReason) : null,
       dueDate: t.dueDate ? String(t.dueDate) : null,
       createdAt: t.createdAt ? String(t.createdAt) : null,
     })) as CrmTaskRow[]
     setTasks(mapped)
     return mapped
-  }, [])
+  }, [chip])
 
   const fetchDetail = useCallback(async (id: string) => {
     setLoadingDetail(true)
@@ -502,8 +509,38 @@ export function CrmTasksClient({ initialTasks = [] }: { initialTasks?: CrmTaskRo
     expandedIndex >= 0 && expandedIndex < tasks.length - 1 ? tasks[expandedIndex + 1] : null
   const expandedTask = expandedIndex >= 0 ? tasks[expandedIndex] : null
 
+  const chipBar = (
+    <div className="mb-3 flex flex-wrap gap-2">
+      {([
+        ['all', 'All'],
+        ['lead', 'Lead'],
+        ['osint', 'OSINT'],
+        ['unsubscribe', 'Unsubscribe pending'],
+      ] as const).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => setChip(id)}
+          className={cn(
+            'rounded-lg border px-3 py-1.5 text-sm transition-colors',
+            chip === id
+              ? 'border-indigo-600 bg-indigo-600 text-white'
+              : 'border-border bg-background text-foreground'
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
   if (tasks.length === 0) {
-    return <p className="text-muted-foreground">No tasks yet.</p>
+    return (
+      <div>
+        {chipBar}
+        <p className="text-muted-foreground">No tasks yet.</p>
+      </div>
+    )
   }
 
   if (expandedTask) {
@@ -545,6 +582,7 @@ export function CrmTasksClient({ initialTasks = [] }: { initialTasks?: CrmTaskRo
 
   return (
     <div className="space-y-2">
+      {chipBar}
       {tasks.map((task) => (
         <TaskCollapsedRow
           key={task.id}

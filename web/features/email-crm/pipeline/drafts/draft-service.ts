@@ -28,6 +28,21 @@ export type {
   DraftRepository,
 } from '@/features/email-crm/types/draft'
 
+const NEVER_AUTO_SEND_INTENTS = new Set([
+  'newsletter_subscription',
+  'vendor_offer_ring_relevant',
+  'vendor_offer_irrelevant',
+  'spam',
+  'complaint',
+  'enterprise_inquiry',
+  'partnership',
+  'billing_question',
+  // future media-class intents (Wave 2+)
+  'media_inquiry',
+  'press_wire',
+  'journalist_request',
+])
+
 const DEFAULT_AUTO_SEND_CONFIG: AutoSendConfig = {
   enabled: true,
   minConfidence: 0.90,
@@ -130,6 +145,12 @@ export class EmailDraftService {
     // Check allowed intents
     if (!this.config.allowedIntents.includes(context.intent)) {
       warnings.push(`Intent "${context.intent}" not in auto-send list`);
+      return { shouldAutoSend: false, requiresReview: true, warnings };
+    }
+
+    // Hard denylist (defense in depth — vendor/media/newsletter never auto-send)
+    if (NEVER_AUTO_SEND_INTENTS.has(context.intent)) {
+      warnings.push(`Intent "${context.intent}" is permanently excluded from auto-send`);
       return { shouldAutoSend: false, requiresReview: true, warnings };
     }
     

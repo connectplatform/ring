@@ -4,6 +4,7 @@ import { scanDocsStaticParams } from '@/lib/docs/docs-path'
 import { buildDocsHref, buildDocsLinkPath } from '@/lib/docs/docs-path-url'
 import { getDocTitleFromFile, readDocMatter } from '@/lib/docs/docs-article'
 import { resolveDocFilePath } from '@/lib/docs/docs-path'
+import { buildDocsMarkdownHref } from '@/lib/docs/docs-path-url'
 
 function siteOrigin(): string {
   const raw =
@@ -16,7 +17,8 @@ function siteOrigin(): string {
 }
 
 /**
- * Industry-aligned /llms.txt — curated Markdown index linking to per-article /nodus.json.
+ * Industry-aligned /llms.txt — curated Markdown index.
+ * Primary links: per-article `.md` twin. Structured NODUS at same path + `/nodus.json`.
  * @see https://llmstxt.org/
  */
 export async function GET() {
@@ -29,8 +31,10 @@ export async function GET() {
     '',
     '> Open-source collaboration platform (Next.js, Auth.js, PostgreSQL) — docs for founders and developers.',
     '',
-    'Agent payloads use Ring NODUS JSON at each article URL with `/nodus.json` appended.',
-    'Human docs: /docs — Markdown twin may follow later (.md / Accept: text/markdown).',
+    'Human HTML: /docs',
+    'Agent prose twin: append `.md` to any docs URL (also `Accept: text/markdown`).',
+    'Structured NODUS JSON: append `/nodus.json` to any docs URL.',
+    'Discovery: /.well-known/agent.json → this file.',
     '',
     '## Documentation',
     '',
@@ -54,7 +58,7 @@ export async function GET() {
       }
     }
 
-    const href = `${origin}${buildDocsHref(locale, slug)}/nodus.json`
+    const href = `${origin}${buildDocsMarkdownHref(locale, slug)}`
     const displayPath = buildDocsLinkPath(slug)
     if (note) {
       lines.push(`- [${title}](${href}): ${note}`)
@@ -64,11 +68,19 @@ export async function GET() {
   }
 
   lines.push('')
+  lines.push('## Structured NODUS')
+  lines.push('')
+  lines.push(
+    `Append \`/nodus.json\` to any docs path for concept-class JSON (e.g. ${origin}/docs/features/media-conductor/nodus.json).`,
+  )
+  lines.push('')
   lines.push('## Optional')
   lines.push('')
   lines.push(
-    `- [MediaConductor](${origin}/docs/features/media-conductor/nodus.json): Docs narration + walkthrough conductors`,
+    `- [MediaConductor](${origin}${buildDocsMarkdownHref(locale, ['features', 'media-conductor'])}): Docs narration + walkthrough conductors`,
   )
+  lines.push(`- [Agent handshake](${origin}/.well-known/agent.json)`)
+  lines.push(`- [robots.txt + Content-Signal](${origin}/robots.txt)`)
   lines.push('')
 
   const body = lines.join('\n')
@@ -78,6 +90,7 @@ export async function GET() {
       'Content-Type': 'text/plain; charset=utf-8',
       'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',
       'Access-Control-Allow-Origin': '*',
+      Link: `</llms.txt>; rel="describedby", </.well-known/agent.json>; rel="alternate"`,
     },
   })
 }

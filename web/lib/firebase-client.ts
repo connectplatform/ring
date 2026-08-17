@@ -1,40 +1,66 @@
-import { cache } from 'react'
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 import { getAuth, type Auth } from 'firebase/auth'
 import { FirebaseInitializationError } from '@/lib/errors'
+import {
+  isFirebasePlaceholderValue,
+  validateFcmVapidKey,
+} from '@/lib/firebase-public-env'
+import concrete from '@/ring-config.json'
+
+export { getFcmVapidKey, validateFcmVapidKey } from '@/lib/firebase-public-env'
 
 /**
- * Firebase client SDK — react19-native browser-only initialization.
+ * Firebase client SDK — browser-only initialization.
  *
- * This module is the **single entry point** for the browser-side Firebase
- * app in `firebase-full` ring-db mode (and for FCM push in any mode).
+ * Single entry point for the browser Firebase app in `firebase-full` mode
+ * (and for FCM push in any `DB_BACKEND_MODE`).
  *
- * ## React 19 native patterns
+ * - Getters are **lazy**, **window-guarded**, and use **module singletons**.
+ *   Safe to import from shared modules; they return `undefined` during SSR.
+ * - Init is gated by `integrations.firebase` in ring-config.json:
+ *   FCM-only clones set `enabled: false`, `fcmEnabled: true`, `firestoreEnabled: false`
+ *   so `initializeApp` runs without Auth/Firestore.
+ * - Do **not** wrap these getters in React `cache()` — that API is for
+ *   server request dedup (`firebase-service-manager.ts` / Admin). This
+ *   module is imported by `'use client'` hooks (`use-fcm`).
+ * - Prefer `getFirebaseClientApp()` over the live `app` export.
+ * - Server-side Firebase: `lib/firebase-admin.server.ts`.
  *
- * - All getters are **lazy** (called only on first use) and **window-guarded**
- *   (`typeof window !== 'undefined'`) so they're safe to import from
- *   Server Components / Server Actions / shared modules without crashing.
- * - `getFirebaseClientApp()` is wrapped in React 19 `cache()` so multiple
- *   Server Components in the same request cycle share one client instance.
- * - `getFirebaseFirestoreClient()` and `getFirebaseAuthClient()` are
- *   paired with `getFirebaseStorageClient()` and the AI Logic client
- *   for the planned `use-firebase` hook family (see
- *   `AI-LEGIOX/legiox-truth-lens/ring-backend-administrator.nodus.json`).
- *
- * ## Browser-only safety
- *
- * The Firebase JS SDK is a browser-only library — it must never be imported
- * into Server Components, Server Actions, or shared modules that get
- * bundled into Node.js. Every public export in this file is window-guarded.
- * If you need server-side Firebase, use `lib/firebase-admin.server.ts` instead.
- *
- * ## Emulator support
- *
- * In `NODE_ENV=development`, set `NEXT_PUBLIC_FIREBASE_USE_EMULATOR=1` to
- * auto-connect Firestore/Auth/Storage to the Firebase Local Emulator Suite
- * (defaults to `localhost:8080` / `9099` / `9199`).
+ * Emulator: `NEXT_PUBLIC_FIREBASE_USE_EMULATOR=1` connects Firestore/Auth/Storage
+ * to the Local Emulator Suite (`localhost:8080` / `9099` / `9199`).
  */
+
+type FirebaseIntegrationFlags = {
+  enabled?: boolean
+  fcmEnabled?: boolean
+  firestoreEnabled?: boolean
+}
+
+function firebaseFlags(): FirebaseIntegrationFlags {
+  const integrations = (concrete as { integrations?: { firebase?: FirebaseIntegrationFlags } })
+    .integrations
+  return integrations?.firebase ?? {}
+}
+
+/** Cloud Messaging — independent of Auth/Firestore. */
+export function isFcmFeatureEnabled(): boolean {
+  return firebaseFlags().fcmEnabled === true
+}
+
+/** Firebase Auth / general client app. Off for FCM-only clones. */
+export function isFirebaseAuthEnabled(): boolean {
+  return firebaseFlags().enabled === true
+}
+
+/** Client Firestore. Off for FCM-only clones. */
+export function isFirebaseFirestoreEnabled(): boolean {
+  return firebaseFlags().firestoreEnabled === true
+}
+
+function isFirebaseClientAppWanted(): boolean {
+  return isFcmFeatureEnabled() || isFirebaseAuthEnabled() || isFirebaseFirestoreEnabled()
+}
 
 /**
  * Firebase client configuration — set NEXT_PUBLIC_FIREBASE_* in `.env.local`.
@@ -47,16 +73,6 @@ const clientCredentials = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-}
-
-const PLACEHOLDER_VALUE = /^(your_|demo-|changeme|replace_me|xxx|todo)/i
-
-function isPlaceholderValue(value: string | undefined): boolean {
-  if (!value?.trim()) return true
-  const trimmed = value.trim()
-  if (PLACEHOLDER_VALUE.test(trimmed)) return true
-  if (trimmed.toLowerCase() === 'demo-api-key') return true
-  return false
 }
 
 /**
@@ -73,7 +89,7 @@ export function validateFirebaseConfig(): boolean {
 
   for (const field of requiredFields) {
     const value = clientCredentials[field]
-    if (isPlaceholderValue(value)) {
+    if (isFirebasePlaceholderValue(value)) {
       if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
         console.warn(
           `Firebase configuration missing or placeholder for "${field}". Set NEXT_PUBLIC_FIREBASE_* vars in .env.local to enable FCM push.`,
@@ -86,38 +102,9 @@ export function validateFirebaseConfig(): boolean {
   return true
 }
 
-/** Web Push certificate from Firebase Console (public). Trimmed; null if missing/placeholder. */
-export function getFcmVapidKey(): string | null {
-  const key = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
-  if (!key || isPlaceholderValue(key)) return null
-  return key
-}
-
-/** Web Push VAPID key — Firebase Console → Cloud Messaging → Web Push certificates. */
-export function validateFcmVapidKey(): boolean {
-  return getFcmVapidKey() !== null
-}
-
-/**
- * Propagation leak detector: ring-main Firebase Web Push certificates
- * (legacy BKQ4OAwA… or current BMQkJfOd…) copied into other Firebase projects
- * causes FCM `token-subscribe-failed` / missing authentication credential in the browser.
- */
-export function isKnownCrossProjectVapidLeak(): boolean {
-  const vapid = getFcmVapidKey()
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()
-  if (!vapid || !projectId) return false
-  const isRingMainVapid =
-    vapid.startsWith('BKQ4OAwA-') ||
-    vapid.startsWith('BKQ4OAwA') ||
-    vapid.startsWith('BMQkJfOd')
-  const isRingMainProject = projectId === 'ring-main'
-  return isRingMainVapid && !isRingMainProject
-}
-
-/** Client FCM is usable only when Firebase app config and VAPID key are both valid. */
+/** Client FCM is usable when the clone enables FCM, app config, and Console Web Push certificate are present. */
 export function isFcmConfigured(): boolean {
-  return validateFirebaseConfig() && validateFcmVapidKey() && !isKnownCrossProjectVapidLeak()
+  return isFcmFeatureEnabled() && validateFirebaseConfig() && validateFcmVapidKey()
 }
 
 /**
@@ -129,8 +116,7 @@ export function isEmulatorEnabled(): boolean {
 }
 
 // ============================================================================
-// Internal state — module-level singletons. Kept in module scope so React 19
-// `cache()` can dedupe across Server Component renders within one request.
+// Internal state — module-level singletons (browser process, not React cache).
 // ============================================================================
 
 let app: FirebaseApp | undefined
@@ -148,6 +134,7 @@ let emulatorConnected = false
  */
 function initializeFirebaseClient(): FirebaseApp | undefined {
   if (typeof window === 'undefined') return undefined
+  if (!isFirebaseClientAppWanted()) return undefined
   if (getApps().length > 0) {
     app = getApps()[0]
     return app
@@ -158,8 +145,12 @@ function initializeFirebaseClient(): FirebaseApp | undefined {
 
   try {
     app = initializeApp(clientCredentials)
-    db = getFirestore(app)
-    auth = getAuth(app)
+    if (isFirebaseFirestoreEnabled()) {
+      db = getFirestore(app)
+    }
+    if (isFirebaseAuthEnabled()) {
+      auth = getAuth(app)
+    }
     return app
   } catch (error) {
     console.error('Failed to initialize Firebase:', error)
@@ -189,89 +180,73 @@ if (typeof window !== 'undefined') {
 }
 
 // ============================================================================
-// React 19 native getters (cache()-wrapped for SSG/SSR dedup)
-//
-// Pair with the planned use-firebase hook family (hooks/use-firebase.ts):
-//   const app    = useFirebaseApp();          // -> getFirebaseClientApp()
-//   const db     = useFirestore();           // -> getFirebaseFirestoreClient()
-//   const auth   = useFirebaseAuth();        // -> getFirebaseAuthClient()
-//   const stor   = useFirebaseStorage();      // -> getFirebaseStorageClient()
-//   const ai     = useFirebaseAI();          // -> getFirebaseAIClient()
-//
-// In Server Components: import the bare getter. In Client Components ('use client'):
-// wrap in a `use()` call + Suspense boundary per React 19 patterns.
+// Lazy getters (module singletons + window guards). Storage / AI / emulator
+// helpers use `await import()` — never `require()`.
 // ============================================================================
 
 /**
- * React 19 `cache()`-wrapped lazy getter for the browser FirebaseApp.
+ * Lazy getter for the browser FirebaseApp.
  * Returns `undefined` during SSR, on placeholder config, or when init failed.
  */
-export const getFirebaseClientApp = cache((): FirebaseApp | undefined => {
+export function getFirebaseClientApp(): FirebaseApp | undefined {
   if (typeof window === 'undefined') return undefined
+  if (!isFirebaseClientAppWanted()) return undefined
   if (app) return app
   if (getApps().length > 0) {
     app = getApps()[0]
     return app
   }
   return initializeFirebaseClient()
-})
+}
 
 /**
- * React 19 `cache()`-wrapped lazy getter for the browser Firestore instance.
+ * Lazy getter for the browser Firestore instance.
  */
-export const getFirebaseFirestoreClient = cache((): Firestore | undefined => {
+export function getFirebaseFirestoreClient(): Firestore | undefined {
   if (typeof window === 'undefined') return undefined
-  if (db) return db
+  if (!isFirebaseFirestoreEnabled()) return undefined
   const a = getFirebaseClientApp()
   if (!a) return undefined
+  if (!db) db = getFirestore(a)
   if (isEmulatorEnabled() && !emulatorConnected) {
-    try {
-      const { connectFirestoreEmulator } = require('firebase/firestore')
-      connectFirestoreEmulator(db!, 'localhost', 8080)
-    } catch (err) {
-      console.warn('[firebase-client] Firestore emulator connect failed', err)
-    }
+    void connectFirebaseClientEmulator()
   }
   return db
-})
+}
 
 /**
- * React 19 `cache()`-wrapped lazy getter for the browser Auth instance.
+ * Lazy getter for the browser Auth instance.
  */
-export const getFirebaseAuthClient = cache((): Auth | undefined => {
+export function getFirebaseAuthClient(): Auth | undefined {
   if (typeof window === 'undefined') return undefined
-  if (auth) return auth
+  if (!isFirebaseAuthEnabled()) return undefined
   const a = getFirebaseClientApp()
   if (!a) return undefined
+  if (!auth) auth = getAuth(a)
   if (isEmulatorEnabled() && !emulatorConnected) {
-    try {
-      const { connectAuthEmulator } = require('firebase/auth')
-      connectAuthEmulator(auth!, 'http://localhost:9099', { disableWarnings: true })
-    } catch (err) {
-      console.warn('[firebase-client] Auth emulator connect failed', err)
-    }
+    void connectFirebaseClientEmulator()
   }
   return auth
-})
+}
 
 /**
- * React 19 `cache()`-wrapped lazy getter for the browser Storage instance.
- * Lazy-imports `firebase/storage` so the SDK is only loaded when actually used.
+ * Lazy getter for the browser Storage instance.
+ * Dynamic-imports `firebase/storage` so the SDK loads only when used.
  */
-export const getFirebaseStorageClient = cache(async (): Promise<
+export async function getFirebaseStorageClient(): Promise<
   ReturnType<typeof import('firebase/storage').getStorage> | undefined
-> => {
+> {
   if (typeof window === 'undefined') return undefined
+  if (!isFirebaseAuthEnabled() && !isFirebaseFirestoreEnabled()) return undefined
   if (storage) return storage
   const a = getFirebaseClientApp()
   if (!a) return undefined
   try {
-    const { getStorage } = await import('firebase/storage')
+    const { getStorage, connectStorageEmulator } = await import('firebase/storage')
     storage = getStorage(a)
     if (isEmulatorEnabled() && !emulatorConnected) {
       try {
-        const { connectStorageEmulator } = await import('firebase/storage')
-        connectStorageEmulator(storage!, 'localhost', 9199)
+        connectStorageEmulator(storage, 'localhost', 9199)
       } catch (err) {
         console.warn('[firebase-client] Storage emulator connect failed', err)
       }
@@ -281,19 +256,18 @@ export const getFirebaseStorageClient = cache(async (): Promise<
     console.error('[firebase-client] Storage init failed', err)
     return undefined
   }
-})
+}
 
 /**
- * React 19 `cache()`-wrapped lazy getter for Firebase AI Logic client
- * (Firebase AI Logic = `firebase/ai` SDK, supersedes Vertex AI in Firebase).
- * Lazy-imports `firebase/ai` so the SDK is only loaded when actually used.
+ * Lazy getter for Firebase AI Logic (`firebase/ai`).
  *
  * @see https://firebase.google.com/docs/ai-logic
  */
-export const getFirebaseAIClient = cache(async (): Promise<
+export async function getFirebaseAIClient(): Promise<
   ReturnType<typeof import('firebase/ai').getAI> | undefined
-> => {
+> {
   if (typeof window === 'undefined') return undefined
+  if (!isFirebaseAuthEnabled() && !isFirebaseFirestoreEnabled()) return undefined
   if (ai) return ai
   const a = getFirebaseClientApp()
   if (!a) return undefined
@@ -305,16 +279,14 @@ export const getFirebaseAIClient = cache(async (): Promise<
     console.error('[firebase-client] AI Logic init failed', err)
     return undefined
   }
-})
+}
 
 /**
- * SSR-safe check: returns true when the client app is initialized and ready
- * for use. Pair with `useFirebaseApp()` (planned) in a `useEffect` or after
- * a `use()` Suspense boundary in React 19.
+ * SSR-safe check: returns true when the client app is initialized and ready.
  */
 export function isFirebaseClientReady(): boolean {
   if (typeof window === 'undefined') return false
-  return getApps().length > 0 && !!app
+  return getApps().length > 0 && !!getFirebaseClientApp()
 }
 
 /**
@@ -355,6 +327,8 @@ export async function connectFirebaseClientEmulator(options?: {
 
   const a = getFirebaseClientApp()
   if (!a) return
+  if (isFirebaseFirestoreEnabled() && !db) db = getFirestore(a)
+  if (isFirebaseAuthEnabled() && !auth) auth = getAuth(a)
 
   if (db) {
     try {
@@ -372,7 +346,7 @@ export async function connectFirebaseClientEmulator(options?: {
       console.warn('[firebase-client] Auth emulator connect failed', err)
     }
   }
-  if (!storage) {
+  if (!storage && (isFirebaseAuthEnabled() || isFirebaseFirestoreEnabled())) {
     try {
       const { getStorage, connectStorageEmulator } = await import('firebase/storage')
       storage = getStorage(a)
@@ -385,10 +359,8 @@ export async function connectFirebaseClientEmulator(options?: {
 }
 
 // ============================================================================
-// Backward-compatible module-level exports (used by hooks/use-fcm.ts and
-// other legacy client code). New code should prefer the React 19 native
-// getters above: getFirebaseClientApp() / getFirebaseFirestoreClient() /
-// getFirebaseAuthClient().
+// Backward-compatible module-level exports. Prefer getFirebaseClientApp() /
+// getFirebaseFirestoreClient() / getFirebaseAuthClient() in new code.
 // ============================================================================
 
 export { app, db, auth }

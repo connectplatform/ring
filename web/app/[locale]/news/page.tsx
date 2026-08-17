@@ -16,93 +16,14 @@ import { buildNewsVisibilityFilters } from '@/features/news/lib/news-visibility-
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { hasRoleAtLeast } from '@/features/auth/types'
 import { mapNewsDocument, mapNewsCategoryDocument } from '@/lib/news/map-news-document'
-import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types'
+import { NewsArticle, NewsCategoryInfo } from '@/features/news/types'
+import { PLATFORM_CATEGORY_INFO } from '@/features/news/lib/platform-category-info'
 import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale } from '@/i18n/shared'
 import { loadTranslations } from '@/i18n/load-translations'
 import { Rss } from 'lucide-react'
 
-// Dictionary of category info for rendering category metadata and icons
-const categoryInfo: Record<NewsCategory, { name: string; description: string; color: string; icon: string; articleCount: number }> = {
-  // STUB: Static info for each category, counts must be hydrated from backend if needed
-  'platform-updates': {
-    name: 'Platform Updates',
-    description: 'Latest updates, features, and improvements to Ring Platform',
-    color: 'bg-blue-500',
-    icon: '🚀',
-    articleCount: 0 // STUB: Should calculate actual count - todo: count from backend
-  },
-  'partnerships': {
-    name: 'Partnerships',
-    description: 'Collaborations, integrations, and partnership announcements',
-    color: 'bg-green-500',
-    icon: '🤝',
-    articleCount: 0 // STUB: See above
-  },
-  'community': {
-    name: 'Community',
-    description: 'Community highlights, events, and member stories',
-    color: 'bg-purple-500',
-    icon: '👥',
-    articleCount: 0
-  },
-  'industry-news': {
-    name: 'Industry News',
-    description: 'Web3, blockchain, and decentralized technology news',
-    color: 'bg-orange-500',
-    icon: '📰',
-    articleCount: 0
-  },
-  'events': {
-    name: 'Events',
-    description: 'Upcoming events, webinars, and community gatherings',
-    color: 'bg-pink-500',
-    icon: '📅',
-    articleCount: 0
-  },
-  'announcements': {
-    name: 'Announcements',
-    description: 'Important announcements and platform communications',
-    color: 'bg-yellow-500',
-    icon: '📢',
-    articleCount: 0
-  },
-  'press-releases': {
-    name: 'Press Releases',
-    description: 'Official press releases and media communications',
-    color: 'bg-indigo-500',
-    icon: '📄',
-    articleCount: 0
-  },
-  'tutorials': {
-    name: 'Tutorials',
-    description: 'How-to guides, tutorials, and educational content',
-    color: 'bg-teal-500',
-    icon: '📚',
-    articleCount: 0
-  },
-  'other': {
-    name: 'Other',
-    description: 'Miscellaneous articles and content',
-    color: 'bg-gray-500',
-    icon: '📝',
-    articleCount: 0
-  },
-  security: {
-    name: 'Security',
-    description: 'Security updates and advisories',
-    color: 'bg-red-500',
-    icon: '🔒',
-    articleCount: 0
-  },
-  blogs: {
-    name: 'Blogs',
-    description: 'Member blog posts and community writing',
-    color: 'bg-slate-500',
-    icon: '✍️',
-    articleCount: 0
-  }
-}
+const categoryInfo = PLATFORM_CATEGORY_INFO
 
 // Type for route params for eventual extension (currently empty)
 type NewsParams = {}

@@ -9,7 +9,7 @@ import {
   AppClientShell,
   AppShellStaticFallback,
 } from '@/components/providers/app-client-shell'
-import { getPublicInstanceConfig } from '@/lib/ring-config-core'
+import { getPublicInstanceConfig, getSiteBaseUrl } from '@/lib/ring-config-core'
 import { auth } from '@/auth'
 import type { PublicInstanceConfig } from '@/components/common/whitelabel/instance-config-client'
 import {
@@ -18,7 +18,6 @@ import {
   LEGACY_BROWSER_GATE,
   SUPPORTED_LOCALES,
 } from '@/lib/locale-config'
-import { getSiteBaseUrl } from '@/lib/ring-config-core'
 
 // --- Pre-computed client config strings (inlined into beforeInteractive scripts) ---
 const CLIENT_LOCALE_CONFIG = getClientLocaleConfig()
@@ -38,6 +37,13 @@ const inter = Inter({
 // --- Metadata ---
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrlSafe()),
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
   other: {
     'format-detection': 'telephone=no, date=no, address=no, email=no',
   },

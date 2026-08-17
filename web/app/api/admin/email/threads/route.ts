@@ -15,9 +15,17 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const status = url.searchParams.get('status') as EmailThreadStatus | null
   const sourceChannel = url.searchParams.get('sourceChannel') || undefined
+  const routeFlagRaw = url.searchParams.get('routeFlag') || undefined
+  const routeFlag =
+    routeFlagRaw === 'crm_email_lead' || routeFlagRaw === 'spam_osint_queue'
+      ? routeFlagRaw
+      : undefined
+  const hasUnsubscribeUrl = url.searchParams.get('hasUnsubscribeUrl') === '1'
   const threads = await EmailThreadService.listThreads({
     status: status && status !== ('all' as string) ? status : undefined,
     sourceChannel,
+    routeFlag,
+    hasUnsubscribeUrl: hasUnsubscribeUrl || undefined,
     limit: 100,
   })
 

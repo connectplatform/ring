@@ -1,33 +1,24 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Link, toAppHref } from '@/i18n/routing'
-import { usePathname } from '@/i18n/routing'
+import { Link, toAppHref, usePathname } from '@/i18n/routing'
+import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import {
-  Users,
-  Briefcase,
-  Store,
-  FileText,
   Moon,
   Sun,
-  UserRound,
-  ShoppingBag,
+  FileText,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
-import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 import { useStorePaymentMethods } from '@/features/store/currency-context'
-import { getHomePreset } from '@/lib/ring-config-core'
-import {
-  getMvmPrimaryNavSpecs,
-  resolveNavLabel,
-} from '@/lib/navigation/mvm-primary-nav'
+import { resolveDesktopPrimaryNav } from '@/lib/navigation/desktop-primary-nav'
+import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { AdminSupermenuToggle } from './admin-supermenu'
 
 const railLinkClass =
@@ -76,9 +67,6 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
   const { currency, toggleCurrency, nativeTokenCurrency, mainCurrency } = useStorePaymentMethods()
-  const tEntities = useTranslations('modules.entities')
-  const tOpp = useTranslations('modules.opportunities')
-  const tStore = useTranslations('modules.store')
   const tNav = useTranslations('navigation')
   const [mounted, setMounted] = useState(false)
 
@@ -86,53 +74,18 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
     setMounted(true)
   }, [])
 
-  const isActive = (href: string) => {
-    const pathOnly = href.split('?')[0] ?? href
-    if (pathOnly === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)
-    if (pathOnly === ROUTES.DOCS(locale)) {
-      return pathname === pathOnly || pathname === `${pathOnly}/`
+  const searchParams = useSearchParams()
+  const search = searchParams.toString()
+
+  const primaryItems = resolveDesktopPrimaryNav(locale, tNav, pathname, search).map((item) => {
+    const Icon = getPrimaryNavIcon(item.icon)
+    return {
+      href: item.href,
+      label: item.label,
+      icon: <Icon className="size-[22px]" strokeWidth={1.5} />,
+      active: item.active,
     }
-    return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`)
-  }
-
-  const isMvmNav = getHomePreset() === 'mvm-landing'
-
-  const primaryItems = isMvmNav
-    ? getMvmPrimaryNavSpecs(locale).map((spec) => {
-        const icons = {
-          store: <Store className="size-[22px]" strokeWidth={1.5} />,
-          entities: <Users className="size-[22px]" strokeWidth={1.5} />,
-          groupBuy: <ShoppingBag className="size-[22px]" strokeWidth={1.5} />,
-          account: <UserRound className="size-[22px]" strokeWidth={1.5} />,
-        } as const
-        return {
-          href: spec.href,
-          label: resolveNavLabel(tNav, spec.labelKeys),
-          icon: icons[spec.id],
-        }
-      })
-    : [
-        {
-          href: ROUTES.ENTITIES(locale),
-          label: tEntities('title'),
-          icon: <Users className="size-[22px]" strokeWidth={1.5} />,
-        },
-        {
-          href: ROUTES.OPPORTUNITIES(locale),
-          label: tOpp('opportunities'),
-          icon: <Briefcase className="size-[22px]" strokeWidth={1.5} />,
-        },
-        {
-          href: ROUTES.STORE(locale),
-          label: tStore('title'),
-          icon: <Store className="size-[22px]" strokeWidth={1.5} />,
-        },
-        {
-          href: ROUTES.DOCS(locale),
-          label: tNav('sidebar.documentation'),
-          icon: <FileText className="size-[22px]" strokeWidth={1.5} />,
-        },
-      ]
+  })
 
   const showAdminToggle = hasMemberPrivileges(session?.user?.role)
 
@@ -153,7 +106,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
               href={item.href}
               label={item.label}
               icon={item.icon}
-              active={isActive(item.href)}
+              active={item.active}
             />
           ))}
           {showAdminToggle && (

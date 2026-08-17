@@ -162,7 +162,7 @@ export default function HomeWrapper() {
   const currentLocale = useLocale()
   const locale = currentLocale as Locale
   /** MVM storefront landing is product-first — no empire/OSS right rail column. */
-  const fullBleedCenter = getHomePreset() === 'mvm-landing'
+  const fullBleedCenter = getHomePreset() !== 'platform'
 
   /* ── Dynamic right-rail collapse ── */
   const desktopRef = useRef<HTMLDivElement>(null)

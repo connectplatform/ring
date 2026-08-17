@@ -3,7 +3,7 @@
 // Main imports
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import dynamic from 'next/dynamic'
@@ -11,10 +11,8 @@ import dynamic from 'next/dynamic'
 // Icon imports
 import {
   Briefcase,
-  Users,
   FileText,
   Plus,
-  MoreHorizontal,
   Wallet,
   ShoppingBag,
   Building2,
@@ -24,9 +22,6 @@ import {
   Moon,
   Sun,
   LogIn,
-  CircleEllipsis,
-  Store,
-  UserRound,
 } from 'lucide-react'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 
@@ -45,11 +40,13 @@ import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { eventBus } from '@/lib/event-bus.client'
 import { cn } from '@/lib/utils'
 import { getBrandName } from '@/lib/site-branding'
-import { getHomePreset } from '@/lib/ring-config-core'
 import {
-  getMvmPrimaryNavSpecs,
+  getPrimaryNavManifest,
+  navHrefIsActive,
   resolveNavLabel,
-} from '@/lib/navigation/mvm-primary-nav'
+} from '@/lib/navigation/primary-nav'
+import { sidebarPathIsActive } from '@/lib/navigation/desktop-primary-nav'
+import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import {
   BorderBeam,
   davinciAuthButtonLift,
@@ -466,6 +463,8 @@ function BottomNavFullscreenMenu({
  */
 export default function BottomNavigation() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const search = searchParams.toString()
   const locale = useLocale() as Locale
   const { hasRole } = useAuth()
   const { data: session } = useSession()
@@ -486,12 +485,7 @@ export default function BottomNavigation() {
   /**
    * Determine if the given href matches the current route.
    */
-  const isActive = (href: string) => {
-    if (href === `/${locale}`) {
-      return pathname === `/${locale}` || pathname === '/'
-    }
-    return pathname.startsWith(href)
-  }
+  const isActive = (href: string) => sidebarPathIsActive(pathname, href, locale)
 
   /**
    * Memoized menu items for authenticated users.
@@ -634,76 +628,63 @@ export default function BottomNavigation() {
   }, [openAddOpportunity])
 
   /**
-   * Base navigation items: opportunities, entities, docs|admin, ring menu.
-   * MVM landing (`home.preset = mvm-landing`): Market · Sellers · (+) · Group Buy · Account.
-   * Member+: Admin opens AdminSupermenuMobile; Ring opens platform-only fullscreen menu.
+   * Primary slots from getPrimaryNavManifest() — L1 community default or L2 pack overwrite.
+   * docs-or-admin / overflow-menu are chrome actions; href items are links.
    */
-  const isMvmNav = getHomePreset() === 'mvm-landing'
-
-  const mvmNavItems = useMemo(() => {
-    const icons = {
-      store: Store,
-      entities: Building2,
-      groupBuy: ShoppingBag,
-      account: UserRound,
-    } as const
-    return getMvmPrimaryNavSpecs(locale).map((spec) => ({
-      icon: icons[spec.id],
-      label: resolveNavLabel(t, spec.labelKeys),
-      href: spec.href,
-      isActive:
-        spec.id === 'groupBuy'
-          ? pathname.startsWith(ROUTES.OPPORTUNITIES(locale))
-          : isActive(spec.href.split('?')[0]!),
-    }))
-  }, [locale, t, pathname])
-
-  const platformNavItems = [
-    {
-      icon: Briefcase,
-      label: t('opportunities'),
-      href: ROUTES.OPPORTUNITIES(locale),
-      isActive: isActive(ROUTES.OPPORTUNITIES(locale)),
-    },
-    {
-      icon: Users,
-      label: t('entities'),
-      href: ROUTES.ENTITIES(locale),
-      isActive: isActive(ROUTES.ENTITIES(locale)),
-    },
-    isMemberPlus && hasAdminSupermenu
-      ? {
-          icon: CircleEllipsis,
-          label: t('admin.label'),
-          href: '#admin',
-          isActive: adminMenuOpen,
-          isButton: true,
-          onClick: openAdminMenu,
+  const navItems = useMemo(() => {
+    const manifest = getPrimaryNavManifest()
+    return manifest.mobile.map((item) => {
+      if (item.kind === 'href') {
+        const href = item.href(locale)
+        return {
+          id: item.id,
+          icon: getPrimaryNavIcon(item.icon),
+          label: resolveNavLabel(t, item.labelKeys),
+          href,
+          isActive: navHrefIsActive(href, pathname, search, isActive, item.activeMatch),
         }
-      : {
-          icon: FileText,
-          label: t('docs'),
-          href: ROUTES.DOCS(locale),
-          isActive: isActive(ROUTES.DOCS(locale)),
-        },
-    {
-      icon: MoreHorizontal,
-      label: t('menu.title', { default: 'Menu' }),
-      href: '#menu',
-      isActive: menuOpen,
-      isButton: true,
-      onClick: openRingMenu,
-    },
-  ]
-
-  const navItems = isMvmNav
-    ? [
-        mvmNavItems[0]!,
-        mvmNavItems[1]!,
-        mvmNavItems[2]!,
-        mvmNavItems[3]!,
-      ]
-    : platformNavItems
+      }
+      if (item.kind === 'docs-or-admin') {
+        if (isMemberPlus && hasAdminSupermenu) {
+          return {
+            id: item.id,
+            icon: getPrimaryNavIcon(item.iconAdmin),
+            label: resolveNavLabel(t, item.labelKeysAdmin),
+            href: '#admin',
+            isActive: adminMenuOpen,
+            isButton: true as const,
+            onClick: openAdminMenu,
+          }
+        }
+        const href = item.docsHref(locale)
+        return {
+          id: item.id,
+          icon: getPrimaryNavIcon(item.iconDocs),
+          label: resolveNavLabel(t, item.labelKeysDocs),
+          href,
+          isActive: isActive(href),
+        }
+      }
+      return {
+        id: item.id,
+        icon: getPrimaryNavIcon(item.icon),
+        label: resolveNavLabel(t, item.labelKeys),
+        href: '#menu',
+        isActive: menuOpen,
+        isButton: true as const,
+        onClick: openRingMenu,
+      }
+    })
+  }, [
+    adminMenuOpen,
+    hasAdminSupermenu,
+    isMemberPlus,
+    locale,
+    menuOpen,
+    pathname,
+    search,
+    t,
+  ])
 
   const closeMenus = () => {
     setShowOpportunitySelector(false)
@@ -732,7 +713,7 @@ export default function BottomNavigation() {
           {/* Render first two navigation items */}
           {navItems.slice(0, 2).map((item) => (
             <NavItem
-              key={item.href}
+              key={item.id}
               icon={item.icon}
               label={item.label}
               href={item.href}
@@ -749,7 +730,7 @@ export default function BottomNavigation() {
           {/* Render remaining navigation items (e.g. docs|admin & menu) */}
           {navItems.slice(2).map((item) => (
             <NavItem
-              key={item.href}
+              key={item.id}
               icon={item.icon}
               label={item.label}
               href={item.href}

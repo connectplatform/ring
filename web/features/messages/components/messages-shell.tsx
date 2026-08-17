@@ -28,8 +28,6 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConversationHeader } from '@/features/chat/components/conversation-header'
 import { CallOverlay } from '@/features/chat/components/call-overlay'
-import { IncomingCallBanner } from '@/features/chat/components/incoming-call-banner'
-import { IncomingGameBanner } from '@/features/peer-games/components/incoming-game-banner'
 import { GroupMembersDialog } from '@/features/chat/components/group-members-dialog'
 import { MessageThread } from '@/features/chat/components/message-thread'
 import { NewConversationDialog } from '@/features/chat/components/new-conversation-dialog'
@@ -38,13 +36,12 @@ import { getConversationTitle } from '@/features/chat/lib/conversation-display'
 import { useConversation, useConversations } from '@/hooks/use-messaging'
 import {
   useWebRtcCall,
-  type IncomingCallInvite,
 } from '@/hooks/use-webrtc-call'
 import { usePeerGameBusy, setPeerCallBusy } from '@/features/peer-games/lib/peer-game-mutex'
+import { useCallSession } from '@/features/chat/providers/call-session-provider'
 import { apiClient } from '@/lib/api-client'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
-import { useTunnel } from '@/hooks/use-tunnel'
 
 export default function MessagesShell() {
   const t = useTranslations('common')
@@ -53,7 +50,7 @@ export default function MessagesShell() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
-  const paramC = searchParams.get('c')
+  const paramC = searchParams.get('c') || searchParams.get('conversation')
   const paramUser = searchParams.get('user')
 
   const [selectedId, setSelectedId] = useState<string | null>(paramC)
@@ -61,11 +58,11 @@ export default function MessagesShell() {
   const [showNewConv, setShowNewConv] = useState(false)
   const [showGroupMembers, setShowGroupMembers] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [injectedInvite, setInjectedInvite] = useState<IncomingCallInvite | null>(null)
   const deepLinkHandledRef = useRef<string | null>(null)
   const userId = session?.user?.id ?? ''
-  const { publish } = useTunnel({ autoConnect: false })
   const gameBusy = usePeerGameBusy()
+  const { pendingInvite, setPendingInvite } = useCallSession()
+  const injectedInvite = pendingInvite
 
   const inbox = useConversations()
   const { refresh: refreshInbox, createConversation, conversations, clearUnread } = inbox
@@ -103,7 +100,7 @@ export default function MessagesShell() {
     // Keep subscribe path open for injected invites even when callPeer is still null.
     enabled: Boolean(selectedId && (callPeer || injectedInvite)),
     injectedInvite,
-    onInjectedInviteConsumed: () => setInjectedInvite(null),
+    onInjectedInviteConsumed: () => setPendingInvite(null),
   })
 
   // Publish callBusy so /games layout + game_request widget share the mutex.
@@ -144,40 +141,6 @@ export default function MessagesShell() {
       clearUnread(id)
     },
     [clearUnread, syncConversationUrl],
-  )
-
-  const handleGlobalAccept = useCallback(
-    (invite: IncomingCallInvite) => {
-      setInjectedInvite(invite)
-      selectConversation(invite.conversationId)
-    },
-    [selectConversation],
-  )
-
-  const handleGlobalDecline = useCallback(
-    (invite: IncomingCallInvite) => {
-      if (!userId) return
-      // Fast path when Tunnel is up
-      void publish(`conversation:${invite.conversationId}`, 'call:reject', {
-        callId: invite.callId,
-        fromUserId: userId,
-        media: invite.media,
-        reason: 'rejected',
-      }).catch(() => {})
-      // API fallback: server publishes reject + records system line (idempotent)
-      void apiClient
-        .post(
-          `/api/conversations/${invite.conversationId}/call-event`,
-          {
-            callId: invite.callId,
-            event: 'rejected',
-            media: invite.media,
-          },
-          { timeout: 8000, retries: 0 },
-        )
-        .catch(() => {})
-    },
-    [publish, userId],
   )
 
   const openDirectConversation = useCallback(
@@ -380,16 +343,6 @@ export default function MessagesShell() {
       onToggle={setRailOpen}
       railClassName="min-h-0"
     >
-      <IncomingCallBanner
-        activeConversationId={selectedId}
-        callBusy={webrtcCall.phase !== 'idle' || gameBusy}
-        onAcceptAction={handleGlobalAccept}
-        onDeclineAction={handleGlobalDecline}
-      />
-      <IncomingGameBanner
-        callBusy={webrtcCall.phase !== 'idle'}
-        gameBusy={gameBusy}
-      />
       <DavinciCenterPane
         className="h-[calc(100dvh-5.5rem)] min-h-0"
         contentClassName="flex min-h-0 flex-1 flex-col !p-[5px]"

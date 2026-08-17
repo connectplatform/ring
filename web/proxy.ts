@@ -18,6 +18,8 @@ import {
   REF_COOKIE_NAME,
   REF_VISIBLE_COOKIE_NAME,
 } from '@/features/refcodes/constants'
+import { acceptPrefersMarkdown } from '@/lib/docs/docs-agent-accept'
+import { sessionTokenCookieCandidates } from '@/lib/auth/auth-cookie-names'
 
 /**
  * next-intl + optimistic session-cookie gate for /profile and /settings,
@@ -36,6 +38,27 @@ export default async function proxy(req: NextRequest) {
       pathname.includes('.')
     ) {
       return NextResponse.next()
+    }
+
+    // Docs Accept: text/markdown → same API as /.md twin (AWS-style negotiation).
+    // Only when markdown q > html q so browsers keep HTML.
+    {
+      const localeFromPathEarly = pathname.split('/')[1] || routing.defaultLocale
+      const localeEarly = routing.locales.includes(localeFromPathEarly as Locale)
+        ? localeFromPathEarly
+        : routing.defaultLocale
+      const strippedEarly = stripLocaleFromPathname(pathname)
+      if (
+        (strippedEarly === '/docs' || strippedEarly.startsWith('/docs/')) &&
+        acceptPrefersMarkdown(req.headers.get('accept'))
+      ) {
+        const slugPart =
+          strippedEarly === '/docs' ? '' : strippedEarly.replace(/^\/docs\/?/, '')
+        const destPath = slugPart
+          ? `/api/docs/markdown/${localeEarly}/${slugPart}`
+          : `/api/docs/markdown/${localeEarly}`
+        return NextResponse.rewrite(new URL(destPath, req.url))
+      }
     }
 
     const intlReq = withUpstreamPathHeaders(req)
@@ -58,9 +81,11 @@ export default async function proxy(req: NextRequest) {
 
     const stripped = stripLocaleFromPathname(pathname)
 
-    const sessionToken =
-      intlReq.cookies.get('next-auth.session-token')?.value ||
-      intlReq.cookies.get('__Secure-next-auth.session-token')?.value
+    const sessionToken = sessionTokenCookieCandidates(
+      intlReq.nextUrl.protocol === 'https:',
+    )
+      .map((name) => intlReq.cookies.get(name)?.value)
+      .find(Boolean)
     const isLoggedIn = !!sessionToken
 
     const isLanguageSwitch = detectLanguageSwitch(intlReq, stripped)

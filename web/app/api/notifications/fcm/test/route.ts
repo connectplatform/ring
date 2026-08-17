@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
 import { getMessaging } from 'firebase-admin/messaging'
+import { getFcmVapidKey } from '@/lib/firebase-public-env'
 
 type FcmTokenRow = Record<string, unknown> & { id: string; token?: string }
 
@@ -163,7 +164,7 @@ export async function GET(req: NextRequest) {
       tokenCount: tokens.length,
       tokens,
       environment: {
-        hasVapidKey: !!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+        hasVapidKey: getFcmVapidKey() !== null,
         hasProjectId: !!process.env.AUTH_FIREBASE_PROJECT_ID,
         hasClientEmail: !!process.env.AUTH_FIREBASE_CLIENT_EMAIL,
         hasPrivateKey: !!process.env.AUTH_FIREBASE_PRIVATE_KEY,

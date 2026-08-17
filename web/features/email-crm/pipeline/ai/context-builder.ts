@@ -271,6 +271,10 @@ export class ContextBuilder {
       demo_request: ['sales', 'demo'],
       enterprise_inquiry: ['enterprise', 'sales'],
       complaint: ['support', 'escalation'],
+      newsletter_subscription: ['spam'],
+      vendor_offer_ring_relevant: ['business', 'partnership'],
+      vendor_offer_irrelevant: ['spam'],
+      spam: ['spam'],
     };
     
     const categories = intentToCategory[intent] || ['general'];

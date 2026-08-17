@@ -21,7 +21,7 @@ self.addEventListener('push', (event) => {
     body: payload.body || payload.notification?.body || 'You have a new notification',
     icon: payload.icon || '/icons/notification-icon.png',
     badge: payload.badge || '/icons/badge-icon.png',
-    tag: payload.tag || `ring-${Date.now()}`,
+    tag: payload.tag || (payload.data?.type === 'call_invite' ? `call_invite-${payload.data.callId || Date.now()}` : `ring-${Date.now()}`),
     data: payload.data || {},
     renotify: true,
     requireInteraction: payload.data?.type === 'call_invite',
@@ -60,6 +60,7 @@ function actionUrlByType(type) {
   const map = {
     chat: '/messages',
     call_invite: '/messages',
+    game_request: '/games',
     opportunity: '/opportunities',
     news: '/news',
     entity: '/entities',

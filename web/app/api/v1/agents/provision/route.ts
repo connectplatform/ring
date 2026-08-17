@@ -46,7 +46,7 @@ interface ProvisionRequest {
   rag_data_sources: string[]
   stake_amount: number
   stake_token: 'DAARION'
-  platform: 'greenfood.live'
+  platform: string
   platform_api: string
 }
 

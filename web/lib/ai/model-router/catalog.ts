@@ -284,6 +284,24 @@ export const MODEL_CATALOG: ModelEntry[] = [
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
     status: 'active',
   },
+  {
+    provider: 'openrouter',
+    modelId: 'deepseek/deepseek-chat',
+    displayName: 'OpenRouter DeepSeek Chat',
+    modalities: ['text'],
+    methods: [{ name: 'chat', http: 'POST', path: '/chat/completions' }],
+    capabilities: { tools: true, stream: true, structuredOutput: true },
+    pricing: {
+      unit: 'per_mtok',
+      inputUsd: 0.14,
+      outputUsd: 0.28,
+      asOf: AS_OF,
+      source: 'https://openrouter.ai/deepseek/deepseek-chat',
+    },
+    keyEnv: ['OPENROUTER_API_KEY'],
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    status: 'active',
+  },
 
   // —— Suno ——
   {

@@ -1,4 +1,19 @@
 import { SUPPORTED_LOCALES } from '@/lib/locale-config'
+import { getSiteBaseUrl, getSystemConfigSnapshot } from '@/lib/ring-config-core'
+
+function dagiPlatformIdentity(): { hostname: string; site: string; scheme: string } {
+  const site = getSiteBaseUrl()
+  let hostname = 'ring-platform.org'
+  try {
+    hostname = new URL(site).hostname.replace(/^www\./, '')
+  } catch {
+    /* keep default */
+  }
+  const clone = getSystemConfigSnapshot().clone as { shortName?: string; name?: string } | undefined
+  const raw = (clone?.shortName || clone?.name || 'ring').toLowerCase()
+  const scheme = raw.replace(/[^a-z0-9]+/g, '') || 'ring'
+  return { hostname, site, scheme }
+}
 
 /**
  * DAARION.city DAGI Agent Provisioning Service
@@ -235,8 +250,8 @@ export async function provisionDAGIAgent(config: DAGIAgentConfig): Promise<DAGIA
       rag_data_sources: ragDataSources,
       stake_amount: config.daarionStake,
       stake_token: 'DAARION',
-      platform: 'greenfood.live',
-      platform_api: `https://app.greenfood.live/api`,
+      platform: dagiPlatformIdentity().hostname,
+      platform_api: `${dagiPlatformIdentity().site}/api`,
     }),
   })
 
@@ -286,17 +301,17 @@ export async function provisionDAGIAgent(config: DAGIAgentConfig): Promise<DAGIA
  * Build default RAG data sources for agent
  */
 function buildDefaultRAGDataSources(config: DAGIAgentConfig): string[] {
+  const { scheme } = dagiPlatformIdentity()
   return [
-    `greenfood://vendors/${config.vendorId}/products`, // Vendor products
-    `greenfood://vendors/${config.vendorId}/orders`, // Order history
-    `greenfood://vendors/${config.vendorId}/analytics`, // Analytics data
-    `greenfood://farms/${config.farmId}/harvest-schedule`, // Harvest schedule
-    `greenfood://farms/${config.farmId}/certifications`, // Certifications
-    `greenfood://farms/${config.farmId}/sustainability`, // Sustainability metrics
-    `greenfood://farms/${config.farmId}/traceability`, // Traceability data
-    `greenfood://knowledge-base/agricultural-practices`, // Best practices
-    `greenfood://knowledge-base/organic-farming`, // Organic farming knowledge
-    `greenfood://knowledge-base/fsma-204-compliance`, // FSMA 204 compliance
+    `${scheme}://vendors/${config.vendorId}/products`,
+    `${scheme}://vendors/${config.vendorId}/orders`,
+    `${scheme}://vendors/${config.vendorId}/analytics`,
+    `${scheme}://farms/${config.farmId}/harvest-schedule`,
+    `${scheme}://farms/${config.farmId}/certifications`,
+    `${scheme}://farms/${config.farmId}/sustainability`,
+    `${scheme}://farms/${config.farmId}/traceability`,
+    `${scheme}://knowledge-base/practices`,
+    `${scheme}://knowledge-base/compliance`,
   ]
 }
 
@@ -313,7 +328,7 @@ async function registerDaarionCitizen(agentId: string, config: DAGIAgentConfig):
     body: JSON.stringify({
       agent_id: agentId,
       agent_type: 'farm_coordinator', // Farm coordinator role
-      platform: 'greenfood.live',
+      platform: dagiPlatformIdentity().hostname,
       vendor_id: config.vendorId,
       farm_id: config.farmId,
       collective_learning: true, // Enable collective learning
@@ -350,7 +365,7 @@ export async function syncAgentWithDaarwizz(agentId: string, dataUpdate: any): P
       update_type: 'knowledge_graph',
       data: dataUpdate,
       timestamp: new Date().toISOString(),
-      platform: 'greenfood.live',
+      platform: dagiPlatformIdentity().hostname,
     }),
   })
 }

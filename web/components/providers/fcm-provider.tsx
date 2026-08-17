@@ -1,10 +1,13 @@
 'use client'
 
-import React, { createContext, use, useEffect, useState, Suspense } from 'react'
+import React, { createContext, use, useCallback, useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useFCM, useFCMMessages } from '@/hooks/use-fcm'
-import { unregisterCurrentDeviceFcmToken } from '@/lib/notifications/fcm-client-cleanup'
+import { unregisterCurrentDevicePush } from '@/lib/notifications/fcm-client-cleanup'
+import { setPushOptedOut } from '@/lib/notifications/push-opt-out'
 import { getBrowserNotificationPermission } from '@/lib/browser/notification-api'
+import { emitInteractivePushFromFcmData } from '@/lib/notifications/incoming-from-push'
+import { isFcmConfigured } from '@/lib/firebase-client'
 import { toast } from '@/hooks/use-toast'
 
 interface FCMContextType {
@@ -12,6 +15,7 @@ interface FCMContextType {
   isSupported: boolean
   isLoading: boolean
   error: string | null
+  needsHomeScreenInstall: boolean
   enableNotifications: () => Promise<boolean>
   disableNotifications: () => Promise<void>
   tokenCount: number
@@ -40,6 +44,7 @@ const FCM_DISCONNECTED_CONTEXT: FCMContextType = {
   isSupported: false,
   isLoading: false,
   error: null,
+  needsHomeScreenInstall: false,
   enableNotifications: async () => false,
   disableNotifications: async () => {},
   tokenCount: 0,
@@ -58,54 +63,90 @@ export function FCMProvider({ children }: FCMProviderProps) {
 }
 
 function FCMProviderRuntime({ children }: FCMProviderProps) {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
   const {
     token,
     permission,
     isSupported,
     isLoading,
     error,
+    rfcSubscribed,
+    needsHomeScreenInstall,
     requestPermission,
-    onMessageReceived
+    resetLocalPushState,
+    onMessageReceived,
   } = useFCM()
-  const { messages, clearMessages } = useFCMMessages()
-  
+  const fcmForeground = isSupported && isFcmConfigured()
+  const { messages, clearMessages } = useFCMMessages(onMessageReceived, fcmForeground)
+
   const [tokenCount, setTokenCount] = useState(0)
-  const isEnabled = permission === 'granted' && !!token
+  const isEnabled =
+    permission === 'granted' && (!!token || rfcSubscribed)
 
-  // Handle incoming FCM messages
-  useEffect(() => {
-    if (messages.length > 0) {
-      const latestMessage = messages[messages.length - 1]
-      
-      // Show toast notification for foreground messages
-      if (latestMessage.notification) {
-        toast({
-          title: latestMessage.notification.title || 'New Notification',
-          description: latestMessage.notification.body,
-          duration: 5000,
-        })
-      }
-
-      // Handle custom actions based on message data
-      if (latestMessage.data) {
-        handleMessageAction(latestMessage.data)
-      }
-
-      // Clear processed messages
-      setTimeout(() => clearMessages(), 1000)
+  const handleMessageAction = useCallback((data: Record<string, string>) => {
+    switch (data.type) {
+      case 'call_invite':
+      case 'game_request':
+        return
+      case 'chat':
+        if (data.chatId) {
+          window.location.href = `/chat/${data.chatId}`
+        }
+        break
+      case 'opportunity':
+        if (data.opportunityId) {
+          window.location.href = `/opportunities/${data.opportunityId}`
+        }
+        break
+      case 'news':
+        if (data.newsId) {
+          window.location.href = `/news/${data.newsId}`
+        }
+        break
+      case 'entity':
+        if (data.entityId) {
+          window.location.href = `/entities/${data.entityId}`
+        }
+        break
+      default:
+        if (data.clickAction) {
+          window.location.href = data.clickAction
+        }
+        break
     }
-  }, [messages, clearMessages])
+  }, [])
 
-  // Get token count for user
+  useEffect(() => {
+    if (messages.length === 0) return
+    const latestMessage = messages[messages.length - 1]
+    const data = (latestMessage.data || {}) as Record<string, string>
+    const interactive = emitInteractivePushFromFcmData(data, session?.user?.id || '')
+
+    if (!interactive && latestMessage.notification) {
+      toast({
+        title: latestMessage.notification.title || 'New Notification',
+        description: latestMessage.notification.body,
+        duration: 5000,
+      })
+    }
+
+    if (!interactive && latestMessage.data) {
+      handleMessageAction(data)
+    }
+
+    const timer = window.setTimeout(() => clearMessages(), 1000)
+    return () => window.clearTimeout(timer)
+  }, [messages, clearMessages, handleMessageAction, session?.user?.id])
+
   useEffect(() => {
     if (session?.user?.id && isEnabled) {
-      fetchTokenCount()
+      void fetchTokenCount()
     }
   }, [session?.user?.id, isEnabled])
 
   const enableNotifications = async (): Promise<boolean> => {
     try {
+      setPushOptedOut(false)
       const granted = await requestPermission()
       if (granted) {
         toast({
@@ -130,7 +171,9 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
 
   const disableNotifications = async (): Promise<void> => {
     try {
-      await unregisterCurrentDeviceFcmToken()
+      setPushOptedOut(true)
+      await unregisterCurrentDevicePush()
+      resetLocalPushState()
 
       toast({
         title: 'Notifications Disabled',
@@ -162,55 +205,15 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
     }
   }
 
-  const handleMessageAction = (data: Record<string, string>) => {
-    // Handle different types of notification actions
-    switch (data.type) {
-      case 'chat':
-        // Navigate to chat
-        if (data.chatId) {
-          window.location.href = `/chat/${data.chatId}`
-        }
-        break
-        
-      case 'opportunity':
-        // Navigate to opportunity
-        if (data.opportunityId) {
-          window.location.href = `/opportunities/${data.opportunityId}`
-        }
-        break
-        
-      case 'news':
-        // Navigate to news article
-        if (data.newsId) {
-          window.location.href = `/news/${data.newsId}`
-        }
-        break
-        
-      case 'entity':
-        // Navigate to entity
-        if (data.entityId) {
-          window.location.href = `/entities/${data.entityId}`
-        }
-        break
-        
-      default:
-        // Default action - navigate to notifications page
-        if (data.clickAction) {
-          window.location.href = data.clickAction
-        } else {
-          window.location.href = '/notifications'
-        }
-    }
-  }
-
   const contextValue: FCMContextType = {
     isEnabled,
     isSupported,
     isLoading,
     error,
+    needsHomeScreenInstall,
     enableNotifications,
     disableNotifications,
-    tokenCount
+    tokenCount,
   }
 
   return (
@@ -221,53 +224,59 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
 }
 
 const FCM_PROMPT_STORAGE_KEY = 'fcm-prompt-dismissed'
+const FCM_INSTALL_PROMPT_STORAGE_KEY = 'fcm-install-prompt-dismissed'
 
-function getFCMPromptAlreadySeen(): boolean {
+function getPromptDismissed(key: string): boolean {
   if (typeof window === 'undefined') return false
-  return sessionStorage.getItem(FCM_PROMPT_STORAGE_KEY) === 'true'
+  return sessionStorage.getItem(key) === 'true'
 }
 
-// Notification permission prompt component
 export function FCMPermissionPrompt() {
-  const { isSupported, isEnabled, isLoading, enableNotifications } = useFCMContext()
+  const {
+    isSupported,
+    isEnabled,
+    isLoading,
+    needsHomeScreenInstall,
+    enableNotifications,
+  } = useFCMContext()
   const [showPrompt, setShowPrompt] = useState(false)
 
+  const dismissKey = needsHomeScreenInstall
+    ? FCM_INSTALL_PROMPT_STORAGE_KEY
+    : FCM_PROMPT_STORAGE_KEY
+
   useEffect(() => {
-    // Don't show if user already dismissed or enabled in this session
-    if (getFCMPromptAlreadySeen()) return
-    // Don't show if browser permission already granted (e.g. after remount before token is in state)
-    if (getBrowserNotificationPermission() === 'granted') return
-    // Show prompt after 3 seconds if notifications are supported but not enabled
+    if (getPromptDismissed(dismissKey)) return
+    if (!needsHomeScreenInstall && getBrowserNotificationPermission() === 'granted') return
     const timer = setTimeout(() => {
-      if (isSupported && !isEnabled && !isLoading && !getFCMPromptAlreadySeen()) {
+      if (getPromptDismissed(dismissKey)) return
+      if (needsHomeScreenInstall || (isSupported && !isEnabled && !isLoading)) {
         setShowPrompt(true)
       }
     }, 3000)
 
     return () => clearTimeout(timer)
-  }, [isSupported, isEnabled, isLoading])
+  }, [isSupported, isEnabled, isLoading, needsHomeScreenInstall, dismissKey])
 
-  // Never show if user already dismissed or enabled this session
-  if (typeof window !== 'undefined' && getFCMPromptAlreadySeen()) {
+  if (typeof window !== 'undefined' && getPromptDismissed(dismissKey)) {
     return null
   }
 
-  if (!showPrompt || isEnabled || !isSupported) {
-    return null
-  }
+  if (!showPrompt) return null
+  if (isEnabled) return null
+  if (!needsHomeScreenInstall && !isSupported) return null
 
   const handleEnable = async () => {
     const success = await enableNotifications()
     if (success) {
       setShowPrompt(false)
-      // Persist so we don't show again after remount/navigation
       sessionStorage.setItem(FCM_PROMPT_STORAGE_KEY, 'true')
     }
   }
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    sessionStorage.setItem(FCM_PROMPT_STORAGE_KEY, 'true')
+    sessionStorage.setItem(dismissKey, 'true')
   }
 
   return (
@@ -281,24 +290,35 @@ export function FCMPermissionPrompt() {
           </div>
         </div>
         <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-foreground">
-            Enable Push Notifications
+          <h3 className="text-sm font-medium text-foreground">
+            {needsHomeScreenInstall ? 'Install for notifications' : 'Enable Push Notifications'}
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Get real-time updates about opportunities, messages, and important news.
+            {needsHomeScreenInstall
+              ? 'iPhone and iPad only allow push from a Home Screen web app (iOS 16.4+).'
+              : 'Get real-time updates about opportunities, messages, and important news.'}
           </p>
+          {needsHomeScreenInstall && (
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+              <li>Tap the Share button in Safari</li>
+              <li>Choose Add to Home Screen</li>
+              <li>Open the new icon, then tap Enable</li>
+            </ol>
+          )}
           <div className="mt-3 flex space-x-2">
-            <button
-              onClick={handleEnable}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            >
-              Enable
-            </button>
+            {!needsHomeScreenInstall && (
+              <button
+                onClick={() => void handleEnable()}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              >
+                Enable
+              </button>
+            )}
             <button
               onClick={handleDismiss}
               className="inline-flex items-center px-3 py-1.5 border border-border text-xs font-medium rounded-md text-foreground bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
-              Not now
+              {needsHomeScreenInstall ? 'Got it' : 'Not now'}
             </button>
           </div>
         </div>
@@ -313,4 +333,4 @@ export function FCMPermissionPrompt() {
       </div>
     </div>
   )
-} 
+}

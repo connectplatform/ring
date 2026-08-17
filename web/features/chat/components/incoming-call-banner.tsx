@@ -3,7 +3,7 @@
 /**
  * Listens on user tunnel channel `calls:incoming` (server fan-out from call-invite).
  * Reuses useTunnelChannel SSOT — same path as notifications:unread.
- * Offline: WS2a FCM CALL_INVITE + SW notificationclick → /messages?conversation=&call=
+ * Offline: CALL_INVITE push emit + SW notificationclick → /messages?c=&call=
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -16,6 +16,7 @@ import type { IncomingCallInvite } from '@/hooks/use-webrtc-call'
 import type { TunnelMessage } from '@/lib/tunnel/types'
 import { cn } from '@/lib/utils'
 import { startIncomingCallRingtone } from '@/features/chat/lib/call-ringtone'
+import { subscribeIncomingCallFromPush } from '@/lib/notifications/incoming-from-push'
 
 type IncomingCallBannerProps = {
   /** Conversation currently open — ignore duplicate invite for same thread. */
@@ -46,7 +47,7 @@ export function IncomingCallBanner({
       if (payload.fromUserId === session?.user?.id) return
       // Conversation-channel handler covers the open thread; skip duplicate banner.
       if (payload.conversationId === activeConversationId) return
-      setInvite(payload)
+      setInvite((prev) => (prev?.callId === payload.callId ? prev : payload))
     },
     [activeConversationId, callBusy, session?.user?.id],
   )
@@ -56,6 +57,16 @@ export function IncomingCallBanner({
     enabled: Boolean(session?.user?.id),
     onTunnelMessage,
   })
+
+  useEffect(() => {
+    return subscribeIncomingCallFromPush((payload) => {
+      if (callBusy) return
+      if (!payload?.callId || !payload.conversationId || !payload.fromUserId) return
+      if (payload.fromUserId === session?.user?.id) return
+      if (payload.conversationId === activeConversationId) return
+      setInvite((prev) => (prev?.callId === payload.callId ? prev : payload))
+    })
+  }, [activeConversationId, callBusy, session?.user?.id])
 
   useEffect(() => {
     if (!invite) return

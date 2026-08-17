@@ -1,0 +1,302 @@
+---
+title: Push Notifications with FCM (Ring-Powered)
+description: Shipped FCM plus RFC web-push dual-stack — Console Web Push certificate for getToken, dedicated VAPID_* for web-push, REST register, Admin send.
+last_modified: "2026-08-16"
+audience: both
+---
+
+# Push Notifications with FCM (Ring-Powered)
+
+<Callout type="info">
+  Use the **Founder** / **Developer** tabs to filter this page. FCM works in every `DB_BACKEND_MODE` (`k8s-postgres-fcm`, `supabase-fcm`, `firebase-full`) — you do not need Firestore for push alone.
+</Callout>
+
+Ring stores FCM device tokens in your primary database (PostgreSQL or Firestore by backend mode), one row per user per device. Browser clients obtain a token with the Firebase Messaging SDK; the server sends with the **Firebase Admin SDK**. RFC Web Push (`web-push` + `push_subscriptions`) dual-dispatches on `NotificationChannel.PUSH` when `VAPID_*` are set — used when FCM cannot own the PushManager subscription (Safari / no prior FCM subscribe).
+
+<Callout type="warning" title="Firebase Web Push certificate vs dedicated VAPID_*">
+  **FCM (`getToken`):** `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is the public key from **Firebase Console → Project Settings → Cloud Messaging → Web Push certificates** for the same Firebase project as `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. Only this value is passed to `getToken({ vapidKey })` via `getFcmVapidKey()`.
+
+  **RFC Web Push:** `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` are **runtime secrets** (not Docker build-args). Generate with `npx web-push generate-vapid-keys`. Never pass `VAPID_*` into `getToken`. One PushManager subscription per service-worker scope: FCM browsers stay on `fcm_tokens`; RFC subscribe only when no subscription exists yet. Code: `features/notifications/services/webpush-service.ts`, `GET /api/push/vapid-public`, `hooks/use-fcm.ts` `registerRfcWebPushSubscription()`, migration `046_push_subscriptions_jsonb.sql`.
+</Callout>
+
+<Cards>
+  <Card href="/docs/features/notifications" title="Notifications overview" description="In-app types, channels, and Peer Games GAME_* delivery." />
+  <Card href="/docs/api/notifications" title="Notifications API" description="FCM register/unregister endpoints and Tunnel delivery." />
+  <Card href="/docs/architecture/backend-modes-and-databases" title="Backend modes" description="Where fcm_tokens live per DB_BACKEND_MODE." />
+  <Card href="/docs/backend/firebase" title="Firebase integration" description="Admin SDK, client config, and FCM bridge methods." />
+</Cards>
+
+<Audience for="founder">
+
+## Why FCM matters for your clone
+
+- **Reach users when the tab is closed** — FCM delivers OS/browser push; Tunnel covers live in-app inbox while they are online
+- **One row per device** — phone + laptop + tablet stay separate; invalid tokens are cleaned when FCM reports them dead
+- **Works without full Firestore** — Postgres-primary clones still use Firebase only for Cloud Messaging. Set `integrations.firebase` to `{ enabled: false, fcmEnabled: true, firestoreEnabled: false }`; the client initializes the Firebase app for messaging only.
+- **Per-clone Firebase project** — each white-label needs its **own** Console Web Push certificate; copying another project’s public key breaks `getToken`
+
+### Typical scenarios
+
+| Scenario | What to do |
+|----------|------------|
+| New clone / white-label | Create (or reuse) a Firebase project for **that** clone; generate Web Push certificates there; set `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_FIREBASE_VAPID_KEY` |
+| Push “not working” after copy-paste env | Certificate must belong to this clone’s `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. Firebase `getToken` fails on mismatch — regenerate in Console, then **rebuild** the image (browser bundle is build-time) |
+| RFC dual-stack (Chrome + Safari) | Dedicated keypair (`npx web-push generate-vapid-keys`) in runtime Secret as `VAPID_*` — not the Console certificate |
+| RFC-only Safari (no Firebase) | Set `VAPID_*` runtime secrets. iPhone/iPad: Add to Home Screen (`display: standalone`). Chrome still uses FCM when `NEXT_PUBLIC_FIREBASE_*` is present. |
+
+### Operator checklist (shipped)
+
+1. Firebase project with Cloud Messaging enabled
+2. Web Push **certificate** generated in that same project → `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Docker **build-arg**)
+3. Server service account → `AUTH_FIREBASE_PROJECT_ID` / `AUTH_FIREBASE_CLIENT_EMAIL` / `AUTH_FIREBASE_PRIVATE_KEY`
+4. HTTPS (or localhost) + service worker at `/firebase-messaging-sw.js`
+5. Signed-in users (Auth.js) before token registration
+6. After rotating the certificate: rebuild/redeploy — ConfigMap alone does not refresh the browser bundle
+7. RFC (Safari / Firebase-less): `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` as runtime Secret; iOS users must open the Home Screen web app
+8. iPhone/iPad: Share → Add to Home Screen → open the icon → Enable (Safari tabs have no `PushManager`). Need a real **180×180** `/apple-touch-icon.png` so iOS saves a web app, not a bookmark
+
+</Audience>
+
+<Audience for="developer">
+
+## Shipped stack (FCM + RFC dual-stack)
+
+| Layer | FCM (primary web) | RFC Web Push |
+|-------|-------------------|--------------|
+| Client subscribe | `subscribeWithVapid()` in `hooks/use-fcm.ts` → `getToken({ vapidKey: getFcmVapidKey() })` | `PushManager.subscribe` with `VAPID_PUBLIC_KEY` **only if no existing subscription** |
+| Service worker | `public/firebase-messaging-sw.js` | `public/push-sw.js` when FCM is not configured; never both on scope `/` |
+| Client enable | `isFcmConfigured()` (Firebase public env) | `GET /api/push/vapid-public` — prompt does **not** require Firebase |
+| Register | `POST /api/notifications/fcm/register` (preferred; Server Action `upsertFcmToken` still exists) | Server Action `upsertPushSubscription`; public key via `GET /api/push/vapid-public` |
+| Store | `fcm_tokens` via `lib/notifications/fcm-token-db.ts` | `push_subscriptions` JSONB (migration 046) |
+| Server send | `fcm-service.ts` Admin HTTP v1 `sendEach` | `webpush-service.ts` (`web-push`); dual `Promise.allSettled` on PUSH |
+| npm | `firebase`, `firebase-admin` | `web-push` |
+
+### Env map
+
+| Variable | Role | Status |
+|----------|------|--------|
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Console Web Push **certificate** (public) for `getToken()` | **Required for FCM** — build-arg; read via `getFcmVapidKey()`. Not needed on RFC-only Safari |
+| `VAPID_PUBLIC_KEY` | Dedicated RFC public for `web-push` / PushManager | **Runtime Secret** — must differ from Console cert |
+| `VAPID_PRIVATE_KEY` | Dedicated RFC private (server-only) | **Runtime Secret** — never a build-arg |
+| `VAPID_SUBJECT` | `mailto:` or `https:` contact URI | **Runtime Secret** |
+
+FCM send uses Admin SDK (`AUTH_FIREBASE_*`), not `VAPID_PRIVATE_KEY`. `isFcmConfigured()` is presence + non-placeholder only (`validateFirebaseConfig() && validateFcmVapidKey()`). **RFC-only browsers** set `isSupported` from Push APIs + `/api/push/vapid-public`, not from Firebase. Mismatched FCM certificates surface as Firebase `getToken` errors — Ring does not classify key prefixes.
+
+| Surface | Chrome / FCM | Safari RFC (macOS tab or iOS Home Screen PWA) |
+|---------|--------------|-----------------------------------------------|
+| Subscribe | `getToken` → `fcm_tokens` | `PushManager.subscribe` only if no existing subscription → `push_subscriptions` |
+| Focused tab | In-app toast; `CALL_INVITE` / `GAME_REQUEST` → global banners + ringtone (no `new Notification()`, no navigate) | Tunnel banners when the tab is open; SW `showNotification` (WebKit forbids silent push) |
+| Hidden / killed | FCM SW OS banner (`onBackgroundMessage`; data-only for call/game) | RFC SW OS banner (`push-sw.js`) |
+| Missed call TTL | ~90s (`webpush.headers.TTL`) | ~90s (`web-push` TTL) |
+
+### How server PUSH dual-dispatch works
+
+`NotificationChannel.PUSH` always calls **both** Firebase Admin (`fcm_tokens`) and RFC `web-push` (`push_subscriptions`). That is **per-user device-class fan-out**, not two deliveries to Chrome:
+
+| Device | Table row | What the other stack does |
+|--------|-----------|---------------------------|
+| Chrome (FCM `getToken` owns PushManager) | `fcm_tokens` | RFC subscribe skipped → **no** `push_subscriptions` row → `web-push` `attempted: 0` (no-op) |
+| Safari RFC-only | `push_subscriptions` | No FCM token → Admin `attempted: 0` (no-op) |
+| Same account, Chrome laptop + Safari phone | both | **both** sends are required |
+
+Do **not** skip RFC globally when FCM is configured — that would drop the Safari device. Empty `push_subscriptions` on a Chrome-only user is expected, not a missing second pipe.
+
+Delivery accounting (`lib/notifications/push-dual-dispatch.ts`): **delivered** if either stack `sent > 0`; **failed** if endpoints existed but every send failed; **noop** (still recorded DELIVERED on the PUSH channel) when both tables are empty.
+
+<Callout type="tip" title="Build-time vs runtime">
+  `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is inlined into the Next.js client bundle at **image build**. Cluster ConfigMap can update process env, but browsers keep the previous inlined value until rebuild. `VAPID_*` are runtime-only — rotate without rebuilding the client bundle.
+</Callout>
+
+## Token flow
+
+<Mermaid title="FCM token register and send">
+{`flowchart LR
+  Browser["Browser\nuseFCM + subscribeWithVapid"]
+  SW["/firebase-messaging-sw.js"]
+  API["POST /api/notifications/fcm/register"]
+  DB["fcm_tokens"]
+  Admin["Firebase Admin\nFCMService"]
+  Browser --> SW
+  Browser -->|getFcmVapidKey| Browser
+  Browser --> API
+  API --> DB
+  Admin --> DB
+  Admin -->|HTTP v1 sendEach| FCM[(FCM)]
+  FCM --> SW
+`}
+</Mermaid>
+
+### Prerequisites
+
+- Auth.js session — server derives `user_id`
+- HTTPS or localhost; SW at `/firebase-messaging-sw.js` (FCM) or `/push-sw.js` (RFC-only)
+- Valid `NEXT_PUBLIC_FIREBASE_*` + this project’s Console Web Push certificate **or** RFC-only `VAPID_*` (Safari / no Firebase)
+- Server Admin: `AUTH_FIREBASE_PROJECT_ID`, `AUTH_FIREBASE_CLIENT_EMAIL`, `AUTH_FIREBASE_PRIVATE_KEY`
+
+### Register path
+
+<Steps>
+
+<Step>
+
+**Stable device fingerprint**
+
+Persist a UUID (e.g. `localStorage`) and reuse it. Upsert key is `(user_id, device_fingerprint)`.
+
+</Step>
+
+<Step>
+
+**Permission + FCM token**
+
+`Notification.requestPermission()`, then `subscribeWithVapid()` → Firebase `getToken` with `getFcmVapidKey()` (`hooks/use-fcm.ts`). `FCMProviderRuntime` owns **one** `useFCM()` instance; `useFCMMessages(onMessageReceived, isSupported)` must not call `useFCM` again.
+
+</Step>
+
+<Step>
+
+**Persist on the server**
+
+`POST /api/notifications/fcm/register` (avoids Server Action RSC revalidation). Body: `token`, `deviceFingerprint`, optional `deviceInfo` / `platform`. Auth required.
+
+</Step>
+
+<Step>
+
+**Unregister on logout**
+
+`useAuth().signOut()` runs device unregister. Non-React: `DELETE /api/notifications/fcm/register` with the same `deviceFingerprint`.
+
+</Step>
+
+</Steps>
+
+<Code language="typescript" title="Client — Console certificate via getFcmVapidKey">
+{`import { getMessaging, getToken } from 'firebase/messaging'
+import { getFcmVapidKey, getFirebaseClientApp } from '@/lib/firebase-client'
+
+const firebaseApp = getFirebaseClientApp()
+const vapidKey = getFcmVapidKey()
+if (!firebaseApp || !vapidKey) return
+const token = await getToken(getMessaging(firebaseApp), { vapidKey })`}
+</Code>
+
+### Server send (verified modules)
+
+| Module | Path |
+|--------|------|
+| Domain FCM send + invalid-token cleanup | `features/notifications/services/fcm-service.ts` |
+| firebase-full adapter bridge | `lib/database/adapters/FirebaseAdapter.ts` — `sendFcmMessage`, `sendFcmToUser`, `sendFcmToTopic`, `validateFcmToken`, `cleanupInvalidFcmTokens` |
+| Admin messaging accessor | `lib/firebase-admin.server.ts` → `getAdminMessaging()` |
+| Token DB layer | `lib/notifications/fcm-token-db.ts` |
+| RFC send | `features/notifications/services/webpush-service.ts` |
+| Client hook / SW | `hooks/use-fcm.ts`, `public/firebase-messaging-sw.js` |
+
+PostgreSQL: `data/migrations/016_fcm_jsonb_schema.sql`, `046_push_subscriptions_jsonb.sql`.
+
+### Environment
+
+| Purpose | Variables | Where |
+|---------|-----------|--------|
+| Firebase client + FCM subscribe | `NEXT_PUBLIC_FIREBASE_*` + **`NEXT_PUBLIC_FIREBASE_VAPID_KEY`** | Client / **Docker build-arg** |
+| Admin send | `AUTH_FIREBASE_PROJECT_ID`, `AUTH_FIREBASE_CLIENT_EMAIL`, `AUTH_FIREBASE_PRIVATE_KEY`; `DB_BACKEND_MODE` | Server-only |
+| RFC Web Push | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | **Runtime Secret** — `webpush-service.ts` |
+
+### Troubleshooting
+
+| Issue | Cause | Fix |
+|-------|--------|-----|
+| token-subscribe-failed / auth credential | Certificate does not belong to this Firebase project, or Cloud Messaging API disabled | Generate Web Push certificates in **this** project’s Console; rebuild image; enable FCM + Installations APIs |
+| ConfigMap updated but browser still old | `NEXT_PUBLIC_*` inlined at build | Rebuild/redeploy with matching build-arg |
+| Permission denied | User denied notifications | Request permission before `getToken()` |
+| 401 on register | No session | Cookie / Bearer required |
+| UNREGISTERED on send | Stale token | `FCMService` / `sendFcmToUser` marks row invalid |
+| RFC web-push empty | Missing `VAPID_*` trio, Firebase-less Safari never prompted, or PushManager already owned by FCM | Set dedicated runtime secrets; RFC `isSupported` does not need `NEXT_PUBLIC_FIREBASE_*`; iOS = Home Screen PWA. Chrome-only users **should** have empty `push_subscriptions` |
+| Foreground toast + OS banner | `useFCMMessages` used to call `new Notification()`, or FCM SW `push` + `onBackgroundMessage` both showing | Focused tab is toast (or call/game banner) only; FCM SW skips `push` when messaging init succeeded; data-only for call/game |
+| `validate-fcm-env --format yaml` private key ~2 chars | Old regex captured `|-` as the value | Parser now reads YAML block scalars (`ring/scripts/lib/parse-yaml-keyed-env.mjs`) |
+| Call-invite dedupe differs across pods | `REDIS_URL` unset → in-process Map | Optional Redis; k3s-or `ring-platform-org` is 1 replica today |
+| Disable then push returns | `Notification.permission` stays granted; init effect used to re-subscribe | `ring_push_opt_out` localStorage + `unregisterCurrentDevicePush` |
+
+</Audience>
+
+## Frequently asked questions
+
+### Impact
+
+#### Will Chrome users get two OS banners for one chat message?
+
+No. Chrome FCM occupies PushManager, so RFC subscribe is skipped and `push_subscriptions` stays empty (`web-push` `attempted: 0`). Same account on Safari is a **second device**, not a second Chrome pipe.
+
+#### Do iPhone users get FCM?
+
+Not in a Safari tab. They need the Home Screen web app (iOS 16.4+), then RFC `PushManager.subscribe` with dedicated `VAPID_*`. Chrome on iOS is still WebKit — same Home Screen rule.
+
+### Migration
+
+#### Can I reuse the Firebase Console certificate as `VAPID_PUBLIC_KEY`?
+
+No. That public key has no usable RFC private. Generate `npx web-push generate-vapid-keys` and store the trio as runtime Secret.
+
+### Ops
+
+#### Why does `validate-fcm-env --format yaml` show a 2-character Admin key?
+
+`AUTH_FIREBASE_PRIVATE_KEY: |-` is a YAML block scalar. Use `ring/scripts/validate-fcm-env.mjs` (block-scalar parser), not a one-line regex.
+
+## Related documentation
+
+<RelatedDocs>
+  <RelatedArticle
+    slug="features/notifications"
+    relation="Prerequisite: notification types and channels before deep FCM setup."
+  />
+  <RelatedArticle
+    slug="api/notifications"
+    relation="Same-workflow: FCM register API contract and env truth for push."
+  />
+  <RelatedArticle
+    slug="backend/firebase"
+    relation="Deep-dive: Firebase Admin, client SDK, and FCM adapter bridge."
+  />
+  <RelatedArticle
+    slug="backend/k8s-postgres-fcm"
+    relation="Depends-on: Postgres-primary mode where FCM tokens live in SQL."
+  />
+  <RelatedArticle
+    slug="architecture/backend-modes-and-databases"
+    relation="See-also: how token storage routes by DB_BACKEND_MODE."
+  />
+  <RelatedArticle
+    slug="features/webrtc-calls"
+    relation="Same-workflow: CALL_INVITE offline push uses this dual-stack (data-only FCM, 90s TTL)."
+  />
+  <RelatedArticle
+    slug="features/peer-games"
+    relation="Same-workflow: GAME_REQUEST offline push after Tunnel presence grace."
+  />
+</RelatedDocs>
+
+<FutureFeatureBacklog title="Backlog — Web Push (not shipped)">
+
+<FutureFeatureWidget
+  name="Declarative Web Push (iOS 18.4+)"
+  description="RFC JSON with web_push: 8030 so Home Screen apps can display without waking the service worker. Classic push-sw.js remains the fallback."
+  implementationCost={21}
+  labels={['push', 'safari', 'ios']}
+/>
+
+<FutureFeatureWidget
+  name="Layer1 apple-touch-icon.png"
+  description="Commit an opaque 180×180 PNG at /apple-touch-icon.png (manifest + layout already point here). Without it iOS 16.4+ may save a bookmark instead of a standalone web app."
+  implementationCost={5}
+  labels={['pwa', 'ios']}
+/>
+
+<FutureFeatureWidget
+  name="REDIS_URL on k3s-or"
+  description="Shared SET NX / rate-limit instead of in-process Map before replicas > 1. Today ring-platform-org deploy is 1 replica."
+  implementationCost={13}
+  labels={['redis', 'k8s']}
+/>
+
+</FutureFeatureBacklog>

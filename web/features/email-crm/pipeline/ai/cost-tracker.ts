@@ -21,6 +21,8 @@ export interface UsageRecord {
   success: boolean;
   errorMessage: string | null;
   timestamp: Date;
+  /** Provider generation id (OpenRouter gen-… / Anthropic msg-…) when available. */
+  providerLlmCallId?: string | null;
 }
 
 export type OperationType = 
@@ -30,27 +32,58 @@ export type OperationType =
   | 'response_generation'
   | 'batch_analytics';
 
-// Model pricing (per 1M tokens)
-const PRICING = {
+// Model pricing (per 1M tokens). OpenRouter ids use same table keys as catalog.
+const PRICING: Record<
+  string,
+  { input: number; output: number; cacheRead: number; cacheWrite: number }
+> = {
   'claude-haiku-4-5-20250514': {
     input: 0.25,
     output: 1.25,
     cacheRead: 0.025,
-    cacheWrite: 0.30,
+    cacheWrite: 0.3,
   },
   'claude-sonnet-4-20250514': {
-    input: 3.00,
-    output: 15.00,
-    cacheRead: 0.30,
+    input: 3.0,
+    output: 15.0,
+    cacheRead: 0.3,
     cacheWrite: 3.75,
   },
   'claude-opus-4-20250514': {
-    input: 15.00,
-    output: 75.00,
-    cacheRead: 1.50,
+    input: 15.0,
+    output: 75.0,
+    cacheRead: 1.5,
     cacheWrite: 18.75,
   },
-};
+  // OpenRouter DeepSeek Chat (approx; catalog AS_OF)
+  'deepseek/deepseek-chat': {
+    input: 0.14,
+    output: 0.28,
+    cacheRead: 0.014,
+    cacheWrite: 0.14,
+  },
+  'anthropic/claude-sonnet-4-5': {
+    input: 3.0,
+    output: 15.0,
+    cacheRead: 0.3,
+    cacheWrite: 3.75,
+  },
+  'openai/gpt-4o-mini': {
+    input: 0.15,
+    output: 0.6,
+    cacheRead: 0.015,
+    cacheWrite: 0.15,
+  },
+}
+
+function resolvePricing(model: string) {
+  if (PRICING[model]) return PRICING[model]
+  if (model.includes('deepseek')) return PRICING['deepseek/deepseek-chat']
+  if (model.includes('haiku')) return PRICING['claude-haiku-4-5-20250514']
+  if (model.includes('sonnet')) return PRICING['claude-sonnet-4-20250514']
+  if (model.includes('opus')) return PRICING['claude-opus-4-20250514']
+  return null
+}
 
 // Batch processing discount
 const BATCH_DISCOUNT = 0.5; // 50% off for batch operations
@@ -88,10 +121,10 @@ export class CostTracker {
     },
     isBatch = false
   ): number {
-    const pricing = PRICING[model as keyof typeof PRICING];
+    const pricing = resolvePricing(model)
     if (!pricing) {
-      logger.warn('[CostTracker] Unknown model pricing', { model });
-      return 0;
+      logger.warn('[CostTracker] Unknown model pricing', { model })
+      return 0
     }
     
     const inputCost = (tokens.input * pricing.input) / 1_000_000;
@@ -123,7 +156,7 @@ export class CostTracker {
         cacheRead: params.cacheReadTokens,
         cacheWrite: params.cacheWriteTokens,
       },
-      params.operation === 'batch_analytics'
+      false
     );
     
     const record: UsageRecord = {

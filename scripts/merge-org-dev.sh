@@ -4,9 +4,14 @@
 # Uses --safe-links so DX symlinks in Layer1 are not followed into the merge tree.
 set -euo pipefail
 RING_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib-ring-paths.sh
+source "$RING_ROOT/scripts/lib-ring-paths.sh"
 KINGDOM="$(cd "$RING_ROOT/.." && pwd)"
 LAYER1="$RING_ROOT/web"
-ORG_ROOT="$KINGDOM/ring-platform-org"
+ORG_ROOT="$(ring_clone_root "$KINGDOM" ring-platform-org)" || {
+  echo "FATAL: empire overlay missing under $KINGDOM/ringdom-clones/ring-platform-org" >&2
+  exit 1
+}
 ORG_WEB="${RING_ORG_WEB_ROOT:-$ORG_ROOT/web}"
 OUT="${RING_ORG_MERGE_OUT:-$ORG_ROOT/.dev-merge}"
 

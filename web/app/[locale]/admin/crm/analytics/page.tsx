@@ -10,61 +10,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CrmAdminShell } from '@/features/admin/crm/crm-admin-shell';
 import { 
   BarChart3, TrendingUp, DollarSign, Zap, Clock, 
-  Mail, CheckCircle, AlertTriangle, Brain, Database
+  Mail, Brain, Database
 } from 'lucide-react';
 
-interface DailyStats {
-  date: string;
-  emailsReceived: number;
-  emailsSent: number;
-  autoResponses: number;
-  draftReviews: number;
-  avgResponseTimeMinutes: number;
-}
-
-interface CostStats {
-  totalCost: number;
-  byModel: { [key: string]: number };
-  cacheHitRate: number;
-  cacheSavings: number;
-}
-
-// Mock data
-const MOCK_DAILY_STATS: DailyStats[] = [
-  { date: '2026-02-03', emailsReceived: 45, emailsSent: 42, autoResponses: 28, draftReviews: 14, avgResponseTimeMinutes: 15 },
-  { date: '2026-02-02', emailsReceived: 38, emailsSent: 35, autoResponses: 22, draftReviews: 13, avgResponseTimeMinutes: 18 },
-  { date: '2026-02-01', emailsReceived: 52, emailsSent: 48, autoResponses: 35, draftReviews: 13, avgResponseTimeMinutes: 12 },
-  { date: '2026-01-31', emailsReceived: 41, emailsSent: 40, autoResponses: 26, draftReviews: 14, avgResponseTimeMinutes: 20 },
-  { date: '2026-01-30', emailsReceived: 36, emailsSent: 33, autoResponses: 21, draftReviews: 12, avgResponseTimeMinutes: 22 },
-];
-
-const MOCK_COST_STATS: CostStats = {
-  totalCost: 12.47,
-  byModel: {
-    'claude-haiku': 2.15,
-    'claude-sonnet': 8.92,
-    'claude-opus': 1.40,
-  },
-  cacheHitRate: 0.73,
-  cacheSavings: 8.23,
-};
-
-const MOCK_INTENT_DISTRIBUTION = {
-  technical_support: 28,
-  general_inquiry: 22,
-  feature_request: 15,
-  documentation_help: 12,
-  pricing_inquiry: 10,
-  enterprise_inquiry: 8,
-  other: 5,
-};
-
-const MOCK_SENTIMENT_DISTRIBUTION = {
-  positive: 35,
-  neutral: 45,
-  negative: 12,
-  frustrated: 8,
-};
+// Live data from EmailAnalyticsService / email_api_usage (no mock fallbacks).
 
 export default function EmailAnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
@@ -72,7 +21,16 @@ export default function EmailAnalyticsPage() {
     totalEmails: number
     intentDistribution: Record<string, number>
     sentimentDistribution: Record<string, number>
-    costStats: { totalCostUsd: number; cacheHitRate: number; requestCount: number }
+    costStats: {
+      totalCostUsd: number
+      cacheHitRate: number
+      requestCount: number
+      byModel?: Record<string, number>
+      byOperation?: Record<string, number>
+      byOperationCount?: Record<string, number>
+      totalInputTokens?: number
+      totalOutputTokens?: number
+    }
     dailyStats: { date: string; received: number; cost: number }[]
     draftStats: { autoSendRate: number; todayAutoSends: number }
   } | null>(null);
@@ -95,13 +53,18 @@ export default function EmailAnalyticsPage() {
   const totalAutoResponses = analytics?.draftStats?.todayAutoSends ?? 0;
   const autoResponseRate = Math.round((analytics?.draftStats?.autoSendRate ?? 0) * 100);
   const avgResponseTime = 0;
-  const intentDistribution = analytics?.intentDistribution ?? MOCK_INTENT_DISTRIBUTION;
-  const sentimentDistribution = analytics?.sentimentDistribution ?? MOCK_SENTIMENT_DISTRIBUTION;
+  const intentDistribution = analytics?.intentDistribution ?? {};
+  const sentimentDistribution = analytics?.sentimentDistribution ?? {};
   const costStats = {
-    totalCost: analytics?.costStats?.totalCostUsd ?? MOCK_COST_STATS.totalCost,
-    cacheHitRate: analytics?.costStats?.cacheHitRate ?? MOCK_COST_STATS.cacheHitRate,
+    totalCost: analytics?.costStats?.totalCostUsd ?? 0,
+    cacheHitRate: analytics?.costStats?.cacheHitRate ?? 0,
     cacheSavings: 0,
-    byModel: MOCK_COST_STATS.byModel,
+    byModel: analytics?.costStats?.byModel ?? {},
+    byOperation: analytics?.costStats?.byOperation ?? {},
+    byOperationCount: analytics?.costStats?.byOperationCount ?? {},
+    requestCount: analytics?.costStats?.requestCount ?? 0,
+    totalInputTokens: analytics?.costStats?.totalInputTokens ?? 0,
+    totalOutputTokens: analytics?.costStats?.totalOutputTokens ?? 0,
   };
   const dailyStats = analytics?.dailyStats?.map((d) => ({
     date: d.date,
@@ -110,7 +73,8 @@ export default function EmailAnalyticsPage() {
     autoResponses: 0,
     draftReviews: 0,
     avgResponseTimeMinutes: 0,
-  })) ?? MOCK_DAILY_STATS;
+  })) ?? [];
+  const liveLoaded = Boolean(analytics);
 
   return (
     <CrmAdminShell pageContext="crm-analytics">
@@ -124,6 +88,7 @@ export default function EmailAnalyticsPage() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Email Analytics</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 AI-powered email processing insights
+                {liveLoaded ? ' · live email_api_usage' : ' · loading…'}
               </p>
             </div>
           </div>
@@ -195,9 +160,9 @@ export default function EmailAnalyticsPage() {
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">API Cost (Week)</span>
             </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">${costStats.totalCost.toFixed(2)}</div>
-            <div className="text-sm text-green-600 dark:text-green-400 mt-1">
-              ${costStats.cacheSavings.toFixed(2)} saved via cache
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">${costStats.totalCost.toFixed(4)}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {costStats.requestCount} API requests · {(costStats.totalInputTokens + costStats.totalOutputTokens).toLocaleString()} tokens
             </div>
           </div>
         </div>
@@ -284,21 +249,45 @@ export default function EmailAnalyticsPage() {
               AI Model Costs
             </h3>
             <div className="space-y-4">
-              {Object.entries(costStats.byModel).map(([model, cost]) => (
+              {Object.keys(costStats.byModel).length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No email pipeline usage recorded yet.</p>
+              ) : (
+                Object.entries(costStats.byModel).map(([model, cost]) => (
                 <div key={model} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300 capitalize">
-                    {model.replace('claude-', 'Claude ')}
+                  <span className="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[70%]" title={model}>
+                    {model}
                   </span>
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    ${cost.toFixed(2)}
+                    ${Number(cost).toFixed(4)}
                   </span>
                 </div>
-              ))}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <div className="flex items-center justify-between">
+              ))
+              )}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4 space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  By operation
+                </p>
+                {Object.keys(costStats.byOperation).length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No operations recorded yet.</p>
+                ) : (
+                  Object.entries(costStats.byOperation).map(([op, cost]) => (
+                    <div key={op} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {op.replace(/_/g, ' ')}
+                        {costStats.byOperationCount[op] != null
+                          ? ` · ${costStats.byOperationCount[op]}`
+                          : ''}
+                      </span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        ${Number(cost).toFixed(4)}
+                      </span>
+                    </div>
+                  ))
+                )}
+                <div className="flex items-center justify-between pt-2">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total</span>
                   <span className="text-lg font-bold text-gray-900 dark:text-white">
-                    ${costStats.totalCost.toFixed(2)}
+                    ${costStats.totalCost.toFixed(4)}
                   </span>
                 </div>
               </div>

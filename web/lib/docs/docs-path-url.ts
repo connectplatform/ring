@@ -34,4 +34,9 @@ export function buildDocsHref(locale: string, slug: string[]): string {
   return `${prefix}${buildDocsLinkPath(slug)}`
 }
 
+/** Public markdown twin path: `/docs/foo` → `/docs/foo.md` (locale-aware). */
+export function buildDocsMarkdownHref(locale: string, slug: string[]): string {
+  return `${buildDocsHref(locale, slug)}.md`
+}
+
 export type { Locale }

@@ -60,45 +60,25 @@ try {
   // Service worker will still register but FCM features won't work
 }
 
-// Enhanced background message handler with React 19 features
+// Data-only CALL_INVITE / GAME_REQUEST: this handler shows the OS banner.
+// Generic FCM payloads include `notification` — the browser already displayed those; do not show again.
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
-  console.log('Background message received:', payload)
+    console.log('Background message received:', payload)
+    const type = payload.data?.type
+    const alreadyDisplayed = Boolean(payload.notification?.title)
 
-  const notificationTitle = payload.notification?.title || 'Ring Notification'
-  const notificationOptions = {
-    body: payload.notification?.body || 'You have a new notification',
-    icon: payload.notification?.icon || '/icons/notification-icon.png',
-    badge: '/icons/badge-icon.png',
-    data: payload.data || {},
-    actions: [
-      {
-        action: 'view',
-        title: 'View',
-        icon: '/icons/view-icon.png'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss',
-        icon: '/icons/dismiss-icon.png'
-      }
-    ],
-    requireInteraction: payload.data?.priority === 'high' || payload.data?.priority === 'urgent',
-    silent: false,
-    tag: payload.data?.tag || payload.data?.type || 'default',
-    // React 19 Enhanced: Better timestamp handling
-    timestamp: Date.now(),
-    // Enhanced visual options
-    image: payload.notification?.image,
-    dir: 'auto',
-    lang: payload.data?.lang || 'en',
-    renotify: payload.data?.renotify === 'true',
-    vibrate: payload.data?.priority === 'urgent' ? [200, 100, 200] : [100]
-  }
-
-  // Show notification with enhanced options
-  return self.registration.showNotification(notificationTitle, notificationOptions)
-})
+    if (type === 'call_invite') {
+      return showCallInviteNotification(payload)
+    }
+    if (type === 'game_request') {
+      return showGameRequestNotification(payload)
+    }
+    if (alreadyDisplayed) {
+      return
+    }
+    return showDefaultNotification(payload)
+  })
 }
 
 // Enhanced notification click handler with React 19 navigation
@@ -175,7 +155,9 @@ self.addEventListener('notificationclose', (event) => {
   }
 })
 
-// Enhanced push event handler with custom notification types
+// FCM SDK already consumes `push` when messaging initialized. A second listener
+// would duplicate OS banners on Chrome. Keep this only as a fallback if Firebase init failed.
+if (!messaging) {
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
@@ -204,11 +186,12 @@ self.addEventListener('push', (event) => {
     )
   }
 })
+}
 
 // Helper function to handle different notification types
 function handleNotificationByType(payload) {
-  const { type, data } = payload
-  
+  const type = payload.type || payload.data?.type
+
   switch (type) {
     case 'chat':
       return showChatNotification(payload)
@@ -220,9 +203,48 @@ function handleNotificationByType(payload) {
       return showEntityNotification(payload)
     case 'admin':
       return showAdminNotification(payload)
+    case 'call_invite':
+      return showCallInviteNotification(payload)
+    case 'game_request':
+      return showGameRequestNotification(payload)
     default:
       return showDefaultNotification(payload)
   }
+}
+
+function showCallInviteNotification(payload) {
+  const data = payload.data || payload
+  const clickAction = data.clickAction || data.actionUrl || '/messages'
+  const tag = data.tag || `call_invite-${data.callId || Date.now()}`
+  return self.registration.showNotification(
+    payload.title || payload.notification?.title || data.title || 'Incoming call',
+    {
+      body: payload.body || payload.notification?.body || data.body || 'Open Messages to answer',
+      icon: payload.icon || '/icons/notification-icon.png',
+      badge: payload.badge || '/icons/badge-icon.png',
+      data: { ...data, clickAction, type: 'call_invite' },
+      requireInteraction: true,
+      tag,
+      renotify: true,
+    },
+  )
+}
+
+function showGameRequestNotification(payload) {
+  const data = payload.data || payload
+  const clickAction = data.clickAction || data.actionUrl || '/games'
+  const tag = data.tag || `game_request-${data.sessionId || Date.now()}`
+  return self.registration.showNotification(
+    payload.title || payload.notification?.title || data.title || 'Game challenge',
+    {
+      body: payload.body || payload.notification?.body || data.body || 'Open Games to accept',
+      icon: payload.icon || '/icons/notification-icon.png',
+      badge: payload.badge || '/icons/badge-icon.png',
+      data: { ...data, clickAction, type: 'game_request' },
+      requireInteraction: true,
+      tag,
+    },
+  )
 }
 
 // Enhanced notification handlers for different types
@@ -311,18 +333,24 @@ function showAdminNotification(payload) {
 }
 
 function showDefaultNotification(payload) {
+  const data = payload.data || payload
+  const clickAction = data.clickAction || data.url || '/'
   const options = {
-    body: payload.message || 'You have a new notification',
-    icon: '/icons/notification-icon.png',
-    badge: '/icons/badge-icon.png',
-    data: payload,
+    body: payload.body || payload.notification?.body || payload.message || 'You have a new notification',
+    icon: payload.icon || '/icons/notification-icon.png',
+    badge: payload.badge || '/icons/badge-icon.png',
+    data: { ...data, clickAction },
     actions: [
       { action: 'view', title: 'View', icon: '/icons/view-icon.png' }
     ],
-    tag: payload.tag || 'default'
+    tag: payload.tag || data.tag || 'default',
+    requireInteraction: data.type === 'call_invite',
   }
   
-  return self.registration.showNotification('Ring Notification', options)
+  return self.registration.showNotification(
+    payload.title || payload.notification?.title || 'Ring Notification',
+    options,
+  )
 }
 
 // Helper function to get action URL by notification type
@@ -330,6 +358,7 @@ function getActionUrlByType(type) {
   const typeUrls = {
     chat: '/messages',
     call_invite: '/messages',
+    game_request: '/games',
     opportunity: '/opportunities',
     news: '/news',
     entity: '/entities',

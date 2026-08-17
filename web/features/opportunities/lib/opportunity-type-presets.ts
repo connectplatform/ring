@@ -214,22 +214,20 @@ export function getOpportunityFormTypePreset(
 
 /** Keys for the Add Opportunity persona picker (public 2×2). */
 export type OpportunityTypeKey =
+  | 'request'
+  | 'offer'
+
+/** Legacy form/deep-link types still supported outside the picker. */
+export type OpportunityLegacyPickerKey =
   | 'project_order'
+  | 'ring_customization'
   | 'cv'
   | 'vendor_listing'
   | 'program'
 
-/** Legacy form/deep-link types still supported outside the picker. */
-export type OpportunityLegacyPickerKey =
-  | 'ring_customization'
-  | 'request'
-  | 'offer'
-
 export const OPPORTUNITY_SELECTOR_TYPE_ORDER: OpportunityTypeKey[] = [
-  'project_order',
-  'cv',
-  'vendor_listing',
-  'program',
+  'request',
+  'offer',
 ]
 
 export type OpportunitySelectorNavigationKind = 'route' | 'opportunity-form'
@@ -253,40 +251,26 @@ export const opportunitySelectorTypePresets: Record<
   OpportunityTypeKey,
   OpportunitySelectorTypePreset
 > = {
-  project_order: {
-    icon: Zap,
-    accentIcon: Crown,
-    requiresMembership: false,
-    popular: true,
-    examples: ['platform_deployment', 'module_development', 'branding', 'ai_customization'],
-    navigationKind: 'route',
-  },
-  cv: {
-    icon: Sparkles,
-    accentIcon: TrendingUp,
-    requiresMembership: false,
-    popular: true,
-    examples: ['developer_cv', 'portfolio', 'skills'],
-    navigationKind: 'opportunity-form',
-    formType: 'cv',
-  },
-  vendor_listing: {
-    icon: Briefcase,
-    accentIcon: TrendingUp,
-    requiresMembership: true,
-    examples: ['job', 'contract', 'internship'],
-    navigationKind: 'route',
-  },
-  program: {
+  request: {
     icon: Target,
-    accentIcon: Crown,
-    requiresMembership: true,
+    accentIcon: Sparkles,
+    requiresMembership: false,
     popular: true,
-    examples: ['strategic', 'joint_venture', 'collaboration'],
+    examples: ['service_request', 'help_wanted', 'community_need'],
     navigationKind: 'opportunity-form',
-    formType: 'program',
+    formType: 'request',
+  },
+  offer: {
+    icon: Users,
+    accentIcon: TrendingUp,
+    requiresMembership: false,
+    popular: true,
+    examples: ['job', 'service', 'collaboration'],
+    navigationKind: 'opportunity-form',
+    formType: 'offer',
   },
 }
 
-// TODO(legacy-picker): request / offer / ring_customization remain creatable via deep link
-// and admin tools; ring_customization continues to be auto-published from calculator project_orders.
+// TODO(legacy-picker): project_order / cv / vendor_listing / program / ring_customization
+// remain creatable via deep link and admin tools; ring_customization continues to be
+// auto-published from calculator project_orders. Packs overwrite this file for vertical pickers.

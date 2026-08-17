@@ -10,6 +10,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { parseYamlKeyedEnv } from './lib/parse-yaml-keyed-env.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 
@@ -33,8 +34,6 @@ const SERVER_VARS = [
 const WEBPUSH_VARS = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']
 
 const PLACEHOLDER = /^(your_|demo-|changeme|replace_me|xxx|todo|your-)/i
-/** Known ring-main Console Web Push certificate prefixes (legacy + current). */
-const RING_MAIN_VAPID_PREFIXES = ['BKQ4OAwA-', 'BMQkJfOd']
 
 function parseArgs() {
   const fileIdx = process.argv.indexOf('--file')
@@ -66,13 +65,7 @@ function parseDotenv(content) {
 }
 
 function parseYamlFirebase(content) {
-  const env = {}
-  for (const key of [...CLIENT_VARS, ...SERVER_VARS, ...WEBPUSH_VARS]) {
-    const re = new RegExp(`^\\s*${key}:\\s*["']?([^"'\\n#]+)`, 'm')
-    const m = content.match(re)
-    if (m) env[key] = m[1].trim()
-  }
-  return env
+  return parseYamlKeyedEnv(content, [...CLIENT_VARS, ...SERVER_VARS, ...WEBPUSH_VARS])
 }
 
 function loadEnv(file, format) {
@@ -121,18 +114,6 @@ function main() {
   }
 
   const vapid = env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()
-  const isRingMainVapid =
-    !!vapid && RING_MAIN_VAPID_PREFIXES.some((p) => vapid.startsWith(p))
-  if (vapid && projectId && isRingMainVapid && projectId !== 'ring-main') {
-    console.log(
-      `\nFAIL  Cross-project VAPID leak: key prefix matches ring-main but NEXT_PUBLIC_FIREBASE_PROJECT_ID=${projectId}`,
-    )
-    console.log(
-      '      Fix: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates',
-    )
-    console.log(`      Generate/copy the key pair for project "${projectId}" into NEXT_PUBLIC_FIREBASE_VAPID_KEY`)
-    fail++
-  }
 
   const sender = env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim()
   const appId = env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim()
@@ -143,7 +124,7 @@ function main() {
     warn++
   }
 
-  console.log('\nRFC Web Push (VAPID_* dual-stack — staged; dedicated keypair):')
+  console.log('\nRFC Web Push (VAPID_* dual-stack — dedicated keypair):')
   const webpushPresent = WEBPUSH_VARS.map((k) => Boolean(env[k]?.trim()))
   const webpushAny = webpushPresent.some(Boolean)
   const webpushAll = webpushPresent.every(Boolean)

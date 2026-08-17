@@ -7,6 +7,11 @@ import {
   sendPhoneOtp,
   verifyPhoneOtpCode,
 } from '@/features/auth/services/phone-otp-delivery'
+import {
+  insertPhoneLoginToken,
+  markPhoneChallengeUsed,
+  getOpenPhoneChallengeByRequestId,
+} from '@/features/auth/services/phone-login-tokens'
 import { logger } from '@/lib/logger'
 import { revalidatePath } from 'next/cache'
 
@@ -53,6 +58,27 @@ export async function startPhoneOtp(rawPhone: string) {
       error: sent.error,
       fallbackNeeded: sent.fallbackNeeded,
     }
+  }
+
+  // WA self-issued codes need phone_login_tokens.code_hash for verifyPhoneOtpCode
+  if (sent.channel === 'whatsapp') {
+    if (!sent.rawCode?.trim()) {
+      logger.error('PhoneOTP: WhatsApp send missing rawCode — refusing challenge', {
+        userId: session.user.id,
+      })
+      return {
+        success: false as const,
+        error: 'Could not send code. Try again shortly.',
+      }
+    }
+    await insertPhoneLoginToken({
+      phone: sent.phone,
+      requestId: sent.requestId,
+      channel: 'whatsapp',
+      userId: session.user.id,
+      expiresIn: '3 minutes',
+      rawCode: sent.rawCode,
+    })
   }
 
   const verification: PhoneVerificationState = {
@@ -141,6 +167,11 @@ export async function confirmPhoneOtp(code: string) {
       },
     })
     return { success: false as const, error: checked.error }
+  }
+
+  if (channel === 'whatsapp') {
+    const row = await getOpenPhoneChallengeByRequestId(verification.requestId)
+    if (row?.id) await markPhoneChallengeUsed(row.id)
   }
 
   const now = new Date().toISOString()

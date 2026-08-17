@@ -2,7 +2,7 @@
 -- PostgreSQL Schema for Ring Platform (flattened SSOT)
 -- ============================================================================
 -- Version: 4.1.0
--- Date: 2026-08-06
+-- Date: 2026-08-10
 -- Source: prior schema.sql + data/migrations/*.sql (skips legacy 001_email_crm_schema.sql)
 -- Fresh installs: apply THIS FILE ONLY (install.sh setup-db / scripts/setup-clone-db.sh).
 -- Existing DBs: add incremental files under data/migrations/, then re-run flatten.
@@ -515,68 +515,6 @@ CREATE TABLE public.email_login_tokens (
 --
 
 COMMENT ON TABLE public.email_login_tokens IS 'Ring Mailer auth tokens — store HMAC/SHA256 hashes only; never raw OTP or magic tokens';
-
-
---
--- Name: phone_login_tokens; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.phone_login_tokens (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    phone character varying(20) NOT NULL,
-    request_id character varying(128) NOT NULL,
-    channel character varying(32) DEFAULT 'telegram_gateway'::character varying NOT NULL,
-    user_id character varying(255),
-    expires_at timestamp with time zone NOT NULL,
-    used_at timestamp with time zone,
-    ip_address inet,
-    attempt_count smallint DEFAULT 0 NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: TABLE phone_login_tokens; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON TABLE public.phone_login_tokens IS 'Phone login OTP challenges — Gateway/WhatsApp request ids only; never store raw OTP codes';
-
-
---
--- Name: phone_login_tokens phone_login_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.phone_login_tokens
-    ADD CONSTRAINT phone_login_tokens_pkey PRIMARY KEY (id);
-
-
---
--- Name: phone_login_tokens_request_uidx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX phone_login_tokens_request_uidx ON public.phone_login_tokens USING btree (request_id);
-
-
---
--- Name: phone_login_tokens_phone_rate_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX phone_login_tokens_phone_rate_idx ON public.phone_login_tokens USING btree (phone, created_at DESC) WHERE (used_at IS NULL);
-
-
---
--- Name: phone_login_tokens_cleanup_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX phone_login_tokens_cleanup_idx ON public.phone_login_tokens USING btree (expires_at) WHERE (used_at IS NULL);
-
-
---
--- Name: phone_login_tokens phone_login_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.phone_login_tokens
-    ADD CONSTRAINT phone_login_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -1435,6 +1373,32 @@ CREATE TABLE public.peer_game_sessions (
 --
 
 COMMENT ON TABLE public.peer_game_sessions IS 'Peer mini-game sessions — status pending|active|completed|declined|resigned; Tunnel fan-out game:{id}';
+
+
+--
+-- Name: phone_login_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.phone_login_tokens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    phone character varying(20) NOT NULL,
+    request_id character varying(255) NOT NULL,
+    channel character varying(32) DEFAULT 'telegram_gateway'::character varying NOT NULL,
+    user_id character varying(255),
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    ip_address inet,
+    attempt_count smallint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    code_hash character varying(64)
+);
+
+
+--
+-- Name: TABLE phone_login_tokens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.phone_login_tokens IS 'Phone login OTP challenges — Gateway request_id or WA wamid; code_hash for self-issued rails only; never raw OTP';
 
 
 --
@@ -2926,6 +2890,14 @@ ALTER TABLE ONLY public.payout_batches
 
 ALTER TABLE ONLY public.peer_game_sessions
     ADD CONSTRAINT peer_game_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: phone_login_tokens phone_login_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phone_login_tokens
+    ADD CONSTRAINT phone_login_tokens_pkey PRIMARY KEY (id);
 
 
 --
@@ -4577,6 +4549,20 @@ CREATE INDEX idx_news_featured ON public.news USING btree (((data ->> 'featured'
 
 
 --
+-- Name: idx_news_fts_simple; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_news_fts_simple ON public.news USING gin (to_tsvector('simple'::regconfig, ((((COALESCE((data ->> 'title'::text), ''::text) || ' '::text) || COALESCE((data ->> 'excerpt'::text), ''::text)) || ' '::text) || COALESCE((data ->> 'content'::text), ''::text))));
+
+
+--
+-- Name: INDEX idx_news_fts_simple; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON INDEX public.idx_news_fts_simple IS 'JSONB full-text (simple config) over title+excerpt+content — WP/news-heavy clones';
+
+
+--
 -- Name: idx_news_likes_news_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4672,6 +4658,20 @@ CREATE INDEX idx_news_translation_group ON public.news USING btree (((data ->> '
 --
 
 CREATE INDEX idx_news_visibility ON public.news USING btree (((data ->> 'visibility'::text)));
+
+
+--
+-- Name: idx_news_wp_post_id_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_news_wp_post_id_unique ON public.news USING btree (((data ->> 'wpPostId'::text))) WHERE (((data ->> 'wpPostId'::text) IS NOT NULL) AND (btrim((data ->> 'wpPostId'::text)) <> ''::text));
+
+
+--
+-- Name: INDEX idx_news_wp_post_id_unique; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON INDEX public.idx_news_wp_post_id_unique IS 'One news row per WordPress post id for import clones';
 
 
 --
@@ -6796,6 +6796,27 @@ CREATE UNIQUE INDEX idx_wiki_pages_vault_slug ON public.wiki_pages USING btree (
 
 
 --
+-- Name: phone_login_tokens_cleanup_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX phone_login_tokens_cleanup_idx ON public.phone_login_tokens USING btree (expires_at) WHERE (used_at IS NULL);
+
+
+--
+-- Name: phone_login_tokens_phone_rate_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX phone_login_tokens_phone_rate_idx ON public.phone_login_tokens USING btree (phone, created_at DESC) WHERE (used_at IS NULL);
+
+
+--
+-- Name: phone_login_tokens_request_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX phone_login_tokens_request_uidx ON public.phone_login_tokens USING btree (request_id);
+
+
+--
 -- Name: conversations notify_conversations_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7166,11 +7187,11 @@ INSERT INTO public.currencies (code, name, symbol, decimal_places, is_crypto, is
 -- Data for Name: news_categories; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('announcements', '{"icon": "📢", "name": "Announcements", "slug": "announcements", "color": "bg-yellow-500", "description": "Official announcements"}', '2026-07-24 00:09:58.529683+03', '2026-08-06 14:54:52.816359+03');
-INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('platform-updates', '{"icon": "🚀", "name": "Platform Updates", "slug": "platform-updates", "color": "bg-blue-500", "description": "Platform and infrastructure updates"}', '2026-07-24 00:09:58.529683+03', '2026-08-06 14:54:52.816359+03');
-INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('community', '{"icon": "👥", "name": "Community", "slug": "community", "color": "bg-purple-500", "description": "Community highlights"}', '2026-07-24 00:09:58.529683+03', '2026-08-06 14:54:52.816359+03');
-INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('security', '{"icon": "🛡️", "name": "Security", "slug": "security", "color": "bg-red-500", "description": "Security advisories"}', '2026-07-24 00:09:58.529683+03', '2026-08-06 14:54:52.816359+03');
-INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('blogs', '{"icon": "✍️", "name": "Blogs", "slug": "blogs", "color": "bg-teal-500", "description": "Member blog posts promoted to main news"}', '2026-07-24 00:09:58.529683+03', '2026-08-06 14:54:52.816359+03');
+INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('announcements', '{"icon": "📢", "name": "Announcements", "slug": "announcements", "color": "bg-yellow-500", "description": "Official announcements"}', '2026-07-24 00:09:58.529683+03', '2026-08-10 21:22:11.948263+03');
+INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('platform-updates', '{"icon": "🚀", "name": "Platform Updates", "slug": "platform-updates", "color": "bg-blue-500", "description": "Platform and infrastructure updates"}', '2026-07-24 00:09:58.529683+03', '2026-08-10 21:22:11.948263+03');
+INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('community', '{"icon": "👥", "name": "Community", "slug": "community", "color": "bg-purple-500", "description": "Community highlights"}', '2026-07-24 00:09:58.529683+03', '2026-08-10 21:22:11.948263+03');
+INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('security', '{"icon": "🛡️", "name": "Security", "slug": "security", "color": "bg-red-500", "description": "Security advisories"}', '2026-07-24 00:09:58.529683+03', '2026-08-10 21:22:11.948263+03');
+INSERT INTO public.news_categories (id, data, created_at, updated_at) VALUES ('blogs', '{"icon": "✍️", "name": "Blogs", "slug": "blogs", "color": "bg-teal-500", "description": "Member blog posts promoted to main news"}', '2026-07-24 00:09:58.529683+03', '2026-08-10 21:22:11.948263+03');
 
 
 --
@@ -7222,5 +7243,5 @@ END $$;
 
 INSERT INTO schema_versions (version, description)
 SELECT '4.1.0',
-       'Flattened SSOT: schema.sql absorbs migrations through 043 + 2026-06-13 notification_preferences'
+       'Flattened SSOT: schema.sql absorbs migrations through 048_news_jsonb_fts + prior'
 WHERE NOT EXISTS (SELECT 1 FROM schema_versions WHERE version = '4.1.0');

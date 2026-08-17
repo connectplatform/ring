@@ -65,12 +65,10 @@ import { OpportunityTypeSelectorClient } from '@/components/opportunities/opport
 import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
 
 describe('opportunity type selector', () => {
-  it('exposes exactly four persona selector types', () => {
+  it('exposes community request and offer selector types', () => {
     expect(OPPORTUNITY_SELECTOR_TYPE_ORDER).toEqual([
-      'project_order',
-      'cv',
-      'vendor_listing',
-      'program',
+      'request',
+      'offer',
     ])
   })
 
@@ -113,12 +111,12 @@ describe('opportunity type selector', () => {
     expect(screen.getByTestId('center-overlay')).toBeTruthy()
   })
 
-  it('fills a 2×2 grid for all four types', () => {
+  it('renders request and offer selector tiles', () => {
     const { container } = render(
       <OpportunityTypeSelectorClient layout="embedded" userRole="subscriber" />,
     )
-    const grid = container.querySelector('.grid-cols-2.grid-rows-2')
+    const grid = container.querySelector('.grid-cols-2')
     expect(grid).toBeTruthy()
-    expect(grid?.children.length).toBe(4)
+    expect(grid?.children.length).toBe(2)
   })
 })

@@ -48,12 +48,12 @@
       {
         "name": "greenfood.live",
         "purpose": "Agricultural marketplace",
-        "filesystem": "ring-greenfood-live"
+        "filesystem": "ringdom-clones/ring-greenfood-live"
       },
       {
         "name": "vikka.ua",
         "purpose": "Media / news",
-        "filesystem": "ring-vikka-ua"
+        "filesystem": "ringdom-clones/ring-vikka-ua"
       },
       {
         "name": "zemna.ai",
@@ -596,14 +596,14 @@
       ]
     },
     "layer2_3_empire_overlay": {
-      "filesystem": "ring-platform-org/web",
-      "ops": "ring-platform-org/{k8s,.forgejo,scripts/ci,docs}",
-      "compose": "rsync ring/web then rsync ring-platform-org/web (overlay wins)",
-      "ring_config": "ring-platform-org/web/ring-config.json (calculator.enabled true, endemic flags)"
+      "filesystem": "ringdom-clones/ring-platform-org/web",
+      "ops": "ringdom-clones/ring-platform-org/{k8s,.forgejo,scripts/ci,docs}",
+      "compose": "rsync ring/web then rsync ringdom-clones/ring-platform-org/web (overlay wins)",
+      "ring_config": "ringdom-clones/ring-platform-org/web/ring-config.json (calculator.enabled true, endemic flags)"
     },
     "production_portal": {
       "hostname": "https://ring-platform.org",
-      "note": "Hostname ≠ checkout path. Product site is composed Layer1+overlay; FS truth is ring/web + ring-platform-org/web.",
+      "note": "Hostname ≠ checkout path. Product site is composed Layer1+overlay; FS truth is ring/web + ringdom-clones/ring-platform-org/web.",
       "infrastructure": "Kubernetes (empire ops), zero-downtime rolling updates",
       "backend_mode": "k8s-postgres-fcm"
     },

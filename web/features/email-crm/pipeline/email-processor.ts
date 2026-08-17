@@ -20,6 +20,7 @@ import {
   ResponseGenerator, getResponseGenerator, ResponseGenerationResult,
   CostTracker, getCostTracker
 } from './ai';
+import { routeCrmOps, type CrmOpsRouteResult } from './ai/crm-ops-router';
 import { 
   EmailContactService, getEmailContactService, EmailContact,
   EmailTaskService, getEmailTaskService, EmailTask,
@@ -56,6 +57,7 @@ export interface ProcessedEmail {
   // Generated response
   generation?: ResponseGenerationResult;
   draftResult?: DraftApprovalResult;
+  crmOps?: CrmOpsRouteResult;
   
   // Metadata
   processingTime: {
@@ -332,6 +334,9 @@ export class EmailProcessor extends EventEmitter {
         }
         
         this.emit('email:blocked', { parsed, security });
+
+        // Classifier may have billed before the block decision — still record it.
+        await this.recordInjectionUsage(event.messageId, security, timing.security);
         
         await this.markSeenIfImap(event.uid, options);
         return;
@@ -342,6 +347,8 @@ export class EmailProcessor extends EventEmitter {
       } catch {
         /* optional */
       }
+
+      await this.recordInjectionUsage(event.messageId, security, timing.security);
       
       // Step 3: AI Analysis
       const analysisStart = Date.now();
@@ -364,33 +371,39 @@ export class EmailProcessor extends EventEmitter {
       
       this.emit('email:analyzed', { parsed, intent, sentiment });
       
-      // Track analysis costs
+      // Track analysis costs only when an LLM actually ran (skip fallback zeros).
       if (this.config.trackCosts) {
-        await this.costTracker.recordUsage({
-          emailId: event.messageId,
-          model: 'claude-haiku-4-5-20250514',
-          operation: 'intent_classification',
-          inputTokens: intent.tokens.input,
-          outputTokens: intent.tokens.output,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
-          latencyMs: timing.analysis,
-          success: true,
-          errorMessage: null,
-        });
-        
-        await this.costTracker.recordUsage({
-          emailId: event.messageId,
-          model: 'claude-haiku-4-5-20250514',
-          operation: 'sentiment_analysis',
-          inputTokens: sentiment.tokens.input,
-          outputTokens: sentiment.tokens.output,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
-          latencyMs: timing.analysis,
-          success: true,
-          errorMessage: null,
-        });
+        if (this.llmWasBilled(intent)) {
+          await this.costTracker.recordUsage({
+            emailId: event.messageId,
+            model: intent.model || 'deepseek/deepseek-chat',
+            operation: 'intent_classification',
+            inputTokens: intent.tokens.input,
+            outputTokens: intent.tokens.output,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            latencyMs: timing.analysis,
+            success: true,
+            errorMessage: null,
+            providerLlmCallId: intent.providerLlmCallId ?? null,
+          });
+        }
+
+        if (this.llmWasBilled(sentiment)) {
+          await this.costTracker.recordUsage({
+            emailId: event.messageId,
+            model: sentiment.model || 'deepseek/deepseek-chat',
+            operation: 'sentiment_analysis',
+            inputTokens: sentiment.tokens.input,
+            outputTokens: sentiment.tokens.output,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            latencyMs: timing.analysis,
+            success: true,
+            errorMessage: null,
+            providerLlmCallId: sentiment.providerLlmCallId ?? null,
+          });
+        }
       }
       
       // Step 4: Get/create contact
@@ -408,6 +421,13 @@ export class EmailProcessor extends EventEmitter {
         sentiment.score
       );
 
+      const isFirstContact = contact.totalInteractions === 1
+      const crmOps = routeCrmOps({
+        intent,
+        parsed,
+        isFirstContact,
+      })
+
       const threadId = this.resolveThreadId(parsed);
       const priority = this.sentimentAnalyzer.getPriorityFromSentiment(sentiment);
 
@@ -418,6 +438,10 @@ export class EmailProcessor extends EventEmitter {
           intent,
           sentiment,
           channelMeta,
+          {
+            routeFlag: crmOps.routeFlag,
+            unsubscribeUrl: crmOps.unsubscribeUrl,
+          },
         );
         persistedMessage = true
         const failKey = event.uid > 0 ? `uid:${event.uid}` : `mid:${event.messageId}`
@@ -449,6 +473,8 @@ export class EmailProcessor extends EventEmitter {
           sourceChannel: channelMeta.sourceChannel,
           channelId: channelMeta.channelId,
           channelName: channelMeta.channelName,
+          routeFlag: crmOps.routeFlag,
+          unsubscribeUrl: crmOps.unsubscribeUrl,
         });
       } catch (err) {
         logger.error('[EmailProcessor] Thread persist failed', {
@@ -458,6 +484,32 @@ export class EmailProcessor extends EventEmitter {
         });
       }
 
+      // crm-ops tasks must run even on preferChat / before draft burn skip
+      if (this.config.createTasks && crmOps.tasks.length > 0) {
+        for (const opsTask of crmOps.tasks) {
+          try {
+            const created = await this.taskService.createTask({
+              threadId,
+              messageId: event.messageId,
+              title: opsTask.title,
+              description: opsTask.description,
+              taskType: opsTask.taskType,
+              priority: opsTask.priority,
+              dueDays: opsTask.dueDays,
+              autoGenerated: true,
+              triggerReason: opsTask.triggerReason,
+            })
+            this.emit('task:created', created)
+          } catch (err) {
+            logger.error('[EmailProcessor] crm-ops task create failed', {
+              messageId: event.messageId,
+              error: (err as Error).message,
+              triggerReason: opsTask.triggerReason,
+            })
+          }
+        }
+      }
+
       if (flow === 'ingest_only') {
         await this.markSeenIfImap(event.uid, options)
         timing.total = Date.now() - startTime
@@ -465,6 +517,7 @@ export class EmailProcessor extends EventEmitter {
         logger.info('[EmailProcessor] Ingest-only channel complete', {
           messageId: event.messageId,
           channelId: event.channelId,
+          routeFlag: crmOps.routeFlag,
           totalTimeMs: timing.total,
         })
         return
@@ -479,6 +532,7 @@ export class EmailProcessor extends EventEmitter {
         logger.info('[EmailProcessor] preferChat path complete (no email draft)', {
           messageId: event.messageId,
           threadId,
+          routeFlag: crmOps.routeFlag,
           totalTimeMs: timing.total,
         })
         return
@@ -502,7 +556,7 @@ export class EmailProcessor extends EventEmitter {
         }
       );
       
-      // Step 6: Create tasks if enabled
+      // Step 6: Create auto-rule tasks if enabled
       if (runTasks) {
         const tasks = await this.taskService.autoCreateTasks({
           threadId,
@@ -523,11 +577,11 @@ export class EmailProcessor extends EventEmitter {
         }
       }
       
-      // Step 7: Generate response if enabled and not spam
+      // Step 7: Generate response if enabled and not spam / crm-ops skip
       let generation: ResponseGenerationResult | undefined;
       let draftResult: DraftApprovalResult | undefined;
       
-      if (runGeneration && intent.intent !== 'spam') {
+      if (runGeneration && intent.intent !== 'spam' && !crmOps.skipDraft) {
         const genStart = Date.now();
         
         generation = await this.responseGenerator.generate(
@@ -535,14 +589,16 @@ export class EmailProcessor extends EventEmitter {
           security,
           {
             enableCaching: true,
-            useTools: true,
+            // Tools path is Anthropic-only opt-in; default uses email-llm (DeepSeek/Haiku)
+            useTools: false,
+            draftGuidance: crmOps.draftGuidance,
           }
         );
         
         timing.generation = Date.now() - genStart;
         
         // Track generation cost
-        if (this.config.trackCosts) {
+        if (this.config.trackCosts && this.llmWasBilled(generation)) {
           await this.costTracker.recordUsage({
             emailId: event.messageId,
             model: generation.modelUsed,
@@ -554,6 +610,7 @@ export class EmailProcessor extends EventEmitter {
             latencyMs: timing.generation,
             success: true,
             errorMessage: null,
+            providerLlmCallId: generation.providerLlmCallId ?? null,
           });
         }
         
@@ -645,6 +702,7 @@ export class EmailProcessor extends EventEmitter {
         contact,
         generation,
         draftResult,
+        crmOps,
         processingTime: timing,
         blocked: false,
         autoSent: draftResult?.shouldAutoSend || false,
@@ -663,6 +721,8 @@ export class EmailProcessor extends EventEmitter {
         messageId: event.messageId,
         intent: intent.intent,
         sentiment: sentiment.sentiment,
+        routeFlag: crmOps.routeFlag,
+        skipDraft: crmOps.skipDraft,
         autoSent: result.autoSent,
         totalTimeMs: timing.total,
       });
@@ -890,6 +950,40 @@ export class EmailProcessor extends EventEmitter {
         return false
       }
     }
+  }
+
+  private llmWasBilled(call: {
+    tokens?: { input?: number; output?: number }
+    providerLlmCallId?: string | null
+    llmCalled?: boolean
+  }): boolean {
+    if (call.llmCalled) return true
+    if (call.providerLlmCallId) return true
+    return (call.tokens?.input ?? 0) + (call.tokens?.output ?? 0) > 0
+  }
+
+  private async recordInjectionUsage(
+    emailId: string,
+    security: SecurityCheckResult,
+    latencyMs: number
+  ): Promise<void> {
+    const classification = security.classification
+    if (!this.config.trackCosts || !classification || !this.llmWasBilled(classification)) {
+      return
+    }
+    await this.costTracker.recordUsage({
+      emailId,
+      model: classification.model || 'deepseek/deepseek-chat',
+      operation: 'injection_classification',
+      inputTokens: classification.tokens?.input ?? 0,
+      outputTokens: classification.tokens?.output ?? 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      latencyMs,
+      success: true,
+      errorMessage: null,
+      providerLlmCallId: classification.providerLlmCallId ?? null,
+    })
   }
 
   private async markSeenIfImap(

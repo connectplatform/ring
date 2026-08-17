@@ -84,6 +84,7 @@ export function mapNewsCategoryDocument(row: { id: string; data?: Record<string,
     description: String(d.description ?? ''),
     color: String(d.color ?? 'bg-gray-500'),
     icon: String(d.icon ?? '📰'),
+    slug: String(d.slug ?? row.id),
     createdAt: d.createdAt as NewsCategoryInfo['createdAt'],
     updatedAt: d.updatedAt as NewsCategoryInfo['updatedAt'],
   }

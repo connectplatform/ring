@@ -30,6 +30,8 @@ Legacy `001_email_crm_schema.sql` is skipped during flatten (depends on removed 
 | `008_*` | Inventory + process_runs |
 | `009` / `010` | Email CRM JSONB |
 | `011`–`043` | Moderation, FCM, analytics, wallets, NFT, project orders, wiki, file cabinet, peer games, … |
+| `044`–`047` | Store carts, docs media, push subscriptions, phone login tokens |
+| `048_news_jsonb_fts.sql` | JSONB FTS GIN (title+excerpt+content) + unique `data.wpPostId` |
 | `2026-06-13-notification_preferences.sql` | Notification preferences |
 
 Operator runbooks: [EMAIL-CRM-OPS.md](./EMAIL-CRM-OPS.md), [RING-MAILER-OPS.md](./RING-MAILER-OPS.md).

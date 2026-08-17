@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Flatten data/migrations/*.sql into data/schema.sql (fresh-install SSOT).
 # Requires local Postgres with CREATE DATABASE privilege (default ring_user).
+# Final-Split: live data lives under ring/web/data (not ring/data).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"          # ring/
+WEB_ROOT="${WEB_ROOT:-$ROOT/web}"                # ring/web
+DATA_ROOT="${DATA_ROOT:-$WEB_ROOT/data}"
 HOST="${PGHOST:-localhost}"
 USER="${PGUSER:-ring_user}"
 PASS="${PGPASSWORD:-ring_password_2024}"
@@ -11,10 +14,15 @@ ADMIN_DB="${PGADMIN_DB:-postgres}"
 FLAT_DB="${FLAT_DB:-ring_schema_flatten}"
 export PGPASSWORD="$PASS"
 
+if [[ ! -d "$DATA_ROOT/migrations" ]]; then
+  echo "FATAL: migrations not found at $DATA_ROOT/migrations (set WEB_ROOT/DATA_ROOT)"
+  exit 1
+fi
+
 psql_admin() { psql -h "$HOST" -U "$USER" -d "$ADMIN_DB" "$@"; }
 psql_flat() { psql -h "$HOST" -U "$USER" -d "$FLAT_DB" "$@"; }
 
-echo "==> Recreate $FLAT_DB"
+echo "==> Recreate $FLAT_DB (DATA_ROOT=$DATA_ROOT)"
 psql_admin -v ON_ERROR_STOP=1 <<SQL
 SELECT pg_terminate_backend(pid) FROM pg_stat_activity
   WHERE datname = '$FLAT_DB' AND pid <> pg_backend_pid();
@@ -29,8 +37,8 @@ psql_flat -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS postgis;' || {
   echo "WARN: postgis failed — continuing (GIS features may need superuser)"
 }
 
-BACKUP="$ROOT/data/schema.sql.bak-pre-flatten-$(date +%Y%m%d%H%M%S)"
-cp "$ROOT/data/schema.sql" "$BACKUP"
+BACKUP="$DATA_ROOT/schema.sql.bak-pre-flatten-$(date +%Y%m%d%H%M%S)"
+cp "$DATA_ROOT/schema.sql" "$BACKUP"
 echo "==> Backup $BACKUP"
 
 # Prefer prior schema as base if present; else empty + migrations only
@@ -55,7 +63,7 @@ while IFS= read -r -d '' f; do
     echo "  FAIL $base"
     grep -E '^ERROR' /tmp/flatten-mig-one.log | tail -3 || true
   fi
-done < <(find "$ROOT/data/migrations" -maxdepth 1 -name '*.sql' -print0 | sort -z)
+done < <(find "$DATA_ROOT/migrations" -maxdepth 1 -name '*.sql' -print0 | sort -z)
 
 echo "==> Migrations ok=$OK fail=$FAIL"
 TABLES="$(psql_flat -Atc "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename <> 'spatial_ref_sys'")"
@@ -72,6 +80,7 @@ pg_dump -h "$HOST" -U "$USER" -d "$FLAT_DB" \
   -t currencies -t countries -t schema_versions -t store_settings -t news_categories \
   >/tmp/ring-schema-seeds.sql
 
+export RING_SCHEMA_OUT="$DATA_ROOT/schema.sql"
 python3 "$ROOT/scripts/assemble-flattened-schema.py"
 
 echo "==> Verify fresh apply on empty DB"
@@ -88,11 +97,11 @@ psql -h "$HOST" -U "$USER" -d "$VERIFY_DB" -v ON_ERROR_STOP=1 \
   -c 'CREATE EXTENSION IF NOT EXISTS postgis;' >/dev/null 2>&1 || true
 # Strip extension lines from schema for re-apply (already created) — apply full file
 if ! psql -h "$HOST" -U "$USER" -d "$VERIFY_DB" -v ON_ERROR_STOP=1 \
-  -f "$ROOT/data/schema.sql" >/tmp/flatten-verify.log 2>&1; then
+  -f "$DATA_ROOT/schema.sql" >/tmp/flatten-verify.log 2>&1; then
   echo "VERIFY FAILED — see /tmp/flatten-verify.log"
   grep -E '^ERROR' /tmp/flatten-verify.log | head -20
   exit 1
 fi
 VTABLES="$(psql -h "$HOST" -U "$USER" -d "$VERIFY_DB" -Atc "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename <> 'spatial_ref_sys'")"
 echo "==> Verify tables=$VTABLES"
-echo "DONE: $ROOT/data/schema.sql"
+echo "DONE: $DATA_ROOT/schema.sql"

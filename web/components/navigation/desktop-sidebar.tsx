@@ -10,6 +10,7 @@ import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { SidebarSyncedLayout } from './sidebar-synced-layout'
 import { AdminSupermenuProvider, useAdminSupermenuState } from './admin-supermenu-context'
 import { AdminSupermenuOverlay } from './admin-supermenu'
+import { davinciPanelSurface } from '@/lib/ui/davinci'
 import { ChevronRight } from 'lucide-react'
 
 interface DesktopSidebarProps {
@@ -149,7 +150,11 @@ function DesktopSidebarInner({ className }: DesktopSidebarProps) {
               ref={asideContentRef}
               overlayMode
               showIdentityAside
-              className="h-full border-r border-border/30 bg-[hsl(var(--app-canvas))] shadow-xl"
+              className={cn(
+                'h-full shadow-xl rounded-none border-r',
+                davinciPanelSurface,
+                'rounded-none',
+              )}
             />
           </div>
         </>

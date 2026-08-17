@@ -34,9 +34,11 @@ export function PhoneOtpPanel({ initialPhone, phoneVerifiedAt }: PhoneOtpPanelPr
         return
       }
       setPhone(result.phone)
-      setVerifiedAt(null) // challenge started — prior verification no longer applies to this attempt
+      setVerifiedAt(null)
       setStep('code')
-      setMessage(t('codeSent'))
+      setMessage(
+        result.provider === 'whatsapp' ? t('codeSentWhatsApp') : t('codeSent'),
+      )
     })
   }
 

@@ -2,11 +2,11 @@
 
 /**
  * Listens on user tunnel channel `games:incoming` (server fan-out from createInvite).
- * Mount in MessagesShell AND /games layout — invites must not be messages-only.
+ * Mount once under TunnelProvider (GlobalTunnelListeners) so challenges ring off /messages.
  * Clears on game:expire / game:decline via game:{sessionId} (same channels expiry uses).
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Gamepad2, X } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
@@ -21,6 +21,7 @@ import { playGameInviteChime } from '@/features/peer-games/lib/game-invite-chime
 import type { TunnelMessage } from '@/lib/tunnel/types'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { subscribeIncomingGameFromPush } from '@/lib/notifications/incoming-from-push'
 
 type IncomingGameBannerProps = {
   /** When true (WebRTC call busy), ignore incoming game invites. */
@@ -61,8 +62,7 @@ export function IncomingGameBanner({
       }
       if (!payload.conversationId || !payload.fromUserId) return
       if (payload.fromUserId === session?.user?.id) return
-      setInvite(payload)
-      playGameInviteChime()
+      setInvite((prev) => (prev?.sessionId === payload.sessionId ? prev : payload))
     },
     [callBusy, gameBusy, session?.user?.id],
   )
@@ -72,6 +72,15 @@ export function IncomingGameBanner({
     enabled: Boolean(session?.user?.id),
     onTunnelMessage,
   })
+
+  useEffect(() => {
+    return subscribeIncomingGameFromPush((payload) => {
+      if (callBusy || gameBusy) return
+      if (!payload?.sessionId || !payload.conversationId || !payload.fromUserId) return
+      if (payload.fromUserId === session?.user?.id) return
+      setInvite((prev) => (prev?.sessionId === payload.sessionId ? prev : payload))
+    })
+  }, [callBusy, gameBusy, session?.user?.id])
 
   const onSessionLifecycle = useCallback(
     (msg: TunnelMessage) => {
@@ -95,6 +104,11 @@ export function IncomingGameBanner({
     enabled: Boolean(invite?.sessionId && session?.user?.id),
     onTunnelMessage: onSessionLifecycle,
   })
+
+  useEffect(() => {
+    if (!invite) return
+    playGameInviteChime()
+  }, [invite])
 
   if (!invite) return null
 

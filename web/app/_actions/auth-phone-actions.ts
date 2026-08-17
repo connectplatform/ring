@@ -95,6 +95,16 @@ export async function requestPhoneLoginCode(
       }
     }
 
+    if (sent.channel === 'whatsapp' && !sent.rawCode?.trim()) {
+      logger.error('[PhoneLogin] WhatsApp send missing rawCode — refusing challenge')
+      return {
+        ok: false,
+        message: 'Could not send code. Try again shortly.',
+        step: 'identifier',
+        phone: e164,
+      }
+    }
+
     const user = await ensurePhoneAuthUser(e164, { markVerified: false })
     const ip = await clientIp()
     await insertPhoneLoginToken({
@@ -104,6 +114,7 @@ export async function requestPhoneLoginCode(
       userId: user.id,
       expiresIn: '3 minutes',
       ipAddress: ip,
+      rawCode: sent.channel === 'whatsapp' ? sent.rawCode : undefined,
     })
 
     return {

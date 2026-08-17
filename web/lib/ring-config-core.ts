@@ -212,7 +212,7 @@ export const getEntitiesPreset = cache((): string => {
 /**
  * Accessor: Active home landing preset (`home.preset`).
  * Selects Tier-2 landing under components/pages/home-presets/<name>.tsx
- * Default: "platform". Vertical landings (allowlisted kebab-case): e.g. "mvm-landing", "n9life-landing".
+ * Default: "platform". Vertical landings are pack/clone files under home-presets/<preset>.tsx.
  */
 export const getHomePreset = cache((): string => {
   const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
@@ -225,16 +225,28 @@ export const getHomePreset = cache((): string => {
 export const getHomeLandingPreset = getHomePreset
 
 /**
- * Tier-3 domain overlay id = first allowlisted top-level ring-config object key
- * among n9life | connect | greenfood | ringdom (clone product surface).
+ * L2 pack id (`presets.pack`) — folder name under ring-presets/<pack>/.
+ * Empty on two-layer clones. Compose scripts / clone-build read this when presets_project is omitted.
+ */
+export const getPresetPack = cache((): string | null => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const presets = config.presets as { pack?: unknown } | undefined
+  if (presets && typeof presets.pack === 'string' && presets.pack.trim()) {
+    return presets.pack.trim()
+  }
+  return null
+})
+
+/**
+ * Tier-3 domain overlay id = ring-config `overlay.featureId`.
+ * Clones set that key (e.g. n9life) and keep their domain blob + overlay registry maps.
  * Platform ring-config has none → null (empty overlay registries).
  */
 export const getOverlayFeature = cache((): string | null => {
   const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
-  const ids = ['n9life', 'connect', 'greenfood', 'ringdom'] as const
-  for (const id of ids) {
-    const block = config[id]
-    if (block && typeof block === 'object' && !Array.isArray(block)) return id
+  const overlay = config.overlay as { featureId?: unknown } | undefined
+  if (overlay && typeof overlay.featureId === 'string' && overlay.featureId.trim()) {
+    return overlay.featureId.trim()
   }
   return null
 })

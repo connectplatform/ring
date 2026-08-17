@@ -69,6 +69,11 @@ import {
   isTelegramMiniAppAuthDateFresh,
   verifyTelegramMiniAppInitData,
 } from "@/lib/auth/telegram-miniapp-initdata"
+import {
+  authCallbackUrlCookieName,
+  authCsrfTokenCookieName,
+  authSessionTokenCookieName,
+} from "@/lib/auth/auth-cookie-names"
 
 // Auth.js v5 + Next.js 16: handlers live at app/api/auth/[...nextauth]/route.ts;
 // mutations that need UI state go through Server Actions + useActionState.
@@ -151,7 +156,24 @@ const nextAuthApp = NextAuth({
       useSecureCookies,
       cookies: {
         sessionToken: {
-          name: `${useSecureCookies ? '__Secure-' : ''}next-auth.session-token`,
+          name: authSessionTokenCookieName(useSecureCookies),
+          options: {
+            httpOnly: true,
+            sameSite: 'lax' as const,
+            path: '/',
+            secure: useSecureCookies,
+          },
+        },
+        callbackUrl: {
+          name: authCallbackUrlCookieName(useSecureCookies),
+          options: {
+            sameSite: 'lax' as const,
+            path: '/',
+            secure: useSecureCookies,
+          },
+        },
+        csrfToken: {
+          name: authCsrfTokenCookieName(useSecureCookies),
           options: {
             httpOnly: true,
             sameSite: 'lax' as const,
@@ -222,7 +244,11 @@ const nextAuthApp = NextAuth({
             channel: challenge.channel,
           })
           if (verified.ok === false) {
-            await bumpPhoneChallengeAttempt(challenge.id)
+            // WhatsApp verify already bumps attempt_count (self-issued hash path).
+            // Telegram Gateway tracks attempts remotely — bump locally for TG only.
+            if (challenge.channel !== 'whatsapp') {
+              await bumpPhoneChallengeAttempt(challenge.id)
+            }
             await expirePhoneChallengeIfMaxAttempts(challenge.id)
             return null
           }
