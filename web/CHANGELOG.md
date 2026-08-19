@@ -24,6 +24,6 @@ Append-only JSON — not this Markdown file:
 
 **History origin:** 2024 (Ring Platform 0.1 genesis; 99+ feature releases).
 
-**Latest docs note (1.97.23):** FCM Console Web Push cert bake (`getFcmVapidKey` + Layer1 fail-closed) + credit-spend/fan-out typecheck fixes. Changelog UI tops at **1.97.23**. Package `1.97.23`.
+**Latest docs note (1.100.0):** Platform/user menu sockets + L2 `mvm-automotive` + Final-Split compose tooling. Changelog UI tops at **1.100.0**. Package `1.100.0`.
 
 This root `CHANGELOG.md` is **deprecated for the product UI**. Prefer [ring-platform.org/changelog](https://ring-platform.org/changelog) and edit the locale JSON files when shipping notes.

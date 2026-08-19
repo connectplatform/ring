@@ -1,41 +1,22 @@
 'use client'
 
 /**
- * Mobile Floating User Widget - GTA-Inspired Design
- * 
- * Features:
- * - Floating radial menu extending from avatar button
- * - GTA-style HUD aesthetic (sophisticated, not cartoony)
- * - Touch-optimized with haptic feedback
- * - Smooth spring animations
- * - Drag-to-position support
- * - Auto-collapse on navigation
- * - Dark mode optimized with neon accents
- * 
- * Inspiration: GTA 5 phone menu + Modern mobile game HUDs
- * Tech: React 19 + Framer Motion + Touch events
+ * Mobile floating avatar → user menu.
+ * Theme tokens (primary / davinci-beam / destructive). Labels from navigation i18n.
+ * Catalog: lib/navigation/user-menu.ts + ring-config.navigation.userMenu.
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
 import { usePathname } from 'next/navigation'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Bell,
-  Heart,
-  ShoppingCart,
-  MessageCircle,
-  ListTodo,
-  Gamepad2,
-  User,
-  Wallet,
   X,
-  Menu
+  Menu,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
-import { ROUTES } from '@/constants/routes'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
@@ -49,6 +30,10 @@ import {
   getClientNativeTokenSymbol,
 } from '@/lib/ring-config-client'
 import { usePrimaryNativeBalance } from '@/hooks/use-primary-native-balance'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
+import { getResolvedUserMenuItems } from '@/lib/navigation/user-menu'
+import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
+import { resolveNavLabel } from '@/lib/navigation/primary-nav'
 
 interface MobileUserWidgetProps {
   className?: string
@@ -62,138 +47,85 @@ function resolveSessionAvatarSrc(user: {
   return user.avatarThumb || user.image || user.photoURL || null
 }
 
-/**
- * Grid Menu Item Component
- * GTA-inspired card with glassmorphism
- */
 interface GridItemProps {
-  icon: React.ReactNode
+  icon: React.ComponentType<{ className?: string }>
   count?: number
   label: string
   description: string
   href: string
-  color: string
   index: number
   onNavigate: () => void
 }
 
-function GridItem({ 
-  icon, 
-  count = 0, 
+function GridItem({
+  icon: Icon,
+  count = 0,
   label,
   description,
-  href, 
-  color,
+  href,
   index,
-  onNavigate 
+  onNavigate,
 }: GridItemProps) {
   return (
     <Link href={toAppHref(href)} onClick={onNavigate}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.8, y: 20 }}
-        transition={{ 
-          type: "spring", 
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{
+          type: 'spring',
           stiffness: 600,
           damping: 25,
-          delay: index * 0.03 // Fast staggered entrance
+          delay: index * 0.03,
         }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
         className={cn(
-          'relative group p-4 overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300',
-          'rounded-2xl bg-white/5 backdrop-blur-md border border-white/10',
-          'hover:border-white/20 hover:bg-white/10'
+          'relative group p-4 overflow-hidden text-left',
+          davinciGlassSurface,
         )}
-        style={{
-          background: `linear-gradient(135deg, ${color}15, ${color}25)`
-        }}
       >
-        {/* Animated background shine */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-          animate={{
-            x: ['-100%', '100%']
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        />
-
-        {/* Content */}
         <div className="relative z-10">
-          {/* Icon with counter */}
           <div className="flex items-center justify-between mb-2">
-            <motion.div
-              className={cn(
-                "w-12 h-12 rounded-xl",
-                "flex items-center justify-center",
-                "shadow-lg"
-              )}
-              style={{ background: color }}
-              whileHover={{ rotate: [0, -5, 5, 0] }}
-              transition={{ duration: 0.3 }}
-            >
-              {icon}
-            </motion.div>
-
-            {/* Counter badge */}
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Icon className="h-6 w-6" />
+            </div>
             {count > 0 && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="min-w-[28px] h-7 px-2 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg border-2 border-background"
-              >
+              <div className="min-w-[28px] h-7 px-2 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center border-2 border-background">
                 {count > 99 ? '99+' : count}
-              </motion.div>
+              </div>
             )}
           </div>
-
-          {/* Label */}
-          <div className="font-bold text-sm mb-1" style={{ color }}>
+          <div className="font-semibold text-sm mb-1 text-foreground group-hover:text-primary transition-colors truncate">
             {label}
           </div>
-
-          {/* Description */}
-          <div className="text-xs text-white/70 leading-tight">
+          <div className="text-xs text-muted-foreground leading-tight truncate">
             {description}
           </div>
         </div>
-
-        {/* Glow effect on hover */}
-        <motion.div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl -z-10"
-          style={{ background: color }}
-        />
       </motion.div>
     </Link>
   )
 }
 
-/**
- * Main Mobile User Widget
- */
 export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   const pathname = usePathname()
   const locale = useLocale() as Locale
+  const t = useTranslations('navigation')
   const { data: session } = useSession()
-  
-  // Widget state
+
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  
-  // Dragging state
+
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const dragStartPos = useRef({ x: 0, y: 0 })
-  
-  // Real-time data from shared context
+
   const { balance: tokenBalance } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
-  
+
   const cartCount = store?.totalItems || 0
-  const [messagesCount] = useState(0) // TODO: Implement
+  const [messagesCount] = useState(0)
   const creditBalanceUnitLabel = getClientCreditUnitLabel()
   const nativeSymbol = getClientNativeTokenSymbol()
   const {
@@ -209,7 +141,6 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       })
     : null
 
-  // Initialize position from localStorage
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem('mobile-widget-position')
@@ -217,7 +148,6 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
       try {
         setPosition(JSON.parse(saved))
       } catch {
-        // Default to top-right
         setPosition({ x: window.innerWidth - 80, y: 80 })
       }
     } else {
@@ -225,18 +155,16 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     }
   }, [])
 
-  // Auto-close menu on navigation
   useEffect(() => {
     setIsOpen(false)
   }, [pathname])
 
-  // Handle touch events for dragging
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!isOpen) { // Only allow dragging when menu is closed
+    if (!isOpen) {
       const touch = e.touches[0]
       dragStartPos.current = {
         x: touch.clientX - position.x,
-        y: touch.clientY - position.y
+        y: touch.clientY - position.y,
       }
       setIsDragging(true)
     }
@@ -244,19 +172,15 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return
-    
     const touch = e.touches[0]
     const newX = touch.clientX - dragStartPos.current.x
     const newY = touch.clientY - dragStartPos.current.y
-    
-    // Keep within safe bounds
     const maxX = window.innerWidth - 70
     const maxY = window.innerHeight - 70
-    
-    const boundedX = Math.max(10, Math.min(newX, maxX))
-    const boundedY = Math.max(10, Math.min(newY, maxY))
-    
-    setPosition({ x: boundedX, y: boundedY })
+    setPosition({
+      x: Math.max(10, Math.min(newX, maxX)),
+      y: Math.max(10, Math.min(newY, maxY)),
+    })
   }, [isDragging])
 
   const handleTouchEnd = useCallback(() => {
@@ -264,14 +188,12 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     localStorage.setItem('mobile-widget-position', JSON.stringify(position))
   }, [position])
 
-  // Handle menu toggle (tap without drag)
   const handleClick = useCallback(() => {
     if (!isDragging) {
-      setIsOpen(prev => !prev)
+      setIsOpen((prev) => !prev)
     }
   }, [isDragging])
 
-  // Close menu and navigate
   const handleNavigate = useCallback(() => {
     setIsOpen(false)
     eventBus.emit('modal:close-all', {})
@@ -296,89 +218,55 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     return `${creditPart} · ${nativePart}`
   })()
 
+  const counts = useMemo(
+    () => ({
+      notifications: notificationCount,
+      cart: cartCount,
+      favorites: favorites.length,
+      messages: messagesCount,
+    }),
+    [notificationCount, cartCount, favorites.length, messagesCount],
+  )
+
+  const menuItems = useMemo(
+    () =>
+      getResolvedUserMenuItems(locale).map((item) => ({
+        id: item.id,
+        href: item.href,
+        icon: getPrimaryNavIcon(item.icon),
+        label: resolveNavLabel(t, item.labelKeys),
+        description:
+          item.id === 'wallet'
+            ? walletDescription
+            : item.descriptionKeys.length
+              ? resolveNavLabel(t, item.descriptionKeys)
+              : '',
+        count: counts[item.id as keyof typeof counts] ?? 0,
+      })),
+    [locale, t, walletDescription, counts],
+  )
+
   if (!session?.user || !mounted) return null
 
-  // Grid menu items configuration - 3 rows x 2 columns
-  const menuItems = [
-    { 
-      icon: <User className="w-6 h-6 text-white" />, 
-      label: 'Profile', 
-      description: 'View & edit profile',
-      href: ROUTES.PROFILE(locale),
-      color: '#3B82F6',
-    },
-    { 
-      icon: <Wallet className="w-6 h-6 text-white" />, 
-      label: 'Wallet', 
-      description: walletDescription,
-      href: ROUTES.WALLET(locale),
-      color: '#8B5CF6',
-    },
-    { 
-      icon: <Bell className="w-6 h-6 text-white" />, 
-      count: notificationCount,
-      label: 'Notifications', 
-      description: 'Activity alerts',
-      href: ROUTES.PROFILE(locale) + '?tab=notifications',
-      color: '#06B6D4',
-    },
-    { 
-      icon: <ShoppingCart className="w-6 h-6 text-white" />, 
-      count: cartCount,
-      label: 'Cart', 
-      description: 'Shopping items',
-      href: ROUTES.CART(locale),
-      color: '#10B981',
-    },
-    { 
-      icon: <Heart className="w-6 h-6 text-white" />, 
-      count: favorites.length,
-      label: 'Favorites', 
-      description: 'Saved products',
-      href: ROUTES.STORE(locale) + '?filter=favorites',
-      color: '#EC4899',
-    },
-    { 
-      icon: <MessageCircle className="w-6 h-6 text-white" />, 
-      count: messagesCount,
-      label: 'Messages', 
-      description: 'Direct chats',
-      href: ROUTES.MESSAGES(locale),
-      color: '#F97316',
-    },
-    {
-      icon: <Gamepad2 className="w-6 h-6 text-white" />,
-      label: 'Games',
-      description: 'Peer mini-games',
-      href: ROUTES.GAMES(locale),
-      color: '#8B5CF6',
-    },
-    {
-      icon: <ListTodo className="w-6 h-6 text-white" />,
-      label: 'Tasks',
-      description: 'Chat tasks',
-      href: ROUTES.TASKS(locale),
-      color: '#0EA5E9',
-    },
-  ]
+  const displayName = session.user.name || t('menu.anonymous')
+  const badgeTotal = notificationCount + cartCount + messagesCount
 
   return (
     <div className="md:hidden">
-      {/* Floating Avatar Button */}
       <motion.div
         className={cn(
-          "fixed z-[8500]",
-          isDragging && "cursor-grabbing",
-          !isOpen && "cursor-grab",
-          className
+          'fixed z-[8500]',
+          isDragging && 'cursor-grabbing',
+          !isOpen && 'cursor-grab',
+          className,
         )}
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
-          touchAction: 'none'
+          touchAction: 'none',
         }}
         animate={{
-          scale: isDragging ? 1.1 : 1
+          scale: isDragging ? 1.1 : 1,
         }}
       >
         <motion.div
@@ -389,85 +277,61 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
           onClick={handleClick}
           whileTap={{ scale: 0.9 }}
         >
-          {/* Outer glow ring */}
-          <motion.div
+          <div
             className={cn(
-              "absolute inset-0 rounded-full",
-              "border-4",
-              isOpen ? "border-blue-500" : "border-purple-500/50",
-              "shadow-2xl"
+              'absolute inset-0 rounded-full border-2',
+              isOpen ? 'border-primary' : 'border-primary/40',
             )}
-            animate={{
-              scale: isOpen ? 1.15 : [1, 1.05, 1],
-              opacity: isOpen ? 1 : [0.5, 0.8, 0.5],
-              boxShadow: isOpen 
-                ? "0 0 30px rgba(59, 130, 246, 0.8)" 
-                : "0 0 20px rgba(168, 85, 247, 0.4)"
-            }}
-            transition={{ 
-              duration: isOpen ? 0.3 : 2, 
-              repeat: isOpen ? 0 : Infinity 
+            style={{
+              boxShadow: isOpen
+                ? '0 0 24px color-mix(in oklch, var(--davinci-beam) 55%, transparent)'
+                : '0 0 16px color-mix(in oklch, var(--davinci-beam) 28%, transparent)',
             }}
           />
 
-          {/* Avatar */}
-          <div className={cn(
-            "relative w-16 h-16 rounded-full",
-            "bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600",
-            "p-0.5",
-            "shadow-2xl"
-          )}>
+          <div className="relative w-16 h-16 rounded-full bg-primary p-0.5 shadow-xl">
             <div className="w-full h-full rounded-full bg-background border-2 border-background overflow-hidden">
               <Avatar
                 src={avatarSrc}
-                alt={session.user.name || 'User'}
+                alt={displayName}
                 size="md"
-                fallback={session.user.name?.charAt(0) || 'U'}
+                fallback={displayName.charAt(0) || 'U'}
                 className="w-full h-full"
               />
             </div>
 
-            {/* Menu indicator */}
             <AnimatePresence>
               {!isOpen && !isDragging && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
-                  className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center border-2 border-background shadow-lg"
+                  className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-lg"
                 >
-                  <Menu className="w-3.5 h-3.5 text-white" />
+                  <Menu className="w-3.5 h-3.5 text-primary-foreground" />
                 </motion.div>
               )}
               {isOpen && (
                 <motion.div
-                  initial={{ scale: 0, rotate: 0 }}
-                  animate={{ scale: 1, rotate: 90 }}
-                  exit={{ scale: 0, rotate: 0 }}
-                  className="absolute bottom-0 right-0 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center border-2 border-background shadow-lg"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  className="absolute bottom-0 right-0 w-6 h-6 bg-destructive rounded-full flex items-center justify-center border-2 border-background shadow-lg"
                 >
-                  <X className="w-3.5 h-3.5 text-white" />
+                  <X className="w-3.5 h-3.5 text-destructive-foreground" />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Total notifications indicator */}
-            {!isOpen && (notificationCount + cartCount + messagesCount) > 0 && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center border-2 border-background shadow-lg"
-              >
-                {notificationCount + cartCount + messagesCount > 99 
-                  ? '99+' 
-                  : notificationCount + cartCount + messagesCount}
-              </motion.div>
+            {!isOpen && badgeTotal > 0 && (
+              <div className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center border-2 border-background">
+                {badgeTotal > 99 ? '99+' : badgeTotal}
+              </div>
             )}
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Full-Screen Grid Menu Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -477,64 +341,58 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[8400]"
             onClick={() => setIsOpen(false)}
+            role="dialog"
+            aria-label={t('userMenu')}
           >
-            {/* Layered background for depth */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 via-purple-900/40 to-pink-900/40" />
-            <div className="absolute inset-0 backdrop-blur-2xl" />
-            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" />
+            <div
+              className="pointer-events-none absolute -left-20 top-20 h-64 w-64 rounded-full blur-3xl bg-[color-mix(in_oklch,var(--davinci-beam)_22%,transparent)]"
+            />
+            <div
+              className="pointer-events-none absolute -right-20 bottom-40 h-64 w-64 rounded-full blur-3xl bg-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)]"
+            />
 
-            {/* Grid Menu Container */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: "spring", stiffness: 600, damping: 30 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               className="relative h-full flex items-center justify-center p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-full max-w-md">
-                {/* Header with user info */}
-                <motion.div
-                  initial={{ y: -20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-center mb-8"
-                >
+                <div className="text-center mb-8">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <Avatar
                       src={avatarSrc}
-                      alt={session.user.name || 'User'}
+                      alt={displayName}
                       size="lg"
-                      fallback={session.user.name?.charAt(0) || 'U'}
-                      className="ring-4 ring-blue-500/50"
+                      fallback={displayName.charAt(0) || 'U'}
+                      className="ring-2 ring-primary/50"
                     />
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-1">
-                    {session.user.name || 'Anonymous'}
+                  <h2 className="text-2xl font-bold text-foreground mb-1">
+                    {displayName}
                   </h2>
-                </motion.div>
+                </div>
 
-                {/* 3x2 Grid of Action Cards */}
                 <div className="grid grid-cols-2 gap-3">
                   {menuItems.map((item, index) => (
                     <GridItem
-                      key={index}
-                      {...item}
+                      key={item.id}
+                      icon={item.icon}
+                      count={item.count}
+                      label={item.label}
+                      description={item.description}
+                      href={item.href}
                       index={index}
                       onNavigate={handleNavigate}
                     />
                   ))}
                 </div>
 
-                {/* Close hint */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="text-center mt-8 text-white/50 text-sm"
-                >
-                  Tap outside to close
-                </motion.div>
+                <p className="text-center mt-8 text-muted-foreground text-sm">
+                  {t('menu.tapOutside')}
+                </p>
               </div>
             </motion.div>
           </motion.div>
@@ -543,4 +401,3 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     </div>
   )
 }
-

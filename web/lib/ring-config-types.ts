@@ -264,8 +264,39 @@ export interface RingNavigationLink {
 
 // Navigation config schema: set of links for global site nav
 export interface NavigationConfigSchema {
-  links?: RingNavigationLink[]   // Optional navigation array
-  // TODO: Support sections? Dynamic linking for future extensibility.
+  links?: RingNavigationLink[]
+  /**
+   * Mobile [...] platform menu (not the avatar user menu).
+   * L3 clones set `items` / `exclude` / `extra` in ring-config.json.
+   * Labels are i18n keys under `navigation.*` — never English in config.
+   */
+  platformMenu?: PlatformMenuConfig
+  /**
+   * Mobile avatar user menu (not the [...] platform menu).
+   * Same items/exclude/extra contract. Labels are `navigation.*` keys.
+   */
+  userMenu?: PlatformMenuConfig
+}
+
+/** Clone-local overflow catalog. Unknown ids are ignored unless listed in `extra`. */
+export interface PlatformMenuConfig {
+  /** Ordered catalog ids. Omit to use Layer1 default order. */
+  items?: string[]
+  /** Catalog ids to hide even if listed in `items` or defaults. */
+  exclude?: string[]
+  /** Clone-only modules (live TV, endemic hubs). `href` is locale-agnostic (`/live-tv`). */
+  extra?: PlatformMenuExtraItem[]
+}
+
+export interface PlatformMenuExtraItem {
+  id: string
+  href: string
+  /** `navigation` message key, e.g. `mainNav.live` */
+  labelKey: string
+  /** `navigation` message key, e.g. `menu.live.description` */
+  descriptionKey?: string
+  /** Id from `lib/navigation/primary-nav-icons.ts` */
+  icon: string
 }
 
 // Hero section config for landing/homepages

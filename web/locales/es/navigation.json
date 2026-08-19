@@ -19,6 +19,25 @@
     "docs": {
       "description": "Aprende sobre las funciones de Ring Platform"
     },
+    "nft": {
+      "description": "Explora y acuña NFT de la comunidad"
+    },
+    "games": {
+      "description": "Minijuegos y retos entre participantes"
+    },
+    "news": {
+      "description": "Historias, briefings y novedades de la estación"
+    },
+    "live": {
+      "description": "Ver emisiones en directo"
+    },
+    "categories": {
+      "description": "Noticias por tema"
+    },
+    "roadmap": {
+      "description": "Lo que llega a continuación"
+    },
+    "empty": "No hay módulos de plataforma habilitados en este sitio.",
     "notifications": {
       "description": "Mantente al día con las actividades de la plataforma"
     },
@@ -27,7 +46,24 @@
     },
     "support": {
       "description": "Obtén ayuda y contacta con soporte"
-    }
+    },
+    "profile": {
+      "description": "Ver y editar tu perfil"
+    },
+    "cart": {
+      "description": "Artículos listos para pagar"
+    },
+    "favorites": {
+      "description": "Productos guardados"
+    },
+    "messages": {
+      "description": "Chats directos"
+    },
+    "tasks": {
+      "description": "Tareas del chat"
+    },
+    "tapOutside": "Toca fuera para cerrar",
+    "anonymous": "Anónimo"
   },
   "close": "Cerrar",
   "home": "Inicio",
@@ -53,6 +89,7 @@
   "privacy": "Privacidad",
   "terms": "Términos",
   "signIn": "Iniciar sesión",
+  "login": "Acceder",
   "signOut": "Cerrar sesión",
   "signUp": "Registrarse",
   "search": "Buscar",
@@ -277,5 +314,8 @@
     "empty": "Aún no hay entradas en el changelog."
   },
   "games": "Juegos",
-  "tasks": "Tareas"
+  "nft": "NFT",
+  "tasks": "Tareas",
+  "cart": "Carrito",
+  "favorites": "Favoritos"
 }

@@ -10,7 +10,7 @@ import React from 'react'
 import { Link } from '@/i18n/routing'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import packageInfo from '@/package.json'
+import { formatPublicVersionLabel } from '@/lib/app-version'
 import { TunnelIndicatorCompact } from '@/components/navigation/tunnel-indicator'
 
 export interface NavLegalFooterProps {
@@ -53,7 +53,7 @@ export function NavLegalFooter({
       <div className={cn('flex min-w-0 items-center', gap, rowAlign)}>
         <TunnelIndicatorCompact />
         <Link href="/changelog" className="shrink-0 hover:underline">
-          v{packageInfo.version}
+          {formatPublicVersionLabel()}
         </Link>
         <span aria-hidden>|</span>
         <Link href="/about-publisher" className="min-w-0 truncate font-medium hover:underline">

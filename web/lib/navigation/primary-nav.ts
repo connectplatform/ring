@@ -2,6 +2,7 @@
  * Primary nav data contract (L1 community default).
  * L2 packs overwrite this file (slots/hrefs/icons). L3 overwrites primary-nav-overlay.ts
  * and locales — never chrome. home.preset does not select the menu.
+ * Mobile [...] platform modules: lib/navigation/platform-menu.ts + ring-config.navigation.platformMenu.
  */
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'

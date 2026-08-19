@@ -60,6 +60,12 @@ export interface FsModalProps {
    */
   onOpenAutoFocus?: (event: Event) => void
   /**
+   * Ignore the opening tap leaking through to the overlay (iOS/Android ghost click).
+   */
+  onPointerDownOutside?: (event: Event) => void
+  /** Same window as pointer-down-outside — delayed `click` on WebKit/Blink. */
+  onInteractOutside?: (event: Event) => void
+  /**
    * `centerPane` — flush fill of the main content column:
    * - max-lg: full viewport (covers floating sidebar toggle)
    * - lg+: inset leaving desktop left nav + right rail visible (same gap both sides)
@@ -96,6 +102,8 @@ export function FsModal({
   closeClassName,
   hideCloseButton = false,
   onOpenAutoFocus,
+  onPointerDownOutside,
+  onInteractOutside,
   layout = 'default',
   centerPaneRailPx = FS_MODAL_CENTER_PANE_RAIL_PX,
 }: FsModalProps) {
@@ -117,6 +125,8 @@ export function FsModal({
         hideCloseButton={hideCloseButton}
         closeClassName={closeClassName}
         onOpenAutoFocus={onOpenAutoFocus}
+        onPointerDownOutside={onPointerDownOutside}
+        onInteractOutside={onInteractOutside}
         style={
           isCenterPane
             ? ({

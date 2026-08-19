@@ -33,6 +33,8 @@ export type {
   RingBranding,
   ThemeConfig,
   NavigationConfigSchema,
+  PlatformMenuConfig,
+  PlatformMenuExtraItem,
   LegalConfig,
   DeploymentConfig,
   IntegrationConfig,
@@ -58,6 +60,30 @@ const SERVER_FEATURE_KEYS = [
   'admin',
   'news',
 ] as const;
+
+/**
+ * Read a feature/module flag from a config object.
+ * Accepts boolean leaves (`features.entities: false`) and `{ enabled }` objects.
+ * If the path ends in `.enabled` and the parent is already a boolean, that boolean wins.
+ */
+export function readFeatureFlagPath(root: unknown, path: string): boolean | undefined {
+  const parts = path.split('.').filter(Boolean)
+  let cur: unknown = root
+  for (let i = 0; i < parts.length; i++) {
+    if (typeof cur === 'boolean') {
+      const rest = parts.slice(i).join('.')
+      return rest === 'enabled' ? cur : undefined
+    }
+    if (cur == null || typeof cur !== 'object') return undefined
+    cur = (cur as Record<string, unknown>)[parts[i]]
+  }
+  if (typeof cur === 'boolean') return cur
+  if (cur && typeof cur === 'object' && 'enabled' in cur) {
+    const enabled = (cur as { enabled?: unknown }).enabled
+    if (typeof enabled === 'boolean') return enabled
+  }
+  return undefined
+}
 
 /**
  * Deep merge utility for RingConfig shape.
@@ -362,14 +388,7 @@ export const resolveFeatureFlags = cache(
   (features: RingConfig['features'] = {}): Record<string, boolean> => {
     const result: Record<string, boolean> = {}
     for (const key of SERVER_FEATURE_KEYS) {
-      const val = features[key]
-      if (typeof val === 'boolean') {
-        result[key] = val
-      } else if (val && typeof val === 'object' && 'enabled' in val) {
-        result[key] = Boolean((val as { enabled?: boolean }).enabled)
-      } else {
-        result[key] = true
-      }
+      result[key] = readFeatureFlagPath(features, key) ?? true
     }
     if (typeof features.expertServicesMarketplace === 'boolean') {
       result.expertServicesMarketplace = features.expertServicesMarketplace

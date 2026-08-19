@@ -19,6 +19,25 @@
     "docs": {
       "description": "Узнайте о функциях Ring Platform"
     },
+    "nft": {
+      "description": "Смотрите и выпускайте NFT сообщества"
+    },
+    "games": {
+      "description": "Мини-игры и испытания между участниками"
+    },
+    "news": {
+      "description": "Новости, брифинги и обновления станции"
+    },
+    "live": {
+      "description": "Смотрите прямые эфиры"
+    },
+    "categories": {
+      "description": "Новости по темам"
+    },
+    "roadmap": {
+      "description": "Что планируется дальше"
+    },
+    "empty": "На этом сайте нет включённых модулей платформы.",
     "notifications": {
       "description": "Будьте в курсе событий платформы"
     },
@@ -27,7 +46,24 @@
     },
     "support": {
       "description": "Получите помощь и свяжитесь с поддержкой"
-    }
+    },
+    "profile": {
+      "description": "Просмотрите и измените профиль"
+    },
+    "cart": {
+      "description": "Товары к оформлению"
+    },
+    "favorites": {
+      "description": "Сохранённые товары"
+    },
+    "messages": {
+      "description": "Личные чаты"
+    },
+    "tasks": {
+      "description": "Задачи из чата"
+    },
+    "tapOutside": "Нажмите снаружи, чтобы закрыть",
+    "anonymous": "Гость"
   },
   "close": "Закрыть",
   "home": "Главная",
@@ -54,6 +90,7 @@
   "privacy": "Конфиденциальность",
   "terms": "Условия",
   "signIn": "Войти",
+  "login": "Вход",
   "signOut": "Выйти",
   "signUp": "Регистрация",
   "search": "Поиск",
@@ -284,5 +321,8 @@
     "publisherPage": "Страница издателя",
     "empty": "Пока нет записей в changelog."
   },
-  "games": "Игры"
+  "games": "Игры",
+  "nft": "NFT",
+  "cart": "Корзина",
+  "favorites": "Избранное"
 }

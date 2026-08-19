@@ -19,6 +19,25 @@
     "docs": {
       "description": "Дізнайтеся про функції Ring Platform"
     },
+    "nft": {
+      "description": "Переглядайте та створюйте спільнотні NFT"
+    },
+    "games": {
+      "description": "Міні-ігри та виклики між учасниками"
+    },
+    "news": {
+      "description": "Новини, брифінги та оновлення станції"
+    },
+    "live": {
+      "description": "Дивіться прямі ефіри"
+    },
+    "categories": {
+      "description": "Новини за темами"
+    },
+    "roadmap": {
+      "description": "Що планується далі"
+    },
+    "empty": "На цьому сайті немає ввімкнених модулів платформи.",
     "notifications": {
       "description": "Будьте в курсі подій платформи"
     },
@@ -27,7 +46,24 @@
     },
     "support": {
       "description": "Отримайте допомогу та зв'яжіться з підтримкою"
-    }
+    },
+    "profile": {
+      "description": "Перегляньте та змініть профіль"
+    },
+    "cart": {
+      "description": "Товари до оформлення"
+    },
+    "favorites": {
+      "description": "Збережені товари"
+    },
+    "messages": {
+      "description": "Прямі чати"
+    },
+    "tasks": {
+      "description": "Завдання з чату"
+    },
+    "tapOutside": "Торкніться зовні, щоб закрити",
+    "anonymous": "Гість"
   },
   "close": "Закрити",
   "home": "Головна",
@@ -54,6 +90,7 @@
   "privacy": "Конфіденційність",
   "terms": "Умови",
   "signIn": "Увійти",
+  "login": "Вхід",
   "signOut": "Вийти",
   "signUp": "Реєстрація",
   "search": "Пошук",
@@ -284,5 +321,8 @@
     "publisherPage": "Сторінка видавця",
     "empty": "Поки немає записів у changelog."
   },
-  "games": "Ігри"
+  "games": "Ігри",
+  "nft": "NFT",
+  "cart": "Кошик",
+  "favorites": "Обране"
 }

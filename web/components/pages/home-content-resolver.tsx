@@ -4,10 +4,12 @@
  * Home content preset resolver.
  *
  * Selection is **only** `getHomePreset()` from ring-config:
- * - `platform` → static PlatformHome
+ * - `platform` → static PlatformHome (no extra chunk)
  * - any other kebab-case id → dynamic `./home-presets/${preset}` (missing chunk → PlatformHome)
  *
- * Packs/clones path-overwrite `home-presets/<name>.tsx`. Bare L1 has no vertical landings.
+ * L1 always ships `home-presets/platform.tsx` (re-export of PlatformHome) so
+ * Turbopack's directory context for the template import exists on bare L1 and
+ * empire org (no pack). Packs/clones *add* `home-presets/<name>.tsx`.
  */
 
 import dynamic from 'next/dynamic'

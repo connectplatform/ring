@@ -18,6 +18,17 @@ import {
   Tv,
   UserRound,
   Users,
+  Gamepad2,
+  Hexagon,
+  LayoutGrid,
+  Map,
+  Wallet,
+  Bell,
+  Heart,
+  ShoppingCart,
+  MessageCircle,
+  ListTodo,
+  Settings,
 } from 'lucide-react'
 
 export const PRIMARY_NAV_ICONS = {
@@ -34,6 +45,17 @@ export const PRIMARY_NAV_ICONS = {
   newspaper: Newspaper,
   tv: Tv,
   sparkles: Sparkles,
+  gamepad: Gamepad2,
+  hexagon: Hexagon,
+  map: Map,
+  'layout-grid': LayoutGrid,
+  wallet: Wallet,
+  bell: Bell,
+  heart: Heart,
+  'shopping-cart': ShoppingCart,
+  'message-circle': MessageCircle,
+  'list-todo': ListTodo,
+  settings: Settings,
 } as const satisfies Record<string, LucideIcon>
 
 export type PrimaryNavIconId = keyof typeof PRIMARY_NAV_ICONS

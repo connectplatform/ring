@@ -37,6 +37,10 @@ ring_kingdom_or_parent() {
 
 ring_clone_root() {
   local kingdom="$1" slug="$2"
+  if [[ -n "${RING_CLONES_ROOT:-}" && -d "$RING_CLONES_ROOT/$slug" ]]; then
+    printf '%s\n' "$RING_CLONES_ROOT/$slug"
+    return 0
+  fi
   if [[ -d "$kingdom/ringdom-clones/$slug" ]]; then
     printf '%s\n' "$kingdom/ringdom-clones/$slug"
     return 0

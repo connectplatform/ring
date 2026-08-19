@@ -19,6 +19,25 @@
     "docs": {
       "description": "Learn about Ring Platform features"
     },
+    "nft": {
+      "description": "Browse and mint community NFTs"
+    },
+    "games": {
+      "description": "Peer mini-games and challenges"
+    },
+    "news": {
+      "description": "Stories, briefings, and station updates"
+    },
+    "live": {
+      "description": "Watch live broadcasts"
+    },
+    "categories": {
+      "description": "Browse news by topic"
+    },
+    "roadmap": {
+      "description": "See what ships next"
+    },
+    "empty": "No platform modules are enabled on this site.",
     "notifications": {
       "description": "Stay updated with platform activities"
     },
@@ -27,7 +46,24 @@
     },
     "support": {
       "description": "Get help and contact support"
-    }
+    },
+    "profile": {
+      "description": "View and edit your profile"
+    },
+    "cart": {
+      "description": "Items waiting at checkout"
+    },
+    "favorites": {
+      "description": "Saved products"
+    },
+    "messages": {
+      "description": "Direct chats"
+    },
+    "tasks": {
+      "description": "Chat tasks"
+    },
+    "tapOutside": "Tap outside to close",
+    "anonymous": "Anonymous"
   },
   "close": "Close",
   "home": "Home",
@@ -54,6 +90,7 @@
   "privacy": "Privacy",
   "terms": "Terms",
   "signIn": "Sign In",
+  "login": "Login",
   "signOut": "Sign Out",
   "signUp": "Sign Up",
   "search": "Search",
@@ -284,5 +321,8 @@
     "publisherPage": "Publisher page",
     "empty": "No changelog entries yet."
   },
-  "games": "Games"
+  "games": "Games",
+  "nft": "NFT",
+  "cart": "Cart",
+  "favorites": "Favorites"
 }

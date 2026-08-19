@@ -1,9 +1,24 @@
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url'
 import path from 'path'
+import fs from 'node:fs'
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+function readOverlayBuild() {
+  const fromEnv = (process.env.NEXT_PUBLIC_RING_OVERLAY_VERSION || '').trim()
+  if (/^[0-9]+$/.test(fromEnv)) return fromEnv
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, '.ring-overlay-version'), 'utf8').trim()
+    if (/^[0-9]+$/.test(raw)) return raw
+  } catch {
+    /* bare L1 has no overlay file */
+  }
+  return '0'
+}
+
+const RING_OVERLAY_BUILD = readOverlayBuild()
 
 const withBundleAnalyzer =
   process.env.ANALYZE === 'true'
@@ -73,6 +88,7 @@ const nextConfig = {
     RING_DEPLOY_TARGET: process.env.RING_DEPLOY_TARGET,
     NEXT_PUBLIC_RING_DEPLOY_TARGET: process.env.NEXT_PUBLIC_RING_DEPLOY_TARGET,
     NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED: process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED,
+    NEXT_PUBLIC_RING_OVERLAY_VERSION: RING_OVERLAY_BUILD,
   },
   async redirects() {
     return buildDocsUrlRedirects()

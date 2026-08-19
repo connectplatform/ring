@@ -313,6 +313,31 @@
   "theme": {
     "default": "system"
   },
+  "navigation": {
+    "platformMenu": {
+      "items": [
+        "opportunities",
+        "entities",
+        "store",
+        "nft",
+        "games",
+        "news",
+        "docs"
+      ]
+    },
+    "userMenu": {
+      "items": [
+        "profile",
+        "wallet",
+        "notifications",
+        "messages",
+        "cart",
+        "favorites",
+        "tasks",
+        "settings"
+      ]
+    }
+  },
   "legal": {
     "licenseSpdx": "MIT"
   },

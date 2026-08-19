@@ -36,6 +36,7 @@ export const CHROME_PATHS = [
   'components/navigation/sidebar-aside.tsx',
   'components/navigation/sidebar-rail.tsx',
   'components/navigation/sidebar-synced-layout.tsx',
+  'components/navigation/mobile-user-widget.tsx',
   'lib/navigation/desktop-primary-nav.ts',
 ]
 

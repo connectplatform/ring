@@ -155,7 +155,34 @@
         "label": "Opportunities",
         "href": "/opportunities"
       }
-    ]
+    ],
+    "platformMenu": {
+      "items": [
+        "opportunities",
+        "entities",
+        "store",
+        "nft",
+        "games",
+        "news",
+        "docs"
+      ],
+      "exclude": [],
+      "extra": []
+    },
+    "userMenu": {
+      "items": [
+        "profile",
+        "wallet",
+        "notifications",
+        "messages",
+        "cart",
+        "favorites",
+        "tasks",
+        "settings"
+      ],
+      "exclude": [],
+      "extra": []
+    }
   },
   "hero": {
     "title": "Your platform name",

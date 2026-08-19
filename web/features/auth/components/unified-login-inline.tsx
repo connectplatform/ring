@@ -27,6 +27,8 @@ interface UnifiedLoginInlineProps {
   variant?: 'default' | 'hero'
   locale?: Locale
   initialAuthError?: string
+  /** Close hosting modal before OAuth / wallet redirect. */
+  onAuthAction?: () => void
 }
 
 function mapAuthJsError(code: string | undefined, tAuth: (key: string) => string): string | null {
@@ -46,6 +48,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
   variant = 'default',
   locale,
   initialAuthError,
+  onAuthAction,
 }) => {
   const tAuth = useTranslations('modules.auth')
   const router = useRouter()
@@ -55,6 +58,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
 
   const handleSignIn = useCallback(
     async (provider: string) => {
+      onAuthAction?.()
       try {
         const activeLocale = (locale ?? DEFAULT_LOCALE) as Locale
         const callbackUrl = buildOAuthCallbackUrl(from, activeLocale)
@@ -64,16 +68,17 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
         setError(`Failed to sign in with ${provider}`)
       }
     },
-    [from, locale],
+    [from, locale, onAuthAction],
   )
 
   const handleCryptoLogin = useCallback(() => {
+    onAuthAction?.()
     const params = new URLSearchParams()
     if (from) params.set('from', from)
     const query = params.toString()
     const path = ROUTES.WALLET_CONNECT(locale)
     router.push(query ? `${path}?${query}` : path)
-  }, [from, locale, router])
+  }, [from, locale, onAuthAction, router])
 
   const socialBlock = (compact: boolean) => (
     <>
@@ -85,6 +90,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
         onAuthStart={() => {
           setIsLoading(true)
           setIsAuthInProgress(true)
+          window.setTimeout(() => onAuthAction?.(), 80)
         }}
         onAuthEnd={() => {
           setIsLoading(false)
@@ -100,6 +106,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
         onAuthStart={() => {
           setIsLoading(true)
           setIsAuthInProgress(true)
+          window.setTimeout(() => onAuthAction?.(), 80)
         }}
         onAuthEnd={() => {
           setIsLoading(false)
