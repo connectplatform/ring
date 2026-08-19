@@ -413,6 +413,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.mjs ./next.config.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
+# tsx server.ts resolves @/ring-config.json via tsconfig paths — file must exist at runtime
+COPY --from=builder --chown=nextjs:nodejs /app/ring-config.json ./ring-config.json
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 COPY --from=builder --chown=nextjs:nodejs /app/i18n ./i18n
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs

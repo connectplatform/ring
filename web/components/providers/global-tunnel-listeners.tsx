@@ -16,7 +16,9 @@ export function GlobalTunnelListeners() {
       <Suspense fallback={null}>
         <GlobalIncomingCallBanner />
       </Suspense>
-      <GlobalIncomingGameBanner />
+      <Suspense fallback={null}>
+        <GlobalIncomingGameBanner />
+      </Suspense>
     </>
   )
 }

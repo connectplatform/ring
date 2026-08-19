@@ -4,3 +4,5 @@ cli/node_modules/
 .env
 .env.*
 .dev-merge/
+.codebase-memory/
+**/.codebase-memory/

@@ -1,86 +1,118 @@
-# Ring (Layer1 SSOT)
+<p align="center">
+  <img src="web/public/logo.svg" alt="Ring" width="120" height="120" />
+</p>
 
-Community Ring Platform — git root for:
+<h1 align="center">Ring</h1>
 
-- **Forge:** `https://forge.ringdom.org/ringdom/ring.git`
-- **GitHub:** `https://github.com/connectplatform/ring`
+<p align="center">
+  Open-source software for a group that wants to match people with real chances — and leave the noise out.
+</p>
+
+<p align="center">
+  <a href="https://ring-platform.org">Docs</a> ·
+  <a href="web/README.md">Developer guide</a> ·
+  <a href="https://ring-platform.org/changelog">Changelog</a> ·
+  <a href="web/LICENSE">Apache 2.0</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Auth.js-v5-purple?style=flat-square" alt="Auth.js" />
+  <img src="https://img.shields.io/badge/Solana-SPL-9945FF?style=flat-square" alt="Solana SPL" />
+</p>
+
+---
+
+Ring is a full web platform you can copy and run yourself. You set the name. You set the rules. You keep the members.
+
+The aim is simple. People should see work, goods, knowledge, and other people that fit them. They should not drown in ads and feed noise. When a match is real, they can act — talk, apply, buy, join, or vote.
+
+Ray Sorkin built Ring in Ukraine. The community site is [ring-platform.org](https://ring-platform.org).
+
+## Who Ring is for
+
+You can run one ring for any group that needs a shared home:
+
+| You serve | Ring can hold |
+| --- | --- |
+| A **community** | Members, events, a store, and a shared wiki |
+| A **cooperative** | Shared work, shared sales, and shared rules |
+| A **city** | Local offers, local needs, and local shops |
+| A **country** | Many groups under one set of public rules |
+| A **movement** | Campaigns, tasks, and gated rooms for trusted people |
+| A **faith group** | Members, teaching, gifts, and access that can stay with the person |
+
+One codebase. Many uses. You do not fork a new product for each kind of group.
+
+## What you get
+
+Ring ships as one app with modules you can turn on. You do not glue ten products together.
+
+- **Match** — An AI matcher finds people, offers, and requests that fit a profile.
+- **Talk** — Live messages, calls, and a push tunnel so members hear what matters now.
+- **Opportunities** — Post work, goods, and needs. Apply in the open or in a closed room.
+- **Store** — Many vendors. Cart, orders, and member credits.
+- **Knowledge** — A wiki and a file cabinet for shared documents and media.
+- **Wallet** — Members connect a wallet. The ring can run its own [Solana SPL](https://solana.com/docs/tokens) token.
+- **Gates** — NFT access to rooms, shops, and roles. A gate can be soul-bound or it can allow resale.
+
+Developer stack: React 19, Next.js 16, TypeScript, Tailwind 4, Auth.js v5. Clone this repo and self-host. See [web/README.md](web/README.md) for the full module list and setup detail.
+
+## Wallet, token, and gates
+
+Ring treats money and access as part of the same home, not as a bolt-on shop.
+
+**Wallet.** A member connects a wallet. The ring can issue a custodial wallet on sign-in so a new person can start without a seed phrase.
+
+**Own token.** Each ring can run its own SPL token on Solana. That token is a utility token for membership, gates, and loyalty — not a thing you must presell.
+
+**No platform fee on native-token use.** The ring treasury can pay the network cost (gas) so members send and settle the native token without holding SOL. Ring does not add a second platform fee on those sponsored sends. You still set the token price for a membership or a gate. The public chain may charge a network cost when a send is not sponsored.
+
+**NFT-gated access.** You can lock a room, a shop, or a role behind an NFT.
+
+- **Soul-bound** — The pass stays with the person. They cannot sell it. Use this for membership and identity.
+- **Resell rights** — The pass is a deed or a license. The holder can sell it when it is not staked. Use this for vendor keys and tradeable access.
+
+Staking can lock a tradeable gate so it cannot move until the lock ends.
+
+## Start here
+
+```bash
+git clone https://github.com/connectplatform/ring.git
+cd ring
+./install.sh
+```
+
+`install.sh` at the repo root runs the installer in `web/`.
+
+If you already have Node.js and want a manual path:
+
+```bash
+cp web/env.local.template web/.env.local
+npm install --prefix web
+npm run dev
+```
+
+Then open the URL the installer prints (local default is `http://localhost:3000`).
+
+Copy `web/ring-config.template.json` only if `web/ring-config.json` is missing. Set your name, locales, and feature flags in `web/ring-config.json`.
 
 ## Layout
 
-| Path | Role |
-|------|------|
-| [`web/`](web/) | Next.js 16 community app (Layer1 web SSOT) |
-| [`cli/`](cli/) | Ring CLI (empire/local; not required for OSS `install.sh`) |
-| [`scripts/`](scripts/) | Layer1 tooling, smokes, org-leak gate; `run-org-ci.sh` bridges to empire compose |
-| `desktop/` | Future Tauri 2 client (Layer1 Apps plan) |
-| `mobile/` | Future Capacitor 6 client (Layer1 Apps plan) |
+| Path | What it is |
+| --- | --- |
+| [`web/`](web/) | The Next.js app — this is the product |
+| [`web/install.sh`](web/install.sh) | Interactive install, database setup, and production hints |
+| [`scripts/`](scripts/) | Setup helpers used by the installer |
 
-**Org overlay (empire, not this repo):** sibling `../ring-platform-org/`
+The public command-line installer is `./install.sh`. You do not need extra private tooling to run a community ring.
 
-| Org path | Role |
-|----------|------|
-| `ring-platform-org/web/` | Layer2/3 **web overlay** (Order Lab, org `ring-config`, Layer3 registry, `.env.local`) |
-| `ring-platform-org/k8s/`, `.forgejo/`, `scripts/ci/` | Ops (compose/deploy) — not merged into the Next image context; invoke via `npm run ci:layer1` |
+## Docs and license
 
-Prod compose: merge **`ring-platform-org/web/`** onto **`ring/web/`** → BuildKit → OCI.
+- Site and guides: [ring-platform.org](https://ring-platform.org)
+- Developer README: [web/README.md](web/README.md)
+- License: [Apache License 2.0](web/LICENSE)
 
-**Legacy path:** kingdom symlink `ring-platform.old` → `ring/web`. Prefer `ring/web`.
-
-## ring-config SSOT
-
-| File | Lives in | Role |
-|------|----------|------|
-| `web/ring-config.json` | **Layer1 (commit)** | Community defaults: `domains`/`baseUrl` → `http://localhost:3000`, `calculator.enabled: false`, firebase disabled. |
-| `web/ring-config.template.json` | **Layer1 (commit)** | Blank clone starter + `$schema` (imported by `lib/ring-config-core.ts` as merge defaults). |
-| `../ring-platform-org/web/ring-config.json` | **Empire overlay** | Portal/empire brand + `calculator.enabled: true` + endemic flags. Wins at **compose merge** only. |
-
-**Never** DX-symlink org config into Layer1 — `check:org-leak` fails if `ring-config.json` is a symlink. Empire brand: `npm run merge:org-dev` / `npm run dev -- ring-platform-org`.
-
-## Develop (community) — from `ring/`
-
-```bash
-cd /path/to/ring          # Layer1 root (GitHub: connectplatform/ring)
-cp web/env.local.template web/.env.local
-npm install --prefix web
-npm run ensure:config     # no-op when committed ring-config.json present
-npm run check:org-leak
-npm run dev               # → web/
-npm run build             # → web/
-```
-
-Or classic: `cd web && npm run dev`.
-
-## Develop (empire) — kingdom layout only
-
-```bash
-# Preferred: compose merge (does not mutate Layer1 ring-config.json)
-npm run merge:org-dev                   # → ../ring-platform-org/.dev-merge
-npm run dev -- ring-platform-org         # merge + npm run in .dev-merge
-npm run build -- ring-platform-org
-
-# Optional in-tree DX (Order Lab / calculator / .env.local links — NOT config)
-npm run setup:org-dx
-npm run teardown:org-dx                 # restore community stubs / unlink DX
-
-# other kingdom clones (sibling dirs):
-npm run dev -- ring-n9life-com
-```
-
-**npm note:** pass the project name **after `--`**. Bare `npm run build ring-platform-org` is wrong (npm looks for a script named `ring-platform-org`).
-
-Secrets: `../ring-platform-org/web/.env.local` (linked via `setup:org-dx` or present in merge). Community template: `web/env.local.template`.
-
-**GitHub purity:** Do **not** commit empire DX into `web/` (`.forgejo/`, `k8s/`, `.env.local` as real trees — see `check:org-leak`). **Do** commit `web/ring-config.json`.
-
-**Forge-only Actions:** repo-root `.forgejo/workflows/` may be tracked on **forge** `origin` (`ringdom/ring`) for Layer1 fan-out triggers. Keep it off public GitHub:
-
-```bash
-git push origin main              # forge — includes .forgejo
-bash scripts/push-github-oss.sh   # github — strips .forgejo
-```
-
-Never `git push github main` after adding `.forgejo` (that would publish Actions to OSS). No `.reggie-propagate-exclude.json` in Layer1 (that file belongs on white-label / org destinations).
-
-## Prod (empire)
-
-See `.cursor/md-skills/layer1-prod-update.md`. Build context is merged **`ring/web` + `ring-platform-org/web`** (Layer1 config included, overlay wins).
+You may copy Ring, change it, and run it for your group. Keep the license file.

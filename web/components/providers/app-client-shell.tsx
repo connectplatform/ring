@@ -17,7 +17,6 @@ import { AppProvider } from '@/contexts/app-context'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
 import { CallSessionProvider } from '@/features/chat/providers/call-session-provider'
-import { GlobalTunnelListeners } from '@/components/providers/global-tunnel-listeners'
 import { StorePaymentMethodsProvider } from '@/features/store/currency-context'
 import { StoreProvider } from '@/features/store/context'
 import GoogleOneTap from '@/features/auth/components/google-one-tap'
@@ -66,7 +65,6 @@ export function AppClientShell({
                   <TunnelProvider autoConnect={false} debug={false}>
                     <CallSessionProvider>
                     <CreditBalanceProvider>
-                      <GlobalTunnelListeners />
                       <Web3ScopeProvider>
                         <StorePaymentMethodsProvider initialExchangeRates={initialExchangeRates}>
                           <StoreProvider>

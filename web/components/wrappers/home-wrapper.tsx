@@ -223,8 +223,8 @@ export default function HomeWrapper() {
   return (
     <div className="min-h-full text-foreground relative transition-colors duration-300">
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-        <Link href="/privacy">Privacy Policy</Link>
-        <Link href="/terms">Terms of Service</Link>
+        <Link href={ROUTES.PRIVACY(locale)} prefetch={false}>Privacy Policy</Link>
+        <Link href={ROUTES.TERMS(locale)} prefetch={false}>Terms of Service</Link>
       </div>
 
       {/* ── DESKTOP (right rail collapses dynamically) ── */}

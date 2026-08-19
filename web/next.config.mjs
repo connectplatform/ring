@@ -118,6 +118,12 @@ const nextConfig = {
         source: '/:locale/docs/:path*.md',
         destination: '/api/docs/markdown/:locale/:path*',
       },
+      // News-station WP-style /news/{section}/{slug} → L1 /news/[slug]
+      // (must not steal static news/category, news/categories, news/author).
+      {
+        source: '/:locale/news/:section((?!category|categories|author)[^/]+)/:slug',
+        destination: '/:locale/news/:slug',
+      },
     ]
   },
   async headers() {
