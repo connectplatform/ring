@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://ring-platform.org">Docs</a> ·
-  <a href="web/README.md">Developer guide</a> ·
+  <a href="web/README.md">Web app guide</a> ·
   <a href="https://ring-platform.org/changelog">Changelog</a> ·
   <a href="web/LICENSE">Apache 2.0</a>
 </p>
@@ -29,7 +29,7 @@ Ring is a full web platform you can copy and run yourself. You set the name. You
 
 The aim is simple. People should see work, goods, knowledge, and other people that fit them. They should not drown in ads and feed noise. When a match is real, they can act — talk, apply, buy, join, or vote.
 
-Ray Sorkin built Ring in Ukraine. The community site is [ring-platform.org](https://ring-platform.org).
+Ray Sorkin built Ring in Ukraine. Guides live at [ring-platform.org](https://ring-platform.org). The runnable app is [`web/`](web/).
 
 ## Who Ring is for
 
@@ -46,7 +46,53 @@ You can run one ring for any group that needs a shared home:
 
 One codebase. Many uses. You do not fork a new product for each kind of group.
 
-## What you get
+## What Ring holds
+
+```mermaid
+mindmap
+  root((Ring))
+    People
+      Community
+      Cooperative
+      City
+      Country
+      Movement
+      Faith group
+    Match
+      AI matcher
+      Entity profiles
+      Personal page
+      Share and earn
+    Talk
+      Direct messages
+      Calls
+      Live tunnel
+      Push alerts
+    Work
+      Offers
+      Requests
+      Tasks
+      Confidential rooms
+    Trade
+      Multi-vendor store
+      Member credits
+      Card and PayPal
+      Token desk
+    Knowledge
+      Wiki
+      News
+      File cabinet
+      Maps
+    Access
+      Visitor to admin
+      Soul-bound NFT
+      Resellable NFT
+      Staking
+    Wallet
+      Own SPL token
+      Sponsored network cost
+      Optional EVM
+```
 
 Ring ships as one app with modules you can turn on. You do not glue ten products together.
 
@@ -54,11 +100,11 @@ Ring ships as one app with modules you can turn on. You do not glue ten products
 - **Talk** — Live messages, calls, and a push tunnel so members hear what matters now.
 - **Opportunities** — Post work, goods, and needs. Apply in the open or in a closed room.
 - **Store** — Many vendors. Cart, orders, and member credits.
-- **Knowledge** — A wiki and a file cabinet for shared documents and media.
+- **Knowledge** — A wiki, news, a file cabinet, and maps.
 - **Wallet** — Members connect a wallet. The ring can run its own [Solana SPL](https://solana.com/docs/tokens) token.
 - **Gates** — NFT access to rooms, shops, and roles. A gate can be soul-bound or it can allow resale.
 
-Developer stack: React 19, Next.js 16, TypeScript, Tailwind 4, Auth.js v5. Clone this repo and self-host. See [web/README.md](web/README.md) for the full module list and setup detail.
+Developer stack: React 19, Next.js 16, TypeScript, Tailwind 4, Auth.js v5. Clone this repo and self-host. See [web/README.md](web/README.md) for the module map, app layout, and setup.
 
 ## Wallet, token, and gates
 
@@ -112,7 +158,7 @@ The public command-line installer is `./install.sh`. You do not need extra priva
 ## Docs and license
 
 - Site and guides: [ring-platform.org](https://ring-platform.org)
-- Developer README: [web/README.md](web/README.md)
+- Web app README: [web/README.md](web/README.md)
 - License: [Apache License 2.0](web/LICENSE)
 
 You may copy Ring, change it, and run it for your group. Keep the license file.
