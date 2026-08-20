@@ -303,13 +303,34 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   return messages
 }
 
+function mergeJsonRecords(target: JsonRecord, source: JsonRecord): JsonRecord {
+  const out: JsonRecord = { ...target }
+  for (const [key, value] of Object.entries(source)) {
+    const existing = out[key]
+    if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      existing &&
+      typeof existing === 'object' &&
+      !Array.isArray(existing)
+    ) {
+      out[key] = mergeJsonRecords(existing as JsonRecord, value as JsonRecord)
+    } else {
+      out[key] = value
+    }
+  }
+  return out
+}
+
 /**
- * Build next-intl messages for a locale and route scope.
- * Scoped bundles are cached per locale + scope (pathname from proxy `x-pathname`).
+ * L1 locale files only. Clone overlays must NOT live in this cache — overlay
+ * JSON / registry change independently and `'use cache'` would freeze an empty
+ * `vikka-home` / `n9life-home` namespace for hours.
  */
-export async function buildMessages(
+async function buildCachedLocaleMessages(
   locale: string,
-  scope: MessageScope = 'full',
+  scope: MessageScope,
 ): Promise<JsonRecord> {
   'use cache'
   const loc = normalizeLocale(locale)
@@ -321,14 +342,23 @@ export async function buildMessages(
     fileIds.map(async (fileId) => [fileId, await importLocaleFile(loc, fileId)] as const),
   )
   const loaded = Object.fromEntries(entries) as Partial<Record<LocaleFileId, JsonRecord>>
-  const messages = assembleMessages(loaded)
-  // Tier-3 clone overlays append via empty-on-platform registry (never import clone modules here)
+  return assembleMessages(loaded)
+}
+
+/**
+ * Build next-intl messages for a locale and route scope.
+ * Scoped L1 bundles are cached; Tier-3 overlay messages merge per request.
+ */
+export async function buildMessages(
+  locale: string,
+  scope: MessageScope = 'full',
+): Promise<JsonRecord> {
+  const loc = normalizeLocale(locale)
+  const messages = await buildCachedLocaleMessages(loc, scope)
   const { loadOverlayMessages } = await import('@/lib/overlay/runtime')
   const overlay = await loadOverlayMessages(loc)
-  if (overlay && typeof overlay === 'object') {
-    Object.assign(messages, overlay)
-  }
-  return messages
+  if (!overlay || typeof overlay !== 'object') return messages
+  return mergeJsonRecords(messages, overlay as JsonRecord)
 }
 
 /** @deprecated Prefer `buildMessages(locale, scope)` — loads full corpus. */

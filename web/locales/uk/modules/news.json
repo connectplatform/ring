@@ -86,5 +86,43 @@
     "localDraft": "Local draft",
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
+  },
+  "page": {
+    "title": "Новини",
+    "subtitle": "Останні новини та оновлення",
+    "rss": "RSS",
+    "emptyCategory": "Поки немає статей",
+    "emptyCategoryDescription": "У категорії «{categoryName}» ще немає опублікованих статей. Перегляньте інші категорії або поверніться пізніше.",
+    "otherCategories": "Інші категорії",
+    "articlesCount": "{count} {count, plural, =1 {стаття} other {статей}}"
+  },
+  "sidebar": {
+    "author": "Автор",
+    "share": "Поділитися",
+    "similar": "Схожі новини",
+    "newsletter": "Підписка",
+    "newsletterDescription": "Отримуйте найсвіжіші новини на вашу пошту",
+    "emailPlaceholder": "Ваш email",
+    "subscribe": "Підписатися",
+    "subscribed": "Успішно підписано!",
+    "checkEmail": "Перевірте вашу пошту для підтвердження.",
+    "noSpam": "Без спаму. Відписатися можна будь-коли.",
+    "categories": "Рубрики",
+    "allCategories": "Усі категорії",
+    "statistics": "Статистика",
+    "views": "Переглядів",
+    "likes": "Вподобань",
+    "linkCopied": "Посилання скопійовано!",
+    "currentCategory": "Поточна рубрика",
+    "allNews": "Усі новини",
+    "rssFeed": "RSS стрічка",
+    "trending": "Популярне",
+    "loadMore": "Завантажити ще",
+    "moreNews": "Більше новин",
+    "top": "ТОП",
+    "main": "ГОЛОВНЕ",
+    "latest": "ОСТАННІ",
+    "current": "Актуальне",
+    "topByViews": "Топ за переглядами"
   }
 }

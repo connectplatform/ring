@@ -55,7 +55,7 @@ function DesktopSidebarShell({
 }
 
 function DesktopSidebarInner({ className }: DesktopSidebarProps) {
-  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const overlayMode = !isDesktop
 
   const {
@@ -80,8 +80,9 @@ function DesktopSidebarInner({ className }: DesktopSidebarProps) {
         data-grid
         className="relative flex h-full min-h-[100dvh] flex-col [--aside-width:var(--sidebar-aside-w)]"
         style={{
-          // Overlay (md–lg / SSR before media hydrate): rail only — do not reserve
-          // cookie aside width as an empty panel beside icon rail.
+          // Overlay (SSR before media hydrate, or < md): rail only — do not reserve
+          // cookie aside width as an empty panel beside icon rail. Labels match
+          // `hidden md:flex` so 768–1023 is a labeled sidebar, not an icon rail with no bar.
           width: overlayMode
             ? 'var(--sidebar-rail-w)'
             : 'calc(var(--sidebar-rail-w) + clamp(0px, var(--sidebar-aside-w), 320px))',

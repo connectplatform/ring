@@ -86,5 +86,43 @@
     "localDraft": "Local draft",
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
+  },
+  "page": {
+    "title": "News",
+    "subtitle": "Latest stories and updates",
+    "rss": "RSS",
+    "emptyCategory": "No articles yet",
+    "emptyCategoryDescription": "There are no published articles in the «{categoryName}» category. Check other categories or come back later.",
+    "otherCategories": "Other Categories",
+    "articlesCount": "{count} {count, plural, =1 {article} other {articles}}"
+  },
+  "sidebar": {
+    "author": "Author",
+    "share": "Share",
+    "similar": "Related News",
+    "newsletter": "Newsletter",
+    "newsletterDescription": "Get the latest news delivered to your inbox",
+    "emailPlaceholder": "Your email",
+    "subscribe": "Subscribe",
+    "subscribed": "Successfully subscribed!",
+    "checkEmail": "Check your email for confirmation.",
+    "noSpam": "No spam. Unsubscribe anytime.",
+    "categories": "Categories",
+    "allCategories": "All Categories",
+    "statistics": "Statistics",
+    "views": "Views",
+    "likes": "Likes",
+    "linkCopied": "Link copied!",
+    "currentCategory": "Current Category",
+    "allNews": "All News",
+    "rssFeed": "RSS Feed",
+    "trending": "Trending",
+    "loadMore": "Load More",
+    "moreNews": "More News",
+    "top": "TOP",
+    "main": "FEATURED",
+    "latest": "LATEST",
+    "current": "Current",
+    "topByViews": "Top by views"
   }
 }

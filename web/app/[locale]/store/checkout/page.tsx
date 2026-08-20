@@ -36,8 +36,6 @@ export async function generateMetadata({
     path: 'store.checkout',
     variables: {},
     pathname: '/store/checkout',
-    siteName: 'Ring Platform',
-    twitterSite: '@ringdomx',
   }) as Metadata
 }
 

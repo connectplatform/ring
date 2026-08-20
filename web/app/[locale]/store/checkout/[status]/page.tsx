@@ -47,8 +47,6 @@ export async function generateMetadata({
     path: 'store.checkout.status',
     variables: { status: status.charAt(0).toUpperCase() + status.slice(1) },
     pathname: '/store/checkout',
-    siteName: 'Ring Platform',
-    twitterSite: '@RingPlatform',
   })
 }
 

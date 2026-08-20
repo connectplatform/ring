@@ -125,9 +125,17 @@ export function OpportunityTypeSelectorClient({
     }
   }, [layout, handleClose])
 
-  // Pathname change closes mobile-sheet / overlay when owned by parent state
+  // Close on client navigation only. Skip the first run — next-intl
+  // `usePathname()` often changes once on hydrate (locale prefix), which
+  // would otherwise open-then-immediately-close the '+' sheet.
+  const pathReadyRef = useRef(false)
   useEffect(() => {
     if (layout === 'embedded') return
+    if (!pathReadyRef.current) {
+      pathReadyRef.current = true
+      prevPathRef.current = pathname
+      return
+    }
     if (prevPathRef.current !== pathname) {
       prevPathRef.current = pathname
       handleClose()

@@ -26,8 +26,6 @@ export async function generateMetadata({
       status: 'Success'
     },
     pathname: '/auth/signout',
-    siteName: 'Ring Platform',
-    twitterSite: '@RingPlatform',
   })
 }
 

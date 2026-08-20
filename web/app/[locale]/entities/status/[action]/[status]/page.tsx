@@ -44,8 +44,6 @@ export async function generateMetadata({
     path: 'entities.status',
     variables: { action, status: status.charAt(0).toUpperCase() + status.slice(1) },
     pathname: '/entities/status',
-    siteName: 'Ring Platform',
-    twitterSite: '@RingPlatform',
   })
 }
 

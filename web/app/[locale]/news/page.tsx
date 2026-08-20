@@ -115,8 +115,6 @@ export async function generateMetadata({
       count: '12' // Expose count for internationalized title/meta
     },
     pathname: '/news',
-    siteName: 'Ring Platform',
-    twitterSite: '@RingPlatform',
   })
 }
 

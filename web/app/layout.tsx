@@ -9,7 +9,12 @@ import {
   AppClientShell,
   AppShellStaticFallback,
 } from '@/components/providers/app-client-shell'
-import { getPublicInstanceConfig, getSiteBaseUrl } from '@/lib/ring-config-core'
+import { headers } from 'next/headers'
+import {
+  getPublicInstanceConfig,
+  getSiteBaseUrl,
+  getSystemConfigSnapshot,
+} from '@/lib/ring-config-core'
 import { auth } from '@/auth'
 import type { PublicInstanceConfig } from '@/components/common/whitelabel/instance-config-client'
 import {
@@ -17,6 +22,7 @@ import {
   getClientLocaleConfig,
   LEGACY_BROWSER_GATE,
   SUPPORTED_LOCALES,
+  type Locale,
 } from '@/lib/locale-config'
 
 // --- Pre-computed client config strings (inlined into beforeInteractive scripts) ---
@@ -171,15 +177,29 @@ async function AuthenticatedAppShell({
   )
 }
 
-export default function RootLayout({
+function htmlLangFromRequest(pathname: string): string {
+  const pathLocale = pathname.split('/').filter(Boolean)[0]
+  if (pathLocale && SUPPORTED_LOCALES.includes(pathLocale as Locale)) {
+    return pathLocale
+  }
+  const configured = getSystemConfigSnapshot().localization?.defaultLocale
+  if (typeof configured === 'string' && SUPPORTED_LOCALES.includes(configured as Locale)) {
+    return configured
+  }
+  return DEFAULT_LOCALE
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const instanceConfig = getPublicInstanceConfig()
+  const pathname = (await headers()).get('x-pathname') ?? '/'
+  const htmlLang = htmlLangFromRequest(pathname)
 
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang={htmlLang} className={inter.variable} suppressHydrationWarning>
       <head>
         {/* SSR theme injection — prevents FOUC for dark/system theme */}
         <InstanceThemeStyle />

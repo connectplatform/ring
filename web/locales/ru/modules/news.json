@@ -86,5 +86,43 @@
     "localDraft": "Local draft",
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
+  },
+  "page": {
+    "title": "Новости",
+    "subtitle": "Последние новости и обновления",
+    "rss": "RSS",
+    "emptyCategory": "Пока нет статей",
+    "emptyCategoryDescription": "В категории «{categoryName}» ещё нет опубликованных статей. Посмотрите другие категории или вернитесь позже.",
+    "otherCategories": "Другие категории",
+    "articlesCount": "{count} {count, plural, =1 {статья} other {статей}}"
+  },
+  "sidebar": {
+    "author": "Автор",
+    "share": "Поделиться",
+    "similar": "Похожие новости",
+    "newsletter": "Подписка",
+    "newsletterDescription": "Получайте свежие новости на почту",
+    "emailPlaceholder": "Ваш email",
+    "subscribe": "Подписаться",
+    "subscribed": "Успешно подписано!",
+    "checkEmail": "Проверьте почту для подтверждения.",
+    "noSpam": "Без спама. Отписаться можно в любой момент.",
+    "categories": "Рубрики",
+    "allCategories": "Все категории",
+    "statistics": "Статистика",
+    "views": "Просмотров",
+    "likes": "Отметок «нравится»",
+    "linkCopied": "Ссылка скопирована!",
+    "currentCategory": "Текущая рубрика",
+    "allNews": "Все новости",
+    "rssFeed": "RSS лента",
+    "trending": "Популярное",
+    "loadMore": "Загрузить ещё",
+    "moreNews": "Больше новостей",
+    "top": "ТОП",
+    "main": "ГЛАВНОЕ",
+    "latest": "ПОСЛЕДНИЕ",
+    "current": "Актуальное",
+    "topByViews": "Топ по просмотрам"
   }
 }

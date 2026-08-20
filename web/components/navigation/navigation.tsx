@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { Link, useRouter, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 import { useTranslations, useLocale } from 'next-intl'
@@ -48,8 +48,7 @@ const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-
 })
 
 const BottomNavigation = dynamic(() => import('@/components/navigation/bottom-navigation'), {
-  ssr: false,
-  loading: () => null,
+  ssr: true,
 })
 
 /**
@@ -328,11 +327,13 @@ export default function Navigation() {
 
   return (
     <>
-      {/* Desktop Sidebar Navigation — dynamic(ssr:false) already client-only */}
+      {/* Desktop sidebar + mobile bar: SSR shells (same contract as DesktopSidebar). */}
       <DesktopSidebar />
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNavigation />
+      {/* useSearchParams() requires a Suspense boundary or the bar never hydrates. */}
+      <Suspense fallback={null}>
+        <BottomNavigation />
+      </Suspense>
 
       {/* Mobile User Widget - GTA-Style Floating Radial Menu */}
       <MobileUserWidget />

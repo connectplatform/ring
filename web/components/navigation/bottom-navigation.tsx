@@ -157,17 +157,29 @@ function NavItem({
  * Main Plus action button that floats above the navigation bar as a CTA.
  */
 function CenterAddButton({ onClick }: { onClick: () => void }) {
+  const lastActivate = useRef(0)
+  const activate = () => {
+    const now = Date.now()
+    if (now - lastActivate.current < 400) return
+    lastActivate.current = now
+    onClick()
+  }
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      onPointerUp={(event) => {
+        if (event.button !== 0) return
+        activate()
+      }}
+      onClick={activate}
       className="relative flex items-center justify-center w-[68px] h-[68px] bg-transparent hover:bg-primary/10 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 -mt-6"
       aria-label="Add new"
     >
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
+      <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
         <AnimatedLogo />
       </div>
-      <div className="absolute inset-0 z-20 flex items-center justify-center">
+      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
         <Plus className="h-5 w-5 text-primary drop-shadow-sm" />
       </div>
     </button>
@@ -392,6 +404,7 @@ export default function BottomNavigation() {
   const { data: session } = useSession()
   const t = useTranslations('navigation')
   const tAuth = useTranslations('modules.auth')
+  const tOpp = useTranslations('modules.opportunities')
   const [showOpportunitySelector, setShowOpportunitySelector] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
@@ -630,17 +643,24 @@ export default function BottomNavigation() {
         <div className="h-safe-area-inset-bottom bg-background/95" />
       </nav>
 
-      {/* Opportunity type picker — bottom-nav-aware mobile sheet */}
-      {showOpportunitySelector && (
+      {/* Opportunity type picker — FsModal (same chrome as unauth login) */}
+      <FsModal
+        open={showOpportunitySelector}
+        onOpenChange={(open) => {
+          if (!open) closeOpportunitySelector()
+        }}
+        title={tOpp('type_selector.title')}
+        description={tOpp('type_selector.subtitle')}
+      >
         <OpportunityTypeSelectorClient
-          layout="mobile-sheet"
+          layout="embedded"
           onClose={closeOpportunitySelector}
           userRole={
             hasRole(UserRolesArray.member) ? 'member' : 'subscriber'
           }
           locale={locale}
         />
-      )}
+      </FsModal>
 
       {/* Ring (three-dots) platform-only fullscreen menu */}
       <BottomNavFullscreenMenu
