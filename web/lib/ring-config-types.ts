@@ -665,6 +665,11 @@ export interface RingConfig {
   emailCrm?: {
     enabled?: boolean
     channels?: EmailCrmChannelConfig[]
+    /**
+     * Extra ESP host suffixes allowed for RFC 8058 one-click POST.
+     * Merged with the built-in Mailchimp/SendGrid/Klaviyo/… list.
+     */
+    unsubscribeAllowHosts?: string[]
   }
   /**
    * Public /calculator feature shell (Tier B tool page).
@@ -695,6 +700,8 @@ export interface RingConfig {
     staging?: string                 // Staging/test domain
     development?: string             // Dev/test domain
     cdn?: string                     // CDN/perf assets
+    /** Secondary media origin (e.g. Vikka archive.vikka.ua) for next/image. */
+    cdnFallback?: string
     api?: string                     // API host/root
     // TODO: Refactor to domain[] array for future multi-env support.
   }

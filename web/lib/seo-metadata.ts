@@ -100,6 +100,13 @@ function templateToSeoData(
   return { ...fallback, ...result }
 }
 
+const COMMUNITY_SITE_NAME = 'Ring Platform'
+
+function applyCloneSiteName(value: string | undefined, siteName: string): string | undefined {
+  if (!value || !siteName || siteName === COMMUNITY_SITE_NAME) return value
+  return value.replaceAll(COMMUNITY_SITE_NAME, siteName)
+}
+
 export async function resolveSeoData(
   locale: Locale,
   path: string,
@@ -149,7 +156,18 @@ export async function buildLocalizedMetadata(
     robots = { index: true, follow: true },
   } = options
 
-  const seoData = await resolveSeoData(locale, path, variables, fallback)
+  const seoData = await resolveSeoData(
+    locale,
+    path,
+    { siteName, ...variables },
+    fallback,
+  )
+  const brandedTitle = applyCloneSiteName(seoData?.title, siteName)
+  const brandedDescription = applyCloneSiteName(seoData?.description, siteName)
+  const brandedOgTitle = applyCloneSiteName(seoData?.ogTitle, siteName)
+  const brandedOgDescription = applyCloneSiteName(seoData?.ogDescription, siteName)
+  const brandedTwitterTitle = applyCloneSiteName(seoData?.twitterTitle, siteName)
+  const brandedTwitterDescription = applyCloneSiteName(seoData?.twitterDescription, siteName)
   const baseUrl = getSiteBaseUrl()
   const canonical =
     canonicalUrl ??
@@ -164,14 +182,14 @@ export async function buildLocalizedMetadata(
   const ogImage = seoData?.ogImage ?? branding.ogImage
 
   return {
-    title: seoData?.title,
-    description: seoData?.description,
-    keywords: seoData?.keywords,
+    title: brandedTitle,
+    description: brandedDescription,
+    keywords: seoData?.keywords?.map((keyword) => applyCloneSiteName(keyword, siteName) ?? keyword),
     robots,
     alternates: canonical ? { canonical } : undefined,
     openGraph: {
-      title: seoData?.ogTitle ?? seoData?.title,
-      description: seoData?.ogDescription ?? seoData?.description,
+      title: brandedOgTitle ?? brandedTitle,
+      description: brandedOgDescription ?? brandedDescription,
       url: canonical,
       type: 'website',
       siteName,
@@ -182,8 +200,8 @@ export async function buildLocalizedMetadata(
     twitter: {
       card: 'summary_large_image',
       site: twitterSite,
-      title: seoData?.twitterTitle ?? seoData?.title,
-      description: seoData?.twitterDescription ?? seoData?.description,
+      title: brandedTwitterTitle ?? brandedTitle,
+      description: brandedTwitterDescription ?? brandedDescription,
       images: [seoData?.twitterImage ?? ogImage],
     },
   }

@@ -133,9 +133,6 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
           {tAuth('signIn.providers.metamask')}
         </Button>
       </div>
-      <p className="text-[11px] text-center text-muted-foreground px-1">
-        {tAuth('signIn.telegramPrivacy')}
-      </p>
     </>
   )
 

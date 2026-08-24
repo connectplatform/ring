@@ -40,4 +40,7 @@ fi
 
 echo "[merge-org-dev] $OUT"
 echo "  clone=$(jq -r '.clone.name // empty' "$OUT/ring-config.json" 2>/dev/null || true)"
+echo "  pack=$(jq -r '.presets.pack // empty' "$OUT/ring-config.json" 2>/dev/null || true)"
 echo "  domain=$domain"
+echo "  package.json=$([ -f "$OUT/package.json" ] && echo ok || echo MISSING)"
+echo "  ring-config.json=$([ -f "$OUT/ring-config.json" ] && echo ok || echo MISSING)"

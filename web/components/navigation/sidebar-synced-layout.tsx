@@ -3,8 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
 import { useSearchParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
+import AnimatedLogo from '@/components/common/widgets/animated-logo'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { useSession } from 'next-auth/react'
@@ -50,10 +50,6 @@ import type { Locale } from '@/i18n/shared'
 import { AdminSupermenuToggle } from './admin-supermenu'
 import { NavCreditTrailing } from './nav-credit-trailing'
 import { NavLegalFooter } from './nav-legal-footer'
-
-const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
-  ssr: false,
-})
 
 const ROW = 'flex h-11 min-h-11 max-h-11 items-center'
 const BRAND_ROW = 'flex h-16 min-h-16 max-h-16 items-center'
@@ -474,8 +470,8 @@ export function SidebarSyncedLayout({
         <div className={cn('grid', GRID_COLS)}>{gridCells}</div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-0 left-0 z-[2] w-16">
-        <div className="pointer-events-auto flex w-16 flex-col items-stretch border-t border-white/10 bg-[#090909]">
+      <div className="absolute bottom-0 left-0 z-[20] w-16">
+        <div className="flex w-16 flex-col items-stretch border-t border-white/10 bg-[#090909]">
           {overlayMode && onOpenAside && (
             <button
               type="button"

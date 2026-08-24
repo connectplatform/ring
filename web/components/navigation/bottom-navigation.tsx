@@ -6,7 +6,7 @@ import { Link, toAppHref } from '@/i18n/routing'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
-import dynamic from 'next/dynamic'
+import AnimatedLogo from '@/components/common/widgets/animated-logo'
 
 // Icon imports
 import {
@@ -42,12 +42,6 @@ import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { NavLegalFooter } from '@/components/navigation/nav-legal-footer'
 import { FsModal } from '@/components/ui/fs-modal'
 import { LoginWidget } from '@/features/auth/components/login-widget'
-
-// TODO: Consider using React.lazy instead of next/dynamic as React 19 is stable,
-// but for SSR disabling 'AnimatedLogo' component, next/dynamic is okay here.
-const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
-  ssr: false,
-})
 
 /**
  * Props for each bottom navigation item
@@ -135,11 +129,11 @@ function NavItem({
         className={className}
         data-overflow-trigger={overflowTrigger ? 'true' : undefined}
         aria-expanded={isActive}
-        onPointerUp={(event) => {
-          if (event.button !== 0) return
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
           activate()
         }}
-        onClick={activate}
       >
         {content}
       </button>
@@ -168,12 +162,12 @@ function CenterAddButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      onPointerUp={(event) => {
-        if (event.button !== 0) return
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
         activate()
       }}
-      onClick={activate}
-      className="relative flex items-center justify-center w-[68px] h-[68px] bg-transparent hover:bg-primary/10 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 -mt-6"
+      className="relative z-10 flex items-center justify-center w-[68px] h-[68px] bg-transparent hover:bg-primary/10 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 -mt-6"
       aria-label="Add new"
     >
       <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
@@ -256,7 +250,7 @@ function BottomNavFullscreenMenu({
   if (!isOpen) return null
 
   const title = brandTitle ?? getBrandName()
-  const subtitle = brandSubtitle ?? t('menu.subtitle', { default: 'Ring Platform' })
+  const subtitle = brandSubtitle ?? t('menu.subtitle', { default: getBrandName() })
 
   return (
     <div
@@ -470,7 +464,7 @@ export default function BottomNavigation() {
     setMenuOpen(false)
     loginOpenedAt.current = Date.now()
     setLoginOpen(true)
-    armGhostClickGuard()
+    window.setTimeout(() => armGhostClickGuard(), 0)
   }, [])
 
   const openRingMenu = useCallback(() => {
@@ -483,7 +477,7 @@ export default function BottomNavigation() {
         return false
       }
       menuOpenedAt.current = Date.now()
-      armGhostClickGuard()
+      window.setTimeout(() => armGhostClickGuard(), 0)
       return true
     })
   }, [])
@@ -607,7 +601,7 @@ export default function BottomNavigation() {
         className="fixed bottom-0 left-0 right-0 z-[9000] md:hidden transform-gpu touch-manipulation"
         style={{ transform: 'translateZ(0)' }}
       >
-        <div className="flex items-end justify-around bg-white/10 dark:bg-black/10 backdrop-blur-md border-t border-border px-2 py-1">
+        <div className="relative z-10 flex items-end justify-around bg-white/10 dark:bg-black/10 backdrop-blur-md border-t border-border px-2 py-1">
           {/* Render first two navigation items */}
           {navItems.slice(0, 2).map((item) => (
             <NavItem
@@ -668,7 +662,7 @@ export default function BottomNavigation() {
         onClose={closeRingMenu}
         onItemNavigate={dismissPlatformMenu}
         menuItems={menuItems}
-        brandSubtitle={t('menu.subtitle', { default: 'Ring Platform' })}
+        brandSubtitle={t('menu.subtitle', { default: getBrandName() })}
       />
 
       <FsModal

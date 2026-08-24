@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import React, { Suspense, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useSidebarResize } from '@/hooks/use-sidebar-resize'
@@ -8,6 +8,7 @@ import { SidebarRail } from './sidebar-rail'
 import { SidebarAside } from './sidebar-aside'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { SidebarSyncedLayout } from './sidebar-synced-layout'
+import { DesktopSidebarSkeleton } from './desktop-sidebar-skeleton'
 import { AdminSupermenuProvider, useAdminSupermenuState } from './admin-supermenu-context'
 import { AdminSupermenuOverlay } from './admin-supermenu'
 import { davinciPanelSurface } from '@/lib/ui/davinci'
@@ -55,7 +56,7 @@ function DesktopSidebarShell({
 }
 
 function DesktopSidebarInner({ className }: DesktopSidebarProps) {
-  const isDesktop = useMediaQuery('(min-width: 768px)')
+  const isDesktop = useMediaQuery('(min-width: 768px)', true)
   const overlayMode = !isDesktop
 
   const {
@@ -169,7 +170,11 @@ function DesktopSidebarInner({ className }: DesktopSidebarProps) {
 export default function DesktopSidebar({ className }: DesktopSidebarProps) {
   return (
     <AdminSupermenuProvider>
-      <DesktopSidebarInner className={className} />
+      {/* useSearchParams in SidebarRail / SidebarSyncedLayout must be inside Suspense
+          or Next.js 16 leaves the SSR rail HTML without click handlers. */}
+      <Suspense fallback={<DesktopSidebarSkeleton className={className} />}>
+        <DesktopSidebarInner className={className} />
+      </Suspense>
     </AdminSupermenuProvider>
   )
 }

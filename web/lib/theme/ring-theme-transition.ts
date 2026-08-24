@@ -54,6 +54,9 @@ export function toggleThemeWithTransition(
   theme: string | undefined,
   resolvedTheme: string | undefined,
 ): void {
-  const active = theme === 'system' ? resolvedTheme : theme
+  // next-themes can expose `resolvedTheme` before it restores `theme` from
+  // storage. Treat that transient undefined value like `system`; otherwise the
+  // first toggle always writes `dark` and appears inert on a dark page.
+  const active = theme === 'system' || !theme ? resolvedTheme : theme
   setThemeWithTransition(setTheme, active === 'dark' ? 'light' : 'dark')
 }

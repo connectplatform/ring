@@ -323,6 +323,26 @@ function mergeJsonRecords(target: JsonRecord, source: JsonRecord): JsonRecord {
   return out
 }
 
+const COMMUNITY_SITE_NAME = 'Ring Platform'
+
+function applyCloneSiteNameToMessages(value: unknown, siteName: string): unknown {
+  if (!siteName) return value
+  if (typeof value === 'string') {
+    return value.replaceAll('{siteName}', siteName).replaceAll(COMMUNITY_SITE_NAME, siteName)
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => applyCloneSiteNameToMessages(item, siteName))
+  }
+  if (value && typeof value === 'object') {
+    const out: JsonRecord = {}
+    for (const [key, nested] of Object.entries(value as JsonRecord)) {
+      out[key] = applyCloneSiteNameToMessages(nested, siteName)
+    }
+    return out
+  }
+  return value
+}
+
 /**
  * L1 locale files only. Clone overlays must NOT live in this cache — overlay
  * JSON / registry change independently and `'use cache'` would freeze an empty
@@ -357,8 +377,11 @@ export async function buildMessages(
   const messages = await buildCachedLocaleMessages(loc, scope)
   const { loadOverlayMessages } = await import('@/lib/overlay/runtime')
   const overlay = await loadOverlayMessages(loc)
-  if (!overlay || typeof overlay !== 'object') return messages
-  return mergeJsonRecords(messages, overlay as JsonRecord)
+  const merged =
+    overlay && typeof overlay === 'object'
+      ? mergeJsonRecords(messages, overlay as JsonRecord)
+      : messages
+  return applyCloneSiteNameToMessages(merged, getPlatformIdentity().name) as JsonRecord
 }
 
 /** @deprecated Prefer `buildMessages(locale, scope)` — loads full corpus. */

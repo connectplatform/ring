@@ -1,7 +1,7 @@
 {
   "login": {
     "title": "Welcome back",
-    "subtitle": "Sign in to continue to Ring",
+    "subtitle": "Sign in to continue to {siteName}",
     "description": "Sign in to your Ring account. Access your professional network, opportunities, and blockchain features."
   },
   "walletConnect": {

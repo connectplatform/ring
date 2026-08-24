@@ -24,6 +24,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
+import { useArticleHeaderCallbacks } from '@/features/news/components/article-header-callbacks'
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow, format } from 'date-fns'
 import { 
@@ -462,14 +463,18 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
   sidebarBleedPx = 326,
   blurDataUrl,
   isBookmarked: isBookmarkedProp,
-  onShare,
-  onSave,
-  onLoginRequired,
+  onShare: onShareProp,
+  onSave: onSaveProp,
+  onLoginRequired: onLoginRequiredProp,
 }) => {
   const headerRef = useRef<HTMLElement>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [localBookmarked, setLocalBookmarked] = useState(false)
-  const isBookmarked = isBookmarkedProp ?? localBookmarked
+  const fromWrapper = useArticleHeaderCallbacks()
+  const onShare = onShareProp ?? fromWrapper.onShare
+  const onSave = onSaveProp ?? fromWrapper.onSave
+  const onLoginRequired = onLoginRequiredProp ?? fromWrapper.onLoginRequired
+  const isBookmarked = isBookmarkedProp ?? fromWrapper.isBookmarked ?? localBookmarked
   const { data: session } = useSession()
 
   const heroSrc = pickImageSrc(

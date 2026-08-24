@@ -601,6 +601,11 @@
         "description": "E-Mail-CRM-Dashboard-Metriken für die letzten 7 Tage aggregieren",
         "schedule": "Täglich oder auf Abruf"
       },
+      "email-crm-osint": {
+        "label": "CRM-Spammer-OSINT",
+        "description": "spam_osint_queue-Threads mit lokalen DNS MX/SPF/DMARC-Dossiers anreichern",
+        "schedule": "Alle 15 Minuten"
+      },
       "refcodes-mint": {
         "label": "Empfehlungsbelohnungen Mint",
         "description": "Genehmigte Empfehlungsbelohnungen on-chain minten (Batch von 20)",

@@ -84,8 +84,3 @@ async function LocaleLayoutInner({
     </LocaleAppChrome>
   )
 }
-
-// TODO: When adopting React 19/Next 16 full server components with async/await support in components, 
-// consider migration to direct async layout functions (eliminating Suspense wrapper and splitting logic)
-// and replace Suspense/Promise param pattern with canonical async function layouts for cleaner semantics.
-// TODO: Evaluate if headers(), setRequestLocale(), and similar can be directly invoked at the top scope in Next 16 layouts.

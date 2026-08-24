@@ -602,6 +602,11 @@
         "description": "Aggregate email CRM dashboard metrics for the last 7 days",
         "schedule": "Daily or on demand"
       },
+      "email-crm-osint": {
+        "label": "CRM Spammer OSINT",
+        "description": "Enrich spam_osint_queue threads with local DNS MX/SPF/DMARC dossiers",
+        "schedule": "Every 15 minutes"
+      },
       "refcodes-mint": {
         "label": "Referral Rewards Mint",
         "description": "Mint approved referral rewards on-chain (batch of 20)",

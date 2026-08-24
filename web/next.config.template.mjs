@@ -113,6 +113,8 @@ const nextConfig = {
       
       // Your CDN domain (replace with your actual CDN)
       { protocol: 'https', hostname: 'YOUR_CDN_DOMAIN' },
+      // Live next.config.mjs also appends hosts from ring-config domains.cdn
+      // and CDN_URL / RINGBASE_PUBLIC_URL so clones do not fork this file.
       
       // Vercel Blob Storage (replace with your Blob storage domain)
       { protocol: 'https', hostname: 'YOUR_BLOB_STORAGE_DOMAIN.public.blob.vercel-storage.com' },

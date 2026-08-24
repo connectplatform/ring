@@ -377,6 +377,7 @@ export const API_TREE_FAMILIES: ApiFamilyNode[] = [
       ep('cron/credit-balance-monthly', 'Monthly credit', 'Monthly credit balance jobs.', ['GET', 'POST']),
       ep('cron/email-processor', 'Email processor', 'Process outbound / CRM email queue.', ['GET', 'POST']),
       ep('cron/email-analytics', 'Email analytics cron', 'Roll up email analytics.', ['GET', 'POST']),
+      ep('cron/email-crm-osint', 'CRM OSINT cron', 'DNS MX/SPF/DMARC dossiers for spam_osint_queue.', ['GET', 'POST']),
       ep('cron/refcodes-mint', 'Refcode mint', 'Mint pending referral codes / NFTs.', ['GET', 'POST']),
       ep('cron/nft-gate-expiry', 'NFT gate expiry', 'Expire NFT-gated access.', ['GET', 'POST']),
       ep('cron/cleanup-reservations', 'Cleanup reservations', 'Clear stale reservations.', ['GET', 'POST']),

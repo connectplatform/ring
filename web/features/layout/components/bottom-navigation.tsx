@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import dynamic from 'next/dynamic'
 import { eventBus } from '@/lib/event-bus.client'
+import AnimatedLogo from '@/components/common/widgets/animated-logo'
 import {
   Briefcase,
   Users,
@@ -19,10 +19,6 @@ import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-
 import { useAuth } from '@/hooks/use-auth'
 import { UserRolesArray } from '@/features/auth/user-role'
 import type { Locale } from '@/i18n/shared'
-
-const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
-  ssr: false,
-})
 
 interface NavItemProps {
   icon: React.ComponentType<{ className?: string }>

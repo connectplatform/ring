@@ -268,7 +268,8 @@
   },
   "emailCrm": {
     "enabled": false,
-    "_comment": "Multi-mailbox CRM IMAP. Passwords via CRM_CHANNEL_<ID>_PASSWORD env. AUTH SMTP remains SMTP_*.",
+    "_comment": "Multi-mailbox CRM IMAP. Passwords via CRM_CHANNEL_<ID>_PASSWORD env. AUTH SMTP remains SMTP_*. unsubscribeAllowHosts adds ESP suffixes for RFC 8058 one-click POST (merged with built-in Mailchimp/SendGrid/Klaviyo list). Never auto-POST off-allowlist.",
+    "unsubscribeAllowHosts": [],
     "channels": [
       {
         "id": "primary",

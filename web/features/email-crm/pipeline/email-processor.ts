@@ -21,6 +21,12 @@ import {
   CostTracker, getCostTracker
 } from './ai';
 import { routeCrmOps, type CrmOpsRouteResult } from './ai/crm-ops-router';
+import { getConfiguredUnsubscribeAllowHosts } from '@/features/email-crm/lib/unsubscribe-allow-hosts';
+import {
+  isRfc8058PostComplete,
+  isUnsubscribeUrlAllowlisted,
+  postRfc8058Unsubscribe,
+} from '@/features/email-crm/lib/unsubscribe-rfc8058';
 import { 
   EmailContactService, getEmailContactService, EmailContact,
   EmailTaskService, getEmailTaskService, EmailTask,
@@ -441,6 +447,7 @@ export class EmailProcessor extends EventEmitter {
           {
             routeFlag: crmOps.routeFlag,
             unsubscribeUrl: crmOps.unsubscribeUrl,
+            unsubscribeOneClick: crmOps.unsubscribeOneClick,
           },
         );
         persistedMessage = true
@@ -475,6 +482,7 @@ export class EmailProcessor extends EventEmitter {
           channelName: channelMeta.channelName,
           routeFlag: crmOps.routeFlag,
           unsubscribeUrl: crmOps.unsubscribeUrl,
+          unsubscribeOneClick: crmOps.unsubscribeOneClick,
         });
       } catch (err) {
         logger.error('[EmailProcessor] Thread persist failed', {
@@ -482,6 +490,40 @@ export class EmailProcessor extends EventEmitter {
           messageId: event.messageId,
           error: (err as Error).message,
         });
+      }
+
+      if (
+        intent.intent === 'newsletter_subscription' &&
+        crmOps.unsubscribeOneClick &&
+        crmOps.unsubscribeUrl &&
+        isUnsubscribeUrlAllowlisted(crmOps.unsubscribeUrl, getConfiguredUnsubscribeAllowHosts())
+      ) {
+        try {
+          const existing = await EmailThreadService.getThread(threadId)
+          if (!isRfc8058PostComplete(existing?.lastUnsubscribeRequest)) {
+            const posted = await postRfc8058Unsubscribe(crmOps.unsubscribeUrl, {
+              allowHosts: getConfiguredUnsubscribeAllowHosts(),
+            })
+            await EmailThreadService.logUnsubscribeRequest(threadId, 'auto', {
+              method: 'rfc8058-post',
+              status: posted.status,
+              httpStatus: posted.httpStatus,
+              error: posted.error,
+              url: posted.url,
+            })
+            logger.info('[EmailProcessor] RFC 8058 auto-POST', {
+              threadId,
+              status: posted.status,
+              httpStatus: posted.httpStatus,
+            })
+          }
+        } catch (err) {
+          logger.error('[EmailProcessor] RFC 8058 auto-POST failed', {
+            threadId,
+            messageId: event.messageId,
+            error: (err as Error).message,
+          })
+        }
       }
 
       // crm-ops tasks must run even on preferChat / before draft burn skip

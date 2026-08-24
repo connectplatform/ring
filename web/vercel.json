@@ -9,6 +9,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/email-crm-osint",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/refcodes-mint",
       "schedule": "*/30 * * * *"
     },

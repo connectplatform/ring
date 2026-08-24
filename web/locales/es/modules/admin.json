@@ -601,6 +601,11 @@
         "description": "Agregar métricas del panel CRM de correo de los últimos 7 días",
         "schedule": "Diario o bajo demanda"
       },
+      "email-crm-osint": {
+        "label": "OSINT de spam CRM",
+        "description": "Enriquecer hilos spam_osint_queue con dossiers DNS MX/SPF/DMARC locales",
+        "schedule": "Cada 15 minutos"
+      },
       "refcodes-mint": {
         "label": "Mint de recompensas por referidos",
         "description": "Mintear recompensas por referidos aprobadas on-chain (lote de 20)",

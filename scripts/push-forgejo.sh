@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Push Layer1 tip to Forgejo origin (forge.ringdom.org/ringdom/ring).
+# Cancels in-flight overlay-ci / fan-out on k3s-3 so this push replaces the queue.
 # Runs compose-shadow-report first. Does NOT strip .forgejo (GitHub-only).
 # Does NOT build/deploy — that is npm run push:layer1 (org CI after git push).
 #
@@ -48,6 +49,11 @@ fi
 
 echo "[push-forgejo] compose-shadow-report (base=origin/main, head=worktree)…"
 bash "$ROOT/scripts/run-compose-shadow-report.sh" --base origin/main
+
+if [[ -x "$ROOT/scripts/cancel-stale-forgejo-runs.sh" ]]; then
+  echo "[push-forgejo] cancel stale Forgejo rebuilds (k3s-3 queue)…"
+  bash "$ROOT/scripts/cancel-stale-forgejo-runs.sh" || true
+fi
 
 if [[ "$DRY" -eq 1 ]]; then
   if [[ -n "$REF" ]]; then

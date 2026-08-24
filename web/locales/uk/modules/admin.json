@@ -575,6 +575,11 @@
         "description": "Агрегація метрик email CRM за останні 7 днів",
         "schedule": "Щодня або за запитом"
       },
+      "email-crm-osint": {
+        "label": "OSINT спаму CRM",
+        "description": "Збагачення тредів spam_osint_queue локальними DNS-досьє MX/SPF/DMARC",
+        "schedule": "Кожні 15 хвилин"
+      },
       "refcodes-mint": {
         "label": "Мінт реферальних винагород",
         "description": "Мінт схвалених реферальних винагород у блокчейні (пакет 20)",

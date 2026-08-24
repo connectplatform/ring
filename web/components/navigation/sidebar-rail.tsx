@@ -117,7 +117,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
         </ul>
       </nav>
 
-      <div className="mt-auto flex flex-col items-center gap-1.5 pt-2">
+      <div className="relative z-10 mt-auto flex flex-col items-center gap-1.5 pt-2">
         {overlayMode && onOpenAside && (
           <button
             type="button"

@@ -1,15 +1,9 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import type { State } from 'wagmi'
 import { pathNeedsWeb3, pathnameWithoutLocaleClient } from '@/lib/pathname-without-locale'
-
-const Web3Provider = dynamic(
-  () => import('@/providers/web3-provider').then((mod) => ({ default: mod.Web3Provider })),
-  { ssr: false, loading: () => null },
-)
 
 function useWagmiInitialState(): State | undefined {
   const [initialState, setInitialState] = useState<State | undefined>(undefined)
@@ -25,20 +19,45 @@ function useWagmiInitialState(): State | undefined {
   return initialState
 }
 
+type Web3ProviderComponent = ComponentType<{
+  initialState?: State
+  children: ReactNode
+}>
+
 type Web3ScopeProviderProps = {
-  children: React.ReactNode
+  children: ReactNode
 }
 
 /**
  * Mount wagmi on crypto routes only (lazy chunk + cookie hydration).
  * Root layout mounts above NextIntlClientProvider — use `next/navigation` pathname + locale strip.
+ *
+ * Do not use next/dynamic `{ ssr: false }` here: Next.js 16 cacheComponents treats that as a
+ * CSR bailout for the whole route. `/login` is a web3 path (wallet connect), so the old
+ * pattern painted a white screen with only the metadata title.
  */
 function Web3ScopeProviderInner({ children }: Web3ScopeProviderProps) {
   const pathname = usePathname()
   const pathWithoutLocale = pathnameWithoutLocaleClient(pathname ?? '/')
   const initialState = useWagmiInitialState()
+  const [Web3Provider, setWeb3Provider] = useState<Web3ProviderComponent | null>(null)
+  const needsWeb3 = pathNeedsWeb3(pathWithoutLocale)
 
-  if (!pathNeedsWeb3(pathWithoutLocale)) {
+  useEffect(() => {
+    if (!needsWeb3) {
+      setWeb3Provider(null)
+      return
+    }
+    let cancelled = false
+    import('@/providers/web3-provider').then((mod) => {
+      if (!cancelled) setWeb3Provider(() => mod.Web3Provider)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [needsWeb3])
+
+  if (!needsWeb3 || !Web3Provider) {
     return <>{children}</>
   }
 

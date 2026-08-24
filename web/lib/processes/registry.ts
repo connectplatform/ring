@@ -5,6 +5,7 @@ import { cleanupExpiredUsernameReservations } from '@/app/_actions/users'
 import { cleanupExpiredReservations, detectInventoryDrift } from '@/features/store/services/inventory-sync'
 import { processApprovedRewards } from '@/features/refcodes/services/reward-minter'
 import { EmailAnalyticsService } from '@/features/email-crm/services/email-analytics-service'
+import { runEmailCrmOsint } from '@/features/email-crm/services/email-osint-service'
 import { getEmailProcessor } from '@/features/email-crm/pipeline/email-processor'
 import { processDueSettlements } from '@/features/store/services/settlement'
 import { loadCrmChannels, validateCrmChannels } from '@/features/email-crm/pipeline/imap/config'
@@ -25,6 +26,7 @@ import type { PipelineDefinition } from '@/lib/processes/types'
 export const PIPELINE_IDS = [
   'email-processor',
   'email-analytics',
+  'email-crm-osint',
   'refcodes-mint',
   'cleanup-reservations',
   'cleanup-usernames',
@@ -78,6 +80,12 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     category: 'email',
     cronPath: '/api/cron/email-analytics',
     handler: async () => EmailAnalyticsService.getDashboard('7d'),
+  },
+  {
+    id: 'email-crm-osint',
+    category: 'email',
+    cronPath: '/api/cron/email-crm-osint',
+    handler: async () => runEmailCrmOsint({ limit: 20 }),
   },
   {
     id: 'refcodes-mint',

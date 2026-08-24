@@ -1,11 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import dynamic from 'next/dynamic'
-
-const AnimatedLogoInner = dynamic(() => import('./animated-logo-content'), {
-  ssr: false,
-})
+import AnimatedLogoInner from './animated-logo-content'
 
 export interface AnimatedLogoProps {
   size?: number
@@ -14,6 +10,11 @@ export interface AnimatedLogoProps {
   vibrant?: boolean
 }
 
+/**
+ * Three.js canvas must not run during SSR (`document` / `window` in useMemo).
+ * Mount-gate the inner canvas — do not use next/dynamic `{ ssr: false }`
+ * (Next.js 16 cacheComponents CSR-bails the whole route).
+ */
 export default function AnimatedLogo({ size, className, vibrant }: AnimatedLogoProps) {
   const [isMounted, setIsMounted] = useState(false)
 

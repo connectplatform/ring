@@ -137,10 +137,6 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({
             </Button>
           </div>
 
-          <p className="text-[11px] text-center text-muted-foreground">
-            {tAuth('signIn.telegramPrivacy')}
-          </p>
-
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-muted" />

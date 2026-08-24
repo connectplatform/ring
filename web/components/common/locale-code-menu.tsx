@@ -109,8 +109,8 @@ export function LocaleCodeMenu({
   )
 
   return (
-    <div className={cn('shrink-0', variant === 'panel' && 'flex flex-1', className)}>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+    <div className={cn('relative z-[21] shrink-0', variant === 'panel' && 'flex flex-1', className)}>
+      <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <TriggerButton
             variant={variant}
@@ -142,8 +142,8 @@ export function LocaleCodeMenu({
           align={align}
           className={cn(
             nativeLabels ? 'min-w-[10rem]' : 'min-w-[5.5rem]',
-            // Above mobile fullscreen … menu (z-8990) and floating sidebars
-            (variant === 'icon' || variant === 'panel') && 'z-[9100]',
+            // Above sidebar (z-40), mobile … menu (z-8990), and floating chrome
+            'z-[9100]',
             contentClassName,
           )}
         >

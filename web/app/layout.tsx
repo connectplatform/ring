@@ -9,7 +9,6 @@ import {
   AppClientShell,
   AppShellStaticFallback,
 } from '@/components/providers/app-client-shell'
-import { headers } from 'next/headers'
 import {
   getPublicInstanceConfig,
   getSiteBaseUrl,
@@ -85,6 +84,12 @@ const LOCALE_CONFIG_SCRIPT = `window.__RING_LOCALE_CONFIG__=${CLIENT_LOCALE_CONF
  * layout flash for users with a collapsed/wide sidebar.
  */
 const SIDEBAR_COOKIE_SCRIPT = `(function(){try{var m=document.cookie.match(/${SIDEBAR_COOKIE_NAME}=([^;]+)/);if(!m)return;var s=JSON.parse(decodeURIComponent(m[1]));var w=s.collapsed?0:(typeof s.asideW==='number'?Math.min(${SIDEBAR_ASIDE_MAX},Math.max(0,s.asideW)):${SIDEBAR_ASIDE_DEFAULT});document.documentElement.style.setProperty('--sidebar-aside-w',w+'px');}catch(e){}})();`
+
+/**
+ * Path locale → <html lang> without awaiting headers() in RootLayout
+ * (Next.js 16 cacheComponents blocking-route). Default lang is clone defaultLocale.
+ */
+const HTML_LANG_FROM_PATH_SCRIPT = `(function(){try{var m=location.pathname.match(/^\\/(${SUPPORTED_LOCALE_PATTERN})(\\/|$)/);if(m)document.documentElement.lang=m[1];}catch(e){}})();`
 
 /**
  * Legacy browser gate — detects ancient browsers and shows a friendly
@@ -189,14 +194,13 @@ function htmlLangFromRequest(pathname: string): string {
   return DEFAULT_LOCALE
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const instanceConfig = getPublicInstanceConfig()
-  const pathname = (await headers()).get('x-pathname') ?? '/'
-  const htmlLang = htmlLangFromRequest(pathname)
+  const htmlLang = htmlLangFromRequest('/')
 
   return (
     <html lang={htmlLang} className={inter.variable} suppressHydrationWarning>
@@ -219,6 +223,11 @@ export default async function RootLayout({
          * React 19 / Next.js 16 warns that raw <script> tags in RSC are
          * never executed on the client. Each <Script> needs a unique id.
          */}
+        <Script
+          id="ring-html-lang-from-path"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: HTML_LANG_FROM_PATH_SCRIPT }}
+        />
         <Script
           id="ring-locale-config"
           strategy="beforeInteractive"

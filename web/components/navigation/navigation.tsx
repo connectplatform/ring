@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'reac
 import { Link, useRouter, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 import { useTranslations, useLocale } from 'next-intl'
+import AnimatedLogo from '@/components/common/widgets/animated-logo'
 import {
   Moon,
   Sun,
@@ -42,10 +43,6 @@ import { DesktopSidebarSkeleton } from './desktop-sidebar-skeleton'
 
 // React 19 Resource Preloading APIs
 import { preload, preinit } from 'react-dom'
-
-const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
-  ssr: false,
-})
 
 const BottomNavigation = dynamic(() => import('@/components/navigation/bottom-navigation'), {
   ssr: true,
@@ -327,10 +324,11 @@ export default function Navigation() {
 
   return (
     <>
-      {/* Desktop sidebar + mobile bar: SSR shells (same contract as DesktopSidebar). */}
+      {/* Desktop sidebar + mobile bar: SSR shells (same contract as DesktopSidebar).
+          Each island that calls useSearchParams must have its own Suspense boundary
+          or sibling buttons (rail toggles, + / Login) never hydrate. */}
       <DesktopSidebar />
 
-      {/* useSearchParams() requires a Suspense boundary or the bar never hydrates. */}
       <Suspense fallback={null}>
         <BottomNavigation />
       </Suspense>

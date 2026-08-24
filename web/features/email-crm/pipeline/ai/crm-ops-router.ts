@@ -1,11 +1,17 @@
 /**
  * crm-ops router — post-intent actions on EmailProcessor rails.
- * Does NOT implement crm-spammer-osint; only flags + tasks + draft guidance.
+ * OSINT consume is ProcessConductor `email-crm-osint`; this module only flags + tasks.
  */
 
 import type { EmailIntent, IntentClassification } from './intent-classifier'
 import type { ParsedEmail } from '../parser/email-parser'
 import { logger } from '@/lib/logger'
+import {
+  extractUnsubscribeHeaders,
+  extractUnsubscribeUrl,
+} from '@/features/email-crm/lib/unsubscribe-rfc8058'
+
+export { extractUnsubscribeUrl, extractUnsubscribeHeaders }
 
 export type CrmOpsRouteFlag = 'spam_osint_queue' | 'crm_email_lead' | null
 
@@ -22,6 +28,7 @@ export interface CrmOpsRouteResult {
   routeFlag: CrmOpsRouteFlag
   skipDraft: boolean
   unsubscribeUrl: string | null
+  unsubscribeOneClick: boolean
   draftGuidance: string | null
   tasks: CrmOpsRouteTask[]
 }
@@ -50,62 +57,23 @@ Structure (keep under ~250 words):
 
 Tone: warm, professional, concise. No markdown tables.`
 
-/**
- * Extract List-Unsubscribe HTTP(S) URL from headers and/or body.
- * Never auto-fetch — human or allowlisted one-click later.
- */
-export function extractUnsubscribeUrl(
-  rawHeaders: Record<string, string> | undefined,
-  body: string
-): string | null {
-  const headerVal = findHeader(rawHeaders, 'list-unsubscribe')
-  if (headerVal) {
-    const fromHeader = firstHttpsFromListUnsubscribe(headerVal)
-    if (fromHeader) return fromHeader
-  }
-
-  const oneClick = findHeader(rawHeaders, 'list-unsubscribe-post')
-  if (oneClick && headerVal) {
-    const again = firstHttpsFromListUnsubscribe(headerVal)
-    if (again) return again
-  }
-
-  const bodyMatch = body.match(
-    /https?:\/\/[^\s<>"']+(?:unsubscribe|opt[_-]?out|email[_-]?preferences)[^\s<>"']*/i
-  )
-  return bodyMatch?.[0]?.replace(/[)>.,;]+$/, '') ?? null
-}
-
-function findHeader(
-  headers: Record<string, string> | undefined,
-  name: string
-): string | undefined {
-  if (!headers) return undefined
-  const key = Object.keys(headers).find((k) => k.toLowerCase() === name.toLowerCase())
-  return key ? headers[key] : undefined
-}
-
-function firstHttpsFromListUnsubscribe(value: string): string | null {
-  const angle = [...value.matchAll(/<(https?:\/\/[^>]+)>/gi)].map((m) => m[1])
-  const bare = [...value.matchAll(/https?:\/\/[^\s,>]+/gi)].map((m) => m[0])
-  const candidates = [...angle, ...bare]
-  return candidates.find((u) => /^https?:\/\//i.test(u)) ?? null
-}
-
 export function routeCrmOps(params: {
   intent: IntentClassification
   parsed: ParsedEmail
   isFirstContact: boolean
 }): CrmOpsRouteResult {
   const { intent, parsed, isFirstContact } = params
-  const unsubscribeUrl = extractUnsubscribeUrl(parsed.rawHeaders, parsed.bodyTextClean || '')
+  const { unsubscribeUrl, oneClick: unsubscribeOneClick } = extractUnsubscribeHeaders(
+    parsed.rawHeaders,
+    parsed.bodyTextClean || ''
+  )
 
   if (intent.intent === 'newsletter_subscription') {
     const tasks: CrmOpsRouteTask[] = [
       {
         title: `Unsubscribe pending: ${parsed.subject.slice(0, 80)}`,
         description: unsubscribeUrl
-          ? `Review and unsubscribe via: ${unsubscribeUrl}\nThen queue EML for future OSINT (spam_osint_queue).`
+          ? `Review and unsubscribe via: ${unsubscribeUrl}\nThen OSINT queue (email-crm-osint / spam_osint_queue).`
           : 'No List-Unsubscribe URL found — search body/headers manually, then queue for OSINT.',
         taskType: 'unsubscribe_pending',
         priority: 'low',
@@ -121,6 +89,7 @@ export function routeCrmOps(params: {
       routeFlag: 'spam_osint_queue',
       skipDraft: true,
       unsubscribeUrl,
+      unsubscribeOneClick,
       draftGuidance: null,
       tasks,
     }
@@ -134,11 +103,12 @@ export function routeCrmOps(params: {
       routeFlag: 'spam_osint_queue',
       skipDraft: true,
       unsubscribeUrl,
+      unsubscribeOneClick,
       draftGuidance: null,
       tasks: [
         {
           title: `OSINT queue: ${parsed.from.email}`,
-          description: `Flagged vendor_offer_irrelevant from cold/unrelated pitch. Deferred crm-spammer-osint consumer.`,
+          description: `Flagged vendor_offer_irrelevant from cold/unrelated pitch. Queued for email-crm-osint.`,
           taskType: 'review',
           priority: 'low',
           dueDays: 7,
@@ -157,6 +127,7 @@ export function routeCrmOps(params: {
       routeFlag: 'spam_osint_queue',
       skipDraft: true,
       unsubscribeUrl,
+      unsubscribeOneClick,
       draftGuidance: null,
       tasks: [],
     }
@@ -171,6 +142,7 @@ export function routeCrmOps(params: {
       routeFlag: 'crm_email_lead',
       skipDraft: false,
       unsubscribeUrl,
+      unsubscribeOneClick,
       draftGuidance: RINGDOM_OFFER_GUIDANCE,
       tasks: [
         {
@@ -192,6 +164,7 @@ export function routeCrmOps(params: {
       routeFlag: 'crm_email_lead',
       skipDraft: false,
       unsubscribeUrl,
+      unsubscribeOneClick,
       draftGuidance: null,
       tasks: [],
     }
@@ -201,6 +174,7 @@ export function routeCrmOps(params: {
     routeFlag: null,
     skipDraft: false,
     unsubscribeUrl,
+    unsubscribeOneClick,
     draftGuidance: null,
     tasks: [],
   }

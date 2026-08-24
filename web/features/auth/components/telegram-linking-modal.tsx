@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FsModal } from '@/components/ui/fs-modal'
 import { useLocale, useTranslations } from 'next-intl'
+import { getClientSiteName } from '@/lib/ring-config-client'
 import { useRouter } from '@/i18n/routing'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { signIn, useSession } from 'next-auth/react'
@@ -38,6 +39,7 @@ export default function TelegramLinkingModal({
   onOpenChange,
 }: TelegramLinkingModalProps) {
   const t = useTranslations('modules.profile')
+  const tAuth = useTranslations('modules.auth')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const locale = useLocale() as Locale
@@ -201,6 +203,9 @@ export default function TelegramLinkingModal({
               ) : (
                 <p className="max-w-sm text-center text-sm text-muted-foreground">
                   {t('linkTelegramDescription')}
+                </p>
+                <p className="max-w-sm text-center text-[11px] text-muted-foreground">
+                  {tAuth('signIn.telegramPrivacy', { siteName: getClientSiteName() })}
                 </p>
               )}
             </div>

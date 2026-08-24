@@ -22,12 +22,14 @@ interface TelegramSignInButtonProps {
 /**
  * Telegram sign-in: full-page Auth.js OIDC redirect (`signIn('telegram')`).
  *
- * - Same-tab redirect (matches Google GIS button UX) — avoids popup/COOP issues.
- * - Requires AUTH_TELEGRAM_ID / AUTH_TELEGRAM_SECRET (BotFather Web Login).
- * - Privacy: Ring reads id, name, username, photo from Telegram profile scope.
- * - Hidden when `/api/auth/providers` has no `telegram` (OIDC not configured).
+ * Same contract as Google: visible only when the IdP is registered, then
+ * same-tab redirect — no Ring FsModal in front of oauth.telegram.org.
+ * Requires AUTH_TELEGRAM_ID / AUTH_TELEGRAM_SECRET (BotFather Web Login).
+ * Hidden when `/api/auth/providers` has no `telegram`.
  *
- * Truth lens: telegram_login_widget_specialist
+ * Profile linking uses TelegramLinkingModal (existing telegram FsModal).
+ *
+ * Truth lens: telegram_login_widget_specialist + authjs_specialist
  */
 export default function TelegramSignInButton({
   disabled = false,
@@ -76,7 +78,6 @@ export default function TelegramSignInButton({
     })()
   }
 
-  // Avoid dead-end UX: button was calling signIn('telegram') while provider absent.
   if (oidcReady === false) return null
   if (oidcReady === null) return null
 

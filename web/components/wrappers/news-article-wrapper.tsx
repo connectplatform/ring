@@ -29,10 +29,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import type { Locale } from '@/i18n/shared'
 import UnifiedLoginComponent from '@/features/auth/components/unified-login-component'
-import {
-  NewsArticleHeader,
-  type NewsArticleHeaderProps,
-} from '@/features/news/components/news-article-header'
+import { ArticleHeaderCallbacksProvider } from '@/features/news/components/article-header-callbacks'
 import { useContentFavorite } from '@/features/news/hooks/use-content-favorite'
 import { toast } from '@/hooks/use-toast'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
@@ -212,11 +209,6 @@ export default function NewsArticleWrapper({
       onLoginRequired: handleLoginRequired,
     }),
     [isFavorited, handleOpenShareModal, handleSaveArticle, handleLoginRequired]
-  )
-
-  const enhancedChildren = useMemo(
-    () => injectNewsArticleHeaderCallbacks(children, headerCallbacks),
-    [children, headerCallbacks]
   )
 
   const handleNewsletterSubscribe = () => {
@@ -423,6 +415,7 @@ export default function NewsArticleWrapper({
   )
 
   return (
+    <ArticleHeaderCallbacksProvider value={headerCallbacks}>
     <div className="min-h-full text-foreground relative transition-colors duration-300">
       <div className="flex min-h-full gap-3">
         {/* Left Sidebar - Main Navigation (Desktop only) */}
@@ -430,7 +423,7 @@ export default function NewsArticleWrapper({
 
         {/* Center Content Area */}
         <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
-          {enhancedChildren}
+          {children}
         </div>
 
         {/* Right Sidebar - Article Info & Engagement (Desktop only, 1024px+) */}
@@ -456,34 +449,6 @@ export default function NewsArticleWrapper({
         onClose={() => setIsLoginDialogOpen(false)}
       />
     </div>
+    </ArticleHeaderCallbacksProvider>
   )
-}
-
-type ArticleHeaderCallbacks = Pick<
-  NewsArticleHeaderProps,
-  'isBookmarked' | 'onShare' | 'onSave' | 'onLoginRequired'
->
-
-function injectNewsArticleHeaderCallbacks(
-  node: React.ReactNode,
-  callbacks: ArticleHeaderCallbacks
-): React.ReactNode {
-  if (!React.isValidElement(node)) return node
-
-  if (node.type === NewsArticleHeader) {
-    return React.cloneElement(
-      node as React.ReactElement<NewsArticleHeaderProps>,
-      callbacks
-    )
-  }
-
-  const props = node.props as { children?: React.ReactNode }
-  if (props.children != null) {
-    const nextChildren = React.Children.map(props.children, (child) =>
-      injectNewsArticleHeaderCallbacks(child, callbacks)
-    )
-    return React.cloneElement(node, {}, nextChildren)
-  }
-
-  return node
 }

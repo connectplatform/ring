@@ -2,8 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
-import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
+import AnimatedLogo from '@/components/common/widgets/animated-logo'
 import { useSession } from 'next-auth/react'
 import {
   Bell,
@@ -23,10 +23,6 @@ import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 import { NavCreditTrailing } from './nav-credit-trailing'
-
-const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
-  ssr: false,
-})
 
 type IdentityVariant = 'split' | 'rail' | 'aside' | 'rail-strip' | 'aside-strip'
 

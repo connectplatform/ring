@@ -108,6 +108,61 @@ ring_assert_overlay_applied() {
   fi
 }
 
+# Itemized content diffs of SRC onto DEST (checksum). Skips dirs, env, and
+# paths that exist as files under SKIP_DIR (L3 overlay wins — those pack files
+# always re-copy after L1 stomps dest; they are not real L2 edits).
+ring_compose_pending_files() {
+  local src="$1"
+  local dest="$2"
+  local skip_dir="${3:-}"
+  local line code relpath
+  [[ -d "$src" && -d "$dest" ]] || return 0
+  rsync -ainc --checksum --safe-links \
+    --exclude node_modules --exclude .next --exclude .git \
+    --exclude '.merge-npm-sig' --exclude '.DS_Store' \
+    --exclude '.env' --exclude '.env.*' \
+    --exclude '*.tsbuildinfo' \
+    "$src/" "$dest/" | while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    code="${line%% *}"
+    relpath="${line#* }"
+    [[ "$relpath" == "$code" ]] && continue
+    [[ "$relpath" == */ ]] && continue
+    case "$code" in
+      '>'*|'*'* ) ;;
+      *) continue ;;
+    esac
+    if [[ -n "$skip_dir" && -e "$skip_dir/$relpath" ]]; then
+      continue
+    fi
+    if [[ "$code" == *deleting* ]]; then
+      printf '  - %s\n' "$relpath"
+    elif [[ "$code" == '>f+++++++++'* || "$code" == '>f+++++++'* ]]; then
+      printf '  + %s\n' "$relpath"
+    else
+      printf '  ~ %s\n' "$relpath"
+    fi
+  done
+}
+
+ring_compose_print_layer_pending() {
+  local label="$1"
+  local src="$2"
+  local dest="$3"
+  local skip_dir="${4:-}"
+  local lines
+  if [[ "${RING_COMPOSE_QUIET:-}" == "1" ]]; then
+    return 0
+  fi
+  lines="$(ring_compose_pending_files "$src" "$dest" "$skip_dir" || true)"
+  if [[ -n "$lines" ]]; then
+    echo "[compose] $label"
+    printf '%s\n' "$lines"
+  else
+    echo "[compose] $label: unchanged"
+  fi
+}
+
 # Incremental L1 → optional L2 pack → L3 overlay compose into OUT.
 # Direction: SOURCE/ → DEST/ (trailing slashes = copy contents into dest).
 # Later rsync wins: L1, then pack, then overlay. --checksum so a newer dest
@@ -121,6 +176,7 @@ ring_compose_dev_merge() {
   local out="$2"
   local overlay="$3"
   local pack="${4:-}"
+  local pack_label overlay_label
 
   test -d "$layer1" || { echo "FATAL: Layer1 missing at $layer1" >&2; return 1; }
   test -d "$overlay" || { echo "FATAL: overlay missing at $overlay" >&2; return 1; }
@@ -134,6 +190,13 @@ ring_compose_dev_merge() {
     rm -rf "$out"
   fi
   mkdir -p "$out"
+
+  overlay_label="$(basename "$(dirname "$overlay")")"
+  if [[ -n "$pack" ]]; then
+    pack_label="$(basename "$(dirname "$pack")")"
+    ring_compose_print_layer_pending "L2 ${pack_label}" "$pack" "$out" "$overlay"
+  fi
+  ring_compose_print_layer_pending "L3 ${overlay_label}" "$overlay" "$out"
 
   # Layer1 community tree — skip DX/empire link targets & secrets; KEEP ring-config (overlay wins)
   rsync -a --checksum --delete --safe-links \

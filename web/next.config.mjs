@@ -6,6 +6,14 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Custom `server.ts` loads .env.local first; `next build` / config workers may not.
+try {
+  const { loadEnvConfig } = require('@next/env')
+  loadEnvConfig(__dirname)
+} catch {
+  /* @next/env missing in some tooling */
+}
+
 function readOverlayBuild() {
   const fromEnv = (process.env.NEXT_PUBLIC_RING_OVERLAY_VERSION || '').trim()
   if (/^[0-9]+$/.test(fromEnv)) return fromEnv
@@ -19,6 +27,68 @@ function readOverlayBuild() {
 }
 
 const RING_OVERLAY_BUILD = readOverlayBuild()
+
+/** Hostname from a URL or bare host. Skips localhost / placeholders. */
+function hostnameFromUrlOrHost(value) {
+  if (!value || typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.startsWith('YOUR_')) return null
+  try {
+    const url = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`)
+    const host = url.hostname
+    if (!host || host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+      return null
+    }
+    return { protocol: url.protocol === 'http:' ? 'http' : 'https', hostname: host }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Clone CDN hosts for next/image — L1 SSOT so L3 does not fork next.config.
+ * Reads CDN_URL / CDN_FALLBACK_URL / RINGBASE_PUBLIC_URL plus ring-config
+ * domains.cdn and domains.cdnFallback (build-time; runtime ConfigMap alone
+ * cannot expand this list on an already-built image).
+ */
+function collectCloneImageRemotePatterns(existing) {
+  const seen = new Set(
+    (existing || []).map((p) => `${p.protocol}://${p.hostname}`),
+  )
+  const extra = []
+  const add = (value) => {
+    const parsed = hostnameFromUrlOrHost(value)
+    if (!parsed) return
+    const key = `${parsed.protocol}://${parsed.hostname}`
+    if (seen.has(key)) return
+    seen.add(key)
+    extra.push(parsed)
+  }
+
+  for (const key of [
+    'CDN_URL',
+    'NEXT_PUBLIC_CDN_URL',
+    'CDN_FALLBACK_URL',
+    'RINGBASE_PUBLIC_URL',
+    'NEXT_PUBLIC_RINGBASE_PUBLIC_URL',
+  ]) {
+    add(process.env[key])
+  }
+
+  try {
+    const cfg = JSON.parse(
+      fs.readFileSync(path.join(__dirname, 'ring-config.json'), 'utf8'),
+    )
+    add(cfg?.domains?.cdn)
+    add(cfg?.domains?.cdnFallback)
+    add(cfg?.storage?.publicUrl)
+    add(cfg?.storage?.cdn)
+  } catch {
+    /* bare L1 or invalid json */
+  }
+
+  return extra
+}
 
 const withBundleAnalyzer =
   process.env.ANALYZE === 'true'
@@ -181,14 +251,17 @@ const nextConfig = {
   },
   staticPageGenerationTimeout: 180,
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'x0kypqbqtr7wbl1a.public.blob.vercel-storage.com' },
-      { protocol: 'https', hostname: 'fonts.googleapis.com' },
-      { protocol: 'https', hostname: 'fonts.gstatic.com' },
-      { protocol: 'https', hostname: 'example.com' },
-      { protocol: 'https', hostname: 'cdn.ring-platform.org' }
-    ],
+    remotePatterns: (() => {
+      const base = [
+        { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+        { protocol: 'https', hostname: 'x0kypqbqtr7wbl1a.public.blob.vercel-storage.com' },
+        { protocol: 'https', hostname: 'fonts.googleapis.com' },
+        { protocol: 'https', hostname: 'fonts.gstatic.com' },
+        { protocol: 'https', hostname: 'example.com' },
+        { protocol: 'https', hostname: 'cdn.ring-platform.org' },
+      ]
+      return [...base, ...collectCloneImageRemotePatterns(base)]
+    })(),
     // Configure image optimization behavior
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',

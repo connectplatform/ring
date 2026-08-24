@@ -7,6 +7,8 @@ import { AppContentShell } from '@/components/layout/ring-app-shell'
 import { ReferralAttributionEffect } from '@/components/refcodes/referral-attribution-effect'
 import { CreditRewardReceivedListener } from '@/features/wallet/components/credit-reward-received-listener'
 import { GlobalTunnelListeners } from '@/components/providers/global-tunnel-listeners'
+import { DocumentHtmlLang } from '@/components/layout/document-html-lang'
+import { getBrandName } from '@/lib/site-branding'
 import type { Locale } from '@/i18n/shared'
 
 export interface LocaleAppChromeProps {
@@ -33,6 +35,7 @@ export function LocaleAppChrome({
 }: LocaleAppChromeProps) {
   return (
     <I18nProvider locale={locale} messages={messages}>
+      <DocumentHtmlLang />
       {hreflangPath != null ? <HreflangLinks pathname={hreflangPath} /> : null}
       <NotificationProvider>
         {/* Must sit under NextIntlClientProvider — banners use useTranslations + next-intl router. */}
@@ -42,7 +45,7 @@ export function LocaleAppChrome({
         {variant === 'minimal' ? (
           <div className="flex min-h-screen flex-col bg-background">
             <header className="border-b px-6 py-4">
-              <span className="text-sm font-semibold tracking-tight">Ring Platform</span>
+              <span className="text-sm font-semibold tracking-tight">{getBrandName()}</span>
             </header>
             <main className="flex flex-1 items-center justify-center p-6">{children}</main>
           </div>

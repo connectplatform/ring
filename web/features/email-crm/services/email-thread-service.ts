@@ -30,12 +30,37 @@ export interface EmailThreadRecord {
   /** crm-ops: spam_osint_queue | crm_email_lead */
   routeFlag?: string | null
   unsubscribeUrl?: string | null
-  /** Human-only: last time an admin logged an unsubscribe request (no HTTP). */
-  lastUnsubscribeRequest?: {
-    at: string
-    by: string
-    url: string
-  } | null
+  /** True when List-Unsubscribe-Post advertised RFC 8058 one-click. Sticky once set. */
+  unsubscribeOneClick?: boolean
+  lastUnsubscribeRequest?: EmailUnsubscribeRequestLog | null
+  osintDossier?: EmailOsintDossier | null
+}
+
+export type EmailUnsubscribeRequestLog = {
+  at: string
+  by: string
+  url: string
+  method?: 'rfc8058-post' | 'human-copy-log'
+  status?: 'ok' | 'error'
+  httpStatus?: number | null
+  error?: string | null
+}
+
+export type EmailOsintDossier = {
+  enrichedAt: string
+  fromEmail: string
+  fromDomain: string
+  headerHosts: string[]
+  unsubscribeUrl: string | null
+  unsubscribeOneClick: boolean
+  dns: {
+    mx: string[]
+    spf: string | null
+    dmarc: string | null
+  }
+  intent?: string | null
+  routeReason?: string | null
+  error?: string
 }
 
 const COLLECTION = 'email_threads'
@@ -91,8 +116,10 @@ export const EmailThreadService = {
         // Do not wipe crm-ops flags/URLs when a later message has none.
         routeFlag: record.routeFlag ?? current.routeFlag ?? null,
         unsubscribeUrl: record.unsubscribeUrl ?? current.unsubscribeUrl ?? null,
+        unsubscribeOneClick: Boolean(record.unsubscribeOneClick || current.unsubscribeOneClick),
         lastUnsubscribeRequest:
           record.lastUnsubscribeRequest ?? current.lastUnsubscribeRequest ?? null,
+        osintDossier: record.osintDossier ?? current.osintDossier ?? null,
         messageCount: (current.messageCount || 0) + (record.messageCount ?? 0),
         lastMessageAt: record.lastMessageAt || now,
       })
@@ -135,18 +162,41 @@ export const EmailThreadService = {
 
   async logUnsubscribeRequest(
     id: string,
-    by: string
+    by: string,
+    extra?: Partial<Omit<EmailUnsubscribeRequestLog, 'at' | 'by'>>
   ): Promise<(EmailThreadRecord & { id: string }) | null> {
     const existing = await db().readDoc<EmailThreadRecord>(COLLECTION, id)
     if (!existing.success || !existing.data) return null
-    const url = existing.data.unsubscribeUrl
+    const url = extra?.url ?? existing.data.unsubscribeUrl
     if (!url) return null
-    const lastUnsubscribeRequest = { at: new Date().toISOString(), by, url }
+    const lastUnsubscribeRequest: EmailUnsubscribeRequestLog = {
+      at: new Date().toISOString(),
+      by,
+      url,
+      method: extra?.method ?? 'human-copy-log',
+      status: extra?.status ?? 'ok',
+      httpStatus: extra?.httpStatus ?? null,
+      error: extra?.error ?? null,
+    }
     const result = await db().updateDoc(COLLECTION, id, {
       ...existing.data,
       lastUnsubscribeRequest,
     })
     if (!result.success) return null
     return { ...existing.data, id, lastUnsubscribeRequest }
+  },
+
+  async saveOsintDossier(
+    id: string,
+    dossier: EmailOsintDossier
+  ): Promise<(EmailThreadRecord & { id: string }) | null> {
+    const existing = await db().readDoc<EmailThreadRecord>(COLLECTION, id)
+    if (!existing.success || !existing.data) return null
+    const result = await db().updateDoc(COLLECTION, id, {
+      ...existing.data,
+      osintDossier: dossier,
+    })
+    if (!result.success) return null
+    return { ...existing.data, id, osintDossier: dossier }
   },
 }

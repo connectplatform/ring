@@ -29,7 +29,7 @@ export type { ResponseGenerationResult, ToolUsageRecord } from './response-gener
 export { CostTracker, getCostTracker } from './cost-tracker';
 export type { UsageRecord, OperationType, DailyStats } from './cost-tracker';
 
-export { routeCrmOps, extractUnsubscribeUrl } from './crm-ops-router';
+export { routeCrmOps, extractUnsubscribeUrl, extractUnsubscribeHeaders } from './crm-ops-router';
 export type { CrmOpsRouteResult, CrmOpsRouteFlag, CrmOpsRouteTask } from './crm-ops-router';
 
 // Batch Analytics

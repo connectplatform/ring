@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
@@ -6,7 +7,8 @@ import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { LoginAuthenticatedRedirect } from '@/features/auth/components/login-authenticated-redirect'
-import { connection } from 'next/server'
+import { LocaleLayoutFallback } from '@/components/layout/locale-layout-fallback'
+import { getBrandName } from '@/lib/site-branding'
 
 type LoginParams = Record<string, never>
 
@@ -34,9 +36,15 @@ export async function generateMetadata({
   })
 }
 
-export default async function LoginPage(props: LocalePageProps<LoginParams>) {
-  await connection()
+export default function LoginPage(props: LocalePageProps<LoginParams>) {
+  return (
+    <Suspense fallback={<LocaleLayoutFallback />}>
+      <LoginPageInner {...props} />
+    </Suspense>
+  )
+}
 
+async function LoginPageInner(props: LocalePageProps<LoginParams>) {
   const params = await props.params
   const searchParams = await props.searchParams
 
@@ -61,6 +69,7 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
 
   const tPages = await getTranslations('pages')
   const authError = firstSearchParam(searchParams.error)
+  const siteName = getBrandName()
 
   return (
     <>
@@ -73,7 +82,7 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">{tPages('login.title')}</h1>
-          <p className="text-muted-foreground">{tPages('login.subtitle')}</p>
+          <p className="text-muted-foreground">{tPages('login.subtitle', { siteName })}</p>
         </div>
         <UnifiedLoginInline from={from} variant="hero" locale={locale} initialAuthError={authError} />
       </div>
