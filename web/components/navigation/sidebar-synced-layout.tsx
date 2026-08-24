@@ -123,6 +123,7 @@ export function SidebarSyncedLayout({
 
   const tNav = useTranslations('navigation')
   const tFav = useTranslations('modules.store.favorites')
+  const tStore = useTranslations('modules.store')
 
   const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
