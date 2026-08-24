@@ -1,7 +1,6 @@
 import type { NewsVisibility } from '@/features/news/types'
 import {
   UserRolesArray,
-  assertKnownUserRole,
   hasConfidentialAccess,
   isPlatformAdmin,
   parseUserRolesArray,
@@ -15,7 +14,8 @@ export type DbFilter = { field: string; operator: string; value: unknown }
 // Context required to determine news visibility for a specific user.
 export interface NewsVisibilityContext {
   userId?: string // Optional identifier for user (used for author checks)
-  userRole: UserRolesArray // Roles to determine permissions
+  // Guest/logged-out viewers may be missing, undefined, or session-only `visitor`.
+  userRole?: UserRolesArray | string | null
 }
 
 // Row structure for news articles, including visibility & author metadata
@@ -101,8 +101,8 @@ export function canViewNewsArticle(
   article: NewsViewRow,
   ctx: NewsVisibilityContext,
 ): boolean {
-  // Normalizes and asserts known user role (may throw if invalid)
-  const userRole = assertKnownUserRole(ctx.userRole)
+  // Session-only visitor/missing/unknown roles resolve to guest. Do not throw on public news.
+  const userRole = resolveSessionUserRole(ctx.userRole)
   // Default to 'public' visibility if undefined in row data.
   const visibility = (article.visibility ?? 'public') as NewsVisibility
 

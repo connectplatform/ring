@@ -55,4 +55,22 @@ describe('news-visibility-filter', () => {
       ),
     ).toBe(true)
   })
+
+  it('canViewNewsArticle allows public published for visitor without throwing', () => {
+    expect(
+      canViewNewsArticle(
+        { visibility: 'public', status: 'published', authorId: 'a1' },
+        { userRole: UserRolesArray.visitor },
+      ),
+    ).toBe(true)
+  })
+
+  it('canViewNewsArticle treats missing role as guest for public published', () => {
+    expect(
+      canViewNewsArticle(
+        { visibility: 'public', status: 'published' },
+        { userRole: undefined },
+      ),
+    ).toBe(true)
+  })
 })
