@@ -637,6 +637,38 @@
     "job": {
       "title": "Job Listing",
       "description": "Employment or hire listing with salary band and remote policy."
+    },
+    "subscription": {
+      "title": "Subscription",
+      "description": "Subscription-bound access to a service, MCPaaS plan or SaaS product"
+    },
+    "time_bound_license": {
+      "title": "Time-bound license",
+      "description": "License valid for a fixed term (30/90 days, trial, season)"
+    },
+    "eternal_license": {
+      "title": "Eternal license",
+      "description": "One-time purchase, valid forever — optional NFT gate"
+    },
+    "nft_resellable_key": {
+      "title": "NFT-gated key · resellable",
+      "description": "Access key minted as a resellable NFT — secondary market allowed"
+    },
+    "nft_soulbound_key": {
+      "title": "NFT-gated key · soulbound",
+      "description": "Access key minted soulbound — locked to the purchaser, non-transferable"
+    },
+    "skillset_pack": {
+      "title": "Skillset pack",
+      "description": "NODUS truth-lens skillset or agent pack"
+    },
+    "mcpaas_plan": {
+      "title": "MCPaaS plan",
+      "description": "Hosted MCP-as-a-Service plan with per-user namespace"
+    },
+    "api_access": {
+      "title": "API access",
+      "description": "API endpoint access with keys, quotas and metering"
     }
   },
   "form": {

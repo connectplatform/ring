@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, forwardRef } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
-import { useSearchParams } from 'next/navigation'
+import { useWindowSearchString } from '@/hooks/use-window-search-string'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   Wallet,
@@ -60,8 +60,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
   function SidebarAside({ className, overlayMode, showIdentityAside }, ref) {
     const pathname = usePathname()
     const locale = useLocale() as Locale
-    const searchParams = useSearchParams()
-    const search = searchParams.toString()
+    const search = useWindowSearchString()
     const { data: session } = useSession()
     const tNav = useTranslations('navigation')
     const [mounted, setMounted] = useState(false)

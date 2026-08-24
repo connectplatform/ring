@@ -19,6 +19,14 @@ const FALLBACK_ENABLED_TYPES = [
   'tender',
   'asset_rental',
   'job',
+  'subscription',
+  'time_bound_license',
+  'eternal_license',
+  'nft_resellable_key',
+  'nft_soulbound_key',
+  'skillset_pack',
+  'mcpaas_plan',
+  'api_access',
 ] as const
 
 /** ring-config.json → opportunities.enabledTypes (white-label gate). */

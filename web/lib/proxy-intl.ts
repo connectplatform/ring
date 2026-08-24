@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
-import { routing, type Locale } from '@/i18n/routing'
+import { routing, type Locale } from '@/i18n/routing-config'
 import { stripHreflangLinkHeaders } from '@/lib/hreflang'
 
 /** Shared next-intl middleware instance for proxy.ts (localePrefix: as-needed). */

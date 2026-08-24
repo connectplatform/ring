@@ -5,6 +5,7 @@ import {
   getExchangeRates,
   getMainCurrencySymbol,
 } from '@/lib/ring-oracle'
+import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import type { SupportedCurrencies } from '@/lib/ring-config-types'
 import type {
   PaymentProcessorId,
@@ -40,6 +41,12 @@ export interface PaymentTransactionRecord {
   processor_payload?: Record<string, unknown>
   /** Checkout metadata (poolSlug, amountNativeToken, …) */
   metadata?: Record<string, unknown>
+  /**
+   * Client-supplied idempotency key (existing contract: desk_orders / nft listings /
+   * public-pool contributions). Unique per payment intent; checked before charging
+   * to replay a completed payment instead of double-charging on client retry.
+   */
+  idempotency_key?: string
   paid_at?: string
   created_at: string
   updated_at: string
@@ -76,7 +83,16 @@ function stampMainCurrencyFx(input: {
     fx_rate = 1
   }
 
+  // Native-token rows carry amountMinor in token precision (1e6), not fiat cents —
+  // the cent-based conversion below would stamp a 1000x-wrong main-currency amount.
+  // fx_rate (token units per 1 main unit) stays valid; the derived main-currency
+  // minor is left unset (audit-honest) for token-denominated rows.
+  const tokenSymbol = getNativeTokenSymbol()
   let main_currency_amount_minor: number | undefined
+  if (code === tokenSymbol) {
+    return { main_currency: main, main_currency_amount_minor: undefined, fx_rate }
+  }
+
   if (typeof input.amountMinor === 'number' && Number.isFinite(input.amountMinor)) {
     if (code === main) {
       main_currency_amount_minor = Math.round(input.amountMinor)
@@ -102,6 +118,30 @@ export const paymentTransactionService = {
     return { ...row, id: row.id }
   },
 
+  /**
+   * Idempotency-contract lookup (same contract as desk_orders / nft listings /
+   * public-pool contributions): find an existing payment row for a client-supplied
+   * idempotency key. Callers replay the paid result instead of charging twice.
+   */
+  async findByIdempotencyKey(
+    userId: string,
+    purpose: PaymentPurpose,
+    idempotencyKey: string,
+  ): Promise<PaymentTransactionRecord | null> {
+    const result = await db().queryDocs<PaymentTransactionRecord>({
+      collection: 'payment_transactions',
+      filters: [
+        { field: 'user_id', operator: '==', value: userId },
+        { field: 'purpose', operator: '==', value: purpose },
+        { field: 'idempotency_key', operator: '==', value: idempotencyKey },
+      ],
+      pagination: { limit: 1 },
+    })
+    if (!result.success || !result.data?.length) return null
+    const row = result.data[0]
+    return { ...row, id: row.id }
+  },
+
   async createPending(input: {
     purpose: PaymentPurpose
     processor: PaymentProcessorId
@@ -113,6 +153,7 @@ export const paymentTransactionService = {
     amountMinor?: number
     currency?: string
     metadata?: Record<string, unknown>
+    idempotencyKey?: string
   }): Promise<PaymentTransactionRecord> {
     const existing = await this.findByOrderReference(input.orderReference)
     if (existing) return existing
@@ -138,6 +179,7 @@ export const paymentTransactionService = {
       status: 'created',
       status_history: [{ status: 'created', at: ts }],
       metadata: input.metadata,
+      idempotency_key: input.idempotencyKey,
       created_at: ts,
       updated_at: ts,
     }

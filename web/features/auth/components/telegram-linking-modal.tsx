@@ -201,12 +201,14 @@ export default function TelegramLinkingModal({
                   <p>{errorMessage}</p>
                 </div>
               ) : (
-                <p className="max-w-sm text-center text-sm text-muted-foreground">
-                  {t('linkTelegramDescription')}
-                </p>
-                <p className="max-w-sm text-center text-[11px] text-muted-foreground">
-                  {tAuth('signIn.telegramPrivacy', { siteName: getClientSiteName() })}
-                </p>
+                <>
+                  <p className="max-w-sm text-center text-sm text-muted-foreground">
+                    {t('linkTelegramDescription')}
+                  </p>
+                  <p className="max-w-sm text-center text-[11px] text-muted-foreground">
+                    {tAuth('signIn.telegramPrivacy', { siteName: getClientSiteName() })}
+                  </p>
+                </>
               )}
             </div>
 

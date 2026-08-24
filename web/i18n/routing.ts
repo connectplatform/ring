@@ -1,19 +1,11 @@
-import { defineRouting } from 'next-intl/routing'
 import { createNavigation } from 'next-intl/navigation'
 import type { ComponentProps } from 'react'
-import { defaultLocale, sharedPathnames, supportedLocales } from './shared'
 import { stripLocalePrefix } from '@/lib/pathname-without-locale'
+import { routing, type Locale } from './routing-config'
 
-export const routing = defineRouting({
-  locales: supportedLocales,
-  defaultLocale,
-  pathnames: sharedPathnames,
-  localePrefix: 'as-needed',
-})
+export { routing, type Locale }
 
 export const { Link, redirect, usePathname, useRouter } = createNavigation(routing)
-
-export type Locale = (typeof routing.locales)[number]
 
 export type AppHref = ComponentProps<typeof Link>['href']
 

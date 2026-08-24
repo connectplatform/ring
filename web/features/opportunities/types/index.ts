@@ -30,6 +30,15 @@ export type OpportunityType =
   | 'tender'                  // Buyer RFQ / reverse ask
   | 'asset_rental'            // Asset rental by period
   | 'job'                     // Employment / hire listing
+  // NON-TANGIBLE MARKETPLACE (mvm-nontangible pack — software / MCPaaS / API)
+  | 'subscription'            // Subscription-bound access (MCPaaS/SaaS plan)
+  | 'time_bound_license'      // Time-bound license (term access)
+  | 'eternal_license'         // Eternal license (one-time, forever)
+  | 'nft_resellable_key'      // NFT-gated access key — resellable (secondary market)
+  | 'nft_soulbound_key'       // NFT-gated access key — soulbound (non-transferable)
+  | 'skillset_pack'           // Skillset / truth-lens pack
+  | 'mcpaas_plan'             // MCP-as-a-Service hosted plan
+  | 'api_access'              // API access / quota
 
 export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential';
 export type OpportunityPriority = 'urgent' | 'normal' | 'low';

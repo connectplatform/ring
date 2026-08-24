@@ -34,8 +34,6 @@ const app = next({ dev, hostname: nextHostname, port });
 const handle = app.getRequestHandler();
 
 await app.prepare();
-const nextUpgrade = app.getUpgradeHandler();
-
 const server = createServer(async (req, res) => {
   try {
     const parsedUrl = parse(req.url ?? '/', true);
@@ -48,23 +46,27 @@ const server = createServer(async (req, res) => {
 });
 
 /**
- * Next's getRequestHandler() lazily registers its own `upgrade` listener on the
- * first HTTP request (via setupWebSocketHandler → req.socket.server). That second
- * listener runs after ours and destroys /api/tunnel/ws sockets right after 101.
- * Own the upgrade event exclusively and dispatch ourselves.
+ * Next lazily registers its HMR upgrade listener on the first HTTP request.
+ * Keep that listener intact so /_next/webpack-hmr can finish its handshake, while
+ * shielding the tunnel endpoint from it after the native WSS takes ownership.
  */
-function exclusiveUpgradeRouter(
+function preserveNextUpgradeListener(
   httpServer: Server,
-  route: (req: IncomingMessage, socket: Duplex, head: Buffer) => void,
+  protectedPath: string,
 ): void {
   const originalOn = httpServer.on.bind(httpServer);
   httpServer.on = ((event: string | symbol, listener: (...args: unknown[]) => void) => {
     if (event === 'upgrade') {
-      return httpServer;
+      return originalOn('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+        const pathname = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+          .pathname;
+        if (pathname !== protectedPath) {
+          listener(req, socket, head);
+        }
+      });
     }
     return originalOn(event, listener as never);
   }) as Server['on'];
-  originalOn('upgrade', route);
 }
 
 const deployTarget = getDeployTarget();
@@ -84,21 +86,11 @@ if (isTunnelHubLifecycle(hub)) {
 
 if (deployTarget !== 'vercel') {
   const tunnelPath = '/api/tunnel/ws';
-  const { handleUpgrade } = attachTunnelWss(server, {
+  attachTunnelWss(server, {
     path: tunnelPath,
     hub,
-    bindUpgrade: false,
   });
-
-  exclusiveUpgradeRouter(server, (req, socket, head) => {
-    const pathname = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
-      .pathname;
-    if (pathname === tunnelPath) {
-      handleUpgrade(req, socket, head);
-      return;
-    }
-    void nextUpgrade(req, socket, head);
-  });
+  preserveNextUpgradeListener(server, tunnelPath);
 
   console.log(`[server] Native WSS attached at ${tunnelPath} (RING_DEPLOY_TARGET=${deployTarget})`);
 } else {

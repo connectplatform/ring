@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { routing, type Locale } from '@/i18n/routing'
+import { routing, type Locale } from '@/i18n/routing-config'
 import { ROUTES } from '@/constants/routes'
 import {
   applyIntlMiddlewareOutcome,

@@ -1,4 +1,4 @@
-import { getSystemConfigSnapshot } from '@/lib/ring-config'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import {
   RFC8058_DEFAULT_ALLOW_HOSTS,
   normalizeAllowHost,

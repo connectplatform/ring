@@ -198,7 +198,9 @@ ring_compose_dev_merge() {
   fi
   ring_compose_print_layer_pending "L3 ${overlay_label}" "$overlay" "$out"
 
-  # Layer1 community tree — skip DX/empire link targets & secrets; KEEP ring-config (overlay wins)
+  # Layer1 community tree — skip DX/empire link targets & secrets; KEEP ring-config (overlay wins).
+  # Anchor /scripts /cli /k8s — unanchored `scripts` also matches public/scripts, and
+  # --delete then wipes dest analytics.js (Next serves homepage HTML for those URLs).
   rsync -a --checksum --delete --safe-links \
     --exclude node_modules --exclude .next --exclude .git \
     --exclude '.env' --exclude '.env.*' \
@@ -217,7 +219,7 @@ ring_compose_dev_merge() {
     --exclude app/api/cron/forgejo-robot-gc \
     --exclude app/api/cron/forgejo-token-rotate \
     --exclude lib/payments/conductor/handlers/project-order.ts \
-    --exclude cli --exclude scripts --exclude k8s --exclude .forgejo \
+    --exclude /cli --exclude /scripts --exclude /k8s --exclude /.forgejo \
     "$layer1/" "$out/"
 
   if [[ -n "$pack" ]]; then
@@ -236,6 +238,11 @@ ring_compose_dev_merge() {
 
   if [[ ! -f "$out/package.json" ]] || [[ ! -f "$out/ring-config.json" ]]; then
     echo "FATAL: merge incomplete (need package.json + ring-config.json in $out)" >&2
+    return 1
+  fi
+  if [[ ! -f "$out/public/scripts/analytics.js" ]]; then
+    echo "FATAL: $out/public/scripts/analytics.js missing after compose" >&2
+    echo "  rsync --exclude scripts must be /scripts (transfer-root only)" >&2
     return 1
   fi
 

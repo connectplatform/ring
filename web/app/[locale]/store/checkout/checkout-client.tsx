@@ -27,6 +27,13 @@ import { useFormStatus } from 'react-dom'
 export default function CheckoutClient({ locale }: { locale: Locale }) {
   const router = useRouter()
   const [orderId, setOrderId] = useState<string | null>(null)
+  // Idempotency contract: one key per checkout session, reused across retries so a
+  // client retry after timeout never double-charges the native treasury.
+  const [idempotencyKey] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `ck_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  )
   const { cartItems, clearCart } = useStore()
   const [step, setStep] = useState<'prebilling' | 'review' | 'confirmation'>('prebilling')
   const [billingData, setBillingData] = useState<BillingData | null>(null)
@@ -111,6 +118,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
     const fd = new FormData()
     fd.set('payload', JSON.stringify(orderPayload))
     fd.set('paymentMethod', rail)
+    fd.set('idempotencyKey', idempotencyKey)
     if (billing.paymentCurrency) {
       fd.set('paymentCurrency', billing.paymentCurrency)
     }

@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { getRequestConfig } from 'next-intl/server'
 import { buildMessages } from '@/lib/i18n'
 import { resolveMessageScope } from '@/lib/i18n/message-scopes'
-import { routing } from './routing'
+import { routing } from './routing-config'
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const locale = (await requestLocale) ?? routing.defaultLocale

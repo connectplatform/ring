@@ -9,6 +9,7 @@ import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { parseFormData, storeCheckoutPaymentSchema, storePlaceAndPayFormSchema } from '@/lib/zod/wallet-store-schemas'
 import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
+import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { normalizePaymentRail } from '@/lib/payments/conductor/types'
 import {
   canSpendCreditForOrderCurrency,
@@ -22,6 +23,8 @@ import type { SupportedCurrencies } from '@/lib/ring-config-core'
 export interface StoreCheckoutPaymentState {
   success?: boolean
   error?: string
+  orderReference?: string
+  idempotentReplay?: boolean
   redirectUrl?: string
   paymentUrl?: string
   paymentFields?: Record<string, string | string[]>
@@ -178,6 +181,9 @@ export async function submitStoreCheckoutPayment(
         amount,
         currency,
         returnUrl: '',
+        metadata: parsed.data.idempotencyKey
+          ? { idempotencyKey: parsed.data.idempotencyKey }
+          : undefined,
       })
       if (!result.success || !result.paid) {
         return { error: result.error ?? 'Token payment failed' }
@@ -249,7 +255,27 @@ export async function placeAndPayStoreOrder(
     return { error: 'Authentication required' }
   }
 
-  const { paymentMethod, returnUrl, locale, paymentCurrency } = parsedForm.data
+  const { paymentMethod, returnUrl, locale, paymentCurrency, idempotencyKey } = parsedForm.data
+
+  // Idempotency contract: if this checkout session already paid (client retry after
+  // a lost response), replay success WITHOUT creating a second order — the original
+  // order was paid + fulfilled server-side, so a new order would be a free order.
+  if (idempotencyKey) {
+    const existing = await paymentTransactionService.findByIdempotencyKey(
+      session.user.id,
+      'store_order',
+      idempotencyKey,
+    )
+    if (existing?.status === 'paid') {
+      return { success: true, doneInline: true, idempotentReplay: true }
+    }
+    if (existing) {
+      return {
+        error: 'Payment with this idempotency key is already in progress',
+        orderReference: existing.order_reference,
+      }
+    }
+  }
   let orderPayload: unknown
   try {
     orderPayload = JSON.parse(parsedForm.data.payload)

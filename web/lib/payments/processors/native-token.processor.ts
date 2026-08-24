@@ -77,11 +77,57 @@ export async function createNativeTokenCheckout(
   const tokenAmount = resolved.tokenAmount
   const tokenSymbol = getNativeTokenSymbol()
 
+  // Idempotency contract (same as desk_orders / nft listings / public-pool
+  // contributions): a client-supplied key makes retries safe — replay the completed
+  // payment instead of charging the treasury twice.
+  const idempotencyKey = ctx.metadata?.idempotencyKey
+  if (idempotencyKey) {
+    const existing = await paymentTransactionService.findByIdempotencyKey(
+      ctx.userId,
+      ctx.purpose,
+      String(idempotencyKey),
+    )
+    if (existing) {
+      if (existing.status === 'paid') {
+        logger.info('createNativeTokenCheckout: idempotent replay', {
+          userId: ctx.userId,
+          purpose: ctx.purpose,
+          orderReference: existing.order_reference,
+        })
+        return {
+          success: true,
+          paid: true,
+          orderReference: existing.order_reference,
+          txHash:
+            (existing.processor_payload as { txHash?: string } | undefined)?.txHash,
+        }
+      }
+      return {
+        success: false,
+        error: 'Payment with this idempotency key is already in progress',
+        code: 'IDEMPOTENCY_IN_FLIGHT',
+        orderReference: existing.order_reference,
+      }
+    }
+  }
+
   const orderReference = buildOrderReference(ctx.purpose, {
     orderId: ctx.orderId ?? ctx.entityId,
     userId: ctx.userId,
     articleId: ctx.articleId ?? ctx.entityId,
   })
+
+  // Balance check BEFORE the ledger row: a failed attempt must not leave a
+  // 'created' row that would 409-block a retry with the same idempotency key.
+  const balance = await getNativeTokenBalanceForUser(ctx.userId)
+  if (parseFloat(balance.balance) < parseFloat(tokenAmount)) {
+    return {
+      success: false,
+      error: `Insufficient ${tokenSymbol} balance`,
+      code: 'INSUFFICIENT_TOKEN_BALANCE',
+      orderReference,
+    }
+  }
 
   await paymentTransactionService.createPending({
     purpose: ctx.purpose,
@@ -93,19 +139,10 @@ export async function createNativeTokenCheckout(
     userId: ctx.userId,
     amountMinor: Math.round(Number(tokenAmount) * 1e6),
     currency: tokenSymbol,
+    idempotencyKey: idempotencyKey ? String(idempotencyKey) : undefined,
   })
 
   try {
-    const balance = await getNativeTokenBalanceForUser(ctx.userId)
-    if (parseFloat(balance.balance) < parseFloat(tokenAmount)) {
-      return {
-        success: false,
-        error: `Insufficient ${tokenSymbol} balance`,
-        code: 'INSUFFICIENT_TOKEN_BALANCE',
-        orderReference,
-      }
-    }
-
     const transfer = await transferNativeTokenForUser({
       userId: ctx.userId,
       toAddress: treasuryAddress,

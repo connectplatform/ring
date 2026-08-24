@@ -53,6 +53,8 @@ export const storeCheckoutPaymentSchema = z.object({
   paymentCurrency: z.string().trim().toUpperCase().optional(),
   returnUrl: z.string().optional(),
   locale: z.string().optional(),
+  /** Idempotency contract: retries with the same key replay, never double-charge. */
+  idempotencyKey: z.string().min(8).max(120).optional(),
 })
 
 /** Place order + pay — progressive checkout FormData (`payload` = JSON orderCreate). */
@@ -62,6 +64,8 @@ export const storePlaceAndPayFormSchema = z.object({
   paymentCurrency: z.string().trim().toUpperCase().optional(),
   returnUrl: z.string().optional(),
   locale: z.string().optional(),
+  /** Idempotency contract: retries with the same key replay, never double-charge. */
+  idempotencyKey: z.string().min(8).max(120).optional(),
 })
 
 export { formDataToObject, parseFormData }

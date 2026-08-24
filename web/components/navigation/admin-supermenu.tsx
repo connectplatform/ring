@@ -4,7 +4,7 @@ import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'r
 import { Link, toAppHref, usePathname } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useWindowSearchString } from '@/hooks/use-window-search-string'
 import { CircleEllipsis, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
@@ -109,7 +109,7 @@ function useSupermenuFilter(open: boolean) {
 export function AdminSupermenuOverlay() {
   const locale = useLocale() as Locale
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const search = useWindowSearchString()
   const { data: session } = useSession()
   const tNav = useTranslations('navigation')
   const { hasVendor } = useVendorStatus()
@@ -119,7 +119,7 @@ export function AdminSupermenuOverlay() {
   })
   const open = Boolean(state?.open && hasContent)
   const close = state?.close
-  const pathWithQuery = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ''}`
+  const pathWithQuery = `${pathname}${search ? `?${search}` : ''}`
   const panelDomId = 'admin-supermenu-panel'
   const { query, setQuery, deferredQuery, isSearchStale } = useSupermenuFilter(open)
 
@@ -320,14 +320,14 @@ export function AdminSupermenuMobile({
 }) {
   const locale = useLocale() as Locale
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const search = useWindowSearchString()
   const { data: session } = useSession()
   const tNav = useTranslations('navigation')
   const { hasVendor } = useVendorStatus()
   const { groups, dashboardItem, hasContent } = useAdminSupermenu(session?.user?.role, locale, {
     hasVendor,
   })
-  const pathWithQuery = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ''}`
+  const pathWithQuery = `${pathname}${search ? `?${search}` : ''}`
   const prevPathRef = useRef(pathWithQuery)
   const { query, setQuery, deferredQuery, isSearchStale } = useSupermenuFilter(open)
 

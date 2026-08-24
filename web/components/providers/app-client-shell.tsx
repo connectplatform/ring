@@ -69,7 +69,9 @@ export function AppClientShell({
                         <StorePaymentMethodsProvider initialExchangeRates={initialExchangeRates}>
                           <StoreProvider>
                             {children}
-                            <GoogleOneTap />
+                            <Suspense fallback={null}>
+                              <GoogleOneTap />
+                            </Suspense>
                             <Suspense fallback={null}>
                               <RingAnalyticsBeacon />
                             </Suspense>

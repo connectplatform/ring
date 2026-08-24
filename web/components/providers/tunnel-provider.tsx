@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { createContext, useEffect, useRef, useState, useCallback, useMemo, use, Suspense } from 'react';
+import React, { createContext, useEffect, useRef, useState, useCallback, useMemo, use } from 'react';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { getTunnelTransportManager, TunnelTransportManager } from '@/lib/tunnel/transport-manager';
@@ -20,7 +20,6 @@ import {
 import { tunnelTimingManager, TunnelTimingStrategy } from '@/lib/tunnel/tunnel-timing';
 import { toast } from '@/hooks/use-toast';
 import {
-  DISCONNECTED_TUNNEL_CONTEXT,
   type TunnelContextValue,
 } from '@/lib/tunnel/disconnected-tunnel-context';
 import {
@@ -53,23 +52,17 @@ interface TunnelProviderProps {
 }
 
 /**
- * Tunnel Provider — static shell + deferred runtime.
+ * Tunnel Provider — runtime is the only tree that owns `children`.
  *
- * K8s (connect.software): `autoConnect={false}` defers hook-level connect; TunnelProvider still
+ * Do not put App Router `children` in a Suspense fallback *and* in the resolved
+ * tree: Next.js 16 hydrates that slot once. Duplicating it leaves SSR chrome
+ * frozen (icon rail, dead theme / lang / [+] / Login).
+ *
+ * K8s: `autoConnect={false}` defers hook-level connect; TunnelProvider still
  * runs tunnelTimingManager progressive connect after auth/pathname resolve.
  */
 export function TunnelProvider(props: TunnelProviderProps) {
-  return (
-    <Suspense
-      fallback={
-        <TunnelContext.Provider value={DISCONNECTED_TUNNEL_CONTEXT as TunnelContextType}>
-          {props.children}
-        </TunnelContext.Provider>
-      }
-    >
-      <TunnelProviderRuntime {...props} />
-    </Suspense>
-  )
+  return <TunnelProviderRuntime {...props} />
 }
 
 function TunnelProviderRuntime({

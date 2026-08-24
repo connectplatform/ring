@@ -2,6 +2,9 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/auth'
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor'
+import { PaymentConductor } from '@/lib/payments/conductor/payment-conductor'
+import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
+import { buildOrderReference } from '@/lib/payments/order-reference'
 import { logger } from '@/lib/logger'
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import {
@@ -13,6 +16,7 @@ import {
   transferNativeTokenForUser,
 } from '@/features/wallet/chains/native-token-transfer-service'
 import { getNativeTokenSymbol, getNativeTokenTreasuryAddress } from '@/lib/ring-config-chain'
+import { getNativeTokenConfig, isRailEnabled } from '@/lib/payments/payment.config'
 import { isMembershipDeployed } from '@/lib/payments/subscription/ring-membership-config'
 import { membershipApiPaymentBodySchema } from '@/lib/zod/membership-schemas'
 
@@ -21,6 +25,8 @@ import { membershipApiPaymentBodySchema } from '@/lib/zod/membership-schemas'
  */
 const TokenPaymentRequestSchema = membershipApiPaymentBodySchema.extend({
   auto_subscribe: z.boolean().default(false),
+  /** Idempotency contract: retries with the same key replay, never double-charge. */
+  idempotencyKey: z.string().min(8).max(120).optional(),
 })
 
 type TokenPaymentRequest = z.infer<typeof TokenPaymentRequestSchema>
@@ -46,12 +52,58 @@ function resolveTreasuryOrError(
 }
 
 /**
+ * Non-blocking unified ledger write (payment_transactions, purpose membership_upgrade).
+ * Mirrors the card (WFP webhook) composition — payment success must never fail on an
+ * audit-row write, so DB errors are logged and swallowed (reconcilable via cron).
+ */
+async function recordMembershipNativeLedger(
+  userId: string,
+  paymentAmount: number,
+  symbol: string,
+  fee: string,
+  txHash: string,
+  extra?: { fromAddress?: string; toAddress?: string; idempotencyKey?: string },
+): Promise<void> {
+  try {
+    const orderReference = buildOrderReference('membership_upgrade', { userId })
+    await paymentTransactionService.createPending({
+      purpose: 'membership_upgrade',
+      processor: 'native_token',
+      rail: 'native_token',
+      orderReference,
+      entityType: 'membership_upgrade',
+      entityId: userId,
+      userId,
+      amountMinor: Math.round(paymentAmount * 1e6),
+      currency: symbol,
+      idempotencyKey: extra?.idempotencyKey,
+    })
+    await paymentTransactionService.markPaid(orderReference, {
+      rail: 'native_token',
+      txHash,
+      tokenAmount: fee,
+      tokenSymbol: symbol,
+      contractAddress: getNativeTokenConfig().contractAddress,
+      ...(extra?.fromAddress ? { fromAddress: extra.fromAddress } : {}),
+      ...(extra?.toAddress ? { toAddress: extra.toAddress } : {}),
+    })
+  } catch (error) {
+    logger.warn('Membership native ledger row write failed (non-blocking)', {
+      userId,
+      error: error instanceof Error ? error.message : error,
+    })
+  }
+}
+
+/**
  * POST /api/membership/payment/token
  *
- * Native-token membership via SubscriptionConductor:
- * - Membership program deployed → on-chain create/renew
- * - Soft launch (empty membershipProgramId) → sponsored SPL to treasury + ledger + role
- * One-shot `membership_fee` → treasury SPL only (no subscription ledger)
+ * Native-token membership via SubscriptionConductor, with unified ledger parity:
+ * - Membership program deployed → on-chain create/renew (program deducts) + payment_transactions row
+ * - Soft launch (empty membershipProgramId) → PaymentConductor rail native_token +
+ *   purpose membership_upgrade (treasury SPL + payment_transactions), then
+ *   SubscriptionConductor ledger-only via metadata.tx_hash (no second transfer)
+ * One-shot `membership_fee` → treasury SPL + payment_transactions row (no subscription_ledger)
  */
 export async function POST(request: NextRequest) {
   await connection()
@@ -81,15 +133,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { type, amount, auto_subscribe, toAddress } = validatedRequest
+    const { type, amount, auto_subscribe, toAddress, idempotencyKey } = validatedRequest
 
     const defaultUpgradeAmount = getMembershipRingUpgradeAmount()
     const defaultRenewalAmount = getMembershipRingRenewalAmount()
+    // Renewal transfers the pricing default inside the provider (custom amount is
+    // not honored by renewSubscription) — force the default so that the balance
+    // check, payment_transactions ledger row and response all stay aligned.
     const membershipFee =
-      amount ??
-      (type === 'subscription_renewal'
+      type === 'subscription_renewal'
         ? defaultRenewalAmount.toString()
-        : defaultUpgradeAmount.toString())
+        : (amount ?? defaultUpgradeAmount.toString())
     const paymentAmount = parseFloat(membershipFee)
 
     if (paymentAmount <= 0 || paymentAmount > 100) {
@@ -99,6 +153,76 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 },
       )
+    }
+
+    const symbol = getNativeTokenSymbol()
+
+    // Single rail gate for ALL native membership types (upgrade / renewal / fee).
+    // Mirrors PaymentConductor's own guard — explicit here so the on-chain
+    // (deployed) path is gated exactly like the soft-launch path.
+    if (!isRailEnabled('membership_upgrade', 'native_token')) {
+      return NextResponse.json(
+        {
+          error: 'Native token membership payments are disabled',
+          code: 'NATIVE_TOKEN_RAIL_DISABLED',
+          message: 'Enable native_token in payment.supportedMethods',
+        },
+        { status: 403 },
+      )
+    }
+
+    // Idempotency contract (same as desk / nft listings / public pools): a client-
+    // supplied key replays a completed payment instead of charging the treasury twice.
+    // MUST run before the balance check — a drained balance after a successful first
+    // attempt must not block the replay.
+    if (idempotencyKey) {
+      const existing = await paymentTransactionService.findByIdempotencyKey(
+        userId,
+        'membership_upgrade',
+        idempotencyKey,
+      )
+      if (existing) {
+        if (existing.status === 'paid') {
+          const replayedTx =
+            (existing.processor_payload as { txHash?: string } | undefined)?.txHash
+          const [updatedSubscription, replayBalance] = await Promise.all([
+            SubscriptionConductor.getSubscription(userId),
+            getNativeTokenBalanceForUser(userId),
+          ])
+          logger.info('Membership native payment: idempotent replay', {
+            userId,
+            type,
+            orderReference: existing.order_reference,
+          })
+          return NextResponse.json({
+            success: true,
+            idempotent_replay: true,
+            message: 'Payment already completed',
+            payment: {
+              type,
+              amount_paid: membershipFee,
+              currency: symbol,
+              chain: replayBalance.chain,
+              tx_hash: replayedTx ?? existing.order_reference,
+              order_reference: existing.order_reference,
+              timestamp: Date.now(),
+            },
+            account: {
+              new_balance: replayBalance.balance,
+              subscription_status: updatedSubscription?.status || 'none',
+              next_payment_due: updatedSubscription?.next_payment_due,
+            },
+          })
+        }
+        return NextResponse.json(
+          {
+            error: 'Payment with this idempotency key is already in progress',
+            code: 'IDEMPOTENCY_IN_FLIGHT',
+            orderReference: existing.order_reference,
+          },
+          { status: 409 },
+        )
+      }
     }
 
     const onChainBalance = await getNativeTokenBalanceForUser(userId)
@@ -115,7 +239,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const symbol = getNativeTokenSymbol()
     let subscriptionResult:
       | Awaited<ReturnType<typeof SubscriptionConductor.createSubscription>>
       | Awaited<ReturnType<typeof SubscriptionConductor.renewSubscription>>
@@ -123,6 +246,7 @@ export async function POST(request: NextRequest) {
     let transferTxHash: string | undefined
     let fromAddress: string | undefined
     let responseMessage: string
+
 
     switch (type) {
       case 'membership_upgrade': {
@@ -140,6 +264,44 @@ export async function POST(request: NextRequest) {
           )
         }
 
+        const membershipDeployed = isMembershipDeployed()
+
+        if (!membershipDeployed) {
+          // Soft-launch: PaymentConductor native processor moves funds (treasury SPL)
+          // AND writes the unified payment_transactions row (purpose membership_upgrade,
+          // rail native_token) — identical ledger shape to store native checkout.
+          // metadata.tokenAmount = explicit native units (no oracle round-trip).
+          const checkout = await PaymentConductor.createCheckout({
+            purpose: 'membership_upgrade',
+            rail: 'native_token',
+            userId,
+            userEmail,
+            entityId: userId,
+            orderId: userId,
+            amount: paymentAmount,
+            currency: symbol,
+            metadata: {
+              tokenAmount: membershipFee,
+              ...(idempotencyKey ? { idempotencyKey } : {}),
+            },
+            returnUrl: '',
+          })
+          if (!checkout.success || !checkout.paid) {
+            return NextResponse.json(
+              {
+                error: checkout.error || 'Native token membership payment failed',
+                code: checkout.code,
+                orderReference: checkout.orderReference,
+              },
+              { status: 400 },
+            )
+          }
+          transferTxHash = checkout.txHash
+        }
+
+        // SubscriptionConductor: soft-launch = ledger-only via metadata.tx_hash
+        // (nativeTokenSubscriptionProvider skips the second transfer); deployed =
+        // on-chain Membership create (program deducts).
         subscriptionResult = await SubscriptionConductor.createSubscription({
           userId,
           userEmail,
@@ -153,7 +315,9 @@ export async function POST(request: NextRequest) {
           metadata: {
             source: 'token_payment',
             auto_renew: auto_subscribe,
-            membershipProgramDeployed: isMembershipDeployed(),
+            membershipProgramDeployed: membershipDeployed,
+            ...(transferTxHash ? { tx_hash: transferTxHash } : {}),
+            ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
           },
         })
 
@@ -168,10 +332,26 @@ export async function POST(request: NextRequest) {
         }
 
         transferTxHash =
+          transferTxHash ||
           subscriptionResult.txSignature ||
           ('gatewayReference' in subscriptionResult
             ? subscriptionResult.gatewayReference
             : undefined)
+
+        // Deployed path: on-chain Membership deducted the fee — PaymentConductor was
+        // NOT used (would double-charge). Write the unified payment_transactions row
+        // manually so membership native has the same ledger shape as card (WFP/Stripe).
+        if (membershipDeployed && transferTxHash) {
+          await recordMembershipNativeLedger(
+            userId,
+            paymentAmount,
+            symbol,
+            membershipFee,
+            transferTxHash,
+            { idempotencyKey },
+          )
+        }
+
         responseMessage = auto_subscribe
           ? 'Upgraded to Member and created automatic subscription'
           : 'Upgraded to Member tier successfully'
@@ -190,6 +370,19 @@ export async function POST(request: NextRequest) {
           )
         }
         transferTxHash = subscriptionResult.txSignature
+        // Ledger parity: record the renewal in the unified payment_transactions ledger
+        // (mirrors card renewals, which flow through WFP webhook markPaid). Renewal
+        // keeps its existing SubscriptionConductor transfer flow — no double charge.
+        if (transferTxHash) {
+          await recordMembershipNativeLedger(
+            userId,
+            paymentAmount,
+            symbol,
+            membershipFee,
+            transferTxHash,
+            { idempotencyKey },
+          )
+        }
         responseMessage = 'Subscription renewed successfully'
         break
       }
@@ -223,6 +416,18 @@ export async function POST(request: NextRequest) {
                   : 'Unknown error',
             },
             { status: 500 },
+          )
+        }
+        // Ledger parity: one-shot fee still records the unified payment_transactions
+        // row (no subscription_ledger — documented one-shot semantics).
+        if (transferTxHash) {
+          await recordMembershipNativeLedger(
+            userId,
+            paymentAmount,
+            symbol,
+            membershipFee,
+            transferTxHash,
+            { fromAddress, toAddress: treasuryAddress, idempotencyKey },
           )
         }
         responseMessage = 'Membership fee paid successfully'

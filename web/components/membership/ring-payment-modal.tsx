@@ -68,6 +68,12 @@ export function MembershipPaymentModal({
   const [autoSubscribe, setAutoSubscribe] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string; benefits?: string[] } | null>(null)
+  // Idempotency contract: one key per payment intent (modal lifetime), reused on retry.
+  const [idempotencyKey] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `mem_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  )
   const [paymentInfo, setPaymentInfo] = useState<any>(null)
   const [isLoadingInfo, setIsLoadingInfo] = useState(true)
   const [onChainBalance, setOnChainBalance] = useState('0')
@@ -172,6 +178,9 @@ export function MembershipPaymentModal({
         type: paymentType,
         rail: paymentRail,
         auto_subscribe: autoSubscribe && paymentType === 'membership_upgrade',
+        // Idempotency contract: one key per payment intent, reused across retries —
+        // a client retry after timeout replays instead of double-charging.
+        idempotencyKey,
       }
 
       const response = await fetch('/api/membership/payment/token', {

@@ -1,6 +1,7 @@
 import type { PaymentPurpose, PaymentProcessorId, PaymentRail, ExternalPaymentProcessorId } from '@/lib/payments/conductor/types'
 import { getSiteBaseUrl, getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import { getEvmTokenAddress, getNativeTokenSymbol } from '@/lib/ring-config-chain'
+import { isPaymentMethodEnabled } from '@/lib/payments/subscription/subscription-config'
 
 /**
  * Main currency SSOT lives in `@/lib/ring-config-core`. Re-exported here so payment
@@ -110,6 +111,13 @@ export function isRailEnabled(purpose: PaymentPurpose, rail: PaymentRail): boole
   if (rail === 'native_token') {
     if (purpose === 'task_escrow') {
       return process.env.PAYMENT_STORE_ALLOW_TOKEN === 'true' || process.env.PAYMENT_TASK_ESCROW_ALLOW_TOKEN === 'true'
+    }
+    // Membership native pay gates on membership config (payment.supportedMethods +
+    // gateway registry) — NOT the store flag. This lets PaymentConductor fold
+    // membership_upgrade through the native processor for ledger parity without
+    // requiring PAYMENT_STORE_ALLOW_TOKEN (store-only rail gate).
+    if (purpose === 'membership_upgrade') {
+      return isPaymentMethodEnabled('native_token')
     }
     return process.env.PAYMENT_STORE_ALLOW_TOKEN === 'true'
   }

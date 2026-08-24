@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Link, toAppHref, usePathname } from '@/i18n/routing'
-import { useSearchParams } from 'next/navigation'
+import { useWindowSearchString } from '@/hooks/use-window-search-string'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
@@ -74,8 +74,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
     setMounted(true)
   }, [])
 
-  const searchParams = useSearchParams()
-  const search = searchParams.toString()
+  const search = useWindowSearchString()
 
   const primaryItems = resolveDesktopPrimaryNav(locale, tNav, pathname, search).map((item) => {
     const Icon = getPrimaryNavIcon(item.icon)

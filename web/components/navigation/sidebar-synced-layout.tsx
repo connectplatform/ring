@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, usePathname, toAppHref } from '@/i18n/routing'
-import { useSearchParams } from 'next/navigation'
+import { useWindowSearchString } from '@/hooks/use-window-search-string'
 import { useLocale, useTranslations } from 'next-intl'
 import AnimatedLogo from '@/components/common/widgets/animated-logo'
 import { useTheme } from 'next-themes'
@@ -119,8 +119,7 @@ export function SidebarSyncedLayout({
   const [mounted, setMounted] = useState(false)
   const nativeSymbol = getClientNativeTokenSymbol()
   const siteName = getClientSiteName()
-  const searchParams = useSearchParams()
-  const search = searchParams.toString()
+  const search = useWindowSearchString()
 
   const tNav = useTranslations('navigation')
   const tFav = useTranslations('modules.store.favorites')

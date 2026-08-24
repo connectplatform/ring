@@ -3,7 +3,8 @@
 // Main imports
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { useWindowSearchString } from '@/hooks/use-window-search-string'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import AnimatedLogo from '@/components/common/widgets/animated-logo'
@@ -391,8 +392,7 @@ function BottomNavFullscreenMenu({
  */
 export default function BottomNavigation() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const search = searchParams.toString()
+  const search = useWindowSearchString()
   const locale = useLocale() as Locale
   const { hasRole } = useAuth()
   const { data: session } = useSession()

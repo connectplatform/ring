@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, use, useCallback, useEffect, useState, Suspense } from 'react'
+import React, { createContext, use, useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useFCM, useFCMMessages } from '@/hooks/use-fcm'
 import { unregisterCurrentDevicePush } from '@/lib/notifications/fcm-client-cleanup'
@@ -39,27 +39,10 @@ interface FCMProviderProps {
   children: React.ReactNode
 }
 
-const FCM_DISCONNECTED_CONTEXT: FCMContextType = {
-  isEnabled: false,
-  isSupported: false,
-  isLoading: false,
-  error: null,
-  needsHomeScreenInstall: false,
-  enableNotifications: async () => false,
-  disableNotifications: async () => {},
-  tokenCount: 0,
-}
-
 export function FCMProvider({ children }: FCMProviderProps) {
-  return (
-    <Suspense
-      fallback={
-        <FCMContext.Provider value={FCM_DISCONNECTED_CONTEXT}>{children}</FCMContext.Provider>
-      }
-    >
-      <FCMProviderRuntime>{children}</FCMProviderRuntime>
-    </Suspense>
-  )
+  // Single children slot — see TunnelProvider. Duplicate Suspense fallback
+  // children stall Next.js 16 hydration of the whole AppClientShell.
+  return <FCMProviderRuntime>{children}</FCMProviderRuntime>
 }
 
 function FCMProviderRuntime({ children }: FCMProviderProps) {

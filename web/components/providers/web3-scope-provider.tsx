@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Suspense, useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import type { State } from 'wagmi'
 import { pathNeedsWeb3, pathnameWithoutLocaleClient } from '@/lib/pathname-without-locale'
 
@@ -65,9 +65,7 @@ function Web3ScopeProviderInner({ children }: Web3ScopeProviderProps) {
 }
 
 export function Web3ScopeProvider({ children }: Web3ScopeProviderProps) {
-  return (
-    <Suspense fallback={<>{children}</>}>
-      <Web3ScopeProviderInner>{children}</Web3ScopeProviderInner>
-    </Suspense>
-  )
+  // Do not pass `children` as the Suspense fallback — that slot is opaque in
+  // the App Router and hydrating it twice freezes SSR chrome.
+  return <Web3ScopeProviderInner>{children}</Web3ScopeProviderInner>
 }

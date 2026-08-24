@@ -14,7 +14,7 @@
  * @see AI-CONTEXT: ring-platform_tunnel-subscription-loop-fix_emperor_ray_2025-11-24
  */
 
-import { createContext, useContext, ReactNode, Suspense } from 'react'
+import { createContext, useContext, ReactNode } from 'react'
 import { useCreditBalance } from '@/hooks/use-credit-balance'
 
 interface CreditBalanceData {
@@ -50,30 +50,10 @@ interface CreditBalanceContextValue {
 
 const CreditBalanceContext = createContext<CreditBalanceContextValue | null>(null)
 
-const CREDIT_BALANCE_DISCONNECTED: CreditBalanceContextValue = {
-  balance: null,
-  subscription: null,
-  limits: null,
-  isLoading: false,
-  isRefreshing: false,
-  error: null,
-  refresh: async () => {},
-  lastRefreshed: null,
-  isTunnelConnected: false,
-}
-
 export function CreditBalanceProvider({ children }: { children: ReactNode }) {
-  return (
-    <Suspense
-      fallback={
-        <CreditBalanceContext.Provider value={CREDIT_BALANCE_DISCONNECTED}>
-          {children}
-        </CreditBalanceContext.Provider>
-      }
-    >
-      <CreditBalanceProviderRuntime>{children}</CreditBalanceProviderRuntime>
-    </Suspense>
-  )
+  // Single children slot — see TunnelProvider. A fallback that also renders
+  // `children` deadlocks App Router hydration (frozen desktop rail).
+  return <CreditBalanceProviderRuntime>{children}</CreditBalanceProviderRuntime>
 }
 
 function CreditBalanceProviderRuntime({ children }: { children: ReactNode }) {
