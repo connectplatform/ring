@@ -30,6 +30,7 @@ import {
   Zap
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
+import { toIsoDate } from '@/lib/serialization/to-iso-date'
 import Link from 'next/link'
 import {
   LineChart,
@@ -504,7 +505,7 @@ export function NewsAnalyticsDashboard({
                         {article.category.replace('-', ' ')}
                       </Badge>
                       <div className="text-xs text-gray-500">
-                        {formatDistanceToNow(article.publishedAt?.toDate() || article.createdAt.toDate(), { 
+                        {formatDistanceToNow(new Date(toIsoDate(article.publishedAt ?? article.createdAt)), { 
                           addSuffix: true 
                         })}
                       </div>

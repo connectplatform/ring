@@ -45,6 +45,7 @@ import {
   Tag
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { toIsoDate } from '@/lib/serialization/to-iso-date'
 import {
   getCategoriesAction,
   createCategoryAction,
@@ -368,7 +369,7 @@ export function CategoriesManager({
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-gray-500">
-                        {formatDistanceToNow(category.createdAt.toDate(), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(toIsoDate(category.createdAt)), { addSuffix: true })}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

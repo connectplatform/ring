@@ -42,6 +42,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import Link from 'next/link'
+import { toIsoDate } from '@/lib/serialization/to-iso-date'
 
 interface BulkOperationsManagerProps {
   initialArticles: NewsArticle[]
@@ -495,7 +496,7 @@ export function BulkOperationsManager({
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-600">
-                          {format(article.createdAt.toDate(), 'MMM dd, yyyy')}
+                          {format(new Date(toIsoDate(article.createdAt)), 'MMM dd, yyyy')}
                         </span>
                       </TableCell>
                     </TableRow>

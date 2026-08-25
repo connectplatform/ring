@@ -805,13 +805,14 @@ const nextAuthApp = NextAuth({
             const email = normalizeAuthEmail(payload.email)
             const emailVerified = payload.email_verified ? new Date() : null
             // Find or create canonical user for this email
-            const resolved = await resolveCanonicalUser({ email })
+            const pendingId = randomUUID()
+            const resolved = await resolveCanonicalUser({ email, id: pendingId })
             if (resolved.userRow) {
               user.id = resolved.canonicalId
               console.log('🔵 One Tap reusing canonical user:', user.id)
             } else {
               // No user found → create new
-              user.id = randomUUID()
+              user.id = resolved.canonicalId
               await createOAuthUserFromGooglePayload({
                 userId: user.id,
                 email,
@@ -839,9 +840,15 @@ const nextAuthApp = NextAuth({
               googleSub,
             })
           } catch (error) {
-            // JWT or token verification failed
-            console.error('🔵 Google token verification failed in signIn callback:', error)
-            console.error('🔵 Error details:', (error as any).message)
+            const message = error instanceof Error ? error.message : String(error)
+            const isUserResolve = message.includes('resolveCanonicalUser')
+            console.error(
+              isUserResolve
+                ? '🔵 Google One Tap user resolve failed in signIn callback:'
+                : '🔵 Google token verification failed in signIn callback:',
+              error,
+            )
+            console.error('🔵 Error details:', message)
             return false
           }
         }

@@ -44,6 +44,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GenerateArticleDialog } from '@/components/media/generate-article-dialog';
+import { toIsoDate } from '@/lib/serialization/to-iso-date';
 
 interface AdminNewsManagerProps {
   initialArticles: NewsArticle[];
@@ -317,7 +318,7 @@ export function AdminNewsManager({
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-gray-500">
                         <Calendar className="h-4 w-4" />
-                        {format(article.createdAt.toDate(), 'MMM dd, yyyy')}
+                        {format(new Date(toIsoDate(article.createdAt)), 'MMM dd, yyyy')}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
