@@ -69,7 +69,7 @@ export default function ProductDetailsWrapper({
         {resolvedProductId ? (
           <div
             className={cn(
-              'hidden min-h-0 flex-col border-t border-border/60 pt-2 md:flex',
+              'flex min-h-0 flex-col border-t border-border/60 pt-2',
               agentExpanded ? 'flex-1' : 'shrink-0',
             )}
           >

@@ -7,7 +7,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Package, Truck, Shield, Heart } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
-import { ProductAgentChatTopBar } from '@/features/store/components/product-agent-chat-shell'
 import { useStore } from '@/features/store/context'
 import { useStorePaymentMethods } from '@/features/store/currency-context'
 import type { Locale } from '@/i18n/shared'
@@ -128,7 +127,7 @@ export default function ProductDetailsClient({
       }
       success({
         title: t('product.addedToCart', { name: product.name }),
-        description: `Quantity: ${quantity}`,
+        description: t('quantityCount', { count: quantity }),
       })
     },
     [product, addToCart, updateQuantity, success, t],
@@ -147,10 +146,10 @@ export default function ProductDetailsClient({
       const productToAdd = products.find((p) => p.id === productId)
       if (productToAdd) {
         await Promise.resolve(addToCart(productToAdd))
-        success({ title: `Added ${productToAdd.name} to cart!` })
+        success({ title: t('product.addedToCart', { name: productToAdd.name }) })
       }
     },
-    [products, addToCart, success],
+    [products, addToCart, success, t],
   )
 
   const breadcrumbItems = [
@@ -166,9 +165,8 @@ export default function ProductDetailsClient({
 
   return (
     <div className="relative mx-auto max-w-7xl space-y-8">
-      <div className="mb-2 flex flex-wrap items-center gap-3">
-        <RingBreadcrumbs items={breadcrumbItems} className="flex-1" />
-        <ProductAgentChatTopBar />
+      <div className="mb-2">
+        <RingBreadcrumbs items={breadcrumbItems} />
       </div>
 
       <div className="mb-12 grid grid-cols-1 gap-8 lg:grid-cols-2">

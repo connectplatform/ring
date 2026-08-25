@@ -109,13 +109,13 @@ export default function AddToCartButton({
       {/* Quantity Selector */}
       {showQuantitySelector && !(isOutOfStock && !canPreorder) && (
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium">Quantity:</label>
+          <label className="text-sm font-medium">{t('quantity')}:</label>
           <div className="flex items-center border-2 border-border rounded-lg overflow-hidden">
             <button
               onClick={decrementQuantity}
               disabled={quantity <= 1 || isAdding}
               className="p-2 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Decrease quantity"
+              aria-label={t('decreaseQuantity')}
             >
               <Minus className="h-4 w-4" />
             </button>
@@ -135,7 +135,7 @@ export default function AddToCartButton({
               onClick={incrementQuantity}
               disabled={quantity >= effectiveMaxQuantity || isAdding}
               className="p-2 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Increase quantity"
+              aria-label={t('increaseQuantity')}
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -179,19 +179,19 @@ export default function AddToCartButton({
           {isAdding ? (
             <>
               <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Adding...</span>
+              <span>{t('product.adding')}</span>
             </>
           ) : isSuccess ? (
             <>
               <Check className="h-6 w-6 animate-in zoom-in-50 duration-300" />
               <span className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                Added to Cart!
+                {t('product.addedToCartSuccess')}
               </span>
             </>
           ) : (isOutOfStock && !canPreorder) ? (
             <>
               <Package className="h-6 w-6" />
-              <span>Out of Stock</span>
+              <span>{t('product.inStockNo')}</span>
             </>
           ) : canPreorder ? (
             <>
@@ -231,7 +231,7 @@ export default function AddToCartButton({
       {/* Price Summary */}
       {quantity > 1 && !(isOutOfStock && !canPreorder) && (
         <div className="flex items-center justify-between px-4 py-3 bg-muted/50 rounded-lg border">
-          <span className="text-sm text-muted-foreground">Total:</span>
+          <span className="text-sm text-muted-foreground">{t('total')}:</span>
           <span className="text-xl font-bold">
             {(price * quantity).toFixed(2)} {currency}
           </span>
