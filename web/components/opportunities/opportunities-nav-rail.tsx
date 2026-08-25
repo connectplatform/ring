@@ -13,14 +13,11 @@ import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import {
   canAccessOpportunityCreation,
-  hasMemberPrivileges,
   parseUserRolesArray,
   resolveSessionUserRole,
   UserRolesArray,
 } from '@/features/auth/user-role'
 import { Briefcase, Plus, Search, User } from 'lucide-react'
-import { useState } from 'react'
-import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
 import { requestOpportunityTypeSelector } from '@/lib/opportunities/request-opportunity-type-selector'
 
 interface OpportunitiesNavRailProps {
@@ -43,7 +40,6 @@ export default function OpportunitiesNavRail({ locale, onNavigate }: Opportuniti
   const pathname = usePathname()
   const t = useTranslations('modules.opportunities')
   const { data: session } = useSession()
-  const [createOverlayOpen, setCreateOverlayOpen] = useState(false)
 
   const current = stripLocalePrefix(pathname)
 
@@ -61,8 +57,6 @@ export default function OpportunitiesNavRail({ locale, onNavigate }: Opportuniti
   const membershipHref = `${ROUTES.MEMBERSHIP(locale)}?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(locale))}`
 
   if (!session?.user) return null
-
-  const selectorRole = hasMemberPrivileges(userRole) ? 'member' : 'subscriber'
 
   return (
     <section aria-labelledby="opportunities-nav-rail" className="space-y-3">
@@ -99,16 +93,11 @@ export default function OpportunitiesNavRail({ locale, onNavigate }: Opportuniti
         {canCreate ? (
           <Button
             type="button"
-            variant={isAdd || createOverlayOpen ? 'default' : 'outline'}
+            variant={isAdd ? 'default' : 'outline'}
             className="h-9 w-full justify-start rounded-xl"
             onClick={() => {
-              // Mobile: open shared bottom-nav sheet, then close sidebar (sheet lives outside rail).
-              // Desktop: keep overlay mounted in this rail (do not navigate-away).
-              if (requestOpportunityTypeSelector()) {
-                onNavigate?.()
-                return
-              }
-              setCreateOverlayOpen(true)
+              requestOpportunityTypeSelector()
+              onNavigate?.()
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -128,15 +117,6 @@ export default function OpportunitiesNavRail({ locale, onNavigate }: Opportuniti
         )}
       </div>
       <Separator />
-
-      {createOverlayOpen && (
-        <OpportunityTypeSelectorClient
-          layout="overlay"
-          userRole={selectorRole}
-          locale={locale}
-          onClose={() => setCreateOverlayOpen(false)}
-        />
-      )}
     </section>
   )
 }

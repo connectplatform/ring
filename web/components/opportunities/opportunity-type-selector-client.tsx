@@ -19,7 +19,6 @@ import { ROUTES } from '@/constants/routes'
 import { motion } from 'framer-motion'
 import { eventBus } from '@/lib/event-bus.client'
 import { cn } from '@/lib/utils'
-import { RingCenterPaneOverlay } from '@/components/layout/ring-center-pane-overlay'
 import { useVendorStatus } from '@/hooks/use-vendor-status'
 import {
   BorderBeam,
@@ -38,7 +37,7 @@ import {
   type OpportunityTypeKey,
 } from '@/features/opportunities/lib/opportunity-type-presets'
 
-export type OpportunityTypeSelectorLayout = 'embedded' | 'overlay' | 'mobile-sheet'
+export type OpportunityTypeSelectorLayout = 'embedded' | 'overlay' | 'mobile-sheet' | 'body'
 export type OpportunityTypeSelectorDensity = 'compact' | 'comfortable'
 
 interface OpportunityTypeSelectorClientProps {
@@ -105,7 +104,7 @@ export function OpportunityTypeSelectorClient({
 
   // Escape + eventBus for overlay / mobile-sheet
   useEffect(() => {
-    if (layout === 'embedded') return
+    if (layout === 'embedded' || layout === 'body' || layout === 'overlay') return
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose()
@@ -130,7 +129,7 @@ export function OpportunityTypeSelectorClient({
   // would otherwise open-then-immediately-close the '+' sheet.
   const pathReadyRef = useRef(false)
   useEffect(() => {
-    if (layout === 'embedded') return
+    if (layout === 'embedded' || layout === 'body' || layout === 'overlay') return
     if (!pathReadyRef.current) {
       pathReadyRef.current = true
       prevPathRef.current = pathname
@@ -143,7 +142,7 @@ export function OpportunityTypeSelectorClient({
   }, [pathname, layout, handleClose])
 
   useEffect(() => {
-    if (layout === 'embedded') return
+    if (layout === 'embedded' || layout === 'body' || layout === 'overlay') return
     const id = window.requestAnimationFrame(() => headingRef.current?.focus())
     return () => window.cancelAnimationFrame(id)
   }, [layout])
@@ -354,8 +353,8 @@ export function OpportunityTypeSelectorClient({
     <div
       className={cn(
         'grid min-h-0 flex-1 content-stretch',
-        'grid-cols-2',
-        OPPORTUNITY_SELECTOR_TYPE_ORDER.length === 4 ? 'grid-rows-2' : '',
+        'grid-cols-1 md:grid-cols-2',
+        OPPORTUNITY_SELECTOR_TYPE_ORDER.length === 4 ? 'md:grid-rows-2' : '',
         density === 'compact' ? 'gap-2.5' : 'gap-4',
       )}
     >
@@ -363,20 +362,30 @@ export function OpportunityTypeSelectorClient({
     </div>
   )
 
+  const hostedBody = layout === 'body' || layout === 'overlay'
+
   const body = (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <HeroAmbient className="pointer-events-none absolute inset-0 opacity-35" />
       <div
         className={cn(
           'relative z-[1] flex min-h-0 flex-1 flex-col',
-          density === 'compact' ? 'px-3 py-3' : 'px-4 py-6 sm:px-8 lg:py-8',
+          hostedBody
+            ? 'p-3 sm:p-4'
+            : density === 'compact'
+              ? 'px-3 py-3'
+              : 'px-4 py-6 sm:px-8 lg:py-8',
         )}
       >
-        {header}
+        {hostedBody ? null : header}
         <div
           className={cn(
             'min-h-0 flex-1',
-            density === 'compact' ? 'mt-3 flex flex-col' : 'mt-6 overflow-y-auto overscroll-contain',
+            hostedBody
+              ? 'overflow-y-auto overscroll-contain'
+              : density === 'compact'
+                ? 'mt-3 flex flex-col'
+                : 'mt-6 overflow-y-auto overscroll-contain',
           )}
         >
           {grid}
@@ -420,13 +429,6 @@ export function OpportunityTypeSelectorClient({
     )
   }
 
-  return (
-    <RingCenterPaneOverlay
-      open
-      onClose={handleClose}
-      ariaLabel={t('type_selector.title')}
-    >
-      {body}
-    </RingCenterPaneOverlay>
-  )
+  // body + overlay: tiles only. FsModal host owns title/close (all viewports).
+  return body
 }

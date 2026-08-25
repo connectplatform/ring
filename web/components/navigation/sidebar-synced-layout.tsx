@@ -38,6 +38,7 @@ import { useNotificationContext } from '@/features/notifications/components/noti
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { getClientNativeTokenSymbol, getClientSiteName } from '@/lib/ring-config-client'
+import { hideEmpireAsideGroups } from '@/lib/navigation/empire-aside'
 import {
   resolveDesktopPrimaryNav,
   sidebarPathIsActive,
@@ -133,7 +134,8 @@ export function SidebarSyncedLayout({
   const cartCount = store?.totalItems || 0
   const userRole = resolveSessionUserRole(session?.user?.role)
   const showAdminToggle = hasMemberPrivileges(session?.user?.role)
-  const hideConcepts = hasConfidentialAccess(userRole)
+  const hideEmpireExtras = hideEmpireAsideGroups()
+  const hideConcepts = hasConfidentialAccess(userRole) || hideEmpireExtras
 
   useEffect(() => {
     setMounted(true)
@@ -310,34 +312,36 @@ export function SidebarSyncedLayout({
       }
     }
 
-    list.push({ kind: 'section', key: 'started-h', label: tNav('sidebar.getStarted') })
-    for (const item of [
-      {
-        key: 'quick-start',
-        href: ROUTES.DOCS_GETTING_STARTED(locale),
-        label: tNav('sidebar.quickStart'),
-        icon: <Rocket className={ICON} strokeWidth={1.5} />,
-      },
-      {
-        key: 'calculator',
-        href: ROUTES.CALCULATOR(locale),
-        label: tNav('sidebar.calculatorCta'),
-        icon: <Calculator className={ICON} strokeWidth={1.5} />,
-      },
-      {
-        key: 'roadmap',
-        href: ROUTES.ROADMAP(locale),
-        label: tNav('sidebar.roadmap'),
-        icon: <Map className={ICON} strokeWidth={1.5} />,
-      },
-    ]) {
-      list.push({
-        kind: 'pair',
-        key: item.key,
-        href: item.href,
-        rail: item.icon,
-        aside: <span className="truncate text-[16px]">{item.label}</span>,
-      })
+    if (!hideEmpireExtras) {
+      list.push({ kind: 'section', key: 'started-h', label: tNav('sidebar.getStarted') })
+      for (const item of [
+        {
+          key: 'quick-start',
+          href: ROUTES.DOCS_GETTING_STARTED(locale),
+          label: tNav('sidebar.quickStart'),
+          icon: <Rocket className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          key: 'calculator',
+          href: ROUTES.CALCULATOR(locale),
+          label: tNav('sidebar.calculatorCta'),
+          icon: <Calculator className={ICON} strokeWidth={1.5} />,
+        },
+        {
+          key: 'roadmap',
+          href: ROUTES.ROADMAP(locale),
+          label: tNav('sidebar.roadmap'),
+          icon: <Map className={ICON} strokeWidth={1.5} />,
+        },
+      ]) {
+        list.push({
+          kind: 'pair',
+          key: item.key,
+          href: item.href,
+          rail: item.icon,
+          aside: <span className="truncate text-[16px]">{item.label}</span>,
+        })
+      }
     }
 
     return list
@@ -345,6 +349,7 @@ export function SidebarSyncedLayout({
     cartCount,
     favorites.length,
     hideConcepts,
+    hideEmpireExtras,
     locale,
     messagesCount,
     nativeSymbol,

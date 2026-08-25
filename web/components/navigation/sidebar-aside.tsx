@@ -27,6 +27,7 @@ import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
+import { hideEmpireAsideGroups } from '@/lib/navigation/empire-aside'
 import type { Locale } from '@/i18n/shared'
 import { resolveDesktopPrimaryNav, sidebarPathIsActive } from '@/lib/navigation/desktop-primary-nav'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
@@ -68,7 +69,8 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const nativeSymbol = getClientNativeTokenSymbol()
     const userRole = resolveSessionUserRole(session?.user?.role)
     const showAdminToggle = hasMemberPrivileges(session?.user?.role)
-    const hideConcepts = hasConfidentialAccess(userRole)
+    const hideEmpireExtras = hideEmpireAsideGroups()
+    const hideConcepts = hasConfidentialAccess(userRole) || hideEmpireExtras
 
     useEffect(() => {
       setMounted(true)
@@ -126,27 +128,29 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
         )
       }
 
-      items.push(
-        { divider: 'divider-docs', href: '#', label: '', icon: null },
-        {
-          href: ROUTES.DOCS_GETTING_STARTED(locale),
-          label: tNav('sidebar.quickStart'),
-          icon: <Rocket className={ICON} strokeWidth={1.5} />,
-        },
-        {
-          href: ROUTES.CALCULATOR(locale),
-          label: tNav('sidebar.calculatorCta'),
-          icon: <Calculator className={ICON} strokeWidth={1.5} />,
-        },
-        {
-          href: ROUTES.ROADMAP(locale),
-          label: tNav('sidebar.roadmap'),
-          icon: <Map className={ICON} strokeWidth={1.5} />,
-        },
-      )
+      if (!hideEmpireExtras) {
+        items.push(
+          { divider: 'divider-docs', href: '#', label: '', icon: null },
+          {
+            href: ROUTES.DOCS_GETTING_STARTED(locale),
+            label: tNav('sidebar.quickStart'),
+            icon: <Rocket className={ICON} strokeWidth={1.5} />,
+          },
+          {
+            href: ROUTES.CALCULATOR(locale),
+            label: tNav('sidebar.calculatorCta'),
+            icon: <Calculator className={ICON} strokeWidth={1.5} />,
+          },
+          {
+            href: ROUTES.ROADMAP(locale),
+            label: tNav('sidebar.roadmap'),
+            icon: <Map className={ICON} strokeWidth={1.5} />,
+          },
+        )
+      }
 
       return items
-    }, [hideConcepts, locale, nativeSymbol, primaryItems, tNav])
+    }, [hideConcepts, hideEmpireExtras, locale, nativeSymbol, primaryItems, tNav])
 
     const dividerLabels: Record<string, string> = {
       'divider-concepts': tNav('sidebar.concepts', { default: 'Platform Concepts' }),

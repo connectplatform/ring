@@ -1,15 +1,13 @@
 'use client'
 
 import { useAuth } from '@/hooks/use-auth'
-import { canAccessOpportunityCreation, hasMemberPrivileges } from '@/features/auth/user-role'
+import { canAccessOpportunityCreation } from '@/features/auth/user-role'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { Link } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { useTranslations, useLocale } from 'next-intl'
-import { useState } from 'react'
-import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
 import { requestOpportunityTypeSelector } from '@/lib/opportunities/request-opportunity-type-selector'
 import { cn } from '@/lib/utils'
 
@@ -17,7 +15,7 @@ interface AddOpportunityButtonProps {
   locale?: Locale
   className?: string
   /**
-   * overlay — open center-pane type picker on desktop; mobile delegates to bottom-nav sheet
+   * overlay — emit to the shared AddOpportunityFsModal host (all viewports)
    * navigate — classic Link to /opportunities/add
    */
   mode?: 'overlay' | 'navigate'
@@ -32,7 +30,6 @@ export function AddOpportunityButton({
   const locale = resolvedLocale ?? ('en' as Locale)
   const { role, isAuthenticated } = useAuth()
   const t = useTranslations('modules.opportunities')
-  const [overlayOpen, setOverlayOpen] = useState(false)
 
   if (!isAuthenticated) {
     return (
@@ -75,28 +72,14 @@ export function AddOpportunityButton({
     )
   }
 
-  const selectorRole = hasMemberPrivileges(role) ? 'member' : 'subscriber'
-
   const openSelector = () => {
-    // Mobile: shared bottom-nav sheet (same as '+'). Desktop: local center-pane overlay.
-    if (requestOpportunityTypeSelector()) return
-    setOverlayOpen(true)
+    requestOpportunityTypeSelector()
   }
 
   return (
-    <>
-      <Button type="button" className={cn(className)} onClick={openSelector}>
-        <Plus className="mr-2 h-4 w-4" />
-        {t('addOpportunity')}
-      </Button>
-      {overlayOpen && (
-        <OpportunityTypeSelectorClient
-          layout="overlay"
-          userRole={selectorRole}
-          locale={locale}
-          onClose={() => setOverlayOpen(false)}
-        />
-      )}
-    </>
+    <Button type="button" className={cn(className)} onClick={openSelector}>
+      <Plus className="mr-2 h-4 w-4" />
+      {t('addOpportunity')}
+    </Button>
   )
 }

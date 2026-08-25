@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 
-import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
+import { AddOpportunityFsModal } from '@/components/opportunities/add-opportunity-fs-modal'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRolesArray, hasMemberPrivileges } from '@/features/auth/user-role'
 import { useAdminSupermenu } from '@/features/admin/use-admin-supermenu'
@@ -398,7 +398,6 @@ export default function BottomNavigation() {
   const { data: session } = useSession()
   const t = useTranslations('navigation')
   const tAuth = useTranslations('modules.auth')
-  const tOpp = useTranslations('modules.opportunities')
   const [showOpportunitySelector, setShowOpportunitySelector] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
@@ -637,24 +636,17 @@ export default function BottomNavigation() {
         <div className="h-safe-area-inset-bottom bg-background/95" />
       </nav>
 
-      {/* Opportunity type picker — FsModal (same chrome as unauth login) */}
-      <FsModal
+      {/* Opportunity type picker — shared FsModal host (all viewports) */}
+      <AddOpportunityFsModal
         open={showOpportunitySelector}
         onOpenChange={(open) => {
           if (!open) closeOpportunitySelector()
         }}
-        title={tOpp('type_selector.title')}
-        description={tOpp('type_selector.subtitle')}
-      >
-        <OpportunityTypeSelectorClient
-          layout="embedded"
-          onClose={closeOpportunitySelector}
-          userRole={
-            hasRole(UserRolesArray.member) ? 'member' : 'subscriber'
-          }
-          locale={locale}
-        />
-      </FsModal>
+        userRole={
+          hasRole(UserRolesArray.member) ? 'member' : 'subscriber'
+        }
+        locale={locale}
+      />
 
       {/* Ring (three-dots) platform-only fullscreen menu */}
       <BottomNavFullscreenMenu

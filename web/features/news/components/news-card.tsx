@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Eye, Heart, MessageCircle, Calendar, User } from 'lucide-react';
 import { pickImageSrc } from '@/lib/file/media-asset';
+import { toIsoDate } from '@/lib/serialization/to-iso-date';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -25,7 +26,7 @@ export function NewsCard({
   className = '',
   locale = 'en'
 }: NewsCardProps) {
-  const publishedDate = article.publishedAt?.toDate() || article.createdAt.toDate();
+  const publishedDate = new Date(toIsoDate(article.publishedAt ?? article.createdAt));
   const categoryColors: Record<string, string> = {
     'platform-updates': 'bg-blue-100 text-blue-800',
     'partnerships': 'bg-green-100 text-green-800',

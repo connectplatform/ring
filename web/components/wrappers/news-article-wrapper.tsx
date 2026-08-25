@@ -133,27 +133,29 @@ export default function NewsArticleWrapper({
     { id: 'announcements', name: 'Announcements', count: 12, color: 'bg-yellow-100 text-yellow-800' },
   ]
 
+  // SSR: `window?.x` still throws ReferenceError — window is an unbound identifier in Node.
+  const shareHref = typeof window !== 'undefined' ? window.location.href : ''
   const shareOptions = [
     {
       id: 'twitter',
       label: 'Twitter',
       icon: TwitterIcon,
       color: 'hover:text-blue-500',
-      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(articleData?.title || 'Check out this article')}&url=${encodeURIComponent(window?.location?.href || '')}`
+      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(articleData?.title || 'Check out this article')}&url=${encodeURIComponent(shareHref)}`
     },
     {
       id: 'facebook',
       label: 'Facebook',
       icon: FacebookIcon,
       color: 'hover:text-blue-600',
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window?.location?.href || '')}`
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareHref)}`
     },
     {
       id: 'linkedin',
       label: 'LinkedIn',
       icon: LinkedinIcon,
       color: 'hover:text-blue-700',
-      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window?.location?.href || '')}`
+      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareHref)}`
     },
     {
       id: 'copy',
