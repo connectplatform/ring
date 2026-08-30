@@ -48,6 +48,7 @@ export function ProductAgentChatPanel({
   const [guestMessages, setGuestMessages] = useState<LocalMsg[]>([])
   const [guestSending, setGuestSending] = useState(false)
   const [guestError, setGuestError] = useState<string | null>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const {
     conversation,
@@ -91,9 +92,16 @@ export function ProductAgentChatPanel({
     ])
   }, [status, guestMessages.length, productName, t])
 
+  const scrollChatToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
+      '[data-radix-scroll-area-viewport]',
+    )
+    viewport?.scrollTo({ top: viewport.scrollHeight, behavior })
+  }, [])
+
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent, guestMessages])
+    scrollChatToBottom()
+  }, [messages, streamingContent, guestMessages, scrollChatToBottom])
 
   const handleGuestSend = useCallback(async () => {
     if (!draft.trim() || guestSending) return
@@ -185,7 +193,7 @@ export function ProductAgentChatPanel({
         {showCartSummary ? (
           <ProductAgentCartSummaryBar locale={locale} productId={productId} />
         ) : null}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
           <div className="p-4 space-y-3">
             <p className="text-xs text-muted-foreground text-center">{t('product.agentChatSignIn')}</p>
             {guestMessages.map((message) => (
@@ -278,7 +286,7 @@ export function ProductAgentChatPanel({
         </div>
       )}
 
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
         <div className="p-4 space-y-3">
           {messagesLoading && messages.length === 0 && (
             <div className="text-sm text-muted-foreground text-center py-8">
