@@ -6,18 +6,22 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
-import { ProductAgentChatProvider } from '@/features/store/context/product-agent-chat-context'
+import {
+  ProductAgentChatProvider,
+  useProductAgentChatContext,
+} from '@/features/store/context/product-agent-chat-context'
 import { ProductAgentChatShell } from '@/features/store/components/product-agent-chat-shell'
 import { ProductAgentChatPanel } from '@/features/store/components/product-agent-chat-panel'
 import { ProductAgentCartSummaryBar } from '@/features/store/components/product-agent-cart-summary'
 import StoreProductRightSidebar from '@/components/store/store-product-right-sidebar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import type { StoreProduct } from '@/features/store/types'
 import type { ProductDetailsRailData } from '@/features/store/services/product-details-rail'
 
@@ -27,6 +31,29 @@ interface ProductDetailsWrapperProps {
   productId?: string
   currentProduct: StoreProduct
   railData: ProductDetailsRailData
+}
+
+function ProductAgentFloatingChatButton() {
+  const t = useTranslations('modules.store')
+  const { setOpen, open } = useProductAgentChatContext()
+
+  return (
+    <div className="fixed right-4 top-[calc(50%+4rem)] z-50 -translate-y-1/2 md:hidden">
+      <Button
+        type="button"
+        onClick={() => setOpen(true)}
+        size="sm"
+        variant="secondary"
+        className="h-12 w-12 rounded-full border border-primary/50 bg-background/90 p-0 shadow-lg backdrop-blur-sm transition-all duration-200 hover:bg-background"
+        aria-label={t('product.agentRailLabel')}
+        aria-pressed={open}
+        title={t('product.agentRailLabel')}
+        data-product-agent-chat-fab=""
+      >
+        <Sparkles className="h-5 w-5 text-primary" />
+      </Button>
+    </div>
+  )
 }
 
 export default function ProductDetailsWrapper({
@@ -39,6 +66,7 @@ export default function ProductDetailsWrapper({
   const t = useTranslations('modules.store')
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
   const [agentExpanded, setAgentExpanded] = useState(true)
+  const isDesktopRail = useMediaQuery('(min-width: 1024px)')
   const resolvedProductId = productId || currentProduct.id
 
   const scrollToReviews = useCallback(() => {
@@ -66,7 +94,7 @@ export default function ProductDetailsWrapper({
           />
         </div>
 
-        {resolvedProductId ? (
+        {isDesktopRail && resolvedProductId ? (
           <div
             className={cn(
               'flex min-h-0 flex-col border-t border-border/60 pt-2',
@@ -124,6 +152,7 @@ export default function ProductDetailsWrapper({
       scrollToReviews,
       resolvedProductId,
       agentExpanded,
+      isDesktopRail,
       t,
     ],
   )
@@ -136,7 +165,7 @@ export default function ProductDetailsWrapper({
       <RingRightRailLayout
         showRightRail
         flushCenterPane
-        mobileRailMode="consecutive"
+        mobileRailMode="overlay"
         rightRailPurpose="store-product"
         isOpen={rightSidebarOpen}
         onToggle={setRightSidebarOpen}
@@ -146,7 +175,12 @@ export default function ProductDetailsWrapper({
         <DavinciCenterPane contentClassName="space-y-6">{children}</DavinciCenterPane>
       </RingRightRailLayout>
 
-      {resolvedProductId ? <ProductAgentChatShell locale={locale} /> : null}
+      {resolvedProductId ? (
+        <>
+          <ProductAgentFloatingChatButton />
+          <ProductAgentChatShell locale={locale} />
+        </>
+      ) : null}
     </ProductAgentChatProvider>
   )
 }

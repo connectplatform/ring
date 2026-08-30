@@ -26,6 +26,7 @@ import type { ProductReviewView } from '@/features/store/services/product-review
 import type { RailProductCard } from '@/features/store/services/product-details-rail'
 import {
   pickGalleryDisplayUrl,
+  type GalleryItem,
   type GenerativeGalleryValue,
 } from '@/features/generative-media/types'
 
@@ -35,6 +36,33 @@ function calcRatingDistribution(reviews: { rating: number }[]): number[] {
     if (r.rating >= 1 && r.rating <= 5) stars[5 - r.rating]++
   }
   return stars.reverse()
+}
+
+function orderGalleryItems(gallery: GenerativeGalleryValue | undefined): GalleryItem[] {
+  const enabled = gallery?.items?.filter((item) => item.enabled !== false) || []
+  const primary = enabled.find((item) => item.isPrimary)
+  const rest = enabled.filter((item) => item.id !== primary?.id)
+  return primary ? [primary, ...rest] : enabled
+}
+
+function galleryItemToProductImage(item: GalleryItem, productName: string, index: number) {
+  const fallback = item.webpUrl || item.originalUrl
+
+  return {
+    url:
+      pickGalleryDisplayUrl(item, 'mobile') ||
+      pickGalleryDisplayUrl(item, 'card') ||
+      fallback,
+    originalUrl:
+      pickGalleryDisplayUrl(item, 'lightbox') ||
+      item.originalUrl ||
+      fallback,
+    thumbnail:
+      pickGalleryDisplayUrl(item, 'thumb') ||
+      pickGalleryDisplayUrl(item, 'card') ||
+      fallback,
+    alt: `${productName}${index > 0 ? ` - View ${index + 1}` : ''}`,
+  }
 }
 
 export type ProductDetailsClientProps = {
@@ -92,11 +120,17 @@ export default function ProductDetailsClient({
     (product as { data?: { generativeGallery?: GenerativeGalleryValue } }).data
       ?.generativeGallery
 
-  const productImages =
-    !product.images || product.images.length === 0
-      ? [{ url: '/placeholder-product.png', alt: product.name || 'Product' }]
-      : product.images.map((url: string, index: number) => {
-          const meta = galleryMeta?.items?.find((i) => i.originalUrl === url)
+  const galleryImages = orderGalleryItems(galleryMeta).map((item, index) =>
+    galleryItemToProductImage(item, product.name, index),
+  )
+
+  const legacyImages =
+    product.images
+      ?.filter((url): url is string => Boolean(url))
+      .map((url: string, index: number) => {
+          const meta = galleryMeta?.items?.find(
+            (i) => i.originalUrl === url || i.webpUrl === url,
+          )
           const thumb =
             (meta && pickGalleryDisplayUrl(meta, 'thumb')) ||
             meta?.derivatives?.thumb ||
@@ -117,7 +151,14 @@ export default function ProductDetailsClient({
             thumbnail: thumb,
             alt: `${product.name}${index > 0 ? ` - View ${index + 1}` : ''}`,
           }
-        })
+        }) || []
+
+  const productImages =
+    galleryImages.length > 0
+      ? galleryImages
+      : legacyImages.length > 0
+        ? legacyImages
+        : [{ url: '/placeholder-product.png', alt: product.name || 'Product' }]
 
   const handleAddToCart = useCallback(
     async (quantity: number) => {
@@ -164,19 +205,19 @@ export default function ProductDetailsClient({
   void selectedVariants
 
   return (
-    <div className="relative mx-auto max-w-7xl space-y-8">
+    <div className="relative mx-auto w-full min-w-0 max-w-7xl space-y-8">
       <div className="mb-2">
         <RingBreadcrumbs items={breadcrumbItems} />
       </div>
 
-      <div className="mb-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="flex justify-center lg:justify-start">
+      <div className="mb-12 grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="flex min-w-0 justify-center lg:justify-start">
           <ProductImageGallery images={productImages} productName={product.name} />
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div>
-            <h1 className="mb-2 text-3xl font-bold md:text-4xl">{product.name}</h1>
+            <h1 className="mb-2 break-words text-3xl font-bold md:text-4xl">{product.name}</h1>
             <div className="mb-4 flex items-baseline gap-3">
               <span className="text-4xl font-bold text-primary">
                 {formatPrice(

@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
+
 /**
  * Product Image Gallery - BADASS Edition
  * 
@@ -15,8 +17,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Maximize2, X, ZoomIn } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProductImage {
@@ -126,7 +127,10 @@ export default function ProductImageGallery({
   return (
     <>
       {/* Main Gallery */}
-      <div className={cn("space-y-4 w-full max-w-md", className)}>
+      <div
+        className={cn("w-full max-w-[calc(100vw-1.5rem)] space-y-4 sm:max-w-md", className)}
+        data-product-image-gallery=""
+      >
         {/* Main Image Container - Fixed dimensions for proper aspect-ratio calculation */}
         <div
           className="relative w-full aspect-square bg-muted rounded-xl overflow-hidden group cursor-pointer"
@@ -136,13 +140,11 @@ export default function ProductImageGallery({
           onClick={() => setIsLightboxOpen(true)}
         >
           {/* Main Image */}
-          <Image
+          <img
             src={stripSrc}
             alt={currentImage.alt}
-            fill
-            sizes="(max-width: 448px) 100vw, 448px"
             className={cn(
-              "object-contain transition-transform duration-500",
+              "absolute inset-0 h-full w-full object-contain transition-transform duration-500",
               isZoomed && "scale-110"
             )}
             onMouseEnter={() => setIsZoomed(true)}
@@ -230,11 +232,9 @@ export default function ProductImageGallery({
                     : "border-transparent hover:border-primary/50 hover:scale-105"
                 )}
               >
-                <Image
+                <img
                   src={image.thumbnail || image.url}
                   alt={`${productName} - Image ${idx + 1}`}
-                  width={64}
-                  height={64}
                   className="w-full h-full object-cover"
                 />
               </button>
@@ -266,12 +266,10 @@ export default function ProductImageGallery({
           {/* Main Lightbox Image */}
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div className="relative w-full h-full">
-              <Image
+              <img
                 src={lightboxSrc}
                 alt={currentImage.alt}
-                fill
-                sizes="100vw"
-                className="object-contain"
+                className="h-full w-full object-contain"
               />
             </div>
           </div>
@@ -310,11 +308,9 @@ export default function ProductImageGallery({
                       : "border-white/30 hover:border-white/70 hover:scale-105 hover:z-10"
                   )}
                 >
-                  <Image
+                  <img
                     src={image.thumbnail || image.url}
                     alt={`Thumbnail ${idx + 1}`}
-                    width={64}
-                    height={64}
                     className="w-full h-full object-cover transition-transform duration-300 ease-out"
                   />
                   {idx === currentIndex && (
