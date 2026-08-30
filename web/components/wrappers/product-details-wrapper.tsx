@@ -48,6 +48,7 @@ function ProductAgentFloatingChatButton() {
         aria-label={t('product.agentRailLabel')}
         aria-pressed={open}
         title={t('product.agentRailLabel')}
+        data-product-agent-chat-fab=""
       >
         <Sparkles className="h-5 w-5 text-primary" />
       </Button>

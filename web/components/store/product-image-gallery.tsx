@@ -127,7 +127,10 @@ export default function ProductImageGallery({
   return (
     <>
       {/* Main Gallery */}
-      <div className={cn("w-full max-w-[calc(100vw-1.5rem)] space-y-4 sm:max-w-md", className)}>
+      <div
+        className={cn("w-full max-w-[calc(100vw-1.5rem)] space-y-4 sm:max-w-md", className)}
+        data-product-image-gallery=""
+      >
         {/* Main Image Container - Fixed dimensions for proper aspect-ratio calculation */}
         <div
           className="relative w-full aspect-square bg-muted rounded-xl overflow-hidden group cursor-pointer"
