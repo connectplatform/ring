@@ -124,7 +124,12 @@ export class ProductAgentService {
   ): Promise<Conversation> {
     const existing = await this.conversationService.findProductConversation(userId, product.id)
     if (existing) {
-      return existing
+      // Hydrate participant-scoped unread so the PDP chat badge seeds with
+      // server truth (roster path hydrates this; the raw row does not).
+      const unreadCount = await this.conversationService
+        .getConversationUnread(existing.id, userId)
+        .catch(() => 0)
+      return { ...existing, unreadCount }
     }
 
     const subject = product.name

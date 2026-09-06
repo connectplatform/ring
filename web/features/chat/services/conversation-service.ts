@@ -594,6 +594,15 @@ export class ConversationService {
     }
   }
 
+  /**
+   * Public unread hydration for a single conversation (participant-scoped).
+   * Used by product agent chat bootstrap — findProductConversation returns the
+   * raw row without unreadCount.
+   */
+  async getConversationUnread(conversationId: string, userId: string): Promise<number> {
+    return this.getUnreadCount(conversationId, userId);
+  }
+
   private async getUnreadCount(conversationId: string, userId: string): Promise<number> {
     const readResult = await db().readDoc<Conversation>('conversations', conversationId);
     if (!readResult.success || !readResult.data) {

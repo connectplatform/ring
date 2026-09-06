@@ -110,7 +110,6 @@ export default async function ProductDetailsPage({
       locale={validLocale}
       productId={id}
       currentProduct={currentProduct}
-      railData={railData}
     >
       <ProductDetailsClient
         locale={validLocale}
@@ -118,7 +117,7 @@ export default async function ProductDetailsPage({
         product={currentProduct}
         reviews={reviewsResult.reviews}
         averageRating={reviewsResult.averageRating}
-        relatedProducts={railData.relatedProducts}
+        railData={railData}
       />
     </ProductDetailsWrapper>
   )

@@ -117,6 +117,8 @@ export const StoreOrdersService = {
     limit?: number
     offset?: number
     statusFilter?: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled'
+    /** Document-id cursor: page orders strictly older than the anchor order. */
+    startAfter?: string
   }) => {
     try {
       const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
@@ -128,6 +130,23 @@ export const StoreOrdersService = {
         filters.push({ field: 'status', operator: 'in', value: ['canceled', 'cancelled'] })
       } else if (opts?.statusFilter) {
         filters.push({ field: 'status', operator: '=', value: opts.statusFilter })
+      }
+
+      // Cursor pagination (startAfter = last visible order id): resolve the
+      // anchor order's createdAt, then fetch strictly older records. Falls
+      // back to first-page semantics when the anchor is missing.
+      if (opts?.startAfter) {
+        try {
+          const cursorResult = await db().findDocById('orders', opts.startAfter)
+          const cursorCreatedAt = cursorResult.success
+            ? (cursorResult.data as { createdAt?: string } | null)?.createdAt
+            : null
+          if (cursorCreatedAt) {
+            filters.push({ field: 'createdAt', operator: '<', value: cursorCreatedAt })
+          }
+        } catch {
+          // Cursor resolution failed — continue with first-page semantics.
+        }
       }
 
       const result = await db().queryDocs<OrderRow>({

@@ -102,6 +102,7 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
       userRole,
       limit,
       startAfter,
+      viewerUserId: session.user.id,
     })
     initialOpportunities = result.opportunities
     lastVisible = result.lastVisible

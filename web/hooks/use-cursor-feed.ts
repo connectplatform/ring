@@ -122,7 +122,12 @@ export function useCursorFeed<T extends { id: string }>({
 
     const saved = readFeedSession<T>(moduleId, locale, filterFingerprint)
     if (saved && saved.items.length > 0) {
-      setItems(saved.items)
+      // Server-fresh rows (page 1) win over cached copies so per-viewer fields
+      // (likes, saved flags, counts) do not go stale across reloads.
+      const fresh = new Map(initialItems.map((item) => [item.id, item]))
+      setItems(
+        fresh.size > 0 ? saved.items.map((item) => fresh.get(item.id) ?? item) : saved.items,
+      )
       setCursor(saved.cursor)
       setHasMore(saved.hasMore)
       restoreScrollPosition(saved.scrollY)

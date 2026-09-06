@@ -314,12 +314,14 @@ export async function convertTaskToOpportunity(messageId: string): Promise<TaskA
       expirationDate,
       status: 'pending',
       category: 'General',
-      tags: [
-        'chat_task',
-        `sourceMessageId:${id}`,
-        `sourceConversationId:${message.conversationId}`,
-        'sourceTaskKind:chat_task',
-      ],
+      tags: [],
+      metadata: {
+        source: {
+          kind: 'chat_task',
+          messageId: id,
+          conversationId: message.conversationId,
+        },
+      },
       location: '',
       requiredSkills: [],
       requiredDocuments: [],

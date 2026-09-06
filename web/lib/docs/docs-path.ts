@@ -17,6 +17,7 @@ import { SUPPORTED_LOCALES } from '@/lib/locale-config'
 import {
   buildDocsHref,
   buildDocsLinkPath,
+  buildDocsMarkdownHref,
   normalizeDocsSlug,
   slugFromDocRelativePath,
 } from '@/lib/docs/docs-path-url'

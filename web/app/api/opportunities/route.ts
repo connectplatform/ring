@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       userRole,
       limit,
       startAfter,
+      viewerUserId: session.user.id,
     })
 
     return NextResponse.json(

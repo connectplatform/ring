@@ -1,0 +1,13 @@
+{
+  "dateOfBirth": {
+    "title": "Ihr Geburtsdatum",
+    "description": "Hinterlegen Sie Ihr Geburtsdatum — es speist Ihre persönlichen Karten und Ihr Erlebnis.",
+    "day": "Tag",
+    "month": "Monat",
+    "year": "Jahr",
+    "save": "Weiter",
+    "maybeLater": "Vielleicht später",
+    "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+  },
+  "maybeLater": "Vielleicht später"
+}

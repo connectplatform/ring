@@ -32,7 +32,8 @@ export type DatabaseFilterOperator =
   | '='
   | '<>'
   | 'ilike'
-  | 'jsonb-contains';
+  | 'jsonb-contains'
+  | 'not-in';
 
 /**
  * Query filter for cross-backend compatibility

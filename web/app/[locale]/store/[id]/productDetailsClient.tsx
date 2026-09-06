@@ -20,10 +20,11 @@ import ProductVariantSelector from '@/components/store/product-variant-selector'
 import AddToCartButton from '@/components/store/add-to-cart-button'
 import ProductReviews from '@/components/store/product-reviews'
 import RelatedProductsCarousel from '@/components/store/related-products-carousel'
+import ProductSellerInfoCard from '@/components/store/product-seller-info-card'
 import FloatingButtons from '@/components/store/floating-buttons'
 import type { StoreProduct } from '@/features/store/types'
 import type { ProductReviewView } from '@/features/store/services/product-reviews'
-import type { RailProductCard } from '@/features/store/services/product-details-rail'
+import type { ProductDetailsRailData } from '@/features/store/services/product-details-rail'
 import {
   pickGalleryDisplayUrl,
   type GalleryItem,
@@ -71,7 +72,8 @@ export type ProductDetailsClientProps = {
   product: StoreProduct
   reviews: ProductReviewView[]
   averageRating: number
-  relatedProducts: RailProductCard[]
+  /** Right-rail data (vendor / category / seller products) — rendered in the center pane. */
+  railData: ProductDetailsRailData
 }
 
 export default function ProductDetailsClient({
@@ -80,7 +82,7 @@ export default function ProductDetailsClient({
   product,
   reviews,
   averageRating,
-  relatedProducts,
+  railData,
 }: ProductDetailsClientProps) {
   const { addToCart, updateQuantity, products } = useStore()
   const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])
@@ -334,7 +336,8 @@ export default function ProductDetailsClient({
               )}
             </div>
           </TabsContent>
-          <TabsContent value="reviews" className="mt-6">
+          <TabsContent value="reviews" className="mt-6 space-y-6">
+            {railData.vendor ? <ProductSellerInfoCard vendor={railData.vendor} /> : null}
             <ProductReviews
               reviews={reviews.map((r) => ({
                 id: r.id,
@@ -365,10 +368,20 @@ export default function ProductDetailsClient({
         </Tabs>
       </div>
 
-      {relatedProducts.length > 0 ? (
+      {/* Similar products (same category) + more from this seller — center pane rails */}
+      {railData.categoryProducts.length > 0 ? (
         <RelatedProductsCarousel
-          products={relatedProducts}
-          title={t('youMightAlsoLike')}
+          products={railData.categoryProducts}
+          title={t('relatedProducts', { defaultValue: 'Related Products' })}
+          onQuickAdd={handleQuickAdd}
+          aiPowered={false}
+        />
+      ) : null}
+
+      {railData.featuredSellerProducts.length > 0 ? (
+        <RelatedProductsCarousel
+          products={railData.featuredSellerProducts}
+          title={t('featuredSellerProducts', { defaultValue: 'From this seller' })}
           onQuickAdd={handleQuickAdd}
           aiPowered={false}
         />

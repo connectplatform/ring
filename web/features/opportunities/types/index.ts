@@ -43,6 +43,20 @@ export type OpportunityType =
 export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential';
 export type OpportunityPriority = 'urgent' | 'normal' | 'low';
 
+/** Public-safe creator fields attached to feed rows. Username is set only when the profile is public. */
+export interface OpportunityCreatorSummary {
+  id: string
+  name: string
+  username?: string
+  avatar?: string
+}
+
+export interface OpportunityViewerFlags {
+  liked: boolean
+  saved: boolean
+  hidden: boolean
+}
+
 export interface Attachment {
   url: string;
   name: string;
@@ -100,6 +114,12 @@ export interface SerializedOpportunity {
   fullDescription?: string;
   createdBy: string;
   organizationId: string;
+  /** Public-safe creator snapshot for list cards (resolved at query time). */
+  creator?: OpportunityCreatorSummary;
+  /** Viewer's like/save/hide flags for this opportunity (resolved at query time). */
+  viewer?: OpportunityViewerFlags;
+  /** Denormalized like count stored on the opportunity JSONB row. */
+  likes?: number;
   dateCreated: string;
   dateUpdated: string;
   expirationDate: string;

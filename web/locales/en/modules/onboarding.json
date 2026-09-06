@@ -1,0 +1,13 @@
+{
+  "dateOfBirth": {
+    "title": "Your date of birth",
+    "description": "Set your birth date — it powers your personal charts and experience.",
+    "day": "Day",
+    "month": "Month",
+    "year": "Year",
+    "save": "Continue",
+    "maybeLater": "Maybe later",
+    "saveError": "Falling to save. Please try again."
+  },
+  "maybeLater": "Maybe later"
+}

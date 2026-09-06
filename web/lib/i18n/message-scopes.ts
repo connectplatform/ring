@@ -64,10 +64,11 @@ export type LocaleFileId =
   | 'modRefcodes'
   | 'modDao'
   | 'modAccount'
+  | 'modOnboarding'
   | 'vendor'
   | 'confidential'
 
-const CORE: LocaleFileId[] = ['common', 'navigation', 'seo', 'config']
+const CORE: LocaleFileId[] = ['common', 'navigation', 'seo', 'config', 'modOnboarding']
 
 const PUBLIC_HOME: LocaleFileId[] = [
   ...CORE,

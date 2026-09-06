@@ -1,0 +1,13 @@
+{
+  "dateOfBirth": {
+    "title": "Tu fecha de nacimiento",
+    "description": "Indica tu fecha de nacimiento: alimenta tus cartas personales y tu experiencia.",
+    "day": "Día",
+    "month": "Mes",
+    "year": "Año",
+    "save": "Continuar",
+    "maybeLater": "Quizás más tarde",
+    "saveError": "No se pudo guardar. Inténtalo de nuevo."
+  },
+  "maybeLater": "Quizás más tarde"
+}

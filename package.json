@@ -14,6 +14,8 @@
     "ci:layer1": "bash scripts/run-org-ci.sh layer1-forge-build-deploy.sh",
     "ci:layer1:dry": "bash scripts/run-org-ci.sh layer1-forge-build-deploy.sh --dry-run",
     "push:layer1": "bash scripts/run-org-ci.sh push-layer1.sh",
+    "push:forgejo": "bash scripts/push-forgejo.sh",
+    "push:github-oss": "bash scripts/push-github-oss.sh",
     "lint": "npm run lint --prefix web",
     "type-check": "npm run type-check --prefix web"
   }

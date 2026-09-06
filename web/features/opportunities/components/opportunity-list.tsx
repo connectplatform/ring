@@ -19,7 +19,10 @@ import { AddOpportunityButton } from '@/components/opportunities/add-opportunity
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { fingerprintFromSearchParams } from '@/lib/pagination/filter-fingerprint'
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
-import { OpportunityFeedCard } from '@/features/opportunities/components/opportunity-feed-card'
+import {
+  OpportunityFeedCard,
+  type OpportunityFeedInteractionPatch,
+} from '@/features/opportunities/components/opportunity-feed-card'
 
 interface OpportunityListProps {
   initialOpportunities: SerializedOpportunity[]
@@ -51,9 +54,11 @@ export default function OpportunityList({
   const t = useTranslations('modules.opportunities')
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
+  // Scope the feed cache to the viewer: rows carry per-viewer flags and role visibility.
+  const viewerId = session?.user?.id ?? 'anon'
   const filterFingerprint = useMemo(
-    () => fingerprintFromSearchParams('opportunities', searchParams),
-    [searchParams],
+    () => `${fingerprintFromSearchParams('opportunities', searchParams)}|viewer=${viewerId}`,
+    [searchParams, viewerId],
   )
 
   const fetchOpportunitiesPage = useCallback(
@@ -108,6 +113,7 @@ export default function OpportunityList({
 
   const {
     items: feedItems,
+    setItems: setFeedItems,
     loading,
     hasMore,
     error: feedError,
@@ -134,6 +140,32 @@ export default function OpportunityList({
   })
 
   const error = feedError ?? initialError
+
+  // Keep feed rows (and the persisted feed session) in sync with confirmed interactions.
+  const handleInteractionChange = useCallback(
+    (opportunityId: string, patch: OpportunityFeedInteractionPatch) => {
+      setFeedItems((prev) =>
+        prev.map((item) => {
+          if (item.id !== opportunityId) return item
+          const viewer = patch.viewer
+            ? {
+                liked: false,
+                saved: false,
+                hidden: false,
+                ...item.viewer,
+                ...patch.viewer,
+              }
+            : item.viewer
+          return {
+            ...item,
+            viewer,
+            likes: typeof patch.likes === 'number' ? patch.likes : item.likes,
+          }
+        }),
+      )
+    },
+    [setFeedItems],
+  )
 
   // Sync entities when parent-provided initialEntities change
   useEffect(() => {
@@ -163,6 +195,12 @@ export default function OpportunityList({
       location: opportunityData.location || '',
       tags: opportunityData.tags || [],
       createdBy: session.user.id,
+      creator: {
+        id: session.user.id,
+        name: session.user.name || '',
+        avatar: session.user.image || undefined,
+      },
+      viewer: { liked: false, saved: false, hidden: false },
       applicantCount: 0, // Initialize with 0 applicants
       organizationId: opportunityData.organizationId || '',
       dateCreated: new Date().toISOString(),
@@ -229,6 +267,7 @@ export default function OpportunityList({
                 mode="browse"
                 isOptimistic={opportunity.isOptimistic}
                 isPending={opportunity.isPending}
+                onInteractionChange={handleInteractionChange}
               />
             ))}
           </AnimatePresence>

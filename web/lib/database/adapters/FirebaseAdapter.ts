@@ -705,8 +705,8 @@ export class FirebaseAdapter implements IDatabaseService {
 
       // Separate filters: what can be pushed to Firestore server (native) and what must be handled in JS after fetch (post)
       for (const filter of querySpec.filters || []) {
-        if (filter.operator === 'ilike') {
-          // ilike cannot be executed natively in Firestore
+        if (filter.operator === 'ilike' || filter.operator === 'not-in') {
+          // ilike / not-in (unbounded) cannot be executed natively in Firestore
           postFilters.push(filter);
         } else if (
           filter.operator === 'jsonb-contains' &&
@@ -771,9 +771,19 @@ export class FirebaseAdapter implements IDatabaseService {
       if (postFilters.length > 0) {
         // In-memory, post-retrieval filter
         documents = documents.filter((doc) =>
-          postFilters.every((filter) =>
-            this.matchesPostFilter(doc.data as Record<string, unknown>, filter),
-          ),
+          postFilters.every((filter) => {
+            if (filter.operator === 'not-in') {
+              const excluded = Array.isArray(filter.value)
+                ? filter.value.map((item) => String(item))
+                : []
+              const candidate =
+                filter.field === 'id'
+                  ? doc.id
+                  : String((doc.data as Record<string, unknown>)[filter.field] ?? '')
+              return !excluded.includes(candidate)
+            }
+            return this.matchesPostFilter(doc.data as Record<string, unknown>, filter)
+          }),
         );
         // Trim by limit after post-filter
         if (querySpec.pagination?.limit) {

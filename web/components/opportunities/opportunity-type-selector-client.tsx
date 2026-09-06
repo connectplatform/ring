@@ -81,7 +81,9 @@ export function OpportunityTypeSelectorClient({
         const formType = config.formType ?? typeKey
         return `${ROUTES.ADD_OPPORTUNITY(locale)}?type=${encodeURIComponent(formType)}`
       }
-      if (typeKey === 'vendor_listing') {
+      // Legacy deep-link type kept for safety (picker union is request|offer);
+      // widened comparison — vendor_listing is not part of OpportunityTypeKey.
+      if ((typeKey as string) === 'vendor_listing') {
         return hasVendor
           ? ROUTES.VENDOR_PRODUCTS_ADD(locale)
           : ROUTES.VENDOR_START(locale)

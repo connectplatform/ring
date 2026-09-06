@@ -47,6 +47,12 @@ export class PostgreSQLAdapter implements IDatabaseService {
     entities: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    opportunities: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    likes: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     entity_reports: new Set([
       'id', 'created_at', 'updated_at'
     ]),
@@ -1368,6 +1374,10 @@ export class PostgreSQLAdapter implements IDatabaseService {
           break;
         case 'in':
           conditions.push(`${fieldRef} = ANY($${paramIndex})`);
+          params.push(value);
+          break;
+        case 'not-in':
+          conditions.push(`NOT (${fieldRef} = ANY($${paramIndex}))`);
           params.push(value);
           break;
         case 'array-contains':

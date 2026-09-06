@@ -9,7 +9,7 @@
  */
 
 import { cache } from 'react'; // React 19 cache() for deduplication/memoization
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
+import { SerializedOpportunity } from '@/features/opportunities/types';
 import {
   mapDbDocumentToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'; // Map DB docs to API shape
@@ -23,6 +23,8 @@ import {
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/database'; // Upgrade to edge-optimized database client when possible
 import { computePaginationCursor } from '@/lib/pagination/cursor-pagination';
+import { getViewerHiddenOpportunityIds } from '@/features/opportunities/services/get-viewer-interactions';
+import { attachOpportunityFeedFields } from '@/features/opportunities/services/attach-opportunity-feed-fields';
 
 /**
  * Fetches a paginated list of opportunities based on user role and query params.
@@ -58,6 +60,7 @@ export const getOpportunitiesForRole = cache(async (
     deadline?: 'today' | 'week' | 'month';
     entityVerified?: boolean;
     hasDeadline?: boolean;
+    viewerUserId?: string;
   }
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   // Destructure with defaults for safety
@@ -74,7 +77,8 @@ export const getOpportunitiesForRole = cache(async (
     priority,
     deadline,
     entityVerified,
-    hasDeadline
+    hasDeadline,
+    viewerUserId,
   } = params;
 
   try {
@@ -169,6 +173,13 @@ export const getOpportunitiesForRole = cache(async (
       }
     }
 
+    if (viewerUserId) {
+      const hiddenIds = await getViewerHiddenOpportunityIds(viewerUserId)
+      if (hiddenIds.length > 0) {
+        whereConditions.push({ field: 'id', operator: 'not-in', value: hiddenIds })
+      }
+    }
+
     // Only attach .where property if filters present, for compatibility with DB drivers
     if (whereConditions.length > 0) {
       queryConfig.where = whereConditions;
@@ -239,13 +250,13 @@ export const getOpportunitiesForRole = cache(async (
     }
 
     // ----------- Map raw DB docs to strong API type for output --------
-    const opportunities: SerializedOpportunity[] = [];
+    const mapped: SerializedOpportunity[] = [];
     if (queryResult.success && queryResult.data) {
       for (const item of queryResult.data) {
-        // All DB results must be sanitized and converted to API format
-        opportunities.push(mapDbDocumentToSerializedOpportunity(item));
+        mapped.push(mapDbDocumentToSerializedOpportunity(item));
       }
     }
+    const opportunities = await attachOpportunityFeedFields(mapped, viewerUserId)
 
     // Compute pagination cursor for response (for infinite scroll UIs)
     const { nextCursor: lastVisible } = computePaginationCursor(
@@ -315,5 +326,5 @@ export const getOpportunities = cache(async (
   const userRole = assertKnownUserRole(session.user.role) as UserRolesArray;
 
   // Invoke main query with validated role
-  return getOpportunitiesForRole({ userRole, limit, startAfter });
+  return getOpportunitiesForRole({ userRole, limit, startAfter, viewerUserId: session.user.id });
 });

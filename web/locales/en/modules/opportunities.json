@@ -669,6 +669,38 @@
     "api_access": {
       "title": "API access",
       "description": "API endpoint access with keys, quotas and metering"
+    },
+    "civic_inquiry": {
+      "title": "Civic Inquiry (311)",
+      "description": "Report a municipal utility issue, road hazard, or official request to city services."
+    },
+    "urban_improvement": {
+      "title": "Urban Improvement Proposal",
+      "description": "Propose an upgrade for a city park, public square, playground, or green neighborhood space."
+    },
+    "volunteer_initiative": {
+      "title": "Volunteer Initiative",
+      "description": "Organize a community cleanup, aid drive, animal shelter support, or mutual assistance effort."
+    },
+    "community_mutual_aid": {
+      "title": "Community Mutual Aid",
+      "description": "Share generators, tools, emergency items, or offer neighborhood peer-to-peer assistance."
+    },
+    "education_initiative": {
+      "title": "Educational Workshop & Meetup",
+      "description": "Host free lectures, youth coding classes, community skill-shares, or study circles."
+    },
+    "city_tender": {
+      "title": "City Tender & Subcontract",
+      "description": "Publish requests for municipal work bids, materials supply, or local services."
+    },
+    "local_vacancy": {
+      "title": "Local Job & Internship",
+      "description": "Post career opportunities or apprenticeships in municipal enterprises and local businesses."
+    },
+    "civic_petition": {
+      "title": "Civic Petition & Community Vote",
+      "description": "Collect signatures for a municipal proposal or initiate a local citizen consultation."
     }
   },
   "form": {
@@ -846,6 +878,16 @@
   "applicantsApplied": "{count} applied",
   "verified": "Verified",
   "trustScore": "Trust: {score}/100",
+  "like": "Like",
+  "notInterested": "Not interested",
+  "hiddenFromFeed": "Hidden from your feed",
+  "undo": "Undo",
+  "contact": "Contact",
+  "fromChat": "From chat",
+  "postedAgo": "Posted {time}",
+  "expiresOn": "Expires {date}",
+  "deadlineSoon": "Deadline soon",
+  "member": "Member",
   "fullDescription": "Full Description",
   "requested": "Requested",
   "requestAction": "Request",

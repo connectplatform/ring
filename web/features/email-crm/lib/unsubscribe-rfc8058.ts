@@ -184,7 +184,9 @@ export async function assertRfc8058Target(
   } = {}
 ): Promise<URL> {
   const allowHosts = options.allowHosts ?? RFC8058_DEFAULT_ALLOW_HOSTS
-  const lookup = options.lookup ?? dnsLookup
+  // Annotate with LookupAll so the overloaded dns/promises `lookup` resolves
+  // to the all:true overload instead of poisoning the return with a union.
+  const lookup: LookupAll = options.lookup ?? dnsLookup
   let url: URL
   try {
     url = new URL(rawUrl)

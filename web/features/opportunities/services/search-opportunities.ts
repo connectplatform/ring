@@ -20,6 +20,8 @@ import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
+import { getViewerHiddenOpportunityIds } from '@/features/opportunities/services/get-viewer-interactions'
+import { attachOpportunityFeedFields } from '@/features/opportunities/services/attach-opportunity-feed-fields'
 
 /**
  * Search parameters interface for comprehensive opportunity search
@@ -126,6 +128,14 @@ export const searchOpportunities = cache(async (
       ...buildOpportunityVisibilityFilters(userRole),
     ]
     const filtersApplied: string[] = ['role_visibility']
+
+    if (userId) {
+      const hiddenIds = await getViewerHiddenOpportunityIds(userId)
+      if (hiddenIds.length > 0) {
+        filters.push({ field: 'id', operator: 'not-in', value: hiddenIds })
+        filtersApplied.push('hidden_excluded')
+      }
+    }
 
     // Type filtering
     if (params.types && params.types.length > 0) {
@@ -314,9 +324,10 @@ export const searchOpportunities = cache(async (
       const queryResult = await db().queryDocs(dbQuery)
 
       if (queryResult.success && queryResult.data) {
-        opportunities = queryResult.data.map((item) =>
+        const mapped = queryResult.data.map((item) =>
           mapDbDocumentToSerializedOpportunity(item),
         )
+        opportunities = await attachOpportunityFeedFields(mapped, userId)
 
         lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null
       }

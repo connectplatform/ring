@@ -9,6 +9,8 @@ import { CreditRewardReceivedListener } from '@/features/wallet/components/credi
 import { GlobalTunnelListeners } from '@/components/providers/global-tunnel-listeners'
 import { DocumentHtmlLang } from '@/components/layout/document-html-lang'
 import { getBrandName } from '@/lib/site-branding'
+import { getUserOnboardingPendingSegments } from '@/features/onboarding/server'
+import { UserOnboardingGate } from '@/features/onboarding/components/user-onboarding-gate'
 import type { Locale } from '@/i18n/shared'
 
 export interface LocaleAppChromeProps {
@@ -25,7 +27,7 @@ export interface LocaleAppChromeProps {
  * Single locale shell — I18n, notifications, navigation, content frame.
  * Mounted once per [locale] segment; auth guards live in nested layouts only.
  */
-export function LocaleAppChrome({
+export async function LocaleAppChrome({
   locale,
   messages,
   hreflangPath,
@@ -33,6 +35,11 @@ export function LocaleAppChrome({
   variant = 'full',
   children,
 }: LocaleAppChromeProps) {
+  // Pending user-segment onboarding (authenticated users with missing profile
+  // data subsets). Guests / fully-onboarded users get an empty list.
+  const pendingOnboardingSegments =
+    variant === 'full' ? await getUserOnboardingPendingSegments() : []
+
   return (
     <I18nProvider locale={locale} messages={messages}>
       <DocumentHtmlLang />
@@ -41,6 +48,10 @@ export function LocaleAppChrome({
         {/* Must sit under NextIntlClientProvider — banners use useTranslations + next-intl router. */}
         <GlobalTunnelListeners />
         <CreditRewardReceivedListener />
+        <UserOnboardingGate
+          pendingSegments={pendingOnboardingSegments}
+          locale={locale}
+        />
         {showReferralAttribution && variant === 'full' ? <ReferralAttributionEffect /> : null}
         {variant === 'minimal' ? (
           <div className="flex min-h-screen flex-col bg-background">

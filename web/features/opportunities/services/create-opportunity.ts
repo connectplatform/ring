@@ -267,7 +267,15 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
     await syncOpportunityDiscovery({
       opportunityId: createdOpportunity.id,
       event: 'created',
-      snippet: createdOpportunity as unknown as Record<string, unknown>,
+      // Live-inserted feed cards need the creator snapshot too (no refetch on tunnel events).
+      snippet: {
+        ...(createdOpportunity as unknown as Record<string, unknown>),
+        creator: {
+          id: userId,
+          name: session.user.name || '',
+          avatar: session.user.image || undefined,
+        },
+      },
     })
 
     // Credit reward for requests (and first-class contribution quests)

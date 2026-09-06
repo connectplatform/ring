@@ -201,12 +201,13 @@ ring_compose_dev_merge() {
   # Layer1 community tree — skip DX/empire link targets & secrets; KEEP ring-config (overlay wins).
   # Anchor /scripts /cli /k8s — unanchored `scripts` also matches public/scripts, and
   # --delete then wipes dest analytics.js (Next serves homepage HTML for those URLs).
+  # NOTE: features/crm is NOT excluded — prod CI keeps features/crm/orders (auth/wallet
+  # imports); excluding it here caused dev .dev-merge tsc TS2307 debt (dev/prod parity).
   rsync -a --checksum --delete --safe-links \
     --exclude node_modules --exclude .next --exclude .git \
     --exclude '.env' --exclude '.env.*' \
     --exclude '.merge-npm-sig' \
     --exclude features/calculator \
-    --exclude features/crm \
     --exclude 'app/[locale]/my-orders' \
     --exclude 'app/[locale]/my-jobs' \
     --exclude 'app/[locale]/admin/crm' \

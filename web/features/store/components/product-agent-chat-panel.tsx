@@ -17,6 +17,7 @@ import { rememberProductAgentContext } from '@/features/store/components/product
 import { ProductAgentCartSummaryBar } from '@/features/store/components/product-agent-cart-summary'
 import { stripProductCardMarkersForDisplay } from '@/features/chat/lib/product-card-marker'
 import { useProductAgentChat } from '@/hooks/use-product-agent-chat'
+import { useOptionalProductAgentChatContext } from '@/features/store/context/product-agent-chat-context'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { Message } from '@/features/chat/types'
@@ -63,6 +64,23 @@ export function ProductAgentChatPanel({
     messagesLoading,
     isAuthenticated,
   } = useProductAgentChat(productId, status === 'authenticated')
+
+  // Unread SSOT sync (optional context — cart rail renders without provider).
+  const chatCtx = useOptionalProductAgentChatContext()
+
+  // Report the bootstrapped server conversation (id + server unread seed).
+  useEffect(() => {
+    if (!chatCtx || !conversation) return
+    chatCtx.registerConversation(conversation.id, conversation.unreadCount ?? 0)
+  }, [chatCtx, conversation])
+
+  // The panel is mounted only where the chat is visible (desktop rail, open
+  // mobile shell, cart rail) — rendered messages count as seen.
+  useEffect(() => {
+    if (!chatCtx) return
+    if (messages.length === 0 && streamingContent === null) return
+    chatCtx.markRead()
+  }, [chatCtx, messages, streamingContent])
 
   const loginReturnTo = useMemo(() => {
     if (typeof window === 'undefined') {
