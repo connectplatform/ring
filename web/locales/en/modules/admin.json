@@ -856,7 +856,8 @@
   },
   "rewardMonitoring": {
     "title": "Reward Monitoring",
-    "subtitle": "Monitor credit reward activity, mint volume, and delivery health."
+    "subtitle": "Monitor credit reward activity, mint volume, and delivery health.",
+    "disabledBanner": "Activity credit rewards are off (credit.rewards.enabled is false). This desk shows history only — new contribution awards will not mint."
   },
   "moderationTabReports": "User reports",
   "diversifyTreasury": "Diversify",

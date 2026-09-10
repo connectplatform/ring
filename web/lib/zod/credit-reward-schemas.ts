@@ -134,6 +134,8 @@ export const RewardCreditAddEventConfigSchema = z.object({
 export const RewardCreditAddEventRuleValueSchema = RewardCreditAddEventRuleSchema
 
 export const CreditRewardsConfigSchema = z.object({
+  /** Global kill switch. Omitted / true = award credit-balance-add events. */
+  enabled: z.boolean().optional().default(true),
   minRole: z.string().optional().default('subscriber'),
   multipliers: z.record(z.string(), z.number().positive()).optional(),
   dailyEarnCap: z.record(z.string(), z.number().nonnegative()).optional(),

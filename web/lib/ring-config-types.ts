@@ -836,6 +836,8 @@ export interface RingConfig {
   }
   credits?: {
     rewards?: {
+      /** Global kill switch. Omitted = true. */
+      enabled?: boolean
       events?: Record<RewardCreditAddEventTrigger, RewardCreditAddEventRule>
       minRole?: string
       multipliers?: Record<string, number>
@@ -857,6 +859,8 @@ export interface RingConfig {
     /** @deprecated Prefer credit.rewards.events — kept for dual-read during migration. */
     creditAddEvents?: Record<string, unknown>
     rewards?: {
+      /** Global kill switch for enqueueRewardCreditAddEvent. Omitted = true. */
+      enabled?: boolean
       minRole?: string
       multipliers?: Record<string, number>
       dailyEarnCap?: Record<string, number>
@@ -986,6 +990,14 @@ export interface RingConfig {
   auth?: {
     /** Domain for `{e164Digits}@{domain}` phone-only accounts. Required for phone login clones. */
     virtualEmailDomain?: string
+  }
+  /**
+   * Which profile-data subsets the user-segment fs-modal requires.
+   * Empty / omitted = none required (date-of-birth is optional).
+   * Known ids match `features/onboarding` OnboardingSegmentId (`date-of-birth` → users.data.birthDate).
+   */
+  user?: {
+    requiredProfileFields?: string[]
   }
   // TODO: Split admin-only props to RingConfigAdmin – safer SSR/CSR.
 }

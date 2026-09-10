@@ -157,6 +157,7 @@ export {
   getCreditUnitToMainCurrencyRate,
   getCreditUnitToMainCurrencyRateString,
   getCreditUnitLabel,
+  isCreditRewardsEnabled,
 } from '@/lib/ring-config-core'
 
 export { getCreditUnitPerNativeToken } from '@/lib/ring-config-chain'

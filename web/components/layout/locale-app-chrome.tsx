@@ -9,6 +9,7 @@ import { CreditRewardReceivedListener } from '@/features/wallet/components/credi
 import { GlobalTunnelListeners } from '@/components/providers/global-tunnel-listeners'
 import { DocumentHtmlLang } from '@/components/layout/document-html-lang'
 import { getBrandName } from '@/lib/site-branding'
+import { isCreditRewardsEnabled } from '@/lib/ring-config-core'
 import { getUserOnboardingPendingSegments } from '@/features/onboarding/server'
 import { UserOnboardingGate } from '@/features/onboarding/components/user-onboarding-gate'
 import type { Locale } from '@/i18n/shared'
@@ -35,8 +36,8 @@ export async function LocaleAppChrome({
   variant = 'full',
   children,
 }: LocaleAppChromeProps) {
-  // Pending user-segment onboarding (authenticated users with missing profile
-  // data subsets). Guests / fully-onboarded users get an empty list.
+  // Pending user-segment onboarding for clones that set
+  // user.requiredProfileFields (empty = no gate). Guests / satisfied users get [].
   const pendingOnboardingSegments =
     variant === 'full' ? await getUserOnboardingPendingSegments() : []
 
@@ -47,7 +48,7 @@ export async function LocaleAppChrome({
       <NotificationProvider>
         {/* Must sit under NextIntlClientProvider — banners use useTranslations + next-intl router. */}
         <GlobalTunnelListeners />
-        <CreditRewardReceivedListener />
+        {isCreditRewardsEnabled() ? <CreditRewardReceivedListener /> : null}
         <UserOnboardingGate
           pendingSegments={pendingOnboardingSegments}
           locale={locale}

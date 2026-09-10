@@ -80,6 +80,7 @@
     "creditBalanceUnitLabel": "points",
     "creditBalanceUnitToMainCurrency": 0.1,
     "rewards": {
+      "enabled": true,
       "minRole": "subscriber",
       "multipliers": {
         "subscriber": 1,
@@ -309,6 +310,9 @@
       "nftGates": true,
       "nftMarketplace": false
     }
+  },
+  "user": {
+    "requiredProfileFields": []
   },
   "theme": {
     "default": "system"

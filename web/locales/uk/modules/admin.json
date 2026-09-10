@@ -855,7 +855,8 @@
   "activityFilterRewards": "Винагороди",
   "rewardMonitoring": {
     "title": "Моніторинг винагород",
-    "subtitle": "Відстежуйте кредитні винагороди, обсяг mint і стан доставки."
+    "subtitle": "Відстежуйте кредитні винагороди, обсяг mint і стан доставки.",
+    "disabledBanner": "Активні кредитні винагороди вимкнено (credit.rewards.enabled = false). Ця панель показує лише історію — нові нагороди за внески не нараховуються."
   },
   "moderationTabReports": "Скарги користувачів",
   "crmTaskEscrows": "Ескроу задач"

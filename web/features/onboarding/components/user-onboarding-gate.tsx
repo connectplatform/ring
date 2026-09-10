@@ -3,9 +3,9 @@
 /**
  * User-segment onboarding gate — fullscreen fs-modal queue.
  *
- * Shows one dedicated screen per missing profile-data segment, in registry
- * order. "Maybe later" snoozes a segment for 7 days (localStorage); saving is
- * authoritative server-side, so a completed segment never returns.
+ * Shows one dedicated screen per *required* missing profile-data segment
+ * (`user.requiredProfileFields` in ring-config). "Maybe later" snoozes a
+ * segment for 7 days (localStorage); saving is authoritative server-side.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'

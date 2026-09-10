@@ -115,6 +115,12 @@ export function StorePaymentMethodsProvider({
   /** Last selected fiat — used so rail toggle returns to user preference, not always default. */
   const lastFiatRef = React.useRef<StorePaymentMethods>(MAIN_CURRENCY)
 
+  const persistCurrencyPreference = (newCurrency: StorePaymentMethods) => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('ring-currency', newCurrency)
+    document.cookie = `ring-currency=${newCurrency}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
+  }
+
   useEffect(() => {
     setMounted(true)
     if (typeof window === 'undefined') return
@@ -137,16 +143,22 @@ export function StorePaymentMethodsProvider({
         )
         const prefs = await getUserStorePreferences()
         const serverCurrency = prefs?.preferredDisplayCurrency
-        if (serverCurrency && isDisplayCurrency(serverCurrency)) {
-          preferred = serverCurrency
-        } else if (isDisplayCurrency(cookieCurrency)) {
-          preferred = cookieCurrency
-        } else if (isDisplayCurrency(savedCurrency)) {
-          preferred = savedCurrency
+        if (serverCurrency === NATIVE_TOKEN) {
+          preferred = NATIVE_TOKEN
+        } else if (serverCurrency === MAIN_CURRENCY) {
+          preferred = MAIN_CURRENCY
+        } else if (cookieCurrency === NATIVE_TOKEN || savedCurrency === NATIVE_TOKEN) {
+          preferred = NATIVE_TOKEN
+        } else {
+          // Left-rail is main ↔ native only. Ignore leftover USD cookies after main→UAH.
+          preferred = MAIN_CURRENCY
         }
       } catch {
-        if (isDisplayCurrency(cookieCurrency)) preferred = cookieCurrency
-        else if (isDisplayCurrency(savedCurrency)) preferred = savedCurrency
+        if (cookieCurrency === NATIVE_TOKEN || savedCurrency === NATIVE_TOKEN) {
+          preferred = NATIVE_TOKEN
+        } else {
+          preferred = MAIN_CURRENCY
+        }
       }
 
       // Live FX via ring-oracle SSOT — matches server checkout convert*.
@@ -164,6 +176,7 @@ export function StorePaymentMethodsProvider({
       if (preferred !== NATIVE_TOKEN) {
         lastFiatRef.current = preferred
       }
+      persistCurrencyPreference(preferred)
       setCurrencyState(preferred)
     }
 
@@ -172,12 +185,6 @@ export function StorePaymentMethodsProvider({
       cancelled = true
     }
   }, [])
-
-  const persistCurrencyPreference = (newCurrency: StorePaymentMethods) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem('ring-currency', newCurrency)
-    document.cookie = `ring-currency=${newCurrency}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-  }
 
   const setCurrency = useCallback((newCurrency: StorePaymentMethods) => {
     if (!isDisplayCurrency(newCurrency)) {
@@ -205,13 +212,9 @@ export function StorePaymentMethodsProvider({
   }, [])
 
   const toggleCurrency = useCallback(() => {
-    // Binary toggle: fiat preference ↔ native token (matches left-rail UX).
+    // Left-rail is binary: store.mainCurrency ↔ native token (not leftover USD).
     if (currency === NATIVE_TOKEN) {
-      const fiat =
-        lastFiatRef.current !== NATIVE_TOKEN && isDisplayCurrency(lastFiatRef.current)
-          ? lastFiatRef.current
-          : MAIN_CURRENCY
-      setCurrency(fiat)
+      setCurrency(MAIN_CURRENCY)
       return
     }
     setCurrency(NATIVE_TOKEN)
@@ -223,18 +226,24 @@ export function StorePaymentMethodsProvider({
    */
   const convertPrice = useCallback(
     (amount: number, from: StorePaymentMethods, to: StorePaymentMethods): number => {
-      if (typeof amount !== 'number' || Number.isNaN(amount)) {
-        throw new Error('[convertPrice] Amount must be a number')
+      if (typeof amount !== 'number' || Number.isNaN(amount) || !Number.isFinite(amount)) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[convertPrice] Amount must be a finite number')
+        }
+        return 0
       }
       const fromCode = resolveStorePriceCurrency(from)
       const toCode = resolveStorePriceCurrency(to)
       if (fromCode === toCode) return amount
 
       const result = liveRates
-        ? convertViaRates(amount, fromCode, toCode, liveRates, MAIN_CURRENCY)
+        ? convertViaRates(amount, fromCode, toCode, liveRates, MAIN_CURRENCY, NATIVE_TOKEN)
         : convertFromMainCurrency(convertToMainCurrency(amount, fromCode), toCode)
       if (!(result >= 0) || !Number.isFinite(result)) {
-        throw new Error(`[convertPrice] Computed result invalid: ${result}`)
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`[convertPrice] Computed result invalid: ${result}`)
+        }
+        return amount
       }
       return result
     },
@@ -247,8 +256,15 @@ export function StorePaymentMethodsProvider({
 
     // Native token / non-ISO codes — Intl currency style would throw on these.
     if (code === NATIVE_TOKEN || !/^[A-Z]{3}$/.test(code)) {
-      const digits = Math.abs(amount) < 1e-2 || Math.abs(amount) > 1e6 ? 8 : 2
-      return `${amount.toFixed(digits)} ${code}`
+      const abs = Math.abs(amount)
+      let digits = 2
+      if (abs > 0 && abs < 0.01) digits = 6
+      else if (abs < 1) digits = 4
+      let formatted = amount.toFixed(digits)
+      if (formatted.includes('.')) {
+        formatted = formatted.replace(/0+$/, '').replace(/\.$/, '')
+      }
+      return `${formatted} ${code}`
     }
 
     try {
@@ -325,4 +341,16 @@ export function useDisplayPrice(amount: number, fromCurrency?: StorePaymentMetho
     [amount, currencyContext, fromCurrency],
   )
   return mounted ? display : `${amount.toFixed(2)}`
+}
+
+/** Left-rail glyph: native mark vs main-currency fiat (₴ when main is UAH). */
+export function storeRailCurrencyGlyph(
+  currency: string,
+  mainCurrency: string,
+  nativeTokenCurrency: string,
+): string {
+  if (currency === nativeTokenCurrency) return 'Ⓡ'
+  if (mainCurrency === 'UAH') return '₴'
+  if (mainCurrency === 'USD') return '$'
+  return mainCurrency
 }

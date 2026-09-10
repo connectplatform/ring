@@ -1,9 +1,12 @@
 /**
  * Pure FX convert helpers — client-safe (no server-only).
- * Shared by currency-context (browser) and optionally ring-config-core.
+ * Shared by currency-context (browser) and ring-config-core.
  *
- * `rates` is units-per-1-base style (main usually = 1). Same math as
- * ring-config-core convertTo/FromMainCurrency.
+ * Two rate conventions live in the same `exchangeRates` table:
+ * - Fiat (when `rates[main] === 1`): `rates[code]` is *code units per 1 main*
+ *   (e.g. main=UAH, USD=0.02222 → 1 UAH = 0.02222 USD).
+ * - Native token: `rates[native]` is *main units per 1 native* (membership / oracle
+ *   SSOT, e.g. DAARION=45000 → 1 DAARION = 45000 UAH). Invert vs fiat math.
  */
 
 export function convertToMainWithRates(
@@ -11,6 +14,7 @@ export function convertToMainWithRates(
   currencyCode: string | undefined,
   rates: Record<string, number>,
   main: string,
+  nativeTokenSymbol?: string,
 ): number {
   if (!Number.isFinite(amount)) return 0
   const code = (currencyCode || main).trim().toUpperCase()
@@ -28,6 +32,13 @@ export function convertToMainWithRates(
   ) {
     return amount
   }
+
+  const native = nativeTokenSymbol?.trim().toUpperCase()
+  if (native && code === native) {
+    // amount_native × (main per native) / (main per main-unit)
+    return (amount * fromRate) / mainRate
+  }
+  // Fiat: amount_code × mainRate / (code per 1 main)
   return (amount * mainRate) / fromRate
 }
 
@@ -36,6 +47,7 @@ export function convertFromMainWithRates(
   currencyCode: string | undefined,
   rates: Record<string, number>,
   main: string,
+  nativeTokenSymbol?: string,
 ): number {
   if (!Number.isFinite(amount)) return 0
   const code = (currencyCode || main).trim().toUpperCase()
@@ -51,6 +63,11 @@ export function convertFromMainWithRates(
     Number.isFinite(mainRate) &&
     mainRate > 0
   ) {
+    const native = nativeTokenSymbol?.trim().toUpperCase()
+    if (native && code === native) {
+      // amount_main / (main per native)
+      return (amount * mainRate) / toRate
+    }
     return (amount * toRate) / mainRate
   }
   return amount
@@ -63,7 +80,8 @@ export function convertViaRates(
   to: string,
   rates: Record<string, number>,
   main: string,
+  nativeTokenSymbol?: string,
 ): number {
-  const inMain = convertToMainWithRates(amount, from, rates, main)
-  return convertFromMainWithRates(inMain, to, rates, main)
+  const inMain = convertToMainWithRates(amount, from, rates, main, nativeTokenSymbol)
+  return convertFromMainWithRates(inMain, to, rates, main, nativeTokenSymbol)
 }

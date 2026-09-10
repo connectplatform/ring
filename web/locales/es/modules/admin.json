@@ -855,7 +855,8 @@
   },
   "rewardMonitoring": {
     "title": "Monitoreo de recompensas",
-    "subtitle": "Supervise la actividad de recompensas de crédito, volumen de mint y salud de entrega."
+    "subtitle": "Supervise la actividad de recompensas de crédito, volumen de mint y salud de entrega.",
+    "disabledBanner": "Las recompensas de crédito por actividad están desactivadas (credit.rewards.enabled = false). Este panel muestra solo historial — no se mintearán nuevos premios por contribución."
   },
   "moderationTabReports": "Informes de usuarios",
   "crmTaskEscrows": "Depósitos de tareas"

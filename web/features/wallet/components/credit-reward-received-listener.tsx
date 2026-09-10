@@ -12,7 +12,7 @@ import { useTunnelChannel } from '@/hooks/use-tunnel-channel'
 import { toast } from '@/hooks/use-toast'
 import { NotificationType } from '@/features/notifications/types'
 import CreditRewardReceivedFsModal from '@/features/wallet/components/credit-reward-received-fs-modal'
-import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
+import { getClientCreditUnitLabel, isClientCreditRewardsEnabled } from '@/lib/ring-config-client'
 
 type InboxPayload = {
   type?: string
@@ -34,6 +34,7 @@ type InboxPayload = {
 }
 
 export function CreditRewardReceivedListener() {
+  const rewardsEnabled = isClientCreditRewardsEnabled()
   const { data: session } = useSession()
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState('0')
@@ -63,9 +64,11 @@ export function CreditRewardReceivedListener() {
 
   useTunnelChannel<InboxPayload>({
     channel: 'notifications:inbox',
-    enabled: Boolean(session?.user?.id),
+    enabled: rewardsEnabled && Boolean(session?.user?.id),
     onMessage,
   })
+
+  if (!rewardsEnabled) return null
 
   return (
     <CreditRewardReceivedFsModal

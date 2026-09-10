@@ -378,12 +378,17 @@ export async function buildMessages(
 ): Promise<JsonRecord> {
   const loc = normalizeLocale(locale)
   const messages = await buildCachedLocaleMessages(loc, scope)
-  const { loadOverlayMessages } = await import('@/lib/overlay/runtime')
+  const { loadPackMessages, loadOverlayMessages } = await import('@/lib/overlay/runtime')
+  const pack = await loadPackMessages(loc)
   const overlay = await loadOverlayMessages(loc)
+  const withPack =
+    pack && typeof pack === 'object'
+      ? mergeJsonRecords(messages, pack as JsonRecord)
+      : messages
   const merged =
     overlay && typeof overlay === 'object'
-      ? mergeJsonRecords(messages, overlay as JsonRecord)
-      : messages
+      ? mergeJsonRecords(withPack, overlay as JsonRecord)
+      : withPack
   return applyCloneSiteNameToMessages(merged, getPlatformIdentity().name) as JsonRecord
 }
 

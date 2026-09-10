@@ -1,5 +1,5 @@
 
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import { getSystemConfigSnapshot, isCreditRewardsEnabled } from '@/lib/ring-config-core'
 import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
 export type { EvmContractConfig, EvmStakingConfig, EvmStakingSlotConfig } from '@/features/staking/adapters/evm';
 export type { SolanaStakingSlotConfig, SolanaStakingConfig } from '@/features/staking/adapters/solana';
@@ -398,6 +398,7 @@ export function getRewardCreditRules(): Record<string, unknown> {
 }
 
 function getCreditRewardsBlock(): {
+  enabled?: boolean
   minRole?: string
   multipliers?: Record<string, number>
   dailyEarnCap?: Record<string, number>
@@ -405,6 +406,7 @@ function getCreditRewardsBlock(): {
   const snapshot = getSystemConfigSnapshot() as {
     credit?: {
       rewards?: {
+        enabled?: boolean
         minRole?: string
         multipliers?: Record<string, number>
         dailyEarnCap?: Record<string, number>
@@ -412,6 +414,7 @@ function getCreditRewardsBlock(): {
     }
     credits?: {
       rewards?: {
+        enabled?: boolean
         minRole?: string
         multipliers?: Record<string, number>
         dailyEarnCap?: Record<string, number>
@@ -446,6 +449,7 @@ export function getPublicRewardCatalog(): Array<{
   enabled: boolean
   idempotencyMode: string
 }> {
+  if (!isCreditRewardsEnabled()) return []
   const rules = getRewardCreditRules()
   return Object.entries(rules).map(([trigger, raw]) => {
     const rule = (raw ?? {}) as {

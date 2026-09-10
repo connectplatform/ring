@@ -29,6 +29,7 @@ import {
   getRewardMultiplierForRole,
   getRewardDailyEarnCap,
 } from '@/lib/ring-config-chain'
+import { isCreditRewardsEnabled } from '@/lib/ring-config-core'
 import { getMainCurrencyCreditAccountingRate } from '@/lib/ring-oracle'
 import { computeRewardFinalAmount } from '@/lib/wallet/reward-credit-math'
 import {
@@ -120,6 +121,10 @@ export async function enqueueRewardCreditAddEvent(params: {
   objectType?: string
   objectId?: string
 }): Promise<EnqueueRewardResult> {
+  if (!isCreditRewardsEnabled()) {
+    return { status: 'skipped', reason: 'rewards_disabled' }
+  }
+
   const ruleConfig = ruleForTrigger(params.trigger)
   if (!ruleConfig) {
     return { status: 'skipped', reason: 'no_rule' }

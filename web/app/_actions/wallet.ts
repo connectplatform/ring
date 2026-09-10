@@ -1710,6 +1710,11 @@ export async function getRewardCreditAddEventSummary(): Promise<WalletActionResu
       return { success: false, error: 'Authentication required' }
     }
 
+    const { isCreditRewardsEnabled } = await import('@/lib/ring-oracle')
+    if (!isCreditRewardsEnabled()) {
+      return { success: true, totalReceived: '0', byTrigger: {} }
+    }
+
     // Aggregate per-trigger sources of reward credit events for analytics/reward screens
     const { getUserRewardCreditAddEventSummary } = await import('@/lib/wallet/reward-credit-service')
     const summary = await getUserRewardCreditAddEventSummary(session.user.id)
@@ -1750,7 +1755,17 @@ export async function getRewardQuestBoard(): Promise<WalletActionResult & {
 
     const { getUserRewardCreditAddEventSummary } = await import('@/lib/wallet/reward-credit-service')
     const { getPublicRewardCatalog } = await import('@/lib/ring-config-chain')
-    const { getCreditUnitLabel } = await import('@/lib/ring-oracle')
+    const { getCreditUnitLabel, isCreditRewardsEnabled } = await import('@/lib/ring-oracle')
+
+    if (!isCreditRewardsEnabled()) {
+      return {
+        success: true,
+        unitLabel: getCreditUnitLabel(),
+        totalReceived: '0',
+        byTrigger: {},
+        catalog: [],
+      }
+    }
 
     const summary = await getUserRewardCreditAddEventSummary(session.user.id)
     return {

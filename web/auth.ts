@@ -379,10 +379,15 @@ const nextAuthApp = NextAuth({
       },
     }),
 
-    // Apple OAuth provider for Apple SSO
-    AppleProvider({
-      allowDangerousEmailAccountLinking: true,
-    }),
+    // Apple Sign In is disabled on login widgets. Keep the provider unregistered
+    // unless AUTH_APPLE_ID/SECRET are both set (legacy sessions / explicit re-enable).
+    ...(process.env.AUTH_APPLE_ID?.trim() && process.env.AUTH_APPLE_SECRET?.trim()
+      ? [
+          AppleProvider({
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
 
     // Telegram Web Login OIDC (oauth.telegram.org) — only when BotFather Client ID/Secret set
     ...(isTelegramOidcConfigured()
@@ -636,6 +641,10 @@ const nextAuthApp = NextAuth({
         token.organization = (user as any).organization
         token.position = (user as any).position
         token.photoURL = user.image || (user as any).photoURL
+        const telegramIdFromUser = (user as { telegramId?: string }).telegramId
+        if (telegramIdFromUser) {
+          token.telegramId = normalizeTelegramAccountId(telegramIdFromUser)
+        }
         if (account) {
           // For new connection, generate internal WS-auth JWT in accessToken field.
           try {
@@ -652,10 +661,11 @@ const nextAuthApp = NextAuth({
           }
           token.refreshToken = account.refresh_token
           token.provider = account.provider
-          if (account.provider === 'telegram') {
-            const fromUser = (user as { telegramId?: string }).telegramId
-            const fromAccount = account.providerAccountId
-            token.telegramId = normalizeTelegramAccountId(fromUser || fromAccount)
+          if (
+            !token.telegramId &&
+            (account.provider === 'telegram' || account.provider === 'telegram-miniapp')
+          ) {
+            token.telegramId = normalizeTelegramAccountId(account.providerAccountId)
           }
         }
         // Shared vitals gate: email magic/OTP + crypto-wallet/wagmi

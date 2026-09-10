@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from '@/i18n/routing'
 import { ROUTES } from '@/constants/routes'
 import { getRewardQuestBoard } from '@/app/_actions/wallet'
-import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
+import { getClientCreditUnitLabel, isClientCreditRewardsEnabled } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
 
 type RewardTrigger =
@@ -98,6 +98,7 @@ export function UserProgressWidget({
   const t = useTranslations('modules.profile')
   const router = useRouter()
   const [, startTransition] = useTransition()
+  const rewardsEnabled = isClientCreditRewardsEnabled()
   const creditBalanceUnitFallback = getClientCreditUnitLabel()
 
   const [unitLabel, setUnitLabel] = useState(creditBalanceUnitFallback)
@@ -108,6 +109,7 @@ export function UserProgressWidget({
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
+    if (!rewardsEnabled) return
     let cancelled = false
     startTransition(() => {
       void getRewardQuestBoard().then((result) => {
@@ -137,7 +139,7 @@ export function UserProgressWidget({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [rewardsEnabled])
 
   const loc = locale.toLowerCase() as Locale
 
@@ -269,6 +271,8 @@ export function UserProgressWidget({
     100,
     Math.round((completedCount / Math.max(actions.length, 1)) * 100),
   )
+
+  if (!rewardsEnabled) return null
 
   return (
     <div className={cn(davinciGlassSurface, 'overflow-hidden')}>

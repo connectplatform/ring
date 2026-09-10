@@ -107,6 +107,7 @@ import {
 import { SessionForensicsWidget } from './session-forensics-widget'
 import { UserProgressWidget } from './user-progress-widget'
 import { ProfileHeroBalances } from './profile-hero-balances'
+import { isClientCreditRewardsEnabled } from '@/lib/ring-config-client'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import type { AuthUser } from '@/features/auth/types'
 import { displayEmailClient, isVirtualEmailClient } from '@/lib/auth/virtual-email-client'
@@ -752,8 +753,8 @@ export default function ProfileContent({
             </div>
           </div>
 
-          {/* Reward quests — expand for stacked reward-credit-add events */}
-          {mounted && (
+          {/* Reward quests — hidden when credit.rewards.enabled is false */}
+          {mounted && isClientCreditRewardsEnabled() && (
             <UserProgressWidget
               usernameSet={!!user.username}
               bioSet={!!((user as any)?.bio)}

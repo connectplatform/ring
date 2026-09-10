@@ -4,7 +4,7 @@
  * @see docs/en/customization/vertical-presets.mdx
  */
 
-import { getOverlayFeature } from '@/lib/ring-config-core'
+import { getOverlayFeature, getPresetPack } from '@/lib/ring-config-core'
 import {
   OVERLAY_HOME_RAIL_REGISTRY,
   OVERLAY_I18N_REGISTRY,
@@ -30,6 +30,23 @@ function asI18nModule(mod: unknown): OverlayI18nModule | null {
     return def as OverlayI18nModule
   }
   return null
+}
+
+/**
+ * L2 pack locale overlay. L1 ships empty locales/{locale}/pack.json so webpack
+ * always resolves the import; a pack overwrites the file at compose.
+ * Skip when presets.pack is unset (bare L1 / empire).
+ */
+export async function loadPackMessages(locale: string): Promise<OverlayMessages> {
+  if (!getPresetPack()) return {}
+  const loc = locale === 'uk' || locale === 'ru' || locale === 'es' || locale === 'de' ? locale : 'en'
+  try {
+    const mod = await import(`@/locales/${loc}/pack.json`)
+    const rec = (mod.default ?? mod) as OverlayMessages
+    return rec && typeof rec === 'object' && !Array.isArray(rec) ? rec : {}
+  } catch {
+    return {}
+  }
 }
 
 export async function loadOverlayMessages(locale: string): Promise<OverlayMessages> {

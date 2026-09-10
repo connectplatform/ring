@@ -22,6 +22,7 @@ import {
   getCreditUnitToMainCurrencyRate,
   getMainCurrencySymbol,
   getSystemConfigSnapshot,
+  isCreditRewardsEnabled,
 } from '@/lib/ring-config-core'
 import type { SupportedCurrencies } from '@/lib/ring-config-core'
 import { getNativeTokenSymbol, isNativeTokenOnrampEnabled as isNativeTokenOnrampEnabledServer } from '@/lib/ring-config-chain'
@@ -55,6 +56,11 @@ export function getClientMainCurrency(): SupportedCurrencies {
 /** Display label for the credit balance unit (ring-config.json → credit.creditBalanceUnitLabel). */
 export function getClientCreditUnitLabel(): string {
   return getCreditUnitLabel()
+}
+
+/** Client gate: activity credit rewards + UserProgressWidget. SSOT `credit.rewards.enabled`. */
+export function isClientCreditRewardsEnabled(): boolean {
+  return isCreditRewardsEnabled()
 }
 
 /**

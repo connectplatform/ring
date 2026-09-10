@@ -45,7 +45,7 @@ import {
 } from '@/lib/navigation/desktop-primary-nav'
 import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
-import { useStorePaymentMethods } from '@/features/store/currency-context'
+import { storeRailCurrencyGlyph, useStorePaymentMethods } from '@/features/store/currency-context'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 import { AdminSupermenuToggle } from './admin-supermenu'
@@ -518,13 +518,7 @@ export function SidebarSyncedLayout({
                   : `Switch to ${nativeTokenCurrency}`
               }
             >
-              {currency === nativeTokenCurrency
-                ? 'Ⓡ'
-                : currency === 'UAH'
-                  ? '₴'
-                  : currency === 'USD'
-                    ? '$'
-                    : currency}
+              {storeRailCurrencyGlyph(currency, mainCurrency, nativeTokenCurrency)}
             </button>
           )}
           <LocaleCodeMenu variant="footer" />

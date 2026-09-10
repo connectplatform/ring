@@ -14,10 +14,13 @@ import {
   YAxis,
 } from 'recharts'
 import { AlertCircle, CheckCircle2, Coins, Loader2, OctagonX, Users } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ROUTES } from '@/constants/routes'
+import { isClientCreditRewardsEnabled } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
 import type { RewardStatsRange } from '@/lib/admin/reward-stats'
 
@@ -69,6 +72,8 @@ function eventTime(event: RewardEvent): string {
 }
 
 export function AdminRewardsDashboard({ locale }: { locale: Locale }) {
+  const t = useTranslations('modules.admin.rewardMonitoring')
+  const rewardsEnabled = isClientCreditRewardsEnabled()
   const [range, setRange] = useState<RewardStatsRange>('28d')
   const [stats, setStats] = useState<RewardStats | null>(null)
   const [events, setEvents] = useState<RewardEvent[]>([])
@@ -162,6 +167,13 @@ export function AdminRewardsDashboard({ locale }: { locale: Locale }) {
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      {!rewardsEnabled ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{t('disabledBanner')}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard title="Completed rewards" value={stats.totals.completedCount.toLocaleString()} detail={`Completed events in ${range}`} icon={CheckCircle2} />

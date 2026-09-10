@@ -9,8 +9,7 @@ import { LocalePageProps } from '@/utils/page-props'
 import { ROUTES } from '@/constants/routes'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { safePostAuthRedirect } from '@/lib/auth/safe-post-auth-redirect'
-import { getCreditUnitLabel } from '@/lib/ring-config-core'
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import { getCreditUnitLabel, getSystemConfigSnapshot, isCreditRewardsEnabled } from '@/lib/ring-config-core'
 import VitalsOnboardingClient from '@/features/auth/components/vitals-onboarding-client'
 import type { VitalsRewardHint } from '@/features/auth/components/vitals-onboarding-form'
 
@@ -41,6 +40,7 @@ export async function generateMetadata({
 }
 
 function buildRewardHints(): VitalsRewardHint[] {
+  if (!isCreditRewardsEnabled()) return []
   const credit = getSystemConfigSnapshot().credit as
     | {
         rewards?: {

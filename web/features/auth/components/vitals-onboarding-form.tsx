@@ -20,6 +20,7 @@ import {
 } from '@/app/_actions/vitals-onboarding'
 import { ROUTES } from '@/constants/routes'
 import { shortenAddress } from '@/features/evm/utils'
+import { isClientCreditRewardsEnabled } from '@/lib/ring-config-client'
 
 export type VitalsRewardHint = {
   event: string
@@ -60,6 +61,7 @@ function OnboardingBrief({
   creditBalanceUnitLabel: string
 }) {
   const t = useTranslations('modules.auth.onboarding')
+  const rewardsEnabled = isClientCreditRewardsEnabled()
   return (
     <motion.div
       initial={{ opacity: 0, y: -12 }}
@@ -80,8 +82,12 @@ function OnboardingBrief({
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground lg:text-[15px]">
           {isWallet
-            ? t('leadWallet', { unit: creditBalanceUnitLabel })
-            : t('leadEmail', { unit: creditBalanceUnitLabel })}
+            ? rewardsEnabled
+              ? t('leadWallet', { unit: creditBalanceUnitLabel })
+              : t('leadWalletNoRewards')
+            : rewardsEnabled
+              ? t('leadEmail', { unit: creditBalanceUnitLabel })
+              : t('leadEmailNoRewards')}
         </p>
       </div>
     </motion.div>

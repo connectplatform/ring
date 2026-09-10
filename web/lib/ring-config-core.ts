@@ -25,6 +25,11 @@ import type {
   WebpDerivativeProvider,
 } from '@/lib/ring-config-types'
 import { getFxOverlayRates } from '@/lib/fx/fx-rates-overlay'
+import {
+  convertFromMainWithRates,
+  convertToMainWithRates,
+} from '@/lib/fx/convert-with-rates'
+import { resolveCreditRewardsEnabled } from '@/lib/wallet/credit-rewards-gate'
 
 export type {
   InstanceConfig,
@@ -795,7 +800,13 @@ export const getExchangeRates = cache((): Record<string, number> => {
 
   // Live feed overlay (server warm cache from NBU); empty on client until hydrated.
   const overlay = getFxOverlayRates()
+  const native = getNativeTokenSymbol()
+  const staticNativeRate = rates[native]
   if (overlay) Object.assign(rates, overlay)
+  // Fiat FX overlay must not clobber native (main-per-token SSOT in exchangeRates).
+  if (typeof staticNativeRate === 'number' && Number.isFinite(staticNativeRate) && staticNativeRate > 0) {
+    rates[native] = staticNativeRate
+  }
 
   const manual = config.fx?.manualOverrides
   if (manual && typeof manual === 'object') {
@@ -807,9 +818,7 @@ export const getExchangeRates = cache((): Record<string, number> => {
   }
 
   const base = getMainCurrencySymbol()
-  const native = getNativeTokenSymbol()
   if (typeof rates[base] !== 'number') rates[base] = 1
-  if (typeof rates[native] !== 'number') rates[native] = 1
   return rates
 })
 
@@ -892,32 +901,18 @@ export const getMainCurrencyToUsdRate = cache((): number => {
 /**
  * Convert an amount quoted in any configured currency into the main currency.
  *
- * `exchangeRates` is a Record<symbol, units-per-1-base>. When main is the FX base
- * (`rates[main] === 1`), `rates[code]` is *code units per 1 main*, so we divide.
- * When another symbol is the base, we bridge through it. Unknown codes fall back
- * to the identity conversion — never silently zero an order out.
+ * Fiat: `rates[code]` is code units per 1 main when `rates[main]===1`.
+ * Native token: `rates[native]` is main units per 1 native (invert vs fiat).
+ * Unknown codes fall back to identity — never silently zero an order out.
  */
 export function convertToMainCurrency(amount: number, currencyCode?: string): number {
-  if (!Number.isFinite(amount)) return 0
-  const main = getMainCurrencySymbol()
-  const code = (currencyCode || main).trim().toUpperCase()
-  if (!code || code === main) return amount
-
-  const rates = getExchangeRates()
-  const fromRate = rates[code]
-  const mainRate = rates[main]
-  if (
-    typeof fromRate !== 'number' ||
-    !Number.isFinite(fromRate) ||
-    fromRate <= 0 ||
-    typeof mainRate !== 'number' ||
-    !Number.isFinite(mainRate) ||
-    mainRate <= 0
-  ) {
-    return amount
-  }
-
-  return (amount * mainRate) / fromRate
+  return convertToMainWithRates(
+    amount,
+    currencyCode,
+    getExchangeRates(),
+    getMainCurrencySymbol(),
+    getNativeTokenSymbol(),
+  )
 }
 
 /**
@@ -936,16 +931,8 @@ export function convertFromMainCurrency(amount: number, currencyCode?: string): 
 
   const rates = getExchangeRates()
   const toRate = rates[code]
-  const mainRate = rates[main]
-  if (
-    typeof toRate === 'number' &&
-    Number.isFinite(toRate) &&
-    toRate > 0 &&
-    typeof mainRate === 'number' &&
-    Number.isFinite(mainRate) &&
-    mainRate > 0
-  ) {
-    return (amount * toRate) / mainRate
+  if (typeof toRate === 'number' && Number.isFinite(toRate) && toRate > 0) {
+    return convertFromMainWithRates(amount, code, rates, main, getNativeTokenSymbol())
   }
 
   if (code === 'USD') {
@@ -971,6 +958,16 @@ export function getCreditUnitToMainCurrencyRateString(): string {
 export const getCreditUnitLabel = cache((): string => {
   const label = getSystemConfigSnapshot().credit?.creditBalanceUnitLabel
   return typeof label === 'string' && label.trim() ? label.trim() : 'points'
+})
+
+/**
+ * Global gate for activity credit-balance-add rewards (`enqueueRewardCreditAddEvent`).
+ * `credit.rewards.enabled === false` skips awards and hides the profile quest widget.
+ * Omitted key = enabled.
+ */
+export const isCreditRewardsEnabled = cache((): boolean => {
+  const snapshot = getSystemConfigSnapshot()
+  return resolveCreditRewardsEnabled(snapshot.credit?.rewards, snapshot.credits?.rewards)
 })
 
 const DEFAULT_WEBP_MAX_EDGE = 1600

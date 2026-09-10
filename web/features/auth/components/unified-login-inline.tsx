@@ -1,26 +1,12 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
 import type { Locale } from '@/i18n/shared'
 import { useTranslations } from 'next-intl'
-import { ROUTES } from '@/constants/routes'
-import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
-import { Apple, Diamond } from 'lucide-react'
-import { signIn } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import GoogleSignInButtonGIS from './google-signin-button-gis'
 import TelegramSignInButton from './telegram-signin-button'
 import { EmailLoginForm } from './email-login-form'
-
-const DEFAULT_LOCALE = 'en' as const
-
-declare global {
-  interface Window {
-    ethereum?: unknown
-  }
-}
 
 interface UnifiedLoginInlineProps {
   from?: string
@@ -51,34 +37,9 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
   onAuthAction,
 }) => {
   const tAuth = useTranslations('modules.auth')
-  const router = useRouter()
   const [error, setError] = useState<string | null>(() => mapAuthJsError(initialAuthError, tAuth))
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthInProgress, setIsAuthInProgress] = useState(false)
-
-  const handleSignIn = useCallback(
-    async (provider: string) => {
-      onAuthAction?.()
-      try {
-        const activeLocale = (locale ?? DEFAULT_LOCALE) as Locale
-        const callbackUrl = buildOAuthCallbackUrl(from, activeLocale)
-        await signIn(provider, { callbackUrl })
-      } catch (err) {
-        console.error(`${provider} sign-in error:`, err)
-        setError(`Failed to sign in with ${provider}`)
-      }
-    },
-    [from, locale, onAuthAction],
-  )
-
-  const handleCryptoLogin = useCallback(() => {
-    onAuthAction?.()
-    const params = new URLSearchParams()
-    if (from) params.set('from', from)
-    const query = params.toString()
-    const path = ROUTES.WALLET_CONNECT(locale)
-    router.push(query ? `${path}?${query}` : path)
-  }, [from, locale, onAuthAction, router])
 
   const socialBlock = (compact: boolean) => (
     <>
@@ -113,26 +74,6 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
           setIsAuthInProgress(false)
         }}
       />
-      <div className={`grid grid-cols-2 ${compact ? 'gap-2' : 'gap-3'}`}>
-        <Button
-          onClick={() => handleSignIn('apple')}
-          disabled={isLoading}
-          variant="outline"
-          className={compact ? 'h-10 text-xs font-medium' : 'h-12 text-sm font-medium'}
-        >
-          <Apple className={compact ? 'mr-1 h-4 w-4' : 'mr-2 h-5 w-5'} />
-          {tAuth('signIn.providers.apple')}
-        </Button>
-        <Button
-          onClick={handleCryptoLogin}
-          disabled={isLoading}
-          variant="outline"
-          className={compact ? 'h-10 text-xs font-medium' : 'h-12 text-sm font-medium'}
-        >
-          <Diamond className={compact ? 'mr-1 h-4 w-4' : 'mr-2 h-5 w-5'} />
-          {tAuth('signIn.providers.metamask')}
-        </Button>
-      </div>
     </>
   )
 

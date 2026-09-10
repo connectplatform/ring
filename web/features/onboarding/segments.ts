@@ -1,9 +1,10 @@
 /**
  * User-segment onboarding — segment registry.
  *
- * Each segment owns exactly one data subset and one dedicated screen. Add a
- * segment here + a screen in `components/screens/` + the gate renders it
- * automatically for any authenticated user missing that subset.
+ * Each segment owns exactly one data subset and one dedicated screen.
+ * The gate only queues a segment when ring-config `user.requiredProfileFields`
+ * includes its id (empty = optional). Add a screen in `components/screens/`
+ * and list the id on clones that must collect that subset.
  */
 
 import type { OnboardingSegmentId } from './types'

@@ -82,6 +82,9 @@ export default function StoreFiltersPanel({
   // Get currency from SSOT context
   const storeCurrencyContext = useOptionalStorePaymentMethods()
   const displayCurrency = storeCurrencyContext?.currency || MAIN_CURRENCY
+  /** Price slider/API compare catalog amounts (main currency), not display-token units. */
+  const catalogFilterCurrency =
+    displayCurrency === NATIVE_TOKEN ? MAIN_CURRENCY : displayCurrency
   const allowedCurrencies =
     storeCurrencyContext?.displayCurrencies?.length
       ? storeCurrencyContext.displayCurrencies
@@ -113,7 +116,7 @@ export default function StoreFiltersPanel({
       categories: [],
       priceMin: PRICE_MIN,
       priceMax: null,
-      currency: displayCurrency,
+      currency: catalogFilterCurrency,
       vendor: '',
       inStock: null,
       sortBy: 'name-asc',
@@ -185,10 +188,10 @@ export default function StoreFiltersPanel({
 
   // Update currency in filter state if displayCurrency from context changes (e.g. user switches)
   useEffect(() => {
-    if (displayCurrency !== filters.currency) {
-      updateFilters({ currency: displayCurrency })
+    if (catalogFilterCurrency !== filters.currency) {
+      updateFilters({ currency: catalogFilterCurrency })
     }
-  }, [displayCurrency, filters.currency, updateFilters])
+  }, [catalogFilterCurrency, filters.currency, updateFilters])
 
   // Cleanup price slider debounce on component unmount
   useEffect(() => {
@@ -206,14 +209,14 @@ export default function StoreFiltersPanel({
       categories: [],
       priceMin: PRICE_MIN,
       priceMax: priceFilterEnabled ? catalogPriceBounds?.maxPrice ?? sliderMax : null,
-      currency: displayCurrency,
+      currency: catalogFilterCurrency,
       vendor: '',
       inStock: null,
       sortBy: 'name-asc'
     }
     setFilters(clearedFilters)
     onFiltersApplied?.(clearedFilters)
-  }, [priceFilterEnabled, catalogPriceBounds, sliderMax, displayCurrency, onFiltersApplied])
+  }, [priceFilterEnabled, catalogPriceBounds, sliderMax, catalogFilterCurrency, onFiltersApplied])
 
   // Toggle selection of a category chip (add/remove to filters.categories)
   // TODO: If category list is large, replace with controlled virtual list component for efficiency

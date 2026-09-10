@@ -855,7 +855,8 @@
   },
   "rewardMonitoring": {
     "title": "Belohnungsüberwachung",
-    "subtitle": "Credit-Belohnungsaktivität, Mint-Volumen und Zustellungszustand überwachen."
+    "subtitle": "Credit-Belohnungsaktivität, Mint-Volumen und Zustellungszustand überwachen.",
+    "disabledBanner": "Aktivitäts-Credit-Belohnungen sind aus (credit.rewards.enabled = false). Dieses Desk zeigt nur Historie — neue Beitragsprämien werden nicht gemintet."
   },
   "moderationTabReports": "Nutzerberichte",
   "crmTaskEscrows": "Aufgaben-Escrows"

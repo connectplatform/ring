@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useAuth } from '@/hooks/use-auth'
+import TelegramSignInButton from '@/features/auth/components/telegram-signin-button'
 import { useLocale, useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -35,23 +36,12 @@ function MobileMenuGuestAuth({
 }) {
   const tAuth = useTranslations('modules.auth')
   const tNav = useTranslations('navigation')
-  const router = useRouter()
   const pathname = usePathname()
   const locale = useLocale() as Locale
-
-  const handleSignIn = async (provider: 'google' | 'apple' | 'metamask') => {
-    if (provider === 'metamask') {
-      router.push(ROUTES.WALLET_CONNECT(locale))
-      onClose?.()
-      return
-    }
-    const callbackUrl =
-      typeof window !== 'undefined'
-        ? `${window.location.pathname}${window.location.search}`
-        : `/${locale}`
-    await signIn(provider, { callbackUrl })
-    onClose?.()
-  }
+  const callbackUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.pathname}${window.location.search}`
+      : `/${locale}`
 
   return (
     <BorderBeam
@@ -71,7 +61,10 @@ function MobileMenuGuestAuth({
       <div className="flex flex-col gap-3">
         <button
           type="button"
-          onClick={() => handleSignIn('google')}
+          onClick={() => {
+            void signIn('google', { callbackUrl })
+            onClose?.()
+          }}
           className={cn(
             'flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-xl',
             'bg-white text-gray-800 hover:bg-gray-50 font-semibold shadow-lg shadow-black/5',
@@ -86,30 +79,13 @@ function MobileMenuGuestAuth({
           </svg>
           {tAuth('signIn.providers.google')}
         </button>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => handleSignIn('apple')}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
-              'bg-black text-white hover:bg-gray-900 font-semibold shadow-lg',
-              davinciAuthButtonLift
-            )}
-          >
-            {tAuth('signIn.providers.apple')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSignIn('metamask')}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
-              'bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-lg',
-              davinciAuthButtonLift
-            )}
-          >
-            {tAuth('signIn.providers.metamask')}
-          </button>
-        </div>
+        <TelegramSignInButton
+          redirectUrl={pathname}
+          className="w-full"
+          variant="outline"
+          size="lg"
+          onAuthStart={() => onClose?.()}
+        />
       </div>
     </BorderBeam>
   )

@@ -16,7 +16,7 @@ import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
-import { useStorePaymentMethods } from '@/features/store/currency-context'
+import { storeRailCurrencyGlyph, useStorePaymentMethods } from '@/features/store/currency-context'
 import { resolveDesktopPrimaryNav } from '@/lib/navigation/desktop-primary-nav'
 import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { AdminSupermenuToggle } from './admin-supermenu'
@@ -145,7 +145,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
                 : `Switch to ${nativeTokenCurrency}`
             }
           >
-            {currency === nativeTokenCurrency ? 'Ⓡ' : currency === 'UAH' ? '₴' : currency === 'USD' ? '$' : currency}
+            {storeRailCurrencyGlyph(currency, mainCurrency, nativeTokenCurrency)}
           </button>
         )}
         <button
