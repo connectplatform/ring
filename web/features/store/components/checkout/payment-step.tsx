@@ -95,9 +95,11 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
 
       <div className="space-y-3">
         {paymentOptions.map((option) => (
-          <div
+          <button
             key={option.id}
-            className={`border rounded-lg p-4 transition-all ${
+            type="button"
+            disabled={!option.enabled}
+            className={`w-full border rounded-lg p-4 text-left transition-all ${
               option.enabled
                 ? `cursor-pointer ${
                     method === option.id
@@ -134,7 +136,7 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
                 )}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 

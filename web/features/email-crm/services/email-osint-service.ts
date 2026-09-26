@@ -11,7 +11,7 @@ import { EmailMessageService } from '@/features/email-crm/services/email-message
 
 const DNS_TIMEOUT_MS = 3_000
 const DEFAULT_LIMIT = 20
-const SCAN_LIMIT = 200
+const SCAN_LIMIT = 500
 
 export type EmailCrmOsintReport = {
   scanned: number
@@ -22,10 +22,17 @@ export type EmailCrmOsintReport = {
 
 function emailDomain(email: string | null | undefined): string | null {
   const host = String(email || '')
+    .replace(/[<>]/g, '')
     .split('@')[1]
     ?.trim()
     .toLowerCase()
     .replace(/\.+$/, '')
+  return host || null
+}
+
+function domainFromMessageId(messageId: string | null | undefined): string | null {
+  const match = String(messageId || '').match(/@([^>\s]+)>?\s*$/)
+  const host = match?.[1]?.trim().toLowerCase().replace(/\.+$/, '')
   return host || null
 }
 
@@ -38,22 +45,31 @@ function hostFromUrl(raw: string | null | undefined): string | null {
   }
 }
 
-async function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<{ value: T; timedOut: boolean }> {
   let timer: ReturnType<typeof setTimeout> | undefined
+  let timedOut = false
+  const guarded = promise.catch(() => fallback)
   try {
-    return await Promise.race([
-      promise,
+    const value = await Promise.race([
+      guarded,
       new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(fallback), DNS_TIMEOUT_MS)
+        timer = setTimeout(() => {
+          timedOut = true
+          resolve(fallback)
+        }, DNS_TIMEOUT_MS)
       }),
     ])
+    return { value, timedOut }
   } finally {
     if (timer) clearTimeout(timer)
   }
 }
 
-async function lookupDns(domain: string): Promise<EmailOsintDossier['dns']> {
-  const mxRecords = await withTimeout(
+async function lookupDns(domain: string): Promise<{
+  dns: EmailOsintDossier['dns']
+  timedOut: boolean
+}> {
+  const mx = await withTimeout(
     resolveMx(domain).then((rows) =>
       rows
         .slice()
@@ -62,18 +78,21 @@ async function lookupDns(domain: string): Promise<EmailOsintDossier['dns']> {
     ),
     [] as string[]
   )
-  const txtRecords = await withTimeout(
+  const txt = await withTimeout(
     resolveTxt(domain).then((rows) => rows.map((parts) => parts.join(''))),
     [] as string[]
   )
-  const dmarcRecords = await withTimeout(
+  const dmarcLookup = await withTimeout(
     resolveTxt(`_dmarc.${domain}`).then((rows) => rows.map((parts) => parts.join(''))),
     [] as string[]
   )
   return {
-    mx: mxRecords,
-    spf: txtRecords.find((row) => /^v=spf1\b/i.test(row)) ?? null,
-    dmarc: dmarcRecords.find((row) => /^v=dmarc1\b/i.test(row)) ?? null,
+    dns: {
+      mx: mx.value,
+      spf: txt.value.find((row) => /^v=spf1\b/i.test(row)) ?? null,
+      dmarc: dmarcLookup.value.find((row) => /^v=dmarc1\b/i.test(row)) ?? null,
+    },
+    timedOut: mx.timedOut || txt.timedOut || dmarcLookup.timedOut,
   }
 }
 
@@ -88,6 +107,10 @@ async function collectHeaderHosts(thread: EmailThreadRecord & { id: string }): P
     for (const message of messages) {
       const domain = emailDomain(message.fromEmail)
       if (domain) hosts.add(domain)
+      const midHost = domainFromMessageId(message.messageId)
+      if (midHost) hosts.add(midHost)
+      const bounceHost = emailDomain(message.returnPath)
+      if (bounceHost) hosts.add(bounceHost)
     }
   } catch (err) {
     logger.warn('[email-crm-osint] message host scan failed', {
@@ -105,15 +128,17 @@ export async function buildOsintDossier(
   const fromDomain = emailDomain(fromEmail) ?? ''
   const headerHosts = await collectHeaderHosts(thread)
   let dns: EmailOsintDossier['dns'] = { mx: [], spf: null, dmarc: null }
-  let error: string | undefined
+  const errors: string[] = []
   if (fromDomain) {
     try {
-      dns = await lookupDns(fromDomain)
+      const looked = await lookupDns(fromDomain)
+      dns = looked.dns
+      if (looked.timedOut) errors.push('DNS lookup timed out')
     } catch (err) {
-      error = err instanceof Error ? err.message : 'DNS lookup failed'
+      errors.push(err instanceof Error ? err.message : 'DNS lookup failed')
     }
   } else {
-    error = 'Missing from-domain'
+    errors.push('Missing from-domain')
   }
   return {
     enrichedAt: new Date().toISOString(),
@@ -125,7 +150,7 @@ export async function buildOsintDossier(
     dns,
     intent: thread.intent ?? null,
     routeReason: thread.routeFlag ?? null,
-    error,
+    error: errors.length > 0 ? errors.join('; ') : undefined,
   }
 }
 

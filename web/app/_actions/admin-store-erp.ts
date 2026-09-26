@@ -26,6 +26,8 @@ import {
   parseStoreProductFormData,
 } from '@/lib/zod'
 import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
+import { collectProductImageUrls } from '@/features/generative-media/types'
+import { curtainAdvertiseWriteFields } from '@/features/curtain/lib/advertise'
 import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
 import { createProductNodusWikiFromDraft } from '@/features/store/lib/product-nodus-wiki'
@@ -143,6 +145,10 @@ export interface AdminStoreProductRow {
   status?: string
   approvalStatus?: string | null
   createdAt?: string
+  /** Store category slug (quick-filter column). */
+  category?: string
+  /** Product SKU (quick-filter column). */
+  sku?: string
 }
 
 export interface AdminStoreProductListResult {
@@ -188,6 +194,8 @@ export async function listAdminStoreProducts(
     status: row.status != null ? String(row.status) : undefined,
     approvalStatus: resolveApprovalStatus(row),
     createdAt: row.createdAt != null ? String(row.createdAt) : undefined,
+    category: row.category != null ? String(row.category) : undefined,
+    sku: row.sku != null ? String(row.sku) : undefined,
   }))
 
   const hasMore = items.length >= query.limit
@@ -426,6 +434,7 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
     if (fields.rep) {
       productDoc.rep = fields.rep
     }
+    Object.assign(productDoc, curtainAdvertiseWriteFields(formData))
 
     // Write to DB
     const result = await db().createDoc('store_products', productDoc, { id: productId })
@@ -474,9 +483,6 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
       existingResult.data,
     )
     const photoUrls = uploadedPhotos.photoUrls
-    if (photoUrls.length === 0) {
-      return { error: 'At least one photo is required' }
-    }
 
     // Agent Knowledge (optional hidden fields from ProductAgentKnowledgeSection)
     const productAgentRaw = String(formData.get('productAgent') ?? '').trim()
@@ -507,6 +513,7 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
         ? { referralCommission: fields.referralCommission }
         : {}),
       ...(fields.rep ? { rep: fields.rep } : { rep: undefined }),
+      ...curtainAdvertiseWriteFields(formData),
       ...(productAgentRaw ? { productAgent: productAgentRaw } : {}),
       ...(productNodusWikiPageId
         ? {
@@ -542,9 +549,7 @@ async function uploadProductPhotosFromForm(
   existing?: Record<string, unknown>,
 ): Promise<{ photoUrls: string[]; generativeGallery: ReturnType<typeof resolveProductImagesFromForm>['gallery'] }> {
   const { file } = await import('@/lib/file')
-  const existingUrls = Array.isArray(existing?.images)
-    ? [...(existing.images as string[])]
-    : []
+  const existingUrls = collectProductImageUrls(existing)
 
   const resolved = resolveProductImagesFromForm(formData, existingUrls)
   if (resolved.photoUrls.length > 0 && resolved.gallery) {

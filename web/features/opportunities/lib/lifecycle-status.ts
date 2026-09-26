@@ -17,7 +17,20 @@ export type OpportunityLifecycleStatus =
   | 'expired'
   | 'archived'
 
-export type MyOpportunitiesView = 'all' | 'drafts' | 'pending' | 'active' | 'archived'
+export type MyOpportunitiesView =
+  | 'all'
+  | 'drafts'
+  | 'pending'
+  | 'active'
+  | 'archived'
+  | 'saved'
+  | 'applied'
+
+export function isMyOpportunitiesInteractionView(
+  view: MyOpportunitiesView,
+): view is 'saved' | 'applied' {
+  return view === 'saved' || view === 'applied'
+}
 
 const DRAFT_BUCKET = new Set<OpportunityLifecycleStatus>(['draft', 'closed', 'expired'])
 
@@ -58,6 +71,9 @@ export function matchesMyOpportunitiesView(status: string | undefined, view: MyO
       return normalized === 'pending'
     case 'active':
       return normalized === 'active'
+    case 'saved':
+    case 'applied':
+      return true
     default:
       return false
   }
@@ -102,10 +118,16 @@ export function computeMyOpportunitiesCounts(
 }
 
 export function parseMyOpportunitiesView(raw?: string): MyOpportunitiesView {
-  if (raw === 'drafts' || raw === 'pending' || raw === 'active' || raw === 'archived') {
+  if (
+    raw === 'drafts' ||
+    raw === 'pending' ||
+    raw === 'active' ||
+    raw === 'archived' ||
+    raw === 'saved' ||
+    raw === 'applied'
+  ) {
     return raw
   }
   if (raw === 'created' || raw === 'posted') return 'active'
-  if (raw === 'saved') return 'all'
   return 'all'
 }

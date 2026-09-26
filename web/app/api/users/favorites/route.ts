@@ -18,6 +18,21 @@ function parseFavoriteType(value: string | null): UserFavorite['favoriteType'] |
   return value as UserFavorite['favoriteType']
 }
 
+function normalizeFavorite(row: Record<string, unknown>): UserFavorite {
+  return {
+    id: String(row.id || ''),
+    globalUserId: String(row.globalUserId || row.global_user_id || ''),
+    projectSlug: String(row.projectSlug || row.project_slug || ''),
+    favoriteType: (row.favoriteType || row.favorite_type || 'product') as UserFavorite['favoriteType'],
+    favoriteId: String(row.favoriteId || row.favorite_id || ''),
+    tags: Array.isArray(row.tags) ? (row.tags as string[]) : undefined,
+    notes: typeof row.notes === 'string' ? row.notes : undefined,
+    createdAt: row.createdAt instanceof Date
+      ? row.createdAt
+      : new Date(String(row.createdAt || row.created_at || Date.now())),
+  }
+}
+
 export async function GET(request: NextRequest) {
   await connection()
 
@@ -30,23 +45,31 @@ export async function GET(request: NextRequest) {
   const favoriteType = parseFavoriteType(searchParams.get('favoriteType'))
   const favoriteId = searchParams.get('favoriteId')?.trim()
 
-  if (!favoriteType || !favoriteId) {
-    return NextResponse.json(
-      { error: 'favoriteType and favoriteId are required' },
-      { status: 400 }
-    )
-  }
-
   try {
     const service = getCurrentProjectUserDataService()
     const projectSlug = process.env.NEXT_PUBLIC_PROJECT_SLUG || 'ring-platform.org'
     const favorites = await service.getUserFavorites(
       session.user.id,
       projectSlug,
-      favoriteType
+      favoriteType || undefined,
     )
-    const favorited = favorites.some((f) => f.favoriteId === favoriteId)
+    const normalized = (favorites as unknown as Record<string, unknown>[]).map(normalizeFavorite)
 
+    if (!favoriteId) {
+      return NextResponse.json({
+        favorites: normalized,
+        favoriteType: favoriteType || null,
+      })
+    }
+
+    if (!favoriteType) {
+      return NextResponse.json(
+        { error: 'favoriteType is required when favoriteId is set' },
+        { status: 400 },
+      )
+    }
+
+    const favorited = normalized.some((f) => f.favoriteId === favoriteId)
     return NextResponse.json({ favorited, favoriteType, favoriteId })
   } catch (error) {
     console.error('GET /api/user/favorites:', error)
@@ -84,7 +107,8 @@ export async function POST(request: NextRequest) {
   const service = getCurrentProjectUserDataService()
 
   try {
-    const existing = await service.getUserFavorites(globalUserId, projectSlug, favoriteType)
+    const existing = (await service.getUserFavorites(globalUserId, projectSlug, favoriteType))
+      .map((row) => normalizeFavorite(row as unknown as Record<string, unknown>))
     const alreadySaved = existing.some((f) => f.favoriteId === favoriteId)
 
     if (alreadySaved) {

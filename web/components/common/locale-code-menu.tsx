@@ -5,7 +5,7 @@ import { Check, Globe } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { replaceLocalePath, usePathname, useRouter } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { SUPPORTED_LOCALES } from '@/lib/locale-config'
+import { useEnabledLocales } from '@/components/providers/enabled-locales-provider'
 import {
   localeDisplayLabel,
   localeNativeTitle,
@@ -89,6 +89,7 @@ export function LocaleCodeMenu({
   const router = useRouter()
   const pathname = usePathname()
   const locale = useLocale() as Locale
+  const enabledLocales = useEnabledLocales()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -147,7 +148,7 @@ export function LocaleCodeMenu({
             contentClassName,
           )}
         >
-          {SUPPORTED_LOCALES.map((loc) => {
+          {enabledLocales.map((loc) => {
             const active = loc === locale
             const label = nativeLabels ? localeNativeTitle(loc) : localeDisplayLabel(loc)
             return (

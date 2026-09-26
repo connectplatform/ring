@@ -13,6 +13,10 @@ import type { Locale } from '@/i18n/shared'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
+import {
+  prettifyCategorySlug,
+  useStoreCategoryName,
+} from '@/lib/store-category-display'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
 import ProductImageGallery from '@/components/store/product-image-gallery'
@@ -99,6 +103,7 @@ export default function ProductDetailsClient({
   const { success } = useToast()
   const t = useTranslations('modules.store')
   const storeCurrencyContext = useStorePaymentMethods()
+  const categoryName = useStoreCategoryName(product.category ?? null)
 
   const convertPrice = storeCurrencyContext?.convertPrice || ((price: number) => price)
   const formatPrice =
@@ -198,7 +203,12 @@ export default function ProductDetailsClient({
   const breadcrumbItems = [
     { label: t('title', { defaultValue: 'Store' }), href: ROUTES.STORE(locale) },
     ...(product.category
-      ? [{ label: product.category, href: ROUTES.STORE(locale) }]
+      ? [
+          {
+            label: categoryName ?? prettifyCategorySlug(product.category),
+            href: `${ROUTES.STORE(locale)}?category=${encodeURIComponent(product.category)}`,
+          },
+        ]
       : []),
     { label: product.name },
   ]

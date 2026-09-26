@@ -65,10 +65,11 @@ export type LocaleFileId =
   | 'modDao'
   | 'modAccount'
   | 'modOnboarding'
+  | 'modCurtain'
   | 'vendor'
   | 'confidential'
 
-const CORE: LocaleFileId[] = ['common', 'navigation', 'seo', 'config', 'modOnboarding']
+const CORE: LocaleFileId[] = ['common', 'navigation', 'seo', 'config', 'modOnboarding', 'modCurtain']
 
 const PUBLIC_HOME: LocaleFileId[] = [
   ...CORE,
@@ -235,7 +236,7 @@ export function resolveMessageScope(pathname: string): MessageScope {
   if (normalized.startsWith('/intro')) return 'presentation'
   if (normalized.startsWith('/settings')) return 'authenticated'
   if (
-    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications|my-news|my-jobs|my-orders)(\/|$)/.test(
+    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications|my-news|my-jobs|my-orders|favorites)(\/|$)/.test(
       normalized,
     ) ||
     normalized.startsWith('/membership/success') ||

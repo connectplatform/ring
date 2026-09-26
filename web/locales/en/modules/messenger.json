@@ -60,6 +60,11 @@
   "callStopVideo": "Turn camera off",
   "callStartVideo": "Turn camera on",
   "callTurnMissing": "TURN not configured — connection may fail on strict NATs",
+  "callShareScreen": "Share screen",
+  "callStopShareScreen": "Stop sharing",
+  "callMinimize": "Minimize call",
+  "callRestore": "Restore call",
+  "callDuration": "Call duration",
   "openOnProductPage": "Open on product page",
   "emptyThreadHello": "Say hello…",
   "emptyThreadProduct": "Ask the product agent anything…",
@@ -112,5 +117,6 @@
   "gameWaitingPeer": "Waiting for peer…",
   "gameStatus": "Status: {status}",
   "gameAcceptFailed": "Accept failed",
-  "gameDeclineFailed": "Decline failed"
+  "gameDeclineFailed": "Decline failed",
+  "callBlockedByGame": "Finish your game before starting a call."
 }

@@ -51,9 +51,16 @@ export const AudioConductor = {
       const provider = getAudioProvider(ctx.provider)
       const output = await synthesizeFromProvider(provider, ctx)
       const objectKey = ctx.objectKey?.trim() || buildObjectKey()
+      const contentType = output.contentType.toLowerCase().startsWith('audio/')
+        ? output.contentType
+        : 'audio/mpeg'
       const upload = await file().upload(objectKey, output.buffer, {
         access: 'public',
-        contentType: output.contentType,
+        contentType,
+        // RingFileBase isImageType() includes `media`, so MP3s fail with
+        // "Invalid image file". `other` allows */* until filebase-api is patched.
+        ringbaseType: 'other',
+        derivativesProfile: 'none',
         metadata: {
           source: provider,
           voiceId: output.voiceId,

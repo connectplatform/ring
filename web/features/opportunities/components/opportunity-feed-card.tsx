@@ -181,15 +181,19 @@ export function OpportunityFeedCard({
           avatar: session.user.image || undefined,
         }
       : undefined)
-  const creatorName =
-    entity?.name || creator?.name || (creator ? t('member') : t('privateUser'))
-  const creatorAvatar = entity?.logo || creator?.avatar || null
+  const isMaskedAnonymous = opportunity.anonymousPoster === true && !opportunity.createdBy
+  const creatorName = isMaskedAnonymous
+    ? t('confidential')
+    : entity?.name || creator?.name || (creator ? t('member') : t('privateUser'))
+  const creatorAvatar = isMaskedAnonymous ? null : entity?.logo || creator?.avatar || null
   const creatorInitials = getInitials(creatorName)
-  const profileHref = entity
-    ? ROUTES.ENTITY(entity.id, locale)
-    : creator?.username
-      ? ROUTES.PUBLIC_PROFILE(creator.username, locale)
-      : null
+  const profileHref = isMaskedAnonymous
+    ? null
+    : entity
+      ? ROUTES.ENTITY(entity.id, locale)
+      : creator?.username
+        ? ROUTES.PUBLIC_PROFILE(creator.username, locale)
+        : null
   const detailsHref = ROUTES.OPPORTUNITY(opportunity.id, locale)
   const postedLabel = (() => {
     const created = toDate(opportunity.dateCreated)
@@ -248,7 +252,7 @@ export function OpportunityFeedCard({
     className?: string
     variant?: 'default' | 'destructive' | 'secondary' | 'outline'
   }[] = []
-  if (opportunity.isConfidential) {
+  if (opportunity.isConfidential || opportunity.anonymousPoster) {
     statusChips.push({ key: 'confidential', label: t('confidential'), variant: 'destructive' })
   }
   if (opportunity.priority && opportunity.priority !== 'normal') {

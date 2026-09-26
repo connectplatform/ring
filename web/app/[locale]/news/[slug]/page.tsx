@@ -41,6 +41,7 @@ import {
   NewsMarkdownView,
   newsBodyHtmlForChrome,
 } from '@/features/news/lib/news-markdown-view'
+import { CurtainPageProvider } from '@/features/curtain/components/curtain-page-context'
 
 // --- Type for page params
 interface NewsArticlePageParams {
@@ -372,6 +373,7 @@ export default async function NewsArticlePage(
         Main Page Wrapper: handles context & analytics (see NewsArticleWrapper) 
         TODO: In future, migrate context to React 19 context-provider server pattern if breaking changes land. 
       */}
+      <CurtainPageProvider authorUserId={article.authorId} pageKind="news">
       <NewsArticleWrapper
         locale={locale as Locale}
         articleSlug={slug}
@@ -640,6 +642,7 @@ export default async function NewsArticlePage(
           </div>
         </div>
       </NewsArticleWrapper>
+      </CurtainPageProvider>
     </>
   );
 }

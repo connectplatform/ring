@@ -170,6 +170,9 @@ export class PostgreSQLAdapter implements IDatabaseService {
     user_content_interactions: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    user_favorites: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     settlements: new Set([
       'id', 'created_at', 'updated_at'
     ]),
@@ -198,6 +201,9 @@ export class PostgreSQLAdapter implements IDatabaseService {
       'id', 'created_at', 'updated_at'
     ]),
     notification_preferences: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    curtain_preferences: new Set([
       'id', 'created_at', 'updated_at'
     ]),
     notifications: new Set([

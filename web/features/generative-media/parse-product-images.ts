@@ -4,7 +4,7 @@
  */
 
 import type { GenerativeGalleryValue, GalleryItem } from '@/features/generative-media/types'
-import { toProductImageUrls } from '@/features/generative-media/types'
+import { galleryItemUrl, toProductImageUrls } from '@/features/generative-media/types'
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim())
@@ -50,9 +50,13 @@ export function resolveProductImagesFromForm(
     parseGalleryJson(String(formData.get('productImages') || ''))
 
   if (gallery?.items?.length) {
-    const urls = toProductImageUrls(gallery).filter(isHttpUrl)
+    const urls = toProductImageUrls(gallery).filter((url) => isHttpUrl(url) || url.startsWith('/'))
     if (urls.length > 0) {
       return { photoUrls: urls.slice(0, 5), gallery }
+    }
+    const fallback = gallery.items.map((item) => galleryItemUrl(item)).filter(Boolean)
+    if (fallback.length > 0) {
+      return { photoUrls: fallback.slice(0, 5), gallery }
     }
   }
 

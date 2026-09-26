@@ -41,6 +41,7 @@ import { getClientNativeTokenSymbol, getClientSiteName } from '@/lib/ring-config
 import { hideEmpireAsideGroups } from '@/lib/navigation/empire-aside'
 import {
   resolveDesktopPrimaryNav,
+  resolvePackAsideNav,
   sidebarPathIsActive,
 } from '@/lib/navigation/desktop-primary-nav'
 import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
@@ -270,6 +271,27 @@ export function SidebarSyncedLayout({
       list.push({ kind: 'admin-toggle', key: 'admin-supermenu' })
     }
 
+    if (hideEmpireExtras) {
+      const packAside = resolvePackAsideNav(locale, tNav, pathname)
+      if (packAside.length > 0) {
+        list.push({
+          kind: 'section',
+          key: 'systems-h',
+          label: tNav('sidebar.systems'),
+        })
+        for (const item of packAside) {
+          const Icon = getPrimaryNavIcon(item.icon)
+          list.push({
+            kind: 'aside-only',
+            key: item.id,
+            href: item.href,
+            icon: <Icon className={ICON} strokeWidth={1.5} />,
+            label: <span className="truncate text-[16px]">{item.label}</span>,
+          })
+        }
+      }
+    }
+
     if (!hideConcepts) {
       list.push({
         kind: 'section',
@@ -354,6 +376,7 @@ export function SidebarSyncedLayout({
     messagesCount,
     nativeSymbol,
     notificationCount,
+    pathname,
     session?.user,
     showAdminToggle,
     siteName,

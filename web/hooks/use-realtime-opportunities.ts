@@ -36,11 +36,18 @@ export function applyOpportunityListUpdate(
       if (!update.data || prev.some((opp) => opp.id === update.opportunityId)) return prev
       return [update.data as SerializedOpportunity, ...prev]
     case 'updated':
-    case 'application_count_changed':
+    case 'application_count_changed': {
       if (!update.data) return prev
-      return prev.map((opp) =>
-        opp.id === update.opportunityId ? { ...opp, ...update.data } : opp,
-      )
+      const { viewer: _viewer, creator: patchCreator, ...patch } = update.data
+      return prev.map((opp) => {
+        if (opp.id !== update.opportunityId) return opp
+        const next: SerializedOpportunity = { ...opp, ...patch, viewer: opp.viewer }
+        if (patchCreator && typeof patchCreator === 'object') {
+          next.creator = patchCreator
+        }
+        return next
+      })
+    }
     case 'deleted':
       return prev.filter((opp) => opp.id !== update.opportunityId)
     default:

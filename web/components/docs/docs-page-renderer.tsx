@@ -14,6 +14,7 @@ import type { Locale } from '@/i18n/shared'
 import { docsMdxComponents, getDocsMdxRemoteOptions } from '@/components/docs/mdx-docs-shared'
 import { DocsNotFound } from '@/components/docs/docs-not-found'
 import { recordDocsPageView } from '@/features/analytics/lib/docs-analytics'
+import { getRingSeoBranding } from '@/lib/ring-config-core'
 
 type RenderArgs = {
   locale: Locale
@@ -63,6 +64,11 @@ export async function generateDocsMetadata({
   try {
     const fileContents = fs.readFileSync(filePath, 'utf8')
     const { data } = matter(fileContents)
+    const branding = getRingSeoBranding()
+    const ogImage =
+      typeof data.ogImage === 'string' && data.ogImage.trim()
+        ? data.ogImage.trim()
+        : branding.ogImage
 
     return {
       title: data.title || titlePrefix,
@@ -74,11 +80,13 @@ export async function generateDocsMetadata({
         title: data.title || titlePrefix,
         description: data.description || defaultDescription,
         type: 'article',
+        images: ogImage ? [{ url: ogImage, width: 1200, height: 630 }] : undefined,
       },
       twitter: {
         card: 'summary_large_image',
         title: data.title || titlePrefix,
         description: data.description || defaultDescription,
+        images: ogImage ? [ogImage] : undefined,
       },
     }
   } catch (error) {

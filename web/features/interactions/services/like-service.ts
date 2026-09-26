@@ -108,12 +108,18 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
         finalLikeCount = Math.max(0, currentLikes - 1)
         isLiked = false
       } else {
-        await txn.create('likes', {
-          userId,
-          targetId,
-          targetType,
-          createdAt: new Date()
-        })
+        const likeId = `like_${userId}_${targetType}_${targetId}`.slice(0, 255)
+        await txn.create(
+          'likes',
+          {
+            id: likeId,
+            userId,
+            targetId,
+            targetType,
+            createdAt: new Date(),
+          },
+          { id: likeId },
+        )
 
         const targetDoc = await txn.read<LikableTarget>(targetCollection, targetId)
         const currentLikes = targetDoc?.data?.likes ?? 0

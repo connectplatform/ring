@@ -328,11 +328,23 @@ export async function placeAndPayStoreOrder(
       refCode,
       buyerWallets,
     )
+    const { readCurtainAttributionFromCookies } = await import(
+      '@/features/curtain/lib/read-attribution-cookie'
+    )
+    const cookieTouches = await readCurtainAttributionFromCookies()
+    const { parseCurtainAttributionJson, mergeTouchLists } = await import(
+      '@/features/curtain/lib/attribution-storage'
+    )
+    const curtainAttribution = mergeTouchLists(
+      cookieTouches,
+      parseCurtainAttributionJson(String(formData.get('curtainAttributionJson') || '')),
+    )
 
     const { orderId } = await StoreOrdersService.createOrder(
       session.user.id,
       normalized as never,
       referral || undefined,
+      curtainAttribution.length ? { curtainAttribution } : undefined,
     )
 
     try {

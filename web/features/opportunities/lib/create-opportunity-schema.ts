@@ -18,6 +18,7 @@ export const createOpportunityBodySchema = z
     }),
     type: z.string().optional(),
     isConfidential: z.boolean().optional(),
+    anonymousPoster: z.boolean().optional(),
     fullDescription: z.string().optional(),
     status: z.enum(['draft', 'pending', 'active', 'closed', 'expired', 'archived']).optional(),
     tags: z.array(z.string()).optional(),

@@ -90,7 +90,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   const [requested, setRequested] = useState(false)
 
   // Real-time updates
-  const realtime = useRealtimeOpportunities({
+  useRealtimeOpportunities({
     autoConnect: true,
     debug: false
   })
@@ -118,7 +118,14 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
       (update.type === 'updated' || update.type === 'application_count_changed') &&
       update.data
     ) {
-      setOpportunity((prev) => ({ ...prev, ...update.data }))
+      setOpportunity((prev) => {
+        const { viewer: _viewer, creator: patchCreator, ...patch } = update.data
+        const next = { ...prev, ...patch, viewer: prev.viewer }
+        if (patchCreator && typeof patchCreator === 'object') {
+          next.creator = patchCreator
+        }
+        return next
+      })
       return
     }
     if (update.type === 'updated') {
@@ -134,7 +141,8 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
     (opportunity as { isActive?: boolean }).isActive !== false &&
     String((opportunity as { status?: string }).status || 'active').toLowerCase() !== 'closed'
 
-  const isConfidential = opportunity.visibility === 'confidential' as OpportunityVisibility
+  const isConfidentialListing = opportunity.visibility === 'confidential' as OpportunityVisibility
+  const isMaskedAnonymous = opportunity.anonymousPoster === true && !opportunity.createdBy
 
   if (status === 'loading') {
     return <div>{t('loading')}</div>
@@ -153,7 +161,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   const userRole = resolveSessionUserRole(session.user?.role)
   const canViewConfidential = hasConfidentialAccess(userRole)
 
-  if (isConfidential && !canViewConfidential) {
+  if (isConfidentialListing && !canViewConfidential) {
     return <div>{t('noPermission')}</div>
   }
 
@@ -213,32 +221,6 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 
   return (
     <div className="min-h-full text-foreground">
-      {/* Real-time Status Indicator */}
-      <div className="bg-background border-b">
-        <div className="mx-auto py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
-                realtime.isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`} />
-              <span className="text-sm text-muted-foreground">
-                {realtime.isConnected ? t('liveUpdatesActive') : t('offlineMode')}
-              </span>
-              {realtime.lastUpdate && (
-                <span className="text-xs text-muted-foreground">
-                  • {t('lastUpdate', { time: realtime.lastUpdate.toLocaleTimeString() })}
-                </span>
-              )}
-            </div>
-            {realtime.provider && (
-              <span className="text-xs text-muted-foreground">
-                {t('viaProvider', { provider: realtime.provider })}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
       <div className="mx-auto max-w-4xl">
         {/* Back Navigation */}
         <div className="mb-6">
@@ -286,7 +268,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                       </Badge>
                     )}
 
-                    {isConfidential && (
+                    {(isConfidentialListing || opportunity.anonymousPoster) && (
                       <Badge variant="destructive" className="text-xs">{t('confidential')}</Badge>
                     )}
                   </div>
@@ -297,7 +279,11 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                   <div className="flex items-center gap-2 mb-2">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      {initialEntity ? initialEntity.name : t('privateUser')}
+                      {isMaskedAnonymous
+                        ? t('confidential')
+                        : initialEntity
+                          ? initialEntity.name
+                          : opportunity.creator?.name || t('privateUser')}
                     </span>
 
                     {/* RING Balance */}
@@ -572,7 +558,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
         </Card>
 
         {/* Confidential Information */}
-        {isConfidential && canViewConfidential && (
+        {isConfidentialListing && canViewConfidential && (
           <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">

@@ -27,6 +27,7 @@ import {
   mapDbDocumentToOpportunity,
   mapDbRowToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'
+import { attachOpportunityFeedFields } from '@/features/opportunities/services/attach-opportunity-feed-fields'
 
 // -------------------------------
 // Error classes for explicit error handling
@@ -100,17 +101,20 @@ export const getOpportunityById = cache(async (id: string): Promise<Opportunity 
  * Calls getOpportunityById for access checks first.
  */
 export const getSerializedOpportunityById = cache(async (id: string): Promise<SerializedOpportunity | null> => {
-  // Fetch Opportunity (with RBAC); may throw or return null if not found/authorized
   const opportunity = await getOpportunityById(id)
   if (!opportunity) {
     return null
   }
-  // Map DB/domain object to a flat, serialized variant for API/json transport
-  return mapDbRowToSerializedOpportunity(
+  const session = await auth()
+  const serialized = mapDbRowToSerializedOpportunity(
     id,
     opportunity as unknown as Record<string, unknown>,
   )
-  // NOTE: Exceptions propagate; error handling should be done at the API/controller layer.
+  const [attached] = await attachOpportunityFeedFields([serialized], {
+    viewerUserId: session?.user?.id,
+    viewerRole: session?.user?.role,
+  })
+  return attached ?? serialized
 })
 
 // -------------------------------

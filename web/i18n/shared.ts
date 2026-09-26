@@ -44,6 +44,7 @@ export const sharedPathnames = {
   '/entities/[id]/edit': '/entities/[id]/edit',
   '/entities/[id]/delete': '/entities/[id]/delete',
   '/entities/status/[action]/[status]': '/entities/status/[action]/[status]',
+  '/favorites': '/favorites',
   '/forgot-password': '/forgot-password',
   '/help': '/help',
   '/intro': '/intro',

@@ -41,7 +41,10 @@ export async function synthesizeXaiSpeech(ctx: SynthesizeAudioContext): Promise<
     throw new Error('xAI TTS returned empty audio')
   }
 
-  const contentType = response.headers.get('content-type') || 'audio/mpeg'
+  const headerType = response.headers.get('content-type') || ''
+  const contentType = headerType.toLowerCase().startsWith('audio/')
+    ? headerType.split(';')[0]!.trim()
+    : 'audio/mpeg'
   return {
     buffer,
     contentType,

@@ -60,6 +60,11 @@
   "callStopVideo": "Kamera aus",
   "callStartVideo": "Kamera an",
   "callTurnMissing": "TURN nicht konfiguriert — Verbindung kann hinter strengen NATs scheitern",
+  "callShareScreen": "Bildschirm teilen",
+  "callStopShareScreen": "Bildschirmfreigabe beenden",
+  "callMinimize": "Anruf minimieren",
+  "callRestore": "Anruf wiederherstellen",
+  "callDuration": "Anrufdauer",
   "openOnProductPage": "Auf Produktseite öffnen",
   "emptyThreadHello": "Sag hallo…",
   "emptyThreadProduct": "Fragen Sie den Produkt-Agenten etwas…",
@@ -112,5 +117,6 @@
   "gameWaitingPeer": "Warte auf Gegner…",
   "gameStatus": "Status: {status}",
   "gameAcceptFailed": "Annehmen fehlgeschlagen",
-  "gameDeclineFailed": "Ablehnen fehlgeschlagen"
+  "gameDeclineFailed": "Ablehnen fehlgeschlagen",
+  "callBlockedByGame": "Beende dein Spiel, bevor du einen Anruf startest."
 }

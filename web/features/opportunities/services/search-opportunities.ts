@@ -1,63 +1,30 @@
-// 🚀 RING-NATIVE: DatabaseService + React 19 cache()
-// Advanced search with role-based access control
-// READ operation - cached for performance
-// Full-text search, location/budget filtering, pagination
+// DatabaseService + React 19 cache() — shared list filters with getOpportunitiesForRole.
 
 import { cache } from 'react'
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
-import {
-  mapDbDocumentToSerializedOpportunity,
-} from '@/features/opportunities/lib/opportunity-db-mapper'
-import { UserRolesArray } from '@/features/auth/user-role'
-import {
-  assertKnownUserRole,
-  InvalidUserRoleError,
-} from '@/features/auth/user-role'
-import { buildOpportunityVisibilityFilters } from '@/features/opportunities/lib/opportunity-visibility-filter'
+import { SerializedOpportunity } from '@/features/opportunities/types'
+import { mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
+import { UserRolesArray, assertKnownUserRole, InvalidUserRoleError } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { getMcpActor } from '@/lib/auth/mcp-actor-context'
 import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
-import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
+import { OpportunityAuthError, OpportunityPermissionError, logRingError } from '@/lib/errors'
 import { getViewerHiddenOpportunityIds } from '@/features/opportunities/services/get-viewer-interactions'
 import { attachOpportunityFeedFields } from '@/features/opportunities/services/attach-opportunity-feed-fields'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
+import {
+  applyOpportunityDateCursor,
+  buildOpportunityListFilters,
+  buildOpportunityListOrderBy,
+} from '@/features/opportunities/lib/opportunity-list-query'
+import type { OpportunityListQuery } from '@/features/opportunities/lib/opportunity-search-params'
 
-/**
- * Search parameters interface for comprehensive opportunity search
- */
-export interface SearchOpportunitiesParams {
-  // Text search
-  query?: string
-
-  // Filters
-  types?: string[]
-  categories?: string[]
-  location?: string
-  budgetMin?: number
-  budgetMax?: number
-  currency?: string
-  deadline?: 'today' | 'week' | 'month' | 'any'
-  entityVerified?: boolean
-  hasDeadline?: boolean
-
-  // Sorting
-  sortBy?: 'relevance' | 'dateCreated' | 'dateUpdated' | 'budget' | 'deadline' | 'location'
-  sortOrder?: 'asc' | 'desc'
-
-  // Pagination
-  limit?: number
-  startAfter?: string
-
-  // User context derived from session only (no client override)
+export type SearchOpportunitiesParams = OpportunityListQuery & {
   userId?: string
-  // Extended priority type to include filter options
-  priority?: 'urgent' | 'normal' | 'low' | 'all' | 'any'
+  entityVerified?: boolean
 }
 
-/**
- * Search result interface
- */
 export interface SearchOpportunitiesResult {
   opportunities: SerializedOpportunity[]
   totalCount: number
@@ -71,45 +38,19 @@ export interface SearchOpportunitiesResult {
   }
 }
 
-/**
- * Error classes for search operations
- */
 export class OpportunitySearchError extends Error {
-  constructor(message: string, public details?: any) {
+  constructor(message: string, public details?: unknown) {
     super(message)
     this.name = 'OpportunitySearchError'
   }
 }
 
-/**
- * Advanced opportunity search function with comprehensive filtering and sorting
- *
- * Features:
- * - Full-text search across title, description, tags, and required skills
- * - Multi-type filtering (offer, request, partnership, etc.)
- * - Category-based filtering
- * - Location-based search with radius
- * - Budget range filtering with currency support
- * - Priority and deadline filtering
- * - Role-based visibility and confidentiality filtering
- * - Multiple sorting options (relevance, date, budget, location)
- * - Cursor-based pagination
- * - Performance optimization with caching
- *
- * @param params - Search parameters
- * @returns Promise with search results and metadata
- * @throws OpportunityAuthError if user authentication fails
- * @throws OpportunityPermissionError if user lacks permissions
- * @throws OpportunitySearchError if search operation fails
- */
 export const searchOpportunities = cache(async (
-  params: SearchOpportunitiesParams
+  params: SearchOpportunitiesParams,
 ): Promise<SearchOpportunitiesResult> => {
   const startTime = Date.now()
 
   try {
-    logger.info('Services: searchOpportunities - Starting advanced search', { params })
-
     const session = await auth()
     const mcpActor = getMcpActor()
 
@@ -122,376 +63,130 @@ export const searchOpportunities = cache(async (
 
     const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role) as UserRolesArray
     const userId = session?.user?.id ?? mcpActor?.id
+    const limit = params.limit || 20
 
-    // Step 2: Build comprehensive search filters
-    const filters: Array<{ field: string; operator: string; value: any }> = [
-      ...buildOpportunityVisibilityFilters(userRole),
-    ]
-    const filtersApplied: string[] = ['role_visibility']
+    const hiddenIds = userId ? await getViewerHiddenOpportunityIds(userId) : []
+    const filters = buildOpportunityListFilters({
+      ...params,
+      userRole,
+      hiddenIds,
+    })
+    await applyOpportunityDateCursor(filters, params.startAfter)
 
-    if (userId) {
-      const hiddenIds = await getViewerHiddenOpportunityIds(userId)
-      if (hiddenIds.length > 0) {
-        filters.push({ field: 'id', operator: 'not-in', value: hiddenIds })
-        filtersApplied.push('hidden_excluded')
-      }
-    }
-
-    // Type filtering
-    if (params.types && params.types.length > 0) {
-      filters.push({ field: 'type', operator: 'in', value: params.types })
-      filtersApplied.push(`types: ${params.types.join(', ')}`)
-    }
-
-    // Category filtering
-    if (params.categories && params.categories.length > 0) {
-      filters.push({ field: 'category', operator: 'in', value: params.categories })
-      filtersApplied.push(`categories: ${params.categories.join(', ')}`)
-    }
-
-    /** Text-prefix location match — not geolocation radius (no lat/lng schema yet). */
-    if (params.location) {
-      const loc = params.location.toLowerCase()
-      filters.push({
-        field: 'location',
-        operator: '>=',
-        value: loc,
-      })
-      filters.push({
-        field: 'location',
-        operator: '<=',
-        value: loc + '\uf8ff',
-      })
-      filtersApplied.push(`location: ${params.location}`)
-    }
-
-    // Budget filtering
-    if (params.budgetMin !== undefined || params.budgetMax !== undefined) {
-      const budgetFilters: any = {}
-
-      if (params.budgetMin !== undefined) {
-        budgetFilters.min = { operator: '>=', value: params.budgetMin }
-        filtersApplied.push(`budget_min: ${params.budgetMin}`)
-      }
-
-      if (params.budgetMax !== undefined) {
-        budgetFilters.max = { operator: '<=', value: params.budgetMax }
-        filtersApplied.push(`budget_max: ${params.budgetMax}`)
-      }
-
-      if (params.currency) {
-        budgetFilters.currency = { operator: '==', value: params.currency }
-        filtersApplied.push(`currency: ${params.currency}`)
-      }
-
-      // Add budget filters as nested queries
-      if (budgetFilters.min) {
-        filters.push({ field: 'budget.min', operator: '>=', value: budgetFilters.min.value })
-      }
-      if (budgetFilters.max) {
-        filters.push({ field: 'budget.max', operator: '<=', value: budgetFilters.max.value })
-      }
-      if (budgetFilters.currency) {
-        filters.push({ field: 'budget.currency', operator: '==', value: budgetFilters.currency.value })
-      }
-    }
-
-    // Priority filtering
-    if (params.priority && params.priority !== 'all' && params.priority !== 'any') {
-      filters.push({ field: 'priority', operator: '==', value: params.priority })
-      filtersApplied.push(`priority: ${params.priority}`)
-    } else if (params.priority === 'all' || params.priority === 'any') {
-      // No priority filter needed for 'all' or 'any'
-      filtersApplied.push(`priority: ${params.priority}`)
-    }
-
-    // Deadline filtering
-    if (params.deadline && params.deadline !== 'any') {
-      const now = new Date()
-      let deadlineDate: Date
-
-      switch (params.deadline) {
-        case 'today':
-          deadlineDate = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-          break
-        case 'week':
-          deadlineDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-          break
-        case 'month':
-          deadlineDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          break
-        default:
-          deadlineDate = now
-      }
-
-      filters.push({ field: 'applicationDeadline', operator: '<=', value: deadlineDate })
-      filtersApplied.push(`deadline: ${params.deadline}`)
-    }
-
-    // Entity verification filtering
-    if (params.entityVerified !== undefined) {
-      filters.push({ field: 'entityVerified', operator: '==', value: params.entityVerified })
-      filtersApplied.push(`entity_verified: ${params.entityVerified}`)
-    }
-
-    // Has deadline filtering
-    if (params.hasDeadline !== undefined) {
-      if (params.hasDeadline) {
-        filters.push({ field: 'applicationDeadline', operator: '!=', value: null })
-      } else {
-        filters.push({ field: 'applicationDeadline', operator: '==', value: null })
-      }
-      filtersApplied.push(`has_deadline: ${params.hasDeadline}`)
-    }
-
-    // Step 3: Build sorting configuration
-    const sortBy = params.sortBy || 'relevance'
-    const sortOrder = params.sortOrder || 'desc'
-
-    let orderBy: Array<{ field: string; direction: 'asc' | 'desc' }> = []
-
-    switch (sortBy) {
-      case 'relevance':
-        // For relevance, we'll sort by dateCreated first, then other factors
-        orderBy = [
-          { field: 'dateCreated', direction: 'desc' },
-          { field: 'priority', direction: 'asc' }
-        ]
-        break
-      case 'dateCreated':
-        orderBy = [{ field: 'dateCreated', direction: sortOrder as 'asc' | 'desc' }]
-        break
-      case 'dateUpdated':
-        orderBy = [{ field: 'dateUpdated', direction: sortOrder as 'asc' | 'desc' }]
-        break
-      case 'budget':
-        orderBy = [{ field: 'budget.min', direction: sortOrder as 'asc' | 'desc' }]
-        break
-      case 'deadline':
-        orderBy = [{ field: 'applicationDeadline', direction: sortOrder as 'asc' | 'desc' }]
-        break
-      case 'location':
-        orderBy = [{ field: 'location', direction: sortOrder as 'asc' | 'desc' }]
-        break
-      default:
-        orderBy = [{ field: 'dateCreated', direction: 'desc' }]
-    }
-
-    // Step 4: Execute search query
-    let totalCount = 0
-    let opportunities: SerializedOpportunity[] = []
-    let lastVisible: string | null = null
-
-    // For text search, we need special handling since db.command() may not support full-text search yet
-    if (params.query && params.query.trim()) {
-      // For now, we'll use a simpler approach with title and description search
-      // This can be enhanced when PostgreSQL full-text search is implemented
-      const searchTerm = params.query.toLowerCase().trim()
-
-      // Add text search filters
-      filters.push({
-        field: 'title',
-        operator: '>=',
-        value: searchTerm
-      })
-      filters.push({
-        field: 'title',
-        operator: '<=',
-        value: searchTerm + '\uf8ff'
-      })
-
-      filtersApplied.push(`text_search: "${searchTerm}"`)
-    }
-
-    // Execute the main search query
-    const dbQuery = {
+    const queryResult = await db().queryDocs({
       collection: 'opportunities',
-      filters: filters,
-      orderBy: orderBy,
-      pagination: {
-        limit: params.limit || 20,
-        offset: params.startAfter ? 1 : 0
-      }
+      filters,
+      orderBy: buildOpportunityListOrderBy(params.sortBy, params.sortOrder),
+      pagination: { limit },
+    })
+
+    let opportunities: SerializedOpportunity[] = []
+    if (queryResult.success && queryResult.data) {
+      const mapped = queryResult.data.map((item) => mapDbDocumentToSerializedOpportunity(item))
+      opportunities = await attachOpportunityFeedFields(mapped, {
+        viewerUserId: userId,
+        viewerRole: session?.user?.role ?? mcpActor?.role,
+      })
     }
 
-    try {
-      // Get total count
-      const countResult = await db().countDocs('opportunities', filters)
+    const { nextCursor: lastVisible } = computePaginationCursor(
+      opportunities,
+      limit,
+      (item) => item.id,
+    )
 
-      totalCount = countResult.success ? (countResult.data ?? 0) : 0
-
-      // Execute main query
-      const queryResult = await db().queryDocs(dbQuery)
-
-      if (queryResult.success && queryResult.data) {
-        const mapped = queryResult.data.map((item) =>
-          mapDbDocumentToSerializedOpportunity(item),
-        )
-        opportunities = await attachOpportunityFeedFields(mapped, userId)
-
-        lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null
-      }
-    } catch (queryError) {
-      logger.warn('Services: searchOpportunities - Query failed, falling back to basic search', queryError)
-
-      // No cached fallback - return empty
-      opportunities = []
-      totalCount = 0
-      lastVisible = null
-    }
-
+    const filtersApplied = filters.map((filter) => `${filter.field}:${filter.operator}`)
     const searchTime = Date.now() - startTime
 
     logger.info('Services: searchOpportunities - Search completed', {
       query: params.query,
       resultsCount: opportunities.length,
-      totalCount,
       searchTime,
-      filtersApplied: filtersApplied.length
     })
 
     return {
       opportunities,
-      totalCount,
+      // Page size only — do not countDocs on every browse page.
+      totalCount: opportunities.length,
       lastVisible,
       searchMetadata: {
         query: params.query || '',
         filtersApplied,
-        sortBy,
+        sortBy: params.sortBy || 'relevance',
         searchTime,
-        backend: 'db().queryDocs()'
-      }
+        backend: 'db().queryDocs()',
+      },
     }
-
   } catch (error) {
     logRingError(error, 'Services: searchOpportunities - Search failed')
 
-    if (error instanceof OpportunityAuthError || error instanceof OpportunityPermissionError || error instanceof InvalidUserRoleError) {
+    if (
+      error instanceof OpportunityAuthError ||
+      error instanceof OpportunityPermissionError ||
+      error instanceof InvalidUserRoleError
+    ) {
       throw error
     }
 
-    throw new OpportunitySearchError(
-      'Failed to execute opportunity search',
-      {
-        params,
-        error: error instanceof Error ? error.message : String(error),
-        timestamp: Date.now()
-      }
-    )
+    throw new OpportunitySearchError('Failed to execute opportunity search', {
+      params,
+      error: error instanceof Error ? error.message : String(error),
+      timestamp: Date.now(),
+    })
   }
 })
 
-/**
- * Convenience function for simple text-based opportunity search
- *
- * @param query - Search query string
- * @param options - Additional search options
- * @returns Promise with search results
- */
 export const searchOpportunitiesByQuery = cache(async (
   query: string,
-  options: Omit<SearchOpportunitiesParams, 'query'> = {}
+  options: Omit<SearchOpportunitiesParams, 'query'> = {},
 ): Promise<SearchOpportunitiesResult> => {
   return searchOpportunities({ ...options, query })
 })
 
-/**
- * Search opportunities by location with radius
- *
- * @param location - Location search string
- * @param radiusKm - Search radius in kilometers
- * @param options - Additional search options
- * @returns Promise with location-based search results
- */
 export const searchOpportunitiesByLocation = cache(async (
   location: string,
-  options: Omit<SearchOpportunitiesParams, 'location'> = {}
+  options: Omit<SearchOpportunitiesParams, 'location'> = {},
 ): Promise<SearchOpportunitiesResult> => {
-  return searchOpportunities({
-    ...options,
-    location,
-  })
+  return searchOpportunities({ ...options, location })
 })
 
-/**
- * Search opportunities by budget range
- *
- * @param minBudget - Minimum budget
- * @param maxBudget - Maximum budget
- * @param currency - Currency code (default: USD)
- * @param options - Additional search options
- * @returns Promise with budget-filtered search results
- */
 export const searchOpportunitiesByBudget = cache(async (
   minBudget?: number,
   maxBudget?: number,
   currency: string = getMainCurrencySymbol(),
-  options: Omit<SearchOpportunitiesParams, 'budgetMin' | 'budgetMax' | 'currency'> = {}
+  options: Omit<SearchOpportunitiesParams, 'budgetMin' | 'budgetMax' | 'currency'> = {},
 ): Promise<SearchOpportunitiesResult> => {
   return searchOpportunities({
     ...options,
     budgetMin: minBudget,
     budgetMax: maxBudget,
-    currency
+    currency,
   })
 })
 
-/**
- * Search opportunities by type and category
- *
- * @param types - Array of opportunity types
- * @param categories - Array of categories
- * @param options - Additional search options
- * @returns Promise with filtered search results
- */
 export const searchOpportunitiesByTypeAndCategory = cache(async (
   types?: string[],
   categories?: string[],
-  options: Omit<SearchOpportunitiesParams, 'types' | 'categories'> = {}
+  options: Omit<SearchOpportunitiesParams, 'types' | 'categories'> = {},
 ): Promise<SearchOpportunitiesResult> => {
-  return searchOpportunities({
-    ...options,
-    types,
-    categories
-  })
+  return searchOpportunities({ ...options, types, categories })
 })
 
-/**
- * Get popular search suggestions based on current data
- *
- * @param limit - Maximum number of suggestions
- * @returns Promise with popular search terms
- */
 export const getSearchSuggestions = cache(async (limit: number = 10): Promise<string[]> => {
-  try {
-    // This would typically query a search analytics collection
-    // For now, return some common search terms
-    const commonTerms = [
-      'software development',
-      'marketing',
-      'consulting',
-      'design',
-      'data analysis',
-      'project management',
-      'content creation',
-      'business development',
-      'research',
-      'training'
-    ]
-
-    return commonTerms.slice(0, limit)
-  } catch (error) {
-    logger.warn('Services: getSearchSuggestions - Failed to get suggestions', error)
-    return []
-  }
+  return [
+    'software development',
+    'marketing',
+    'consulting',
+    'design',
+    'data analysis',
+    'project management',
+    'content creation',
+    'business development',
+    'research',
+    'training',
+  ].slice(0, limit)
 })
 
-/**
- * Advanced search with multiple criteria combined
- *
- * @param criteria - Combined search criteria
- * @returns Promise with comprehensive search results
- */
 export const advancedSearchOpportunities = cache(async (
   criteria: {
     text?: string
@@ -504,9 +199,9 @@ export const advancedSearchOpportunities = cache(async (
     sortBy?: 'relevance' | 'dateCreated' | 'dateUpdated' | 'budget' | 'deadline' | 'location'
     sortOrder?: 'asc' | 'desc'
     limit?: number
-  }
+  },
 ): Promise<SearchOpportunitiesResult> => {
-  const params: SearchOpportunitiesParams = {
+  return searchOpportunities({
     query: criteria.text,
     types: criteria.types,
     categories: criteria.categories,
@@ -518,32 +213,6 @@ export const advancedSearchOpportunities = cache(async (
     deadline: criteria.deadline,
     sortBy: criteria.sortBy,
     sortOrder: criteria.sortOrder,
-    limit: criteria.limit
-  }
-
-  return searchOpportunities(params)
+    limit: criteria.limit,
+  })
 })
-
-/**
- * Example usage:
- *
- * // Basic text search
- * const results = await searchOpportunitiesByQuery('software development')
- *
- * // Advanced search with multiple filters
- * const advanced = await advancedSearchOpportunities({
- *   text: 'marketing',
- *   types: ['offer', 'partnership'],
- *   categories: ['technology', 'business'],
- *   location: 'Kyiv',
- *   budgetRange: { min: 1000, max: 5000, currency: 'USD' },
- *   sortBy: 'relevance',
- *   limit: 20
- * })
- *
- * // Location-based search
- * const locationResults = await searchOpportunitiesByLocation('Kyiv', 50)
- *
- * // Budget-based search
- * const budgetResults = await searchOpportunitiesByBudget(1000, 10000, 'USD')
- */

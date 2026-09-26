@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus } from 'lucide-react'
+import { Plus, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -48,6 +49,26 @@ export default function AdminProductsClient({
   const [products, setProducts] = useState(initialProducts)
   const [hasMore, setHasMore] = useState(initialHasMore)
   const [nextOffset, setNextOffset] = useState(initialNextOffset)
+  // Client-side quick filter over loaded rows (name / sku / category / vendor / price)
+  const [quickFilter, setQuickFilter] = useState('')
+
+  const filteredProducts = useMemo(() => {
+    const needle = quickFilter.trim().toLowerCase()
+    if (!needle) return products
+    return products.filter((p) => {
+      const haystack = [
+        p.name,
+        p.vendorEntityId,
+        p.category,
+        p.sku,
+        `${p.price} ${p.currency}`,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(needle)
+    })
+  }, [products, quickFilter])
 
   useEffect(() => {
     setProducts(initialProducts)
@@ -168,12 +189,41 @@ export default function AdminProductsClient({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle className="text-base">{t('tableTitle')}</CardTitle>
+          <div className="flex items-center gap-2 min-w-0">
+            {quickFilter && filteredProducts.length !== products.length && (
+              <span className="hidden sm:inline shrink-0 text-xs text-muted-foreground">
+                {t('showingOf', { filtered: filteredProducts.length, total: products.length })}
+              </span>
+            )}
+            <div className="relative w-full max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={quickFilter}
+                onChange={(e) => setQuickFilter(e.target.value)}
+                placeholder={t('quickFilter')}
+                className="pl-8 pr-8 h-8"
+              />
+              {quickFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => setQuickFilter('')}
+                  aria-label={t('quickFilterClear')}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          {products.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('empty')}</p>
+          {filteredProducts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {quickFilter ? t('quickFilterEmpty') : t('empty')}
+            </p>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -188,7 +238,7 @@ export default function AdminProductsClient({
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <tr key={product.id} className="border-b border-border/50">
                     <td className="py-2 pr-4 font-medium">{product.name}</td>
                     <td className="py-2 pr-4 font-mono text-xs">{product.vendorEntityId}</td>

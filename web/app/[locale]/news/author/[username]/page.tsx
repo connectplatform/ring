@@ -27,6 +27,7 @@ import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import { hasRoleAtLeast } from '@/features/auth/types'
 import { ROUTES } from '@/constants/routes'
+import { CurtainPageProvider } from '@/features/curtain/components/curtain-page-context'
 // (Removed unused imports: Image, db, mapNewsDocument, Badge, Card, CardContent, buildNewsVisibilityFilters)
 //      ^ TODO: Clean up unused imports for smaller bundles and improved clarity
 
@@ -214,6 +215,7 @@ export default async function NewsAuthorPage(
 
   // === Main Render: Layout, header, and article grid/empty state ===
   return (
+    <CurtainPageProvider authorUserId={author.id} pageKind="news">
     <RingRightRailLayout
       rightRailPurpose="generic"
       rightRailContent={[
@@ -271,5 +273,6 @@ export default async function NewsAuthorPage(
         )}
       </DavinciCenterPane>
     </RingRightRailLayout>
+    </CurtainPageProvider>
   );
 }

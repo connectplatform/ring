@@ -25,7 +25,8 @@ export function resolveRingBaseUploadType(opts: {
   if (opts.access === 'private') return 'document'
   const ct = opts.contentType.toLowerCase()
   if (ct.startsWith('image/')) return 'image'
-  if (ct.startsWith('video/') || ct.startsWith('audio/')) return 'media'
+  if (ct.startsWith('video/')) return 'media'
+  if (ct.startsWith('audio/')) return 'other'
   return 'other'
 }
 

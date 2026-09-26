@@ -47,7 +47,7 @@ describe('opportunity-visibility-filter', () => {
   })
 
   it('buildOpportunityVisibilityFilters excludes confidential rows for subscribers', () => {
-    const filters = buildOpportunityVisibilityFilters(UserRole.subscriber)
+    const filters = buildOpportunityVisibilityFilters(UserRolesArray.subscriber)
     expect(filters).toEqual(
       expect.arrayContaining([
         { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },

@@ -110,7 +110,11 @@
     "map": "Karte",
     "places": "Orte",
     "meetups": "Meetups",
-    "pets": "Meine Tiere"
+    "pets": "Meine Tiere",
+    "opportunities": "Opportunities",
+    "messages": "Nachrichten",
+    "civicInquiries": "Bürgeranfragen (311)",
+    "urbanImprovement": "Stadtverschönerung"
   },
   "sidebar": {
     "brandTagline": "Dezentralisierte selbstbauende Zukunft",
@@ -120,6 +124,7 @@
     "aiMeetsWeb3": "KI trifft Web3",
     "platformFeatures": "Plattformfunktionen",
     "getStarted": "Loslegen",
+    "systems": "Systeme",
     "documentation": "Dokumentation",
     "quickStart": "Schnellstart",
     "deploymentCalculator": "Projektplaner",

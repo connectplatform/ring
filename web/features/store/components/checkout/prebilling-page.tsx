@@ -5,7 +5,7 @@
 // ===================
 
 // Import core React hooks and features
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 // Preferences load via useEffect — do NOT call use() inside try/catch or with uncached promises.
 
 // Feature, UI, and model imports
@@ -125,6 +125,7 @@ export function PrebillingPage({
 
   // Shipping state for selected address, method, and NovaPost location
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null)   // User's selected shipping address
+  const [novaPostEnabled, setNovaPostEnabled] = useState(false)
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('pickup')  // Default pickup (Nova Post optional)
   const [shippingLocation, setShippingLocation] = useState<NovaPostLocation | null>(null) // NovaPost office branch
 
@@ -152,6 +153,26 @@ export function PrebillingPage({
     Awaited<ReturnType<typeof getUserStorePreferences>> | null
   >(null)
 
+  const prefsHydrated = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/api/shipping/novapost/status', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data: { enabled?: boolean }) => {
+        if (!cancelled && data.enabled === true) {
+          setNovaPostEnabled(true)
+          setShippingMethod((current) => (current === 'pickup' ? 'nova-post' : current))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNovaPostEnabled(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Load preferences after auth — never use() with an uncached server-action promise in try/catch.
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
@@ -176,41 +197,38 @@ export function PrebillingPage({
   // ======================
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      // Attempt to parse first/last names from user info if available
-      if (user.name) {
-        const nameParts = user.name.split(' ')
-        setFirstName(nameParts[0] || '')
-        setLastName(nameParts.slice(1).join(' ') || '')
-      }
-      setEmail(user.email || '')
-
-      // Hydrate store preferences if available
-      if (userPreferences) {
-        // Select stored shipping method if set
-        if (
-          userPreferences.preferredShippingMethod &&
-          userPreferences.preferredShippingMethod !== 'manual'
-        ) {
-          setShippingMethod(userPreferences.preferredShippingMethod)
-        }
-        if (userPreferences.preferredPaymentMethod) {
-          setPaymentMethod(
-            normalizePaymentRail(userPreferences.preferredPaymentMethod) as PaymentMethod,
-          )
-        }
-        if (
-          userPreferences.preferredDisplayCurrency &&
-          FIAT_PRESENTMENT.includes(userPreferences.preferredDisplayCurrency)
-        ) {
-          setPaymentCurrency(userPreferences.preferredDisplayCurrency)
-        }
-        // Load "save payment method" pref, default to false if unset
-        setSavePaymentMethod(userPreferences.savePaymentMethods ?? false)
-      }
+    if (!isAuthenticated || !user?.id) return
+    if (user.name) {
+      const nameParts = user.name.split(' ')
+      setFirstName(nameParts[0] || '')
+      setLastName(nameParts.slice(1).join(' ') || '')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user, userPreferences])
+    setEmail(user.email || '')
+  }, [isAuthenticated, user?.id, user?.name, user?.email])
+
+  useEffect(() => {
+    if (!isAuthenticated || !userPreferences || prefsHydrated.current) return
+    prefsHydrated.current = true
+    if (
+      userPreferences.preferredShippingMethod &&
+      userPreferences.preferredShippingMethod !== 'manual' &&
+      (novaPostEnabled || userPreferences.preferredShippingMethod !== 'nova-post')
+    ) {
+      setShippingMethod(userPreferences.preferredShippingMethod)
+    }
+    if (userPreferences.preferredPaymentMethod) {
+      setPaymentMethod(
+        normalizePaymentRail(userPreferences.preferredPaymentMethod) as PaymentMethod,
+      )
+    }
+    if (
+      userPreferences.preferredDisplayCurrency &&
+      FIAT_PRESENTMENT.includes(userPreferences.preferredDisplayCurrency)
+    ) {
+      setPaymentCurrency(userPreferences.preferredDisplayCurrency)
+    }
+    setSavePaymentMethod(userPreferences.savePaymentMethods ?? false)
+  }, [isAuthenticated, userPreferences, novaPostEnabled])
 
   // ===========================
   // Address and Preference Handlers
@@ -254,12 +272,32 @@ export function PrebillingPage({
 
   // Called on "Proceed" click: validates, builds billing payload, and passes upstream
   const handleProceed = async () => {
-    // Validation: check address present
-    if (!selectedAddress) {
-      alert(t('pleaseSelectAddress'))
+    const branchAddress: UserAddress | null =
+      novaPostEnabled && shippingMethod === 'nova-post' && shippingLocation
+        ? {
+            fullName: `${firstName} ${lastName}`.trim(),
+            phone,
+            country: 'UA',
+            city: shippingLocation.settlement?.name || '',
+            addressLine1: shippingLocation.address || shippingLocation.name,
+          }
+        : null
+    const shippingAddress: UserAddress | null =
+      novaPostEnabled && shippingMethod === 'nova-post'
+        ? branchAddress
+        : novaPostEnabled
+          ? {
+              fullName: `${firstName} ${lastName}`.trim(),
+              phone,
+              country: 'UA',
+              city: '',
+              addressLine1: shippingMethod,
+            }
+          : selectedAddress
+    if (!shippingAddress) {
+      alert(novaPostEnabled ? t('pleaseSelectNovaPostLocation') : t('pleaseSelectAddress'))
       return
     }
-    // If nova-post, branch selection is also required
     if (shippingMethod === 'nova-post' && !shippingLocation) {
       alert(t('pleaseSelectNovaPostLocation'))
       return
@@ -273,12 +311,12 @@ export function PrebillingPage({
       lastName,
       email,
       phone,
-      shippingAddress: selectedAddress,
+      shippingAddress,
       shippingMethod,
       shippingLocation,
       paymentMethod,
       billingAddressSameAsShipping,
-      billingAddress: billingAddressSameAsShipping ? selectedAddress : selectedBillingAddress,
+      billingAddress: billingAddressSameAsShipping ? shippingAddress : selectedBillingAddress,
       savePaymentMethod,
       marketingOptIn,
       paymentCurrency,
@@ -410,7 +448,7 @@ export function PrebillingPage({
             - Authenticated users: show AddressManager (stored addresses selector)
             - Guests/visitors: display stubbed address fields (to be implemented)
           */}
-          {isAuthenticated && user && (
+          {isAuthenticated && user && !novaPostEnabled && (
             <Card>
               <CardContent className="p-6">
                 <AddressManager
@@ -422,7 +460,7 @@ export function PrebillingPage({
             </Card>
           )}
 
-          {!isAuthenticated && (
+          {!isAuthenticated && !novaPostEnabled && (
             <Card>
               <CardHeader>
                 <CardTitle>{t('shippingAddress')}</CardTitle>
@@ -476,6 +514,7 @@ export function PrebillingPage({
                 onMethodSelect={handleShippingMethodChange}
                 selectedLocation={shippingLocation}
                 onLocationSelect={setShippingLocation}
+                novaPostEnabled={novaPostEnabled}
               />
             </CardContent>
           </Card>

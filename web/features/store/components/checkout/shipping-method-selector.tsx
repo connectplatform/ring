@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react' // Only import useMemo, as memoization will be added.
+import React, { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { useOptionalStorePaymentMethods } from '@/features/store/currency-context'
 import { Truck, Clock, MapPin, Package } from 'lucide-react'
@@ -36,6 +36,7 @@ interface ShippingMethodSelectorProps {
   onMethodSelect: (method: ShippingMethod) => void
   selectedLocation?: NovaPostLocation | null
   onLocationSelect?: (location: NovaPostLocation | null) => void
+  novaPostEnabled?: boolean
   className?: string
 }
 
@@ -50,11 +51,10 @@ function ShippingMethodSelector({
   onMethodSelect,
   selectedLocation,
   onLocationSelect,
+  novaPostEnabled = false,
   className = ''
 }: ShippingMethodSelectorProps) {
-  // Access translation function from next-intl for i18n/localization
   const t = useTranslations('modules.store.checkout')
-  // Access store-level currency conversion context (returns undefined if not in a store domain)
   const currencyContext = useOptionalStorePaymentMethods()
   
   // Helper: Retrieve convertPrice method (currency conversion), fallback is an identity function
@@ -68,15 +68,17 @@ function ShippingMethodSelector({
   // especially since t() is stable from next-intl and icons are static.
   // Use useMemo from React 18+/19 for better rerender efficiency.
   const shippingOptions: ShippingOption[] = useMemo(() => [
-    {
-      id: 'nova-post',
-      name: t('novaPost'), // Key for Nova Post service
-      description: t('novaPostDescription'),
-      estimatedDays: '1-3 ' + t('businessDays'),
-      price: 65,
-      currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
-      icon: <Package className="h-5 w-5" />
-    },
+    ...(novaPostEnabled
+      ? [{
+          id: 'nova-post' as const,
+          name: t('novaPost'),
+          description: t('novaPostDescription'),
+          estimatedDays: '1-3 ' + t('businessDays'),
+          price: 65,
+          currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
+          icon: <Package className="h-5 w-5" />,
+        }]
+      : []),
     {
       id: 'express',
       name: t('expressDelivery'),
@@ -104,7 +106,7 @@ function ShippingMethodSelector({
       currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
       icon: <MapPin className="h-5 w-5" />
     }
-  ], [t])
+  ], [t, novaPostEnabled])
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -115,18 +117,15 @@ function ShippingMethodSelector({
       <div className="space-y-3">
         {/* Render each shipping option card */}
         {shippingOptions.map((option) => (
-          <div
+          <button
             key={option.id}
-            // Highlight selection, apply cursor, animate border/color
-            className={`border rounded-lg p-4 cursor-pointer transition-all ${
+            type="button"
+            className={`w-full border rounded-lg p-4 text-left cursor-pointer transition-all ${
               selectedMethod === option.id
                 ? 'border-primary bg-primary/10'
                 : 'border-border hover:border-primary/50'
             }`}
-            // Click handler: triggers onMethodSelect to update the chosen method
             onClick={() => onMethodSelect(option.id)}
-            // TODO: Make root a <button> for accessibility and keyboard navigation, 
-            //       add aria-checked + role="radio"/"button" as needed.
           >
             <div className="flex items-center justify-between">
               {/* Left side: icon, method name/details */}
@@ -179,13 +178,13 @@ function ShippingMethodSelector({
                 */}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
       {/* Show extra panel for Nova Post option: location selector */}
       {/* Only display if Nova Post is selected AND a callback is provided for selecting location */}
-      {selectedMethod === 'nova-post' && onLocationSelect && (
+      {novaPostEnabled && selectedMethod === 'nova-post' && onLocationSelect && (
         <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
           <h4 className="font-medium mb-3">{t('selectNovaPostLocation')}</h4>
           <NovaPostSelector

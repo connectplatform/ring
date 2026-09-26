@@ -3,7 +3,15 @@ import { auth } from '@/auth'
 import { getMyOpportunities } from '@/features/opportunities/services/get-user-opportunities'
 import type { MyOpportunitiesView } from '@/features/opportunities/lib/lifecycle-status'
 
-const VIEWS = new Set<MyOpportunitiesView>(['all', 'drafts', 'pending', 'active', 'archived'])
+const VIEWS = new Set<MyOpportunitiesView>([
+  'all',
+  'drafts',
+  'pending',
+  'active',
+  'archived',
+  'saved',
+  'applied',
+])
 
 export async function GET(request: NextRequest) {
   await connection()

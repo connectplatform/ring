@@ -17,11 +17,51 @@ import {
   canDeleteOpportunity,
   assertOpportunityVisibilityPatch,
 } from '@/features/opportunities/lib/opportunity-permissions'
+import { canSetAnonymousPoster } from '@/features/opportunities/lib/opportunity-identity'
 import { ROUTES } from '@/constants/routes'
 import { getCollectiveOrderDefaultRails, getMainCurrencySymbol } from '@/lib/ring-config-core'
 import type { Locale } from '@/i18n/shared'
+import type { OpportunityVisibility } from '@/features/opportunities/types'
 
 // State definition for Opportunity-related form actions
+const VISIBILITY_VALUES = new Set(['public', 'subscriber', 'member', 'confidential'])
+
+function parseVisibility(raw: unknown): OpportunityVisibility | undefined {
+  const value = typeof raw === 'string' ? raw.trim() : ''
+  if (VISIBILITY_VALUES.has(value)) return value as OpportunityVisibility
+  return undefined
+}
+
+function resolvePosterIdentity(
+  userRole: ReturnType<typeof assertKnownUserRole>,
+  formData: FormData,
+  fallbackVisibility: OpportunityVisibility = 'public',
+): {
+  visibility: OpportunityVisibility
+  isConfidential: boolean
+  anonymousPoster: boolean
+} {
+  const requestedVisibility = parseVisibility(formData.get('visibility')) || fallbackVisibility
+  const listingConfidential =
+    formData.get('isConfidential') === 'true' || requestedVisibility === 'confidential'
+  let visibility = requestedVisibility
+  let isConfidential = listingConfidential
+  let anonymousPoster = formData.get('anonymousPoster') === 'true'
+
+  if (anonymousPoster && !canSetAnonymousPoster(userRole, visibility)) {
+    anonymousPoster = false
+  }
+  if (anonymousPoster) {
+    isConfidential = false
+  }
+  if (visibility === 'confidential') {
+    isConfidential = true
+    anonymousPoster = false
+  }
+
+  return { visibility, isConfidential, anonymousPoster }
+}
+
 export interface OpportunityFormState {
   success?: boolean
   message?: string
@@ -84,7 +124,7 @@ export async function createOpportunity(
   const priority = formData.get('priority') as 'urgent' | 'normal' | 'low'
   const contactEmail = formData.get('contactEmail') as string
   let entityId = formData.get('entityId') as string
-  const isConfidential = formData.get('isConfidential') === 'true'
+  const { visibility, isConfidential, anonymousPoster } = resolvePosterIdentity(userRole, formData)
   const tagsString = formData.get('tags') as string
   const requiredSkillsString = formData.get('requiredSkills') as string
 
@@ -94,6 +134,11 @@ export async function createOpportunity(
   }
   if (isConfidential && !canCreateOpportunityConfidential(userRole)) {
     return { error: 'Only admin, superadmin, or confidential users can create confidential opportunities' }
+  }
+  try {
+    assertOpportunityVisibilityPatch(userRole, { visibility, isConfidential })
+  } catch {
+    return { error: 'Your role cannot set this visibility level' }
   }
 
   // Business logic: handle entity vs. individual opps
@@ -333,7 +378,8 @@ export async function createOpportunity(
       applicantCount: 0,
       ...(maxApplicantsNumber ? { maxApplicants: maxApplicantsNumber } : {}),
       ...(priority ? { priority } : {}),
-      visibility: isConfidential ? 'confidential' as const : 'public' as const,
+      visibility,
+      anonymousPoster,
       contactInfo: {
         linkedEntity: requestTypes.includes(type) ? '' : entityId?.trim() || '',
         contactAccount: contactEmail?.trim() || session.user.email || ''
@@ -452,11 +498,14 @@ export async function updateOpportunity(
     const priority = formData.get('priority') as 'urgent' | 'normal' | 'low'
     const contactEmail = formData.get('contactEmail') as string
     const entityId = formData.get('entityId') as string
-    const isConfidential = formData.get('isConfidential') === 'true'
+    const { visibility, isConfidential, anonymousPoster } = resolvePosterIdentity(
+      userRole,
+      formData,
+      existingOpportunity.visibility || 'public',
+    )
     const tagsString = formData.get('tags') as string
     const requiredSkillsString = formData.get('requiredSkills') as string
     const status = formData.get('status') as 'active' | 'closed' | 'expired'
-    const visibility = formData.get('visibility') as 'public' | 'subscriber' | 'member' | 'confidential'
 
     // Field validation (mirrors creation with additional constraints for update)
     const fieldErrors: Record<string, string> = {}
@@ -556,7 +605,8 @@ export async function updateOpportunity(
       requiredSkills,
       location: formData.get('location')?.toString().trim() || existingOpportunity.location || '',
       isConfidential,
-      visibility: isConfidential ? 'confidential' : (visibility || 'public'),
+      visibility,
+      anonymousPoster,
       contactInfo: {
         linkedEntity: entityId?.trim() || existingOpportunity.contactInfo?.linkedEntity || '',
         contactAccount: contactEmail?.trim() || session.user.email || existingOpportunity.contactInfo?.contactAccount || ''

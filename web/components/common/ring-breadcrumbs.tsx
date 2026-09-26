@@ -1,6 +1,6 @@
 'use client'
 
-import { Link } from '@/i18n/routing'
+import { Link, toAppHref } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
 export type RingBreadcrumbItem = {
@@ -37,7 +37,10 @@ export function RingBreadcrumbs({
                 </span>
               ) : null}
               {item.href && !isLast ? (
-                <Link href={item.href as never} className="truncate hover:text-foreground">
+                // Callers pass ROUTES.* (already locale-prefixed via withLocale);
+                // toAppHref strips that prefix so next-intl Link prefixes the
+                // active locale exactly once (fixes /uk/uk, /de/de double-locale).
+                <Link href={toAppHref(item.href)} className="truncate hover:text-foreground">
                   {item.label}
                 </Link>
               ) : (

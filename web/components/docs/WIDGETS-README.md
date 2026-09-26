@@ -11,7 +11,7 @@ SSOT for **ring-widgets** (reusable React UI blocks) and **ring-docs-widgets** (
 | MDX component map | `components/docs/mdx-docs-shared.tsx` | Registers JSX tags available in every `docs/{locale}/**/*.mdx` page |
 | Heavy client loader | `components/docs/mdx-heavy-components.tsx` | `dynamic(..., { ssr: false })` for browser-only widgets |
 | Site widget barrel | `components/ring-widgets/index.ts` | App rails, marketing, wallet — import from `@/components/ring-widgets` |
-| Content | `docs/{locale}/` | Authors use registered tags; no per-page imports |
+| Content | L3 `ringdom-clones/ring-platform-org/web/docs/{locale}/` (portal); L1 `ring/web/docs/{locale}/` (community baseline) | Authors use registered tags; no per-page imports |
 | Resolver | `lib/docs/docs-path.ts` | Slug → file; `buildDocsHref()` for locale-aware links inside widgets |
 | Layout + audience | `docs-layout-shell.tsx`, `docs-audience-context.tsx` | `DocsAudienceProvider` wraps docs pages |
 | Sidebar | `docs-navigation-panel.tsx`, `docs-audience-selector.tsx`, `docs-sidebar-controls.tsx` | Search, Founder/Developer filter, theme/locale |

@@ -47,7 +47,8 @@
       "preserves-pickles": "Almacenamiento y archivos",
       "beverages": "Tiempo real y mensajería",
       "nuts-seeds": "Herramientas de agente y MCP",
-      "handmade-crafts": "Consultoría e ingeniería personalizada"
+      "handmade-crafts": "Consultoría e ingeniería personalizada",
+      "other": "Otro"
     },
     "validation": {
       "slugRequired": "El slug de la tienda es obligatorio",
@@ -298,7 +299,8 @@
       "getQty": "Gratis",
       "percentOff": "% dto.",
       "amountOff": "Importe dto. / unidad",
-      "removePromotion": "Quitar promoción"
+      "removePromotion": "Quitar promoción",
+      "photoRequiredToSave": "Añade al menos una foto del producto para activar Guardar."
     },
     "validation": {
       "nameRequired": "Se requiere título",

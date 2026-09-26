@@ -58,10 +58,36 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
   const [gisLoaded, setGisLoaded] = useState(false)
   const promptedRef = useRef(false)
   const appliedSchemeRef = useRef<GisColorScheme | null>(null)
+  // GIS re-initializes officially, but each redundant call logs
+  // "GSI_LOGGER: google.accounts.id.initialize() is called multiple times".
+  // Guard: re-initialize only when the effective config actually changes
+  // (theme color_scheme flip, locale change, or a different client id).
+  const lastInitKeyRef = useRef<string | null>(null)
+  // The persisted GIS callback must reach the LATEST closures (router,
+  // callback url) — keep it behind a ref so skipping re-initialize stays safe.
+  const credentialCallbackRef = useRef<(response: { credential?: string }) => void>(() => {})
 
   const locale = localeFromPathname(pathname)
   const oauthCallbackUrl = buildOAuthCallbackUrl(redirectUrl, locale)
   const colorScheme = gisColorSchemeFromTheme(resolvedTheme)
+
+  credentialCallbackRef.current = async (response: { credential?: string }) => {
+    try {
+      const result = await signIn('google-one-tap', {
+        credential: response.credential,
+        redirect: false,
+        callbackUrl: oauthCallbackUrl,
+      })
+
+      if (result?.ok) {
+        router.push(oauthCallbackUrl)
+      } else {
+        console.error('[GIS] One Tap authentication failed:', result?.error)
+      }
+    } catch (error) {
+      console.error('[GIS] One Tap authentication error:', error)
+    }
+  }
 
   // Load GIS script globally
   useEffect(() => {
@@ -132,27 +158,22 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
         promptedRef.current = false
       }
 
+      const initKey = JSON.stringify({
+        clientId: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID ?? '',
+        locale: localeFromPathname(pathname),
+        colorScheme,
+      })
+      if (lastInitKeyRef.current === initKey) {
+        // Same effective config — GIS keeps the previous initialization;
+        // re-calling initialize would spam "called multiple times".
+        return
+      }
+
       window.google.accounts.id.initialize({
         client_id: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID!,
         locale: localeFromPathname(pathname),
         color_scheme: colorScheme,
-        callback: async (response: { credential?: string }) => {
-          try {
-            const result = await signIn('google-one-tap', {
-              credential: response.credential,
-              redirect: false,
-              callbackUrl: oauthCallbackUrl,
-            })
-
-            if (result?.ok) {
-              router.push(oauthCallbackUrl)
-            } else {
-              console.error('[GIS] One Tap authentication failed:', result?.error)
-            }
-          } catch (error) {
-            console.error('[GIS] One Tap authentication error:', error)
-          }
-        },
+        callback: (response: { credential?: string }) => credentialCallbackRef.current(response),
         auto_select: false,
         cancel_on_tap_outside: true,
         context: 'signin',
@@ -160,6 +181,7 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
         use_fedcm_for_prompt: true,
       })
 
+      lastInitKeyRef.current = initKey
       appliedSchemeRef.current = colorScheme
 
       const isMobile =

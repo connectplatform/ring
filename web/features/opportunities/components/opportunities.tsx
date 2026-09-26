@@ -11,7 +11,7 @@ import { useAppContext } from '@/contexts/app-context'
 import { usePathname, useSearchParams } from 'next/navigation'
 import type { Locale } from '@/i18n/shared'
 import OpportunityList from './opportunity-list'
-import { useRealtimeOpportunities, useOptimisticOpportunities } from '@/hooks/use-realtime-opportunities'
+import { useRealtimeOpportunities } from '@/hooks/use-realtime-opportunities'
 
 interface OpportunitiesProps {
   initialOpportunities: SerializedOpportunity[]
@@ -31,140 +31,27 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   const { error, setError } = useAppContext()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [opportunities, setOpportunities] = React.useState<SerializedOpportunity[]>(initialOpportunities)
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
 
   const locale = useLocale() as Locale
-
-  const filters = React.useMemo(
-    () => ({
-      search: searchParams.get('q') || '',
-      types: searchParams.get('types')?.split(',').filter(Boolean) || [],
-      categories: searchParams.get('categories')?.split(',').filter(Boolean) || [],
-      location: searchParams.get('location') || '',
-      budgetMin: searchParams.get('budgetMin') || '',
-      budgetMax: searchParams.get('budgetMax') || '',
-      currency: searchParams.get('currency') || 'USD',
-      priority: searchParams.get('priority') || '',
-      deadline: searchParams.get('deadline') || '',
-      entityVerified:
-        searchParams.get('entityVerified') === 'true'
-          ? true
-          : searchParams.get('entityVerified') === 'false'
-            ? false
-            : null,
-      hasDeadline:
-        searchParams.get('hasDeadline') === 'true'
-          ? true
-          : searchParams.get('hasDeadline') === 'false'
-            ? false
-            : null,
-    }),
-    [searchParams],
-  )
 
   useRealtimeOpportunities({
     autoConnect: true,
     debug: false,
   })
 
-  const { opportunities: realtimeOpportunities } = useOptimisticOpportunities(initialOpportunities)
-
-  const filteredOpportunities = React.useMemo(() => {
-    return realtimeOpportunities.filter((opportunity) => {
-      if (filters.search && filters.search.trim() !== '') {
-        const searchTerm = filters.search.toLowerCase()
-        const searchableText =
-          `${opportunity.title} ${opportunity.briefDescription} ${opportunity.tags?.join(' ') || ''}`.toLowerCase()
-        if (!searchableText.includes(searchTerm)) {
-          return false
-        }
-      }
-
-      if (filters.types.length > 0 && !filters.types.includes(opportunity.type)) {
-        return false
-      }
-
-      if (filters.categories.length > 0 && !filters.categories.includes(opportunity.category)) {
-        return false
-      }
-
-      if (filters.location && filters.location.trim() !== '') {
-        const locationTerm = filters.location.toLowerCase()
-        if (!opportunity.location.toLowerCase().includes(locationTerm)) {
-          return false
-        }
-      }
-
-      if (filters.budgetMin && filters.budgetMin.trim() !== '') {
-        const minBudget = parseFloat(filters.budgetMin)
-        if (opportunity.budget?.max && opportunity.budget.max < minBudget) {
-          return false
-        }
-      }
-
-      if (filters.budgetMax && filters.budgetMax.trim() !== '') {
-        const maxBudget = parseFloat(filters.budgetMax)
-        if (opportunity.budget?.min && opportunity.budget.min > maxBudget) {
-          return false
-        }
-      }
-
-      if (filters.priority && filters.priority !== 'all') {
-        if (opportunity.priority !== filters.priority) {
-          return false
-        }
-      }
-
-      if (filters.deadline && filters.deadline !== 'all') {
-        const now = new Date()
-        if (filters.deadline === 'today') {
-          const today = new Date()
-          today.setHours(23, 59, 59, 999)
-          if (!opportunity.applicationDeadline || new Date(opportunity.applicationDeadline) > today) {
-            return false
-          }
-        } else if (filters.deadline === 'week') {
-          const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-          if (!opportunity.applicationDeadline || new Date(opportunity.applicationDeadline) > weekFromNow) {
-            return false
-          }
-        } else if (filters.deadline === 'month') {
-          const monthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          if (!opportunity.applicationDeadline || new Date(opportunity.applicationDeadline) > monthFromNow) {
-            return false
-          }
-        } else if (filters.deadline === 'no-deadline') {
-          if (opportunity.applicationDeadline) {
-            return false
-          }
-        }
-      }
-
-      if (filters.hasDeadline !== null) {
-        const hasDeadline = !!opportunity.applicationDeadline
-        if (filters.hasDeadline !== hasDeadline) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }, [realtimeOpportunities, filters])
-
   useEffect(() => {
-    setOpportunities(initialOpportunities)
     setError(initialError)
-  }, [initialOpportunities, initialError, setError])
+  }, [initialError, setError])
 
   useEffect(() => {
     const fetchEntities = async () => {
-      if (!session || opportunities.length === 0) return
+      if (!session || initialOpportunities.length === 0) return
 
       setError(null)
       try {
-        const uniqueEntityIds = [...new Set(opportunities.map((opp) => opp.organizationId))]
-        const missingEntityIds = uniqueEntityIds.filter((id) => id && id.trim() !== '' && !entities[id])
+        const uniqueEntityIds = [...new Set(initialOpportunities.map((opp) => opp.organizationId))]
+        const missingEntityIds = uniqueEntityIds.filter((id) => id && id.trim() !== '')
 
         if (missingEntityIds.length === 0) {
           return
@@ -195,7 +82,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
     }
 
     void fetchEntities()
-  }, [opportunities, session, t, setError])
+  }, [initialOpportunities, session, t, setError])
 
   if (status === 'loading') {
     return <LoadingMessage message={t('loadingMessage')} />
@@ -237,12 +124,11 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   return (
     <div className="min-h-full text-foreground">
       <OpportunityList
-        initialOpportunities={realtimeOpportunities}
+        initialOpportunities={initialOpportunities}
         initialEntities={entities}
         initialError={error}
         lastVisible={initialLastVisible}
         limit={limit}
-        totalCount={filteredOpportunities.length}
         locale={locale}
       />
     </div>

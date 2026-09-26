@@ -47,7 +47,8 @@
       "preserves-pickles": "Speicher & Archive",
       "beverages": "Echtzeit & Messaging",
       "nuts-seeds": "MCP & Agenten-Tools",
-      "handmade-crafts": "Beratung & Custom Engineering"
+      "handmade-crafts": "Beratung & Custom Engineering",
+      "other": "Andere"
     },
     "validation": {
       "slugRequired": "Store-Slug ist erforderlich",
@@ -298,7 +299,8 @@
       "getQty": "Gratis",
       "percentOff": "% Rabatt",
       "amountOff": "Betragsrabatt / Einheit",
-      "removePromotion": "Aktion entfernen"
+      "removePromotion": "Aktion entfernen",
+      "photoRequiredToSave": "Fügen Sie mindestens ein Produktfoto hinzu, um Speichern zu aktivieren."
     },
     "validation": {
       "nameRequired": "Titel ist erforderlich",

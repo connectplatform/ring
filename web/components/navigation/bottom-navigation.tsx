@@ -36,7 +36,10 @@ import {
   navHrefIsActive,
   resolveNavLabel,
 } from '@/lib/navigation/primary-nav'
-import { getResolvedPlatformMenuItems } from '@/lib/navigation/platform-menu'
+import {
+  getPlatformMenuConfig,
+  getResolvedPlatformMenuItems,
+} from '@/lib/navigation/platform-menu'
 import { sidebarPathIsActive } from '@/lib/navigation/desktop-primary-nav'
 import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
@@ -406,8 +409,9 @@ export default function BottomNavigation() {
   const loginOpenedAt = useRef(0)
 
   const isLoggedIn = !!session?.user
-  /** Authenticated subscriber+ → platform menu; unauth → Login FsModal. */
-  const canOpenPlatformMenu = isLoggedIn
+  /** Members always get the platform menu. Guests only when the clone opts in. */
+  const canOpenPlatformMenu =
+    isLoggedIn || getPlatformMenuConfig().allowGuestOverflow === true
   const loginLabel = t.has('login') ? t('login') : t('signIn')
   const isMemberPlus = hasMemberPrivileges(session?.user?.role)
   const { hasVendor } = useVendorStatus()

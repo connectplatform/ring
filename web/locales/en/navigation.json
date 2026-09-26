@@ -118,7 +118,11 @@
     "news": "News",
     "live": "Live",
     "categories": "Categories",
-    "directory": "Directory"
+    "directory": "Directory",
+    "opportunities": "Opportunities",
+    "messages": "Messages",
+    "civicInquiries": "Civic Inquiries (311)",
+    "urbanImprovement": "Urban Improvement"
   },
   "sidebar": {
     "brandTagline": "Decentralized Self-building Future",
@@ -128,6 +132,7 @@
     "aiMeetsWeb3": "AI Meets Web3",
     "platformFeatures": "Platform Features",
     "getStarted": "Get Started",
+    "systems": "Systems",
     "documentation": "Documentation",
     "quickStart": "Quick Start",
     "deploymentCalculator": "Project planner",

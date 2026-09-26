@@ -134,6 +134,8 @@ async function importLocaleFile(
       return import(`@/locales/${targetLocale}/modules/store.json`).then((m) => m.default).catch(() => ({}))
     case 'modOnboarding':
       return import(`@/locales/${targetLocale}/modules/onboarding.json`).then((m) => m.default).catch(() => ({}))
+    case 'modCurtain':
+      return import(`@/locales/${targetLocale}/modules/curtain.json`).then((m) => m.default).catch(() => ({}))
     case 'modProfile':
       return import(`@/locales/${targetLocale}/modules/profile.json`)
         .then((m) => m.default)
@@ -277,6 +279,7 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modAuth) modules.auth = loaded.modAuth
   if (loaded.modEntities) modules.entities = loaded.modEntities
   if (loaded.modOnboarding) modules.onboarding = loaded.modOnboarding
+  if (loaded.modCurtain) modules.curtain = loaded.modCurtain
   if (loaded.modOpp) modules.opportunities = loaded.modOpp
   if (loaded.modMessenger) modules.messenger = loaded.modMessenger
   if (loaded.modGames) modules.games = loaded.modGames

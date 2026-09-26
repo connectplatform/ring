@@ -11,14 +11,27 @@ import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
 import {
+  Store,
+} from 'lucide-react'
+import {
   STORE_VENDOR_CATEGORY_IDS,
   STORE_VENDOR_CATEGORY_META,
+  type StoreVendorCategoryId,
 } from '@/constants/store-vendor-categories'
+import { STORE_PRODUCT_CATEGORIES } from '@/lib/zod/store-product'
 
 interface CategoryMultiSelectProps {
   selectedCategories: string[]
   onCategoriesChange: (categories: string[]) => void
   error?: string
+}
+
+/** Generic tile meta for ring-config categories without a Lucide meta entry. */
+const FALLBACK_CATEGORY_META = {
+  LucideIcon: Store,
+  accent: 'hsl(142 71% 45%)',
+  soft: 'hsl(142 71% 45% / 0.12)',
+  colorClass: 'from-emerald-500/20 to-green-500/20',
 }
 
 export default function CategoryMultiSelect({
@@ -28,6 +41,9 @@ export default function CategoryMultiSelect({
 }: CategoryMultiSelectProps) {
   const t = useTranslations('modules.store')
   const tForm = useTranslations('vendor.onboarding.form')
+
+  const configuredCategories =
+    STORE_PRODUCT_CATEGORIES.length > 0 ? [...STORE_PRODUCT_CATEGORIES] : [...STORE_VENDOR_CATEGORY_IDS]
 
   const [isPending, startTransition] = useTransition()
 
@@ -47,8 +63,9 @@ export default function CategoryMultiSelect({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {STORE_VENDOR_CATEGORY_IDS.map((categoryId, index) => {
-          const category = STORE_VENDOR_CATEGORY_META[categoryId]
+        {configuredCategories.map((categoryId, index) => {
+          const category =
+            STORE_VENDOR_CATEGORY_META[categoryId as StoreVendorCategoryId] ?? FALLBACK_CATEGORY_META
           const Icon = category.LucideIcon
           const isSelected = selectedCategories.includes(categoryId)
           const color = category.accent

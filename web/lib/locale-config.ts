@@ -65,6 +65,28 @@ export function resolveLocale(input: string | undefined | null): Locale {
 }
 
 /**
+ * Map Telegram `user.language_code` (ISO 639-1, optional region) onto a Ring locale.
+ * `ua` is a common alias for Ukrainian; unknown codes return null (caller keeps URL locale).
+ */
+export function localeFromTelegramLanguageCode(
+  code: string | undefined | null,
+): Locale | null {
+  if (!code) return null
+  const primary = code.trim().toLowerCase().replace(/_/g, '-').split('-')[0] || ''
+  const aliases: Record<string, string> = {
+    ua: 'uk',
+    ukr: 'uk',
+    rus: 'ru',
+    eng: 'en',
+    spa: 'es',
+    ger: 'de',
+    deu: 'de',
+  }
+  const mapped = aliases[primary] || primary
+  return isValidLocale(mapped) ? mapped : null
+}
+
+/**
  * Complete a partial locale map to Record<Locale, T>, filling gaps from `en`.
  * Use for widget/demo copy when new locales (es/de) land before full translations.
  */

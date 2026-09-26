@@ -12,10 +12,11 @@ export interface SearchOpportunitiesParams {
   budgetMax?: number
   currency?: string
   priority?: 'urgent' | 'normal' | 'low' | 'all' | 'any'
-  deadline?: 'today' | 'week' | 'month' | 'any'
+  deadline?: 'today' | 'week' | 'month' | 'any' | 'all' | 'no-deadline'
   entityVerified?: boolean
   hasDeadline?: boolean
   limit?: number
+  startAfter?: string
   sortBy?: 'relevance' | 'dateCreated' | 'dateUpdated' | 'budget' | 'deadline' | 'location'
   sortOrder?: 'asc' | 'desc'
 }
@@ -74,12 +75,14 @@ export interface SearchOpportunitiesResult {
   }
 }
 
-// Client-side search function that makes API calls instead of direct database access
-export async function searchOpportunities(params: SearchOpportunitiesParams): Promise<SearchOpportunitiesResult> {
+export async function searchOpportunities(
+  params: SearchOpportunitiesParams,
+  options: { failSoft?: boolean } = {},
+): Promise<SearchOpportunitiesResult> {
   const startTime = Date.now()
+  const failSoft = options.failSoft !== false
 
   try {
-    // Make API call to the search endpoint
     const response = await fetch('/api/opportunities/search', {
       method: 'POST',
       headers: {
@@ -99,13 +102,13 @@ export async function searchOpportunities(params: SearchOpportunitiesParams): Pr
       searchMetadata: {
         ...result.searchMetadata,
         searchTime: Date.now() - startTime,
-        backend: 'client-api'
-      }
+        backend: 'client-api',
+      },
     }
   } catch (error) {
     console.error('Client search failed:', error)
+    if (!failSoft) throw error
 
-    // Return empty result on error
     return {
       opportunities: [],
       totalCount: 0,
@@ -115,8 +118,8 @@ export async function searchOpportunities(params: SearchOpportunitiesParams): Pr
         filtersApplied: ['error'],
         sortBy: params.sortBy || 'relevance',
         searchTime: Date.now() - startTime,
-        backend: 'client-api-error'
-      }
+        backend: 'client-api-error',
+      },
     }
   }
 }

@@ -67,6 +67,8 @@ export interface Opportunity {
   type: OpportunityType;
   title: string;
   isConfidential: boolean;
+  /** Confidential-role identity mask on member/subscriber pools. Independent of isConfidential. */
+  anonymousPoster?: boolean;
   briefDescription: string;
   fullDescription?: string;
   createdBy: string;
@@ -110,6 +112,8 @@ export interface SerializedOpportunity {
   type: OpportunityType;
   title: string;
   isConfidential: boolean;
+  /** Confidential-role identity mask on member/subscriber pools. Independent of isConfidential. */
+  anonymousPoster?: boolean;
   briefDescription: string;
   fullDescription?: string;
   createdBy: string;
@@ -183,6 +187,7 @@ export interface OpportunityFormData {
   expirationDate: Date;
   applicationDeadline?: Date;
   visibility: OpportunityVisibility;
+  anonymousPoster?: boolean;
   fullDescription: string;
   requirements: string;
   attachments: Attachment[];

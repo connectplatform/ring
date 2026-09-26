@@ -118,7 +118,11 @@
     "news": "Новости",
     "live": "Эфир",
     "categories": "Рубрики",
-    "directory": "Справочник"
+    "directory": "Справочник",
+    "opportunities": "Возможности",
+    "messages": "Сообщения",
+    "civicInquiries": "311 Обращения",
+    "urbanImprovement": "Благоустройство"
   },
   "sidebar": {
     "brandTagline": "Децентрализованное самостроящееся будущее",
@@ -128,6 +132,7 @@
     "aiMeetsWeb3": "AI встречает Web3",
     "platformFeatures": "Функции платформы",
     "getStarted": "Начать",
+    "systems": "Системы",
     "documentation": "Документация",
     "quickStart": "Быстрый старт",
     "deploymentCalculator": "Планировщик проекта",

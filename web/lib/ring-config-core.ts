@@ -12,6 +12,7 @@
 import { cache } from 'react'  // React19+ for stateless caching
 import template from '@/ring-config.template.json'
 import concrete from '@/ring-config.json'
+import { SUPPORTED_LOCALES } from '@/lib/locale-config'
 
 import type {
   CollectiveOrderConfigRail,
@@ -238,6 +239,24 @@ export const getEntitiesPreset = cache((): string => {
   const singular = (config.entities as { preset?: string } | undefined)?.preset
   if (typeof singular === 'string' && singular.trim()) return singular.trim()
   return getProductFieldsPreset() || 'platform'
+})
+
+/**
+ * Accessor: Enabled locales (`localization.supportedLocales`, legacy `localization.locales`).
+ * SSOT for language selector widgets (left rail, mobile ring-menu, docs, floating panel).
+ * Falls back to the env `SUPPORTED_LOCALES` list when the config section is missing/empty.
+ */
+export const getEnabledLocales = cache((): string[] => {
+  const config = getSystemConfigSnapshot() as unknown as Record<string, unknown>
+  const loc = config.localization as
+    | { supportedLocales?: unknown; locales?: unknown }
+    | undefined
+  const raw = (loc?.supportedLocales ?? loc?.locales) as unknown
+  const list = Array.isArray(raw)
+    ? raw.filter((l): l is string => typeof l === 'string' && l.length > 0)
+    : []
+  if (list.length === 0) return [...SUPPORTED_LOCALES]
+  return list
 })
 
 /**

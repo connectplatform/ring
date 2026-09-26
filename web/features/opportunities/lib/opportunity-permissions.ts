@@ -184,19 +184,14 @@ export function canEditOpportunity(
 
 /**
  * Guard for deleting opportunities.
- * Same logic as edit: only owner, admin, or confidential roles.
- * Throws if unauthorized.
- * @throws Error if permission denied
+ * Mirrors the edit gate: only owner, platform admin, or confidential roles.
+ * Returns false when unauthorized — callers render their own denial message
+ * (Server Action pattern: return { error } instead of throwing).
  */
 export function canDeleteOpportunity(
   role: string | null | undefined,
   createdBy: string,
   currentUserId: string,
 ): boolean {
-  // Delegate to edit logic; throws error if not authorized.
-  if (!canEditOpportunity(role, createdBy, currentUserId)) {
-    throw new Error('Access denied. Your role cannot delete this opportunity.')
-  }
-  // If allowed, return true for confirmation
-  return true
+  return canEditOpportunity(role, createdBy, currentUserId)
 }

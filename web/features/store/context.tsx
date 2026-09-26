@@ -306,6 +306,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             instantDelivery: item.product.instantDelivery,
           })),
       }
+      // Guests never hold an empty cart — skip the guaranteed-401 noise POST.
+      if (payload.items.length === 0) return
       void fetch('/api/store/cart/hold', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

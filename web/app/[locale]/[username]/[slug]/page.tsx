@@ -15,6 +15,7 @@ import { after, connection } from 'next/server'
 import { RegisterMoodPlayerElements } from '@/features/mood-player/components/register-mood-player-elements'
 import { ReviseArticleButton } from '@/features/news/components/revise-article-button'
 import { NewsMarkdownView } from '@/features/news/lib/news-markdown-view'
+import { CurtainPageProvider } from '@/features/curtain/components/curtain-page-context'
 import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
@@ -91,6 +92,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
   })
 
   return (
+    <CurtainPageProvider authorUserId={article.authorId} pageKind="news">
     <article className="container mx-auto px-6 py-10 max-w-3xl prose prose-lg">
       <h1>{article.title}</h1>
       <p className="text-sm text-muted-foreground not-prose">
@@ -110,5 +112,6 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
         versions={article.versions}
       />
     </article>
+    </CurtainPageProvider>
   )
 }

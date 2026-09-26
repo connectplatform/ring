@@ -97,22 +97,27 @@ export function buildImageGenEditorChatKey(params: {
   })
 }
 
+export function galleryItemUrl(item: GalleryItem | null | undefined): string {
+  if (!item) return ''
+  return pickGalleryDisplayUrl(item, 'card') || item.webpUrl || item.originalUrl || ''
+}
+
 export function primaryGalleryUrl(gallery: GenerativeGalleryValue | GalleryItem[] | undefined): string {
   const items = Array.isArray(gallery) ? gallery : gallery?.items || []
   const primary = items.find((i) => i.isPrimary) || items[0]
-  return primary?.originalUrl || ''
+  return galleryItemUrl(primary)
 }
 
 export function displayGalleryUrl(item: GalleryItem): string {
-  return item.webpUrl || item.originalUrl
+  return galleryItemUrl(item)
 }
 
 export function toProductImageUrls(gallery: GenerativeGalleryValue): string[] {
-  const enabled = gallery.items.filter((i) => i.enabled)
+  const enabled = gallery.items.filter((i) => i.enabled !== false)
   const primary = enabled.find((i) => i.isPrimary)
   const rest = enabled.filter((i) => i.id !== primary?.id)
   const ordered = primary ? [primary, ...rest] : enabled
-  return ordered.map((i) => i.originalUrl)
+  return ordered.map((i) => galleryItemUrl(i)).filter(Boolean)
 }
 
 export function galleryFromUrlList(urls: string[]): GenerativeGalleryValue {
@@ -126,4 +131,56 @@ export function galleryFromUrlList(urls: string[]): GenerativeGalleryValue {
       isPrimary: index === 0,
     })),
   }
+}
+
+function pushImageUrl(urls: string[], value: unknown): void {
+  if (typeof value === 'string' && value.trim()) {
+    urls.push(value.trim())
+    return
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return
+  const rec = value as Record<string, unknown>
+  for (const key of ['originalUrl', 'url', 'src', 'webpUrl', 'image'] as const) {
+    const nested = rec[key]
+    if (typeof nested === 'string' && nested.trim()) {
+      urls.push(nested.trim())
+      return
+    }
+  }
+}
+
+/** Flatten store_products image fields (root + legacy JSONB `data`). */
+export function collectProductImageUrls(product: Record<string, unknown> | null | undefined): string[] {
+  if (!product) return []
+  const nested =
+    product.data && typeof product.data === 'object' && !Array.isArray(product.data)
+      ? (product.data as Record<string, unknown>)
+      : {}
+  const urls: string[] = []
+  for (const src of [product, nested]) {
+    const images = src.images
+    if (Array.isArray(images)) {
+      for (const img of images) pushImageUrl(urls, img)
+    }
+    for (const key of ['image', 'imageUrl', 'photo', 'picture', 'thumbnail'] as const) {
+      pushImageUrl(urls, src[key])
+    }
+  }
+  return [...new Set(urls)]
+}
+
+export function galleryFromProductDoc(
+  product: Record<string, unknown> | null | undefined,
+): GenerativeGalleryValue {
+  const nested =
+    product?.data && typeof product.data === 'object' && !Array.isArray(product.data)
+      ? (product.data as Record<string, unknown>)
+      : null
+  const fromDoc = (product?.generativeGallery || nested?.generativeGallery) as
+    | GenerativeGalleryValue
+    | undefined
+  if (fromDoc?.items?.length && fromDoc.items.some((item) => galleryItemUrl(item))) {
+    return fromDoc
+  }
+  return galleryFromUrlList(collectProductImageUrls(product))
 }

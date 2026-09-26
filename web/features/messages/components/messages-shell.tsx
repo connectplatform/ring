@@ -441,7 +441,7 @@ export default function MessagesShell() {
                         if (gameBusy) {
                           toast({
                             title: tMessenger('actionFailed'),
-                            description: 'Finish your game before starting a call.',
+                            description: tMessenger('callBlockedByGame'),
                             variant: 'destructive',
                           })
                           return
@@ -463,7 +463,7 @@ export default function MessagesShell() {
                         if (gameBusy) {
                           toast({
                             title: tMessenger('actionFailed'),
-                            description: 'Finish your game before starting a call.',
+                            description: tMessenger('callBlockedByGame'),
                             variant: 'destructive',
                           })
                           return

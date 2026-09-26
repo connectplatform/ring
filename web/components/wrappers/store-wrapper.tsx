@@ -81,6 +81,24 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
     setIsHydrated(true) // Mark ready for UI display
   }, [])
 
+  // Deep link: apply `?category=<slug>` (and repeated `category` params) from the URL
+  // on mount, after localStorage rehydration — URL wins over persisted filters.
+  useEffect(() => {
+    if (!isHydrated || typeof window === 'undefined') return
+    try {
+      const categories = new URLSearchParams(window.location.search).getAll('category')
+      const slugs = categories.map((c) => c.trim()).filter(Boolean)
+      if (slugs.length === 0) return
+      setFilters((prev) => ({
+        ...prev,
+        categories: slugs,
+        vendor: '',
+      }))
+    } catch {
+      // Malformed URL — ignore
+    }
+  }, [isHydrated])
+
   // Save filters to localStorage when they change (avoid on SSR/hydrating)
   useEffect(() => {
     if (!isHydrated || typeof window === 'undefined') return

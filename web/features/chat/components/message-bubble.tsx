@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { MoreVertical, Edit2, Trash2, Reply, Check, CheckCheck, Clock } from 'lucide-react'
 import { Message } from '@/features/chat/types'
 import { getMessageTimeMs } from '@/features/chat/lib/message-time'
+import { getCallSystemGlyph } from '@/features/chat/lib/call-system-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { 
@@ -99,6 +100,8 @@ export function MessageBubble({
   const isSystemMessage = message.type === 'system'
   
   if (isSystemMessage) {
+    const callGlyph = getCallSystemGlyph(message.content)
+    const Glyph = callGlyph?.Icon
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -106,7 +109,10 @@ export function MessageBubble({
         transition={{ duration: 0.2 }}
         className="flex justify-center my-2"
       >
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant="secondary" className="gap-1.5 text-xs">
+          {Glyph && (
+            <Glyph className={cn('h-3.5 w-3.5', callGlyph?.className)} aria-hidden />
+          )}
           {message.content}
         </Badge>
       </motion.div>

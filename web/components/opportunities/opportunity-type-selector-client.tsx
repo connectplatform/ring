@@ -177,7 +177,7 @@ export function OpportunityTypeSelectorClient({
           innerClassName={cn(
             davinciBeamInnerSurface,
             'flex h-full min-h-0 flex-col',
-            compact ? 'p-3' : 'p-5',
+            compact ? 'p-2.5' : 'p-5',
           )}
         >
           <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-2' : 'mb-4')}>
@@ -186,10 +186,10 @@ export function OpportunityTypeSelectorClient({
                 'flex shrink-0 items-center justify-center rounded-xl',
                 'border border-[color-mix(in_oklch,var(--davinci-beam)_35%,transparent)]',
                 'bg-[color-mix(in_oklch,var(--davinci-beam)_12%,transparent)]',
-                compact ? 'h-11 w-11' : 'h-12 w-12',
+                compact ? 'h-8 w-8' : 'h-12 w-12',
               )}
             >
-              <Icon className={cn(compact ? 'h-5 w-5' : 'h-6 w-6', 'text-[var(--davinci-beam)]')} />
+              <Icon className={cn(compact ? 'h-4 w-4' : 'h-6 w-6', 'text-[var(--davinci-beam)]')} />
             </span>
             {!compact && (
               <div className="flex flex-wrap justify-end gap-1.5">
@@ -233,7 +233,7 @@ export function OpportunityTypeSelectorClient({
               className={cn(
                 'text-muted-foreground',
                 compact
-                  ? 'mb-2 line-clamp-3 text-xs leading-snug'
+                  ? 'mb-2 line-clamp-2 text-[11px] leading-snug'
                   : 'mb-4 text-sm leading-relaxed',
               )}
             >
@@ -355,7 +355,7 @@ export function OpportunityTypeSelectorClient({
     <div
       className={cn(
         'grid min-h-0 flex-1 content-stretch',
-        'grid-cols-1 md:grid-cols-2',
+        density === 'compact' ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2',
         OPPORTUNITY_SELECTOR_TYPE_ORDER.length === 4 ? 'md:grid-rows-2' : '',
         density === 'compact' ? 'gap-2.5' : 'gap-4',
       )}

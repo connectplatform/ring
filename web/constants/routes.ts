@@ -93,6 +93,7 @@ const BASE_ROUTES = {
   GAMES_SLUG: (slug: string) => `/games/${encodeURIComponent(slug)}`,
   TASKS: '/tasks',
   TASK: (chatId: string) => `/tasks/${chatId}`,
+  FAVORITES: '/favorites',
   NOTIFICATION_STATUS: '/notifications/status/[action]/[status]',
   OPPORTUNITIES: '/opportunities',
   OPPORTUNITY: (id: string) => `/opportunities/${id}`,
@@ -232,6 +233,7 @@ export const ROUTES = {
   TASK: (chatId: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/tasks/${chatId}`),
   MY_OPPORTUNITIES: (locale: Locale = defaultLocale) => withLocale(locale, '/opportunities/my'),
+  FAVORITES: (locale: Locale = defaultLocale) => withLocale(locale, '/favorites'),
   NOTIFICATIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/notifications'),
   NOTIFICATION_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => withLocale(locale, `/notifications/status/${action}/${status}`),
   OPPORTUNITIES: (locale: Locale = defaultLocale) => withLocale(locale, '/opportunities'),

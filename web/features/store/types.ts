@@ -271,6 +271,15 @@ export interface StoreOrder {
   referralCode?: string
   referrerUserId?: string
   referrerWallet?: string
+  /** 30-day curtain CTA touches stamped at checkout (author commission mint). */
+  curtainAttribution?: Array<{
+    offerId: string
+    productId: string
+    authorUserId?: string
+    pagePath?: string
+    commissionPercent: number
+    ctaAt: number
+  }>
   createdAt: string
   updatedAt?: string
   completedAt?: string

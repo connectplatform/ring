@@ -8,7 +8,7 @@ import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { PRIMARY_NAV_OVERLAY } from '@/lib/navigation/primary-nav-overlay'
 
-export type PrimaryNavActiveMatch = 'pathname' | 'pathname+query'
+export type PrimaryNavActiveMatch = 'pathname' | 'pathname+query' | 'exact'
 
 export type PrimaryNavHrefItem = {
   id: string
@@ -122,7 +122,8 @@ function applyHrefOverlay(item: PrimaryNavHrefItem): PrimaryNavHrefItem {
   const icon = PRIMARY_NAV_OVERLAY.iconById?.[item.id] ?? item.icon
   const labelKeys = PRIMARY_NAV_OVERLAY.labelKeysById?.[item.id] ?? item.labelKeys
   const href = PRIMARY_NAV_OVERLAY.hrefById?.[item.id] ?? item.href
-  return { ...item, icon, labelKeys, href }
+  const activeMatch = PRIMARY_NAV_OVERLAY.activeMatchById?.[item.id] ?? item.activeMatch
+  return { ...item, icon, labelKeys, href, activeMatch }
 }
 
 function applyMobileOverlay(item: PrimaryNavMobileItem): PrimaryNavMobileItem {
@@ -142,9 +143,19 @@ function applyMobileOverlay(item: PrimaryNavMobileItem): PrimaryNavMobileItem {
 }
 
 export function getPrimaryNavManifest(): PrimaryNavManifest {
+  const extras: PrimaryNavHrefItem[] = (PRIMARY_NAV_OVERLAY.desktopExtra ?? []).map((item) =>
+    applyHrefOverlay({
+      id: item.id,
+      kind: 'href',
+      href: item.href,
+      labelKeys: item.labelKeys,
+      icon: item.icon,
+      activeMatch: item.activeMatch ?? 'pathname',
+    }),
+  )
   return {
     mobile: BASE_MANIFEST.mobile.map(applyMobileOverlay),
-    desktop: BASE_MANIFEST.desktop.map(applyHrefOverlay),
+    desktop: [...BASE_MANIFEST.desktop.map(applyHrefOverlay), ...extras],
     add: BASE_MANIFEST.add,
   }
 }
@@ -172,6 +183,9 @@ export function navHrefIsActive(
   activeMatch: PrimaryNavActiveMatch = 'pathname',
 ): boolean {
   const pathOnly = href.split('?')[0] ?? href
+  if (activeMatch === 'exact') {
+    return pathname === pathOnly || pathname === `${pathOnly}/`
+  }
   if (activeMatch === 'pathname+query') {
     const want = new URLSearchParams(href.split('?')[1] ?? '').get('types') || ''
     const have = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get(

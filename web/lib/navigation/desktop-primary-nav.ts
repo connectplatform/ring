@@ -9,6 +9,8 @@ import {
   navHrefIsActive,
   resolveNavLabel,
 } from '@/lib/navigation/primary-nav'
+import { getPresetPack } from '@/lib/ring-config-core'
+import { getResolvedPlatformMenuItems } from '@/lib/navigation/platform-menu'
 
 export type ResolvedDesktopPrimaryNavItem = {
   id: string
@@ -79,4 +81,29 @@ export function resolveDesktopPrimaryNav(
       ),
     }
   })
+}
+
+/**
+ * Evolvement pack hides empire aside groups. Surface overflow catalog (five
+ * systems + practitioners, minus ids already on the desktop rail) as aside-only.
+ * Other packs keep their own desktop slots and must not inherit this list.
+ */
+export function resolvePackAsideNav(
+  locale: Locale,
+  tNav: (key: string) => string,
+  pathname: string,
+): ResolvedDesktopPrimaryNavItem[] {
+  if (getPresetPack() !== 'evolvement') return []
+  const desktop = getPrimaryNavManifest().desktop
+  const skipIds = new Set(desktop.map((item) => item.id))
+  const skipHrefs = new Set(desktop.map((item) => item.href(locale)))
+  return getResolvedPlatformMenuItems(locale)
+    .filter((item) => !skipIds.has(item.id) && !skipHrefs.has(item.href))
+    .map((item) => ({
+      id: item.id,
+      href: item.href,
+      label: resolveNavLabel(tNav, item.labelKeys),
+      icon: item.icon,
+      active: sidebarPathIsActive(pathname, item.href, locale),
+    }))
 }

@@ -8,6 +8,7 @@
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
 import { canCreateOpportunityType, canCreateOpportunityConfidential } from '@/features/opportunities/lib/opportunity-permissions';
+import { canSetAnonymousPoster } from '@/features/opportunities/lib/opportunity-identity'
 import { assertKnownUserRole } from '@/features/auth/user-role';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
 import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
@@ -234,6 +235,12 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
     // ES2022 ||= logical assignment - set defaults for optional fields
     newOpportunityData.isActive ||= true;
     newOpportunityData.isConfidential ||= false;
+    if (newOpportunityData.anonymousPoster && !canSetAnonymousPoster(userRole, newOpportunityData.visibility)) {
+      newOpportunityData.anonymousPoster = false
+    }
+    if (newOpportunityData.anonymousPoster) {
+      newOpportunityData.isConfidential = false
+    }
     
     // Set default values for new tracking fields
     newOpportunityData.applicantCount ??= 0;
@@ -264,17 +271,27 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
     }
 
     console.log(`Services: createOpportunity - Opportunity created successfully with ID: ${createdOpportunity.id}`);
+    const anonymousPoster = Boolean(createdOpportunity.anonymousPoster)
     await syncOpportunityDiscovery({
       opportunityId: createdOpportunity.id,
       event: 'created',
-      // Live-inserted feed cards need the creator snapshot too (no refetch on tunnel events).
       snippet: {
         ...(createdOpportunity as unknown as Record<string, unknown>),
-        creator: {
-          id: userId,
-          name: session.user.name || '',
-          avatar: session.user.image || undefined,
-        },
+        ...(anonymousPoster
+          ? {
+              creator: undefined,
+              organizationId: '',
+              createdBy: '',
+              anonymousPoster: true,
+              contactInfo: { linkedEntity: '', contactAccount: '' },
+            }
+          : {
+              creator: {
+                id: userId,
+                name: session.user.name || '',
+                avatar: session.user.image || undefined,
+              },
+            }),
       },
     })
 

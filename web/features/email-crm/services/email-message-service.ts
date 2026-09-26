@@ -4,6 +4,7 @@ import type { ParsedEmail } from '@/features/email-crm/pipeline/parser/email-par
 import type { IntentClassification } from '@/features/email-crm/pipeline/ai/intent-classifier'
 import type { SentimentAnalysis } from '@/features/email-crm/pipeline/ai/sentiment-analyzer'
 import { readDoc, upsertDoc, queryDocs } from '@/features/email-crm/lib/jsonb-collection'
+import { findHeader } from '@/features/email-crm/lib/unsubscribe-rfc8058'
 
 const COLLECTION = 'email_messages'
 
@@ -26,6 +27,8 @@ export interface EmailMessageRecord extends Record<string, unknown> {
   routeFlag?: string | null
   unsubscribeUrl?: string | null
   unsubscribeOneClick?: boolean
+  /** Bounce / envelope sender from Return-Path (OSINT host set). */
+  returnPath?: string | null
   /** Human channel label for multi-mailbox CRM. */
   sourceChannel?: string
   channelId?: string
@@ -74,6 +77,7 @@ export const EmailMessageService = {
         routeFlag: crmOps?.routeFlag ?? null,
         unsubscribeUrl: crmOps?.unsubscribeUrl ?? null,
         unsubscribeOneClick: Boolean(crmOps?.unsubscribeOneClick),
+        returnPath: findHeader(parsed.rawHeaders, 'return-path') ?? null,
       },
       {
         threadId,

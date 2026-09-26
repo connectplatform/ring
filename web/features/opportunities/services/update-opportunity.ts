@@ -10,8 +10,9 @@ import { auth } from '@/auth'
 import { hasConfidentialAccess, hasMemberPrivileges, isPlatformAdmin, assertKnownUserRole } from '@/features/auth/user-role'
 import { assertOpportunityVisibilityPatch } from '@/features/opportunities/lib/opportunity-permissions'
 import { db } from '@/lib/database'
-import { mapDbDocumentToOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
+import { mapDbDocumentToOpportunity, mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
+import { canSetAnonymousPoster, maskAnonymousOpportunity } from '@/features/opportunities/lib/opportunity-identity'
 
 /**
  * Updates an opportunity by its ID in Firestore, enforcing role-based access control.
@@ -80,6 +81,14 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
         isConfidential: data.isConfidential,
       });
 
+      const nextVisibility = data.visibility ?? currentOpportunity.visibility
+      if (data.anonymousPoster && !canSetAnonymousPoster(userRole, nextVisibility)) {
+        data.anonymousPoster = false
+      }
+      if (data.anonymousPoster) {
+        data.isConfidential = false
+      }
+
       // Step 5: Prepare the update data
       const updateData = {
         ...data,
@@ -100,10 +109,15 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
         throw new Error('Failed to fetch updated opportunity')
       }
 
+      const mapped = mapDbDocumentToSerializedOpportunity(updatedResult.data)
+      const snippet = mapped.anonymousPoster
+        ? (maskAnonymousOpportunity(mapped, {}) as unknown as Record<string, unknown>)
+        : (mapped as unknown as Record<string, unknown>)
+
       await syncOpportunityDiscovery({
         opportunityId: id,
         event: 'updated',
-        snippet: updatedResult.data as unknown as Record<string, unknown>,
+        snippet,
       })
 
       console.log('Services: updateOpportunity - Opportunity updated successfully');

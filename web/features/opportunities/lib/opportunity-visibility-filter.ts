@@ -41,6 +41,15 @@ export function buildOpportunityVisibilityFilters(
   const filters: DbFilter[] = []
   const allowed = getAllowedVisibilityValues(role)
   const parsed = parseUserRolesArray(role) ?? resolveSessionUserRole(role) ?? UserRolesArray.visitor
+
+  if (allowed) {
+    filters.push({ field: 'visibility', operator: 'in', value: allowed })
+  }
+
+  if (!hasConfidentialAccess(parsed)) {
+    filters.push({ field: 'isConfidential', operator: '==', value: false })
+  }
+
   return filters
 }
 
@@ -48,6 +57,7 @@ export interface OpportunityViewRow {
   visibility?: OpportunityVisibility | string
   isConfidential?: boolean
   createdBy?: string
+  anonymousPoster?: boolean
 }
 
 /**

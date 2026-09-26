@@ -87,10 +87,25 @@ export function CallSessionProvider({ children }: { children: ReactNode }) {
   )
 
   const clearActiveCall = useCallback(() => {
-    setSession((prev) => ({
-      ...idleSession,
-      keepAliveAcrossNav: prev.keepAliveAcrossNav,
-    }))
+    setSession((prev) => {
+      // Idempotent: when already idle, return the SAME object so React bails
+      // out of the update. An unconditional new object re-rendered the provider
+      // on every effect run; combined with useWebRtcCall's [callSession] effect
+      // dep this caused an infinite setState loop (Maximum update depth) that
+      // starved the App Router — desktop navigation went dead on /messages.
+      if (
+        prev.phase === 'idle' &&
+        prev.conversationId === null &&
+        prev.peerUserId === null &&
+        prev.callId === null
+      ) {
+        return prev
+      }
+      return {
+        ...idleSession,
+        keepAliveAcrossNav: prev.keepAliveAcrossNav,
+      }
+    })
   }, [])
 
   const setKeepAliveAcrossNav = useCallback((keep: boolean) => {

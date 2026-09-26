@@ -286,6 +286,12 @@ export interface PlatformMenuConfig {
   exclude?: string[]
   /** Clone-only modules (live TV, endemic hubs). `href` is locale-agnostic (`/live-tv`). */
   extra?: PlatformMenuExtraItem[]
+  /**
+   * When true, mobile overflow opens the platform menu for guests.
+   * Default false: guests get the Login modal (community Store/Opportunities stay behind auth).
+   * Evolvement clones may set true because overflow rows are public education routes with LoginGateCta.
+   */
+  allowGuestOverflow?: boolean
 }
 
 export interface PlatformMenuExtraItem {
@@ -770,6 +776,13 @@ export interface RingConfig {
   localization?: Record<string, unknown> // I18n, L10n dictionary/overrides
   theme?: ThemeConfig                   // Default theme (see above)
   navigation?: NavigationConfigSchema   // Top-level navigation links/sections
+  /**
+   * Telegram Mini App chrome (L1 provider). Locale sync stays separate.
+   * `backButtonHref` is locale-agnostic (`/n9`). Unset: do not show BackButton.
+   */
+  telegramMiniApp?: {
+    backButtonHref?: string
+  }
   hero?: RingHeroConfig                // Home page/marketing hero section
   seo?: {
     siteName?: string                  // Site or clone display name

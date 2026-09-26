@@ -203,6 +203,7 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'collective_order_escrows', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'refcodes', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'notification_preferences', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'curtain_preferences', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'subscription_ledger', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'public_pools', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'vendor_profiles', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },

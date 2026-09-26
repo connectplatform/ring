@@ -110,7 +110,11 @@
     "map": "Mapa",
     "places": "Lugares",
     "meetups": "Meetups",
-    "pets": "Mis mascotas"
+    "pets": "Mis mascotas",
+    "opportunities": "Opportunities",
+    "messages": "Mensajes",
+    "civicInquiries": "Consultas cívicas (311)",
+    "urbanImprovement": "Mejora urbana"
   },
   "sidebar": {
     "brandTagline": "Futuro descentralizado que se construye a sí mismo",
@@ -120,6 +124,7 @@
     "aiMeetsWeb3": "IA encuentra Web3",
     "platformFeatures": "Funciones de la plataforma",
     "getStarted": "Empezar",
+    "systems": "Sistemas",
     "documentation": "Documentación",
     "quickStart": "Inicio rápido",
     "deploymentCalculator": "Planificador de proyecto",

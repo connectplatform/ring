@@ -12,6 +12,7 @@ import { useStorePaymentMethods, resolveStorePriceCurrency, type StorePaymentMet
 import type { Locale } from '@/i18n/shared'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
+import { useStoreCategoryName } from '@/lib/store-category-display'
 
 // TODO: Use React 19/Next.js 16 Server Actions (app/actions) for cart add-on for more robust UX and built-in loader state
 
@@ -208,15 +209,14 @@ export function ProductCard({
   }
 
   /**
-   * Generate product category name: capitalized, hyphens replaced with spaces
+   * Localized product category name via `modules.store.categories.<slug>`
+   * (prettified-slug fallback for slugs without a locale key yet).
    */
-  const getCategory = () => {
-    if (product.category && typeof product.category === 'string') {
-      // E.g. "organic-foods" -> "Organic foods"
-      return product.category.charAt(0).toUpperCase() + product.category.slice(1).replace(/-/g, ' ')
-    }
-    return null
-  }
+  const categoryName = useStoreCategoryName(
+    typeof product.category === 'string' ? product.category : null,
+  )
+
+  const getCategory = () => categoryName
 
   /**
    * Extract description excerpt (max 160 chars, add ellipsis if longer)

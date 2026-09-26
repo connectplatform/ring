@@ -56,7 +56,8 @@ export const StoreOrdersService = {
   async createOrder(
     userId: string,
     data: z.infer<typeof orderCreateSchema>,
-    referral?: { referralCode?: string; referrerUserId?: string; referrerWallet?: string }
+    referral?: { referralCode?: string; referrerUserId?: string; referrerWallet?: string },
+    extras?: { curtainAttribution?: unknown },
   ) {
     try {
       const now = new Date().toISOString()
@@ -69,6 +70,7 @@ export const StoreOrdersService = {
         ...(referral?.referralCode ? { referralCode: referral.referralCode } : {}),
         ...(referral?.referrerUserId ? { referrerUserId: referral.referrerUserId } : {}),
         ...(referral?.referrerWallet ? { referrerWallet: referral.referrerWallet } : {}),
+        ...(extras?.curtainAttribution ? { curtainAttribution: extras.curtainAttribution } : {}),
       }
       
       const result = await db().createDoc('orders', orderData, { id: orderId })

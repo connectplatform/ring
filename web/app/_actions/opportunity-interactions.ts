@@ -29,7 +29,6 @@ export async function toggleOpportunityLike(
   if (!result.success) {
     return { error: result.error || 'Failed to update like' }
   }
-  revalidatePath('/[locale]/opportunities', 'page')
   return {
     success: true,
     message: result.message,

@@ -34,6 +34,19 @@ export const AUDIENCE_CURATED_DOCS = {
   // Object key order = sidebar section order (top priority first).
   // ---------------------------------------------------------------
   founder: {
+    n9life: [
+      'cosmic-mirror',
+      'chart-and-inputs',
+      'today-and-calendar',
+      'numerology',
+      'destiny-matrix',
+      'name-code',
+      'slavic-chertogi',
+      'human-design',
+      'knowledge-council',
+      'specialist-match',
+      'vault-and-privacy',
+    ],
     'getting-started': [
       'prerequisites',
       'installation',
@@ -54,6 +67,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'wayforpay-integration',
       'wallet',
       'wallet-conductor',
+      'rewards',
       'affiliate-enablement',
       'refcodes',
       'nft-market',
@@ -63,6 +77,7 @@ export const AUDIENCE_CURATED_DOCS = {
       // Grow the network
       'entities',
       'opportunities',
+      'ai-matcher',
       'messaging',
       'tasks',
       'webrtc-calls',
@@ -156,6 +171,19 @@ export const AUDIENCE_CURATED_DOCS = {
   // Object key order = sidebar section order.
   // ---------------------------------------------------------------
   developer: {
+    n9life: [
+      'cosmic-mirror',
+      'chart-and-inputs',
+      'today-and-calendar',
+      'numerology',
+      'destiny-matrix',
+      'name-code',
+      'slavic-chertogi',
+      'human-design',
+      'knowledge-council',
+      'specialist-match',
+      'vault-and-privacy',
+    ],
     'getting-started': [
       'prerequisites',
       'installation',
@@ -204,6 +232,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'commissions',
       'wallet',
       'wallet-conductor',
+      'rewards',
       'refcodes',
       'affiliate-enablement',
       'nft-market',
@@ -226,6 +255,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'manage-via-telegram',
       'entities',
       'opportunities',
+      'ai-matcher',
       'news',
       'member-blog',
       'public-profile',

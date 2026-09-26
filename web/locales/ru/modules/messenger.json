@@ -60,6 +60,11 @@
   "callStopVideo": "Выключить камеру",
   "callStartVideo": "Включить камеру",
   "callTurnMissing": "TURN не настроен — соединение может не пройти через строгий NAT",
+  "callShareScreen": "Демонстрация экрана",
+  "callStopShareScreen": "Остановить демонстрацию",
+  "callMinimize": "Свернуть звонок",
+  "callRestore": "Развернуть звонок",
+  "callDuration": "Длительность звонка",
   "openOnProductPage": "Открыть страницу товара",
   "emptyThreadHello": "Скажи привет…",
   "emptyThreadProduct": "Спроси агента товара…",
@@ -112,5 +117,6 @@
   "gameWaitingPeer": "Ожидание соперника…",
   "gameStatus": "Статус: {status}",
   "gameAcceptFailed": "Не удалось принять",
-  "gameDeclineFailed": "Не удалось отклонить"
+  "gameDeclineFailed": "Не удалось отклонить",
+  "callBlockedByGame": "Завершите игру, прежде чем начать звонок."
 }

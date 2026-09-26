@@ -479,6 +479,25 @@
     @apply rounded-lg border border-gray-200 dark:border-gray-700 p-4 overflow-x-auto my-6;
   }
 
+  html[data-telegram-mini-app] {
+    padding-top: max(
+      env(safe-area-inset-top, 0px),
+      calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px))
+    );
+    padding-left: max(
+      env(safe-area-inset-left, 0px),
+      var(--tg-safe-area-inset-left, 0px)
+    );
+    padding-right: max(
+      env(safe-area-inset-right, 0px),
+      var(--tg-safe-area-inset-right, 0px)
+    );
+  }
+
+  html[data-telegram-mini-app] main {
+    padding-bottom: var(--tg-content-safe-area-inset-bottom, 0px);
+  }
+
   html[data-sidebar-anim] main {
     transition: padding-left 500ms cubic-bezier(0.16, 1, 0.3, 1);
   }

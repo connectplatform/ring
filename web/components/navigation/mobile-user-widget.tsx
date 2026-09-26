@@ -34,6 +34,10 @@ import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { getResolvedUserMenuItems } from '@/lib/navigation/user-menu'
 import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { resolveNavLabel } from '@/lib/navigation/primary-nav'
+import {
+  isTelegramMiniAppPath,
+  isTelegramMiniAppShell,
+} from '@/lib/browser/telegram-webapp'
 
 interface MobileUserWidgetProps {
   className?: string
@@ -246,7 +250,10 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     [locale, t, walletDescription, counts],
   )
 
-  if (!session?.user || !mounted) return null
+  if (!session?.user) return null
+  if (isTelegramMiniAppPath(pathname || '')) return null
+  if (!mounted) return null
+  if (isTelegramMiniAppShell()) return null
 
   const displayName = session.user.name || t('menu.anonymous')
   const badgeTotal = notificationCount + cartCount + messagesCount

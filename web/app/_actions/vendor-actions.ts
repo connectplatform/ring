@@ -31,6 +31,8 @@ import type { Locale } from '@/i18n/shared'
 import { defaultLocale } from '@/i18n/shared'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
 import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
+import { collectProductImageUrls } from '@/features/generative-media/types'
+import { curtainAdvertiseWriteFields } from '@/features/curtain/lib/advertise'
 import { getVendorProfile } from '@/features/store/services/vendor-profile'
 import type { VendorProfile } from '@/features/store/types/vendor'
 import type {
@@ -627,6 +629,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     if (productPromotions.length > 0) {
       productData.promotions = productPromotions
     }
+    Object.assign(productData, curtainAdvertiseWriteFields(formData))
 
     // Create product in database
     const result = await db().createDoc('store_products', productData, { id: productId })
@@ -726,7 +729,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     // Prefer GenerativeMediaField gallery URLs; fall back to legacy new-photo-* files
     const resolved = resolveProductImagesFromForm(
       formData,
-      Array.isArray(existingProduct.images) ? existingProduct.images : [],
+      collectProductImageUrls(existingProduct as Record<string, unknown>),
     )
     let photoUrls = resolved.photoUrls
     const generativeGallery = resolved.gallery
@@ -774,7 +777,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     }
 
     if (photoUrls.length === 0) {
-      return { error: 'At least one photo is required' }
+      photoUrls = collectProductImageUrls(existingProduct as Record<string, unknown>)
     }
 
     // Handle video update
@@ -893,6 +896,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       freshness,
       tokenEconomy,
       promotions: parseProductPromotionsFromForm(formData),
+      ...curtainAdvertiseWriteFields(formData),
       ...listingPatch,
       ...(referralCommissionRaw === ''
         ? { referralCommission: undefined }

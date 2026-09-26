@@ -20,6 +20,7 @@ import {
 } from '@/constants/store-vendor-categories'
 import type { Locale } from '@/i18n/shared'
 import { useOptionalStore } from '@/features/store/context'
+import { STORE_PRODUCT_CATEGORIES } from '@/lib/zod/store-product'
 import {
   MAIN_CURRENCY,
   NATIVE_TOKEN,
@@ -49,8 +50,10 @@ interface StoreFiltersPanelProps {
   onFiltersApplied?: (filters: StoreFilterState) => void
 }
 
-// Categories imported from constants - extendable for new categories
-const productCategories = [...STORE_VENDOR_CATEGORY_IDS]
+// Categories: ring-config `store.storeCategories` (clone SSOT) with L1 platform fallback
+const productCategories = [
+  ...(STORE_PRODUCT_CATEGORIES.length > 0 ? STORE_PRODUCT_CATEGORIES : STORE_VENDOR_CATEGORY_IDS),
+]
 
 // SSOT: display currencies from StorePaymentMethodsProvider (ring-config), not clone hardcodes.
 const allowedCurrenciesFallback = [MAIN_CURRENCY, 'UAH', NATIVE_TOKEN] as string[]

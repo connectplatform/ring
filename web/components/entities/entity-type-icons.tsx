@@ -43,6 +43,11 @@ import {
   ShieldAlert,
   Bus,
   Newspaper,
+  Wallet,
+  TrendingUp,
+  Lightbulb,
+  Handshake,
+  Award,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { EntityType } from '@/features/entities/types'
@@ -131,7 +136,22 @@ const TYPE_VISUALS: Record<string, TypeVisual> = {
   emergencyServices: { icon: ShieldAlert, color: 'red', bgColor: 'bg-red-600', textColor: 'text-red-700' },
   transportAuthority: { icon: Bus, color: 'blue', bgColor: 'bg-blue-600', textColor: 'text-blue-700' },
   mediaAgency: { icon: Newspaper, color: 'slate', bgColor: 'bg-slate-600', textColor: 'text-slate-700' },
-  other: { icon: Package, color: 'gray', bgColor: 'bg-gray-500', textColor: 'text-gray-600' },
+  // Cherkasy Technopark (ring-ring-ck-ua / pack `technopark`)
+  investor: { icon: Wallet, color: 'sky', bgColor: 'bg-sky-600', textColor: 'text-sky-700' },
+  startup: { icon: Rocket, color: 'indigo', bgColor: 'bg-indigo-600', textColor: 'text-indigo-700' },
+  sme: { icon: Store, color: 'cyan', bgColor: 'bg-cyan-600', textColor: 'text-cyan-700' },
+  incubator: { icon: Lightbulb, color: 'amber', bgColor: 'bg-amber-600', textColor: 'text-amber-700' },
+  accelerator: { icon: TrendingUp, color: 'emerald', bgColor: 'bg-emerald-600', textColor: 'text-emerald-700' },
+  coworking: { icon: Users, color: 'violet', bgColor: 'bg-violet-600', textColor: 'text-violet-700' },
+  innovationHub: { icon: Zap, color: 'lime', bgColor: 'bg-lime-600', textColor: 'text-lime-700' },
+  techPark: { icon: Building2, color: 'blue', bgColor: 'bg-blue-600', textColor: 'text-blue-700' },
+  researchLab: { icon: FlaskConical, color: 'violet', bgColor: 'bg-violet-600', textColor: 'text-violet-700' },
+  institute: { icon: Landmark, color: 'stone', bgColor: 'bg-stone-600', textColor: 'text-stone-700' },
+  fundingAgency: { icon: Handshake, color: 'pink', bgColor: 'bg-pink-600', textColor: 'text-pink-700' },
+  employer: { icon: Briefcase, color: 'amber', bgColor: 'bg-amber-600', textColor: 'text-amber-700' },
+  chamberOfCommerce: { icon: Scale, color: 'neutral', bgColor: 'bg-neutral-600', textColor: 'text-neutral-700' },
+  professionalSociety: { icon: Award, color: 'yellow', bgColor: 'bg-yellow-600', textColor: 'text-yellow-700' },
+  privateService: { icon: Wrench, color: 'slate', bgColor: 'bg-slate-600', textColor: 'text-slate-700' },
 }
 
 /** Default skin for vertical-preset ids without a dedicated visual (e.g. agricultural catalog). */

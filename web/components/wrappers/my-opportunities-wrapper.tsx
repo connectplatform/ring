@@ -10,7 +10,7 @@ import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { deleteOpportunity } from '@/app/_actions/opportunities'
 import Link from 'next/link'
-import { Plus, Briefcase, Archive, Clock, FileText, Loader2 } from 'lucide-react'
+import { Plus, Briefcase, Archive, Clock, FileText, Loader2, Bookmark, Send } from 'lucide-react'
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
@@ -27,6 +27,7 @@ import {
   type MyOpportunitiesView,
   canOwnerDeleteOpportunity,
   isDraftBucket,
+  isMyOpportunitiesInteractionView,
 } from '@/features/opportunities/lib/lifecycle-status'
 
 interface MyOpportunitiesWrapperProps {
@@ -40,7 +41,7 @@ interface MyOpportunitiesWrapperProps {
   lifecycleCounts: MyOpportunitiesCounts
 }
 
-const LIFECYCLE_TABS: MyOpportunitiesView[] = ['all', 'drafts', 'pending', 'active']
+const LIFECYCLE_TABS: MyOpportunitiesView[] = ['all', 'saved', 'applied', 'drafts', 'pending', 'active']
 
 export default function MyOpportunitiesWrapper({
   locale,
@@ -50,6 +51,7 @@ export default function MyOpportunitiesWrapper({
   initialLimit,
   initialView = 'all',
   lifecycleCounts,
+  counts,
 }: MyOpportunitiesWrapperProps) {
   const t = useTranslations('modules.opportunities')
   const router = useRouter()
@@ -61,6 +63,7 @@ export default function MyOpportunitiesWrapper({
   const [view, setView] = useState<MyOpportunitiesView>(initialView)
 
   const isArchiveView = view === 'archived'
+  const isInteractionView = isMyOpportunitiesInteractionView(view)
   const tabValue = isArchiveView ? 'all' : view
 
   const urlSearch = searchParams.get('q') || ''
@@ -228,6 +231,10 @@ export default function MyOpportunitiesWrapper({
     switch (tab) {
       case 'all':
         return lifecycleCounts.all
+      case 'saved':
+        return counts.saved
+      case 'applied':
+        return counts.applied
       case 'drafts':
         return lifecycleCounts.drafts
       case 'pending':
@@ -256,10 +263,12 @@ export default function MyOpportunitiesWrapper({
           })}
         </p>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
           {(
             [
               { key: 'all', label: t('all'), icon: Briefcase },
+              { key: 'saved', label: t('savedOpportunities'), icon: Bookmark },
+              { key: 'applied', label: t('appliedOpportunities'), icon: Send },
               { key: 'drafts', label: t('draftOpportunities', { defaultValue: 'Drafts' }), icon: FileText },
               { key: 'pending', label: t('pendingOpportunities', { defaultValue: 'Pending' }), icon: Clock },
               { key: 'active', label: t('activeOpportunities', { defaultValue: 'Active' }), icon: Briefcase },
@@ -290,11 +299,13 @@ export default function MyOpportunitiesWrapper({
       <div className="mb-4 flex items-center justify-between gap-4">
         {!isArchiveView ? (
           <Tabs value={tabValue} onValueChange={handleTabChange} className="flex-1">
-            <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
               {LIFECYCLE_TABS.map((tab) => (
                 <TabsTrigger key={tab} value={tab} className="flex items-center gap-1.5">
                   <span>
                     {tab === 'all' && t('all')}
+                    {tab === 'saved' && t('savedOpportunities')}
+                    {tab === 'applied' && t('appliedOpportunities')}
                     {tab === 'drafts' && t('draftOpportunities', { defaultValue: 'Drafts' })}
                     {tab === 'pending' && t('pending')}
                     {tab === 'active' && t('active')}
@@ -340,11 +351,15 @@ export default function MyOpportunitiesWrapper({
                 <h3 className="mb-2 text-lg font-medium">
                   {isArchiveView
                     ? t('noArchivedOpportunities', { defaultValue: 'No archived opportunities' })
-                    : feedItems.length === 0
-                      ? t('myOpportunitiesEmpty', { defaultValue: 'No opportunities yet' })
-                      : t('noOpportunities')}
+                    : view === 'saved'
+                      ? t('noSavedOpportunities', { defaultValue: 'No saved opportunities yet' })
+                      : view === 'applied'
+                        ? t('noAppliedOpportunities')
+                        : feedItems.length === 0
+                          ? t('myOpportunitiesEmpty', { defaultValue: 'No opportunities yet' })
+                          : t('noOpportunities')}
                 </h3>
-                {!isArchiveView && feedItems.length === 0 && (
+                {!isArchiveView && !isInteractionView && feedItems.length === 0 && (
                   <Link href={ROUTES.ADD_OPPORTUNITY(locale)} className="mt-4 inline-block">
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
@@ -358,14 +373,16 @@ export default function MyOpportunitiesWrapper({
             <div className="grid grid-cols-1 gap-4">
               {filteredOpportunities.map((opportunity) => {
                 const showDelete =
-                  isOwner(opportunity) && canOwnerDeleteOpportunity(opportunity.status)
+                  !isInteractionView &&
+                  isOwner(opportunity) &&
+                  canOwnerDeleteOpportunity(opportunity.status)
 
                 return (
                   <OpportunityFeedCard
                     key={opportunity.id}
                     opportunity={opportunity}
                     locale={locale}
-                    mode="owner"
+                    mode={isInteractionView ? 'browse' : 'owner'}
                     showDelete={showDelete}
                     onDelete={handleDelete}
                     statusLabel={getStatusLabel(opportunity.status)}

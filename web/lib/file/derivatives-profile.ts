@@ -76,7 +76,8 @@ export function resolveRingbaseTypeForPurpose(
   if (p === 'profile:avatar' || p.includes('avatar')) return 'avatar'
   const ct = (contentType || '').toLowerCase()
   if (ct.startsWith('image/')) return 'image'
-  if (ct.startsWith('video/') || ct.startsWith('audio/')) return 'media'
+  if (ct.startsWith('video/')) return 'media'
+  if (ct.startsWith('audio/')) return 'other'
   if (
     p.includes('kyc') ||
     p.includes('verification') ||

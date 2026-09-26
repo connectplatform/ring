@@ -52,6 +52,12 @@ interface LocationMapModalProps {
   onOpenChange: (open: boolean) => void
   currentLocation?: { address: string; lat: number; lng: number } | null
   onLocationSaved?: (location: { address: string; lat: number; lng: number }) => void
+  /**
+   * When true (default), Save writes the pin into the signed-in user's
+   * cultural address via updateProfile. Set false for birth-place pickers
+   * that must not overwrite the current cultural address.
+   */
+  persistProfile?: boolean
 }
 
 /**
@@ -59,13 +65,14 @@ interface LocationMapModalProps {
  * - Fullscreen mobile, centered dialog desktop
  * - Address search with Nominatim autocomplete suggestions
  * - Draggable map pin using Leaflet + OpenStreetMap (loaded dynamically, SSR-safe)
- * - Saves location via updateProfile cultural field
+ * - Saves location via updateProfile cultural field unless persistProfile is false
  */
 export default function LocationMapModal({
   open,
   onOpenChange,
   currentLocation,
   onLocationSaved,
+  persistProfile = true,
 }: LocationMapModalProps) {
   const t = useTranslations('modules.profile')
   const { update: updateSession } = useSession()
@@ -290,6 +297,12 @@ export default function LocationMapModal({
 
   const handleSave = async () => {
     if (!selectedLocation) return
+
+    if (!persistProfile) {
+      onLocationSaved?.(selectedLocation)
+      onOpenChange(false)
+      return
+    }
 
     setSaving(true)
     setError(null)

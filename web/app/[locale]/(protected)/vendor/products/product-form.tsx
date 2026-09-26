@@ -44,10 +44,12 @@ import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import NicheProductFieldsSection from '@/components/vendor/niche-product-fields-section'
 import { ProductPromotionsFields } from '@/components/vendor/product-promotions-fields'
+import { AdvertiseProductWidget } from '@/features/curtain/components/advertise-product-widget'
+import { readCurtainAdvertiseFromProduct } from '@/features/curtain/lib/advertise'
 import ProductRepSelect from '@/components/store/product-rep-select'
 import { GenerativeMediaField } from '@/features/generative-media/components/generative-media-field'
 import {
-  galleryFromUrlList,
+  galleryFromProductDoc,
   primaryGalleryUrl,
   type GenerativeGalleryValue,
 } from '@/features/generative-media/types'
@@ -136,14 +138,11 @@ export default function ProductForm({
   }, [state, variant, router, backHref])
 
   // Form state — generative gallery SSOT (Upload | Generate)
-  const [gallery, setGallery] = useState<GenerativeGalleryValue>(() => {
-    const fromDoc =
-      existingProduct?.generativeGallery || existingProduct?.data?.generativeGallery
-    if (fromDoc?.items?.length) return fromDoc as GenerativeGalleryValue
-    return galleryFromUrlList(
-      Array.isArray(existingProduct?.images) ? (existingProduct.images as string[]) : [],
-    )
-  })
+  const [gallery, setGallery] = useState<GenerativeGalleryValue>(() =>
+    galleryFromProductDoc(existingProduct as Record<string, unknown> | undefined),
+  )
+  const hasPrimaryPhoto = Boolean(primaryGalleryUrl(gallery))
+  const canSubmit = mode === 'edit' || hasPrimaryPhoto
   const [video, setVideo] = useState<File | null>(null)
   const [videoPreview, setVideoPreview] = useState<string | null>(existingProduct?.data?.videoUrl || null)
   const [activeInMyStore, setActiveInMyStore] = useState<boolean>(existingProduct?.status === 'active' || true)
@@ -156,6 +155,9 @@ export default function ProductForm({
   )
   const [repUsername, setRepUsername] = useState<string>(existingProduct?.rep ?? '')
   const [customFields, setCustomFields] = useState<Array<{ id: string; fieldName: string; fieldValue: string; fieldType: string }>>([])
+  const [advertise, setAdvertise] = useState(() =>
+    readCurtainAdvertiseFromProduct(existingProduct as Record<string, unknown> | undefined),
+  )
   const [priceInput, setPriceInput] = useState(() => {
     if (!existingProduct?.price) return ''
     return String(displayPriceFromMainCurrency(Number(existingProduct.price), currency))
@@ -389,6 +391,13 @@ export default function ProductForm({
                     ? existingProduct.data.promotions
                     : []
               }
+              disabled={isPending}
+            />
+
+            <AdvertiseProductWidget
+              value={advertise}
+              onChange={setAdvertise}
+              hasPrice={Number(priceInput) > 0}
               disabled={isPending}
             />
 
@@ -633,11 +642,19 @@ export default function ProductForm({
               </motion.div>
             )}
 
+            {mode === 'create' && !hasPrimaryPhoto && (
+              <p className="text-sm text-muted-foreground">
+                {tForm('photoRequiredToSave', {
+                  defaultValue: 'Add at least one product photo to enable Save.',
+                })}
+              </p>
+            )}
+
             {/* Submit Button */}
             <div className="flex items-center gap-4 pt-4">
               <Button
                 type="submit"
-                disabled={isPending || !primaryGalleryUrl(gallery)}
+                disabled={isPending || !canSubmit}
                 className="flex-1 bg-gradient-to-r from-emerald-600 to-lime-600 hover:from-emerald-700 hover:to-lime-700"
               >
                 {isPending ? (

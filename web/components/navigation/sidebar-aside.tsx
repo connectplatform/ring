@@ -29,7 +29,12 @@ import { toast } from '@/hooks/use-toast'
 import { getClientNativeTokenSymbol } from '@/lib/ring-config-client'
 import { hideEmpireAsideGroups } from '@/lib/navigation/empire-aside'
 import type { Locale } from '@/i18n/shared'
-import { resolveDesktopPrimaryNav, sidebarPathIsActive } from '@/lib/navigation/desktop-primary-nav'
+import {
+  resolveDesktopPrimaryNav,
+  resolvePackAsideNav,
+  sidebarPathIsActive,
+} from '@/lib/navigation/desktop-primary-nav'
+import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { AdminSupermenuToggle } from './admin-supermenu'
 import { NavLegalFooter } from './nav-legal-footer'
@@ -93,6 +98,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
       address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
 
     const primaryItems = resolveDesktopPrimaryNav(locale, tNav, pathname, search)
+    const packAsideItems = resolvePackAsideNav(locale, tNav, pathname)
 
     const navigationItems: NavigationItem[] = useMemo(() => {
       const items: NavigationItem[] = primaryItems.map((item) => ({
@@ -101,6 +107,19 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
         railMirrored: true,
         active: item.active,
       }))
+
+      if (hideEmpireExtras && packAsideItems.length > 0) {
+        items.push({ divider: 'divider-systems', href: '#', label: '', icon: null })
+        for (const item of packAsideItems) {
+          const Icon = getPrimaryNavIcon(item.icon)
+          items.push({
+            href: item.href,
+            label: item.label,
+            icon: <Icon className={ICON} strokeWidth={1.5} />,
+            active: item.active,
+          })
+        }
+      }
 
       if (!hideConcepts) {
         items.push(
@@ -150,11 +169,20 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
       }
 
       return items
-    }, [hideConcepts, hideEmpireExtras, locale, nativeSymbol, primaryItems, tNav])
+    }, [
+      hideConcepts,
+      hideEmpireExtras,
+      locale,
+      nativeSymbol,
+      packAsideItems,
+      primaryItems,
+      tNav,
+    ])
 
     const dividerLabels: Record<string, string> = {
       'divider-concepts': tNav('sidebar.concepts', { default: 'Platform Concepts' }),
       'divider-docs': tNav('sidebar.getStarted'),
+      'divider-systems': tNav('sidebar.systems'),
     }
 
     const walletAddress = session?.user?.wallets?.[0]?.address

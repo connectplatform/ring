@@ -6,6 +6,8 @@ import { useFCM, useFCMMessages } from '@/hooks/use-fcm'
 import { unregisterCurrentDevicePush } from '@/lib/notifications/fcm-client-cleanup'
 import { setPushOptedOut } from '@/lib/notifications/push-opt-out'
 import { getBrowserNotificationPermission } from '@/lib/browser/notification-api'
+import { isIosSafari, needsIosHomeScreenForPush } from '@/lib/browser/pwa-display'
+import { isTelegramMiniAppShell } from '@/lib/browser/telegram-webapp'
 import { emitInteractivePushFromFcmData } from '@/lib/notifications/incoming-from-push'
 import { isFcmConfigured } from '@/lib/firebase-client'
 import { toast } from '@/hooks/use-toast'
@@ -233,7 +235,13 @@ export function FCMPermissionPrompt() {
     if (!needsHomeScreenInstall && getBrowserNotificationPermission() === 'granted') return
     const timer = setTimeout(() => {
       if (getPromptDismissed(dismissKey)) return
-      if (needsHomeScreenInstall || (isSupported && !isEnabled && !isLoading)) {
+      // Telegram already delivers Mini App notifications; never prompt PWA install or web push.
+      if (isTelegramMiniAppShell()) return
+      if (needsHomeScreenInstall) {
+        if (isIosSafari() && needsIosHomeScreenForPush()) setShowPrompt(true)
+        return
+      }
+      if (isSupported && !isEnabled && !isLoading) {
         setShowPrompt(true)
       }
     }, 3000)
@@ -247,6 +255,8 @@ export function FCMPermissionPrompt() {
 
   if (!showPrompt) return null
   if (isEnabled) return null
+  if (typeof window !== 'undefined' && isTelegramMiniAppShell()) return null
+  if (needsHomeScreenInstall && !isIosSafari()) return null
   if (!needsHomeScreenInstall && !isSupported) return null
 
   const handleEnable = async () => {

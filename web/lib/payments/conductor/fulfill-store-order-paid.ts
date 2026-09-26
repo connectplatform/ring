@@ -121,6 +121,14 @@ export async function fulfillStoreOrderPaid(
     } catch (referralError) {
       logger.error(`${source}: referral reward failed`, { orderId, referralError })
     }
+    try {
+      const { mintCurtainAuthorCommission } = await import(
+        '@/features/curtain/services/commission'
+      )
+      await mintCurtainAuthorCommission(order as StoreOrder)
+    } catch (curtainError) {
+      logger.error(`${source}: curtain author commission failed`, { orderId, curtainError })
+    }
   }
 
   logger.info(`${source}: completed`, { orderId, orderReference, amount, currency, processor })

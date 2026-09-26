@@ -2,7 +2,6 @@ import 'server-only'
 
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
-import { revalidatePath } from 'next/cache'
 
 export type ContentInteractionAction = 'save' | 'not_interested' | 'contact_intent'
 
@@ -47,7 +46,6 @@ export async function toggleContentInteraction(input: {
     if (!deleted.success) {
       return { success: false, error: deleted.error?.message || 'Failed to clear interaction' }
     }
-    revalidatePath('/[locale]/opportunities', 'page')
     return { success: true, active: false, weight: ACTION_WEIGHT[input.action] }
   }
 
@@ -71,7 +69,6 @@ export async function toggleContentInteraction(input: {
     return { success: false, error: created.error?.message || 'Failed to record interaction' }
   }
 
-  revalidatePath('/[locale]/opportunities', 'page')
   return { success: true, active: true, weight: ACTION_WEIGHT[input.action] }
 }
 
@@ -112,6 +109,5 @@ export async function recordContentInteraction(input: {
   if (!created.success) {
     return { success: false, error: created.error?.message || 'Failed to record interaction' }
   }
-  revalidatePath('/[locale]/opportunities', 'page')
   return { success: true, weight: ACTION_WEIGHT[input.action] }
 }

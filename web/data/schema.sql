@@ -2051,6 +2051,25 @@ COMMENT ON TABLE public.user_content_interactions IS 'Opportunity feed save/not_
 
 
 --
+-- Name: user_favorites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_favorites (
+    id character varying(255) NOT NULL,
+    data jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE user_favorites; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.user_favorites IS 'Per-user favorites (product/entity/opportunity/content/user) — snake_case JSONB keys';
+
+
+--
 -- Name: user_device_telemetry; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3130,6 +3149,14 @@ ALTER TABLE ONLY public.user_addresses
 
 ALTER TABLE ONLY public.user_content_interactions
     ADD CONSTRAINT user_content_interactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_favorites user_favorites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_favorites
+    ADD CONSTRAINT user_favorites_pkey PRIMARY KEY (id);
 
 
 --
@@ -4385,6 +4412,20 @@ CREATE INDEX idx_likes_entity_id ON public.likes USING btree (((data ->> 'entity
 --
 
 CREATE INDEX idx_likes_user_id ON public.likes USING btree (((data ->> 'userId'::text)));
+
+
+--
+-- Name: idx_likes_user_target; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_likes_user_target ON public.likes USING btree (((data ->> 'userId'::text)), ((data ->> 'targetType'::text)), ((data ->> 'targetId'::text)));
+
+
+--
+-- Name: idx_likes_target; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_likes_target ON public.likes USING btree (((data ->> 'targetType'::text)), ((data ->> 'targetId'::text)));
 
 
 --
@@ -6201,6 +6242,34 @@ CREATE INDEX idx_uci_user ON public.user_content_interactions USING btree (((dat
 
 
 --
+-- Name: idx_uci_user_type_action; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uci_user_type_action ON public.user_content_interactions USING btree (((data ->> 'userId'::text)), ((data ->> 'targetType'::text)), ((data ->> 'action'::text)));
+
+
+--
+-- Name: idx_user_favorites_global_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_favorites_global_user_id ON public.user_favorites USING btree (((data ->> 'global_user_id'::text)));
+
+
+--
+-- Name: idx_user_favorites_type_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_favorites_type_id ON public.user_favorites USING btree (((data ->> 'favorite_type'::text)), ((data ->> 'favorite_id'::text)));
+
+
+--
+-- Name: idx_user_favorites_data_gin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_favorites_data_gin ON public.user_favorites USING gin (data);
+
+
+--
 -- Name: idx_user_addresses_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7245,3 +7314,30 @@ INSERT INTO schema_versions (version, description)
 SELECT '4.1.0',
        'Flattened SSOT: schema.sql absorbs migrations through 048_news_jsonb_fts + prior'
 WHERE NOT EXISTS (SELECT 1 FROM schema_versions WHERE version = '4.1.0');
+
+-- ============================================================================
+-- 050 Curtain offers (idempotent — also in data/migrations/050_curtain_offers.sql)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS curtain_preferences (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_curtain_preferences_updated_at
+  ON curtain_preferences (updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_curtain_preferences_data_gin
+  ON curtain_preferences USING GIN (data);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_curtain_type
+  ON analytics_events ((data->>'eventType'))
+  WHERE (data->>'eventType') LIKE 'curtain_%';
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_curtain_offer
+  ON analytics_events ((data->'payload'->>'offerId'))
+  WHERE (data->>'eventType') LIKE 'curtain_%';
+
+INSERT INTO schema_versions (version, description)
+SELECT '050', 'Curtain offers: curtain_preferences + analytics curtain event indexes'
+WHERE NOT EXISTS (SELECT 1 FROM schema_versions WHERE version = '050');

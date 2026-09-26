@@ -103,27 +103,15 @@ export class ApiClientError extends Error {
 
 /**
  * Resolve API base URL for RingApiClient.
- * Browser same-origin → always relative (`''`) so PORT / AUTH_URL drift cannot
- * cross-origin `/api/*` calls (Firefox NetworkError + missing session cookie).
- * Absolute NEXT_PUBLIC_API_URL is kept only when it points at a different host.
+ * Browser always uses a relative base so a baked NEXT_PUBLIC_API_URL on another
+ * host (for example app.greenfood.live while the page is greenfood.live) cannot
+ * cross-origin `/api/*` (Firefox NetworkError, session cookie omitted).
+ * Server keeps the absolute env URL for SSR fetches.
  */
 export function resolveApiBaseUrl(explicit?: string): string {
+  if (typeof window !== 'undefined') return ''
   const fromEnv = (explicit ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim().replace(/\/$/, '')
-  if (typeof window === 'undefined') {
-    return fromEnv
-  }
-  if (!fromEnv) {
-    return ''
-  }
-  try {
-    const resolved = new URL(fromEnv, window.location.origin)
-    if (resolved.origin === window.location.origin) {
-      return ''
-    }
-    return fromEnv
-  } catch {
-    return ''
-  }
+  return fromEnv
 }
 
 /**

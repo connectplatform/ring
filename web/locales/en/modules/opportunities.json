@@ -57,6 +57,23 @@
   "noPermission": "You don't have permission to view this opportunity.",
   "noDataAvailable": "No data available for this opportunity.",
   "confidential": "Confidential",
+  "postAsConfidential": "Post as Confidential",
+  "postAsConfidentialHint": "Hide your name and organization on this member or subscriber listing. The listing stays visible in that pool.",
+  "visibilityLabel": "Visibility",
+  "visibilityPublic": "Public",
+  "visibilitySubscriber": "Subscribers",
+  "visibilityMember": "Members",
+  "visibilityConfidential": "Confidential listing",
+  "noSavedOpportunities": "No saved opportunities yet",
+  "favoritesHubTitle": "Favorites",
+  "favoritesHubDescription": "Saved products, content, and a link to your saved opportunities.",
+  "favoritesSavedOpportunitiesHint": "Opportunity saves live on My Opportunities — this hub does not keep a second feed.",
+  "favoritesSavedOpportunitiesLink": "Open saved opportunities",
+  "favoritesProducts": "Products",
+  "favoritesContent": "Content",
+  "favoritesLocalStore": "Browser store favorites",
+  "favoritesEmptyProducts": "No saved products yet",
+  "favoritesEmptyContent": "No saved content yet",
   "processing": "Processing...",
   "posting": "Posting...",
   "posted": "Posted",
@@ -272,6 +289,130 @@
       },
       "button": "Create listing",
       "upgrade_button": "Upgrade to Member"
+    },
+    "investment_offer": {
+      "title": "Investment Offer",
+      "description": "Offer investment capital to promising startups and projects in the technopark.",
+      "button": "Post Investment Offer",
+      "examples": {
+        "seed": "Seed-round funding",
+        "series_a": "Series A investment",
+        "angel": "Angel investment",
+        "venture": "Venture capital"
+      }
+    },
+    "startup_pitch": {
+      "title": "Startup Pitch",
+      "description": "Present your startup idea to investors and partners in the technopark ecosystem.",
+      "button": "Create Startup Pitch",
+      "examples": {
+        "tech_startup": "Tech startup",
+        "deep_tech": "Deep Tech project",
+        "social_impact": "Social impact",
+        "cleantech": "Cleantech"
+      }
+    },
+    "grant_application": {
+      "title": "Grant Application",
+      "description": "Apply for grants and funding opportunities from government and private sources.",
+      "button": "Submit Grant Application",
+      "examples": {
+        "eu_grant": "EU Horizon Europe grant",
+        "state_grant": "State grant of Ukraine",
+        "foundation": "Foundation grant",
+        "research": "Research grant"
+      }
+    },
+    "research_collaboration": {
+      "title": "Research Collaboration",
+      "description": "Find research partners for R&D projects and academic collaborations.",
+      "button": "Propose Research Project",
+      "examples": {
+        "university": "University partnership",
+        "lab": "Lab research",
+        "joint_rd": "Joint R&D project",
+        "tech_transfer": "Tech transfer"
+      }
+    },
+    "service_offer": {
+      "title": "Service Offer",
+      "description": "Offer professional services to the technopark community.",
+      "button": "Offer Services",
+      "examples": {
+        "legal": "Legal support",
+        "accounting": "Accounting services",
+        "marketing": "Marketing & PR",
+        "hr": "HR & recruiting"
+      }
+    },
+    "talent_request": {
+      "title": "Talent Search",
+      "description": "Hire talented specialists for your project or startup.",
+      "button": "Post Talent Request",
+      "examples": {
+        "developer": "Software developer",
+        "designer": "UX/UI designer",
+        "cto": "CTO",
+        "marketing": "Marketer"
+      }
+    },
+    "coworking_space": {
+      "title": "Coworking Space",
+      "description": "Offer or request coworking space and office infrastructure.",
+      "button": "List Coworking Space",
+      "examples": {
+        "desk": "Dedicated desk",
+        "office": "Private office",
+        "meeting_room": "Meeting room",
+        "event_space": "Event space"
+      }
+    },
+    "equipment_sharing": {
+      "title": "Equipment Sharing",
+      "description": "Share or rent specialized equipment and tools.",
+      "button": "Share Equipment",
+      "examples": {
+        "lab": "Lab equipment",
+        "3d_printer": "3D printer",
+        "prototyping": "Prototyping & fabrication",
+        "testing": "Testing rigs"
+      }
+    },
+    "civic_inquiry": {
+      "title": "Civic Inquiry (311)",
+      "description": "Report a municipal utility issue, road hazard, or official request to city services."
+    },
+    "urban_improvement": {
+      "title": "Urban Improvement Proposal",
+      "description": "Propose an upgrade for a city park, public square, playground, or green neighborhood space."
+    },
+    "volunteer_initiative": {
+      "title": "Volunteer Initiative",
+      "description": "Organize a community cleanup, aid drive, animal shelter support, or mutual assistance effort."
+    },
+    "community_mutual_aid": {
+      "title": "Community Mutual Aid",
+      "description": "Share generators, tools, emergency items, or offer neighborhood peer-to-peer assistance."
+    },
+    "education_initiative": {
+      "title": "Educational Workshop & Meetup",
+      "description": "Host free lectures, youth coding classes, community skill-shares, or study circles."
+    },
+    "city_tender": {
+      "title": "City Tender & Subcontract",
+      "description": "Publish requests for municipal work bids, materials supply, or local services."
+    },
+    "local_vacancy": {
+      "title": "Local Job & Internship",
+      "description": "Post career opportunities or apprenticeships in municipal enterprises and local businesses."
+    },
+    "collective_order": {
+      "title": "Collective Order",
+      "description": "Groupon-style bulk offer with prepaid escrow slots until filled."
+    },
+    "civic_petition": {
+      "title": "Civic Petition & Community Vote",
+      "description": "Collect signatures for a municipal proposal or initiate a local citizen consultation."
     }
   },
   "addRequest": "Create Request",
@@ -701,6 +842,38 @@
     "civic_petition": {
       "title": "Civic Petition & Community Vote",
       "description": "Collect signatures for a municipal proposal or initiate a local citizen consultation."
+    },
+    "investment_offer": {
+      "title": "Investment Offer",
+      "description": "Offer investment capital to promising startups and projects in the technopark."
+    },
+    "startup_pitch": {
+      "title": "Startup Pitch",
+      "description": "Present your startup idea to investors and partners in the technopark ecosystem."
+    },
+    "grant_application": {
+      "title": "Grant Application",
+      "description": "Apply for grants and funding opportunities from government and private sources."
+    },
+    "research_collaboration": {
+      "title": "Research Collaboration",
+      "description": "Find research partners for R&D projects and academic collaborations."
+    },
+    "service_offer": {
+      "title": "Service Offer",
+      "description": "Offer professional services to the technopark community."
+    },
+    "talent_request": {
+      "title": "Talent Search",
+      "description": "Hire talented specialists for your project or startup."
+    },
+    "coworking_space": {
+      "title": "Coworking Space",
+      "description": "Offer or request coworking space and office infrastructure."
+    },
+    "equipment_sharing": {
+      "title": "Equipment Sharing",
+      "description": "Share or rent specialized equipment and tools."
     }
   },
   "form": {

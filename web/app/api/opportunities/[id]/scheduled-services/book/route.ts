@@ -97,9 +97,7 @@ export async function POST(
     opportunityId,
     event: 'updated',
     snippet: {
-      type: 'scheduled_services',
       applicantCount,
-      message: `New booking interest (${applicantCount})`,
     },
   })
 

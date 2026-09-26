@@ -39,6 +39,7 @@ import { isMemberCollectionsEnabled, isNftMarketplaceEnabled } from '@/features/
 import { Button } from '@/components/ui/button'
 import { ROUTES } from '@/constants/routes'
 import Image from 'next/image'
+import { CurtainPageProvider } from '@/features/curtain/components/curtain-page-context'
 
 type PublicProfileParams = { username: string }
 
@@ -172,6 +173,7 @@ export default async function PublicProfilePage(
   const showGuestMessageCta = !session?.user?.id && contactAllowed && !viewAsVisitor
 
   return (
+    <CurtainPageProvider authorUserId={user.id} pageKind="profile">
     <UserProfileWrapper locale={validLocale} username={username}>
       <div className="mx-auto max-w-4xl px-4">
         {showOwnerChrome ? (
@@ -322,5 +324,6 @@ export default async function PublicProfilePage(
         ) : null}
       </div>
     </UserProfileWrapper>
+    </CurtainPageProvider>
   )
 }

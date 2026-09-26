@@ -7,6 +7,7 @@ const mockGetResolvedAIConfig = jest.fn()
 const mockIsLLMAvailableAsync = jest.fn()
 const mockGetMatcherInstallDefaults = jest.fn()
 const mockDbExecute = jest.fn()
+const mockUpdateDoc = jest.fn()
 const mockAppendEvent = jest.fn()
 const mockSyncOpportunityDiscovery = jest.fn()
 const mockCreateNotification = jest.fn()
@@ -26,6 +27,7 @@ jest.mock('@/lib/ring-config-core', () => ({
 jest.mock('@/lib/database/DatabaseService', () => ({
   db: () => ({
     execute: (...args: unknown[]) => mockDbExecute(...args),
+    updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
   }),
 }))
 
@@ -108,6 +110,7 @@ describe('maybeAutoApproveOpportunity', () => {
     })
     mockIsLLMAvailableAsync.mockResolvedValue(true)
     mockDbExecute.mockResolvedValue({ success: true })
+    mockUpdateDoc.mockResolvedValue({ success: true })
     mockAppendEvent.mockResolvedValue('event-1')
     mockCreateNotification.mockResolvedValue(undefined)
   })
@@ -181,13 +184,11 @@ describe('maybeAutoApproveOpportunity', () => {
 
     expect(result.approved).toBe(true)
     expect(result.reason).toBe('approved')
-    expect(mockDbExecute).toHaveBeenCalledWith(
-      'update',
-      expect.objectContaining({
-        collection: 'opportunities',
-        id: 'opp-1',
-        data: expect.objectContaining({ status: 'active' }),
-      }),
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      'opportunities',
+      'opp-1',
+      expect.objectContaining({ status: 'active', dateUpdated: expect.any(Date) }),
+      { merge: true },
     )
     expect(mockAppendEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'opportunity_auto_approved' }),

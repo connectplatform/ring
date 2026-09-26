@@ -127,6 +127,14 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
       `${window.location.origin}/${locale}/store/checkout/processing?orderId=PENDING`,
     )
     fd.set('locale', locale)
+    try {
+      const { readCurtainAttributionClient, serializeCurtainAttribution } = await import(
+        '@/features/curtain/lib/attribution-storage'
+      )
+      fd.set('curtainAttributionJson', serializeCurtainAttribution(readCurtainAttributionClient()))
+    } catch {
+      /* private mode / SSR */
+    }
     return placeAndPayStoreOrder(null, fd)
   }
 

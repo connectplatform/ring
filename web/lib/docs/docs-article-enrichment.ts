@@ -757,30 +757,12 @@ export async function ensureDocsArticleEnrichmentBackground(input: {
   try {
     const article = loadArticlePlain(input.locale, input.slug)
     if (!article) return
-    const id = enrichmentId(input.locale, input.slug)
-    const existing = await loadEnrichment(id)
     const status = await getDocsArticleMediaStatus(input)
     if (!status) return
 
-    if (status.audible === 'missing' || status.agent === 'missing') {
-      const now = new Date().toISOString()
-      await saveEnrichment({
-        id,
-        locale: input.locale,
-        slug: input.slug.join('/') || 'index',
-        contentSha256: article.contentSha256,
-        audibleText: existing?.audibleText,
-        ttsAudio: existing?.ttsAudio,
-        llmText: existing?.llmText,
-        visualMedia: existing?.visualMedia,
-        generatingAudible: status.audible === 'missing',
-        generatingLlm: status.agent === 'missing',
-        generatingVisual: existing?.generatingVisual,
-        history: existing?.history,
-        created_at: existing?.created_at ?? now,
-        updated_at: now,
-      })
-    }
+    // Do not pre-claim generating* here. ensureTtsAudio / ensureLlmText own the
+    // lock. A prior save of generatingAudible=true made background:true see a
+    // fresh lock and no-op — 447 prod rows stuck with zero TTS.
 
     if (status.audible === 'missing') {
       await ensureTtsAudio({ ...input, background: true })

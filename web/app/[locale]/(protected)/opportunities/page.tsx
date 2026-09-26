@@ -8,7 +8,6 @@ import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
 import { ROUTES } from '@/constants/routes'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import type { LocalePageProps } from '@/utils/page-props'
 
 /**
@@ -92,17 +91,16 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
     // Dynamically import the RBAC-aware query logic for this user role
     // - Enables tree-shaking and future code-splitting for custom role logic
     // - Can be refactored to a server action in Next 16
-    const { getOpportunitiesForRole } = await import('@/features/opportunities/services/get-opportunities')
-    
-    // Safely coerce/validate the user role for RBAC
-    const userRole = assertKnownUserRole(session.user.role as UserRolesArray)
-    
-    // Query the backend for opportunities list, with pagination
-    const result = await getOpportunitiesForRole({
-      userRole,
+    const { searchOpportunities } = await import('@/features/opportunities/services/search-opportunities')
+    const { parseOpportunityListQuery } = await import(
+      '@/features/opportunities/lib/opportunity-search-params'
+    )
+
+    const parsed = parseOpportunityListQuery(searchParams as Record<string, unknown>)
+    const result = await searchOpportunities({
+      ...parsed,
       limit,
       startAfter,
-      viewerUserId: session.user.id,
     })
     initialOpportunities = result.opportunities
     lastVisible = result.lastVisible

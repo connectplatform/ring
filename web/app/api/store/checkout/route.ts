@@ -57,11 +57,20 @@ export async function POST(req: NextRequest) {
     const refCode = req.cookies.get(REF_COOKIE_NAME)?.value
     const buyerWallets = await getBuyerWalletAddresses(session.user.id)
     const referral = await resolveOrderReferral(session.user.id, refCode, buyerWallets)
+    const { parseCurtainAttributionJson, mergeTouchLists, touchesFromUnknown } = await import(
+      '@/features/curtain/lib/attribution-storage'
+    )
+    const { CURTAIN_ATTR_COOKIE } = await import('@/features/curtain/constants')
+    const curtainAttribution = mergeTouchLists(
+      parseCurtainAttributionJson(req.cookies.get(CURTAIN_ATTR_COOKIE)?.value),
+      touchesFromUnknown(body?.curtainAttribution),
+    )
 
     const { orderId } = await StoreOrdersService.createOrder(
       session.user.id,
       orderPayload as never,
-      referral || undefined
+      referral || undefined,
+      curtainAttribution.length ? { curtainAttribution } : undefined,
     )
 
     // Promote cart soft-holds → order holds: release cart_${userId}, then reserve for orderId.

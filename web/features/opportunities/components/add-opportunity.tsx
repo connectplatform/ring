@@ -39,6 +39,10 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { hasConfidentialAccess, hasMemberPrivileges, resolveSessionUserRole } from '@/features/auth/user-role'
+import { canSetAnonymousPoster } from '@/features/opportunities/lib/opportunity-identity'
+import { getAllowedVisibilityValues } from '@/features/opportunities/lib/opportunity-visibility-filter'
+import { Checkbox } from '@/components/ui/checkbox'
+import type { OpportunityVisibility, SerializedOpportunity } from '@/features/opportunities/types'
 import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import dynamic from 'next/dynamic'
@@ -91,7 +95,6 @@ import {
 } from '@/components/opportunities/opportunity-form-shell'
 import { davinciCtaPrimary } from '@/lib/ui/davinci'
 import { getClientMainCurrency, getClientOpportunityBudgetCurrencies, getClientNativeTokenSymbol } from '@/lib/ring-config-client'
-import type { SerializedOpportunity } from '@/features/opportunities/types'
 
 function toDateInputValue(iso?: string): string {
   if (!iso) return ''
@@ -283,6 +286,16 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
 
   const userRole = resolveSessionUserRole(session?.user?.role)
   const isConfidentialAllowed = hasConfidentialAccess(userRole)
+  const [visibility, setVisibility] = useState<OpportunityVisibility>(
+    initialOpportunity?.visibility || 'public',
+  )
+  const [anonymousPoster, setAnonymousPoster] = useState(
+    Boolean(initialOpportunity?.anonymousPoster),
+  )
+  const visibilityOptions = getAllowedVisibilityValues(userRole) ?? (
+    ['public', 'subscriber', 'member', 'confidential'] as OpportunityVisibility[]
+  )
+  const canPostAnonymous = canSetAnonymousPoster(userRole, visibility)
 
   const currentType =
     opportunityType ||
@@ -726,6 +739,60 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4 space-y-6">
+                        <div>
+                          <Label htmlFor="visibility" className="flex items-center space-x-2">
+                            <span>{t('visibilityLabel', { defaultValue: 'Visibility' })}</span>
+                          </Label>
+                          <input type="hidden" name="visibility" value={visibility} />
+                          <input type="hidden" name="anonymousPoster" value={anonymousPoster && canPostAnonymous ? 'true' : 'false'} />
+                          <input type="hidden" name="isConfidential" value={visibility === 'confidential' ? 'true' : 'false'} />
+                          <Select
+                            value={visibility}
+                            onValueChange={(value) => {
+                              const next = value as OpportunityVisibility
+                              setVisibility(next)
+                              if (!canSetAnonymousPoster(userRole, next)) {
+                                setAnonymousPoster(false)
+                              }
+                            }}
+                          >
+                            <SelectTrigger id="visibility" className="mt-2 h-12">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {visibilityOptions.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option === 'public' && t('visibilityPublic', { defaultValue: 'Public' })}
+                                  {option === 'subscriber' && t('visibilitySubscriber', { defaultValue: 'Subscribers' })}
+                                  {option === 'member' && t('visibilityMember', { defaultValue: 'Members' })}
+                                  {option === 'confidential' && t('visibilityConfidential', { defaultValue: 'Confidential listing' })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {canPostAnonymous ? (
+                          <div className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
+                            <Checkbox
+                              id="anonymousPoster"
+                              checked={anonymousPoster}
+                              onCheckedChange={(checked) => setAnonymousPoster(checked === true)}
+                            />
+                            <div>
+                              <Label htmlFor="anonymousPoster" className="cursor-pointer text-sm font-medium">
+                                {t('postAsConfidential', { defaultValue: 'Post as Confidential' })}
+                              </Label>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {t('postAsConfidentialHint', {
+                                  defaultValue:
+                                    'Hide your name and organization from this member or subscriber listing. The listing stays in the public pool.',
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        ) : null}
+
                         {/* Requirements Field */}
                         <div>
                           <Label htmlFor="requirements" className="flex items-center space-x-2">

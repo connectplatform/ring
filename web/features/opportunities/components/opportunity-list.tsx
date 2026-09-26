@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
-import { apiClient } from '@/lib/api-client'
+import { searchOpportunities } from '@/lib/client-search-opportunities'
+import { parseOpportunityListQuery } from '@/features/opportunities/lib/opportunity-search-params'
 import { Building, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 import { SerializedOpportunity } from '@/features/opportunities/types'
@@ -23,6 +24,10 @@ import {
   OpportunityFeedCard,
   type OpportunityFeedInteractionPatch,
 } from '@/features/opportunities/components/opportunity-feed-card'
+import {
+  applyOpportunityListUpdate,
+  useOpportunityUpdates,
+} from '@/hooks/use-realtime-opportunities'
 
 interface OpportunityListProps {
   initialOpportunities: SerializedOpportunity[]
@@ -30,7 +35,6 @@ interface OpportunityListProps {
   initialError: string | null
   lastVisible: string | null
   limit: number
-  totalCount?: number
   locale: string
 }
 
@@ -48,7 +52,6 @@ export default function OpportunityList({
   initialError,
   lastVisible: initialLastVisible,
   limit,
-  totalCount = 0,
   locale
 }: OpportunityListProps) {
   const t = useTranslations('modules.opportunities')
@@ -63,21 +66,25 @@ export default function OpportunityList({
 
   const fetchOpportunitiesPage = useCallback(
     async (cursor: string | null) => {
-      const queryParams = new URLSearchParams({ limit: limit.toString() })
-      if (cursor) queryParams.set('startAfter', cursor)
+      const parsed = parseOpportunityListQuery(searchParams)
+      const result = await searchOpportunities(
+        {
+          ...parsed,
+          limit,
+          startAfter: cursor || undefined,
+        },
+        { failSoft: false },
+      )
 
-      const response = await apiClient.get(`/api/opportunities?${queryParams}`, {
-        timeout: 10000,
-        retries: 1,
-      })
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch opportunities')
-      }
-
-      return normalizePaginatedResponse<SerializedOpportunity>(response.data, limit)
+      return normalizePaginatedResponse<SerializedOpportunity>(
+        {
+          opportunities: result.opportunities,
+          lastVisible: result.lastVisible,
+        },
+        limit,
+      )
     },
-    [limit],
+    [limit, searchParams],
   )
 
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>(initialEntities)
@@ -94,10 +101,10 @@ export default function OpportunityList({
 
       if (uniqueEntityIds.length === 0) return
 
-      const entityPromises = uniqueEntityIds.map((id) =>
-        apiClient.get(`/api/entities/${id}`, { timeout: 5000, retries: 1 }),
+      const { apiClient } = await import('@/lib/api-client')
+      const fetchResponses = await Promise.allSettled(
+        uniqueEntityIds.map((id) => apiClient.get(`/api/entities/${id}`, { timeout: 5000, retries: 1 })),
       )
-      const fetchResponses = await Promise.allSettled(entityPromises)
       const entityMap: { [key: string]: Entity } = {}
 
       fetchResponses.forEach((result, index) => {
@@ -166,6 +173,10 @@ export default function OpportunityList({
     },
     [setFeedItems],
   )
+
+  useOpportunityUpdates((update) => {
+    setFeedItems((prev) => applyOpportunityListUpdate(prev, update))
+  })
 
   // Sync entities when parent-provided initialEntities change
   useEffect(() => {
