@@ -6,11 +6,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Bell, 
-  AlertCircle, 
-  CheckCircle, 
-  Info, 
+import {
+  Bell,
+  AlertCircle,
+  CheckCircle,
+  Info,
   AlertTriangle,
   ExternalLink,
   Check,
@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
+import { useTranslations, useFormatter } from 'next-intl';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -51,7 +52,7 @@ interface NotificationItemProps {
 
 const priorityStyles = {
   low: 'border-l-blue-500',
-  normal: 'border-l-gray-400',
+  normal: 'border-l-border',
   high: 'border-l-orange-500',
   urgent: 'border-l-red-500'
 };
@@ -110,51 +111,57 @@ const typeIcons = {
   like: Heart,
   payment: DollarSign,
   general: Bell
-};
+} as const;
 
-const typeLabels = {
-  [NotificationType.OPPORTUNITY_CREATED]: 'Opportunity',
-  [NotificationType.OPPORTUNITY_UPDATED]: 'Opportunity',
-  [NotificationType.OPPORTUNITY_EXPIRED]: 'Opportunity',
-  [NotificationType.OPPORTUNITY_SAVED]: 'Opportunity',
-  [NotificationType.OPPORTUNITY_APPLIED]: 'Opportunity',
-  [NotificationType.ENTITY_CREATED]: 'Entity',
-  [NotificationType.ENTITY_UPDATED]: 'Entity',
-  [NotificationType.ENTITY_VERIFIED]: 'Entity',
-  [NotificationType.ENTITY_REJECTED]: 'Entity',
-  [NotificationType.ACCOUNT_VERIFICATION]: 'Account',
-  [NotificationType.ROLE_UPGRADE_REQUEST]: 'Account',
-  [NotificationType.ROLE_UPGRADE_APPROVED]: 'Account',
-  [NotificationType.ROLE_UPGRADE_REJECTED]: 'Account',
-  [NotificationType.PROFILE_UPDATE]: 'Profile',
-  [NotificationType.WALLET_CREATED]: 'Wallet',
-  [NotificationType.WALLET_TRANSACTION]: 'Wallet',
-  [NotificationType.WALLET_BALANCE_LOW]: 'Wallet',
-  [NotificationType.PAYMENT_REQUEST]: 'Payment request',
-  [NotificationType.TASK_ASSIGNED]: 'Task',
-  [NotificationType.TASK_UPDATED]: 'Task',
-  [NotificationType.POLL_CREATED]: 'Poll',
-  [NotificationType.POLL_CLOSED]: 'Poll',
-  [NotificationType.RSVP_INVITE]: 'RSVP',
-  [NotificationType.RSVP_UPDATED]: 'RSVP',
-  [NotificationType.DAO_JAR_UPDATE]: 'DAO jar',
-  [NotificationType.GAME_REQUEST]: 'Game',
-  [NotificationType.GAME_UPDATED]: 'Game',
-  [NotificationType.CALL_INVITE]: 'Call',
-  [NotificationType.ENV_REQUEST]: 'Key update',
-  [NotificationType.REWARD_CREDIT_RECEIVED]: 'Reward',
-  [NotificationType.SYSTEM_MAINTENANCE]: 'System',
-  [NotificationType.SYSTEM_UPDATE]: 'System',
-  [NotificationType.SECURITY_ALERT]: 'Security',
-  [NotificationType.MESSAGE_RECEIVED]: 'Message',
-  [NotificationType.MENTION_RECEIVED]: 'Mention',
-  [NotificationType.FOLLOW_REQUEST]: 'Social',
-  [NotificationType.KYC_REQUIRED]: 'KYC',
-  [NotificationType.KYC_APPROVED]: 'KYC',
-  [NotificationType.KYC_REJECTED]: 'KYC',
-  [NotificationType.KYC_EXPIRING]: 'KYC',
-  [NotificationType.REFERRAL_REWARD_MINTED]: 'Referral',
-};
+// Map every notification type to an i18n category key (item.categories.*)
+const typeCategories = {
+  [NotificationType.OPPORTUNITY_CREATED]: 'opportunity',
+  [NotificationType.OPPORTUNITY_UPDATED]: 'opportunity',
+  [NotificationType.OPPORTUNITY_EXPIRED]: 'opportunity',
+  [NotificationType.OPPORTUNITY_SAVED]: 'opportunity',
+  [NotificationType.OPPORTUNITY_APPLIED]: 'opportunity',
+  [NotificationType.ENTITY_CREATED]: 'entity',
+  [NotificationType.ENTITY_UPDATED]: 'entity',
+  [NotificationType.ENTITY_VERIFIED]: 'entity',
+  [NotificationType.ENTITY_REJECTED]: 'entity',
+  [NotificationType.ACCOUNT_VERIFICATION]: 'account',
+  [NotificationType.ROLE_UPGRADE_REQUEST]: 'account',
+  [NotificationType.ROLE_UPGRADE_APPROVED]: 'account',
+  [NotificationType.ROLE_UPGRADE_REJECTED]: 'account',
+  [NotificationType.PROFILE_UPDATE]: 'profile',
+  [NotificationType.WALLET_CREATED]: 'wallet',
+  [NotificationType.WALLET_TRANSACTION]: 'wallet',
+  [NotificationType.WALLET_BALANCE_LOW]: 'wallet',
+  [NotificationType.PAYMENT_REQUEST]: 'payment',
+  [NotificationType.ENV_REQUEST]: 'security',
+  [NotificationType.TASK_ASSIGNED]: 'task',
+  [NotificationType.TASK_UPDATED]: 'task',
+  [NotificationType.POLL_CREATED]: 'poll',
+  [NotificationType.POLL_CLOSED]: 'poll',
+  [NotificationType.RSVP_INVITE]: 'rsvp',
+  [NotificationType.RSVP_UPDATED]: 'rsvp',
+  [NotificationType.DAO_JAR_UPDATE]: 'dao',
+  [NotificationType.GAME_REQUEST]: 'game',
+  [NotificationType.GAME_UPDATED]: 'game',
+  [NotificationType.CALL_INVITE]: 'call',
+  [NotificationType.REWARD_CREDIT_RECEIVED]: 'reward',
+  [NotificationType.SYSTEM_MAINTENANCE]: 'system',
+  [NotificationType.SYSTEM_UPDATE]: 'system',
+  [NotificationType.SECURITY_ALERT]: 'security',
+  [NotificationType.MESSAGE_RECEIVED]: 'message',
+  [NotificationType.MENTION_RECEIVED]: 'message',
+  [NotificationType.FOLLOW_REQUEST]: 'social',
+  [NotificationType.KYC_REQUIRED]: 'kyc',
+  [NotificationType.KYC_APPROVED]: 'kyc',
+  [NotificationType.KYC_REJECTED]: 'kyc',
+  [NotificationType.KYC_EXPIRING]: 'kyc',
+  [NotificationType.REFERRAL_REWARD_MINTED]: 'referral',
+  system: 'system',
+  comment: 'message',
+  like: 'social',
+  payment: 'payment',
+  general: 'general'
+} as const;
 
 export function NotificationItem({
   notification,
@@ -167,15 +174,20 @@ export function NotificationItem({
   className
 }: NotificationItemProps) {
   const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
-  const { navigateToUrl, isNavigating } = useNotificationNavigation();
+  const { navigateToUrl } = useNotificationNavigation();
+  const t = useTranslations('modules.notifications.item');
+  const format = useFormatter();
 
   const isUnread = !notification.readAt;
   const Icon = typeIcons[notification.type] || priorityIcons[notification.priority] || Bell;
-  const typeLabel = typeLabels[notification.type] || 'Notification';
+  const categoryKey = typeCategories[notification.type] ?? 'defaultCategory';
+  const typeLabel = t.has(`categories.${categoryKey}`)
+    ? t(`categories.${categoryKey}`)
+    : t('defaultCategory');
 
   const handleMarkAsRead = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (isUnread && !isMarkingAsRead) {
       setIsMarkingAsRead(true);
       await onMarkAsReadAction(notification.id);
@@ -203,49 +215,58 @@ export function NotificationItem({
     } else if (notification.actionUrl) {
       navigateToUrl(notification.actionUrl);
     }
-    
+
     // Auto-mark as read when clicked
     if (isUnread) {
       onMarkAsReadAction(notification.id);
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    
-    return new Date(date).toLocaleDateString();
+    const diffInSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return t('justNow');
+    if (diffInSeconds < 3600) return t('minutesAgo', { count: Math.floor(diffInSeconds / 60) });
+    if (diffInSeconds < 86400) return t('hoursAgo', { count: Math.floor(diffInSeconds / 3600) });
+    if (diffInSeconds < 604800) return t('daysAgo', { count: Math.floor(diffInSeconds / 86400) });
+
+    return format.dateTime(date, { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   return (
     <div
       className={cn(
-        'relative p-4 border-l-4 transition-all duration-200',
+        'relative p-4 border-l-4 transition-colors duration-200',
         priorityStyles[notification.priority],
-        isUnread 
-          ? 'bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/30' 
-          : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800',
+        isUnread
+          ? 'bg-primary/5 hover:bg-primary/10'
+          : 'bg-transparent hover:bg-muted/60',
         onClickAction && 'cursor-pointer',
         compact && 'p-3',
         className
       )}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role={onClickAction || notification.actionUrl ? 'button' : undefined}
+      tabIndex={onClickAction || notification.actionUrl ? 0 : undefined}
     >
       {/* Unread indicator */}
       {isUnread && (
-        <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full"></div>
+        <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary" aria-hidden />
       )}
 
       <div className="flex items-start space-x-3">
         {/* Icon */}
         <div className={cn(
           'flex-shrink-0 p-2 rounded-full',
-          isUnread ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-100 dark:bg-gray-800'
+          isUnread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
         )}>
           <Icon className={cn(
             'w-4 h-4',
@@ -258,20 +279,20 @@ export function NotificationItem({
           {/* Header */}
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center space-x-2">
-              <Badge 
-                variant={isUnread ? 'default' : 'secondary'} 
+              <Badge
+                variant={isUnread ? 'default' : 'secondary'}
                 className={cn('text-xs', compact && 'text-[10px] px-1 py-0')}
               >
                 {typeLabel}
               </Badge>
               {notification.priority === 'urgent' && (
                 <Badge variant="destructive" className={cn('text-xs', compact && 'text-[10px] px-1 py-0')}>
-                  Urgent
+                  {t('urgent')}
                 </Badge>
               )}
             </div>
             <span className={cn(
-              'text-xs text-gray-500 dark:text-gray-400',
+              'text-xs text-muted-foreground tabular-nums',
               compact && 'text-[10px]'
             )}>
               {formatTimeAgo(new Date(notification.createdAt))}
@@ -330,7 +351,7 @@ export function NotificationItem({
                   ) : (
                     <Check className="w-3 h-3" />
                   )}
-                  <span className="ml-1">Mark Read</span>
+                  <span className="ml-1">{isMarkingAsRead ? t('marking') : t('markRead')}</span>
                 </Button>
               )}
             </div>
@@ -341,13 +362,13 @@ export function NotificationItem({
             <button
               onClick={handleMarkAsRead}
               disabled={isMarkingAsRead}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs text-primary hover:underline"
             >
-              {isMarkingAsRead ? 'Marking...' : 'Mark as read'}
+              {isMarkingAsRead ? t('marking') : t('markAsRead')}
             </button>
           )}
         </div>
       </div>
     </div>
   );
-} 
+}

@@ -1,19 +1,17 @@
 /**
  * Notification List Component
  * Full-page notification management with filtering, search, and bulk actions
- * Enhanced with React 19 navigation
+ * List feed via useCursorFeed (cursor pagination SSOT); stats/actions via useNotifications
  */
 
 'use client';
 
 import React, { useState, useMemo, useTransition, useCallback } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Check, 
-  CheckCheck, 
-  Trash2,
+import {
+  Search,
+  Filter,
+  Check,
+  CheckCheck,
   Bell,
   Settings,
   ChevronDown,
@@ -25,13 +23,24 @@ import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
 import { NotificationItem } from './notification-item';
 import { NotificationType, NotificationPriority } from '@/features/notifications/types';
 import { cn } from '@/lib/utils';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCursorFeed } from '@/hooks/use-cursor-feed';
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint';
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response';
 import { apiClient, type ApiResponse } from '@/lib/api-client';
 import type { Notification, NotificationListResponse } from '@/features/notifications/types';
 import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { davinciGlassSurface } from '@/lib/ui/davinci';
 
 interface NotificationListProps {
   className?: string;
@@ -39,7 +48,7 @@ interface NotificationListProps {
 
 export function NotificationList({ className }: NotificationListProps) {
   // React 19 useTransition for non-blocking filter updates
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,14 +58,18 @@ export function NotificationList({ className }: NotificationListProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority'>('newest');
 
+  // i18n
+  const t = useTranslations('modules.notifications.list');
+  const tItem = useTranslations('modules.notifications.item');
+  const locale = useLocale();
+
   // Hooks — actions/stats from useNotifications; list pagination via useCursorFeed SSOT
   const { data: session } = useSession();
-  const locale = useLocale();
   const {
     unreadCount,
     totalCount,
     markingAllAsRead,
-    error,
+    error: statsError,
     markAsRead,
     markAllAsRead,
     refresh,
@@ -95,7 +108,7 @@ export function NotificationList({ className }: NotificationListProps) {
       );
 
       if (!response.success || !response.data) {
-        throw new Error(response.error || 'Failed to fetch notifications');
+        throw new Error(response.error || t('errorTitle'));
       }
 
       const data = response.data;
@@ -110,13 +123,14 @@ export function NotificationList({ className }: NotificationListProps) {
         20,
       );
     },
-    [selectedFilter, typesParam],
+    [selectedFilter, typesParam, t],
   );
 
   const {
     items: feedNotifications,
     loading,
     hasMore,
+    error: feedError,
     sentinelRef,
     reload,
   } = useCursorFeed<Notification>({
@@ -134,6 +148,7 @@ export function NotificationList({ className }: NotificationListProps) {
   // Prefer feed list; keep refresh wired to both
   const notifications = feedNotifications;
   const refreshing = loading && notifications.length > 0;
+  const displayError = feedError ?? statsError;
   const refreshAll = useCallback(async () => {
     await reload();
     await refresh();
@@ -178,10 +193,10 @@ export function NotificationList({ className }: NotificationListProps) {
   // Filter and sort notifications
   const filteredAndSortedNotifications = useMemo(() => {
     let filtered = notifications.filter(notification => {
-      // Search filter
+      // Search filter (client-side over loaded pages)
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        if (!notification.title.toLowerCase().includes(query) && 
+        if (!notification.title.toLowerCase().includes(query) &&
             !notification.body.toLowerCase().includes(query)) {
           return false;
         }
@@ -202,9 +217,10 @@ export function NotificationList({ className }: NotificationListProps) {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         case 'oldest':
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'priority':
-          const priorityOrder = { urgent: 4, high: 3, normal: 2, low: 1 };
-          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        case 'priority': {
+          const priorityOrder: Record<string, number> = { urgent: 4, high: 3, normal: 2, low: 1 };
+          return (priorityOrder[b.priority] ?? 0) - (priorityOrder[a.priority] ?? 0);
+        }
         default:
           return 0;
       }
@@ -232,16 +248,10 @@ export function NotificationList({ className }: NotificationListProps) {
     setSelectedNotifications(newSelected);
   };
 
-  // Bulk actions
+  // Bulk actions (only working actions are exposed — delete has no backend)
   const handleBulkMarkAsRead = async () => {
     const promises = Array.from(selectedNotifications).map(id => markAsRead(id));
     await Promise.all(promises);
-    setSelectedNotifications(new Set());
-  };
-
-  const handleBulkDelete = async () => {
-    // TODO: Implement bulk delete API
-    console.log('Bulk delete:', Array.from(selectedNotifications));
     setSelectedNotifications(new Set());
   };
 
@@ -249,86 +259,84 @@ export function NotificationList({ className }: NotificationListProps) {
     navigateToSettings();
   };
 
-  // Filter options
-  const filterOptions = [
-    { value: 'all', label: 'All Notifications', count: totalCount },
-    { value: 'unread', label: 'Unread', count: unreadCount },
-    { value: NotificationType.OPPORTUNITY_CREATED, label: 'Opportunities', count: 0 },
-    { value: NotificationType.ENTITY_VERIFIED, label: 'Entities', count: 0 },
-    { value: NotificationType.WALLET_TRANSACTION, label: 'Wallet', count: 0 },
-    { value: NotificationType.REWARD_CREDIT_RECEIVED, label: 'Rewards', count: 0 },
-    { value: NotificationType.SYSTEM_MAINTENANCE, label: 'System', count: 0 }
+  // Filter options — labels reuse item.categories i18n keys
+  const filterOptions: Array<{ value: 'all' | 'unread' | NotificationType; label: string; count?: number }> = [
+    { value: 'all', label: t('allTypes'), count: totalCount },
+    { value: 'unread', label: t('unread'), count: unreadCount },
+    { value: NotificationType.OPPORTUNITY_CREATED, label: tItem('categories.opportunity') },
+    { value: NotificationType.ENTITY_VERIFIED, label: tItem('categories.entity') },
+    { value: NotificationType.WALLET_TRANSACTION, label: tItem('categories.wallet') },
+    { value: NotificationType.REWARD_CREDIT_RECEIVED, label: tItem('categories.reward') },
+    { value: NotificationType.SYSTEM_MAINTENANCE, label: tItem('categories.system') },
   ];
 
-  const priorityOptions = [
-    { value: 'all', label: 'All Priorities' },
-    { value: 'urgent', label: 'Urgent' },
-    { value: 'high', label: 'High' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'low', label: 'Low' }
+  const priorityOptions: Array<{ value: 'all' | NotificationPriority; label: string }> = [
+    { value: 'all', label: t('allPriorities') },
+    { value: NotificationPriority.URGENT, label: t('priorities.urgent') },
+    { value: NotificationPriority.HIGH, label: t('priorities.high') },
+    { value: NotificationPriority.NORMAL, label: t('priorities.normal') },
+    { value: NotificationPriority.LOW, label: t('priorities.low') },
   ];
 
-  const sortOptions = [
-    { value: 'newest', label: 'Newest First' },
-    { value: 'oldest', label: 'Oldest First' },
-    { value: 'priority', label: 'Priority' }
+  const sortOptions: Array<{ value: 'newest' | 'oldest' | 'priority'; label: string }> = [
+    { value: 'newest', label: t('newestFirst') },
+    { value: 'oldest', label: t('oldestFirst') },
+    { value: 'priority', label: t('prioritySort') },
   ];
 
   return (
-    <div className={cn('max-w-4xl mx-auto p-6', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-            <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-            <p className="text-muted-foreground mt-1">
-            {totalCount} total, {unreadCount} unread
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-3">
+    <div className={cn('w-full min-w-0 max-w-4xl mx-auto', className)}>
+      {/* Stats + controls row (title lives in right rail — site-wide pattern) */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {t('totalUnread', { total: totalCount, unread: unreadCount })}
+        </p>
+
+        <div className="flex items-center space-x-2">
           {/* Refresh button */}
-          <button
+          <Button
             onClick={refreshAll}
             disabled={refreshing}
-            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-            aria-label="Refresh notifications"
+            variant="outline"
+            size="icon"
+            aria-label={t('refresh')}
           >
-            <Loader2 className={cn('w-5 h-5', refreshing && 'animate-spin')} />
-          </button>
+            <Loader2 className={cn('w-4 h-4', refreshing && 'animate-spin')} />
+          </Button>
 
           {/* Settings button */}
-          <button
+          <Button
             onClick={handleSettings}
-            className={cn(
-              "p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors",
-              isNavigating && "opacity-50"
-            )}
-            aria-label="Notification settings"
+            variant="outline"
+            size="icon"
+            aria-label={t('settings')}
             disabled={isNavigating}
           >
-            <Settings className="w-5 h-5" />
-          </button>
+            <Settings className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+      <div className={cn(davinciGlassSurface, 'p-4 mb-4')}>
         {/* Search bar */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden />
+          <Input
             type="text"
-            placeholder="Search notifications..."
+            placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-9 pr-9"
+            aria-label={t('searchPlaceholder')}
           />
           {searchQuery && (
             <button
               onClick={() => handleSearchChange('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-muted-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={t('clearFilters')}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -336,106 +344,110 @@ export function NotificationList({ className }: NotificationListProps) {
         {/* Filter toggles */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <button
+            <Button
               onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                'flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors',
-                showFilters 
-                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : 'border-gray-300 hover:bg-gray-50'
-              )}
+              variant={showFilters ? 'default' : 'outline'}
+              size="sm"
+              aria-expanded={showFilters}
             >
               <Filter className="w-4 h-4" />
-              <span>Filters</span>
+              <span>{t('filters')}</span>
               <ChevronDown className={cn('w-4 h-4 transition-transform', showFilters && 'rotate-180')} />
-            </button>
+            </Button>
 
-            {/* Quick stats */}
-              <div className="text-sm text-muted-foreground">
-              Showing {filteredAndSortedNotifications.length} of {totalCount} notifications
+            {/* Quick stats — honest loaded-count */}
+            <div className="text-sm text-muted-foreground tabular-nums">
+              {t('showing', { shown: filteredAndSortedNotifications.length, total: totalCount })}
             </div>
           </div>
 
-          {/* Bulk actions */}
+          {/* Bulk actions (working actions only) */}
           {selectedNotifications.size > 0 && (
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">
-                {selectedNotifications.size} selected
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {t('selectedCount', { count: selectedNotifications.size })}
               </span>
-              <button
+              <Button
                 onClick={handleBulkMarkAsRead}
-                className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                variant="outline"
+                size="sm"
               >
                 <Check className="w-4 h-4" />
-                <span>Mark as Read</span>
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                className="flex items-center space-x-1 px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete</span>
-              </button>
+                <span>{t('markSelectedRead')}</span>
+              </Button>
             </div>
           )}
         </div>
 
         {/* Expanded filters */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-border">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Type filter */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Type
+                  {t('type')}
                 </label>
-                <select
+                <Select
                   value={selectedFilter}
-                  onChange={(e) => handleFilterChange(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onValueChange={(value) => handleFilterChange(value as 'all' | 'unread' | NotificationType)}
                 >
-                  {filterOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label} {option.count > 0 && `(${option.count})`}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full" aria-label={t('type')}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                        {typeof option.count === 'number' && option.count > 0 ? ` (${option.count})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Priority filter */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Priority
+                  {t('priority')}
                 </label>
-                <select
+                <Select
                   value={selectedPriority}
-                  onChange={(e) => handlePriorityChange(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onValueChange={(value) => handlePriorityChange(value as 'all' | NotificationPriority)}
                 >
-                  {priorityOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full" aria-label={t('priority')}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Sort filter */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Sort By
+                  {t('sortBy')}
                 </label>
-                <select
+                <Select
                   value={sortBy}
-                  onChange={(e) => handleSortChange(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onValueChange={(value) => handleSortChange(value as 'newest' | 'oldest' | 'priority')}
                 >
-                  {sortOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full" aria-label={t('sortBy')}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -444,42 +456,47 @@ export function NotificationList({ className }: NotificationListProps) {
 
       {/* Actions bar */}
       {unreadCount > 0 && (
-        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-lg p-4 mb-4">
           <div className="flex items-center space-x-3">
-            <Bell className="w-5 h-5 text-blue-600" />
-            <span className="text-blue-800 font-medium">
-              You have {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+            <Bell className="w-5 h-5 text-primary" aria-hidden />
+            <span className="text-primary font-medium">
+              {t('unreadBanner', { count: unreadCount })}
             </span>
           </div>
-          <button
+          <Button
             onClick={markAllAsRead}
             disabled={markingAllAsRead}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            size="sm"
           >
             {markingAllAsRead ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <CheckCheck className="w-4 h-4" />
             )}
-            <span>Mark All as Read</span>
-          </button>
+            <span>{t('markAllAsRead')}</span>
+          </Button>
         </div>
       )}
 
       {/* Notifications list */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className={cn(davinciGlassSurface, 'rounded-lg overflow-hidden')}>
         {/* Select all header */}
         {filteredAndSortedNotifications.length > 0 && (
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <label className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                checked={selectedNotifications.size === filteredAndSortedNotifications.length}
-                onChange={handleSelectAll}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          <div className="px-4 py-3 border-b border-border bg-muted/30">
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <Checkbox
+                checked={
+                  selectedNotifications.size === 0 || filteredAndSortedNotifications.length === 0
+                    ? false
+                    : selectedNotifications.size === filteredAndSortedNotifications.length
+                      ? true
+                      : 'indeterminate'
+                }
+                onCheckedChange={handleSelectAll}
+                aria-label={t('selectAll')}
               />
-                <span className="text-sm font-medium text-muted-foreground">
-                Select all notifications
+              <span className="text-sm font-medium text-muted-foreground">
+                {t('selectAll')}
               </span>
             </label>
           </div>
@@ -488,61 +505,58 @@ export function NotificationList({ className }: NotificationListProps) {
         {/* Content */}
         {loading && notifications.length === 0 ? (
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                <span className="ml-3 text-muted-foreground">Loading notifications...</span>
+            <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+            <span className="ml-3 text-muted-foreground">{t('loading')}</span>
           </div>
-        ) : error ? (
+        ) : displayError ? (
           <div className="text-center p-12">
-            <div className="text-red-600 mb-4">
-              <Bell className="w-12 h-12 mx-auto mb-3" />
-              <p className="text-lg font-medium">Failed to load notifications</p>
-              <p className="text-sm">{error}</p>
+            <div className="text-destructive mb-4">
+              <Bell className="w-12 h-12 mx-auto mb-3" aria-hidden />
+              <p className="text-lg font-medium">{t('errorTitle')}</p>
+              <p className="text-sm text-muted-foreground">{displayError}</p>
             </div>
-            <button
-              onClick={refresh}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Try Again
-            </button>
+            <Button onClick={refreshAll} variant="outline">
+              {t('retry')}
+            </Button>
           </div>
         ) : filteredAndSortedNotifications.length === 0 ? (
           <div className="text-center p-12">
-            <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
+            <Bell className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" aria-hidden />
+            <h3 className="text-lg font-medium text-foreground mb-2">
               {searchQuery || selectedFilter !== 'all' || selectedPriority !== 'all'
-                ? 'No matching notifications'
-                : 'No notifications yet'
+                ? t('emptyFilteredTitle')
+                : t('emptyTitle')
               }
             </h3>
               <p className="text-muted-foreground">
               {searchQuery || selectedFilter !== 'all' || selectedPriority !== 'all'
-                ? 'Try adjusting your search or filters'
-                : 'New notifications will appear here when they arrive'
+                ? t('emptyFilteredDescription')
+                : t('emptyDescription')
               }
             </p>
             {(searchQuery || selectedFilter !== 'all' || selectedPriority !== 'all') && (
-              <button
+              <Button
                 onClick={handleClearFilters}
-                className="mt-3 text-blue-600 hover:text-blue-800 font-medium"
+                variant="ghost"
+                className="mt-3 text-primary"
               >
-                Clear all filters
-              </button>
+                {t('clearFilters')}
+              </Button>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {filteredAndSortedNotifications.map((notification) => (
               <div key={notification.id} className="relative">
                 {/* Selection checkbox */}
                 <div className="absolute left-4 top-4 z-10">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedNotifications.has(notification.id)}
-                    onChange={() => handleSelectNotification(notification.id)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    onCheckedChange={() => handleSelectNotification(notification.id)}
+                    aria-label={t('selectNotification')}
                   />
                 </div>
-                
+
                 {/* Notification item */}
                 <div className="pl-12">
                   <NotificationItem
@@ -558,12 +572,13 @@ export function NotificationList({ className }: NotificationListProps) {
 
         {/* Infinite scroll sentinel (useCursorFeed) */}
         {loading && notifications.length > 0 && (
-          <div className="p-4 border-t border-gray-200 flex justify-center text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
+          <div className="p-4 border-t border-border flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+            <span className="text-sm">{t('loadMore')}</span>
           </div>
         )}
         {hasMore && <div ref={sentinelRef} className="h-10" aria-hidden />}
       </div>
     </div>
   );
-} 
+}

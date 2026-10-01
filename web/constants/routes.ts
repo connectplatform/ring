@@ -299,6 +299,7 @@ export const ROUTES = {
   REGISTER: (locale: Locale = defaultLocale) => withLocale(locale, '/register'),
   RESET_PASSWORD: (locale: Locale = defaultLocale) => withLocale(locale, '/reset-password'),
   SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/settings'),
+  NOTIFICATIONS_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/settings/notifications'),
   STORE: (locale: Locale = defaultLocale) => withLocale(locale, '/store'),
   STORE_PRODUCT: (id: string, locale: Locale = defaultLocale) => withLocale(locale, `/store/${id}`),
   STORE_ORDERS: (locale: Locale = defaultLocale) => withLocale(locale, '/store/orders'),

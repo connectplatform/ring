@@ -7,6 +7,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useTransition, useCallback } from 'react';
+import { useLocale } from 'next-intl';
+import { ROUTES } from '@/constants/routes';
+import type { Locale } from '@/i18n/shared';
 
 export interface NotificationNavigationOptions {
   replace?: boolean;
@@ -16,6 +19,7 @@ export interface NotificationNavigationOptions {
 export function useNotificationNavigation() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const locale = useLocale() as Locale;
 
   // Navigate to notification action URL
   const navigateToNotification = useCallback((
@@ -34,10 +38,11 @@ export function useNotificationNavigation() {
   // Navigate to notification settings
   const navigateToSettings = useCallback((options: NotificationNavigationOptions = {}) => {
     startTransition(() => {
+      const url = ROUTES.NOTIFICATIONS_SETTINGS(locale);
       if (options.replace) {
-        router.replace('/settings/notifications', { scroll: options.scroll });
+        router.replace(url, { scroll: options.scroll });
       } else {
-        router.push('/settings/notifications', { scroll: options.scroll });
+        router.push(url, { scroll: options.scroll });
       }
     });
   }, [router]);

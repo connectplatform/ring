@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import {
   Bell,
   Settings,
-  Target,
   Moon,
   Sun,
   BellOff,
@@ -16,16 +15,18 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { useTranslations } from 'next-intl'
+import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
 export interface NotificationsSidebarContentProps {
   locale: Locale
   unreadCount?: number
   showTitleRow?: boolean
-  focusMode?: boolean
+  /** Quiet-hours preference (persisted server-side) */
   quietHours?: boolean
-  onFocusModeChange?: (value: boolean) => void
   onQuietHoursChange?: (value: boolean) => void
+  quietHoursUpdating?: boolean
   onNavigate?: () => void
 }
 
@@ -38,13 +39,14 @@ export function NotificationsSidebarContent({
   locale,
   unreadCount = 0,
   showTitleRow = true,
-  focusMode = false,
   quietHours = false,
-  onFocusModeChange,
   onQuietHoursChange,
+  quietHoursUpdating = false,
   onNavigate,
 }: NotificationsSidebarContentProps) {
   const router = useRouter()
+  const t = useTranslations('modules.notifications')
+  const tRail = useTranslations('modules.notifications.rail')
 
   const navigate = (path: string) => {
     router.push(path)
@@ -58,17 +60,17 @@ export function NotificationsSidebarContent({
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
+              <Bell className="h-5 w-5" aria-hidden />
+              {t('title')}
             </h1>
             {unreadCount > 0 && (
-              <Badge variant="default" className="ml-2">
+              <Badge variant="default" className="ml-2 tabular-nums">
                 {unreadCount}
               </Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Stay up to date with your activities
+            {tRail('subtitle')}
           </p>
         </div>
       )}
@@ -79,72 +81,57 @@ export function NotificationsSidebarContent({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Notification Settings
+            <Settings className="h-4 w-4" aria-hidden />
+            {tRail('settingsTitle')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Configure how you receive notifications
+            {tRail('settingsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button
             variant="outline"
             className="w-full justify-start"
-            onClick={() => navigate(`/${locale}/settings/notifications`)}
+            onClick={() => navigate(ROUTES.NOTIFICATIONS_SETTINGS(locale))}
           >
-            <Settings className="h-4 w-4 mr-2" />
-            Open Settings
+            <Settings className="h-4 w-4 mr-2" aria-hidden />
+            {tRail('openSettings')}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Focus Mode Toggle */}
+      {/* Quiet Hours Toggle (persisted via notification preferences) */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Focus Mode
+            <Moon className="h-4 w-4" aria-hidden />
+            {tRail('quietHours')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Only show priority and important notifications
+            {tRail('quietHoursDescription')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {focusMode ? (
-                <BellRing className="h-4 w-4 text-primary" />
-              ) : (
-                <BellOff className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="text-sm">Focus Mode</span>
-            </div>
-            <Switch
-              checked={focusMode}
-              onCheckedChange={onFocusModeChange}
-              aria-label="Toggle focus mode"
-            />
-          </div>
-
+        <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {quietHours ? (
-                <Moon className="h-4 w-4 text-primary" />
+                <BellRing className="h-4 w-4 text-primary" aria-hidden />
               ) : (
-                <Sun className="h-4 w-4 text-muted-foreground" />
+                <BellOff className="h-4 w-4 text-muted-foreground" aria-hidden />
               )}
-              <span className="text-sm">Quiet Hours</span>
+              <span className="text-sm">{tRail('quietHours')}</span>
             </div>
             <Switch
               checked={quietHours}
               onCheckedChange={onQuietHoursChange}
-              aria-label="Toggle quiet hours"
+              disabled={quietHoursUpdating}
+              aria-label={tRail('quietHours')}
             />
           </div>
 
-          {focusMode && (
+          {quietHours && (
             <p className="text-xs text-muted-foreground italic">
-              Only priority notifications will be shown
+              {tRail('quietHoursActiveHint')}
             </p>
           )}
         </CardContent>
