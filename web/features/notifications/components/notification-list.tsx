@@ -154,6 +154,16 @@ export function NotificationList({ className }: NotificationListProps) {
     await refresh();
   }, [reload, refresh]);
 
+  // Mark-all-read must visibly clear the CURSOR FEED list — useNotifications'
+  // optimistic update touches its own (hidden) array only, so without a feed
+  // reload the page kept showing the old notifications after the action.
+  const handleMarkAllAsRead = useCallback(async () => {
+    const ok = await markAllAsRead();
+    if (ok) {
+      await reload();
+    }
+  }, [markAllAsRead, reload]);
+
   // React 19 Enhanced Navigation
   const { navigateToSettings, isNavigating } = useNotificationNavigation();
 
@@ -464,7 +474,7 @@ export function NotificationList({ className }: NotificationListProps) {
             </span>
           </div>
           <Button
-            onClick={markAllAsRead}
+            onClick={handleMarkAllAsRead}
             disabled={markingAllAsRead}
             size="sm"
           >

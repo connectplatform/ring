@@ -83,7 +83,11 @@ export const getOpportunityById = cache(async (id: string): Promise<Opportunity 
   const opportunity = mapDbDocumentToOpportunity(result.data)
 
   // RBAC: Check whether the user can view this opportunity, else throw access-denied
-  if (!canViewOpportunity(opportunity, { userRole, userId: session.user.id })) {
+  const entityAccessIds =
+    opportunity.visibility === 'entity'
+      ? await (await import('@/features/entities/lib/entity-roles')).loadViewerEntityAccessIds(session.user.id)
+      : undefined
+  if (!canViewOpportunity(opportunity, { userRole, userId: session.user.id, entityAccessIds })) {
     throw new OpportunityAccessDeniedError(
       'Insufficient role to view this opportunity',
     )

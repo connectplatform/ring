@@ -25,6 +25,34 @@ type CatalogProduct = {
   price?: string | number | null
   vendorId?: string | null
   vendorName?: string | null
+  sku?: string | null
+  /** Pack-owned payload. `nicheData.search` is extra searchable text (VIN, stock number, ...). */
+  nicheData?: Record<string, unknown> | null
+}
+
+function nicheSearchText(product: CatalogProduct): string {
+  const text = product.nicheData?.search
+  return typeof text === 'string' ? text : ''
+}
+
+/**
+ * One search predicate for every catalog surface (server action and REST route),
+ * so a field searchable in one place is searchable in both.
+ * `needle` must already be lower-cased.
+ */
+export function matchesCatalogSearch(product: CatalogProduct, needle: string): boolean {
+  if (!needle) return true
+  const haystack = [
+    product.name,
+    product.description || '',
+    product.sku || '',
+    nicheSearchText(product),
+  ]
+    .join(' ')
+    .toLowerCase()
+  const tokens = needle.toLowerCase().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return true
+  return tokens.every((token) => haystack.includes(token))
 }
 
 /** Filters that define the catalog slice used for slider bounds (excludes price). */
@@ -36,11 +64,7 @@ export function applyCatalogFilters<T extends CatalogProduct>(
 
   const search = (filters.search || '').toLowerCase()
   if (search) {
-    result = result.filter(
-      (p) =>
-        p.name.toLowerCase().includes(search) ||
-        (p.description || '').toLowerCase().includes(search),
-    )
+    result = result.filter((p) => matchesCatalogSearch(p, search))
   }
 
   if (filters.categories?.length) {

@@ -214,6 +214,13 @@ function AddEntityFormContent({ locale }: { locale: Locale } = { locale: DEFAULT
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="parentEntityId" className="text-sm font-medium">
+              Parent entity id
+            </Label>
+            <Input id="parentEntityId" name="parentEntityId" placeholder="Dealer group id for a rooftop" className="h-11" />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="website" className="text-sm font-medium">
               {t('website')}
             </Label>

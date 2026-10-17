@@ -17,6 +17,8 @@ import {
   Database,
 } from 'lucide-react'
 import type { PlatformAnalyticsSummary } from '@/features/analytics/types/platform-analytics'
+import type { CurtainFunnelCounts } from '@/features/curtain/types'
+import { CurtainFunnelCard } from '@/features/curtain/components/curtain-funnel-card'
 import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
 import { AnalyticsForensicsRow } from '@/components/admin/analytics-forensics-row'
 import { AdminUserAnalyticsPanel } from '@/components/admin/admin-user-analytics-panel'
@@ -59,13 +61,18 @@ export default function AdminAnalyticsClient({
   projectName,
   data,
   labels,
+  curtainFunnel,
+  curtainPolicyLabel,
 }: {
   projectName: string
   data: PlatformAnalyticsSummary
   labels: ModulesAdminLabels
+  curtainFunnel?: CurtainFunnelCounts
+  curtainPolicyLabel?: string
 }) {
   // TODO: Consider using useOptimistic or useFormState for future interactive analytic filtering.
   const t = useTranslations('modules.admin.webAnalytics')
+  const curtainT = useTranslations('modules.curtain')
   const locale = useLocale() as Locale
 
   return (
@@ -77,6 +84,23 @@ export default function AdminAnalyticsClient({
         </h1>
         <p className="text-muted-foreground">{t('subtitle')}</p>
       </div>
+      {curtainFunnel ? (
+        <CurtainFunnelCard
+          title={curtainT('funnelTitle')}
+          funnel={curtainFunnel}
+          policyLabel={curtainPolicyLabel}
+          labels={{
+            shown: curtainT('funnelShown'),
+            resurfaced: curtainT('funnelResurfaced'),
+            cta: curtainT('funnelCta'),
+            notToday: curtainT('funnelNotToday'),
+            notForMe: curtainT('funnelNotForMe'),
+            scroll: curtainT('funnelScroll'),
+            paid: curtainT('funnelPaid'),
+            credits: curtainT('funnelCredits'),
+          }}
+        />
+      ) : null}
 
       {/* Main analytics tabs */}
       <Tabs defaultValue="overview" className="space-y-6">

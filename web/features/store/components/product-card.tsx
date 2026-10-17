@@ -13,6 +13,8 @@ import type { Locale } from '@/i18n/shared'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
 import { useStoreCategoryName } from '@/lib/store-category-display'
+import NicheProductCardMeta from '@/components/store/niche-product-card-meta'
+import { nicheSuppressesCart } from '@/features/store/niche/niche-commerce'
 
 // TODO: Use React 19/Next.js 16 Server Actions (app/actions) for cart add-on for more robust UX and built-in loader state
 
@@ -306,6 +308,8 @@ export function ProductCard({
           </h3>
         </Link>
 
+        <NicheProductCardMeta product={product} />
+
         {/* Description excerpt if available */}
         {getDescriptionExcerpt() && (
           <p className="text-sm text-muted-foreground line-clamp-2">
@@ -348,8 +352,7 @@ export function ProductCard({
             <span className={`text-xs font-medium ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
               {product.inStock ? t('inStockYes') : t('inStockNo')}
             </span>
-            {/* Add to cart / preorder button */}
-            {/* TODO: Replace with <Button /> and useTransition for server actions when React 19/Next 16 is live */}
+            {nicheSuppressesCart(product) ? null : (
             <button
               className={`text-sm font-medium underline hover:no-underline transition-colors ${
                 adding ? 'opacity-60 cursor-not-allowed animate-pulse' : ''
@@ -366,6 +369,7 @@ export function ProductCard({
             >
               {adding ? t('adding') : (product.inStock ? t('addToCart') : t('preorder'))}
             </button>
+            )}
           </div>
         </div>
       </div>

@@ -56,6 +56,17 @@ describe('applyOpportunityListUpdate', () => {
     expect(next[0].applicantCount).toBe(3)
   })
 
+  it('does not blank createdBy when an anonymous update omits identity', () => {
+    const prev = [row({ anonymousPoster: true, createdBy: 'owner-1' })]
+    const next = applyOpportunityListUpdate(prev, {
+      type: 'updated',
+      opportunityId: 'opp-1',
+      data: { title: 'Still mine', anonymousPoster: true, createdBy: '' },
+    })
+    expect(next[0].createdBy).toBe('owner-1')
+    expect(next[0].title).toBe('Still mine')
+  })
+
   it('keeps creator unless the patch has a real creator object', () => {
     const prev = [row()]
     const withoutCreator = applyOpportunityListUpdate(prev, {

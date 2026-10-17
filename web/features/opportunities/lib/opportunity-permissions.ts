@@ -18,6 +18,7 @@ import {
 import type { OpportunityVisibility } from '@/features/opportunities/types'
 import { getAllowedVisibilityValues } from '@/features/opportunities/lib/opportunity-visibility-filter'
 import { isOpportunityTypeEnabled } from '@/features/opportunities/lib/opportunity-enabled-types'
+import { getOpportunityTypePolicy } from '@/features/opportunities/lib/opportunity-type-policy'
 
 // Defines the allowed opportunity types for creation
 export type OpportunityCreateType =
@@ -69,6 +70,15 @@ export function canCreateOpportunityType(
     return false
   }
 
+  const policy = getOpportunityTypePolicy(opportunityType)
+  if (policy) {
+    if (policy.minRole === 'admin') return isPlatformAdmin(parsed as UserRolesArray)
+    if (policy.minRole === 'member' || policy.memberOnly) {
+      return hasMemberPrivileges(parsed as UserRolesArray)
+    }
+    return hasRoleAtLeast(parsed, UserRolesArray.subscriber)
+  }
+
   // Check for critical types allowed for member-offer roles
   if (MEMBER_OFFER_TYPES.has(opportunityType)) {
     return hasMemberPrivileges(parsed as UserRolesArray)
@@ -116,6 +126,11 @@ export function canSetOpportunityVisibility(
   // Not specifying visibility means "don't care" - allow (handled by backend as well)
   if (!nextVisibility) {
     return true
+  }
+
+  // Dealer-private leads: subscribers may address an entity; public lists still omit `entity`.
+  if (nextVisibility === 'entity') {
+    return hasRoleAtLeast(parsed, UserRolesArray.subscriber)
   }
 
   // Fetch allowed visibility options for this role

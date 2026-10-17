@@ -40,7 +40,7 @@ export type OpportunityType =
   | 'mcpaas_plan'             // MCP-as-a-Service hosted plan
   | 'api_access'              // API access / quota
 
-export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential';
+export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential' | 'entity';
 export type OpportunityPriority = 'urgent' | 'normal' | 'low';
 
 /** Public-safe creator fields attached to feed rows. Username is set only when the profile is public. */
@@ -64,7 +64,7 @@ export interface Attachment {
 
 export interface Opportunity {
   id: string;
-  type: OpportunityType;
+  type: OpportunityType | (string & {});
   title: string;
   isConfidential: boolean;
   /** Confidential-role identity mask on member/subscriber pools. Independent of isConfidential. */
@@ -109,7 +109,7 @@ export interface Opportunity {
 // Serialized version for client components (dates as ISO strings)
 export interface SerializedOpportunity {
   id: string;
-  type: OpportunityType;
+  type: OpportunityType | (string & {});
   title: string;
   isConfidential: boolean;
   /** Confidential-role identity mask on member/subscriber pools. Independent of isConfidential. */
@@ -173,7 +173,7 @@ export interface OpportunitySubmenuCounts {
 }
 
 export interface OpportunityFormData {
-  type: OpportunityType;
+  type: OpportunityType | (string & {});
   title: string;
   category: string;
   tags: string[];

@@ -33,6 +33,11 @@ export type CurtainDropParams = {
   authorUserId?: string
   pagePath?: string
   commissionPercent?: number
+  /** HMAC from the server. Checkout ignores product touches without it. */
+  offerToken?: string
+  newsArticleId?: string
+  vendorId?: string
+  fromPage?: boolean
 }
 
 export type CurtainAttributionTouch = {
@@ -42,6 +47,9 @@ export type CurtainAttributionTouch = {
   pagePath?: string
   commissionPercent: number
   ctaAt: number
+  offerToken?: string
+  newsArticleId?: string
+  vendorId?: string
 }
 
 export type CurtainOfferPref = {
@@ -58,7 +66,27 @@ export type CurtainPrefsDoc = {
 
 export type CurtainPageContextValue = {
   authorUserId?: string
+  newsArticleId?: string
   pageKind?: 'news' | 'wiki' | 'profile' | 'other'
+}
+
+export type CurtainProductSource = 'page_then_pool' | 'page_only' | 'pool_only'
+
+export type CurtainPolicy = {
+  enabled: boolean
+  productSource: CurtainProductSource
+  maxImpressionsPerDay: number
+  notTodayHours: number
+}
+
+export type CurtainFunnelCounts = {
+  shown: number
+  resurfaced: number
+  cta: number
+  notToday: number
+  notForMe: number
+  scrollAway: number
+  paid: number
 }
 
 export type CurtainAdvertiseConfig = {

@@ -46,6 +46,7 @@ export type OpportunityFormRailType =
   | 'mentorship'
   | 'resource'
   | 'event'
+  | (string & {})
   | undefined
 
 interface OpportunityFormGuidanceRailProps {

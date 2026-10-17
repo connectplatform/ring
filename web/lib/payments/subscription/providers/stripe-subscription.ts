@@ -44,14 +44,20 @@ export const stripeSubscriptionProvider: SubscriptionProviderModule = {
       })
 
       // 2. Create Stripe Price for the membership tier
-      const productName = 'Ring Platform Membership (Monthly)'
+      const period = String(input.metadata?.billingPeriod || 'monthly')
+      const annual = period === 'yearly' || period === 'YEAR' || period === 'year' || period === 'annual'
+      const productName = annual
+        ? 'Ring Platform Membership (Annual)'
+        : 'Ring Platform Membership (Monthly)'
       const { priceId } = await createStripeMembershipPrice({
-        unitAmount: input.amount,
+        unitAmount: Math.round(Number(input.amount) * 100),
         currency: input.currency.toLowerCase(),
         productName,
+        interval: annual ? 'year' : 'month',
         metadata: {
           ring_user_id: input.userId,
           purpose: 'membership_upgrade',
+          billingPeriod: annual ? 'yearly' : 'monthly',
         },
       })
 
@@ -78,6 +84,8 @@ export const stripeSubscriptionProvider: SubscriptionProviderModule = {
       return {
         success: true,
         gatewayReference: result.subscriptionId,
+        clientSecret: result.clientSecret,
+        ledgerStatus: result.clientSecret ? 'pending' : 'active',
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'

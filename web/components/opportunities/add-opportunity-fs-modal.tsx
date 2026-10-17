@@ -2,6 +2,7 @@
 
 import { FsModal } from '@/components/ui/fs-modal'
 import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
+import { HeroAmbient } from '@/lib/ui/davinci'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 
@@ -32,7 +33,10 @@ export function AddOpportunityFsModal({
       description={tOpp('type_selector.subtitle')}
       layout="centerPane"
       hideHeaderSeparator
-      contentClassName="flex min-h-0 flex-1 flex-col overflow-hidden !p-0"
+      chromeBackdrop={<HeroAmbient className="opacity-100" />}
+      headerClassName="bg-transparent px-3"
+      contentClassName="flex min-h-0 flex-1 flex-col overflow-hidden !bg-transparent !p-0"
+      pinAboveMobileNav
     >
       <OpportunityTypeSelectorClient
         layout="body"

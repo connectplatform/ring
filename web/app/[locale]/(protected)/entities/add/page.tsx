@@ -66,16 +66,16 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
     userAgent: headersList.get('user-agent'),
   });
 
+  const session = await auth();
+  logger.info('AddEntityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+
+  if (!session) {
+    logger.info('AddEntityPage: Unauthorized access, redirecting to login');
+    const returnTo = ROUTES.ADD_ENTITY(validLocale);
+    redirect(`${ROUTES.LOGIN(validLocale)}?callbackUrl=${encodeURIComponent(returnTo)}`);
+  }
+
   try {
-    logger.info('AddEntityPage: Authenticating session');
-    const session = await auth();
-    logger.info('AddEntityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
-
-    if (!session) {
-      logger.info('AddEntityPage: Unauthorized access, redirecting to login');
-      redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADD_ENTITY(validLocale))}`);
-    }
-
     try {
       const { userMigrationService } = await import('@/features/auth/services/user-migration');
       const userExists = await userMigrationService.userDocumentExists(session.user.id);
@@ -152,6 +152,10 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
     </>
   );
   } catch (e) {
+    const digest = e && typeof e === 'object' && 'digest' in e ? String((e as { digest?: string }).digest ?? '') : ''
+    if (digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_NOT_FOUND')) {
+      throw e
+    }
     logger.error('AddEntityPage: Error:', e);
     return (
       <div className="container mx-auto px-0 py-0">

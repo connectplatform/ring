@@ -68,9 +68,31 @@ async function getOpportunityData(
   try {
     // Service layer import for fetching opportunity and entity. Handles access control and not-found states.
     const { getSerializedOpportunityById, OpportunityNotFoundError, OpportunityAccessDeniedError } = await import('@/features/opportunities/services/get-opportunity-by-id')
-    const { getSerializedEntityById } = await import('@/features/entities/services/get-entity-by-id')
-    
-    const opportunity = await getSerializedOpportunityById(id)
+    const { getSerializedEntityById, getEntity } = await import('@/features/entities/services/get-entity-by-id')
+
+    const session = await auth()
+    let opportunity: SerializedOpportunity | null = null
+
+    if (session?.user) {
+      opportunity = await getSerializedOpportunityById(id)
+    } else {
+      const { db } = await import('@/lib/database')
+      const { mapDbRowToSerializedOpportunity } = await import('@/features/opportunities/lib/opportunity-db-mapper')
+      const { attachOpportunityFeedFields } = await import('@/features/opportunities/services/attach-opportunity-feed-fields')
+      const result = await db().findDocById<Record<string, unknown>>('opportunities', id)
+      if (!result.success || !result.data) {
+        throw new OpportunityNotFoundError(id)
+      }
+      const serialized = mapDbRowToSerializedOpportunity(id, result.data)
+      if (
+        serialized.isConfidential ||
+        (serialized.visibility && serialized.visibility !== 'public')
+      ) {
+        throw new OpportunityAccessDeniedError('Authentication required')
+      }
+      const [attached] = await attachOpportunityFeedFields([serialized], {})
+      opportunity = attached ?? serialized
+    }
     
     if (!opportunity) {
       // If the fetch returns null, throw typed error for upstream logic
@@ -81,7 +103,18 @@ async function getOpportunityData(
     let entity: SerializedEntity | null = null
     if (opportunity.organizationId) {
       try {
-        entity = await getSerializedEntityById(opportunity.organizationId)
+        if (session?.user) {
+          entity = await getSerializedEntityById(opportunity.organizationId)
+        } else {
+          const publicEntity = await getEntity(opportunity.organizationId)
+          if (publicEntity) {
+            const { mapDbRowToSerializedEntity } = await import('@/features/entities/lib/entity-db-mapper')
+            entity = mapDbRowToSerializedEntity(
+              opportunity.organizationId,
+              publicEntity as unknown as Record<string, unknown>,
+            )
+          }
+        }
       } catch (entityError) {
         // Log error and continue, since missing/hidden entities are possible (e.g., deleted org)
         logger.error('getOpportunityData: Error fetching entity data:', entityError)
@@ -202,29 +235,26 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
   })
 
   try {
-    // Auth gate: Get user session or redirect to login for protected opportunity page
+    // Check user session (public opportunities are accessible without login)
     logger.info('OpportunityPage: Authenticating session')
     const session = await auth()
     logger.info('OpportunityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id })
 
-    if (!session) {
-      logger.info('OpportunityPage: No session, redirecting to localized login')
-      redirect(ROUTES.LOGIN(validLocale))
-    }
-
     // USER MIGRATION LOGIC: Checks if user doc exists, creates if missing (handles first-login migration and backward compatibility)
     // TODO: Optimize by leveraging Next.js 16 native caching and mutation actions once stable.
-    try {
-      const { userMigrationService } = await import('@/features/auth/services/user-migration')
-      const userExists = await userMigrationService.userDocumentExists(session.user.id)
-      if (!userExists) {
-        logger.warn('OpportunityPage: User document missing, initializing')
-        await userMigrationService.ensureUserDocument(session.user as AuthUser)
-        logger.info('OpportunityPage: User document created successfully')
+    if (session?.user?.id) {
+      try {
+        const { userMigrationService } = await import('@/features/auth/services/user-migration')
+        const userExists = await userMigrationService.userDocumentExists(session.user.id)
+        if (!userExists) {
+          logger.warn('OpportunityPage: User document missing, initializing')
+          await userMigrationService.ensureUserDocument(session.user as AuthUser)
+          logger.info('OpportunityPage: User document created successfully')
+        }
+      } catch (migrationError) {
+        logger.error('OpportunityPage: Failed to check/create user document:', migrationError)
+        // Migration failure is tolerated; missing doc is not critical for read-only opportunity details
       }
-    } catch (migrationError) {
-      logger.error('OpportunityPage: Failed to check/create user document:', migrationError)
-      // Migration failure is tolerated; missing doc is not critical for read-only opportunity details
     }
 
     let opportunity: SerializedOpportunity | null = null
@@ -244,7 +274,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
         // Next.js uses custom error classes for handling access/no-permission state
         if (e.name === 'OpportunityAccessDeniedError') {
           if (e.message.includes('Authentication required')) {
-            redirect(ROUTES.LOGIN(validLocale)) // Not signed in, show login
+            redirect(`${ROUTES.LOGIN(validLocale)}?callbackUrl=${encodeURIComponent(ROUTES.OPPORTUNITY(id, validLocale))}`) // Not signed in, show login
           } else {
             redirect(ROUTES.UNAUTHORIZED(validLocale)) // Signed in, not permitted
           }

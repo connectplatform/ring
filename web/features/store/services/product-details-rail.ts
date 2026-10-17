@@ -49,7 +49,7 @@ function toCard(product: StoreProduct, locale: Locale): RailProductCard {
   return {
     id: product.id,
     name: product.name,
-    image: images[0] || '/placeholder-product.png',
+    image: images[0] || '/placeholder-product.svg',
     price: parseFloat(product.price) || 0,
     currency: product.currency || getMainCurrencySymbol(),
     rating: product.rating,

@@ -53,11 +53,15 @@ export async function inviteEntityMember(
   }
 
   const nextMembers = [...currentMembers, invitee.id]
+  const memberRoles = {
+    ...(entity.memberRoles || {}),
+    [invitee.id]: role,
+  }
 
   const updateResult = await db().updateDoc(
     'entities',
     entityId,
-    { members: nextMembers },
+    { members: nextMembers, memberRoles },
     { merge: true },
   )
 

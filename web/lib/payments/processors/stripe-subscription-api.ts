@@ -86,6 +86,8 @@ export interface CreateStripePriceParams {
   productName: string
   /** Optional metadata. */
   metadata?: Record<string, string>
+  /** Recurring interval. Defaults to month. */
+  interval?: 'month' | 'year'
 }
 
 /**
@@ -109,7 +111,7 @@ export async function createStripeMembershipPrice(
     unit_amount: params.unitAmount,
     currency: params.currency,
     recurring: {
-      interval: 'month',
+      interval: params.interval === 'year' ? 'year' : 'month',
     },
     metadata: params.metadata ?? {},
   })

@@ -61,9 +61,12 @@ export async function POST(req: NextRequest) {
       '@/features/curtain/lib/attribution-storage'
     )
     const { CURTAIN_ATTR_COOKIE } = await import('@/features/curtain/constants')
-    const curtainAttribution = mergeTouchLists(
-      parseCurtainAttributionJson(req.cookies.get(CURTAIN_ATTR_COOKIE)?.value),
-      touchesFromUnknown(body?.curtainAttribution),
+    const { verifyCurtainTouches } = await import('@/features/curtain/services/verify-touches')
+    const curtainAttribution = await verifyCurtainTouches(
+      mergeTouchLists(
+        parseCurtainAttributionJson(req.cookies.get(CURTAIN_ATTR_COOKIE)?.value),
+        touchesFromUnknown(body?.curtainAttribution),
+      ),
     )
 
     const { orderId } = await StoreOrdersService.createOrder(

@@ -406,7 +406,17 @@ export default function ProductForm({
               <div className="pt-4 border-t">
                 <NicheProductFieldsSection
                   isPending={isPending}
-                  existingData={existingProduct?.data}
+                  existingData={{
+                    ...(existingProduct?.data && typeof existingProduct.data === 'object'
+                      ? existingProduct.data
+                      : {}),
+                    nicheData:
+                      (existingProduct as { nicheData?: unknown } | null)?.nicheData ??
+                      (existingProduct?.data as { nicheData?: unknown } | undefined)?.nicheData,
+                    nichePreset:
+                      (existingProduct as { nichePreset?: unknown } | null)?.nichePreset ??
+                      (existingProduct?.data as { nichePreset?: unknown } | undefined)?.nichePreset,
+                  }}
                   category={selectedCategory}
                 />
               </div>

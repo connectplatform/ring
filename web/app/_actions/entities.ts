@@ -123,6 +123,10 @@ export async function createEntity(
       visibility: isConfidential ? 'confidential' as const : 'public' as const,
       opportunities: [],
       members: [session.user.id], // Creator as initial member
+      memberRoles: { [session.user.id]: 'OWNER' as const },
+      ...(String(formData.get('parentEntityId') || '').trim()
+        ? { parentEntityId: String(formData.get('parentEntityId')).trim() }
+        : {}),
     }
 
     // Dynamically import the creation service for this method (SSR optimization).
@@ -276,6 +280,9 @@ export async function updateEntity(
       shortDescription: shortDescription.trim(),
       fullDescription: fullDescription?.trim() || '',
       location: entityLocation.trim(),
+      ...(String(formData.get('parentEntityId') || '').trim()
+        ? { parentEntityId: String(formData.get('parentEntityId')).trim() }
+        : {}),
       website: website?.trim() || '',
       contactEmail: contactEmail?.trim() || '',
       tags: tags || [],

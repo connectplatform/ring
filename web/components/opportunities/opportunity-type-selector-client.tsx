@@ -65,6 +65,7 @@ export function OpportunityTypeSelectorClient({
   const t = useTranslations('modules.opportunities')
   const tCommon = useTranslations('common')
   const density = densityForLayout(layout)
+  const hidePickerExtras = OPPORTUNITY_SELECTOR_TYPE_ORDER.length > 4
   const headingRef = useRef<HTMLHeadingElement>(null)
   const prevPathRef = useRef(pathname)
 
@@ -161,26 +162,82 @@ export function OpportunityTypeSelectorClient({
     const AccentIcon = config.accentIcon
     const canAccess = !config.requiresMembership || userRole === 'member'
     const compact = density === 'compact'
+    const row = layout === 'body'
     const href = resolveTileHref(typeKey)
+    const title = t(`type_selector.${typeKey}.title`)
+    const description = t(`type_selector.${typeKey}.description`)
 
-    return (
-      <motion.div
-        key={typeKey}
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-        className="min-h-0 h-full"
-      >
+    if (row) {
+      const rowBody = (
+        <BorderBeam
+          duration="6s"
+          className={cn(davinciGlassSurface, davinciAuthButtonLift, 'h-full')}
+          innerClassName={cn(
+            davinciBeamInnerSurface,
+            'flex h-full items-center gap-3 px-2.5 py-2.5',
+          )}
+        >
+          <span
+            className={cn(
+              'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+              'border border-[color-mix(in_oklch,var(--davinci-beam)_35%,transparent)]',
+              'bg-[color-mix(in_oklch,var(--davinci-beam)_12%,transparent)]',
+            )}
+          >
+            <Icon className="h-6 w-6 text-[var(--davinci-beam)]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-semibold leading-tight text-foreground">
+              {title}
+            </span>
+            <span className="mt-0.5 line-clamp-2 block text-sm leading-snug text-muted-foreground">
+              {description}
+            </span>
+          </span>
+          {!canAccess ? (
+            <Crown className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+          ) : null}
+        </BorderBeam>
+      )
+
+      return (
+        <motion.div
+          key={typeKey}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {canAccess ? (
+            <Link href={href} onClick={onClose} className="block" aria-label={title}>
+              {rowBody}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="block w-full text-left"
+              onClick={() => {
+                setUpgradeReturnTo(href)
+                setShowUpgradeModal(true)
+              }}
+            >
+              {rowBody}
+            </button>
+          )}
+        </motion.div>
+      )
+    }
+
+    const card = (
         <BorderBeam
           duration="6s"
           className={cn(davinciGlassSurface, davinciAuthButtonLift, 'h-full')}
           innerClassName={cn(
             davinciBeamInnerSurface,
             'flex h-full min-h-0 flex-col',
-            compact ? 'p-2.5' : 'p-5',
+            compact ? 'p-2.5' : 'p-4',
           )}
         >
-          <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-2' : 'mb-4')}>
+          <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-2' : 'mb-3')}>
             <span
               className={cn(
                 'flex shrink-0 items-center justify-center rounded-xl',
@@ -191,7 +248,7 @@ export function OpportunityTypeSelectorClient({
             >
               <Icon className={cn(compact ? 'h-4 w-4' : 'h-6 w-6', 'text-[var(--davinci-beam)]')} />
             </span>
-            {!compact && (
+            {!compact && !hidePickerExtras && (
               <div className="flex flex-wrap justify-end gap-1.5">
                 {config.popular && (
                   <Badge
@@ -223,7 +280,7 @@ export function OpportunityTypeSelectorClient({
                   compact ? 'text-sm' : 'text-base',
                 )}
               >
-                {t(`type_selector.${typeKey}.title`)}
+                {title}
               </h3>
               {!compact && (
                 <AccentIcon className="h-4 w-4 shrink-0 text-[var(--davinci-beam)]/60" />
@@ -233,14 +290,14 @@ export function OpportunityTypeSelectorClient({
               className={cn(
                 'text-muted-foreground',
                 compact
-                  ? 'mb-2 line-clamp-2 text-[11px] leading-snug'
-                  : 'mb-4 text-sm leading-relaxed',
+                  ? 'mb-2 line-clamp-3 text-[11px] leading-snug'
+                  : 'mb-3 text-sm leading-relaxed',
               )}
             >
               {t(`type_selector.${typeKey}.description`)}
             </p>
 
-            {!compact && (
+            {!compact && !hidePickerExtras && (
               <div className="mb-4 flex flex-wrap gap-1.5">
                 {config.examples.map((example) => (
                   <span
@@ -265,7 +322,7 @@ export function OpportunityTypeSelectorClient({
                 >
                   <Link href={href} onClick={onClose}>
                     {compact
-                      ? t(`type_selector.${typeKey}.title`)
+                      ? title
                       : t(`type_selector.${typeKey}.button`)}
                     <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
@@ -289,6 +346,17 @@ export function OpportunityTypeSelectorClient({
             </div>
           </div>
         </BorderBeam>
+    )
+
+    return (
+      <motion.div
+        key={typeKey}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+        className="min-h-0 h-full"
+      >
+        {card}
       </motion.div>
     )
   }
@@ -354,10 +422,13 @@ export function OpportunityTypeSelectorClient({
   const grid = (
     <div
       className={cn(
-        'grid min-h-0 flex-1 content-stretch',
-        density === 'compact' ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2',
-        OPPORTUNITY_SELECTOR_TYPE_ORDER.length === 4 ? 'md:grid-rows-2' : '',
-        density === 'compact' ? 'gap-2.5' : 'gap-4',
+        'grid min-h-0 flex-1 content-start',
+        layout === 'body'
+          ? 'grid-cols-1 gap-2'
+          : density === 'compact'
+            ? 'grid-cols-2 gap-2.5'
+            : 'grid-cols-1 gap-3 md:grid-cols-2',
+        layout !== 'body' && OPPORTUNITY_SELECTOR_TYPE_ORDER.length === 4 ? 'md:grid-rows-2' : '',
       )}
     >
       {OPPORTUNITY_SELECTOR_TYPE_ORDER.map((typeKey, index) => renderTypeCard(typeKey, index))}
@@ -368,12 +439,14 @@ export function OpportunityTypeSelectorClient({
 
   const body = (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      <HeroAmbient className="pointer-events-none absolute inset-0 opacity-35" />
+      {hostedBody ? null : (
+        <HeroAmbient className="pointer-events-none absolute inset-0 opacity-35" />
+      )}
       <div
         className={cn(
           'relative z-[1] flex min-h-0 flex-1 flex-col',
           hostedBody
-            ? 'p-3 sm:p-4'
+            ? 'px-2 py-2'
             : density === 'compact'
               ? 'px-3 py-3'
               : 'px-4 py-6 sm:px-8 lg:py-8',

@@ -124,6 +124,11 @@ export interface Entity {
   visibility: 'public' | 'subscriber' | 'member' | 'confidential';
   website?: string;
   members: string[];
+  /** Stored invite role. Owner remains `addedBy`; missing keys fall back to MEMBER. */
+  memberRoles?: Record<string, 'OWNER' | 'ADMIN' | 'MEMBER'>;
+  /** Parent group entity (rooftop → dealer group). */
+  parentEntityId?: string;
+  geo?: { lat: number; lng: number; address?: string };
   opportunities: string[];
 
   /** Platform moderation — excluded from discovery when `blocked`. */
@@ -193,6 +198,11 @@ export interface SerializedEntity {
   visibility: 'public' | 'subscriber' | 'member' | 'confidential';
   website?: string;
   members: string[];
+  /** Stored invite role. Owner remains `addedBy`; missing keys fall back to MEMBER. */
+  memberRoles?: Record<string, 'OWNER' | 'ADMIN' | 'MEMBER'>;
+  /** Parent group entity (rooftop → dealer group). */
+  parentEntityId?: string;
+  geo?: { lat: number; lng: number; address?: string };
   opportunities: string[];
 
   /** Platform moderation — excluded from discovery when `blocked`. */

@@ -28,6 +28,10 @@
       "label": "Search entities",
       "placeholder": "Enter organization name, industry, or location..."
     },
+    "active": {
+      "title": "Active filters",
+      "clearAll": "Clear all"
+    },
     "sections": {
       "types": "Entity types",
       "location": "Location",

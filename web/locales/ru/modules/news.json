@@ -87,6 +87,17 @@
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
   },
+  "filters": {
+    "searchPlaceholder": "Поиск новостей...",
+    "sortBy": "Сортировать",
+    "latest": "Последние",
+    "mostViewed": "Больше всего просмотров",
+    "mostLiked": "Больше всего отметок",
+    "recentlyAdded": "Недавно добавленные",
+    "featuredOnly": "Только избранные",
+    "loadingArticles": "Загрузка статей...",
+    "moreTags": "+{count}"
+  },
   "page": {
     "title": "Новости",
     "subtitle": "Последние новости и обновления",
@@ -117,6 +128,14 @@
     "allNews": "Все новости",
     "rssFeed": "RSS лента",
     "trending": "Популярное",
+    "popularThisWeek": "Самые популярные статьи этой недели",
+    "rssFeeds": "RSS-ленты",
+    "upcomingEvents": "Ближайшие события",
+    "upcomingEventsDescription": "Следите за событиями сообщества и вебинарами",
+    "viewEvents": "Смотреть события",
+    "helpResources": "Помощь и материалы",
+    "helpResourcesDescription": "Узнайте о возможностях платформы и обновлениях",
+    "viewDocumentation": "Открыть документацию",
     "loadMore": "Загрузить ещё",
     "moreNews": "Больше новостей",
     "top": "ТОП",

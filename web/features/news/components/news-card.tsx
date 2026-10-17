@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { NewsArticle } from '@/features/news/types';
 import { formatDistanceToNow } from 'date-fns';
+import { de, enUS, es, ru, uk } from 'date-fns/locale';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Eye, Heart, MessageCircle, Calendar, User } from 'lucide-react';
@@ -26,7 +28,12 @@ export function NewsCard({
   className = '',
   locale = 'en'
 }: NewsCardProps) {
+  const t = useTranslations('modules.news');
   const publishedDate = new Date(toIsoDate(article.publishedAt ?? article.createdAt));
+  const dateLocale = { uk, ru, de, es, en: enUS }[locale] ?? enUS;
+  const categoryName = t.has(`categories.${article.category}` as 'categories.other')
+    ? t(`categories.${article.category}` as 'categories.other')
+    : article.category.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
   const categoryColors: Record<string, string> = {
     'platform-updates': 'bg-blue-100 text-blue-800',
     'partnerships': 'bg-green-100 text-green-800',
@@ -61,7 +68,7 @@ export function NewsCard({
             {article.featured && (
               <div className="absolute top-3 left-3">
                 <Badge variant="secondary" className="bg-yellow-500 text-white">
-                  Featured
+                  {t('featured')}
                 </Badge>
               </div>
             )}
@@ -75,12 +82,12 @@ export function NewsCard({
             variant="secondary" 
             className={categoryColors[article.category] || categoryColors.other}
           >
-            {article.category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {categoryName}
           </Badge>
           
           <div className="flex items-center text-sm text-muted-foreground">
             <Calendar className="h-3 w-3 mr-1" />
-            {formatDistanceToNow(publishedDate, { addSuffix: true })}
+            {formatDistanceToNow(publishedDate, { addSuffix: true, locale: dateLocale })}
           </div>
         </div>
 
@@ -98,7 +105,7 @@ export function NewsCard({
 
         <div className="flex items-center text-sm text-muted-foreground mb-4">
           <User className="h-3 w-3 mr-1" />
-          <span>By {article.authorName}</span>
+          <span>{t('byAuthor')} {article.authorName}</span>
         </div>
 
         {article.tags.length > 0 && (
@@ -110,7 +117,7 @@ export function NewsCard({
             ))}
             {article.tags.length > 3 && (
               <Badge variant="outline" className="text-xs">
-                +{article.tags.length - 3} more
+                {t('filters.moreTags', { count: article.tags.length - 3 })}
               </Badge>
             )}
           </div>
@@ -139,7 +146,7 @@ export function NewsCard({
               href={`/${locale}/news/${article.slug}`}
               className="text-primary hover:underline font-medium"
             >
-              Read more →
+              {t('readMore')} →
             </Link>
           </div>
         </CardFooter>

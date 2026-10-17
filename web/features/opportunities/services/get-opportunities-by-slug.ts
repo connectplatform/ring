@@ -83,8 +83,12 @@ export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opp
 
     // Step 6: Filter results again using business access logic (role, confidential, etc)
     // Ensures users only see opportunities they're allowed to view
+    const needsEntityScope = opportunities.some((opportunity) => opportunity.visibility === 'entity')
+    const entityAccessIds = needsEntityScope
+      ? await (await import('@/features/entities/lib/entity-roles')).loadViewerEntityAccessIds(session.user.id)
+      : undefined
     opportunities = opportunities.filter((opportunity) =>
-      canViewOpportunity(opportunity, { userRole, userId: session.user.id }),
+      canViewOpportunity(opportunity, { userRole, userId: session.user.id, entityAccessIds }),
     )
 
     // Log how many results after all filtering

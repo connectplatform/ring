@@ -222,6 +222,13 @@ export function getProviderConnectionOptions(
     case TunnelProvider.LONG_POLLING:
       options.url = '/api/tunnel/poll';
       options.heartbeatInterval = 60000; // Longer interval for polling
+      // The poll route holds empty polls up to 20s (min(client param, 20000)).
+      // The abort deadline MUST exceed the server hold — at 15s every empty
+      // long-poll aborted, and Firefox surfaces abort as TypeError
+      // "NetworkError when attempting to fetch resource." instead of
+      // AbortError, so each cycle counted as a hard error (greenfood.live
+      // 3-day polling outage — ~6-8 NetworkError/min, 2026-10-02).
+      options.timeout = 30000;
       break;
   }
 

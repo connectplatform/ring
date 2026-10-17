@@ -24,7 +24,7 @@ import type { Locale } from '@/i18n/shared'
 import type { OpportunityVisibility } from '@/features/opportunities/types'
 
 // State definition for Opportunity-related form actions
-const VISIBILITY_VALUES = new Set(['public', 'subscriber', 'member', 'confidential'])
+const VISIBILITY_VALUES = new Set(['public', 'subscriber', 'member', 'confidential', 'entity'])
 
 function parseVisibility(raw: unknown): OpportunityVisibility | undefined {
   const value = typeof raw === 'string' ? raw.trim() : ''
@@ -39,17 +39,19 @@ function resolvePosterIdentity(
 ): {
   visibility: OpportunityVisibility
   isConfidential: boolean
-  anonymousPoster: boolean
+  anonymousPoster?: boolean
 } {
   const requestedVisibility = parseVisibility(formData.get('visibility')) || fallbackVisibility
   const listingConfidential =
     formData.get('isConfidential') === 'true' || requestedVisibility === 'confidential'
   let visibility = requestedVisibility
   let isConfidential = listingConfidential
-  let anonymousPoster = formData.get('anonymousPoster') === 'true'
+  const postedAnonymous = formData.get('anonymousPoster')
+  let anonymousPoster: boolean | undefined =
+    postedAnonymous === null ? undefined : postedAnonymous === 'true'
 
   if (anonymousPoster && !canSetAnonymousPoster(userRole, visibility)) {
-    anonymousPoster = false
+    anonymousPoster = undefined
   }
   if (anonymousPoster) {
     isConfidential = false
@@ -99,12 +101,7 @@ export async function createOpportunity(
   
   // Extract main fields from form submission (minimal transformation here)
   const title = formData.get('title') as string
-  const type = formData.get('type') as
-    | 'offer' | 'request' | 'partnership' | 'volunteer'
-    | 'mentorship' | 'resource' | 'event' | 'ring_customization'
-    | 'program' | 'cv'
-    | 'scheduled_services' | 'collective_order' | 'bounty'
-    | 'tender' | 'asset_rental' | 'job'
+  const type = String(formData.get('type') || '')
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
@@ -124,7 +121,14 @@ export async function createOpportunity(
   const priority = formData.get('priority') as 'urgent' | 'normal' | 'low'
   const contactEmail = formData.get('contactEmail') as string
   let entityId = formData.get('entityId') as string
-  const { visibility, isConfidential, anonymousPoster } = resolvePosterIdentity(userRole, formData)
+  const { getOpportunityTypePolicy } = await import(
+    '@/features/opportunities/lib/opportunity-type-policy'
+  )
+  const typePolicy = getOpportunityTypePolicy(type)
+  let { visibility, isConfidential, anonymousPoster } = resolvePosterIdentity(userRole, formData)
+  if (typePolicy?.defaultVisibility) {
+    visibility = typePolicy.defaultVisibility
+  }
   const tagsString = formData.get('tags') as string
   const requiredSkillsString = formData.get('requiredSkills') as string
 
@@ -148,7 +152,17 @@ export async function createOpportunity(
     'resource', 'event', 'ring_customization', 'program',
     'collective_order', 'tender', 'asset_rental', 'job',
   ]
-  if (requestTypes.includes(type)) {
+  if (typePolicy) {
+    if (typePolicy.minRole === 'member' && !hasRoleAtLeast(userRole, UserRolesArray.member)) {
+      return { error: `Only member users and above can create ${type} opportunities.` }
+    }
+    if (typePolicy.requiresEntity && !entityId?.trim()) {
+      return { error: `Entity is required for ${type} opportunities` }
+    }
+    if (!typePolicy.requiresEntity && typePolicy.posterKind === 'individual') {
+      entityId = null as unknown as string
+    }
+  } else if (requestTypes.includes(type)) {
     entityId = null as unknown as string // Requests/CVs are always from individuals
   } else if (organizationalTypes.includes(type)) {
     if (!hasRoleAtLeast(userRole, UserRolesArray.member)) {
@@ -345,7 +359,9 @@ export async function createOpportunity(
           }
         : undefined
 
+    const policyMeta = typePolicy?.buildMetadata?.(formData)
     const typeMetadata =
+      policyMeta ||
       programMeta ||
       collectiveMeta ||
       scheduledMeta ||
@@ -362,10 +378,18 @@ export async function createOpportunity(
       fullDescription: description?.trim() || '',
       createdBy: session.user.id,
       // Link organization ID if not an individual type; null for requests
-      organizationId: requestTypes.includes(type) ? null : entityId?.trim() || null,
+      organizationId: typePolicy
+        ? (typePolicy.requiresEntity ? entityId?.trim() || null : null)
+        : requestTypes.includes(type) ? null : entityId?.trim() || null,
       expirationDate,
       ...(applicationDeadlineTimestamp ? { applicationDeadline: applicationDeadlineTimestamp } : {}),
-      status: (formData.get('intent') === 'draft' ? 'draft' : 'pending') as 'draft' | 'pending',
+      status: (formData.get('intent') === 'draft'
+        ? 'draft'
+        : typePolicy?.defaultStatus
+          ? typePolicy.defaultStatus
+          : typePolicy?.defaultVisibility === 'entity' || (!isConfidential && type === 'request')
+            ? 'active'
+            : 'pending') as 'draft' | 'pending' | 'active',
       category: category.trim(),
       tags: type === 'program'
         ? [...tags, 'institution', programSubtype].filter(Boolean)
@@ -379,12 +403,14 @@ export async function createOpportunity(
       ...(maxApplicantsNumber ? { maxApplicants: maxApplicantsNumber } : {}),
       ...(priority ? { priority } : {}),
       visibility,
-      anonymousPoster,
+      anonymousPoster: anonymousPoster ?? false,
       contactInfo: {
-        linkedEntity: requestTypes.includes(type) ? '' : entityId?.trim() || '',
+        linkedEntity: typePolicy
+          ? (typePolicy.requiresEntity ? entityId?.trim() || '' : '')
+          : requestTypes.includes(type) ? '' : entityId?.trim() || '',
         contactAccount: contactEmail?.trim() || session.user.email || ''
       },
-      isPrivate: requestTypes.includes(type), // Requests are private to originator
+      isPrivate: typePolicy ? typePolicy.defaultVisibility === 'entity' : requestTypes.includes(type),
       ...(typeMetadata ? { metadata: typeMetadata } : {}),
     }
 
@@ -394,6 +420,24 @@ export async function createOpportunity(
     
     // Attempt the actual write
     const newOpportunity = await createOpportunityService(opportunityData)
+
+    if (typePolicy?.defaultVisibility === 'entity' && entityId?.trim() && newOpportunity?.id) {
+      const { openEntityLeadConversation } = await import(
+        '@/features/opportunities/lib/entity-lead-conversation'
+      )
+      await openEntityLeadConversation({
+        opportunityId: newOpportunity.id,
+        rooftopId: entityId.trim(),
+        buyerId: session.user.id,
+        buyerName: session.user.name || undefined,
+        title: title.trim(),
+        note: description?.trim(),
+        productId: String(formData.get('productId') || '') || undefined,
+        kind: type,
+      }).catch((error: unknown) => {
+        console.error('Entity lead conversation failed', error)
+      })
+    }
     
     // Log result for server visibility
     console.log('Opportunity created successfully:', { 
@@ -510,10 +554,14 @@ export async function updateOpportunity(
     // Field validation (mirrors creation with additional constraints for update)
     const fieldErrors: Record<string, string> = {}
     if (!title?.trim()) fieldErrors.title = 'Title is required'
-    if (!type || ![
+    const { getOpportunityTypePolicy: policyForUpdate } = await import(
+      '@/features/opportunities/lib/opportunity-type-policy'
+    )
+    const knownUpdateTypes = [
       'offer', 'request', 'partnership', 'volunteer', 'mentorship',
-      'resource', 'event', 'ring_customization'
-    ].includes(type)) {
+      'resource', 'event', 'ring_customization',
+    ]
+    if (!type || (!knownUpdateTypes.includes(type) && !policyForUpdate(type))) {
       fieldErrors.type = 'Valid type is required'
     }
     if (!category?.trim()) fieldErrors.category = 'Category is required'
@@ -606,7 +654,7 @@ export async function updateOpportunity(
       location: formData.get('location')?.toString().trim() || existingOpportunity.location || '',
       isConfidential,
       visibility,
-      anonymousPoster,
+      ...(anonymousPoster === undefined ? {} : { anonymousPoster }),
       contactInfo: {
         linkedEntity: entityId?.trim() || existingOpportunity.contactInfo?.linkedEntity || '',
         contactAccount: contactEmail?.trim() || session.user.email || existingOpportunity.contactInfo?.contactAccount || ''

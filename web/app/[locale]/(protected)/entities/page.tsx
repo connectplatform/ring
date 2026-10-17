@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
+import type { Session } from 'next-auth'
 import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { connection } from 'next/server'
-import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
+import { SessionProvider } from '@/features/auth/components/session-provider'
 import EntitiesWrapper from '@/components/wrappers/entities-wrapper'
-import { ROUTES } from '@/constants/routes'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
@@ -37,16 +37,19 @@ export async function generateMetadata({
   let count = 0
   try {
     const session = await auth()
-    if (session?.user) {
-      const userRole = resolveSessionUserRole(session.user.role)
-      const effectiveUserRole = assertKnownUserRole(userRole as UserRolesArray)
-      const { getEntitiesForRole } = await import('@/features/entities/services/get-entities')
-      const result = await getEntitiesForRole({
-        userRole: effectiveUserRole,
-        limit: 1,
-      })
-      count = result.totalCount ?? result.entities.length ?? 0
-    }
+    const userRole = session?.user
+      ? resolveSessionUserRole(session.user.role)
+      : UserRolesArray.visitor
+    const effectiveUserRole =
+      userRole === UserRolesArray.visitor
+        ? UserRolesArray.visitor
+        : assertKnownUserRole(userRole as UserRolesArray)
+    const { getEntitiesForRole } = await import('@/features/entities/services/get-entities')
+    const result = await getEntitiesForRole({
+      userRole: effectiveUserRole,
+      limit: 1,
+    })
+    count = result.totalCount ?? result.entities.length ?? 0
   } catch {
     count = 0
   }
@@ -81,17 +84,11 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
     ? (params.locale as Locale)
     : (routing.defaultLocale as Locale)
 
-  // Server-side authentication – users must be signed in to view entities
+  // Resolve optional user session for RBAC (public visitors default to 'visitor')
   const session = await auth()
-  if (!session?.user) {
-    // Redirect to the login page, preserving intended callback/return link
-    redirect(`${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(ROUTES.ENTITIES(locale))}`)
-  }
-
-  // Resolve user role for RBAC (Role-Based Access Control)
-  // If the resolver performs asynchronous logic (e.g. reads from DB/session), change to an await call
-  // TODO: If role resolution relies on data that could change often, consider caching at session load
-  const userRole = resolveSessionUserRole(session.user.role)
+  const userRole = session?.user
+    ? resolveSessionUserRole(session.user.role)
+    : UserRolesArray.visitor
 
   // Pagination and filtering setup: safely parse all query params, with defaults for missing/invalid
   const page = Number(searchParams.page ?? '1')
@@ -123,8 +120,11 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
     // TODO: If possible, switch this to a static import and use React 19 async Server Components for streaming partial data (see below).
     const { getEntitiesForRole } = await import('@/features/entities/services/get-entities')
 
-    // Validate and assert the user's effective role for RBAC
-    const effectiveUserRole = assertKnownUserRole(userRole as UserRolesArray)
+    // Validate and assert the user's effective role for RBAC (allowing visitor)
+    const effectiveUserRole =
+      userRole === UserRolesArray.visitor
+        ? UserRolesArray.visitor
+        : assertKnownUserRole(userRole as UserRolesArray)
 
     // Fetch the entities for this user, role, and current filters
     // TODO: In the future, migrate this async operation into a dedicated Server Component (or a Client Component with React 19's `use()`).
@@ -151,24 +151,23 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
     Math.ceil((totalEntities || initialEntities.length || 1) / Math.max(1, limit))
   )
 
-  // TODO (now actionably possible in Next16/React19): Switch EntitiesWrapper to server or client component using React 19 Suspense and streaming, 
-  // for loading skeleton UIs under pagination/filter changes while next page is resolving.
-  // Eg: Convert EntitiesWrapper to:
-  //   1. An async server component receiving the same props (with static import of getEntitiesForRole and await inside component)
-  //   2. Use React <Suspense fallback={<EntitiesSkeleton />}><EntitiesWrapper ... /></Suspense> for smooth progressive pagination.
+  const effectiveClientSession =
+    session ?? ({ expires: '2099-01-01T00:00:00.000Z' } as Session)
 
   // Render the entities data. EntitiesWrapper will receive initial state only (hydrated client-side if user pages/filters further).
   return (
-    <EntitiesWrapper
-      initialEntities={initialEntities}
-      initialError={initialError}
-      page={page}
-      totalPages={totalPages}
-      totalEntities={totalEntities || initialEntities.length}
-      lastVisible={lastVisible}
-      initialLimit={limit}
-      initialSort={sort}
-      initialFilter={filter}
-    />
+    <SessionProvider session={effectiveClientSession}>
+      <EntitiesWrapper
+        initialEntities={initialEntities}
+        initialError={initialError}
+        page={page}
+        totalPages={totalPages}
+        totalEntities={totalEntities || initialEntities.length}
+        lastVisible={lastVisible}
+        initialLimit={limit}
+        initialSort={sort}
+        initialFilter={filter}
+      />
+    </SessionProvider>
   )
 }

@@ -11,8 +11,12 @@
 
 import { SerializedEntity, EntityType } from '@/features/entities/types'
 import { mapDbDocumentToSerializedEntity } from '@/features/entities/lib/entity-db-mapper'
-import { UserRolesArray } from '@/features/auth/user-role'
-import { assertKnownUserRole, hasConfidentialAccess } from '@/features/auth/user-role'
+import {
+  UserRolesArray,
+  assertKnownUserRole,
+  hasConfidentialAccess,
+  resolveSessionUserRole,
+} from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
@@ -62,15 +66,15 @@ export const getEntitiesForRole = cache(async (
   // Destructure parameters with defaults.
   const { userRole: rawRole, limit = 20, startAfter, filters } = params
 
-  // Assert the user role with helper (prevents typos/unknown roles)
-  const userRole = assertKnownUserRole(rawRole)
+  // Allow visitor role for anonymous discovery; validate known roles otherwise.
+  const userRole: UserRolesArray =
+    rawRole === UserRolesArray.visitor
+      ? UserRolesArray.visitor
+      : assertKnownUserRole(rawRole)
 
   try {
     // Log fetch attempt at info level with parameters for observability.
     logger.info('Services: getEntitiesForRole - Starting...', { userRole, rawRole, limit, startAfter, filters })
-
-    // Defensive: Ensure role is valid (double assertion in case upstream typing is bypassed).
-    assertKnownUserRole(userRole)
 
     // Build database query configuration.
     const queryConfig: any = {
@@ -283,11 +287,22 @@ export const getEntitiesForRole = cache(async (
       : []
 
     // filterEntitiesForDiscovery applies blocks, suspends, shadow bans, etc.
-    entities = filterEntitiesForDiscovery(entities, {
-      userId: session?.user?.id,
-      userRole,
-      blockedEntityIds,
-    })
+    if (userRole === UserRolesArray.visitor) {
+      entities = entities.filter(
+        (entity) =>
+          entity.isConfidential !== true &&
+          (entity.visibility === 'public' ||
+            entity.visibility === undefined ||
+            entity.visibility === null) &&
+          (entity as { moderationStatus?: string }).moderationStatus !== 'blocked',
+      )
+    } else {
+      entities = filterEntitiesForDiscovery(entities, {
+        userId: session?.user?.id,
+        userRole,
+        blockedEntityIds,
+      })
+    }
 
     // Step 7: Compute pagination cursor based on returned entity list.
     // TODO: Consider native Next.js RSC streaming APIs for infinite scroll pagination.
@@ -344,20 +359,11 @@ export const getEntities = cache(async (
 ): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }> => {
   logger.info('Services: getEntities - Starting...')
 
-  // Get the authenticated user session.
+  // Get the authenticated user session (fall back to visitor for public anonymous reads).
   const session = await auth()
-  if (!session || !session.user) {
-    // If session not available, unauthorized error with metadata for audit.
-    throw new EntityAuthError('Unauthorized access', undefined, {
-      timestamp: Date.now(),
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      operation: 'getEntities'
-    });
-  }
-
-  // Use userRole from the session (roles are consistent with SSOT model).
-  const userRole = assertKnownUserRole(session.user.role)
+  const userRole = session?.user
+    ? (resolveSessionUserRole(session.user.role) as UserRolesArray)
+    : UserRolesArray.visitor
   return getEntitiesForRole({ userRole, limit, startAfter, filters })
 });
 
@@ -522,17 +528,10 @@ export const getEntitiesByIds = cache(async (
   entityIds: string[],
 ): Promise<SerializedEntity[]> => {
   try {
-    // STUB: Defensive null session check, forbidden for unauthenticated fetches.
     const session = await auth();
-    if (!session || !session.user) {
-      throw new EntityAuthError('Unauthorized access', undefined, {
-        timestamp: Date.now(),
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        operation: 'getEntitiesByIds'
-      });
-    }
-    const role = assertKnownUserRole(session.user.role);
+    const role: UserRolesArray = session?.user
+      ? (resolveSessionUserRole(session.user.role) as UserRolesArray)
+      : UserRolesArray.visitor;
 
     logger.info('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole: role })
 
@@ -590,7 +589,16 @@ export const getEntitiesByIds = cache(async (
     const entities: SerializedEntity[] = []
 
     documents.forEach((entity) => {
-      if (canViewEntity(entity, { userRole: role })) {
+      if (role === UserRolesArray.visitor) {
+        if (
+          entity.isConfidential !== true &&
+          (entity.visibility === 'public' ||
+            entity.visibility === undefined ||
+            entity.visibility === null)
+        ) {
+          entities.push(entity)
+        }
+      } else if (canViewEntity(entity, { userRole: role })) {
         entities.push(entity)
       }
     })

@@ -3,8 +3,7 @@ import { setRequestLocale } from 'next-intl/server'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
-import StorePageClient from './store-page-client'
-import StoreWrapper from '@/components/wrappers/store-wrapper'
+import StoreScreen from './store-screen'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 // Generates localized metadata for the store page, including canonical URLs and dynamic variables
@@ -49,10 +48,7 @@ export default async function StorePage({ params }: { params: Promise<{ locale: 
 
   // TODO: Consider using the "useLocale" or segmentConfig features for locale extraction and validation in React 19/Next 16.
 
-  // Render the wrapped store page client for the given (validated) locale
-  return (
-    <StoreWrapper key={validLocale} locale={validLocale}>
-      <StorePageClient locale={validLocale} />
-    </StoreWrapper>
-  )
+  // One client reference. StoreWrapper and StorePageClient are children of
+  // StoreScreen, which the locale shell already evaluates.
+  return <StoreScreen locale={validLocale} />
 }

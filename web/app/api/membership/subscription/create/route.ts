@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { SubscriptionConductor } from '@/lib/payments/subscription/subscription-conductor';
 import { UserRolesArray } from '@/features/auth/user-role';
 import { logger } from '@/lib/logger';
-import { getMemberMainCurrencyTier } from '@/lib/membership/pricing';
+import { getMemberMainCurrencyTierForPeriod } from '@/lib/membership/pricing';
 import { getCardPaymentProcessor } from '@/lib/payments/subscription/subscription-config';
 import { getNativeTokenSymbol } from '@/lib/ring-config-core';
 import { getPayPalGatewayCurrency } from '@/lib/payments/processors/paypal-client';
@@ -33,6 +33,7 @@ const SubscriptionCreateSchema = z.object({
     'paypal', // STUB: actual PayPal logic not implemented yet
   ]).optional(),
   auto_renew: z.boolean().default(true),
+  billingPeriod: z.enum(['monthly', 'yearly']).default('monthly'),
 });
 
 /**
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Destructure validated, typed inputs (auto_renew always boolean)
-    const { provider: requestedProvider, auto_renew } = validatedRequest;
+    const { provider: requestedProvider, auto_renew, billingPeriod } = validatedRequest;
 
     // Fallback to credit_balance if no provider specified
     const provider = requestedProvider || 'credit_balance';
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtain the member pricing tier from config (single source of truth)
-    const memberTier = getMemberMainCurrencyTier();
+    const memberTier = getMemberMainCurrencyTierForPeriod(billingPeriod);
     if (!memberTier) {
       // Service unavailable if config missing
       return NextResponse.json(
@@ -192,7 +193,11 @@ export async function POST(request: NextRequest) {
       currency,
       gatewayFeePercent,
       gatewayFeeFixed,
-      metadata: { auto_renew, target_role: UserRolesArray.member as UserRolesArray },
+      metadata: {
+        auto_renew,
+        target_role: UserRolesArray.member as UserRolesArray,
+        billingPeriod,
+      },
     });
 
     // If creation (insertion, API, or payment) failed:
@@ -226,6 +231,9 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Membership subscription created successfully',
       provider,
+      billingPeriod,
+      client_secret: result.clientSecret ?? null,
+      redirect: result.redirect ?? null,
       subscription: subscription ? {
         id: subscription.id,
         status: subscription.status,

@@ -22,6 +22,8 @@ import {
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import PackOpportunityFields from '@/features/opportunities/components/pack-opportunity-fields'
+import { getOpportunityTypePolicy } from '@/features/opportunities/lib/opportunity-type-policy'
 import { 
   X, 
   Plus, 
@@ -74,6 +76,7 @@ interface AddOpportunityFormProps {
     | 'asset_rental'
     | 'job'
     | 'mentorship'
+    | (string & {})
   initialOpportunity?: SerializedOpportunity
 }
 
@@ -88,7 +91,10 @@ function SubmitButton() {
   )
 }
 
-import { getOpportunityFormTypePreset } from '@/features/opportunities/lib/opportunity-type-presets'
+import {
+  getOpportunityFormTypePreset,
+  opportunitySelectorTypePresets,
+} from '@/features/opportunities/lib/opportunity-type-presets'
 import {
   OpportunityFormShell,
   OpportunityFormSection,
@@ -105,6 +111,18 @@ function toDateInputValue(iso?: string): string {
 
 // Helper function to get form configuration based on opportunity type
 function getFormConfig(type: string) {
+  const policy = getOpportunityTypePolicy(type)
+  if (policy) {
+    return {
+      requiresEntity: policy.requiresEntity,
+      showBudget: false,
+      showSkills: false,
+      showDeadline: true,
+      showPriority: false,
+      showMaxApplicants: false,
+      showApplicationDeadline: false,
+    }
+  }
   const configs = {
     request: {
       requiresEntity: false,
@@ -389,6 +407,24 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
       }
     >
       <form action={formAction} className="space-y-6">
+        {(() => {
+          const examples = (
+            opportunitySelectorTypePresets as Record<string, { examples?: string[] }>
+          )[currentType]?.examples
+          if (!examples?.length || isEdit) return null
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {examples.map((example) => (
+                <span
+                  key={example}
+                  className="inline-flex rounded-full border border-[color-mix(in_oklch,var(--davinci-beam)_22%,transparent)] bg-[color-mix(in_oklch,var(--davinci-beam)_8%,transparent)] px-2 py-0.5 text-[11px] text-foreground/85"
+                >
+                  {t(`type_selector.${currentType}.examples.${example}`, { defaultValue: example })}
+                </span>
+              ))}
+            </div>
+          )
+        })()}
         {isEdit && initialOpportunity && (
           <input type="hidden" name="opportunityId" value={initialOpportunity.id} />
         )}
@@ -396,6 +432,11 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
         <input type="hidden" name="requiredSkills" value={requiredSkills.join(',')} />
         <input type="hidden" name="type" value={currentType} />
         <input type="hidden" name="applicantCount" value="0" />
+        <input type="hidden" name="visibility" value={visibility} />
+        <input type="hidden" name="isConfidential" value={visibility === 'confidential' ? 'true' : 'false'} />
+        {canPostAnonymous ? (
+          <input type="hidden" name="anonymousPoster" value={anonymousPoster ? 'true' : 'false'} />
+        ) : null}
 
         {state?.error && (
           <Alert variant="destructive">
@@ -668,6 +709,7 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
                 </div>
               </>
             )}
+            <PackOpportunityFields type={currentType} />
           </div>
 
           <div>
@@ -743,9 +785,6 @@ function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddO
                           <Label htmlFor="visibility" className="flex items-center space-x-2">
                             <span>{t('visibilityLabel', { defaultValue: 'Visibility' })}</span>
                           </Label>
-                          <input type="hidden" name="visibility" value={visibility} />
-                          <input type="hidden" name="anonymousPoster" value={anonymousPoster && canPostAnonymous ? 'true' : 'false'} />
-                          <input type="hidden" name="isConfidential" value={visibility === 'confidential' ? 'true' : 'false'} />
                           <Select
                             value={visibility}
                             onValueChange={(value) => {

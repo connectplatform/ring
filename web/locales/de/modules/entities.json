@@ -28,6 +28,10 @@
       "label": "Organisationen suchen",
       "placeholder": "Name, Branche oder Standort …"
     },
+    "active": {
+      "title": "Aktive Filter",
+      "clearAll": "Alle löschen"
+    },
     "sections": {
       "types": "Organisationstypen",
       "location": "Standort",

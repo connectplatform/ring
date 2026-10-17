@@ -92,7 +92,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
   })
 
   return (
-    <CurtainPageProvider authorUserId={article.authorId} pageKind="news">
+    <CurtainPageProvider authorUserId={article.authorId} newsArticleId={article.id} pageKind="news">
     <article className="container mx-auto px-6 py-10 max-w-3xl prose prose-lg">
       <h1>{article.title}</h1>
       <p className="text-sm text-muted-foreground not-prose">

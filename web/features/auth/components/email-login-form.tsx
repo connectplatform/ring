@@ -315,11 +315,6 @@ export function EmailLoginForm({
       >
         {pending ? tAuth('signIn.loading') : tAuth('signIn.providers.email')}
       </Button>
-      <p className="text-xs text-center text-muted-foreground">
-        <a href={ROUTES.FORGOT_PASSWORD(locale)} className="text-blue-600 hover:underline">
-          {tAuth('signIn.forgotPassword')}
-        </a>
-      </p>
     </form>
   )
 }

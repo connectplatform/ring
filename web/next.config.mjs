@@ -81,6 +81,10 @@ function collectCloneImageRemotePatterns(existing) {
     )
     add(cfg?.domains?.cdn)
     add(cfg?.domains?.cdnFallback)
+    // Extra hosts a clone's product/feed images load from (e.g. a dealer inventory feed).
+    if (Array.isArray(cfg?.domains?.imageHosts)) {
+      for (const host of cfg.domains.imageHosts) add(host)
+    }
     add(cfg?.storage?.publicUrl)
     add(cfg?.storage?.cdn)
   } catch {

@@ -13,8 +13,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { useTranslations } from 'next-intl'
+import { useMessages, useTranslations } from 'next-intl'
 import { applyFilters, FilterFormState } from '@/app/_actions/filters'
+import { getCityDistrictCoordinates } from '@/features/map/lib/baseline-city-pois'
+import { getProductFieldsPreset, getProductFieldsPresets, getSystemConfigSnapshot } from '@/lib/ring-config-core'
+import { localizeStoreCategory, prettifyCategorySlug } from '@/lib/store-category-display'
 
 interface FilterFormProps {
   onFiltersChange?: (filters: ActiveFilters) => void
@@ -189,6 +192,7 @@ export default function FilterForm({
   className = '' 
 }: FilterFormProps) {
   const t = useTranslations('filters')
+  const messages = useMessages()
   const [filters, setFilters] = React.useState<ActiveFilters>(initialFilters)
 
   // React 19 useTransition for non-blocking filter updates
@@ -208,22 +212,35 @@ export default function FilterForm({
     null
   )
 
-  // Category options
-  const categoryOptions: FilterOption[] = [
-    { label: 'Technology', value: 'technology', count: 42 },
-    { label: 'Healthcare', value: 'healthcare', count: 28 },
-    { label: 'Education', value: 'education', count: 19 },
-    { label: 'Finance', value: 'finance', count: 15 },
-    { label: 'Retail', value: 'retail', count: 23 }
-  ]
+  const preset = getProductFieldsPreset()
+  const presetCategories = getProductFieldsPresets()?.[preset]?.storeCategories
+  const configuredCategories =
+    presetCategories && presetCategories.length > 0
+      ? presetCategories
+      : getSystemConfigSnapshot().store?.storeCategories
+  const categoryOptions: FilterOption[] =
+    configuredCategories && configuredCategories.length > 0
+      ? configuredCategories.map((slug) => ({
+          label: localizeStoreCategory(messages, slug) || prettifyCategorySlug(slug),
+          value: slug,
+        }))
+      : [
+          { label: 'Technology', value: 'technology' },
+          { label: 'Healthcare', value: 'healthcare' },
+          { label: 'Education', value: 'education' },
+          { label: 'Finance', value: 'finance' },
+          { label: 'Retail', value: 'retail' },
+        ]
 
-  // Location options
-  const locationOptions: FilterOption[] = [
-    { label: 'Cherkasy', value: 'cherkasy', count: 67 },
-    { label: 'Kyiv', value: 'kyiv', count: 45 },
-    { label: 'Remote', value: 'remote', count: 38 },
-    { label: 'Lviv', value: 'lviv', count: 22 }
-  ]
+  const districts = Object.keys(getCityDistrictCoordinates())
+  const locationOptions: FilterOption[] =
+    districts.length > 0
+      ? districts.map((name) => ({ label: name, value: name.toLowerCase() }))
+      : [
+          { label: 'Remote', value: 'remote' },
+          { label: 'On-site', value: 'onsite' },
+          { label: 'Hybrid', value: 'hybrid' },
+        ]
 
   const handleFilterChange = (key: keyof ActiveFilters, value: any) => {
     const newFilters = { ...optimisticFilters, [key]: value }

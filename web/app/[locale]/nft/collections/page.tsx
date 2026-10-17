@@ -91,7 +91,7 @@ export default async function CollectionsPage(props: LocalePageProps<Collections
               <Link key={collection.id} href={href} className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg">
                 <div className="relative aspect-[4/3] bg-muted">
                   <Image
-                    src={collection.imageUri || '/placeholder-product.png'}
+                    src={collection.imageUri || '/placeholder-product.svg'}
                     alt={collection.name}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"

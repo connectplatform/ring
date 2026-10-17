@@ -351,7 +351,9 @@
     "empty": "Избранного ещё нет",
     "browseStore": "Просмотреть магазин",
     "save": "Добавить в избранное",
-    "remove": "Удалить из избранного"
+    "remove": "Удалить из избранного",
+    "saveToFavorites": "Добавить в избранное",
+    "savedToFavorites": "Сохранено в избранном"
   },
   "filters": {
     "searchLabel": "Поиск продуктов",
@@ -392,7 +394,21 @@
     "bioenergetics": "Биоэнергетика, БАДы, пробиотики",
     "services": "Услуги",
     "cooperative-share": "Купить пай кооператива",
-    "retreat-hub": "Ретрит Хаб"
+    "retreat-hub": "Ретрит Хаб",
+    "local_producers": "Местные производители",
+    "city_services": "Городские сервисы",
+    "utilities_household": "Бытовые и коммунальные услуги",
+    "food_dining": "Кафе, еда и фермерские продукты",
+    "education_sports": "Образование и спорт",
+    "culture_events": "Культура и события",
+    "health_care": "Здоровье и забота",
+    "craft_goods": "Крафтовые изделия",
+    "food_farmers": "Фермерские продукты",
+    "services_repair": "Услуги и ремонт",
+    "home_garden": "Дом и сад",
+    "kids_education": "Детям и образование",
+    "events_tickets": "События и билеты",
+    "other": "Другое"
   },
   "vendorAttribution": {
     "fastResponse": "Быстрый ответ",
@@ -428,5 +444,6 @@
     }
   },
   "loading": "Загрузка продуктов…",
-  "shareEarnHint": "Приглашайте других и получайте реферальные награды"
+  "shareEarnHint": "Приглашайте других и получайте реферальные награды",
+  "fastDelivery": "Быстрая доставка"
 }

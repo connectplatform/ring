@@ -42,8 +42,12 @@ export function applyOpportunityListUpdate(
       return prev.map((opp) => {
         if (opp.id !== update.opportunityId) return opp
         const next: SerializedOpportunity = { ...opp, ...patch, viewer: opp.viewer }
+        if (!patch.createdBy && opp.createdBy) next.createdBy = opp.createdBy
+        if (!patch.organizationId && opp.organizationId) next.organizationId = opp.organizationId
         if (patchCreator && typeof patchCreator === 'object') {
           next.creator = patchCreator
+        } else if (opp.creator) {
+          next.creator = opp.creator
         }
         return next
       })

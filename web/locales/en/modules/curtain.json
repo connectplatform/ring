@@ -21,5 +21,20 @@
   "a2hsCtaIos": "How to add",
   "iosInstallTitle": "Add to Home Screen",
   "iosInstallBody": "Tap the Share button, then Add to Home Screen. Open the new icon to use the app.",
-  "iosInstallDone": "Got it"
+  "iosInstallDone": "Got it",
+  "a2hsLine2ChromeIos": "Open this page in Safari, then Share → Add to Home Screen.",
+  "a2hsCtaChromeIos": "Open in Safari",
+  "chromeIosTitle": "Add from Safari",
+  "chromeIosBody": "Chrome on iPhone cannot install a Home Screen web app. Open this page in Safari, tap Share, then Add to Home Screen.",
+  "chromeIosDone": "Got it",
+  "funnelTitle": "Page curtain",
+  "funnelShown": "Shown",
+  "funnelResurfaced": "Resurfaced",
+  "funnelCta": "Added",
+  "funnelNotToday": "Not today",
+  "funnelNotForMe": "Not for me",
+  "funnelScroll": "Scrolled away",
+  "funnelPaid": "Paid",
+  "funnelCredits": "Credits minted",
+  "funnelPolicy": "Cap {max}/day · hide {hours}h · {source}"
 }

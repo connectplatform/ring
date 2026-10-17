@@ -114,6 +114,9 @@ export default async function AddOpportunityPage(props: PageProps) {
   const { isOpportunityTypeEnabled } = await import(
     '@/features/opportunities/lib/opportunity-enabled-types'
   )
+  const { getOpportunityTypePolicy, policyTypeIds } = await import(
+    '@/features/opportunities/lib/opportunity-type-policy'
+  )
   const ALLOWED_ADD_TYPES = [
     'request',
     'offer',
@@ -131,6 +134,7 @@ export default async function AddOpportunityPage(props: PageProps) {
     'tender',
     'asset_rental',
     'job',
+    ...policyTypeIds(),
   ] as const
   type AllowedAddType = (typeof ALLOWED_ADD_TYPES)[number]
   const type =
@@ -165,15 +169,31 @@ export default async function AddOpportunityPage(props: PageProps) {
       ? `${baseUrl}/opportunities/add${type ? `?type=${type}` : ''}`
       : `${baseUrl}/${validLocale}/opportunities/add${type ? `?type=${type}` : ''}`
 
+  // Preserve full query string (?type=civic_inquiry, etc.) across login/membership redirects
+  const rawQuery = new URLSearchParams()
+  for (const [k, v] of Object.entries(searchParams)) {
+    if (typeof v === 'string' && v) {
+      rawQuery.set(k, v)
+    } else if (Array.isArray(v)) {
+      v.forEach((item) => {
+        if (typeof item === 'string' && item) rawQuery.append(k, item)
+      })
+    }
+  }
+  if (!rawQuery.has('type') && type) {
+    rawQuery.set('type', type)
+  }
+  const querySuffix = rawQuery.toString() ? `?${rawQuery.toString()}` : ''
+
   // ===== USER AUTH & ROLE VALIDATION =====
 
   // Check session (auth); ensure user is logged in
   // TODO: With new Next.js middlewares/react-server-components, consider moving redirect logic to middleware layer.
   const session = await auth();
   if (!session) {
-    // Not logged in; redirect to login with returnTo.
+    // Not logged in; redirect to login with returnTo preserving query string.
     logger.info('AddOpportunityPage: No session, redirecting to login');
-    const returnTo = ROUTES.ADD_OPPORTUNITY(validLocale) + (type ? `?type=${type}` : '');
+    const returnTo = ROUTES.ADD_OPPORTUNITY(validLocale) + querySuffix;
     redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(returnTo)}`);
   }
 
@@ -184,7 +204,7 @@ export default async function AddOpportunityPage(props: PageProps) {
   // Check: Can the role create opportunities at all?
   if (!canAccessOpportunityCreation(userRole)) {
     logger.info('AddOpportunityPage: Authenticated user lacks subscriber role', { userRole });
-    const returnTo = ROUTES.ADD_OPPORTUNITY(validLocale) + (type ? `?type=${type}` : '');
+    const returnTo = ROUTES.ADD_OPPORTUNITY(validLocale) + querySuffix;
     redirect(ROUTES.MEMBERSHIP(validLocale) + `?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
@@ -198,10 +218,11 @@ export default async function AddOpportunityPage(props: PageProps) {
     'tender',
     'asset_rental',
     'job',
+    ...policyTypeIds().filter((id) => getOpportunityTypePolicy(id)?.memberOnly),
   ]);
   if (typeof type === 'string' && memberOnlyTypes.has(type) && !hasMemberPrivileges(userRole)) {
     logger.info('AddOpportunityPage: User lacks permission for member-only type', { userRole, type });
-    redirect(ROUTES.MEMBERSHIP(validLocale) + `?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(validLocale) + `?type=${type}`)}`);
+    redirect(ROUTES.MEMBERSHIP(validLocale) + `?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(validLocale) + querySuffix)}`);
   }
 
   logger.info('AddOpportunityPage: User authenticated', { userRole, type, hasToken: !!token });

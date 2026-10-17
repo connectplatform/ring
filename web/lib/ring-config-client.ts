@@ -20,6 +20,7 @@
 import {
   getCreditUnitLabel,
   getCreditUnitToMainCurrencyRate,
+  getCurtainPolicy,
   getMainCurrencySymbol,
   getSystemConfigSnapshot,
   isCreditRewardsEnabled,
@@ -51,6 +52,11 @@ export function isNativeTokenOnrampEnabled(): boolean {
  */
 export function getClientMainCurrency(): SupportedCurrencies {
   return getMainCurrencySymbol()
+}
+
+/** Client curtain caps. Same JSON as `getCurtainPolicy` on the server. */
+export function getClientCurtainPolicy() {
+  return getCurtainPolicy()
 }
 
 /** Display label for the credit balance unit (ring-config.json → credit.creditBalanceUnitLabel). */

@@ -45,6 +45,7 @@ import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { NavLegalFooter } from '@/components/navigation/nav-legal-footer'
 import { FsModal } from '@/components/ui/fs-modal'
+import { HeroAmbient } from '@/lib/ui/davinci'
 import { LoginWidget } from '@/features/auth/components/login-widget'
 
 /**
@@ -669,6 +670,12 @@ export default function BottomNavigation() {
         }}
         title={loginLabel}
         description={tAuth('signIn.subtitle')}
+        layout="centerPane"
+        hideHeaderSeparator
+        pinAboveMobileNav
+        chromeBackdrop={<HeroAmbient className="opacity-100" />}
+        headerClassName="bg-transparent pb-1"
+        contentClassName="!bg-transparent !px-4 !pt-1"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onPointerDownOutside={(event) => {
           if (Date.now() - loginOpenedAt.current < GHOST_CLICK_MS) {

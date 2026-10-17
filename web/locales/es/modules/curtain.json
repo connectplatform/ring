@@ -21,5 +21,20 @@
   "a2hsCtaIos": "Cómo añadir",
   "iosInstallTitle": "Añadir a inicio",
   "iosInstallBody": "Pulsa Compartir y luego Añadir a pantalla de inicio. Abre el nuevo icono para usar la app.",
-  "iosInstallDone": "Entendido"
+  "iosInstallDone": "Entendido",
+  "a2hsLine2ChromeIos": "Abre esta página en Safari y luego Compartir → Añadir a pantalla de inicio.",
+  "a2hsCtaChromeIos": "Abrir en Safari",
+  "chromeIosTitle": "Añadir desde Safari",
+  "chromeIosBody": "Chrome en el iPhone no instala una app de pantalla de inicio. Abre la página en Safari, pulsa Compartir y luego Añadir a pantalla de inicio.",
+  "chromeIosDone": "Entendido",
+  "funnelTitle": "Cortina de la página",
+  "funnelShown": "Mostradas",
+  "funnelResurfaced": "Reaparecidas",
+  "funnelCta": "Añadidas",
+  "funnelNotToday": "Hoy no",
+  "funnelNotForMe": "No es para mí",
+  "funnelScroll": "Se desplazó",
+  "funnelPaid": "Pagadas",
+  "funnelCredits": "Créditos emitidos",
+  "funnelPolicy": "Tope {max}/día · ocultar {hours}h · {source}"
 }

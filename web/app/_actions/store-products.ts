@@ -13,6 +13,8 @@ import {
   type CatalogPriceBounds,
 } from '@/lib/store-price-range'
 import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
+import { applyNicheFilters, computeNicheFacets } from '@/features/store/niche/niche-filters'
+import type { NicheFacet } from '@/features/store/niche/niche-facets'
 
 export interface StoreProductsResult {
   success: boolean
@@ -25,6 +27,8 @@ export interface StoreProductsResult {
   vendorName?: string
   /** Bounds from the current catalog slice (excludes price slider filters). */
   priceRange?: CatalogPriceBounds
+  /** Full-catalog facets. Present on the first page only. Null when the pack has none. */
+  nicheFacets?: NicheFacet[] | null
 }
 
 export async function getStoreProducts(
@@ -69,7 +73,7 @@ export async function getStoreProducts(
     const catalogProducts = applyCatalogFilters(allProducts, filters)
     const priceRange = computeCatalogPriceBounds(catalogProducts)
 
-    let filteredProducts = applyPriceFilters(catalogProducts, filters)
+    let filteredProducts = applyNicheFilters(applyPriceFilters(catalogProducts, filters), filters.niche)
 
     // ── Audience filter: member-only products are hidden from non-member users.
     // Products tagged with productAudience === 'member' require member privileges
@@ -134,6 +138,7 @@ export async function getStoreProducts(
       (product) => product.id,
     )
 
+    const firstPage = !afterId
     return {
       success: true,
       items: paginatedProducts,
@@ -143,6 +148,7 @@ export async function getStoreProducts(
       vendorId,
       vendorName,
       priceRange,
+      ...(firstPage ? { nicheFacets: computeNicheFacets(allProducts) } : {}),
     }
   } catch (error: unknown) {
     console.error('Store products error:', error)

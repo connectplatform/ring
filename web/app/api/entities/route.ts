@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection } from 'next/server';
 import { auth } from '@/auth';
 import { getEntitiesForRole, type EntityFilters } from '@/features/entities/services/get-entities';
-import { resolveSessionUserRole } from '@/features/auth/user-role';
+import { resolveSessionUserRole, UserRolesArray } from '@/features/auth/user-role';
 import type { EntityType } from '@/features/entities/types';
 
 /**
@@ -70,16 +70,11 @@ export async function GET(request: NextRequest) {
   console.log('API: /api/entities - Starting GET request');
 
   try {
-    // Attempt to authenticate the user session
+    // Attempt to authenticate the user session; anonymous visitors resolve to 'visitor'
     const session = await auth();
-    if (!session || !session.user) {
-      // User is not authenticated
-      console.log('API: /api/entities - Unauthorized access attempt');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Determine the user's role (with custom logic)
-    const userRole = resolveSessionUserRole(session.user.role);
+    const userRole = session?.user
+      ? resolveSessionUserRole(session.user.role)
+      : UserRolesArray.visitor;
 
     // Parse relevant query params
     const searchParams = request.nextUrl.searchParams;

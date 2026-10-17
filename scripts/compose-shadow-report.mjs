@@ -240,6 +240,85 @@ function addedLocaleKeys(oldObj, newObj) {
   return newKeys.filter((k) => !oldKeys.has(k))
 }
 
+/**
+ * List L1-relative locale JSON paths owned by an overlay web root
+ * (locales/<locale>/<file>.json, exactly two levels).
+ */
+function listLocaleFiles(webRoot) {
+  if (!webRoot) return []
+  const localesDir = path.join(webRoot, 'locales')
+  let localeDirs = []
+  try {
+    localeDirs = fs.readdirSync(localesDir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  const rels = []
+  for (const dirEnt of localeDirs) {
+    if (!dirEnt.isDirectory()) continue
+    const dirAbs = path.join(localesDir, dirEnt.name)
+    let files = []
+    try {
+      files = fs.readdirSync(dirAbs, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const fileEnt of files) {
+      if (!fileEnt.isFile() || !fileEnt.name.endsWith('.json')) continue
+      rels.push(`locales/${dirEnt.name}/${fileEnt.name}`)
+    }
+  }
+  return rels
+}
+
+/**
+ * Standing whole-file locale audit (pack + clone overlays).
+ *
+ * Any overlay-owned `locales/<loc>/<file>.json` that ALSO exists on L1 is a
+ * whole-file overlay: compose replaces the L1 file entirely, so the overlay
+ * must carry full L1 key parity. Report every L1 key missing from the overlay.
+ * (Extra overlay-only keys are by-design vertical labels — not reported.)
+ *
+ * Closes two blind spots of the diff-triggered check:
+ *  - pack-owned locale files were never audited (clone-only before)
+ *  - standing drift (L1 key added in an old commit, overlay copy stale) was
+ *    only caught when the L1 file was touched again
+ */
+function standingLocaleAudit(kingdom, packs, clones, l1Web) {
+  const packGaps = []
+  const cloneGaps = []
+  const l1KeysCache = new Map()
+  const l1KeysFor = (rel) => {
+    if (!l1KeysCache.has(rel)) {
+      const obj = readJsonFile(path.join(l1Web, rel))
+      l1KeysCache.set(rel, obj ? new Set(flattenKeys(obj)) : null)
+    }
+    return l1KeysCache.get(rel)
+  }
+  const auditOverlay = (rel, ownerKind, ownerId, webRoot, into) => {
+    const l1Keys = l1KeysFor(rel)
+    if (!l1Keys || !l1Keys.size) return // no L1 SSOT file → compose delivers overlay as-is
+    const overlayObj = readJsonFile(path.join(webRoot, rel))
+    if (!overlayObj) return
+    const overlayKeys = new Set(flattenKeys(overlayObj))
+    const missing = [...l1Keys].filter((k) => !overlayKeys.has(k))
+    if (missing.length) into.push({ path: rel, [ownerKind]: ownerId, missing })
+  }
+  for (const pack of packs) {
+    for (const rel of listLocaleFiles(pack.web)) {
+      auditOverlay(rel, 'pack', pack.id, pack.web, packGaps)
+    }
+  }
+  for (const slug of clones) {
+    const web = cloneWebRoot(kingdom, slug)
+    if (!web) continue
+    for (const rel of listLocaleFiles(web)) {
+      auditOverlay(rel, 'clone', slug, web, cloneGaps)
+    }
+  }
+  return { packGaps, cloneGaps }
+}
+
 function walkFiles(dir, base = dir, acc = []) {
   let entries = []
   try {
@@ -359,7 +438,6 @@ function main() {
   const l2Only = []
   const l3Only = []
   const both = []
-  const localeGaps = []
 
   for (const row of [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path))) {
     const rel = row.path
@@ -385,26 +463,12 @@ function main() {
     else if (kind === 'l2-shadow') l2Only.push(entry)
     else if (kind === 'l3-shadow') l3Only.push(entry)
     else both.push(entry)
-
-    if (isLocaleJson(rel) && row.status !== 'D' && l3hits.length) {
-      const oldObj = gitShowJson(gitRoot, base, rel)
-      const newObj = head
-        ? gitShowJson(gitRoot, head, rel)
-        : readJsonFile(path.join(l1Web, rel))
-      if (!newObj) continue
-      const added = addedLocaleKeys(oldObj, newObj)
-      if (!added.length) continue
-      for (const slug of l3hits) {
-        const overlayObj = readJsonFile(path.join(cloneWebRoot(kingdom, slug), rel))
-        if (!overlayObj) continue
-        const overlayKeys = new Set(flattenKeys(overlayObj))
-        const missing = added.filter((k) => !overlayKeys.has(k))
-        if (missing.length) {
-          localeGaps.push({ path: rel, clone: slug, missing })
-        }
-      }
-    }
   }
+
+  // Standing whole-file locale audit — packs AND clones, regardless of the L1
+  // diff (replaces the old diff-triggered clone-only locale-key-gap check).
+  const { packGaps, cloneGaps } = standingLocaleAudit(kingdom, packs, clones, l1Web)
+  const localeGaps = cloneGaps
 
   const policy = []
   for (const slug of clones) {
@@ -437,6 +501,7 @@ function main() {
       l3_shadow: l3Only.length,
       both: both.length,
       locale_key_gap: localeGaps.length,
+      pack_locale_key_gap: packGaps.length,
       policy_violation: policy.length,
     },
     unshadowed,
@@ -444,6 +509,7 @@ function main() {
     l3_shadow: l3Only,
     both,
     locale_key_gap: localeGaps,
+    pack_locale_key_gap: packGaps,
     policy_violation: policy,
     next: 'Human: port | delete | lift | leave. Do not copy L1 onto L2/L3.',
   }
@@ -459,7 +525,12 @@ function main() {
   if ((failAny || args.failOn.has('shadow')) && (l2Only.length || l3Only.length || both.length)) {
     process.exit(2)
   }
-  if ((failAny || args.failOn.has('locale')) && localeGaps.length) process.exit(2)
+  if (
+    (failAny || args.failOn.has('locale')) &&
+    (localeGaps.length || packGaps.length)
+  ) {
+    process.exit(2)
+  }
   process.exit(0)
 }
 
@@ -471,7 +542,7 @@ function printHuman(report, verbose) {
   )
   console.log(`clones (ringdom-clones/): ${report.clones.join(', ') || '(none)'}`)
   console.log(
-    `unshadowed ${report.counts.unshadowed}  l2-shadow ${report.counts.l2_shadow}  l3-shadow ${report.counts.l3_shadow}  both ${report.counts.both}  locale-key-gap ${report.counts.locale_key_gap}  policy-violation ${report.counts.policy_violation}`,
+    `unshadowed ${report.counts.unshadowed}  l2-shadow ${report.counts.l2_shadow}  l3-shadow ${report.counts.l3_shadow}  both ${report.counts.both}  locale-key-gap ${report.counts.locale_key_gap}  pack-locale-key-gap ${report.counts.pack_locale_key_gap}  policy-violation ${report.counts.policy_violation}`,
   )
   const dump = (title, rows, fmt) => {
     if (!rows.length) return
@@ -500,9 +571,14 @@ function printHuman(report, verbose) {
       `  ${r.status} ${r.path}\n      pack: ${r.packs.join(', ')}\n      clone: ${r.clones.join(', ')}\n      judgment: ${r.judgment}`,
   )
   dump(
-    'locale-key-gap',
+    'locale-key-gap (clone whole-file locale overlay missing L1 keys)',
     report.locale_key_gap,
     (r) => `  ${r.path}  clone=${r.clone}\n      missing: ${r.missing.join(', ')}`,
+  )
+  dump(
+    'pack-locale-key-gap (pack-owned whole-file locale overlay missing L1 keys)',
+    report.pack_locale_key_gap,
+    (r) => `  ${r.path}  pack=${r.pack}\n      missing: ${r.missing.join(', ')}`,
   )
   dump(
     'policy-violation (chrome on L3)',

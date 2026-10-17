@@ -21,5 +21,20 @@
   "a2hsCtaIos": "So geht’s",
   "iosInstallTitle": "Zum Home-Bildschirm",
   "iosInstallBody": "Tippen Sie auf Teilen, dann auf Zum Home-Bildschirm. Öffnen Sie das neue Symbol, um die App zu nutzen.",
-  "iosInstallDone": "Verstanden"
+  "iosInstallDone": "Verstanden",
+  "a2hsLine2ChromeIos": "Diese Seite in Safari öffnen, dann Teilen → Zum Home-Bildschirm.",
+  "a2hsCtaChromeIos": "In Safari öffnen",
+  "chromeIosTitle": "Über Safari hinzufügen",
+  "chromeIosBody": "Chrome auf dem iPhone kann keine Home-Bildschirm-App installieren. Öffnen Sie die Seite in Safari, tippen Sie auf Teilen und dann auf Zum Home-Bildschirm.",
+  "chromeIosDone": "Verstanden",
+  "funnelTitle": "Seitenvorhang",
+  "funnelShown": "Gezeigt",
+  "funnelResurfaced": "Erneut gezeigt",
+  "funnelCta": "Hinzugefügt",
+  "funnelNotToday": "Nicht heute",
+  "funnelNotForMe": "Nichts für mich",
+  "funnelScroll": "Weggescrollt",
+  "funnelPaid": "Bezahlt",
+  "funnelCredits": "Gutgeschriebene Credits",
+  "funnelPolicy": "Limit {max}/Tag · ausblenden {hours}h · {source}"
 }

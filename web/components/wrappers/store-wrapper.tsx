@@ -17,6 +17,8 @@ import VendorCTACard from '@/components/vendor/vendor-cta-card'
 import { StoreShareEarnCard } from '@/components/store/store-share-earn-card'
 import type { Locale } from '@/i18n/shared'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
+import { NICHE_FILTER_PARAMS } from '@/features/store/niche/niche-filters'
+import type { NicheFacet } from '@/features/store/niche/niche-facets'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
 
 // Static client imports (wallet/admin SSOT) — avoid next/dynamic default/named interop
@@ -45,6 +47,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
   const [isHydrated, setIsHydrated] = useState(false)
   // Current price range for catalog, bounds calculated remotely
   const [catalogPriceBounds, setCatalogPriceBounds] = useState<CatalogPriceBounds | null>(null)
+  const [nicheFacets, setNicheFacets] = useState<NicheFacet[] | null>(null)
 
   // ----------- React Transition -----------
   // REQUIRED for concurrent updates (React 18+) -- planned store-page-client upgrade will use React 19 features
@@ -86,13 +89,22 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
   useEffect(() => {
     if (!isHydrated || typeof window === 'undefined') return
     try {
-      const categories = new URLSearchParams(window.location.search).getAll('category')
+      const params = new URLSearchParams(window.location.search)
+      const categories = params.getAll('category')
       const slugs = categories.map((c) => c.trim()).filter(Boolean)
-      if (slugs.length === 0) return
+      const niche: Record<string, string> = {}
+      for (const key of NICHE_FILTER_PARAMS) {
+        const value = params.get(key)?.trim()
+        if (value) niche[key] = value
+      }
+      const priceMaxRaw = params.get('priceMax')
+      const priceMax = priceMaxRaw != null && priceMaxRaw !== '' ? Number(priceMaxRaw) : null
+      if (slugs.length === 0 && Object.keys(niche).length === 0 && !Number.isFinite(priceMax)) return
       setFilters((prev) => ({
         ...prev,
-        categories: slugs,
-        vendor: '',
+        ...(slugs.length ? { categories: slugs, vendor: '' } : {}),
+        ...(Object.keys(niche).length ? { niche } : {}),
+        ...(Number.isFinite(priceMax) ? { priceMax } : {}),
       }))
     } catch {
       // Malformed URL — ignore
@@ -128,6 +140,10 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
 
   // Main price-range update (from server/catalog query)
   // Only update if value materially changes (avoids extra renders)
+  const handleNicheFacetsUpdate = useCallback((facets: NicheFacet[] | null) => {
+    setNicheFacets(facets)
+  }, [])
+
   const handlePriceRangeUpdate = useCallback((bounds: CatalogPriceBounds) => {
     setCatalogPriceBounds((prev) => {
       if (
@@ -164,6 +180,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
   const childrenWithProps = React.cloneElement(children, {
     onCountsUpdate: handleCountsUpdate,
     onPriceRangeUpdate: handlePriceRangeUpdate,
+    onNicheFacetsUpdate: handleNicheFacetsUpdate,
     filters, // Pass filters for consistency/UI
   })
 
@@ -178,6 +195,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
         onFiltersApplied={handleFiltersChange}
         persistedFilters={filters}
         catalogPriceBounds={catalogPriceBounds}
+        nicheFacets={nicheFacets}
         // TODO: store-page-client might require context or additional props in future upgrade
       />
       <div className="mt-6 space-y-4">

@@ -159,11 +159,12 @@ export const AUDIENCE_CURATED_DOCS = {
       'discovery-mutation-sync',
       'payment-conductor',
       'wallet-conductor',
+      'news-kingdom',
     ],
     // firebase-full operators need Hosting + Cloud Scheduler cron guidance
     backend: ['firebase'],
-    // AI remote ops — dual-audience manuals founders need for clone control
-    development: ['ring-mcp'],
+    // AI remote ops + OSS/settler decision — dual-audience manuals founders need for clone control
+    development: ['ring-mcp', 'oss-vs-enterprise'],
   },
 
   // ---------------------------------------------------------------

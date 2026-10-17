@@ -22,6 +22,8 @@ import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
 import ProductImageGallery from '@/components/store/product-image-gallery'
 import ProductVariantSelector from '@/components/store/product-variant-selector'
 import AddToCartButton from '@/components/store/add-to-cart-button'
+import NicheProductDetailSection from '@/components/store/niche-product-detail-section'
+import { nicheSuppressesCart } from '@/features/store/niche/niche-commerce'
 import ProductReviews from '@/components/store/product-reviews'
 import RelatedProductsCarousel from '@/components/store/related-products-carousel'
 import ProductSellerInfoCard from '@/components/store/product-seller-info-card'
@@ -165,7 +167,7 @@ export default function ProductDetailsClient({
       ? galleryImages
       : legacyImages.length > 0
         ? legacyImages
-        : [{ url: '/placeholder-product.png', alt: product.name || 'Product' }]
+        : [{ url: '/placeholder-product.svg', alt: product.name || 'Product' }]
 
   const handleAddToCart = useCallback(
     async (quantity: number) => {
@@ -253,6 +255,7 @@ export default function ProductDetailsClient({
             />
           )}
 
+          {nicheSuppressesCart(product) ? null : (
           <AddToCartButton
             productId={product.id}
             productName={product.name}
@@ -263,6 +266,7 @@ export default function ProductDetailsClient({
             onAddToCart={handleAddToCart}
             showQuantitySelector={true}
           />
+          )}
 
           <button
             type="button"
@@ -273,6 +277,8 @@ export default function ProductDetailsClient({
             {isFavorite ? t('favorites.savedToFavorites') : t('favorites.saveToFavorites')}
           </button>
 
+          {/* Shipping / payment reassurance only makes sense when the product can be bought here. */}
+          {nicheSuppressesCart(product) ? null : (
           <div className="grid grid-cols-3 gap-4 border-t pt-6">
             <div className="text-center">
               <Package className="mx-auto mb-2 h-8 w-8 text-primary" />
@@ -287,6 +293,7 @@ export default function ProductDetailsClient({
               <div className="text-xs font-medium">{t('securePayment')}</div>
             </div>
           </div>
+          )}
 
           {product.vendorName ? (
             <div className="rounded-lg border bg-muted/50 p-4">
@@ -298,6 +305,9 @@ export default function ProductDetailsClient({
           ) : null}
         </div>
       </div>
+
+      {/* Full-width pack block (vehicle listing info, etc.). Renders nothing on bare Layer1. */}
+      <NicheProductDetailSection product={product} />
 
       {product.specifications && Object.keys(product.specifications).length > 0 ? (
         <div className="mb-12">

@@ -39,8 +39,16 @@ export function applyNotForMe(prev: CurtainOfferPref | undefined): CurtainOfferP
   return { ...prev, suppress: 'forever', until: undefined }
 }
 
-export function applyNotToday(prev: CurtainOfferPref | undefined, now = Date.now()): CurtainOfferPref {
-  return { ...prev, suppress: 'until', until: now + CURTAIN_NOT_TODAY_MS }
+export function applyNotToday(
+  prev: CurtainOfferPref | undefined,
+  now = Date.now(),
+  notTodayHours?: number,
+): CurtainOfferPref {
+  const ms =
+    notTodayHours != null && Number.isFinite(notTodayHours) && notTodayHours > 0
+      ? notTodayHours * 60 * 60 * 1000
+      : CURTAIN_NOT_TODAY_MS
+  return { ...prev, suppress: 'until', until: now + ms }
 }
 
 export function recordImpression(prev: CurtainOfferPref | undefined, now = Date.now()): CurtainOfferPref {

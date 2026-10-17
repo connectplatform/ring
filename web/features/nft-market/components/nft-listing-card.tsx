@@ -34,7 +34,7 @@ export function NftListingCard({
   compact?: boolean
 }) {
   const href = ROUTES.NFT_MARKET_LISTING(listing.id, locale)
-  const image = listing.imageUri || '/placeholder-product.png'
+  const image = listing.imageUri || '/placeholder-product.svg'
 
   return (
     <Link

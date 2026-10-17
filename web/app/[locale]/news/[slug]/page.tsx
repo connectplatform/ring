@@ -86,11 +86,15 @@ async function getArticleBySlug(slug: string): Promise<NewsArticle | null> {
       pagination: { limit: 1 },
     });
 
-    if (!result.success || result.data.length === 0) {
-      return null;
+    if (result.success && result.data.length > 0) {
+      return mapNewsDocument(result.data[0]);
     }
-    // Map database document to NewsArticle type
-    return mapNewsDocument(result.data[0]);
+
+    const byId = await db().findDocById('news', slug);
+    if (byId.success && byId.data) {
+      return mapNewsDocument(byId.data);
+    }
+    return null;
   } catch (error) {
     console.error('Error fetching article:', error);
     return null;
@@ -373,7 +377,7 @@ export default async function NewsArticlePage(
         Main Page Wrapper: handles context & analytics (see NewsArticleWrapper) 
         TODO: In future, migrate context to React 19 context-provider server pattern if breaking changes land. 
       */}
-      <CurtainPageProvider authorUserId={article.authorId} pageKind="news">
+      <CurtainPageProvider authorUserId={article.authorId} newsArticleId={article.id} pageKind="news">
       <NewsArticleWrapper
         locale={locale as Locale}
         articleSlug={slug}

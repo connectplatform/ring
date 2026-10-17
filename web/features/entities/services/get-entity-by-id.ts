@@ -7,7 +7,12 @@ import {
   isEntityGloballyBlocked,
 } from '@/features/entities/lib/entity-visibility-filter'
 import { auth } from '@/auth'
-import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
+import {
+  UserRolesArray,
+  assertKnownUserRole,
+  isPlatformAdmin,
+  resolveSessionUserRole,
+} from '@/features/auth/user-role'
 
 export class EntityNotFoundError extends Error {
   constructor(id: string) {
@@ -26,12 +31,9 @@ export class EntityAccessDeniedError extends Error {
 export const getEntityById = cache(async (id: string): Promise<Entity | null> => {
   try {
     const session = await auth()
-
-    if (!session || !session.user) {
-      throw new EntityAccessDeniedError('Authentication required')
-    }
-
-    const userRole = assertKnownUserRole(session.user.role)
+    const userRole = session?.user
+      ? assertKnownUserRole(resolveSessionUserRole(session.user.role))
+      : UserRolesArray.visitor
 
     const result = await db().findDocById<Entity & { id: string }>('entities', id)
 
@@ -42,12 +44,15 @@ export const getEntityById = cache(async (id: string): Promise<Entity | null> =>
     const entity = result.data as Entity
 
     if (!canViewEntity(entity, { userRole })) {
+      if (!session?.user) {
+        throw new EntityAccessDeniedError('Authentication required')
+      }
       throw new EntityAccessDeniedError('Insufficient permissions to view this entity')
     }
 
     const serialized = mapDbRowToSerializedEntity(id, entity as unknown as Record<string, unknown>)
     const isAdmin = isPlatformAdmin(userRole)
-    const isOwner = entity.addedBy === session.user.id
+    const isOwner = Boolean(session?.user?.id && entity.addedBy === session.user.id)
 
     if (isEntityGloballyBlocked(serialized) && !isAdmin && !isOwner) {
       throw new EntityAccessDeniedError('This entity is not available')

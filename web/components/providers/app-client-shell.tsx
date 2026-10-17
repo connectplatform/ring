@@ -23,6 +23,13 @@ import GoogleOneTap from '@/features/auth/components/google-one-tap'
 import { Toaster } from '@/components/ui/toaster'
 import { RingAnalyticsBeacon } from '@/components/providers/ring-analytics-beacon'
 import { MediaUseTargetProvider } from '@/features/generative-media/media-use-target'
+import StoreScreen from '@/app/[locale]/store/store-screen'
+
+/**
+ * Live binding so Turbopack keeps the store screen in this module's chunk
+ * graph. The first click to /store then reads `default` off an evaluated module.
+ */
+void StoreScreen
 
 /** Static whitelabel defaults for Suspense fallback — from ring-config snapshot. */
 const APP_SHELL_STATIC_INSTANCE_CONFIG: PublicInstanceConfig =

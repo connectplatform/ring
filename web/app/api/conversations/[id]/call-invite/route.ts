@@ -75,6 +75,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { claimed } = await setNxPx(inviteKey, INVITE_TTL_MS)
     const already = !claimed
 
+    // Pending-invite replay registry (Redis, TTL 60s) — written on EVERY publish
+    // (refresh on caller retry) so late tunnel subscribers / deep-links can GET it.
+    try {
+      const { setCallPending } = await import('@/lib/redis/call-pending')
+      await setCallPending(parsed.peerUserId, payload)
+    } catch {
+      /* non-fatal — live fan-out already sent */
+    }
+
     // Re-publish invite on retry so late joiners still hear the ring; skip duplicate system line.
     await publishToChannel(`conversation:${conversationId}`, 'call:invite', payload)
     const tunnelDelivery = await publishToUserTunnel(

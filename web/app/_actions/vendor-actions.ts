@@ -41,6 +41,8 @@ import type {
   VendorStorePromotions,
 } from '@/features/store/types/promotions'
 import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
+import { parseNicheProductFields } from '@/features/store/niche/parse-niche-fields'
+import { getProductFieldsPreset } from '@/lib/ring-config-core'
 import { createProductNodusWikiFromDraft } from '@/features/store/lib/product-nodus-wiki'
 
 function parseProductPromotionsFromForm(formData: FormData): ProductPromotion[] {
@@ -606,10 +608,17 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
         ? { productResearchMedia: researchForm.researchMedia }
         : {}),
       tags: [],
-      agriculturalData,
-      certifications,
-      sustainabilityMetrics,
-      freshness,
+      ...(getProductFieldsPreset() === 'agricultural'
+        ? { agriculturalData, certifications, sustainabilityMetrics, freshness }
+        : {}),
+      ...(() => {
+        const niche = parseNicheProductFields(formData)
+        if (!niche.nicheData || Object.keys(niche.nicheData).length === 0) return {}
+        return {
+          nichePreset: niche.nichePreset || getProductFieldsPreset(),
+          nicheData: niche.nicheData,
+        }
+      })(),
       tokenEconomy,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -890,10 +899,25 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       videoUrl,
       ...(generativeGallery ? { generativeGallery } : {}),
       activeInVendorStore: activeInMyStore,
-      agriculturalData,
-      certifications,
-      sustainabilityMetrics,
-      freshness,
+      ...(getProductFieldsPreset() === 'agricultural'
+        ? { agriculturalData, certifications, sustainabilityMetrics, freshness }
+        : {}),
+      ...(() => {
+        const existingNiche = {
+          nichePreset:
+            (existingProduct as { nichePreset?: string }).nichePreset ??
+            (existingProduct.data as { nichePreset?: string } | undefined)?.nichePreset,
+          nicheData:
+            (existingProduct as { nicheData?: Record<string, unknown> }).nicheData ??
+            (existingProduct.data as { nicheData?: Record<string, unknown> } | undefined)?.nicheData,
+        }
+        const niche = parseNicheProductFields(formData, existingNiche)
+        if (!niche.nicheData || Object.keys(niche.nicheData).length === 0) return {}
+        return {
+          nichePreset: niche.nichePreset || existingNiche.nichePreset || getProductFieldsPreset(),
+          nicheData: niche.nicheData,
+        }
+      })(),
       tokenEconomy,
       promotions: parseProductPromotionsFromForm(formData),
       ...curtainAdvertiseWriteFields(formData),

@@ -173,7 +173,8 @@ const AdvancedFilters = ({
     filters.budgetMax ||
     (filters.priority && filters.priority !== 'all') ||
     (filters.deadline && filters.deadline !== 'all') ||
-    filters.entityVerified !== null ||
+    // TBD: entityVerified disabled until a real entity-verification join exists.
+    // filters.entityVerified !== null ||
     filters.hasDeadline !== null
 
   return (

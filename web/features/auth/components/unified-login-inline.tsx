@@ -78,7 +78,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
   )
 
   const terms = (
-    <p className={`text-xs text-center text-muted-foreground ${variant === 'hero' ? 'mt-6' : 'mt-4'}`}>
+    <p className={`text-xs text-center text-muted-foreground ${variant === 'hero' ? 'mt-6' : 'mt-3'}`}>
       {tAuth('signIn.disclaimerPrefix')}{' '}
       <a href="/terms" className="text-blue-600 hover:underline">
         {tAuth('signIn.termsOfUse')}
@@ -102,15 +102,15 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
         </div>
       )}
 
-      <div className={variant === 'hero' ? 'space-y-4' : 'space-y-3'}>
+      <div className={variant === 'hero' ? 'space-y-4' : 'space-y-2'}>
         {socialBlock(variant !== 'hero')}
 
-        <div className={`relative ${variant === 'hero' ? 'my-6' : 'my-4'}`}>
+        <div className={`relative ${variant === 'hero' ? 'my-6' : 'my-2'}`}>
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-muted" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-background px-3 text-muted-foreground">OR</span>
+            <span className="bg-transparent px-3 text-muted-foreground">OR</span>
           </div>
         </div>
 

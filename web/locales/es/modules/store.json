@@ -143,7 +143,9 @@
     "empty": "Aún no hay favoritos",
     "browseStore": "Explorar tienda",
     "save": "A la lista de seguimiento",
-    "remove": "Eliminar de la lista de seguimiento"
+    "remove": "Eliminar de la lista de seguimiento",
+    "saveToFavorites": "Guardar en favoritos",
+    "savedToFavorites": "Guardado en favoritos"
   },
   "filters": {
     "searchLabel": "Buscar productos",
@@ -382,5 +384,6 @@
     "noCurrencies": "Sin monedas"
   },
   "loading": "Cargando más productos…",
-  "shareEarnHint": "Invita a otros y gana recompensas de referral"
+  "shareEarnHint": "Invita a otros y gana recompensas de referral",
+  "fastDelivery": "Entrega rápida"
 }

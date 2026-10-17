@@ -8,10 +8,9 @@
 import { cache } from 'react'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import { mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
-import { UserRolesArray, assertKnownUserRole } from '@/features/auth/user-role'
+import { UserRolesArray, assertKnownUserRole, resolveSessionUserRole } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import {
-  OpportunityAuthError,
   OpportunityPermissionError,
   OpportunityQueryError,
   OpportunityDatabaseError,
@@ -41,12 +40,15 @@ export const getOpportunitiesForRole = cache(async (
   const { userRole, limit = 20, startAfter, viewerUserId, viewerRole } = params
 
   try {
-    assertKnownUserRole(userRole)
+    const resolvedRole =
+      userRole === UserRolesArray.visitor
+        ? UserRolesArray.visitor
+        : assertKnownUserRole(userRole)
 
     const hiddenIds = viewerUserId ? await getViewerHiddenOpportunityIds(viewerUserId) : []
     const filters = buildOpportunityListFilters({
       ...params,
-      userRole,
+      userRole: resolvedRole,
       hiddenIds,
     })
     await applyOpportunityDateCursor(filters, startAfter)
@@ -65,9 +67,20 @@ export const getOpportunitiesForRole = cache(async (
       }
     }
 
-    const opportunities = await attachOpportunityFeedFields(mapped, {
+    const visibleMapped =
+      resolvedRole === UserRolesArray.visitor
+        ? mapped.filter(
+            (item) =>
+              item.isConfidential !== true &&
+              (item.visibility === 'public' ||
+                item.visibility === undefined ||
+                item.visibility === null),
+          )
+        : mapped
+
+    const opportunities = await attachOpportunityFeedFields(visibleMapped, {
       viewerUserId,
-      viewerRole: viewerRole ?? userRole,
+      viewerRole: viewerRole ?? resolvedRole,
     })
 
     const { nextCursor: lastVisible } = computePaginationCursor(
@@ -110,22 +123,15 @@ export const getOpportunities = cache(async (
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   const session = await auth()
 
-  if (!session || !session.user) {
-    throw new OpportunityAuthError('Unauthorized access', undefined, {
-      timestamp: Date.now(),
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      operation: 'getOpportunities',
-    })
-  }
-
-  const userRole = assertKnownUserRole(session.user.role) as UserRolesArray
+  const userRole = session?.user
+    ? (resolveSessionUserRole(session.user.role) as UserRolesArray)
+    : UserRolesArray.visitor
 
   return getOpportunitiesForRole({
     userRole,
     limit,
     startAfter,
-    viewerUserId: session.user.id,
-    viewerRole: session.user.role,
+    viewerUserId: session?.user?.id,
+    viewerRole: session?.user?.role ?? UserRolesArray.visitor,
   })
 })

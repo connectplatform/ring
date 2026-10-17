@@ -3,7 +3,11 @@
 import { cache } from 'react'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import { mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
-import { UserRolesArray, assertKnownUserRole, InvalidUserRoleError } from '@/features/auth/user-role'
+import {
+  UserRolesArray,
+  InvalidUserRoleError,
+  resolveSessionUserRole,
+} from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { getMcpActor } from '@/lib/auth/mcp-actor-context'
 import { getMainCurrencySymbol } from '@/lib/ring-config-core'
@@ -22,6 +26,7 @@ import type { OpportunityListQuery } from '@/features/opportunities/lib/opportun
 
 export type SearchOpportunitiesParams = OpportunityListQuery & {
   userId?: string
+  userRole?: UserRolesArray
   entityVerified?: boolean
 }
 
@@ -53,16 +58,12 @@ export const searchOpportunities = cache(async (
   try {
     const session = await auth()
     const mcpActor = getMcpActor()
-
-    if (!session?.user && !mcpActor) {
-      throw new OpportunityAuthError('Authentication required', undefined, {
-        timestamp: Date.now(),
-        operation: 'searchOpportunities',
-      })
-    }
-
-    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role) as UserRolesArray
-    const userId = session?.user?.id ?? mcpActor?.id
+    const rawRole = params.userRole ?? session?.user?.role ?? mcpActor?.role
+    const userRole: UserRolesArray =
+      !rawRole || rawRole === UserRolesArray.visitor
+        ? UserRolesArray.visitor
+        : (resolveSessionUserRole(rawRole) as UserRolesArray)
+    const userId = params.userId ?? session?.user?.id ?? mcpActor?.id
     const limit = params.limit || 20
 
     const hiddenIds = userId ? await getViewerHiddenOpportunityIds(userId) : []
@@ -83,9 +84,19 @@ export const searchOpportunities = cache(async (
     let opportunities: SerializedOpportunity[] = []
     if (queryResult.success && queryResult.data) {
       const mapped = queryResult.data.map((item) => mapDbDocumentToSerializedOpportunity(item))
-      opportunities = await attachOpportunityFeedFields(mapped, {
+      const visibleMapped =
+        userRole === UserRolesArray.visitor
+          ? mapped.filter(
+              (item) =>
+                item.isConfidential !== true &&
+                (item.visibility === 'public' ||
+                  item.visibility === undefined ||
+                  item.visibility === null),
+            )
+          : mapped
+      opportunities = await attachOpportunityFeedFields(visibleMapped, {
         viewerUserId: userId,
-        viewerRole: session?.user?.role ?? mcpActor?.role,
+        viewerRole: session?.user?.role ?? mcpActor?.role ?? userRole,
       })
     }
 

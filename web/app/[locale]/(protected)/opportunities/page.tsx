@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
+import type { Session } from 'next-auth'
 import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { connection } from 'next/server'
-import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
+import { SessionProvider } from '@/features/auth/components/session-provider'
+import { resolveSessionUserRole, UserRolesArray } from '@/features/auth/user-role'
 import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
-import { ROUTES } from '@/constants/routes'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import type { LocalePageProps } from '@/utils/page-props'
@@ -70,13 +71,11 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
     ? (params.locale as Locale)
     : (routing.defaultLocale as Locale)
 
-  // Authenticate the user via the Next.js custom auth logic
-  // If not authenticated, perform SSR server redirect to login page
+  // Resolve optional user session (public visitors default to 'visitor' role)
   const session = await auth()
-  if (!session?.user) {
-    // Redirect user to login, with callback to bring them back to opportunities after login
-    redirect(`${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(ROUTES.OPPORTUNITIES(locale))}`)
-  }
+  const userRole = session?.user
+    ? resolveSessionUserRole(session.user.role)
+    : UserRolesArray.visitor
 
   // Parse pagination and filtering variables from query params (safe defaults)
   const limit = Number(searchParams.limit ?? '20')
@@ -96,9 +95,21 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
       '@/features/opportunities/lib/opportunity-search-params'
     )
 
-    const parsed = parseOpportunityListQuery(searchParams as Record<string, unknown>)
+    const normalizedSearchParams: Record<string, unknown> = {
+      ...(searchParams as Record<string, unknown>),
+    }
+    if (!normalizedSearchParams.types && normalizedSearchParams.type) {
+      normalizedSearchParams.types = normalizedSearchParams.type
+    }
+    if (!normalizedSearchParams.categories && normalizedSearchParams.category) {
+      normalizedSearchParams.categories = normalizedSearchParams.category
+    }
+
+    const parsed = parseOpportunityListQuery(normalizedSearchParams)
     const result = await searchOpportunities({
       ...parsed,
+      userRole,
+      userId: session?.user?.id,
       limit,
       startAfter,
     })
@@ -111,17 +122,22 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
     initialError = 'Failed to load opportunities. Please try again.'
   }
 
+  const effectiveClientSession =
+    session ?? ({ expires: '2099-01-01T00:00:00.000Z' } as Session)
+
   // Render OpportunitiesWrapper as a server/async component
   // TODO: Migrate OpportunitiesWrapper to use React 19's streaming (e.g. Loading.js for skeleton), if large lists
   // TODO: With Next 16, opportunities queries can be inside a <Suspense> boundary for streaming UI.
   return (
-    <OpportunitiesWrapper
-      locale={locale}
-      searchParams={searchParams}
-      initialOpportunities={initialOpportunities}
-      initialError={initialError}
-      lastVisible={lastVisible}
-      initialLimit={limit}
-    />
+    <SessionProvider session={effectiveClientSession}>
+      <OpportunitiesWrapper
+        locale={locale}
+        searchParams={searchParams}
+        initialOpportunities={initialOpportunities}
+        initialError={initialError}
+        lastVisible={lastVisible}
+        initialLimit={limit}
+      />
+    </SessionProvider>
   )
 }

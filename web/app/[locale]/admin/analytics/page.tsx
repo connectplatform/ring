@@ -10,7 +10,7 @@ import AdminWrapper from '@/components/wrappers/admin-wrapper'
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
 import { connection } from 'next/server'
 import { isPlatformAdmin } from '@/features/auth/user-role'
-import { getRingSeoBranding } from '@/lib/ring-config-core'
+import { getCurtainPolicy, getRingSeoBranding } from '@/lib/ring-config-core'
 import { getPlatformAnalytics } from '@/features/analytics/services/get-platform-analytics'
 import AdminAnalyticsClient from './admin-analytics-client'
 
@@ -127,6 +127,15 @@ export default async function AdminAnalyticsPage({
   // TODO: Make date ranges dynamic (e.g., from query parameters, user controls).
   // TODO: Utilize Next 16 native fetch caching (see: https://nextjs.org/docs/app/api-reference/fetch/caching)
   const analytics = await getPlatformAnalytics('7d')
+  const { getCurtainFunnel } = await import('@/features/analytics/lib/curtain-analytics')
+  const curtainFunnel = await getCurtainFunnel({ timeframe: '7d' })
+  const curtainPolicy = getCurtainPolicy()
+  const curtainT = await getTranslations('modules.curtain')
+  const curtainPolicyLabel = curtainT('funnelPolicy', {
+    max: curtainPolicy.maxImpressionsPerDay,
+    hours: curtainPolicy.notTodayHours,
+    source: curtainPolicy.productSource,
+  })
 
   // Render page shell with SSR-provided analytics and labels
   return (
@@ -135,6 +144,8 @@ export default async function AdminAnalyticsPage({
         projectName={projectName}
         data={analytics}
         labels={adminLabels}
+        curtainFunnel={curtainFunnel}
+        curtainPolicyLabel={curtainPolicyLabel}
       />
     </AdminWrapper>
   )

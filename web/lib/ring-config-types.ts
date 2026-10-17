@@ -459,6 +459,8 @@ export interface MemberTierConfig {
   currency: string               // 3-char ISO currency (e.g., USD)
   description: string            // Short description for tier
   duration: string               // Validity period (e.g. 'monthly', 'yearly')
+  /** When false, `amount` is the fiat price. When omitted or true, amount is derived from the native-token fee. */
+  pricedInNativeToken?: boolean
 }
 // Confidential tier definition for confidential users
 export interface ConfidentialTierConfig {
@@ -708,6 +710,11 @@ export interface RingConfig {
     cdn?: string                     // CDN/perf assets
     /** Secondary media origin (e.g. Vikka archive.vikka.ua) for next/image. */
     cdnFallback?: string
+    /**
+     * Extra hostnames next/image may load from (inventory feeds, partner CDNs).
+     * Read at build/boot by next.config.mjs; a running image cannot widen the list.
+     */
+    imageHosts?: string[]
     api?: string                     // API host/root
     // TODO: Refactor to domain[] array for future multi-env support.
   }
@@ -980,6 +987,16 @@ export interface RingConfig {
    * Stake SSOT: GateEscrow PDA (not NATIVE_NFT_APR product vault).
    */
   nft?: NftGateConfig
+  /**
+   * Page curtain (A2HS + product ads).
+   * SSOT: ring-config.template.json → `curtain`, overridable per clone.
+   */
+  curtain?: {
+    enabled?: boolean
+    productSource?: 'page_then_pool' | 'page_only' | 'pool_only'
+    maxImpressionsPerDay?: number
+    notTodayHours?: number
+  }
   /** Store settings — configurable options for store checkout behavior. */
   store?: {
     storeCategories?: ProductFieldsPreset[]

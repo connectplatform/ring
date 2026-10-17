@@ -61,6 +61,8 @@ export interface CreateSubscriptionResult {
   paymentFields?: Record<string, string | string[]>
   /** On-chain transaction signature. */
   txSignature?: string
+  /** Stripe PaymentIntent client secret for an incomplete subscription. */
+  clientSecret?: string
   error?: string
 }
 

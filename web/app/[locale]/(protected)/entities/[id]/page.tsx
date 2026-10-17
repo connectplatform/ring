@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import type { Session } from 'next-auth'
 import { getSiteBaseUrl } from '@/lib/ring-config-core'
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
 import { auth } from "@/auth"
+import { SessionProvider } from '@/features/auth/components/session-provider'
 import { ROUTES } from '@/constants/routes'
 import { SerializedEntity } from '@/features/entities/types'
 import EntityDetailsWrapper from '@/components/wrappers/entity-details-wrapper'
@@ -30,14 +32,37 @@ async function getEntity(id: string): Promise<SerializedEntity> {
   try {
     // Use the unified service with proper authentication and error handling
     const { getSerializedEntityById, EntityNotFoundError, EntityAccessDeniedError } = await import('@/features/entities/services/get-entity-by-id')
-    
-    const entity = await getSerializedEntityById(id)
-    
-    if (!entity) {
+    const session = await auth()
+
+    if (session?.user) {
+      const entity = await getSerializedEntityById(id)
+      if (!entity) {
+        throw new EntityNotFoundError(id)
+      }
+      return entity
+    }
+
+    const { db } = await import('@/lib/database')
+    const { mapDbRowToSerializedEntity } = await import('@/features/entities/lib/entity-db-mapper')
+    const { isEntityGloballyBlocked } = await import('@/features/entities/lib/entity-visibility-filter')
+    const result = await db().findDocById<Record<string, unknown>>('entities', id)
+
+    if (!result.success || !result.data) {
       throw new EntityNotFoundError(id)
     }
 
-    return entity
+    const serialized = mapDbRowToSerializedEntity(id, result.data)
+    if (
+      serialized.isConfidential ||
+      (serialized.visibility && serialized.visibility !== 'public')
+    ) {
+      throw new EntityAccessDeniedError('Authentication required')
+    }
+    if (isEntityGloballyBlocked(serialized)) {
+      throw new EntityAccessDeniedError('This entity is not available')
+    }
+
+    return serialized
   } catch (error) {
     // Re-throw structured errors as-is
     if (error instanceof Error && (error.name === 'EntityNotFoundError' || error.name === 'EntityAccessDeniedError')) {
@@ -113,6 +138,7 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
 
   let entity: SerializedEntity | null = null
   let error: string | null = null
+  const session = await auth()
 
   try {
     entity = await getEntity(id)
@@ -120,7 +146,7 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
     if (e instanceof Error) {
       if (e.name === 'EntityAccessDeniedError') {
         if (e.message.includes('Authentication required')) {
-          redirect(ROUTES.LOGIN(validLocale))
+          redirect(`${ROUTES.LOGIN(validLocale)}?callbackUrl=${encodeURIComponent(ROUTES.ENTITY(id, validLocale))}`)
         } else {
           redirect(ROUTES.UNAUTHORIZED(validLocale))
         }
@@ -137,6 +163,8 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
   // Ready to render
 
   const baseUrl = getSiteBaseUrl()
+  const effectiveClientSession =
+    session ?? ({ expires: '2099-01-01T00:00:00.000Z' } as Session)
 
   return (
     <>
@@ -171,13 +199,15 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       }>
-        <EntityDetailsWrapper
-          initialEntity={entity}
-          initialError={error}
-          params={params}
-          searchParams={searchParams}
-          locale={validLocale}
-        />
+        <SessionProvider session={effectiveClientSession}>
+          <EntityDetailsWrapper
+            initialEntity={entity}
+            initialError={error}
+            params={params}
+            searchParams={searchParams}
+            locale={validLocale}
+          />
+        </SessionProvider>
       </Suspense>
     </>
   )

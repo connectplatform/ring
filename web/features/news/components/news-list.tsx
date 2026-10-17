@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCursorFeed } from '@/hooks/use-cursor-feed';
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint';
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response';
@@ -30,6 +31,7 @@ export function NewsList({
   className = '',
   locale = 'en'
 }: NewsListProps) {
+  const t = useTranslations('modules.news');
   const [, startTransition] = useTransition();
 
   const [filters, setFilters] = React.useState<NewsFilters>({
@@ -134,7 +136,7 @@ export function NewsList({
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search news articles..."
+                  placeholder={t('filters.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -156,13 +158,13 @@ export function NewsList({
                 }
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder={t('allCategories')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">{t('allCategories')}</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      {category.icon} {category.name}
+                      {category.icon} {t.has(`categories.${category.id}` as 'categories.other') ? t(`categories.${category.id}` as 'categories.other') : category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -173,13 +175,13 @@ export function NewsList({
                 onValueChange={(value) => handleFilterChange('sortBy', value)}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Sort by" />
+                  <SelectValue placeholder={t('filters.sortBy')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="publishedAt">Latest</SelectItem>
-                  <SelectItem value="views">Most Viewed</SelectItem>
-                  <SelectItem value="likes">Most Liked</SelectItem>
-                  <SelectItem value="createdAt">Recently Added</SelectItem>
+                  <SelectItem value="publishedAt">{t('filters.latest')}</SelectItem>
+                  <SelectItem value="views">{t('filters.mostViewed')}</SelectItem>
+                  <SelectItem value="likes">{t('filters.mostLiked')}</SelectItem>
+                  <SelectItem value="createdAt">{t('filters.recentlyAdded')}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -189,7 +191,7 @@ export function NewsList({
                 className={filters.featured ? 'bg-primary text-primary-foreground' : ''}
               >
                 <Filter className="h-4 w-4 mr-2" />
-                Featured Only
+                {t('filters.featuredOnly')}
               </Button>
             </div>
           )}
@@ -205,7 +207,7 @@ export function NewsList({
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">
-            {loading ? 'Loading articles...' : 'No articles found.'}
+            {loading ? t('filters.loadingArticles') : t('noArticles')}
           </p>
         </div>
       )}

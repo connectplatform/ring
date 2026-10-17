@@ -50,6 +50,28 @@ export function maskAnonymousOpportunity<T extends SerializedOpportunity>(
   } as T
 }
 
+/**
+ * Tunnel update payload. Omits identity keys so a spread cannot blank the
+ * owner's row. API reads still use maskAnonymousOpportunity (empty strings).
+ */
+export function toPublicDiscoverySnippet(
+  row: SerializedOpportunity,
+): Record<string, unknown> {
+  if (!isAnonymousPosterRow(row)) {
+    const { viewer: _viewer, ...rest } = row
+    return rest as unknown as Record<string, unknown>
+  }
+  const {
+    creator: _creator,
+    createdBy: _createdBy,
+    organizationId: _organizationId,
+    contactInfo: _contactInfo,
+    viewer: _viewer,
+    ...rest
+  } = row
+  return { ...rest, anonymousPoster: true }
+}
+
 export function canSetAnonymousPoster(
   role: string | null | undefined,
   visibility: string | null | undefined,

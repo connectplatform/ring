@@ -14,7 +14,7 @@
  * • Touch-optimized
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, ShoppingCart, Star, TrendingUp } from 'lucide-react'
@@ -53,41 +53,50 @@ export default function RelatedProductsCarousel({
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  // Start false on the server and the hydration render. Measuring scrollWidth
+  // from the ref during render diverges once the client node exists, and the
+  // Next button's disabled attribute hydrates as true vs null.
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
 
-  const canScrollLeft = scrollPosition > 0
-  const canScrollRight = scrollContainerRef.current 
-    ? scrollPosition < scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth
-    : false
+  const measureScroll = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    const max = container.scrollWidth - container.clientWidth
+    setScrollPosition(container.scrollLeft)
+    setCanScrollLeft(container.scrollLeft > 1)
+    setCanScrollRight(max > 1 && container.scrollLeft < max - 1)
+  }, [])
 
   const scroll = (direction: 'left' | 'right') => {
-    if (!scrollContainerRef.current) return
+    const container = scrollContainerRef.current
+    if (!container) return
 
     const scrollAmount = 300
-    const newPosition = direction === 'left' 
-      ? Math.max(0, scrollPosition - scrollAmount)
-      : Math.min(
-          scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth,
-          scrollPosition + scrollAmount
-        )
+    const max = container.scrollWidth - container.clientWidth
+    const newPosition = direction === 'left'
+      ? Math.max(0, container.scrollLeft - scrollAmount)
+      : Math.min(max, container.scrollLeft + scrollAmount)
 
-    scrollContainerRef.current.scrollTo({
+    container.scrollTo({
       left: newPosition,
       behavior: 'smooth'
     })
   }
 
-  // Update scroll position
   useEffect(() => {
+    measureScroll()
     const container = scrollContainerRef.current
     if (!container) return
 
-    const handleScroll = () => {
-      setScrollPosition(container.scrollLeft)
+    container.addEventListener('scroll', measureScroll, { passive: true })
+    const observer = new ResizeObserver(measureScroll)
+    observer.observe(container)
+    return () => {
+      container.removeEventListener('scroll', measureScroll)
+      observer.disconnect()
     }
-
-    container.addEventListener('scroll', handleScroll)
-    return () => container.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [measureScroll, products.length])
 
   // Mouse drag to scroll
   const handleMouseDown = (e: React.MouseEvent) => {

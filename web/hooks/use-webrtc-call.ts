@@ -70,6 +70,13 @@ export type UseWebRtcCallReturn = {
 
 const DISCONNECT_GRACE_MS = 8000
 
+/**
+ * Ring timeout — an unanswered outgoing call auto-ends after 45s and records
+ * event 'missed' (system line + call:cancel fan-out + pending-key clear).
+ * Mirrors ConnectPlatform ring-timeout UX; callee banner clears via the cancel.
+ */
+const RING_TIMEOUT_MS = 45_000
+
 export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallReturn {
   const {
     conversationId,
@@ -137,7 +144,7 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
   )
 
   const recordCallEnded = useCallback(
-    async (reason: 'ended' | 'rejected' | 'failed') => {
+    async (reason: 'ended' | 'rejected' | 'failed' | 'missed') => {
       const cid = conversationIdRef.current
       const call = callIdRef.current
       if (!cid || !call) return
@@ -190,6 +197,31 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
     setAudioEnabled(true)
     setVideoEnabled(true)
   }, [cleanupMedia])
+
+  /** Best-effort pending-invite clear (banner/deep-link replay idempotency). */
+  const clearPendingInviteKey = useCallback((cid: string | null) => {
+    if (!cid) return
+    void apiClient
+      .post('/api/calls/pending', { callId: cid })
+      .catch(() => {})
+  }, [])
+
+  /** Caller ring-timeout — no answer after RING_TIMEOUT_MS → missed + teardown. */
+  const timeoutMissed = useCallback(() => {
+    if (phaseRef.current !== 'outgoing') return
+    const cid = callIdRef.current
+    clearPendingInviteKey(cid)
+    void recordCallEnded('missed')
+    resetIdle()
+  }, [clearPendingInviteKey, recordCallEnded, resetIdle])
+
+  useEffect(() => {
+    if (phase !== 'outgoing') return
+    const t = window.setTimeout(() => timeoutMissed(), RING_TIMEOUT_MS)
+    return () => {
+      window.clearTimeout(t)
+    }
+  }, [phase, timeoutMissed])
 
   const flushPendingIce = useCallback(async (pc: RTCPeerConnection) => {
     if (!remoteDescSetRef.current) return
@@ -412,6 +444,9 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
         media: mediaRef.current,
       })
 
+      // Consume the pending replay key so reloads/deep-links don't resurrect it.
+      clearPendingInviteKey(callIdRef.current)
+
       if (pending) {
         await applyRemoteOffer(pc, pending)
       }
@@ -453,6 +488,7 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
       } catch {
         /* ignore */
       }
+      clearPendingInviteKey(cid)
       void recordCallEnded('rejected')
     }
     resetIdle()
@@ -589,7 +625,7 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
 
       if (payload.callId !== callIdRef.current) return
 
-      if (event === 'call:reject' || event === 'call:hangup') {
+      if (event === 'call:reject' || event === 'call:hangup' || event === 'call:cancel') {
         setPhase('ended')
         phaseRef.current = 'ended'
         window.setTimeout(() => resetIdle(), 800)

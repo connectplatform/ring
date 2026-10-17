@@ -8,6 +8,8 @@ import { MyNewsClient } from './my-news-client'
 import { logger } from '@/lib/logger'
 import { getSiteBaseUrl } from '@/lib/ring-config-core'
 import { getUserById } from '@/features/auth/services/get-user-by-id'
+import { CurtainFunnelCard } from '@/features/curtain/components/curtain-funnel-card'
+import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
 
 export async function generateMetadata({
   params,
@@ -71,7 +73,42 @@ export default async function MyNewsPage({ params }: { params: Promise<{ locale:
     username = username.replace(/^@/, '')
   }
 
+  const curtainT = await getTranslations('modules.curtain')
+  const { getCurtainFunnel } = await import('@/features/analytics/lib/curtain-analytics')
+  const curtainFunnel = await getCurtainFunnel({
+    timeframe: '7d',
+    authorUserId: session.user.id,
+  })
+  let curtainCredits = '0.00'
+  try {
+    const history = await creditBalanceService.getCreditHistory(session.user.id, { limit: 100 })
+    const total = history.transactions
+      .filter((row) => String(row.reference_id || '').startsWith('curtain_author:'))
+      .reduce((sum, row) => sum + Number(row.amount || 0), 0)
+    curtainCredits = total.toFixed(2)
+  } catch (error) {
+    logger.warn('MyNewsPage: curtain credit history skipped', { error })
+  }
+
   return (
+    <>
+    <div className="container mx-auto px-6 pt-6 max-w-6xl">
+      <CurtainFunnelCard
+        title={curtainT('funnelTitle')}
+        funnel={curtainFunnel}
+        credits={curtainCredits}
+        labels={{
+          shown: curtainT('funnelShown'),
+          resurfaced: curtainT('funnelResurfaced'),
+          cta: curtainT('funnelCta'),
+          notToday: curtainT('funnelNotToday'),
+          notForMe: curtainT('funnelNotForMe'),
+          scroll: curtainT('funnelScroll'),
+          paid: curtainT('funnelPaid'),
+          credits: curtainT('funnelCredits'),
+        }}
+      />
+    </div>
     <MyNewsClient
       userId={session.user.id}
       userName={session.user.name || 'Author'}
@@ -81,5 +118,6 @@ export default async function MyNewsPage({ params }: { params: Promise<{ locale:
       blogUsername={username || null}
       siteBaseUrl={getSiteBaseUrl()}
     />
+    </>
   )
 }

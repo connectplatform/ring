@@ -21,5 +21,20 @@
   "a2hsCtaIos": "Як додати",
   "iosInstallTitle": "На екран «Домівка»",
   "iosInstallBody": "Натисніть «Поділитися», потім «На екран Домівка». Відкрийте нову іконку, щоб користуватися застосунком.",
-  "iosInstallDone": "Зрозуміло"
+  "iosInstallDone": "Зрозуміло",
+  "a2hsLine2ChromeIos": "Відкрийте цю сторінку в Safari, потім Поділитися → На екран «Домівка».",
+  "a2hsCtaChromeIos": "Відкрити в Safari",
+  "chromeIosTitle": "Додайте через Safari",
+  "chromeIosBody": "Chrome на iPhone не встановлює вебзастосунок на домашній екран. Відкрийте сторінку в Safari, натисніть «Поділитися», потім «На екран Домівка».",
+  "chromeIosDone": "Зрозуміло",
+  "funnelTitle": "Фіранка сторінки",
+  "funnelShown": "Покази",
+  "funnelResurfaced": "Повторні покази",
+  "funnelCta": "Додано",
+  "funnelNotToday": "Не сьогодні",
+  "funnelNotForMe": "Не для мене",
+  "funnelScroll": "Прокрутили",
+  "funnelPaid": "Оплачено",
+  "funnelCredits": "Нараховані кредити",
+  "funnelPolicy": "Ліміт {max}/день · ховати {hours} год · {source}"
 }

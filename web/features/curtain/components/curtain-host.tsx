@@ -9,18 +9,21 @@ import { Button } from '@/components/ui/button'
 import { useOptionalStore } from '@/features/store/context'
 import { useCallSession } from '@/features/chat/providers/call-session-provider'
 import { usePeerGameBusy } from '@/features/peer-games/lib/peer-game-mutex'
-import { isIosSafari, isStandaloneDisplay } from '@/lib/browser/pwa-display'
-import { getClientMainCurrency } from '@/lib/ring-config-client'
+import { isIosBrowserTab, isIosSafari, isStandaloneDisplay } from '@/lib/browser/pwa-display'
+import { isTelegramMiniAppShell } from '@/lib/browser/telegram-webapp'
+import { getClientCurtainPolicy, getClientMainCurrency } from '@/lib/ring-config-client'
 import {
-  CURTAIN_COMMISSION_DEFAULT,
   CURTAIN_DROP_EVENT,
   CURTAIN_EVENT_TYPES,
   CURTAIN_PAGE_EVENT,
   CURTAIN_PAGE_GATE_MS,
+  CURTAIN_QUEUE_MAX,
   CURTAIN_SCROLL_STOP_MS,
 } from '@/features/curtain/constants'
 import { CurtainBanner } from '@/features/curtain/components/curtain-banner'
 import { loadServerCurtainPrefs, requestCurtainDrop, syncCurtainPrefs } from '@/features/curtain/actions'
+import { curtainEventPayload, trackCurtain } from '@/features/curtain/lib/analytics'
+import { CURTAIN_COPY } from '@/features/curtain/lib/copy'
 import {
   applyNotForMe,
   applyNotToday,
@@ -47,15 +50,26 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-function trackCurtain(event: string, data: Record<string, unknown>) {
-  window.ringAnalytics?.track(event, data)
+type InstallHelp = 'safari' | 'chrome' | null
+
+function textOrFallback(
+  t: { has: (key: string) => boolean; (key: string): string },
+  key: keyof typeof CURTAIN_COPY,
+): string {
+  return t.has(key) ? t(key) : CURTAIN_COPY[key]
+}
+
+function withoutA2hsOnTelegram(offers: CurtainDropParams[]): CurtainDropParams[] {
+  if (!isTelegramMiniAppShell()) return offers
+  return offers.filter((offer) => offer.kind !== 'a2hs')
 }
 
 export function CurtainHost() {
   const t = useTranslations('modules.curtain')
   const pathname = usePathname()
+  const policy = getClientCurtainPolicy()
   const { data: session, status } = useSession()
-  const [page, setPage] = useState<{ authorUserId?: string; pageKind?: string }>({})
+  const [page, setPage] = useState<{ newsArticleId?: string; pageKind?: string }>({})
   const [pageGateOpen, setPageGateOpen] = useState(false)
   const [prefsReady, setPrefsReady] = useState(false)
   const store = useOptionalStore()
@@ -64,89 +78,115 @@ export function CurtainHost() {
   const callBusy = callSession.phase !== 'idle'
   const skipPath = shouldSkipCurtainPath(pathname)
 
-  const [offer, setOffer] = useState<CurtainDropParams | null>(null)
+  const [queue, setQueue] = useState<CurtainDropParams[]>([])
   const [visible, setVisible] = useState(false)
   const [dismissOpen, setDismissOpen] = useState(false)
-  const [iosInstallOpen, setIosInstallOpen] = useState(false)
+  const [installHelp, setInstallHelp] = useState<InstallHelp>(null)
   const [swipeHint, setSwipeHint] = useState<'not_today' | 'not_for_me' | null>(null)
   const shownAt = useRef<number>(0)
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const activeOfferId = useRef<string | null>(null)
+  const counted = useRef<Set<string>>(new Set())
   const scrollAwaySent = useRef(false)
+  const offer = queue[0] ?? null
+  const nextOffer = queue[1] ?? null
 
   const busy = pauseCurtainForRealtime({ callBusy, gameBusy })
 
-  const drop = useCallback((next: CurtainDropParams) => {
+  const noteImpression = useCallback((next: CurtainDropParams) => {
+    if (counted.current.has(next.offerId)) return
+    counted.current.add(next.offerId)
     const prefs = readCurtainPrefsClient()
-    if (!canShowOffer(prefs.offers[next.offerId])) return
-    const sameOffer = activeOfferId.current === next.offerId
-    if (!sameOffer) {
-      if (activeOfferId.current) {
-        trackCurtain(CURTAIN_EVENT_TYPES.response, {
-          offerId: activeOfferId.current,
-          response: 'replaced' satisfies CurtainResponseType,
-        })
+    if (!canShowOffer(prefs.offers[next.offerId], Date.now(), policy.maxImpressionsPerDay)) return
+    const patched = patchOfferPref(prefs, next.offerId, recordImpression(prefs.offers[next.offerId]))
+    writeCurtainPrefsClient(patched)
+    if (session?.user?.id) void syncCurtainPrefs(patched)
+    shownAt.current = Date.now()
+    scrollAwaySent.current = false
+    trackCurtain(CURTAIN_EVENT_TYPES.shown, curtainEventPayload(next))
+  }, [policy.maxImpressionsPerDay, session?.user?.id])
+
+  const enqueue = useCallback((incoming: CurtainDropParams[]) => {
+    const prefs = readCurtainPrefsClient()
+    const now = Date.now()
+    const filtered = withoutA2hsOnTelegram(incoming).filter((offerRow) =>
+      canShowOffer(prefs.offers[offerRow.offerId], now, policy.maxImpressionsPerDay),
+    )
+    if (filtered.length === 0) return
+    setQueue((current) => {
+      const ids = new Set(current.map((item) => item.offerId))
+      const next = [...current]
+      for (const offerRow of filtered) {
+        if (ids.has(offerRow.offerId) || next.length >= CURTAIN_QUEUE_MAX) continue
+        ids.add(offerRow.offerId)
+        next.push(offerRow)
       }
-      const patched = patchOfferPref(prefs, next.offerId, recordImpression(prefs.offers[next.offerId]))
-      writeCurtainPrefsClient(patched)
-      if (session?.user?.id) void syncCurtainPrefs(patched)
-      activeOfferId.current = next.offerId
-      shownAt.current = Date.now()
-      scrollAwaySent.current = false
-      trackCurtain(CURTAIN_EVENT_TYPES.shown, { offerId: next.offerId, kind: next.kind })
-    }
-    setOffer(next)
+      return next.length === current.length ? current : next
+    })
     setVisible(true)
-    setSwipeHint(null)
-  }, [session?.user?.id])
+  }, [policy.maxImpressionsPerDay])
 
   const hide = useCallback((response: CurtainResponseType) => {
     const current = offer
     setVisible(false)
     if (!current) return
-    const visibleMs = Date.now() - shownAt.current
-    trackCurtain(CURTAIN_EVENT_TYPES.response, {
-      offerId: current.offerId,
-      response,
-      visibleMs,
-      kind: current.kind,
-    })
+    trackCurtain(
+      CURTAIN_EVENT_TYPES.response,
+      curtainEventPayload(current, { response, visibleMs: Date.now() - shownAt.current }),
+    )
     if (response === 'cta') {
-      trackCurtain(CURTAIN_EVENT_TYPES.cta, { offerId: current.offerId, kind: current.kind })
+      trackCurtain(CURTAIN_EVENT_TYPES.cta, curtainEventPayload(current))
     }
   }, [offer])
+
+  const promote = useCallback((offerId: string) => {
+    window.setTimeout(() => {
+      setQueue((current) => (current[0]?.offerId === offerId ? current.slice(1) : current))
+      setVisible(true)
+    }, 280)
+  }, [])
 
   const suppress = useCallback((mode: 'not_today' | 'not_for_me') => {
     if (!offer) return
     const prefs = readCurtainPrefsClient()
     const nextPref = mode === 'not_for_me'
       ? applyNotForMe(prefs.offers[offer.offerId])
-      : applyNotToday(prefs.offers[offer.offerId])
+      : applyNotToday(prefs.offers[offer.offerId], Date.now(), policy.notTodayHours)
     const patched = patchOfferPref(prefs, offer.offerId, nextPref)
     writeCurtainPrefsClient(patched)
     if (session?.user?.id) void syncCurtainPrefs(patched)
-    trackCurtain(CURTAIN_EVENT_TYPES.suppress, { offerId: offer.offerId, mode })
+    trackCurtain(CURTAIN_EVENT_TYPES.suppress, curtainEventPayload(offer, { mode }))
     hide(mode)
     setDismissOpen(false)
-    window.setTimeout(() => {
-      if (activeOfferId.current === offer.offerId) {
-        setOffer(null)
-        activeOfferId.current = null
-      }
-    }, 400)
-  }, [hide, offer, session?.user?.id])
+    promote(offer.offerId)
+  }, [hide, offer, policy.notTodayHours, promote, session?.user?.id])
+
+  const finishInstallHelp = useCallback(() => {
+    setInstallHelp(null)
+    if (!offer) return
+    hide('cta')
+    const prefs = readCurtainPrefsClient()
+    const patched = patchOfferPref(
+      prefs,
+      offer.offerId,
+      applyNotToday(prefs.offers[offer.offerId], Date.now(), policy.notTodayHours),
+    )
+    writeCurtainPrefsClient(patched)
+    if (session?.user?.id) void syncCurtainPrefs(patched)
+    promote(offer.offerId)
+  }, [hide, offer, policy.notTodayHours, promote, session?.user?.id])
 
   const onCta = useCallback(async () => {
     if (!offer) return
-    if (offer.kind === 'product' && offer.productId) {
+    if (offer.kind === 'product' && offer.productId && offer.offerToken) {
       const touches = mergeCurtainTouch(readCurtainAttributionClient(), {
         offerId: offer.offerId,
         productId: offer.productId,
-        authorUserId: offer.authorUserId || page.authorUserId,
         pagePath: offer.pagePath || pathname,
-        commissionPercent: offer.commissionPercent || CURTAIN_COMMISSION_DEFAULT,
+        commissionPercent: 0,
         ctaAt: Date.now(),
+        offerToken: offer.offerToken,
+        newsArticleId: offer.newsArticleId,
       })
       writeCurtainAttributionClient(touches)
       if (store && offer.productName && offer.productPrice != null) {
@@ -168,26 +208,33 @@ export function CurtainHost() {
         await promptEvent.prompt()
         deferredPrompt.current = null
       } else if (isIosSafari()) {
-        setIosInstallOpen(true)
+        setInstallHelp('safari')
+        return
+      } else if (isIosBrowserTab()) {
+        setInstallHelp('chrome')
         return
       }
     }
     hide('cta')
     const prefs = readCurtainPrefsClient()
-    const patched = patchOfferPref(prefs, offer.offerId, applyNotToday(prefs.offers[offer.offerId]))
+    const patched = patchOfferPref(
+      prefs,
+      offer.offerId,
+      applyNotToday(prefs.offers[offer.offerId], Date.now(), policy.notTodayHours),
+    )
     writeCurtainPrefsClient(patched)
     if (session?.user?.id) void syncCurtainPrefs(patched)
-  }, [hide, offer, page.authorUserId, pathname, session?.user?.id, store])
+    promote(offer.offerId)
+  }, [hide, offer, pathname, policy.notTodayHours, promote, session?.user?.id, store])
 
-  const finishIosInstall = useCallback(() => {
-    setIosInstallOpen(false)
-    if (!offer) return
-    hide('cta')
-    const prefs = readCurtainPrefsClient()
-    const patched = patchOfferPref(prefs, offer.offerId, applyNotToday(prefs.offers[offer.offerId]))
-    writeCurtainPrefsClient(patched)
-    if (session?.user?.id) void syncCurtainPrefs(patched)
-  }, [hide, offer, session?.user?.id])
+  useEffect(() => {
+    if (!offer || !visible || busy || skipPath) return
+    noteImpression(offer)
+  }, [busy, noteImpression, offer, skipPath, visible])
+
+  useEffect(() => {
+    counted.current.clear()
+  }, [pathname])
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -201,17 +248,17 @@ export function CurtainHost() {
   useEffect(() => {
     const onCustom = (event: Event) => {
       const detail = (event as CustomEvent<CurtainDropParams>).detail
-      if (detail?.offerId) drop(detail)
+      if (detail?.offerId) enqueue([detail])
     }
     window.addEventListener(CURTAIN_DROP_EVENT, onCustom as EventListener)
     return () => window.removeEventListener(CURTAIN_DROP_EVENT, onCustom as EventListener)
-  }, [drop])
+  }, [enqueue])
 
   useEffect(() => {
     const onPage = (event: Event) => {
-      const detail = (event as CustomEvent<{ authorUserId?: string; pageKind?: string }>).detail || {}
-      setPage({ authorUserId: detail.authorUserId, pageKind: detail.pageKind })
-      if (detail.authorUserId) setPageGateOpen(true)
+      const detail = (event as CustomEvent<{ newsArticleId?: string; pageKind?: string }>).detail || {}
+      setPage({ newsArticleId: detail.newsArticleId, pageKind: detail.pageKind })
+      if (detail.newsArticleId) setPageGateOpen(true)
     }
     window.addEventListener(CURTAIN_PAGE_EVENT, onPage as EventListener)
     return () => window.removeEventListener(CURTAIN_PAGE_EVENT, onPage as EventListener)
@@ -220,6 +267,7 @@ export function CurtainHost() {
   useEffect(() => {
     setPageGateOpen(false)
     setPage({})
+    setQueue([])
     const wait = pathMayHavePageAuthor(pathname) ? CURTAIN_PAGE_GATE_MS + 800 : CURTAIN_PAGE_GATE_MS
     const timer = window.setTimeout(() => setPageGateOpen(true), wait)
     return () => window.clearTimeout(timer)
@@ -252,51 +300,62 @@ export function CurtainHost() {
   }, [status])
 
   useEffect(() => {
-    if (skipPath) {
+    if (!policy.enabled || skipPath) {
       setVisible(false)
-      setOffer(null)
-      activeOfferId.current = null
+      setQueue([])
       return
     }
-    if (!pageGateOpen || !prefsReady) return
+    if (!pageGateOpen || !prefsReady || queue.length > 0) return
     let cancelled = false
     void requestCurtainDrop({
       pathname,
       isStandalone: isStandaloneDisplay(),
-      authorUserId: page.authorUserId,
-    }).then((next) => {
-      if (cancelled || !next) return
-      drop(next)
+      newsArticleId: page.newsArticleId,
+    }).then((result) => {
+      if (cancelled) return
+      enqueue(result.offers)
     })
     return () => {
       cancelled = true
     }
-  }, [drop, page.authorUserId, pageGateOpen, pathname, prefsReady, skipPath])
+  }, [enqueue, page.newsArticleId, pageGateOpen, pathname, policy.enabled, prefsReady, queue.length, skipPath])
+
+  useEffect(() => {
+    if (!policy.enabled || skipPath || !prefsReady || !pageGateOpen) return
+    if (queue.length === 0 || queue.length >= CURTAIN_QUEUE_MAX) return
+    let cancelled = false
+    void requestCurtainDrop({
+      pathname,
+      isStandalone: isStandaloneDisplay(),
+      newsArticleId: page.newsArticleId,
+      excludeOfferIds: queue.map((item) => item.offerId),
+    }).then((result) => {
+      if (!cancelled) enqueue(result.offers)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [enqueue, page.newsArticleId, pageGateOpen, pathname, policy.enabled, prefsReady, queue, skipPath])
 
   useEffect(() => {
     const onScroll = () => {
       if (!offer || busy || skipPath) return
       if (visible && !scrollAwaySent.current) {
         scrollAwaySent.current = true
-        trackCurtain(CURTAIN_EVENT_TYPES.response, {
-          offerId: offer.offerId,
-          response: 'scroll_away' satisfies CurtainResponseType,
-          kind: offer.kind,
-        })
+        trackCurtain(
+          CURTAIN_EVENT_TYPES.response,
+          curtainEventPayload(offer, { response: 'scroll_away' satisfies CurtainResponseType }),
+        )
       }
       setVisible(false)
       if (scrollTimer.current) clearTimeout(scrollTimer.current)
       scrollTimer.current = setTimeout(() => {
         const prefs = readCurtainPrefsClient()
-        if (!canShowOffer(prefs.offers[offer.offerId])) return
+        if (!canShowOffer(prefs.offers[offer.offerId], Date.now(), policy.maxImpressionsPerDay)) return
         setVisible(true)
         shownAt.current = Date.now()
         scrollAwaySent.current = false
-        trackCurtain(CURTAIN_EVENT_TYPES.shown, {
-          offerId: offer.offerId,
-          kind: offer.kind,
-          resurface: true,
-        })
+        trackCurtain(CURTAIN_EVENT_TYPES.shown, curtainEventPayload(offer, { resurface: true }))
       }, CURTAIN_SCROLL_STOP_MS)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -304,25 +363,33 @@ export function CurtainHost() {
       window.removeEventListener('scroll', onScroll)
       if (scrollTimer.current) clearTimeout(scrollTimer.current)
     }
-  }, [busy, offer, skipPath, visible])
+  }, [busy, offer, policy.maxImpressionsPerDay, skipPath, visible])
 
   const bannerVisible = Boolean(offer) && visible && !busy && !skipPath
+  const displayOffer = offer
+    ? {
+        ...offer,
+        line2:
+          offer.kind === 'a2hs' && isIosSafari()
+            ? { text: t('a2hsLine2Ios') }
+            : offer.kind === 'a2hs' && isIosBrowserTab()
+              ? { text: textOrFallback(t, 'a2hsLine2ChromeIos') }
+              : offer.line2,
+        ctaText:
+          offer.kind === 'a2hs' && isIosSafari() && !deferredPrompt.current
+            ? t('a2hsCtaIos')
+            : offer.kind === 'a2hs' && isIosBrowserTab() && !deferredPrompt.current
+              ? textOrFallback(t, 'a2hsCtaChromeIos')
+              : offer.ctaText,
+      }
+    : null
 
   return (
     <>
-      {offer ? (
+      {displayOffer ? (
         <CurtainBanner
-          offer={{
-            ...offer,
-            line2:
-              offer.kind === 'a2hs' && isIosSafari()
-                ? { text: t('a2hsLine2Ios') }
-                : offer.line2,
-            ctaText:
-              offer.kind === 'a2hs' && isIosSafari() && !deferredPrompt.current
-                ? t('a2hsCtaIos')
-                : offer.ctaText,
-          }}
+          offer={displayOffer}
+          nextOffer={nextOffer}
           visible={bannerVisible}
           swipeHint={swipeHint}
           onCta={() => void onCta()}
@@ -354,17 +421,26 @@ export function CurtainHost() {
         <p className="text-sm text-muted-foreground">{t('dismissHelp')}</p>
       </FsModal>
       <FsModal
-        open={iosInstallOpen}
-        onOpenChange={setIosInstallOpen}
+        open={installHelp === 'safari'}
+        onOpenChange={(open) => setInstallHelp(open ? 'safari' : null)}
         title={t('iosInstallTitle')}
         description={t('iosInstallBody')}
+        footer={<Button type="button" onClick={finishInstallHelp}>{t('iosInstallDone')}</Button>}
+      >
+        <p className="text-sm text-muted-foreground">{t('iosInstallBody')}</p>
+      </FsModal>
+      <FsModal
+        open={installHelp === 'chrome'}
+        onOpenChange={(open) => setInstallHelp(open ? 'chrome' : null)}
+        title={textOrFallback(t, 'chromeIosTitle')}
+        description={textOrFallback(t, 'chromeIosBody')}
         footer={
-          <Button type="button" onClick={finishIosInstall}>
-            {t('iosInstallDone')}
+          <Button type="button" onClick={finishInstallHelp}>
+            {textOrFallback(t, 'chromeIosDone')}
           </Button>
         }
       >
-        <p className="text-sm text-muted-foreground">{t('iosInstallBody')}</p>
+        <p className="text-sm text-muted-foreground">{textOrFallback(t, 'chromeIosBody')}</p>
       </FsModal>
     </>
   )

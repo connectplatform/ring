@@ -22,12 +22,9 @@ function filtersFromSearchParams(searchParams: URLSearchParams): Partial<FilterS
     currency: searchParams.get('currency') || mainCurrency,
     priority: searchParams.get('priority') || '',
     deadline: searchParams.get('deadline') || '',
-    entityVerified:
-      searchParams.get('entityVerified') === 'true'
-        ? true
-        : searchParams.get('entityVerified') === 'false'
-          ? false
-          : null,
+    // TBD: entityVerified is disabled. The rail used to round-trip a field that
+    // does not exist on opportunities (cards read entity.storeVerification.identityVerified).
+    // entityVerified: null,
     hasDeadline:
       searchParams.get('hasDeadline') === 'true'
         ? true
@@ -56,9 +53,8 @@ function filtersToSearchParams(filters: FilterState, current: URLSearchParams): 
   else params.delete('currency')
   setOrDelete('priority', filters.priority || null)
   setOrDelete('deadline', filters.deadline || null)
-  if (filters.entityVerified === true) params.set('entityVerified', 'true')
-  else if (filters.entityVerified === false) params.set('entityVerified', 'false')
-  else params.delete('entityVerified')
+  // TBD: do not publish entityVerified until a real entity join exists.
+  params.delete('entityVerified')
   if (filters.hasDeadline === true) params.set('hasDeadline', 'true')
   else if (filters.hasDeadline === false) params.set('hasDeadline', 'false')
   else params.delete('hasDeadline')

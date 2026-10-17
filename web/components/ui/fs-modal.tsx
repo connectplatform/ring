@@ -54,6 +54,15 @@ export interface FsModalProps {
   closeClassName?: string
   /** Hide built-in top-right close (caller supplies Close in footer). */
   hideCloseButton?: boolean
+  /** Painted behind the header and body so a gradient fills the whole dialog. */
+  chromeBackdrop?: React.ReactNode
+  /** Merged onto the overlay (z-index, insets). */
+  overlayClassName?: string
+  /**
+   * Mobile: sit above the bottom nav (`z-[9000]`) instead of covering it.
+   * Sheet uses z-[8890]; overlay stops at `--mobile-bottom-nav-h`.
+   */
+  pinAboveMobileNav?: boolean
   /**
    * Radix Dialog open autofocus. Return / preventDefault to skip focusing
    * the first tabbable (e.g. gallery search — avoids mobile keyboard on open).
@@ -101,6 +110,9 @@ export function FsModal({
   hideTitleOnMobile = false,
   closeClassName,
   hideCloseButton = false,
+  chromeBackdrop,
+  overlayClassName,
+  pinAboveMobileNav = false,
   onOpenAutoFocus,
   onPointerDownOutside,
   onInteractOutside,
@@ -121,7 +133,12 @@ export function FsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         // Literal z-[9200] required for Tailwind JIT (see FS_MODAL_Z).
-        overlayClassName="z-[9200]"
+        overlayClassName={cn(
+          pinAboveMobileNav
+            ? 'z-[9200] max-lg:z-[8880] max-lg:bottom-[var(--mobile-bottom-nav-h,calc(3.5rem+env(safe-area-inset-bottom,0px)))]'
+            : 'z-[9200]',
+          overlayClassName,
+        )}
         hideCloseButton={hideCloseButton}
         closeClassName={closeClassName}
         onOpenAutoFocus={onOpenAutoFocus}
@@ -137,16 +154,19 @@ export function FsModal({
             : undefined
         }
         className={cn(
-          'z-[9200] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0',
+          pinAboveMobileNav
+            ? 'opportunity-type-sheet z-[9200] max-lg:z-[8890] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0'
+            : 'z-[9200] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0',
           !isCenterPane &&
             'max-sm:min-h-[100dvh] max-sm:rounded-none max-sm:pt-10 sm:max-w-lg',
           isCenterPane &&
             cn(
               // Kill Dialog default centering for all breakpoints.
               '!left-0 !top-0 !translate-x-0 !translate-y-0 !rounded-none !pt-0',
-              '!max-h-none !h-[100dvh] !w-full !max-w-none',
-              // Mobile → iPad: full viewport (above floating sidebar toggle z-50).
-              'max-lg:!inset-0',
+              '!w-full !max-w-none',
+              pinAboveMobileNav
+                ? 'max-lg:!top-0 max-lg:!bottom-auto max-lg:!h-[calc(100dvh-var(--mobile-bottom-nav-h,3.5rem))] max-lg:!max-h-[calc(100dvh-var(--mobile-bottom-nav-h,3.5rem))]'
+                : '!h-[100dvh] !max-h-none max-lg:!inset-0',
               // Desktop: match center pane — leave left nav + right rail (same gap).
               // --sidebar-total-w is live (rail 64px + optional aside); portaled Dialog
               // is viewport-relative, so left must include the nav chrome.
@@ -156,11 +176,16 @@ export function FsModal({
               'lg:!h-auto lg:!w-auto lg:!rounded-xl',
             ),
           className,
-        )}
+      )}
       >
+        {chromeBackdrop ? (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            {chromeBackdrop}
+          </div>
+        ) : null}
         <DialogHeader
           className={cn(
-            'shrink-0 px-4 py-3 sm:px-6',
+            'relative z-[1] shrink-0 px-4 py-3 sm:px-6',
             !hideHeaderSeparator && 'border-b',
             hideTitleOnMobile && !description && 'max-sm:py-2',
             isCenterPane && 'max-lg:px-4 lg:px-4',
@@ -206,7 +231,7 @@ export function FsModal({
         </DialogHeader>
         <div
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6',
+            'relative z-[1] min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6',
             isCenterPane && 'max-lg:!px-0',
             contentClassName,
           )}

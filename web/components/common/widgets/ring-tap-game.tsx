@@ -150,7 +150,7 @@ export function RingTapGame({ baselineSize, className }: RingTapGameProps) {
           transition={{ type: 'spring', stiffness: 380, damping: 18 }}
           className="relative"
         >
-          <AnimatedLogo size={logoSize} className="flex items-center justify-center" />
+          <AnimatedLogo canvas size={logoSize} className="flex items-center justify-center" />
         </motion.div>
       </button>
 

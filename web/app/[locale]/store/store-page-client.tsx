@@ -4,10 +4,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import type { Locale } from '@/i18n/shared'
 import { useStore } from '@/features/store/context'
-import { ProductCard } from '@/features/store/components/product-card'
 import { useTranslations } from 'next-intl'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
+import type { NicheFacet } from '@/features/store/niche/niche-facets'
+import type { StoreProduct } from '@/features/store/types'
+import {
+  NICHE_CATALOG_GRID_CLASS,
+  NicheCatalogView,
+  NicheProductCard,
+} from '@/components/store/niche-catalog'
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
 import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
@@ -17,6 +23,7 @@ interface StorePageClientProps {
   locale: Locale
   onCountsUpdate?: (totalRecords: number, filteredRecords?: number) => void
   onPriceRangeUpdate?: (bounds: CatalogPriceBounds) => void
+  onNicheFacetsUpdate?: (facets: NicheFacet[] | null) => void
   filters?: StoreFilterState
 }
 
@@ -24,6 +31,7 @@ export default function StorePageClient({
   locale,
   onCountsUpdate,
   onPriceRangeUpdate,
+  onNicheFacetsUpdate,
   filters: parentFilters,
 }: StorePageClientProps) {
   // useTransition to batch state updates and avoid excessive renders when updating filters
@@ -93,7 +101,7 @@ export default function StorePageClient({
     debounceTimerRef.current = setTimeout(() => {
       // Use a transition to update search state without blocking urgent UI
       startTransition(() => setDebouncedFilters(filters))
-    }, 750)
+    }, 500)
 
     // Cleanup any running debounce timer on filter or debouncedFilters change
     return () => {
@@ -131,6 +139,10 @@ export default function StorePageClient({
         onPriceRangeUpdate?.(data.priceRange)
       }
 
+      if (!cursor && data.nicheFacets) {
+        onNicheFacetsUpdate?.(data.nicheFacets)
+      }
+
       // Return results for infinite scroll feed
       return {
         items: newItems,
@@ -138,7 +150,7 @@ export default function StorePageClient({
         hasMore: Boolean(data.lastVisible),
       }
     },
-    [catalogFilterKey, onPriceRangeUpdate],
+    [catalogFilterKey, onPriceRangeUpdate, onNicheFacetsUpdate],
   )
 
   // Custom cursor-based infinite scroll hook
@@ -186,6 +198,7 @@ export default function StorePageClient({
 
   // Main rendering logic
   return (
+    <NicheCatalogView>
     <div>
       {/* Header/title row */}
       <div className="mb-6 space-y-3">
@@ -195,9 +208,10 @@ export default function StorePageClient({
         </div>
       </div>
 
+      <div className="@container/inventory">
       {/* Product grid; show skeletons when loading and nothing loaded; otherwise, show products */}
       {loading && items.length === 0 ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className={NICHE_CATALOG_GRID_CLASS}>
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse rounded-lg border p-4">
               <div className="mb-4 h-48 w-full rounded bg-muted" />
@@ -207,12 +221,13 @@ export default function StorePageClient({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className={NICHE_CATALOG_GRID_CLASS}>
           {items.map((p) => (
-            <ProductCard key={p.id} product={p as any} locale={locale} />
+            <NicheProductCard key={p.id} product={p as StoreProduct} locale={locale} />
           ))}
         </div>
       )}
+      </div>
 
       {/* Inline loader when fetching more on scroll */}
       {loading && items.length > 0 && (
@@ -227,6 +242,7 @@ export default function StorePageClient({
       {/* Sentinel element for infinite scroll intersection observer */}
       {hasMore && <div ref={sentinelRef} className="h-10" />}
     </div>
+    </NicheCatalogView>
   )
 }
 

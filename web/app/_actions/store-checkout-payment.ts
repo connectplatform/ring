@@ -335,9 +335,12 @@ export async function placeAndPayStoreOrder(
     const { parseCurtainAttributionJson, mergeTouchLists } = await import(
       '@/features/curtain/lib/attribution-storage'
     )
-    const curtainAttribution = mergeTouchLists(
-      cookieTouches,
-      parseCurtainAttributionJson(String(formData.get('curtainAttributionJson') || '')),
+    const { verifyCurtainTouches } = await import('@/features/curtain/services/verify-touches')
+    const curtainAttribution = await verifyCurtainTouches(
+      mergeTouchLists(
+        cookieTouches,
+        parseCurtainAttributionJson(String(formData.get('curtainAttributionJson') || '')),
+      ),
     )
 
     const { orderId } = await StoreOrdersService.createOrder(

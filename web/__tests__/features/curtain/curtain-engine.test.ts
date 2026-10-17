@@ -14,6 +14,9 @@ import {
 import { isEligibleCurtain, pathMayHavePageAuthor, shouldHideProductAd, shouldSkipCurtainPath } from '@/features/curtain/lib/eligibility'
 import { commissionPercentForMint } from '@/features/curtain/lib/advertise'
 import { galleryFromProductDoc, primaryGalleryUrl } from '@/features/generative-media/types'
+import { extractCurtainProductIds, curtainOfferScore } from '@/features/curtain/lib/page-products'
+import { parseCurtainPolicy } from '@/features/curtain/lib/policy'
+import { signCurtainOffer, verifyCurtainOfferToken } from '@/features/curtain/lib/offer-token'
 
 describe('curtain frequency', () => {
   const now = Date.parse('2026-09-10T12:00:00.000Z')
@@ -143,6 +146,62 @@ describe('curtain eligibility', () => {
     expect(shouldHideProductAd({ hasPrice: false, isVendorsOwnProduct: false })).toBe(true)
     expect(shouldHideProductAd({ hasPrice: true, isVendorsOwnProduct: true })).toBe(true)
     expect(shouldHideProductAd({ hasPrice: true, isVendorsOwnProduct: false })).toBe(false)
+  })
+})
+
+describe('curtain page inventory', () => {
+  it('reads store links from markdown, html, and locale paths', () => {
+    const ids = extractCurtainProductIds(`
+      [honey](/uk/store/honey-1)
+      <a href="https://greenfood.live/store/tea-2">tea</a>
+      /store/checkout
+      /store/oil_3
+    `)
+    expect(ids).toEqual(['honey-1', 'tea-2', 'oil_3'])
+  })
+
+  it('ranks a linked SKU ahead of a pool SKU with more topic overlap', () => {
+    const linked = curtainOfferScore({ fromPage: true, overlap: 0, impressions: 4 })
+    const pool = curtainOfferScore({ fromPage: false, overlap: 3, impressions: 0 })
+    expect(linked).toBeGreaterThan(pool)
+  })
+})
+
+describe('curtain policy', () => {
+  it('keeps defaults and clamps bad values', () => {
+    expect(parseCurtainPolicy(undefined)).toMatchObject({
+      enabled: true,
+      productSource: 'page_then_pool',
+      maxImpressionsPerDay: 5,
+      notTodayHours: 24,
+    })
+    expect(parseCurtainPolicy({ enabled: false, productSource: 'page_only', maxImpressionsPerDay: 99, notTodayHours: 0 })).toMatchObject({
+      enabled: false,
+      productSource: 'page_only',
+      maxImpressionsPerDay: 5,
+      notTodayHours: 24,
+    })
+  })
+})
+
+describe('curtain offer token', () => {
+  const payload = {
+    offerId: 'product:sku',
+    productId: 'sku',
+    authorUserId: 'author-1',
+    newsArticleId: 'article-1',
+    issuedAt: Date.now(),
+  }
+
+  it('round-trips a signed offer and rejects a tampered author', () => {
+    process.env.AUTH_SECRET = process.env.AUTH_SECRET || 'test-curtain-secret'
+    const token = signCurtainOffer(payload)
+    expect(verifyCurtainOfferToken(token)?.authorUserId).toBe('author-1')
+    const [body, sig] = token.split('.')
+    const forged = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as typeof payload
+    forged.authorUserId = 'attacker'
+    const forgedBody = Buffer.from(JSON.stringify(forged)).toString('base64url')
+    expect(verifyCurtainOfferToken(`${forgedBody}.${sig}`)).toBeNull()
   })
 })
 

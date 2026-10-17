@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger'
 import { creditBalanceService } from '@/features/wallet/services/credit-balance-service'
 import { getMainCurrencyCreditAccountingRate } from '@/lib/payments/credit-balance'
 import { isCreditRewardsEnabled } from '@/lib/ring-config-core'
+import { insertAnalyticsEventBatch } from '@/features/analytics/lib/analytics-db'
+import { CURTAIN_EVENT_TYPES } from '@/features/curtain/constants'
 import { touchesFromUnknown } from '@/features/curtain/lib/attribution-storage'
 import { commissionPercentForMint } from '@/features/curtain/lib/advertise'
 import type { CurtainAttributionTouch } from '@/features/curtain/types'
@@ -93,6 +95,31 @@ export async function mintCurtainAuthorCommission(order: StoreOrder): Promise<{ 
         rate,
       )
       minted += 1
+      try {
+        await insertAnalyticsEventBatch(`server-curtain:${order.id}`, buyerId, [
+          {
+            type: CURTAIN_EVENT_TYPES.paid,
+            data: {
+              orderId: order.id,
+              productId,
+              authorUserId: touch.authorUserId,
+              vendorId: touch.vendorId,
+              offerId: touch.offerId,
+              newsArticleId: touch.newsArticleId,
+              percent,
+              amount,
+              source: 'server',
+            },
+            timestamp: Date.now(),
+          },
+        ])
+      } catch (analyticsError) {
+        logger.warn('Curtain paid analytics skipped', {
+          orderId: order.id,
+          productId,
+          error: analyticsError instanceof Error ? analyticsError.message : analyticsError,
+        })
+      }
     } catch (error) {
       logger.warn('Curtain author commission mint skipped', {
         orderId: order.id,

@@ -28,6 +28,10 @@
       "label": "Buscar organizaciones",
       "placeholder": "Nombre, industria o ubicación..."
     },
+    "active": {
+      "title": "Filtros activos",
+      "clearAll": "Borrar todo"
+    },
     "sections": {
       "types": "Tipos de organización",
       "location": "Ubicación",

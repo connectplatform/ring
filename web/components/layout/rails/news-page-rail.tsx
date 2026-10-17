@@ -17,6 +17,7 @@ import {
   BookOpen,
   Calendar,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -29,6 +30,7 @@ export interface NewsPageRailProps {
 
 export function NewsPageRail({ locale, categoryInfo, translations = {}, onNavigate }: NewsPageRailProps) {
   const router = useRouter()
+  const t = useTranslations('modules.news')
 
   const navigate = (href: string) => {
     router.push(href)
@@ -42,12 +44,12 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Trending
+            {t('sidebar.trending')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Most popular articles this week
+            {t('sidebar.popularThisWeek')}
           </p>
           {/* TODO: Implement trending articles */}
         </CardContent>
@@ -58,15 +60,15 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Bell className="h-4 w-4" />
-            Newsletter
+            {t('sidebar.newsletter')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Get the latest news and updates delivered to your inbox
+            {t('sidebar.newsletterDescription')}
           </p>
           <Button className="w-full" variant="default">
-            Subscribe
+            {t('sidebar.subscribe')}
           </Button>
         </CardContent>
       </Card>
@@ -76,7 +78,7 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Rss className="h-4 w-4" />
-            RSS Feeds
+            {t('sidebar.rssFeeds')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -87,7 +89,7 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
           >
             <Rss className="h-4 w-4" />
-            All News
+            {t('sidebar.allNews')}
           </a>
           {Object.keys(categoryInfo).slice(0, 4).map((key) => (
             <a
@@ -98,7 +100,9 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
             >
               <Rss className="h-4 w-4" />
-              {translations.news?.categories?.[key] || categoryInfo[key].name}
+              {t.has(`categories.${key}` as 'categories.other')
+                ? t(`categories.${key}` as 'categories.other')
+                : translations.news?.categories?.[key] || categoryInfo[key].name}
             </a>
           ))}
         </CardContent>
@@ -109,19 +113,19 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Upcoming Events
+            {t('sidebar.upcomingEvents')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Stay updated on community events and webinars
+            {t('sidebar.upcomingEventsDescription')}
           </p>
           <Button
             variant="outline"
             className="w-full"
             onClick={() => navigate(`/${locale}/news/category/events`)}
           >
-            View Events
+            {t('sidebar.viewEvents')}
           </Button>
         </CardContent>
       </Card>
@@ -131,17 +135,17 @@ export function NewsPageRail({ locale, categoryInfo, translations = {}, onNaviga
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            Help & Resources
+            {t('sidebar.helpResources')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>Learn about our platform features and updates</p>
+          <p>{t('sidebar.helpResourcesDescription')}</p>
           <Button
             variant="link"
             className="p-0 h-auto"
             onClick={() => navigate(`/${locale}/docs`)}
           >
-            View Documentation →
+            {t('sidebar.viewDocumentation')} →
           </Button>
         </CardContent>
       </Card>

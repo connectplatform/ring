@@ -40,7 +40,7 @@ export function RingBreadcrumbs({
                 // Callers pass ROUTES.* (already locale-prefixed via withLocale);
                 // toAppHref strips that prefix so next-intl Link prefixes the
                 // active locale exactly once (fixes /uk/uk, /de/de double-locale).
-                <Link href={toAppHref(item.href)} className="truncate hover:text-foreground">
+                <Link href={toAppHref(item.href)} className="cursor-pointer truncate hover:text-foreground hover:underline">
                   {item.label}
                 </Link>
               ) : (

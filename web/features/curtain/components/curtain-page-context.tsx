@@ -8,20 +8,21 @@ const CurtainPageContext = createContext<CurtainPageContextValue>({})
 
 export function CurtainPageProvider({
   authorUserId,
+  newsArticleId,
   pageKind,
   children,
 }: CurtainPageContextValue & { children: ReactNode }) {
   useEffect(() => {
     window.dispatchEvent(
-      new CustomEvent(CURTAIN_PAGE_EVENT, { detail: { authorUserId, pageKind } }),
+      new CustomEvent(CURTAIN_PAGE_EVENT, { detail: { authorUserId, newsArticleId, pageKind } }),
     )
     return () => {
       window.dispatchEvent(new CustomEvent(CURTAIN_PAGE_EVENT, { detail: {} }))
     }
-  }, [authorUserId, pageKind])
+  }, [authorUserId, newsArticleId, pageKind])
 
   return (
-    <CurtainPageContext.Provider value={{ authorUserId, pageKind }}>
+    <CurtainPageContext.Provider value={{ authorUserId, newsArticleId, pageKind }}>
       {children}
     </CurtainPageContext.Provider>
   )

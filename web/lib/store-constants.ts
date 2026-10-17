@@ -30,6 +30,8 @@ export interface StoreFilterState {
   vendor: string
   inStock: boolean | null
   sortBy: string
+  /** Pack-owned filter values, keyed by `NICHE_FILTER_PARAMS`. */
+  niche?: Record<string, string>
 }
 
 export const DEFAULT_STORE_FILTERS: StoreFilterState = {

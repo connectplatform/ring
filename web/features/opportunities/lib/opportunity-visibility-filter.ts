@@ -11,6 +11,8 @@ import {
 export interface OpportunityVisibilityContext {
   userRole: UserRolesArray
   userId?: string
+  /** Entity ids the viewer may read `visibility: entity` records for. */
+  entityAccessIds?: Set<string>
 }
 
 export type DbFilter = { field: string; operator: string; value: unknown }
@@ -58,6 +60,7 @@ export interface OpportunityViewRow {
   isConfidential?: boolean
   createdBy?: string
   anonymousPoster?: boolean
+  organizationId?: string | null
 }
 
 /**
@@ -74,11 +77,19 @@ export function canViewOpportunity(
     return false
   }
 
+  const visibility = (opportunity.visibility ?? 'public') as OpportunityVisibility
+
+  if (visibility === 'entity') {
+    if (isPlatformAdmin(userRole)) return true
+    if (ctx.userId && opportunity.createdBy && ctx.userId === opportunity.createdBy) return true
+    if (opportunity.organizationId && ctx.entityAccessIds?.has(opportunity.organizationId)) return true
+    return false
+  }
+
   const allowed = getAllowedVisibilityValues(userRole)
   if (!allowed) {
     return true
   }
 
-  const visibility = (opportunity.visibility ?? 'public') as OpportunityVisibility
   return allowed.includes(visibility)
 }

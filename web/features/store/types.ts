@@ -198,6 +198,14 @@ export interface StoreProduct {
    * Persisted in product JSONB — not ring-config.
    */
   promotions?: import('./types/promotions').ProductPromotion[]
+
+  /**
+   * Vertical product-fields preset that wrote `nicheData` (`agricultural` stays on
+   * its own blobs; packs use this socket).
+   */
+  nichePreset?: string
+  /** Pack-owned product payload. L1 stores and returns it; packs define the shape. */
+  nicheData?: Record<string, unknown>
 }
 
 export interface CartItem {

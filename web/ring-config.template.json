@@ -696,6 +696,12 @@
     "maxCollectionsPerMember": 3,
     "maxMintsPerCollection": 50
   },
+  "curtain": {
+    "enabled": true,
+    "productSource": "page_then_pool",
+    "maxImpressionsPerDay": 5,
+    "notTodayHours": 24
+  },
   "store": {
     "mainCurrency": "USD",
     "mainCurrencyToUsd": 1

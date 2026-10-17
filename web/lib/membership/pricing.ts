@@ -114,10 +114,23 @@ export function getMembershipTierConfig(
  * Member fiat tier — always derived from RING fee × desk/oracle ratios.
  * Config `membership.tiers.member` is a display cache; RING amount is SSOT.
  */
+function fiatTierFromConfig(configured: MemberTierConfig | null | undefined): MemberTierConfig | null {
+  if (!configured || configured.pricedInNativeToken !== false) return null
+  if (!Number.isFinite(configured.amount)) return null
+  return {
+    amount: configured.amount,
+    currency: configured.currency || getMainCurrencySymbol(),
+    description: configured.description,
+    duration: configured.duration,
+  }
+}
+
 export function getMemberMainCurrencyTier(): MemberTierConfig {
   const currency = getMainCurrencySymbol()
   const ringAmount = getMembershipRingUpgradeAmount()
   const configured = getMembershipTierConfig(UserRolesArray.member)
+  const fiat = fiatTierFromConfig(configured)
+  if (fiat) return fiat
   const amount = getMembershipMainCurrencyAmountForNative(ringAmount)
   return {
     amount,
@@ -137,6 +150,8 @@ export function getMemberAnnualMainCurrencyTier(): MemberTierConfig {
       | Record<string, MemberTierConfig>
       | undefined
   )?.memberAnnual
+  const fiat = fiatTierFromConfig(configured)
+  if (fiat) return fiat
   return {
     amount: getMembershipMainCurrencyAmountForNative(ringAmount),
     currency,

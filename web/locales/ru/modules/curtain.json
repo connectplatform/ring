@@ -21,5 +21,20 @@
   "a2hsCtaIos": "Как добавить",
   "iosInstallTitle": "На экран «Домой»",
   "iosInstallBody": "Нажмите «Поделиться», затем «На экран Домой». Откройте новую иконку, чтобы пользоваться приложением.",
-  "iosInstallDone": "Понятно"
+  "iosInstallDone": "Понятно",
+  "a2hsLine2ChromeIos": "Откройте эту страницу в Safari, затем Поделиться → На экран «Домой».",
+  "a2hsCtaChromeIos": "Открыть в Safari",
+  "chromeIosTitle": "Добавьте через Safari",
+  "chromeIosBody": "Chrome на iPhone не устанавливает веб-приложение на домашний экран. Откройте страницу в Safari, нажмите «Поделиться», затем «На экран Домой».",
+  "chromeIosDone": "Понятно",
+  "funnelTitle": "Шторка страницы",
+  "funnelShown": "Показы",
+  "funnelResurfaced": "Повторные показы",
+  "funnelCta": "Добавлено",
+  "funnelNotToday": "Не сегодня",
+  "funnelNotForMe": "Не для меня",
+  "funnelScroll": "Прокрутили",
+  "funnelPaid": "Оплачено",
+  "funnelCredits": "Начисленные кредиты",
+  "funnelPolicy": "Лимит {max}/день · скрывать {hours} ч · {source}"
 }

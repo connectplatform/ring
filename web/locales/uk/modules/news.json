@@ -87,6 +87,17 @@
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
   },
+  "filters": {
+    "searchPlaceholder": "Пошук новин...",
+    "sortBy": "Сортувати",
+    "latest": "Останні",
+    "mostViewed": "Найбільше переглядів",
+    "mostLiked": "Найбільше вподобань",
+    "recentlyAdded": "Нещодавно додані",
+    "featuredOnly": "Лише вибрані",
+    "loadingArticles": "Завантаження статей...",
+    "moreTags": "+{count}"
+  },
   "page": {
     "title": "Новини",
     "subtitle": "Останні новини та оновлення",
@@ -117,6 +128,14 @@
     "allNews": "Усі новини",
     "rssFeed": "RSS стрічка",
     "trending": "Популярне",
+    "popularThisWeek": "Найпопулярніші статті цього тижня",
+    "rssFeeds": "RSS-стрічки",
+    "upcomingEvents": "Найближчі події",
+    "upcomingEventsDescription": "Слідкуйте за подіями спільноти та вебінарами",
+    "viewEvents": "Переглянути події",
+    "helpResources": "Допомога і матеріали",
+    "helpResourcesDescription": "Дізнайтеся про можливості платформи та оновлення",
+    "viewDocumentation": "Відкрити документацію",
     "loadMore": "Завантажити ще",
     "moreNews": "Більше новин",
     "top": "ТОП",

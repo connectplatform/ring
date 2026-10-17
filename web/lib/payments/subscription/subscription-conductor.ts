@@ -98,7 +98,10 @@ async function insertLedgerRow(
   },
 ): Promise<SubscriptionLedgerRow> {
   const now = Date.now()
-  const period = 30 * 24 * 60 * 60 * 1000 // 30 days — mirrors Membership.sol
+  const annual = input.metadata?.billingPeriod === 'yearly'
+  const period = annual
+    ? 365 * 24 * 60 * 60 * 1000
+    : 30 * 24 * 60 * 60 * 1000
   const nextPaymentDue = now + period
   const status = options?.status ?? 'active'
   const isPending = status === 'pending'

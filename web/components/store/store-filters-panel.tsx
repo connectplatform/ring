@@ -2,7 +2,8 @@
 
 // Core React/Next imports: using React 19+ API features (useTransition, use, etc.)
 import { useState, useEffect, useCallback, useRef, useMemo, useTransition } from 'react'
-import { useTranslations } from 'next-intl'
+import { useMessages, useTranslations } from 'next-intl'
+import { localizeStoreCategory } from '@/lib/store-category-display'
 // ... other imports
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -27,7 +28,9 @@ import {
   useOptionalStorePaymentMethods,
 } from '@/features/store/currency-context'
 import { getDefaultStorePriceBounds, PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
+import NicheFiltersPanel from '@/components/store/niche-filters-panel'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
+import type { NicheFacet } from '@/features/store/niche/niche-facets'
 import {
   Collapsible,
   CollapsibleContent,
@@ -63,6 +66,8 @@ interface StoreFiltersPanelPropsWithPersisted extends StoreFiltersPanelProps {
   persistedFilters?: StoreFilterState
   /** Catalog slice bounds from getStoreProducts (updated when search/category/stock changes). */
   catalogPriceBounds?: CatalogPriceBounds | null
+  /** Full-catalog facets from getStoreProducts. Null until the pack publishes them. */
+  nicheFacets?: NicheFacet[] | null
 }
 
 // Main component for store filter panel, managing all local state and notification of filter changes
@@ -74,9 +79,12 @@ export default function StoreFiltersPanel({
   onFiltersApplied,
   persistedFilters,
   catalogPriceBounds,
+  nicheFacets,
 }: StoreFiltersPanelPropsWithPersisted) {
   // Next-intl translation object
   const t = useTranslations('modules.store')
+  // Quiet lookup: clone store.storeCategories may add slugs with no locale key yet.
+  const messages = useMessages()
 
   // Get context for store data and total items
   const store = useOptionalStore()
@@ -215,7 +223,8 @@ export default function StoreFiltersPanel({
       currency: catalogFilterCurrency,
       vendor: '',
       inStock: null,
-      sortBy: 'name-asc'
+      sortBy: 'name-asc',
+      niche: {},
     }
     setFilters(clearedFilters)
     onFiltersApplied?.(clearedFilters)
@@ -296,6 +305,12 @@ export default function StoreFiltersPanel({
       {/* Scrollable area for filter controls (fills available space) */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="space-y-4">
+          <NicheFiltersPanel
+            niche={filters.niche}
+            facets={nicheFacets}
+            onChange={(niche) => updateFilters({ niche })}
+          />
+
           {/* Search Input (always visible) */}
           <div className="space-y-2">
             <div className="relative">
@@ -329,7 +344,7 @@ export default function StoreFiltersPanel({
               <div className="flex flex-wrap gap-1">
                 {filters.categories.map(category => (
                   <Badge key={category} variant="secondary" className="text-xs">
-                    {t(`categories.${category}`)}
+                    {localizeStoreCategory(messages, category)}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -469,7 +484,7 @@ export default function StoreFiltersPanel({
                           onClick={() => toggleCategory(category)}
                         >
                           {getCategoryIcon(category)}
-                          <span className="text-xs ml-2">{t(`categories.${category}`)}</span>
+                          <span className="text-xs ml-2">{localizeStoreCategory(messages, category)}</span>
                         </Button>
                       )
                     })}

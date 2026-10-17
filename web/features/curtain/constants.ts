@@ -36,7 +36,10 @@ export const CURTAIN_EVENT_TYPES = {
   response: 'curtain_response',
   cta: 'curtain_cta',
   suppress: 'curtain_suppress',
+  paid: 'curtain_paid',
 } as const
+
+export const CURTAIN_QUEUE_MAX = 3
 
 export const CURTAIN_DROP_EVENT = 'ring:curtain-drop'
 export const CURTAIN_PAGE_EVENT = 'ring:curtain-page'

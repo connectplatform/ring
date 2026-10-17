@@ -5,8 +5,9 @@
  */
 
 import React, { useTransition, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useMessages, useTranslations } from 'next-intl'
 import { CheckCircle } from 'lucide-react'
+import { localizeStoreCategory } from '@/lib/store-category-display'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
@@ -39,7 +40,7 @@ export default function CategoryMultiSelect({
   onCategoriesChange,
   error,
 }: CategoryMultiSelectProps) {
-  const t = useTranslations('modules.store')
+  const messages = useMessages()
   const tForm = useTranslations('vendor.onboarding.form')
 
   const configuredCategories =
@@ -117,7 +118,7 @@ export default function CategoryMultiSelect({
                   ) : null}
                 </div>
                 <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight">
-                  {t(`categories.${categoryId}`)}
+                  {localizeStoreCategory(messages, categoryId)}
                 </div>
               </button>
             </motion.div>

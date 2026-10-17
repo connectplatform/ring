@@ -12,7 +12,7 @@ import { assertOpportunityVisibilityPatch } from '@/features/opportunities/lib/o
 import { db } from '@/lib/database'
 import { mapDbDocumentToOpportunity, mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
-import { canSetAnonymousPoster, maskAnonymousOpportunity } from '@/features/opportunities/lib/opportunity-identity'
+import { canSetAnonymousPoster, toPublicDiscoverySnippet } from '@/features/opportunities/lib/opportunity-identity'
 
 /**
  * Updates an opportunity by its ID in Firestore, enforcing role-based access control.
@@ -82,10 +82,11 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
       });
 
       const nextVisibility = data.visibility ?? currentOpportunity.visibility
-      if (data.anonymousPoster && !canSetAnonymousPoster(userRole, nextVisibility)) {
-        data.anonymousPoster = false
-      }
-      if (data.anonymousPoster) {
+      if (data.anonymousPoster === undefined) {
+        delete data.anonymousPoster
+      } else if (!canSetAnonymousPoster(userRole, nextVisibility)) {
+        delete data.anonymousPoster
+      } else if (data.anonymousPoster) {
         data.isConfidential = false
       }
 
@@ -110,9 +111,7 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
       }
 
       const mapped = mapDbDocumentToSerializedOpportunity(updatedResult.data)
-      const snippet = mapped.anonymousPoster
-        ? (maskAnonymousOpportunity(mapped, {}) as unknown as Record<string, unknown>)
-        : (mapped as unknown as Record<string, unknown>)
+      const snippet = toPublicDiscoverySnippet(mapped)
 
       await syncOpportunityDiscovery({
         opportunityId: id,

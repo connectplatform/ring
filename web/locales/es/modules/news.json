@@ -86,5 +86,31 @@
     "localDraft": "Local draft",
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
+  },
+  "filters": {
+    "searchPlaceholder": "Buscar noticias...",
+    "sortBy": "Ordenar",
+    "latest": "Más recientes",
+    "mostViewed": "Más vistas",
+    "mostLiked": "Más gustadas",
+    "recentlyAdded": "Añadidas recientemente",
+    "featuredOnly": "Solo destacadas",
+    "loadingArticles": "Cargando artículos...",
+    "moreTags": "+{count} más"
+  },
+  "sidebar": {
+    "trending": "Tendencias",
+    "popularThisWeek": "Artículos más populares de esta semana",
+    "newsletter": "Boletín",
+    "newsletterDescription": "Reciba las últimas noticias en su correo",
+    "subscribe": "Suscribirse",
+    "rssFeeds": "Fuentes RSS",
+    "allNews": "Todas las noticias",
+    "upcomingEvents": "Próximos eventos",
+    "upcomingEventsDescription": "Siga los eventos y seminarios de la comunidad",
+    "viewEvents": "Ver eventos",
+    "helpResources": "Ayuda y recursos",
+    "helpResourcesDescription": "Conozca las funciones y novedades de la plataforma",
+    "viewDocumentation": "Abrir la documentación"
   }
 }

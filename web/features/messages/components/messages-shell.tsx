@@ -37,6 +37,7 @@ import { useConversation, useConversations } from '@/hooks/use-messaging'
 import {
   useWebRtcCall,
 } from '@/hooks/use-webrtc-call'
+import type { IncomingCallInvite } from '@/hooks/use-webrtc-call'
 import { usePeerGameBusy, setPeerCallBusy } from '@/features/peer-games/lib/peer-game-mutex'
 import { useCallSession } from '@/features/chat/providers/call-session-provider'
 import { apiClient } from '@/lib/api-client'
@@ -52,6 +53,10 @@ export default function MessagesShell() {
   const searchParams = useSearchParams()
   const paramC = searchParams.get('c') || searchParams.get('conversation')
   const paramUser = searchParams.get('user')
+  // CALL_INVITE push actionUrl: /messages?c=<cid>&call=<callId> — SW
+  // notificationclick navigates here without postMessage; replay the invite
+  // from the pending registry so the thread accepts instead of a dead URL.
+  const paramCall = searchParams.get('call')
 
   const [selectedId, setSelectedId] = useState<string | null>(paramC)
   const [railOpen, setRailOpen] = useState(false)
@@ -59,6 +64,7 @@ export default function MessagesShell() {
   const [showGroupMembers, setShowGroupMembers] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const deepLinkHandledRef = useRef<string | null>(null)
+  const callDeepLinkHandledRef = useRef<string | null>(null)
   const userId = session?.user?.id ?? ''
   const gameBusy = usePeerGameBusy()
   const { pendingInvite, setPendingInvite } = useCallSession()
@@ -170,6 +176,27 @@ export default function MessagesShell() {
     deepLinkHandledRef.current = paramUser
     void openDirectConversation(paramUser)
   }, [paramUser, session?.user?.id, inbox.loading, openDirectConversation])
+
+  // ?call= deep-link — replay a pending invite (pending registry, TTL 60s).
+  // Guarded per callId so consumption/navigation loops cannot refetch.
+  useEffect(() => {
+    if (!paramCall || !paramC || !userId) return
+    if (callDeepLinkHandledRef.current === paramCall) return
+    if (pendingInvite) return
+
+    callDeepLinkHandledRef.current = paramCall
+    void apiClient
+      .get('/api/calls/pending')
+      .then((res) => {
+        const invite = (
+          res.data as { invite?: IncomingCallInvite } | undefined
+        )?.invite
+        if (invite && invite.callId === paramCall && invite.conversationId === paramC) {
+          setPendingInvite(invite)
+        }
+      })
+      .catch(() => {})
+  }, [paramCall, paramC, userId, pendingInvite, setPendingInvite])
 
   const onBack = useCallback(() => {
     setSelectedId(null)

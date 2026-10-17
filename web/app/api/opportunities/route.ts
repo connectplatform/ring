@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { getOpportunitiesForRole } from '@/features/opportunities/services/get-opportunities'
+import { searchOpportunities } from '@/features/opportunities/services/search-opportunities'
+import { parseOpportunityListQuery } from '@/features/opportunities/lib/opportunity-search-params'
 import { createOpportunity } from '@/features/opportunities/services/create-opportunity'
 import { createOpportunityBodySchema } from '@/features/opportunities/lib/create-opportunity-schema'
-import { resolveSessionUserRole } from '@/features/auth/user-role'
+import { resolveSessionUserRole, UserRolesArray } from '@/features/auth/user-role'
 import {
   OpportunityAuthError,
   OpportunityPermissionError,
@@ -24,21 +26,66 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await auth()
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userRole = resolveSessionUserRole(session.user.role)
+    const userRole = session?.user
+      ? resolveSessionUserRole(session.user.role)
+      : UserRolesArray.visitor
     const searchParams = req.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '10', 10)
     const startAfter = searchParams.get('startAfter') || undefined
 
-    const { opportunities, lastVisible } = await getOpportunitiesForRole({
-      userRole,
-      limit,
-      startAfter,
-      viewerUserId: session.user.id,
-    })
+    const hasFilterParams = Boolean(
+      searchParams.get('types') ||
+        searchParams.get('type') ||
+        searchParams.get('q') ||
+        searchParams.get('query') ||
+        searchParams.get('categories') ||
+        searchParams.get('category') ||
+        searchParams.get('location') ||
+        searchParams.get('priority'),
+    )
+
+    let rawOpportunities
+    let lastVisible: string | null = null
+
+    if (hasFilterParams) {
+      const rawParams: Record<string, unknown> = Object.fromEntries(searchParams.entries())
+      if (!rawParams.types && rawParams.type) {
+        rawParams.types = rawParams.type
+      }
+      if (!rawParams.categories && rawParams.category) {
+        rawParams.categories = rawParams.category
+      }
+      const parsedQuery = parseOpportunityListQuery(rawParams)
+      const searchResult = await searchOpportunities({
+        ...parsedQuery,
+        userRole,
+        userId: session?.user?.id,
+        limit: parsedQuery.limit ?? limit,
+        startAfter: parsedQuery.startAfter ?? startAfter,
+      })
+      rawOpportunities = searchResult.opportunities
+      lastVisible = searchResult.lastVisible
+    } else {
+      const listResult = await getOpportunitiesForRole({
+        userRole,
+        limit,
+        startAfter,
+        viewerUserId: session?.user?.id,
+      })
+      rawOpportunities = listResult.opportunities
+      lastVisible = listResult.lastVisible
+    }
+
+    const opportunities =
+      userRole === UserRolesArray.visitor
+        ? rawOpportunities.filter(
+            (item) =>
+              item.isConfidential !== true &&
+              (item.visibility === 'public' ||
+                item.visibility === undefined ||
+                item.visibility === null),
+          )
+        : rawOpportunities
 
     return NextResponse.json(
       {

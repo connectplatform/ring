@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import { getVendorByUserId } from '@/features/store/services/get-vendor-by-user'
 import { isVisibleOnMainStore } from '@/features/store/lib/product-document'
+import { matchesCatalogSearch } from '@/lib/store-price-range'
 
 export async function POST(request: Request) {
   await connection() // Next.js 16: opt out of prerendering
@@ -95,6 +96,12 @@ export async function GET(request: Request) {
     const currency = (url.searchParams.get('currency') || '').toUpperCase()
     const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '24', 10) || 24, 1), 100)
     const afterId = url.searchParams.get('afterId') || ''
+    const { NICHE_FILTER_PARAMS, applyNicheFilters } = await import('@/features/store/niche/niche-filters')
+    const niche: Record<string, string> = {}
+    for (const key of NICHE_FILTER_PARAMS) {
+      const value = url.searchParams.get(key)?.trim()
+      if (value) niche[key] = value
+    }
 
     console.log('🔍 Store API: Filters received:', {
       search,
@@ -118,10 +125,7 @@ export async function GET(request: Request) {
 
     // Filter by search
     if (search) {
-      filteredProducts = filteredProducts.filter(p => 
-        p.name.toLowerCase().includes(search) || 
-        (p.description || '').toLowerCase().includes(search)
-      )
+      filteredProducts = filteredProducts.filter((p) => matchesCatalogSearch(p, search))
     }
 
     // Filter by categories
@@ -141,6 +145,8 @@ export async function GET(request: Request) {
     if (inStock !== null) {
       filteredProducts = filteredProducts.filter(p => p.inStock === inStock)
     }
+
+    filteredProducts = applyNicheFilters(filteredProducts, niche)
 
     // Filter by currency (if specified)
     if (currency) {

@@ -17,8 +17,19 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+/**
+ * Above the desktop sidebar (`z-40`), toasts (`z-50` / `z-[100]`), and the
+ * mobile bottom nav (`z-[9000]`). Same band as FsModal / diagram fullscreen.
+ * Must be a portal on document.body: the center pane's backdrop-filter traps
+ * `position: fixed`, and `.ring-content-panel` is `isolate z-[1]`, so an
+ * in-pane z-50 paints under the sidebar.
+ */
+const PRODUCT_LIGHTBOX_Z = 9200
+const PRODUCT_LIGHTBOX_CONTROLS_Z = 9210
 
 interface ProductImage {
   url: string
@@ -52,9 +63,9 @@ export default function ProductImageGallery({
 
   // Fallback for products without images
   const displayImages = images.length > 0 ? images : [{
-    url: '/placeholder-product.png',
+    url: '/placeholder-product.svg',
     alt: productName,
-    thumbnail: '/placeholder-product.png'
+    thumbnail: '/placeholder-product.svg'
   }]
 
   const currentImage = displayImages[currentIndex]
@@ -97,6 +108,15 @@ export default function ProductImageGallery({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isLightboxOpen, handlePrevious, handleNext])
+
+  useEffect(() => {
+    if (!isLightboxOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isLightboxOpen])
 
   // Touch handlers for swipe
   const minSwipeDistance = 50
@@ -244,13 +264,21 @@ export default function ProductImageGallery({
         )}
       </div>
 
-      {/* Full-Screen Lightbox */}
-      {isLightboxOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md animate-in fade-in-0 duration-300">
+      {/* Full-screen lightbox. Portaled so it is not trapped under the sidebar. */}
+      {isLightboxOpen && typeof document !== 'undefined'
+        ? createPortal(
+        <div
+          className="fixed inset-0 z-[9200] bg-black/95 backdrop-blur-md animate-in fade-in-0 duration-300"
+          style={{ zIndex: PRODUCT_LIGHTBOX_Z }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={productName}
+        >
           {/* Close Button */}
           <button
             onClick={() => setIsLightboxOpen(false)}
-            className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+            className="fixed top-4 right-4 z-[9210] p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            style={{ zIndex: PRODUCT_LIGHTBOX_CONTROLS_Z }}
             aria-label="Close lightbox"
           >
             <X className="h-6 w-6 text-white" />
@@ -258,13 +286,16 @@ export default function ProductImageGallery({
 
           {/* Image Counter */}
           {displayImages.length > 1 && (
-            <div className="absolute top-4 left-4 px-4 py-2 bg-white/10 text-white text-sm font-medium rounded-full backdrop-blur-sm z-10">
+            <div
+              className="fixed top-4 left-4 z-[9210] px-4 py-2 bg-white/10 text-white text-sm font-medium rounded-full backdrop-blur-sm"
+              style={{ zIndex: PRODUCT_LIGHTBOX_CONTROLS_Z }}
+            >
               {currentIndex + 1} / {displayImages.length}
             </div>
           )}
 
           {/* Main Lightbox Image */}
-          <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className="absolute inset-0 z-[9200] flex items-center justify-center p-4">
             <div className="relative w-full h-full">
               <img
                 src={lightboxSrc}
@@ -279,14 +310,16 @@ export default function ProductImageGallery({
             <>
               <button
                 onClick={handlePrevious}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                className="fixed left-4 top-1/2 z-[9210] -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                style={{ zIndex: PRODUCT_LIGHTBOX_CONTROLS_Z }}
                 aria-label="Previous image"
               >
                 <ChevronLeft className="h-8 w-8 text-white" />
               </button>
               <button
                 onClick={handleNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                className="fixed right-4 top-1/2 z-[9210] -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                style={{ zIndex: PRODUCT_LIGHTBOX_CONTROLS_Z }}
                 aria-label="Next image"
               >
                 <ChevronRight className="h-8 w-8 text-white" />
@@ -296,7 +329,10 @@ export default function ProductImageGallery({
 
           {/* Thumbnail Strip */}
           {displayImages.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-3 bg-white/10 rounded-full backdrop-blur-sm max-w-full md:max-w-sm overflow-x-auto z-20">
+            <div
+              className="fixed bottom-4 left-1/2 z-[9210] flex max-w-full -translate-x-1/2 gap-2 overflow-x-auto rounded-full bg-white/10 px-4 py-3 backdrop-blur-sm md:max-w-sm"
+              style={{ zIndex: PRODUCT_LIGHTBOX_CONTROLS_Z }}
+            >
               {displayImages.map((image, idx) => (
                 <button
                   key={idx}
@@ -320,8 +356,10 @@ export default function ProductImageGallery({
               ))}
             </div>
           )}
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+        : null}
     </>
   )
 }

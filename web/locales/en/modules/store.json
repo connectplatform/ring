@@ -181,7 +181,9 @@
     "empty": "No favorites yet",
     "browseStore": "Browse store",
     "save": "Save to favorites",
-    "remove": "Remove from favorites"
+    "remove": "Remove from favorites",
+    "saveToFavorites": "Save to favorites",
+    "savedToFavorites": "Saved to favorites"
   },
   "filters": {
     "searchLabel": "Search Products",
@@ -222,7 +224,21 @@
     "bioenergetics": "Bioenergetics, Supplements & Probiotics",
     "services": "Services",
     "cooperative-share": "Buy Cooperative Share",
-    "retreat-hub": "Retreat Hub"
+    "retreat-hub": "Retreat Hub",
+    "local_producers": "Local Producers",
+    "city_services": "City Services",
+    "utilities_household": "Utilities and Household",
+    "food_dining": "Food, Dining and Farmers",
+    "education_sports": "Education and Sports",
+    "culture_events": "Culture and Events",
+    "health_care": "Health and Care",
+    "craft_goods": "Craft Goods",
+    "food_farmers": "Farm and Local Food",
+    "services_repair": "Services and Repair",
+    "home_garden": "Home and Garden",
+    "kids_education": "Kids and Education",
+    "events_tickets": "Events and Tickets",
+    "other": "Other"
   },
   "vendorAttribution": {
     "fastResponse": "Fast response",
@@ -434,5 +450,6 @@
     "noCurrencies": "No currencies"
   },
   "loading": "Loading more products…",
-  "shareEarnHint": "Invite others and earn referral rewards"
+  "shareEarnHint": "Invite others and earn referral rewards",
+  "fastDelivery": "Fast delivery"
 }

@@ -384,7 +384,12 @@ export async function markNotificationAsRead(
 
 /**
  * Mark all notifications as read for a user
- * 
+ *
+ * Single bulk UPDATE via the sanctioned raw-SQL escape hatch — the previous
+ * implementation queried up to 1000 unread docs then Promise.all'ed 1000
+ * concurrent updateDoc calls (N+1), blowing past the client's 10s read-all
+ * timeout on large inboxes (greenfood.live abort storm, 2026-10-02).
+ *
  * @param userId - The user ID
  * @returns Promise<number> - Number of notifications marked as read
  */
@@ -392,31 +397,31 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
   console.log('NotificationService: Marking all notifications as read', { userId });
 
   try {
-    const queryResult = await db().queryDocs({
-      collection: 'notifications',
-      filters: [
-        { field: 'user_id', operator: '==' as const, value: userId },
-        { field: 'read_at', operator: '==' as const, value: null }
-      ],
-      pagination: { limit: 1000 }
-    });
+    const { getSharedPgPool } = await import('@/lib/database/shared-pg-pool');
+    const pool = await getSharedPgPool();
 
-    if (!queryResult.success || queryResult.data.length === 0) {
+    const readAtIso = new Date().toISOString();
+    const result = await pool.query(
+      `UPDATE notifications
+         SET data = data || jsonb_build_object(
+               'read_at', $2::text,
+               'status', $3::text,
+               'updated_at', $2::text
+             ),
+             updated_at = now()
+       WHERE data->>'user_id' = $1
+         AND data->>'read_at' IS NULL
+       RETURNING id`,
+      [userId, readAtIso, NotificationStatus.READ],
+    );
+
+    const markedCount = result.rowCount ?? 0;
+
+    if (markedCount === 0) {
       return 0;
     }
 
-    const updatePromises = queryResult.data.map(notification =>
-      db().updateDoc('notifications', notification.id, {
-        ...notification,
-        read_at: new Date(),
-        status: NotificationStatus.READ,
-        updated_at: new Date()
-      })
-    );
-
-    await Promise.all(updatePromises);
-
-    console.log(`NotificationService: Marked ${queryResult.data.length} notifications as read`);
+    console.log(`NotificationService: Marked ${markedCount} notifications as read`);
 
     try {
       await publishUnreadCountForUser(userId);
@@ -425,7 +430,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
       console.warn('NotificationService: Failed to publish tunnel updates after mark all read:', tunnelError);
     }
 
-    return queryResult.data.length;
+    return markedCount;
 
   } catch (error) {
     console.error('NotificationService: Error marking all notifications as read:', error);

@@ -14,6 +14,7 @@ export type CallSignalEvent =
   | 'call:invite'
   | 'call:accept'
   | 'call:reject'
+  | 'call:cancel'
   | 'call:offer'
   | 'call:answer'
   | 'call:ice'

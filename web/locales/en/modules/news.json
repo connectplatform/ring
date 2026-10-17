@@ -87,6 +87,17 @@
     "historicalBanner": "Editing historical version — Save creates a new latest version.",
     "sliderLabel": "v{current} of {total}"
   },
+  "filters": {
+    "searchPlaceholder": "Search news articles...",
+    "sortBy": "Sort by",
+    "latest": "Latest",
+    "mostViewed": "Most Viewed",
+    "mostLiked": "Most Liked",
+    "recentlyAdded": "Recently Added",
+    "featuredOnly": "Featured Only",
+    "loadingArticles": "Loading articles...",
+    "moreTags": "+{count} more"
+  },
   "page": {
     "title": "News",
     "subtitle": "Latest stories and updates",
@@ -117,6 +128,14 @@
     "allNews": "All News",
     "rssFeed": "RSS Feed",
     "trending": "Trending",
+    "popularThisWeek": "Most popular articles this week",
+    "rssFeeds": "RSS Feeds",
+    "upcomingEvents": "Upcoming Events",
+    "upcomingEventsDescription": "Stay updated on community events and webinars",
+    "viewEvents": "View Events",
+    "helpResources": "Help & Resources",
+    "helpResourcesDescription": "Learn about our platform features and updates",
+    "viewDocumentation": "View Documentation",
     "loadMore": "Load More",
     "moreNews": "More News",
     "top": "TOP",

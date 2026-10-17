@@ -85,6 +85,9 @@ function normalizeTouch(row: unknown): CurtainAttributionTouch | null {
     pagePath: typeof rec.pagePath === 'string' ? rec.pagePath : undefined,
     commissionPercent: Number.isFinite(commissionPercent) ? commissionPercent : 0,
     ctaAt,
+    offerToken: typeof rec.offerToken === 'string' ? rec.offerToken : undefined,
+    newsArticleId: typeof rec.newsArticleId === 'string' ? rec.newsArticleId : undefined,
+    vendorId: typeof rec.vendorId === 'string' ? rec.vendorId : undefined,
   }
 }
 

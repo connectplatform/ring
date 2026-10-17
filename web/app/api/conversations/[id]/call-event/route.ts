@@ -2,21 +2,24 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { z } from 'zod'
 import { ConversationService } from '@/features/chat/services/conversation-service'
-import { publishToChannel } from '@/lib/tunnel/publisher'
+import { publishToChannel, publishToUserTunnel } from '@/lib/tunnel/publisher'
 import { setNxPx } from '@/lib/redis/set-nx'
 
 /**
  * POST /api/conversations/[id]/call-event
- * Records call lifecycle system lines (ended / rejected / failed).
+ * Records call lifecycle system lines (ended / rejected / failed / missed).
  * For `rejected`, also publishes `call:reject` so the caller tears down even when
  * the decliner has no live Tunnel (banner decline API fallback).
+ * For `missed` (caller ring-timeout), publishes `call:cancel` to the conversation
+ * channel AND the peer user channel (banner clear), deletes the pending-invite
+ * replay key, and records the "did not get an answer" line.
  * Idempotent per callId+event via setNxPx (Redis + Map fallback).
  */
 type RouteContext = { params: Promise<{ id: string }> }
 
 const bodySchema = z.object({
   callId: z.string().min(8).max(128),
-  event: z.enum(['ended', 'rejected', 'failed']),
+  event: z.enum(['ended', 'rejected', 'failed', 'missed']),
   media: z.enum(['audio', 'video']).optional(),
   peerUserName: z.string().max(120).optional(),
 })
@@ -70,12 +73,49 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
     }
 
+    if (parsed.event === 'missed') {
+      // Direct 1:1 only — the other participant is the invite target.
+      const peerUserId = conversation.participants.find(
+        (p) => p.userId !== userId,
+      )?.userId
+      const cancelPayload = {
+        callId: parsed.callId,
+        fromUserId: userId,
+        media: parsed.media || 'audio',
+        reason: 'missed',
+      }
+      try {
+        await publishToChannel(
+          `conversation:${conversationId}`,
+          'call:cancel',
+          cancelPayload,
+        )
+      } catch {
+        /* non-fatal */
+      }
+      if (peerUserId) {
+        try {
+          await publishToUserTunnel(peerUserId, 'calls:incoming', cancelPayload)
+        } catch {
+          /* non-fatal */
+        }
+        try {
+          const { clearCallPending } = await import('@/lib/redis/call-pending')
+          await clearCallPending(peerUserId, parsed.callId)
+        } catch {
+          /* non-fatal */
+        }
+      }
+    }
+
     const phrase =
       parsed.event === 'ended'
         ? 'ended the call'
         : parsed.event === 'rejected'
           ? 'declined the call'
-          : 'call failed'
+          : parsed.event === 'missed'
+            ? 'did not get an answer'
+            : 'call failed'
 
     const systemMessage = await conversationService.recordCallSystemMessage(
       conversationId,

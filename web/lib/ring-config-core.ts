@@ -13,6 +13,7 @@ import { cache } from 'react'  // React19+ for stateless caching
 import template from '@/ring-config.template.json'
 import concrete from '@/ring-config.json'
 import { SUPPORTED_LOCALES } from '@/lib/locale-config'
+import { parseCurtainPolicy } from '@/features/curtain/lib/policy'
 
 import type {
   CollectiveOrderConfigRail,
@@ -745,6 +746,9 @@ export const getDefaultTheme = cache((): 'light' | 'dark' | 'system' => {
  * SSOT: ring-config.json → `store.mainCurrency`.
  * Empty string is treated as missing (?? alone would not catch '').
  */
+/** SSOT: ring-config.template.json → `curtain`, clone override in ring-config.json. */
+export const getCurtainPolicy = cache(() => parseCurtainPolicy(getSystemConfigSnapshot().curtain))
+
 export const getMainCurrencySymbol = cache((): SupportedCurrencies => {
   const raw = getSystemConfigSnapshot().store?.mainCurrency
   const trimmed = typeof raw === 'string' ? raw.trim() : ''

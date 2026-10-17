@@ -12,6 +12,7 @@ import {
 } from '@/features/store/services/settlement'
 import { connection } from 'next/server'
 import VendorEarningsClient from './vendor-earnings-client'
+import { CurtainFunnelCard } from '@/features/curtain/components/curtain-funnel-card'
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params
@@ -44,10 +45,27 @@ export default async function VendorEarningsPage({
   ])
 
   const t = await getTranslations({ locale: validLocale, namespace: 'vendor.earnings' })
+  const curtainT = await getTranslations({ locale: validLocale, namespace: 'modules.curtain' })
+  const { getCurtainFunnel } = await import('@/features/analytics/lib/curtain-analytics')
+  const curtainFunnel = await getCurtainFunnel({ timeframe: '7d', vendorId })
 
   return (
     <VendorDashboardWrapper locale={validLocale}>
       <div className="container mx-auto px-6 max-w-6xl">
+        <CurtainFunnelCard
+          title={curtainT('funnelTitle')}
+          funnel={curtainFunnel}
+          labels={{
+            shown: curtainT('funnelShown'),
+            resurfaced: curtainT('funnelResurfaced'),
+            cta: curtainT('funnelCta'),
+            notToday: curtainT('funnelNotToday'),
+            notForMe: curtainT('funnelNotForMe'),
+            scroll: curtainT('funnelScroll'),
+            paid: curtainT('funnelPaid'),
+            credits: curtainT('funnelCredits'),
+          }}
+        />
         <VendorEarningsClient
           pendingTotal={pending.total}
           pendingSettlements={pending.settlements}

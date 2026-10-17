@@ -106,5 +106,7 @@ export function parseOpportunityListQuery(source: ParamSource): OpportunityListQ
   }
   if (sortOrderRaw === 'asc' || sortOrderRaw === 'desc') parsed.sortOrder = sortOrderRaw
   // entityVerified is a ghost field — ignored on purpose.
+  // TBD: re-enable when opportunities can join entity.storeVerification.identityVerified.
+  // The filter rail no longer writes this param.
   return parsed
 }

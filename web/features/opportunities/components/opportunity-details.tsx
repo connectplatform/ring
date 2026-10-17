@@ -88,6 +88,8 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   const [requestPending, startRequest] = useTransition()
   const [requestError, setRequestError] = useState<string | null>(null)
   const [requested, setRequested] = useState(false)
+  const [signPending, startSignTransition] = useTransition()
+  const [signError, setSignError] = useState<string | null>(null)
 
   // Real-time updates
   useRealtimeOpportunities({
@@ -99,6 +101,36 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   const [isBookmarked, setIsBookmarked] = useState(false)
   const opportunityIdRef = useRef(opportunity.id)
   opportunityIdRef.current = opportunity.id
+
+  const meta = (opportunity as { metadata?: Record<string, unknown> }).metadata || {}
+  const initialSignatureTarget =
+    Number(meta.signatureTarget) > 0 ? Number(meta.signatureTarget) : 250
+  const initialSignatureCount =
+    Number.isFinite(Number(meta.signatureCount)) && Number(meta.signatureCount) >= 0
+      ? Number(meta.signatureCount)
+      : 1
+
+  const [signatureCount, setSignatureCount] = useState<number>(initialSignatureCount)
+  const [signatureTarget, setSignatureTarget] = useState<number>(initialSignatureTarget)
+  const [alreadySigned, setAlreadySigned] = useState<boolean>(() => {
+    const uid = session?.user?.id
+    const signedIds = Array.isArray(meta.signedUserIds) ? meta.signedUserIds.map(String) : []
+    return Boolean(uid && signedIds.includes(uid))
+  })
+
+  useEffect(() => {
+    const nextMeta = (opportunity as { metadata?: Record<string, unknown> }).metadata || {}
+    if (Number.isFinite(Number(nextMeta.signatureCount)) && Number(nextMeta.signatureCount) >= 0) {
+      setSignatureCount(Number(nextMeta.signatureCount))
+    }
+    if (Number(nextMeta.signatureTarget) > 0) {
+      setSignatureTarget(Number(nextMeta.signatureTarget))
+    }
+    const uid = session?.user?.id
+    if (uid && Array.isArray(nextMeta.signedUserIds)) {
+      setAlreadySigned(nextMeta.signedUserIds.map(String).includes(uid))
+    }
+  }, [opportunity, session?.user?.id])
 
   useEffect(() => {
     const applicants = opportunity.applicants
@@ -121,8 +153,12 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
       setOpportunity((prev) => {
         const { viewer: _viewer, creator: patchCreator, ...patch } = update.data
         const next = { ...prev, ...patch, viewer: prev.viewer }
+        if (!patch.createdBy && prev.createdBy) next.createdBy = prev.createdBy
+        if (!patch.organizationId && prev.organizationId) next.organizationId = prev.organizationId
         if (patchCreator && typeof patchCreator === 'object') {
           next.creator = patchCreator
+        } else if (prev.creator) {
+          next.creator = prev.creator
         }
         return next
       })
@@ -141,14 +177,19 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
     (opportunity as { isActive?: boolean }).isActive !== false &&
     String((opportunity as { status?: string }).status || 'active').toLowerCase() !== 'closed'
 
-  const isConfidentialListing = opportunity.visibility === 'confidential' as OpportunityVisibility
+  const isConfidentialListing =
+    opportunity.isConfidential === true ||
+    opportunity.visibility === ('confidential' as OpportunityVisibility)
+  const isNonPublicListing =
+    isConfidentialListing ||
+    Boolean(opportunity.visibility && opportunity.visibility !== 'public')
   const isMaskedAnonymous = opportunity.anonymousPoster === true && !opportunity.createdBy
 
   if (status === 'loading') {
     return <div>{t('loading')}</div>
   }
 
-  if (!session) {
+  if (!session?.user && isNonPublicListing) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center py-12">
         <div className="max-w-md w-full">
@@ -158,7 +199,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
     )
   }
 
-  const userRole = resolveSessionUserRole(session.user?.role)
+  const userRole = resolveSessionUserRole(session?.user?.role)
   const canViewConfidential = hasConfidentialAccess(userRole)
 
   if (isConfidentialListing && !canViewConfidential) {
@@ -218,6 +259,56 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   // Check entity verification status
   const isEntityVerified = initialEntity?.storeVerification?.identityVerified || false
   const entityTrustScore = initialEntity?.storeMetrics?.trustScore || 0
+
+  const isCivicOpportunity =
+    opportunity.type === 'civic_inquiry' ||
+    opportunity.type === 'urban_improvement' ||
+    Boolean(meta.civicKind)
+  const isCivicPetition =
+    opportunity.type === 'civic_petition' || meta.civicKind === 'civic_petition'
+
+  const caseStatusRaw = typeof meta.caseStatus === 'string' ? meta.caseStatus : undefined
+  const caseStatusConfig = (() => {
+    switch (caseStatusRaw) {
+      case 'open':
+        return {
+          label: 'Open / Відкрито',
+          className:
+            'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+        }
+      case 'in_progress':
+        return {
+          label: 'In Progress / В роботі',
+          className:
+            'border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+        }
+      case 'resolved':
+        return {
+          label: 'Resolved / Вирішено',
+          className:
+            'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        }
+      case 'proposed':
+        return {
+          label: 'Proposed / Запропоновано',
+          className:
+            'border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-300',
+        }
+      default:
+        return null
+    }
+  })()
+
+  const districtBadge =
+    typeof meta.district === 'string' && meta.district.trim() ? meta.district.trim() : null
+  const categoryCodeBadge =
+    typeof meta.categoryCode === 'string' && meta.categoryCode.trim()
+      ? meta.categoryCode.trim()
+      : null
+  const petitionProgressPct = Math.min(
+    100,
+    Math.round((signatureCount / Math.max(1, signatureTarget)) * 100),
+  )
 
   return (
     <div className="min-h-full text-foreground">
@@ -314,6 +405,118 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
             <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
               {opportunity.briefDescription}
             </p>
+
+            {/* 311 / Civic Status Strip */}
+            {isCivicOpportunity && (caseStatusConfig || districtBadge || categoryCodeBadge) && (
+              <div className="flex flex-wrap items-center gap-2 p-3 mb-6 rounded-lg border bg-muted/40">
+                {caseStatusConfig && (
+                  <Badge variant="outline" className={`text-xs font-medium ${caseStatusConfig.className}`}>
+                    <Clock className="w-3 h-3 mr-1" />
+                    {caseStatusConfig.label}
+                  </Badge>
+                )}
+                {districtBadge && (
+                  <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {districtBadge}
+                  </Badge>
+                )}
+                {categoryCodeBadge && (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <Tag className="w-3 h-3" />
+                    {categoryCodeBadge}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Civic Petition Signature Card (SIGNAL_VS_BIND) */}
+            {isCivicPetition && (
+              <div className="mb-6 rounded-xl border p-5 bg-muted/30 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-semibold">
+                      Підписи петиції / Petition Signatures
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {signatureCount} / {signatureTarget} ({petitionProgressPct}%)
+                    </p>
+                  </div>
+                  <Button
+                    size="default"
+                    disabled={signPending || alreadySigned}
+                    onClick={() => {
+                      setSignError(null)
+                      if (!session?.user?.id) {
+                        const returnTo = ROUTES.OPPORTUNITY(opportunity.id, locale)
+                        router.push(
+                          `${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(returnTo)}`,
+                        )
+                        return
+                      }
+                      const previousCount = signatureCount
+                      setAlreadySigned(true)
+                      setSignatureCount((prev) => prev + 1)
+                      startSignTransition(async () => {
+                        try {
+                          const res = await fetch(`/api/opportunities/${opportunity.id}/sign`, {
+                            method: 'POST',
+                          })
+                          if (res.status === 401) {
+                            setAlreadySigned(false)
+                            setSignatureCount(previousCount)
+                            const returnTo = ROUTES.OPPORTUNITY(opportunity.id, locale)
+                            router.push(
+                              `${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(returnTo)}`,
+                            )
+                            return
+                          }
+                          const json = await res.json()
+                          if (!res.ok) {
+                            throw new Error(json.error || 'Failed to sign petition')
+                          }
+                          if (typeof json.signatureCount === 'number') {
+                            setSignatureCount(json.signatureCount)
+                          }
+                          if (typeof json.signatureTarget === 'number') {
+                            setSignatureTarget(json.signatureTarget)
+                          }
+                          setAlreadySigned(true)
+                        } catch (err) {
+                          setAlreadySigned(false)
+                          setSignatureCount(previousCount)
+                          setSignError(
+                            err instanceof Error ? err.message : 'Failed to sign petition',
+                          )
+                        }
+                      })
+                    }}
+                  >
+                    {signPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {alreadySigned
+                      ? 'Підписано / Signed'
+                      : 'Підписати петицію / Sign Petition'}
+                  </Button>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300 rounded-full"
+                    style={{ width: `${petitionProgressPct}%` }}
+                  />
+                </div>
+
+                {signError && (
+                  <p className="text-xs text-destructive">{signError}</p>
+                )}
+
+                {/* SIGNAL_VS_BIND advisory disclosure */}
+                <p className="text-xs text-muted-foreground border-t pt-3">
+                  Консультативний сигнал громади: підписи передаються на розгляд міської ради згідно зі статутом громади / Advisory community signal: signatures are submitted for city council consideration
+                </p>
+              </div>
+            )}
 
             {/* Enhanced Information Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

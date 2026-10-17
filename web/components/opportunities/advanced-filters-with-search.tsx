@@ -114,11 +114,12 @@ export function AdvancedFiltersWithSearch({
         url.searchParams.delete('deadline')
       }
 
-      if (searchFilters.entityVerified !== null) {
-        url.searchParams.set('entityVerified', searchFilters.entityVerified.toString())
-      } else {
-        url.searchParams.delete('entityVerified')
-      }
+      // TBD: entityVerified disabled — always drop the param so stale URLs do not imply a filter.
+      // if (searchFilters.entityVerified !== null) {
+      //   url.searchParams.set('entityVerified', searchFilters.entityVerified.toString())
+      // } else {
+      url.searchParams.delete('entityVerified')
+      // }
 
       if (searchFilters.hasDeadline !== null) {
         url.searchParams.set('hasDeadline', searchFilters.hasDeadline.toString())
@@ -174,7 +175,8 @@ export function AdvancedFiltersWithSearch({
       filterState.budgetMax ||
       (filterState.priority && filterState.priority !== 'all') ||
       (filterState.deadline && filterState.deadline !== 'any') ||
-      filterState.entityVerified !== null ||
+      // TBD: entityVerified disabled.
+      // filterState.entityVerified !== null ||
       filterState.hasDeadline !== null
     )
   }
@@ -226,7 +228,8 @@ export function filtersToURLParams(filters: FilterState): URLSearchParams {
   if (filters.currency) params.set('currency', filters.currency)
   if (filters.priority && filters.priority !== 'all') params.set('priority', filters.priority)
   if (filters.deadline && filters.deadline !== 'any') params.set('deadline', filters.deadline)
-  if (filters.entityVerified !== null) params.set('entityVerified', filters.entityVerified.toString())
+  // TBD: entityVerified disabled.
+  // if (filters.entityVerified !== null) params.set('entityVerified', filters.entityVerified.toString())
   if (filters.hasDeadline !== null) params.set('hasDeadline', filters.hasDeadline.toString())
 
   return params
@@ -245,7 +248,8 @@ export function urlParamsToFilters(searchParams: URLSearchParams): Partial<Filte
   if (searchParams.has('currency')) filters.currency = searchParams.get('currency') || getClientMainCurrency()
   if (searchParams.has('priority')) filters.priority = searchParams.get('priority') as any
   if (searchParams.has('deadline')) filters.deadline = searchParams.get('deadline') as any
-  if (searchParams.has('entityVerified')) filters.entityVerified = searchParams.get('entityVerified') === 'true'
+  // TBD: entityVerified disabled — ignore the query param.
+  // if (searchParams.has('entityVerified')) filters.entityVerified = searchParams.get('entityVerified') === 'true'
   if (searchParams.has('hasDeadline')) filters.hasDeadline = searchParams.get('hasDeadline') === 'true'
 
   return filters

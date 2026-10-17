@@ -233,7 +233,7 @@ export function NftListingDetailsWrapper({
   currentUserId?: string
 }) {
   const isSeller = Boolean(currentUserId && currentUserId === listing.sellerUserId)
-  const image = listing.imageUri || '/placeholder-product.png'
+  const image = listing.imageUri || '/placeholder-product.svg'
 
   const rightRail = (
     <NftListingRightSidebar

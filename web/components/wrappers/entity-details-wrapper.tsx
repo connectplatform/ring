@@ -38,11 +38,7 @@ export default function EntityDetailsWrapper({
     return <div>{tCommon('loading')}</div>
   }
 
-  if (!session) {
-    return <div>{t('loginRequired')}</div>
-  }
-
-  const chatComponent = initialEntity ? (
+  const chatComponent = initialEntity && session ? (
     <EntityConversationPanel
       entityId={initialEntity.id}
       entityName={initialEntity.name}

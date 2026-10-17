@@ -42,6 +42,15 @@ function mapProductRow(row: ProductRow): StoreProduct {
     storeId: '1',
     status: ((row.status as StoreProduct['status'] | undefined) ?? 'active') as StoreProduct['status'],
     variants: row.variants as StoreProduct['variants'],
+    specifications:
+      row.specifications && typeof row.specifications === 'object'
+        ? (row.specifications as StoreProduct['specifications'])
+        : undefined,
+    nichePreset: typeof row.nichePreset === 'string' ? row.nichePreset : undefined,
+    nicheData:
+      row.nicheData && typeof row.nicheData === 'object' && !Array.isArray(row.nicheData)
+        ? (row.nicheData as Record<string, unknown>)
+        : undefined,
   }
 }
 

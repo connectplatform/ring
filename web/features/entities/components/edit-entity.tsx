@@ -143,6 +143,17 @@ export default function EditEntityForm({
             </div>
 
             <div>
+              <Label htmlFor="parentEntityId">Parent entity id</Label>
+              <Input
+                id="parentEntityId"
+                name="parentEntityId"
+                className="mt-1"
+                defaultValue={entity.parentEntityId || ''}
+                placeholder="Dealer group id for a rooftop"
+              />
+            </div>
+
+            <div>
               <Label htmlFor="website">{t('website')}</Label>
               <Input
                 id="website"

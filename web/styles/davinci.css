@@ -179,6 +179,25 @@
   }
 
   /**
+   * Add-opportunity sheet slides up and stops above the mobile bottom nav.
+   * Keyframe !important beats Dialog's translate utilities for the duration.
+   */
+  @keyframes opportunity-sheet-up {
+    from {
+      transform: translate3d(0, 110%, 0) !important;
+    }
+    to {
+      transform: translate3d(0, 0, 0) !important;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .opportunity-type-sheet[data-state='open'] {
+      animation: opportunity-sheet-up 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+  }
+
+  /**
    * Wiki / CV TipTap caret — terminal block cursor (not native `|`).
    *
    * Native caret blink runs on a separate browser clock; animating `caret-color`

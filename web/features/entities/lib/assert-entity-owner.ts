@@ -31,7 +31,8 @@ export async function assertEntityOwnerOrAdmin(entityId: string): Promise<{
 
   const role = assertKnownUserRole(session.user.role)
   const isAdmin = isPlatformAdmin(role)
-  const isOwner = entity.addedBy === session.user.id
+  const memberRole = entity.memberRoles?.[session.user.id]
+  const isOwner = entity.addedBy === session.user.id || memberRole === 'OWNER' || memberRole === 'ADMIN'
 
   if (!isAdmin && !isOwner) {
     throw new EntityOwnershipError('You do not have permission to manage this entity')

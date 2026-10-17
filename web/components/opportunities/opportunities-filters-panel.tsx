@@ -289,7 +289,8 @@ export default function OpportunitiesFiltersPanel({
            filters.currency !== mainCurrency ||
            filters.priority ||
            filters.deadline ||
-           filters.entityVerified !== null ||
+           // TBD: entityVerified disabled — ghost field, not an active filter.
+           // filters.entityVerified !== null ||
            filters.hasDeadline !== null
   }
 

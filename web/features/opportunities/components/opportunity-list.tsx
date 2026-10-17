@@ -132,7 +132,7 @@ export default function OpportunityList({
     filterFingerprint,
     initialItems: initialOpportunities,
     initialCursor: initialLastVisible,
-    enabled: Boolean(session),
+    enabled: true,
     fetchPage: fetchOpportunitiesPage,
     onItemsAdded: (added) => {
       void loadEntitiesForOpportunities(added)
@@ -236,16 +236,6 @@ export default function OpportunityList({
 
   if (status === 'loading') {
     return <LoadingMessage message={t('loadingMessage')} />
-  }
-
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4">
-        <div className="max-w-md w-full">
-          <UnifiedLoginInline variant="hero" />
-        </div>
-      </div>
-    )
   }
 
   return (

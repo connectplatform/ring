@@ -226,7 +226,21 @@
     "bioenergetics": "Біоенергетика, БАДи, пробіотіки",
     "services": "Послуги",
     "cooperative-share": "Купити пай кооперативу",
-    "retreat-hub": "Ретрит Хаб"
+    "retreat-hub": "Ретрит Хаб",
+    "local_producers": "Локальні виробники",
+    "city_services": "Міські сервіси",
+    "utilities_household": "Побутові та комунальні послуги",
+    "food_dining": "Кафе, їжа та фермерські продукти",
+    "education_sports": "Освіта та спорт",
+    "culture_events": "Культура та події",
+    "health_care": "Здоров'я та турбота",
+    "craft_goods": "Крафтові вироби",
+    "food_farmers": "Фермерські продукти",
+    "services_repair": "Послуги та ремонт",
+    "home_garden": "Дім та сад",
+    "kids_education": "Дітям та освіта",
+    "events_tickets": "Події та квитки",
+    "other": "Інше"
   },
   "vendorAttribution": {
     "fastResponse": "Швидка відповідь",
