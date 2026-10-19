@@ -58,7 +58,7 @@ const BRAND_ROW = 'flex h-16 min-h-16 max-h-16 items-center'
 const SECTION_ROW = 'h-5 min-h-5 max-h-5'
 const GRID_COLS = 'grid-cols-[64px_minmax(0,1fr)]'
 const GUTTER_ICON = 'flex w-6 shrink-0 items-center justify-center'
-const FOOTER_H = 'min-h-[4.5rem] h-auto py-2'
+const FOOTER_H = 'min-h-12 h-auto py-1.5'
 const FOOTER_BTN =
   'flex h-8 w-full shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent text-white hover:bg-white/10'
 const ASIDE_PAD = 'pl-1 pr-2'

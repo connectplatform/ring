@@ -27,6 +27,15 @@ const CONTACT_FAQ_ITEMS = [
   { questionKey: 'faqInquiries', answerKey: 'faqInquiriesAnswer' },
 ] as const
 
+/** City-pack FAQ. Rendered only when the pack supplies `faqNews` (mvm-city). */
+const CITY_FAQ_ITEMS = [
+  { questionKey: 'faqNews', answerKey: 'faqNewsAnswer' },
+  { questionKey: 'faqDirectory', answerKey: 'faqDirectoryAnswer' },
+  { questionKey: 'faqMarket', answerKey: 'faqMarketAnswer' },
+  { questionKey: 'faqOpportunities', answerKey: 'faqOpportunitiesAnswer' },
+  { questionKey: 'faqMessenger', answerKey: 'faqMessengerAnswer' },
+] as const
+
 export async function generateMetadata({
   params,
 }: {
@@ -118,16 +127,18 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
           <div className={cn(davinciGlassSurface, 'p-4 sm:p-5')}>
             <h2 className="mb-4 text-xl font-semibold sm:text-2xl">{t('faq')}</h2>
             <div className="space-y-4">
-              {CONTACT_FAQ_ITEMS.map(({ questionKey, answerKey }) => (
-                <div key={questionKey}>
-                  <h3 className="mb-1.5 text-base font-semibold sm:text-lg">
-                    {t(questionKey, platformVars)}
-                  </h3>
-                  <p className="text-sm text-muted-foreground sm:text-base">
-                    {t(answerKey, platformVars)}
-                  </p>
-                </div>
-              ))}
+              {(t.has('faqNews' as 'faq') ? CITY_FAQ_ITEMS : CONTACT_FAQ_ITEMS).map(
+                ({ questionKey, answerKey }) => (
+                  <div key={questionKey}>
+                    <h3 className="mb-1.5 text-base font-semibold sm:text-lg">
+                      {t(questionKey as 'faqWhatIs', platformVars)}
+                    </h3>
+                    <p className="text-sm text-muted-foreground sm:text-base">
+                      {t(answerKey as 'faqWhatIsAnswer', platformVars)}
+                    </p>
+                  </div>
+                ),
+              )}
             </div>
           </div>
 

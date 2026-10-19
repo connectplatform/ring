@@ -27,9 +27,8 @@ export function NavLegalFooter({
   align = 'start',
 }: NavLegalFooterProps) {
   const t = useTranslations('navigation')
-  // 1.5× prior compact/comfortable type (10px→15px, 12px→18px)
-  const textSize = density === 'comfortable' ? 'text-lg' : 'text-[15px]'
-  const gap = density === 'comfortable' ? 'gap-2' : 'gap-1.5'
+  const textSize = density === 'comfortable' ? 'text-[11px]' : 'text-[10px]'
+  const gap = density === 'comfortable' ? 'gap-1' : 'gap-1'
   const rowAlign = align === 'center' ? 'justify-center text-center' : 'justify-start text-left'
 
   return (
