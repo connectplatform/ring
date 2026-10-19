@@ -191,6 +191,12 @@
     }
   }
 
+  .opportunity-type-sheet {
+    max-width: 100%;
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+
   @media (max-width: 1023px) {
     .opportunity-type-sheet[data-state='open'] {
       animation: opportunity-sheet-up 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;

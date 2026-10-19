@@ -155,7 +155,7 @@ export function FsModal({
         }
         className={cn(
           pinAboveMobileNav
-            ? 'opportunity-type-sheet z-[9200] max-lg:z-[8890] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0'
+            ? 'opportunity-type-sheet z-[9200] max-lg:z-[8890] flex max-h-[100dvh] max-w-full flex-col gap-0 overflow-x-hidden overflow-y-hidden p-0 touch-pan-y'
             : 'z-[9200] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0',
           !isCenterPane &&
             'max-sm:min-h-[100dvh] max-sm:rounded-none max-sm:pt-10 sm:max-w-lg',

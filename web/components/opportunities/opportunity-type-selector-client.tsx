@@ -457,7 +457,7 @@ export function OpportunityTypeSelectorClient({
           className={cn(
             'min-h-0 flex-1',
             hostedBody
-              ? 'overflow-y-auto overscroll-contain'
+              ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y'
               : density === 'compact'
                 ? 'mt-3 flex flex-col'
                 : 'mt-6 overflow-y-auto overscroll-contain',
