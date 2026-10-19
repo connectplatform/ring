@@ -132,7 +132,7 @@ export function OpportunityTypeSelectorClient({
   // would otherwise open-then-immediately-close the '+' sheet.
   const pathReadyRef = useRef(false)
   useEffect(() => {
-    if (layout === 'embedded' || layout === 'body' || layout === 'overlay') return
+    if (layout === 'embedded' || layout === 'overlay') return
     if (!pathReadyRef.current) {
       pathReadyRef.current = true
       prevPathRef.current = pathname
@@ -208,7 +208,12 @@ export function OpportunityTypeSelectorClient({
           transition={{ duration: 0.32, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
         >
           {canAccess ? (
-            <Link href={href} onClick={onClose} className="block" aria-label={title}>
+            <Link
+              href={href}
+              onClick={layout === 'body' ? undefined : onClose}
+              className="block"
+              aria-label={title}
+            >
               {rowBody}
             </Link>
           ) : (
@@ -446,7 +451,7 @@ export function OpportunityTypeSelectorClient({
         className={cn(
           'relative z-[1] flex min-h-0 flex-1 flex-col',
           hostedBody
-            ? 'px-2 py-2'
+            ? 'px-0 py-0'
             : density === 'compact'
               ? 'px-3 py-3'
               : 'px-4 py-6 sm:px-8 lg:py-8',

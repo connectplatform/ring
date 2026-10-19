@@ -315,8 +315,11 @@ export function PrebillingPage({
       shippingMethod,
       shippingLocation,
       paymentMethod,
-      billingAddressSameAsShipping,
-      billingAddress: billingAddressSameAsShipping ? shippingAddress : selectedBillingAddress,
+      billingAddressSameAsShipping: shippingMethod === 'nova-post' ? true : billingAddressSameAsShipping,
+      billingAddress:
+        shippingMethod === 'nova-post' || billingAddressSameAsShipping
+          ? shippingAddress
+          : selectedBillingAddress,
       savePaymentMethod,
       marketingOptIn,
       paymentCurrency,
@@ -339,11 +342,15 @@ export function PrebillingPage({
 
   // Check if checkout is ready for submission: must have all key fields
   // TODO: Codemod: Migrate to Zod or Yup for schema-driven validation (add feedback for user)
-  const isFormValid = selectedAddress && 
-    firstName.trim() && 
-    lastName.trim() && 
-    email.trim() &&
-    (shippingMethod !== 'nova-post' || shippingLocation)
+  const deliveryReady =
+    shippingMethod === 'nova-post'
+      ? Boolean(shippingLocation)
+      : novaPostEnabled
+        ? shippingMethod === 'pickup'
+        : Boolean(selectedAddress)
+  const isFormValid = Boolean(
+    firstName.trim() && lastName.trim() && email.trim() && deliveryReady,
+  )
 
   // ===========================
   // Main Render (JSX UI)
@@ -540,6 +547,7 @@ export function PrebillingPage({
                 // TODO: Add form section for specifying billing address if unchecked
               */}
               <div className="mt-6 space-y-4">
+                {shippingMethod !== 'nova-post' ? (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="sameBillingAddress"
@@ -550,6 +558,7 @@ export function PrebillingPage({
                     {t('billingAddressSameAsShipping')}
                   </Label>
                 </div>
+                ) : null}
                 {/* "Save payment"—only for authenticated */}
                 {isAuthenticated && (
                   <div className="flex items-center space-x-2">
@@ -569,8 +578,8 @@ export function PrebillingPage({
 
           {/* Marketing Opt-In: Checkbox for user's consent for offers/news */}
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
+            <CardContent className="!p-4">
+              <div className="flex items-center gap-2">
                 <Checkbox
                   id="marketingOptIn"
                   checked={marketingOptIn}

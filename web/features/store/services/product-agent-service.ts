@@ -117,6 +117,16 @@ export class ProductAgentService {
     return this.storeAdapter.getProductById(productId)
   }
 
+  /** Lookup only. A visit must not insert a Messages thread. */
+  async findExistingConversation(userId: string, productId: string): Promise<Conversation | null> {
+    const existing = await this.conversationService.findProductConversation(userId, productId)
+    if (!existing) return null
+    const unreadCount = await this.conversationService
+      .getConversationUnread(existing.id, userId)
+      .catch(() => 0)
+    return { ...existing, unreadCount }
+  }
+
   async getOrCreateConversation(
     userId: string,
     product: StoreProduct,
@@ -141,6 +151,7 @@ export class ProductAgentService {
         productName: product.name,
         subject,
         vendorId: product.productOwner,
+        buyerEngaged: true,
       },
     })
 

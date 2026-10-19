@@ -306,10 +306,25 @@ export function ProductAgentChatPanel({
 
       <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
         <div className="p-4 space-y-3">
-          {messagesLoading && messages.length === 0 && (
+          {messagesLoading && messages.length === 0 && conversation && (
             <div className="text-sm text-muted-foreground text-center py-8">
               {t('product.agentChatLoading')}
             </div>
+          )}
+          {!conversation && messages.length === 0 && (
+            <MessageBubble
+              message={{
+                id: 'local-welcome',
+                conversationId: '',
+                senderId: STORE_AGENT_SENDER_ID,
+                senderName: t('product.aiSalesAssistant'),
+                content: t('product.agentWelcome', { name: productName }),
+                type: 'text',
+                status: 'sent',
+                timestamp: new Date().toISOString(),
+              }}
+              isOwn={false}
+            />
           )}
           {messages.map((message) => (
             <MessageBubble

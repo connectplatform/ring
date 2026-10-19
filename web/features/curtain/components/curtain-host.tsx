@@ -109,9 +109,11 @@ export function CurtainHost() {
   const enqueue = useCallback((incoming: CurtainDropParams[]) => {
     const prefs = readCurtainPrefsClient()
     const now = Date.now()
-    const filtered = withoutA2hsOnTelegram(incoming).filter((offerRow) =>
-      canShowOffer(prefs.offers[offerRow.offerId], now, policy.maxImpressionsPerDay),
-    )
+    const mobile = window.matchMedia('(max-width: 767px)').matches
+    const filtered = withoutA2hsOnTelegram(incoming).filter((offerRow) => {
+      if (offerRow.kind === 'a2hs' && !mobile) return false
+      return canShowOffer(prefs.offers[offerRow.offerId], now, policy.maxImpressionsPerDay)
+    })
     if (filtered.length === 0) return
     setQueue((current) => {
       const ids = new Set(current.map((item) => item.offerId))

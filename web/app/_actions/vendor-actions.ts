@@ -491,68 +491,6 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       videoUrl = result.url
     }
 
-    // Extract agricultural fields (optional - Phase 2)
-    const agriculturalData = {
-      origin: {
-        farm: vendorEntity.name,
-        farmId: vendorEntity.id,
-        location: {
-          lat: 0,
-          lng: 0,
-          address: formData.get('farmLocation') as string || '',
-          region: '',
-          country: 'Ukraine'
-        },
-        harvestDate: formData.get('harvestDate') as string || new Date().toISOString(),
-        batchNumber: formData.get('batchNumber') as string || '',
-        traceabilityCode: '',
-        globalLocationNumber: ''
-      },
-      farmingMethods: [],
-      pesticidesUsed: false,
-      syntheticFertilizers: false,
-      irrigationMethod: null
-    }
-
-    const certifications = {
-      organic: (formData.get('organicCert') as string || 'None') !== 'None' ? formData.get('organicCert') as string : null,
-      organicCertNumber: formData.get('organicCertNumber') as string || null,
-      fairTrade: formData.get('fairTrade') === 'on',
-      gmo: 'Conventional' as const,
-      locallyGrown: formData.get('locallyGrown') === 'on',
-      regenerative: formData.get('regenerative') === 'on',
-      animalWelfare: null,
-      globalGAP: false,
-      kosher: false,
-      halal: false,
-      glutenFree: false
-    }
-
-    const sustainabilityMetrics = {
-      carbonFootprint: parseFloat(formData.get('carbonFootprint') as string || '0'),
-      carbonFootprintPerKg: parseFloat(formData.get('carbonFootprint') as string || '0'),
-      waterUsage: parseFloat(formData.get('waterUsage') as string || '0'),
-      waterUsagePerKg: parseFloat(formData.get('waterUsage') as string || '0'),
-      soilHealthImpact: 0,
-      biodiversityImpact: 0,
-      packaging: formData.get('packaging') as string || 'Mixed',
-      packagingMaterial: '',
-      transportEmissions: 0,
-      localImpact: '',
-      carbonNegative: formData.get('carbonNegative') === 'on',
-      renewableEnergyUsed: formData.get('renewableEnergy') === 'on'
-    }
-
-    const freshness = {
-      harvestedAt: formData.get('harvestDate') as string || new Date().toISOString(),
-      bestBefore: null,
-      shelfLifeDays: parseInt(formData.get('shelfLifeDays') as string || '30', 10),
-      storageTemp: parseFloat(formData.get('storageTemp') as string || '0') || null,
-      storageHumidity: null,
-      storageInstructions: formData.get('storageInstructions') as string || 'Store in a cool, dry place',
-      perishable: formData.get('perishable') === 'on' || true
-    }
-
     // Token/USD equivalents come from ring-config `exchangeRates`, so a clone
     // in any main currency prices its own tokens correctly.
     const calculatedDaarPrice = daarPrice || convertFromMainCurrency(priceMain, 'DAAR')
@@ -566,9 +504,9 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       usdPrice: usdtPrice,
       acceptsTokens: true,
       tokenDiscountPercent: 5,
-      regenerativeBonus: certifications.regenerative ? 10 : 0,
+      regenerativeBonus: 0,
       stakingRewards: 0,
-      daarRewardReason: certifications.regenerative ? 'REGENERATIVE_AGRICULTURE_10PCT' : null,
+      daarRewardReason: null,
       daarionRewardReason: null
     }
 
@@ -608,9 +546,6 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
         ? { productResearchMedia: researchForm.researchMedia }
         : {}),
       tags: [],
-      ...(getProductFieldsPreset() === 'agricultural'
-        ? { agriculturalData, certifications, sustainabilityMetrics, freshness }
-        : {}),
       ...(() => {
         const niche = parseNicheProductFields(formData)
         if (!niche.nicheData || Object.keys(niche.nicheData).length === 0) return {}
@@ -816,47 +751,6 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       videoUrl = result.url
     }
 
-    // Extract agricultural fields (Phase 2 - preserve existing or update)
-    const agriculturalData = {
-      ...existingProduct.data?.agriculturalData,
-      origin: {
-        ...(existingProduct.data?.agriculturalData?.origin || {}),
-        harvestDate: formData.get('harvestDate') as string || existingProduct.data?.agriculturalData?.origin?.harvestDate || new Date().toISOString(),
-        batchNumber: formData.get('batchNumber') as string || existingProduct.data?.agriculturalData?.origin?.batchNumber || '',
-        location: {
-          ...(existingProduct.data?.agriculturalData?.origin?.location || {}),
-          address: formData.get('farmLocation') as string || existingProduct.data?.agriculturalData?.origin?.location?.address || ''
-        }
-      }
-    }
-
-    const certifications = {
-      ...(existingProduct.data?.certifications || {}),
-      organic: (formData.get('organicCert') as string || 'None') !== 'None' ? formData.get('organicCert') as string : existingProduct.data?.certifications?.organic || null,
-      organicCertNumber: formData.get('organicCertNumber') as string || existingProduct.data?.certifications?.organicCertNumber || null,
-      fairTrade: formData.has('fairTrade') ? formData.get('fairTrade') === 'on' : existingProduct.data?.certifications?.fairTrade || false,
-      locallyGrown: formData.has('locallyGrown') ? formData.get('locallyGrown') === 'on' : existingProduct.data?.certifications?.locallyGrown || false,
-      regenerative: formData.has('regenerative') ? formData.get('regenerative') === 'on' : existingProduct.data?.certifications?.regenerative || false
-    }
-
-    const sustainabilityMetrics = {
-      ...(existingProduct.data?.sustainabilityMetrics || {}),
-      carbonFootprintPerKg: parseFloat(formData.get('carbonFootprint') as string || existingProduct.data?.sustainabilityMetrics?.carbonFootprintPerKg || '0'),
-      waterUsagePerKg: parseFloat(formData.get('waterUsage') as string || existingProduct.data?.sustainabilityMetrics?.waterUsagePerKg || '0'),
-      packaging: formData.get('packaging') as string || existingProduct.data?.sustainabilityMetrics?.packaging || 'Mixed',
-      carbonNegative: formData.has('carbonNegative') ? formData.get('carbonNegative') === 'on' : existingProduct.data?.sustainabilityMetrics?.carbonNegative || false,
-      renewableEnergyUsed: formData.has('renewableEnergy') ? formData.get('renewableEnergy') === 'on' : existingProduct.data?.sustainabilityMetrics?.renewableEnergyUsed || false
-    }
-
-    const freshness = {
-      ...(existingProduct.data?.freshness || {}),
-      harvestedAt: formData.get('harvestDate') as string || existingProduct.data?.freshness?.harvestedAt || new Date().toISOString(),
-      shelfLifeDays: parseInt(formData.get('shelfLifeDays') as string || existingProduct.data?.freshness?.shelfLifeDays || '30', 10),
-      storageTemp: parseFloat(formData.get('storageTemp') as string || '0') || existingProduct.data?.freshness?.storageTemp || null,
-      storageInstructions: formData.get('storageInstructions') as string || existingProduct.data?.freshness?.storageInstructions || 'Store in a cool, dry place',
-      perishable: formData.has('perishable') ? formData.get('perishable') === 'on' : existingProduct.data?.freshness?.perishable || true
-    }
-
     // Recalculate token prices from ring-config `exchangeRates`.
     const recalculatedDaarPrice = daarPrice || convertFromMainCurrency(priceMain, 'DAAR')
     const recalculatedDaarionPrice = convertFromMainCurrency(priceMain, 'DAARION')
@@ -870,8 +764,8 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       usdPrice: recalculatedUsdtPrice,
       acceptsTokens: true,
       tokenDiscountPercent: 5,
-      regenerativeBonus: certifications.regenerative ? 10 : 0,
-      daarRewardReason: certifications.regenerative ? 'REGENERATIVE_AGRICULTURE_10PCT' : null
+      regenerativeBonus: 0,
+      daarRewardReason: null
     }
 
     const listingPatch = buildMainStoreListingPatch({
@@ -899,9 +793,6 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       videoUrl,
       ...(generativeGallery ? { generativeGallery } : {}),
       activeInVendorStore: activeInMyStore,
-      ...(getProductFieldsPreset() === 'agricultural'
-        ? { agriculturalData, certifications, sustainabilityMetrics, freshness }
-        : {}),
       ...(() => {
         const existingNiche = {
           nichePreset:

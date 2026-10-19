@@ -205,6 +205,19 @@ export class ConversationService {
     return conversation;
   }
 
+  /** True when this shopper has written in the thread (not only the agent welcome). */
+  private async productThreadHasBuyerReply(conversationId: string, userId: string): Promise<boolean> {
+    const result = await db().queryDocs<Message>({
+      collection: 'messages',
+      filters: [
+        { field: 'conversationId', operator: '==', value: conversationId },
+        { field: 'senderId', operator: '==', value: userId },
+      ],
+      pagination: { limit: 1 },
+    });
+    return Boolean(result.success && result.data && result.data.length > 0);
+  }
+
   async getConversations(
     userId: string,
     filters?: ConversationFilters,
@@ -276,6 +289,11 @@ export class ConversationService {
       // Generative gallery / tool-editor chats stay out of Messages inbox
       if (isHiddenToolConversation(conversation)) {
         continue;
+      }
+      // Product visits that only stored the agent welcome are not inbox threads.
+      if (conversation.type === 'product' && conversation.metadata?.buyerEngaged !== true) {
+        const replied = await this.productThreadHasBuyerReply(conversation.id, userId);
+        if (!replied) continue;
       }
       const unreadCount = await this.getUnreadCount(conversation.id, userId);
       const enriched = await this.enrichParticipants(conversation, userId);

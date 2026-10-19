@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { motion, useMotionValue, useTransform } from 'framer-motion'
 import { X } from 'lucide-react'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,7 @@ export function CurtainBanner({
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[48]"
+      className={cn('fixed inset-x-0 top-0 z-[48]', offer.kind === 'a2hs' && 'md:hidden')}
       style={{ height, minHeight: '4.5rem' }}
     >
       {nextOffer ? (
@@ -83,6 +84,25 @@ export function CurtainBanner({
   )
 }
 
+function A2hsMark() {
+  const branding = getSystemConfigSnapshot().branding
+  const logo = branding?.logo?.light || branding?.logo?.dark
+  const tile = branding?.colors?.primary || '#0f4c81'
+  return (
+    <div className="flex h-full items-center pl-3">
+      <div
+        className="flex aspect-square h-[4.25rem] items-center justify-center overflow-hidden rounded-[1.35rem] shadow-sm"
+        style={{ backgroundColor: tile }}
+      >
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="" className="h-[62%] w-[62%] object-contain" />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function BannerBody({
   offer,
   swipeHint,
@@ -98,7 +118,9 @@ function BannerBody({
 
   return (
     <div className="relative flex h-full w-full items-stretch">
-      {offer.mediaUrl ? (
+      {offer.kind === 'a2hs' ? (
+        <A2hsMark />
+      ) : offer.mediaUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={offer.mediaUrl} alt="" className="h-full w-auto max-w-[22%] object-cover" />
       ) : (

@@ -39,23 +39,21 @@ export async function GET(
     }
 
     const { id: productId } = await params
-    const locale = await resolveServerLocale(request, { userId: session.user.id })
     const product = await productAgentService.loadProduct(productId)
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    const conversation = await productAgentService.getOrCreateConversation(
+    const conversation = await productAgentService.findExistingConversation(
       session.user.id,
-      product,
-      locale,
+      product.id,
     )
 
     return NextResponse.json({
       success: true,
       data: {
         conversation,
-        subject: conversation.metadata.subject || product.name,
+        subject: conversation?.metadata.subject || product.name,
       },
     })
   } catch (error) {

@@ -69,6 +69,11 @@ export interface Conversation {
     requesterUserId?: string
     /** Prefer in-app chat over email for this support thread */
     preferChat?: boolean
+    /**
+     * Product-agent threads stay out of Messages until the shopper sends a
+     * message. Welcome-only visits leave this unset or false.
+     */
+    buyerEngaged?: boolean
     /** Linked email-crm contact id */
     emailContactId?: string
   }
@@ -339,6 +344,8 @@ export interface CreateConversationRequest {
     requesterUserId?: string
     preferChat?: boolean
     emailContactId?: string
+    /** Product agent: true once the shopper has sent a message. */
+    buyerEngaged?: boolean
   }
 }
 

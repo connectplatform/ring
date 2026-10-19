@@ -8,7 +8,7 @@ import { useMessages } from '@/hooks/use-messaging'
 import type { Conversation, Message } from '@/features/chat/types'
 
 type AgentChatBootstrap = {
-  conversation: Conversation
+  conversation: Conversation | null
   subject: string
 }
 
@@ -46,6 +46,7 @@ export function useProductAgentChat(productId: string, enabled = true) {
   const [toolStatus, setToolStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const [lookupDone, setLookupDone] = useState(false)
   const conversationId = conversation?.id || ''
   const messagesState = useMessages(conversationId, { limit: 50 })
 
@@ -59,24 +60,34 @@ export function useProductAgentChat(productId: string, enabled = true) {
         `/api/store/products/${productId}/agent-chat`,
         { timeout: 12000, retries: 1 },
       )
-      if (response.success && response.data?.conversation) {
-        setConversation(response.data.conversation)
-        setSubject(response.data.subject || response.data.conversation.metadata.productName || '')
+      if (response.success && response.data) {
+        if (response.data.conversation) {
+          setConversation(response.data.conversation)
+          setSubject(response.data.subject || response.data.conversation.metadata.productName || '')
+        } else {
+          setSubject(response.data.subject || '')
+        }
       } else {
-        throw new Error(response.error || 'Failed to start product chat')
+        throw new Error(response.error || 'Failed to load product chat')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start product chat')
+      setError(err instanceof Error ? err.message : 'Failed to load product chat')
     } finally {
       setBootstrapping(false)
+      setLookupDone(true)
     }
   }, [enabled, productId, session?.user?.id])
 
   useEffect(() => {
+    setLookupDone(false)
+    setConversation(null)
+  }, [productId])
+
+  useEffect(() => {
     if (status !== 'authenticated') return
-    if (conversation) return
+    if (conversation || lookupDone) return
     void bootstrap()
-  }, [status, conversation, bootstrap])
+  }, [status, conversation, lookupDone, bootstrap])
 
   const sendMessage = useCallback(
     async (content: string) => {

@@ -86,9 +86,7 @@ export function ProductAgentChatProvider({
       })
   }, [])
 
-  // Cold-start bootstrap (idempotent get-or-create): seeds the unread badge
-  // even before the chat panel mounts (mobile FAB before first open). The
-  // panel's own bootstrap converges on the same conversation.
+  // Lookup only. Does not create a thread; a visit must not land in Messages.
   const bootstrappedRef = useRef(false)
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.id || !productId) return

@@ -59,7 +59,7 @@ export async function openEntityLeadConversation(input: {
       title: input.title,
       body: input.note || input.title,
       actionText: 'Open lead',
-      actionUrl: '/dealer/leads',
+      actionUrl: `/opportunities/${input.opportunityId}`,
       data: {
         entityId: input.rooftopId,
         metadata: { opportunityId: input.opportunityId, productId: input.productId },

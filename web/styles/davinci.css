@@ -184,23 +184,29 @@
    */
   @keyframes opportunity-sheet-up {
     from {
-      transform: translate3d(0, 110%, 0) !important;
+      transform: translate3d(0, 110%, 0);
     }
     to {
-      transform: translate3d(0, 0, 0) !important;
+      transform: translate3d(0, 0, 0);
     }
   }
 
-  .opportunity-type-sheet {
+  .opportunity-sheet-motion {
     max-width: 100%;
     overflow-x: hidden;
-    touch-action: pan-y;
   }
 
   @media (max-width: 1023px) {
-    .opportunity-type-sheet[data-state='open'] {
+    .opportunity-sheet-motion {
       animation: opportunity-sheet-up 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
+  }
+
+  .vertical-pan-only {
+    max-width: 100%;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    overscroll-behavior-x: none;
   }
 
   /**

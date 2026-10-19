@@ -1,7 +1,7 @@
 /**
  * Product Query Optimizer - Performance for 85+ ERP Fields
  *
- * Optimizes database queries for agricultural products with extensive JSONB fields.
+ * Optimizes database queries for store products with extensive JSONB fields.
  * Target: <2s query time with 85+ fields
  *
  * Strategies:
@@ -15,8 +15,6 @@
  */
 
 import { db } from '@/lib/database'
-import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
-import type { ProductFieldsPreset } from '@/lib/ring-config-types'
 
 // ============================================================================
 // QUERY BUILDER WITH INDEX OPTIMIZATION
@@ -90,31 +88,6 @@ export function buildOptimizedQuery(options: QueryOptions = {}) {
   // Category filter could go here (if needed and indexed)
   // STUB: Add category index-aware filter support.
   // TODO: Add when category-based indexes are deployed.
-
-  // ============================================================================
-  // CERTIFICATION FILTERS (Indexed GIN) — agricultural preset only
-  // ============================================================================
-
-  // Get product preset type to conditionally apply agri filters
-  const productFieldsPreset: ProductFieldsPreset = getSystemConfigSnapshot().store.storeCategories[0] as ProductFieldsPreset
-
-  if (productFieldsPreset === 'agricultural' && filters?.organic) {
-    // Organic filter assuming 'certifications.regenerative' index
-    dbFilters.push({
-      field: 'data',
-      operator: '@>',
-      value: JSON.stringify({ certifications: { regenerative: true } })
-    })
-  }
-
-  if (productFieldsPreset === 'agricultural' && filters.locallyGrown) {
-    // Locally grown filter assuming 'certifications.locallyGrown' index
-    dbFilters.push({
-      field: 'data',
-      operator: '@>',
-      value: JSON.stringify({ certifications: { locallyGrown: true } })
-    })
-  }
 
   // ============================================================================
   // SORT ORDER (Use indexed fields when possible)

@@ -435,7 +435,6 @@ export const API_TREE_FAMILIES: ApiFamilyNode[] = [
       ep('info', 'Info', 'Build / environment info.', ['GET']),
       ep('uploads', 'Uploads', 'Generic authenticated file upload.', ['POST']),
       ep('test-db', 'Test DB', 'Database connectivity check (ops).', ['GET']),
-      ep('v1/agents/provision', 'Provision agent', 'Provision a DAGI / AI agent instance.', ['POST']),
       ep('webhooks/email/inbound', 'Inbound email', 'Receive inbound email webhooks.', ['POST']),
     ],
   },

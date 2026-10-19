@@ -193,16 +193,13 @@ function ShippingMethodSelector({
           />
           {/* Details of the currently selected NovaPost location (if any) */}
           {selectedLocation && (
-            <div className="mt-3 p-3 bg-white rounded border text-sm">
-              {/* Name of the warehouse/branch */}
+            <div className="mt-3 rounded border bg-background p-3 text-sm text-foreground">
               <div className="font-medium">{selectedLocation.name}</div>
-              {/* Name and region of settlement, comma-separated if both present */}
               <div className="text-muted-foreground">
                 {selectedLocation.settlement?.name}
                 {selectedLocation.settlement?.region ? `, ${selectedLocation.settlement.region}` : ''}
               </div>
-              {/* Full delivery address string */}
-              <div className="text-gray-500">
+              <div className="text-muted-foreground">
                 {selectedLocation.address}
               </div>
             </div>

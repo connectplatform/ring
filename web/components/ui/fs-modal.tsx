@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -139,7 +140,7 @@ export function FsModal({
             : 'z-[9200]',
           overlayClassName,
         )}
-        hideCloseButton={hideCloseButton}
+        hideCloseButton={hideCloseButton || pinAboveMobileNav}
         closeClassName={closeClassName}
         onOpenAutoFocus={onOpenAutoFocus}
         onPointerDownOutside={onPointerDownOutside}
@@ -155,8 +156,9 @@ export function FsModal({
         }
         className={cn(
           pinAboveMobileNav
-            ? 'opportunity-type-sheet z-[9200] max-lg:z-[8890] flex max-h-[100dvh] max-w-full flex-col gap-0 overflow-x-hidden overflow-y-hidden p-0 touch-pan-y'
+            ? 'z-[9200] max-lg:z-[8890] flex max-h-[100dvh] max-w-full flex-col gap-0 overflow-hidden p-0'
             : 'z-[9200] flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0',
+          chromeBackdrop && '!border-0 !bg-transparent !shadow-none !p-0',
           !isCenterPane &&
             'max-sm:min-h-[100dvh] max-sm:rounded-none max-sm:pt-10 sm:max-w-lg',
           isCenterPane &&
@@ -178,10 +180,26 @@ export function FsModal({
           className,
       )}
       >
+        <div
+          className={cn(
+            'relative flex h-full min-h-full w-full flex-1 flex-col',
+            pinAboveMobileNav && 'opportunity-sheet-motion',
+          )}
+        >
         {chromeBackdrop ? (
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
             {chromeBackdrop}
           </div>
+        ) : null}
+        {pinAboveMobileNav && !hideCloseButton ? (
+          <button
+            type="button"
+            className="modal-close-button z-30"
+            aria-label="Close"
+            onClick={() => onOpenChange(false)}
+          >
+            <X aria-hidden />
+          </button>
         ) : null}
         <DialogHeader
           className={cn(
@@ -249,6 +267,7 @@ export function FsModal({
             {footer}
           </div>
         ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   )

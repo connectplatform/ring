@@ -169,7 +169,7 @@ export default async function AddOpportunityPage(props: PageProps) {
       ? `${baseUrl}/opportunities/add${type ? `?type=${type}` : ''}`
       : `${baseUrl}/${validLocale}/opportunities/add${type ? `?type=${type}` : ''}`
 
-  // Preserve full query string (?type=civic_inquiry, etc.) across login/membership redirects
+  // Preserve the full query string (?type=…) across login and membership redirects
   const rawQuery = new URLSearchParams()
   for (const [k, v] of Object.entries(searchParams)) {
     if (typeof v === 'string' && v) {
