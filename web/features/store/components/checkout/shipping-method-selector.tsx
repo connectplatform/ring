@@ -5,6 +5,18 @@ import { useTranslations } from 'next-intl'
 import { useOptionalStorePaymentMethods } from '@/features/store/currency-context'
 import { Truck, Clock, MapPin, Package } from 'lucide-react'
 import { NovaPostSelector, type NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
+
+function novaPostPlaceLine(settlement?: NovaPostLocation['settlement']): string {
+  if (!settlement) return ''
+  const region = settlement.region
+  const regionName =
+    typeof region === 'string'
+      ? region
+      : region && typeof region.name === 'string'
+        ? region.name
+        : ''
+  return [settlement.name, regionName].filter(Boolean).join(', ')
+}
 import type { StorePaymentMethods } from '@/features/store/types'
 import type { SupportedCurrencies } from '@/lib/ring-config-types'
 import type { ShippingProvider } from '@/lib/zod'
@@ -196,8 +208,7 @@ function ShippingMethodSelector({
             <div className="mt-3 rounded border bg-background p-3 text-sm text-foreground">
               <div className="font-medium">{selectedLocation.name}</div>
               <div className="text-muted-foreground">
-                {selectedLocation.settlement?.name}
-                {selectedLocation.settlement?.region ? `, ${selectedLocation.settlement.region}` : ''}
+                {novaPostPlaceLine(selectedLocation.settlement)}
               </div>
               <div className="text-muted-foreground">
                 {selectedLocation.address}
