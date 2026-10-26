@@ -40,5 +40,10 @@ const customJestConfig = {
   setupFiles: ['<rootDir>/jest.globals.ts'],
 }
 
-// Export with Next.js integration for React 19 support
-module.exports = createJestConfig(customJestConfig)
+// next/jest overwrites transformIgnorePatterns, so set it on the resolved config.
+// The status-page suite imports next-intl ESM, which Jest otherwise leaves untransformed.
+module.exports = async () => {
+  const config = await createJestConfig(customJestConfig)()
+  config.transformIgnorePatterns = ['/node_modules/(?!next-intl|use-intl)/']
+  return config
+}

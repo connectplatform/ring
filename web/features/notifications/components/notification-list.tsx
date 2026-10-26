@@ -20,8 +20,10 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/use-notifications';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel';
 import { NotificationItem } from './notification-item';
 import { NotificationType, NotificationPriority } from '@/features/notifications/types';
+import { applyInboxToFeed } from '@/features/notifications/lib/apply-inbox-to-feed';
 import { cn } from '@/lib/utils';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCursorFeed } from '@/hooks/use-cursor-feed';
@@ -128,6 +130,7 @@ export function NotificationList({ className }: NotificationListProps) {
 
   const {
     items: feedNotifications,
+    setItems,
     loading,
     hasMore,
     error: feedError,
@@ -144,6 +147,16 @@ export function NotificationList({ className }: NotificationListProps) {
     fetchPage,
     restoreScroll: false,
   });
+
+  // Same channel the layout already uses. This handler only patches the open
+  // feed. The unread badge stays on notifications:unread.
+  useTunnelChannel<Record<string, unknown>>({
+    channel: 'notifications:inbox',
+    enabled: Boolean(session?.user),
+    onMessage: (payload) => {
+      setItems((prev) => applyInboxToFeed(prev, payload, selectedFilter))
+    },
+  })
 
   // Prefer feed list; keep refresh wired to both
   const notifications = feedNotifications;

@@ -160,13 +160,15 @@ export async function createNotification(
         continue;
       }
 
-      // Determine channels based on user preferences and request
-      const channels = determineChannels(request.channels, preferences);
+      // Quiet hours run once, on the preferences just loaded. Deliveries are
+      // built from this list, so a muted PUSH never reaches FCM.
+      const priority = request.priority || NotificationPriority.NORMAL
+      const channels = determineChannels(request.channels, preferences, priority);
 
       const notificationData = {
         user_id: userId,
         type: request.type,
-        priority: request.priority || NotificationPriority.NORMAL,
+        priority,
         status: NotificationStatus.PENDING,
         trigger_type: NotificationTrigger.USER_ACTION,
         title: request.title,

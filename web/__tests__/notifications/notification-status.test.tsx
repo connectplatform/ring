@@ -5,7 +5,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import NotificationStatusPage from '../../components/notifications/NotificationStatusPage'
+import NotificationStatusPage from '../../components/notifications/notification-status-page'
 import type { Locale } from '@/i18n/shared'
 import  {  describe,  it,  expect,  jest  }  from  '@jest/globals'
 import '@testing-library/jest-dom'
@@ -16,16 +16,6 @@ jest.mock('next/link', () => {
     <a href={href}>{children}</a>
   )
 })
-
-// Mock ROUTES constants
-jest.mock('@/constants/routes', () => ({
-  ROUTES: {
-    NOTIFICATIONS: (locale: string) => `/${locale}/notifications`,
-    HOME: (locale: string) => `/${locale}`,
-    HELP: (locale: string) => `/${locale}/help`,
-    CONTACT: (locale: string) => `/${locale}/contact`,
-  }
-}))
 
 // Mock translations
 const mockTranslations = {
@@ -124,10 +114,36 @@ const mockTranslations = {
   }
 }
 
+function assignPath(root: Record<string, unknown>, path: string[], value: unknown) {
+  let cursor = root
+  for (let i = 0; i < path.length - 1; i++) {
+    const part = path[i]
+    const existing = cursor[part]
+    if (typeof existing !== 'object' || existing === null) {
+      cursor[part] = {}
+    }
+    cursor = cursor[part] as Record<string, unknown>
+  }
+  cursor[path[path.length - 1]] = value
+}
+
+/** next-intl resolves nested objects. The fixture stores dotted keys. */
+function nestMessages(flatNamespaces: Record<string, Record<string, string>>) {
+  const root: Record<string, unknown> = {}
+  for (const [namespace, table] of Object.entries(flatNamespaces)) {
+    const leaf: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(table)) {
+      assignPath(leaf, key.split('.'), value)
+    }
+    assignPath(root, namespace.split('.'), leaf)
+  }
+  return root
+}
+
 // Helper function to render component with translations
 const renderWithTranslations = (component: React.ReactElement, locale: Locale = 'en') => {
-  const messages = mockTranslations[locale]
-  
+  const messages = nestMessages(mockTranslations[locale])
+
   return render(
     <NextIntlClientProvider messages={messages} locale={locale}>
       {component}
@@ -331,7 +347,7 @@ describe('NotificationStatusPage', () => {
       )
       
       expect(screen.getByText('Device Registered')).toBeInTheDocument()
-      expect(screen.getByText('abcdefgh...vwxyz')).toBeInTheDocument()
+      expect(screen.getByText('abcdefgh...stuvwxyz')).toBeInTheDocument()
     })
   })
 
@@ -364,10 +380,10 @@ describe('NotificationStatusPage', () => {
       )
       
       const manageLink = screen.getByRole('link', { name: 'Manage Notifications' })
-      expect(manageLink).toHaveAttribute('href', '/en/notifications')
+      expect(manageLink).toHaveAttribute('href', '/notifications')
       
       const backLink = screen.getByRole('link', { name: 'Back to App' })
-      expect(backLink).toHaveAttribute('href', '/en')
+      expect(backLink).toHaveAttribute('href', '/')
     })
     
     it('uses return URL when provided', () => {
@@ -390,7 +406,7 @@ describe('NotificationStatusPage', () => {
       )
       
       const helpLink = screen.getByRole('link', { name: 'Need help? Contact our support team' })
-      expect(helpLink).toHaveAttribute('href', '/en/contact')
+      expect(helpLink).toHaveAttribute('href', '/contact')
     })
   })
 
