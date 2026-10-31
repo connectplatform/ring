@@ -271,6 +271,9 @@ export interface StoreOrder {
   subtotal: number
   tax?: number
   shipping?: number
+  discountAmount?: number
+  shippingCost?: number
+  promoCode?: string
   total: number
   status: 'new' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled'
   payment?: StorePayment
@@ -438,6 +441,11 @@ export interface Order {
   userId?: string
   items: OrderItem[]
   totals: OrderTotalsByCurrency
+  subtotal?: number
+  discountAmount?: number
+  shippingCost?: number
+  promoCode?: string
+  total?: number
   checkoutInfo: CheckoutInfo
   shipping?: ShippingInfo
   payment?: PaymentInfo

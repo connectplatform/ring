@@ -18,6 +18,7 @@ import { useOptionalStore } from '@/features/store/context'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import FloatingSortButton from '@/components/common/floating-sort-button'
+import { getNicheSortOptions } from '@/features/store/niche/niche-sort'
 
 interface FloatingButtonsProps {
   locale: Locale
@@ -36,6 +37,12 @@ export default function FloatingButtons({
   const store = useOptionalStore()
   const totalItems = store?.totalItems || 0
   const t = useTranslations('modules.store')
+  const tSort = useTranslations('modules.store.sort')
+  const nicheSort = getNicheSortOptions()
+  const sortOptions = nicheSort?.map((option) => ({
+    value: option.value,
+    label: tSort(option.labelKey),
+  }))
 
   return (
     <>
@@ -77,7 +84,7 @@ export default function FloatingButtons({
         )}
 
         {showSort ? (
-          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} options={sortOptions} />
         ) : null}
       </div>
 
@@ -119,14 +126,14 @@ export default function FloatingButtons({
         )}
 
         {showSort ? (
-          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} options={sortOptions} />
         ) : null}
       </div>
 
       {/* DESKTOP (>= 1024px): Sort at bottom-right of feed */}
       {showSort ? (
         <div className="hidden lg:block fixed bottom-6 right-[352px] z-40">
-          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} title="Sort Products By" />
+          <FloatingSortButton currentSort={currentSort} onSortChange={onSortChange} options={sortOptions} />
         </div>
       ) : null}
 

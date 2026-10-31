@@ -18,6 +18,7 @@ import { StoreShareEarnCard } from '@/components/store/store-share-earn-card'
 import type { Locale } from '@/i18n/shared'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
 import { NICHE_FILTER_PARAMS } from '@/features/store/niche/niche-filters'
+import { coerceNicheSort } from '@/features/store/niche/niche-sort'
 import type { NicheFacet } from '@/features/store/niche/niche-facets'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
 
@@ -42,7 +43,10 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
   // Subset after filtering (may be undefined before count is known)
   const [filteredRecords, setFilteredRecords] = useState<number | undefined>(undefined)
   // All applied filters (local + remote)
-  const [filters, setFilters] = useState<StoreFilterState>(DEFAULT_STORE_FILTERS)
+  const [filters, setFilters] = useState<StoreFilterState>(() => ({
+    ...DEFAULT_STORE_FILTERS,
+    sortBy: coerceNicheSort(DEFAULT_STORE_FILTERS.sortBy),
+  }))
   // Hydration flag - disables rendering/interaction until rehydrated for localStorage consistency
   const [isHydrated, setIsHydrated] = useState(false)
   // Current price range for catalog, bounds calculated remotely
@@ -72,7 +76,10 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
           Date.now() - data.timestamp < 24 * 60 * 60 * 1000 &&
           data.filters // Must still have a filters object
         ) {
-          setFilters(data.filters)
+          setFilters({
+            ...data.filters,
+            sortBy: coerceNicheSort(String(data.filters.sortBy || '')),
+          })
         } else {
           localStorage.removeItem(STORAGE_KEY)
         }

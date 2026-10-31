@@ -294,20 +294,30 @@ export async function placeAndPayStoreOrder(
 
     const data = parsedOrder.data
     const shippingInfo = data.shippingInfo || data.checkoutInfo
-    const total =
-      typeof data.total === 'number'
-        ? data.total
-        : Object.values(data.totals || {}).reduce(
-            (s, n) => s + (typeof n === 'number' ? n : 0),
-            0,
-          )
+    const { quoteStoreOrder } = await import('@/features/store/services/store-quote')
+    let quoted
+    try {
+      quoted = await quoteStoreOrder({
+        items: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        method: shippingInfo?.method,
+        promoCode: data.promoCode,
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Could not price this order' }
+    }
+    const total = quoted.total
+    const subtotal = quoted.subtotal
 
     const normalized = {
       ...data,
       shippingInfo,
       checkoutInfo: data.checkoutInfo || shippingInfo,
       total,
-      subtotal: data.subtotal ?? total,
+      subtotal,
+      discountAmount: quoted.discount,
+      shippingCost: quoted.shipping,
+      promoCode: quoted.appliedCode || undefined,
+      ...(quoted.vendorSettlements.length ? { vendorSettlements: quoted.vendorSettlements } : {}),
       payment: {
         ...data.payment,
         method: normalizePaymentRail(data.payment.method),
@@ -349,6 +359,10 @@ export async function placeAndPayStoreOrder(
       referral || undefined,
       curtainAttribution.length ? { curtainAttribution } : undefined,
     )
+    if (quoted.appliedCode && quoted.discount > 0) {
+      const { incrementPromoCodeRedemption } = await import('@/features/store/services/store-settings-service')
+      await incrementPromoCodeRedemption(quoted.appliedCode).catch(() => undefined)
+    }
 
     try {
       const {

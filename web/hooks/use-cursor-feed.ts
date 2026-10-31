@@ -66,6 +66,7 @@ export function useCursorFeed<T extends { id: string }>({
   const lastFingerprintRef = useRef(filterFingerprint)
   const needsInitialFetchRef = useRef(false)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastScrollYRef = useRef<number | null>(null)
 
   const [items, setItems] = useState<T[]>(initialItems)
   const [cursor, setCursor] = useState<string | null>(initialCursor)
@@ -104,12 +105,19 @@ export function useCursorFeed<T extends { id: string }>({
   const restoreScrollPosition = useCallback(
     (scrollY: number) => {
       if (!restoreScroll || scrollY <= 0) return
-      requestAnimationFrame(() => {
+      const apply = () => {
         if (scrollContainerRef?.current) {
           scrollContainerRef.current.scrollTop = scrollY
         } else {
           window.scrollTo({ top: scrollY, behavior: 'auto' })
         }
+      }
+      // The App Router scrolls to the top after this effect. Apply once after
+      // commit and again on the following frame so the saved cursor wins.
+      apply()
+      requestAnimationFrame(() => {
+        apply()
+        requestAnimationFrame(apply)
       })
     },
     [restoreScroll, scrollContainerRef],
@@ -269,9 +277,13 @@ export function useCursorFeed<T extends { id: string }>({
     if (!enabled) return
 
     const saveScroll = () => {
+      // Read Y now. A later route change resets window scroll to 0 before a
+      // deferred read would run, which would store the top of the list.
+      const scrollY = getScrollY()
+      lastScrollYRef.current = scrollY
       if (scrollSaveTimerRef.current) clearTimeout(scrollSaveTimerRef.current)
       scrollSaveTimerRef.current = setTimeout(() => {
-        persistSession(items, cursor, hasMore, getScrollY())
+        persistSession(items, cursor, hasMore, scrollY)
       }, SCROLL_SAVE_DEBOUNCE_MS)
     }
 
@@ -288,6 +300,9 @@ export function useCursorFeed<T extends { id: string }>({
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('beforeunload', saveScroll)
       if (scrollSaveTimerRef.current) clearTimeout(scrollSaveTimerRef.current)
+      if (lastScrollYRef.current !== null) {
+        persistSession(items, cursor, hasMore, lastScrollYRef.current)
+      }
     }
   }, [cursor, enabled, getScrollY, hasMore, items, persistSession, scrollContainerRef])
 

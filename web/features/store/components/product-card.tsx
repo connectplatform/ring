@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { useStoreCategoryName } from '@/lib/store-category-display'
 import NicheProductCardMeta from '@/components/store/niche-product-card-meta'
 import { nicheSuppressesCart } from '@/features/store/niche/niche-commerce'
+import { applyProductPromotionToLine, formatPromotionBadge, isPromotionActive } from '@/features/store/types/promotions'
 
 // TODO: Use React 19/Next.js 16 Server Actions (app/actions) for cart add-on for more robust UX and built-in loader state
 
@@ -50,7 +51,16 @@ export function ProductCard({
 
   const fromCurrency = resolveStorePriceCurrency(product.currency || mainCurrency)
   const priceAmount = Number(product.price)
+  const activePromo = (product.promotions || []).find((promo) => isPromotionActive(promo))
+  const promotedUnit =
+    activePromo && (activePromo.type === 'percent_off' || activePromo.type === 'amount_off')
+      ? applyProductPromotionToLine(priceAmount, 1, [activePromo]).lineTotal
+      : priceAmount
   const primaryPrice = formatPrice(
+    convertPrice(promotedUnit, fromCurrency, currency),
+    currency,
+  )
+  const listPrice = formatPrice(
     convertPrice(priceAmount, fromCurrency, currency),
     currency,
   )
@@ -281,8 +291,13 @@ export function ProductCard({
           </div>
         )}
 
-        {/* Inline quality badges (organic/fair trade) overlay at top-right. 
-            Note: This partially duplicates logic from renderQualityBadges for overlay UX */}
+        {activePromo ? (
+          <div className="absolute bottom-3 left-3">
+            <span className="rounded-full bg-destructive px-2.5 py-0.5 text-xs font-semibold text-destructive-foreground shadow-sm">
+              {formatPromotionBadge(activePromo)}
+            </span>
+          </div>
+        ) : null}
         {showQualityBadges && vendorProfile && vendorProfile.qualityProfile && (
           <div className="absolute top-3 right-3 flex flex-col gap-1">
             {vendorProfile.compliance && vendorProfile.compliance.organicCertified && (
@@ -345,7 +360,11 @@ export function ProductCard({
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex flex-col">
             <span className="text-lg font-bold">{primaryPrice}</span>
-            <span className="text-xs text-muted-foreground">≈ {equivalentPrice}</span>
+            {activePromo && promotedUnit < priceAmount ? (
+              <span className="text-xs text-muted-foreground line-through">{listPrice}</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">≈ {equivalentPrice}</span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Stock status label */}

@@ -18,6 +18,7 @@ import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
 import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
 import { ROUTES } from '@/constants/routes'
+import { markStoreListLeft, rememberStoreListLocation } from '@/lib/pagination/store-list-return'
 
 interface StorePageClientProps {
   locale: Locale
@@ -89,6 +90,12 @@ export default function StorePageClient({
   useEffect(() => {
     debouncedFiltersRef.current = debouncedFilters
   }, [debouncedFilters])
+
+  // Remember this list URL (path + search) so product details can return here.
+  useEffect(() => {
+    rememberStoreListLocation()
+    return () => markStoreListLeft()
+  }, [])
 
   // Debounce filter changes before updating actual request state
   useEffect(() => {

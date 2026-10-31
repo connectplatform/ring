@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
-import { auth } from '@/auth'
 import { searchOpportunities, SearchOpportunitiesParams } from '@/features/opportunities/services'
 import { parseOpportunityListQuery } from '@/features/opportunities/lib/opportunity-search-params'
 
@@ -7,11 +6,6 @@ export async function POST(request: NextRequest) {
   await connection()
 
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
     const body = (await request.json()) as SearchOpportunitiesParams
     const parsed = parseOpportunityListQuery(body as unknown as Record<string, unknown>)
     const results = await searchOpportunities({
@@ -42,11 +36,6 @@ export async function GET(request: NextRequest) {
   await connection()
 
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
     const parsed = parseOpportunityListQuery(request.nextUrl.searchParams)
     const results = await searchOpportunities(parsed)
     return NextResponse.json(results)

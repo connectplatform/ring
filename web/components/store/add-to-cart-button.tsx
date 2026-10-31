@@ -31,6 +31,8 @@ interface AddToCartButtonProps {
   className?: string
   showQuantitySelector?: boolean
   maxQuantity?: number
+  /** Larger stepper on the product page (mobile). Desktop stays compact. */
+  quantityEmphasis?: boolean
 }
 
 export default function AddToCartButton({
@@ -44,7 +46,8 @@ export default function AddToCartButton({
   disabled = false,
   className,
   showQuantitySelector = true,
-  maxQuantity
+  maxQuantity,
+  quantityEmphasis = false,
 }: AddToCartButtonProps) {
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
@@ -109,15 +112,18 @@ export default function AddToCartButton({
       {/* Quantity Selector */}
       {showQuantitySelector && !(isOutOfStock && !canPreorder) && (
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium">{t('quantity')}:</label>
+          <label className={cn('font-medium', quantityEmphasis ? 'text-base md:text-sm' : 'text-sm')}>{t('quantity')}:</label>
           <div className="flex items-center border-2 border-border rounded-lg overflow-hidden">
             <button
               onClick={decrementQuantity}
               disabled={quantity <= 1 || isAdding}
-              className="p-2 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={cn(
+                'hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                quantityEmphasis ? 'p-3 md:p-2' : 'p-2',
+              )}
               aria-label={t('decreaseQuantity')}
             >
-              <Minus className="h-4 w-4" />
+              <Minus className={cn(quantityEmphasis ? 'h-5 w-5 md:h-4 md:w-4' : 'h-4 w-4')} />
             </button>
             <input
               type="number"
@@ -126,7 +132,10 @@ export default function AddToCartButton({
                 const val = parseInt(e.target.value) || 1
                 setQuantity(Math.min(Math.max(val, 1), effectiveMaxQuantity))
               }}
-              className="w-16 text-center bg-transparent border-none focus:outline-none font-semibold"
+              className={cn(
+                'text-center bg-transparent border-none focus:outline-none font-semibold',
+                quantityEmphasis ? 'w-20 text-lg md:w-16 md:text-base' : 'w-16',
+              )}
               min={1}
               max={effectiveMaxQuantity}
               disabled={isAdding}
@@ -134,10 +143,13 @@ export default function AddToCartButton({
             <button
               onClick={incrementQuantity}
               disabled={quantity >= effectiveMaxQuantity || isAdding}
-              className="p-2 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={cn(
+                'hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                quantityEmphasis ? 'p-3 md:p-2' : 'p-2',
+              )}
               aria-label={t('increaseQuantity')}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className={cn(quantityEmphasis ? 'h-5 w-5 md:h-4 md:w-4' : 'h-4 w-4')} />
             </button>
           </div>
           

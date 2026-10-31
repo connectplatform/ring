@@ -30,58 +30,63 @@ export async function generateMetadata({
   })
 }
 
-// Calls order service to fetch order by ID. Returns null if error.
 async function getOrder(id: string): Promise<Order | null> {
   try {
-    // For debugging: log start of service call
-    console.log('getOrder: Starting direct service call', { orderId: id });
-    
-    // Dynamically import the service method (on server)
-    const { StoreOrdersService } = await import('@/features/store/services/orders-service');
-    
-    // For debugging: log about to call service
-    console.log('getOrder: Calling StoreOrdersService.getOrderById');
-    const order = await StoreOrdersService.getOrderById(id);
-    
-    // For debugging: log success/failure
-    console.log('getOrder: Order fetched successfully', { orderExists: !!order });
-    return order;
+    const { StoreOrdersService } = await import('@/features/store/services/orders-service')
+    return await StoreOrdersService.getOrderById(id)
   } catch (error) {
-    // Log and swallow errors (return null if fetch fails)
-    console.error('getOrder: Error during service call:', error);
-    return null;
+    console.error('getOrder: Error during service call:', error)
+    return null
   }
 }
 
 // Page component for individual order details
 export default async function OrderDetailsPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
-  // Params is a promise due to Next.js dynamic route handling
-  const { id, locale } = await params;
-  // Validate/normalize locale value
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  // Attempt to fetch order
+  const { id, locale } = await params
+  const validLocale = isValidLocale(locale) ? locale : defaultLocale
+  const { auth } = await import('@/auth')
+  const { isPlatformAdmin } = await import('@/features/auth/user-role')
+  const session = await auth()
   const order = await getOrder(id)
 
   if (!order) {
-    // If not found, show message
+    return <div>Order not found</div>
+  }
+  if (
+    order.userId &&
+    (!session?.user?.id || (session.user.id !== order.userId && !isPlatformAdmin(session.user.role)))
+  ) {
     return <div>Order not found</div>
   }
 
-  // TODO: If real-time order status or items are needed, consider using React 19 use() hook or partial rendering.
+  const orderCurrency = order.items?.[0]?.currency || 'UAH'
+  const fmt = (value?: number) => (typeof value === 'number' ? `${value.toFixed(2)} ${orderCurrency}` : '—')
 
   // Order exists: display order details inside store context wrapper
   return (
     <StoreWrapper locale={validLocale}>
       <div>
-        {/* Display order ID in header */}
         <h1 className="text-2xl font-semibold mb-4">Order #{order.id}</h1>
         <div className="space-y-2">
-          {/* Display order status */}
           <div className="text-sm">Status: {order.status}</div>
-          {/* Display order creation date */}
           <div className="text-sm">Created: {order.createdAt}</div>
-          {/* Display items section */}
-          <div className="text-sm font-medium">Items</div>
+          <div className="text-sm font-medium mt-4">Summary</div>
+          <div className="text-sm">Subtotal: {fmt(order.subtotal)}</div>
+          {order.discountAmount ? (
+            <div className="text-sm">
+              Discount{order.promoCode ? ` (${order.promoCode})` : ''}: -{fmt(order.discountAmount)}
+            </div>
+          ) : null}
+          <div className="text-sm">
+            Shipping:{' '}
+            {typeof order.shippingCost === 'number'
+              ? order.shippingCost <= 0
+                ? 'Free'
+                : fmt(order.shippingCost)
+              : order.shipping?.provider ?? '—'}
+          </div>
+          <div className="text-sm font-medium">Total: {fmt(order.total)}</div>
+          <div className="text-sm font-medium mt-4">Items</div>
           <div className="space-y-1">
             {/* Map through order items and render them */}
             {order.items?.map((item, idx) => (

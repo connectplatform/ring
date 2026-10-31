@@ -50,7 +50,7 @@ import { cn } from '@/lib/utils'
 
 export default function CartClient({ locale }: { locale: Locale }) {
   // Cart state & actions from global store context.
-  const { cartItems, removeFromCart, updateQuantity, clearCart, totalItems } = useStore()
+  const { cartItems, removeFromCart, updateQuantity, totalItems } = useStore()
 
   // Currency converter from context (amount, from, to) — never pass locale as a currency code.
   const {
@@ -60,9 +60,7 @@ export default function CartClient({ locale }: { locale: Locale }) {
   } = useStorePaymentMethods()
 
   // UI states for confirmation modals, animations, mount guard.
-  const [clearing, setClearing] = useState(false)                  // Used to show spinner and disable modal UI when clearing cart.
-  const [showClearModal, setShowClearModal] = useState(false)      // Controls "Are you sure?" clear cart modal display.
-  const [removingId, setRemovingId] = useState<string | null>(null) // Used for fade-out animation on item removal.
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)                    // Set true after hydration to prevent SSR mismatch.
 
   // On client hydration, set mounted flag. Prevents hydration mismatch on cart item count etc.
@@ -73,7 +71,6 @@ export default function CartClient({ locale }: { locale: Locale }) {
   // Internationalization hooks, localized XI18N keys
   const tCart = useTranslations('modules.store.cart')
   const tProduct = useTranslations('modules.store.product')
-  const tCommon = useTranslations('common.actions')
 
   // SSR + first client paint must match: defer localStorage cart until after mount.
   const visibleItems = mounted ? cartItems : []
@@ -88,16 +85,6 @@ export default function CartClient({ locale }: { locale: Locale }) {
     setRemovingId(null)
   }, [removeFromCart])
 
-  // Clear all cart items. Shows spinner while clearing. Confirmation modal closes after.
-  // TODO: use useOptimistic for smoother UX when clearing lots of items.
-  const handleClearCart = useCallback(async () => {
-    setClearing(true)
-    await new Promise(resolve => setTimeout(resolve, 400)) // simulate clearing delay for UX
-    clearCart()
-    setClearing(false)
-    setShowClearModal(false)
-  }, [clearCart])
-
   function robustFormatPrice(amount: number) {
     return formatPrice(amount, displayCurrency)
   }
@@ -106,20 +93,9 @@ export default function CartClient({ locale }: { locale: Locale }) {
     <div className="space-y-4">
       {/* Toolbar: item count + clear — title lives in CartWrapper (DaVinci flush, no duplicate). */}
       {visibleItems.length > 0 && (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            {visibleTotalItems} {visibleTotalItems === 1 ? tCart('item') : tCart('items')}
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowClearModal(true)}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            {tCart('clear')}
-          </Button>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {visibleTotalItems} {visibleTotalItems === 1 ? tCart('item') : tCart('items')}
+        </p>
       )}
 
       {/* Cart Contents: show either "Empty" state or populated cart */}
@@ -162,11 +138,12 @@ export default function CartClient({ locale }: { locale: Locale }) {
               const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
               const displayPrice = convertStorePaymentMethodsPrice(rawPrice, from, displayCurrency)
               const displayBasePrice = convertStorePaymentMethodsPrice(basePrice, from, displayCurrency)
-              const { lineTotal: itemTotal, applied: appliedPromo } = applyProductPromotionToLine(
-                displayPrice,
+              const { lineTotal: rawItemTotal, applied: appliedPromo } = applyProductPromotionToLine(
+                rawPrice,
                 item.quantity,
                 item.product.promotions,
               )
+              const itemTotal = convertStorePaymentMethodsPrice(rawItemTotal, from, displayCurrency)
               const hasVariants = Boolean(item.selectedVariants && Object.keys(item.selectedVariants).length)
               const hasPriceModifier = Boolean(item.finalPrice && item.finalPrice !== basePrice)
               const isRemoving = removingId === item.product.id
@@ -302,80 +279,6 @@ export default function CartClient({ locale }: { locale: Locale }) {
           </div>
         </div>
       )}
-
-      {/* CLEAR CART MODAL: open when user attempts to clear all, disables during spinner */}
-      {showClearModal && (
-        <>
-          {/* Modal backdrop covers the window; clicking closes modal */}
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in-0 duration-200"
-            onClick={() => setShowClearModal(false)}
-          />
-          {/* Modal dialog container: centered and on top */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
-            <div 
-              className="w-full max-w-md bg-popover rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 duration-300"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Confirm clear cart header */}
-              <div className="p-6 border-b border-border bg-gradient-to-br from-destructive/20 via-destructive/10 to-transparent">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-destructive/20 flex items-center justify-center">
-                    <Trash2 className="h-6 w-6 text-destructive" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">{tCart('clearConfirmTitle')}</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {tCart('clearConfirmDescription').replace('{count}', totalItems.toString())}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {/* Modal action buttons: really clear (primary, destructive)/cancel */}
-              <div className="p-6 space-y-3">
-                <Button
-                  variant="destructive"
-                  size="lg"
-                  onClick={handleClearCart}
-                  disabled={clearing}
-                  className="w-full"
-                >
-                  {clearing ? (
-                    <>
-                      {/* Spinner visual feedback */}
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      {tCart('clearing')}
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      {tCart('yesClearCart')}
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setShowClearModal(false)}
-                  disabled={clearing}
-                  className="w-full"
-                >
-                  {tCommon('cancel')}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 
-        TODO: Add a right-side sticky Order Summary as a server component once on Next.js 16/App Router.
-        // STUB: OrderSummaryServerComponent should be imported and used here. 
-        // Next Steps: 
-        //   1. Create /components/store/OrderSummaryServer.tsx as an RSC. 
-        //   2. Pass cartItems & locale as props for accurate server-side price calc.
-        //   3. Insert <OrderSummaryServerComponent cartItems={cartItems} locale={locale}/> here. 
-      */}
     </div>
   )
 }

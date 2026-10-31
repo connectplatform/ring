@@ -2,8 +2,8 @@
 
 import React, { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { useOptionalStorePaymentMethods } from '@/features/store/currency-context'
-import { Truck, Clock, MapPin, Package } from 'lucide-react'
+import { MAIN_CURRENCY, useOptionalStorePaymentMethods } from '@/features/store/currency-context'
+import { Clock, MapPin, Package } from 'lucide-react'
 import { NovaPostSelector, type NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
 
 function novaPostPlaceLine(settlement?: NovaPostLocation['settlement']): string {
@@ -20,6 +20,8 @@ function novaPostPlaceLine(settlement?: NovaPostLocation['settlement']): string 
 import type { StorePaymentMethods } from '@/features/store/types'
 import type { SupportedCurrencies } from '@/lib/ring-config-types'
 import type { ShippingProvider } from '@/lib/zod'
+import type { StoreShippingSettings } from '@/features/store/types/store-settings'
+import { DEFAULT_STORE_SETTINGS } from '@/features/store/types/store-settings'
 
 /**
  * Buyer-selectable shipping methods — a subset of the zod `ShippingProvider` SSOT.
@@ -49,6 +51,10 @@ interface ShippingMethodSelectorProps {
   selectedLocation?: NovaPostLocation | null
   onLocationSelect?: (location: NovaPostLocation | null) => void
   novaPostEnabled?: boolean
+  /** Prices, ETAs, and pickup copy from store settings. */
+  shippingConfig?: StoreShippingSettings
+  /** Title is rendered by the checkout card header. */
+  hideTitle?: boolean
   className?: string
 }
 
@@ -64,66 +70,63 @@ function ShippingMethodSelector({
   selectedLocation,
   onLocationSelect,
   novaPostEnabled = false,
+  shippingConfig,
+  hideTitle = false,
   className = ''
 }: ShippingMethodSelectorProps) {
   const t = useTranslations('modules.store.checkout')
   const currencyContext = useOptionalStorePaymentMethods()
   
-  // Helper: Retrieve convertPrice method (currency conversion), fallback is an identity function
-  const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
-  // Helper: Retrieve formatPrice method (price presentation), fallback is a basic string formatter
-  const formatPrice = currencyContext?.formatPrice || (
-    (price: number, symbol: string, name: StorePaymentMethods) => `${price.toFixed(2)} ${symbol || name}`
-  )
+  const convertPrice =
+    currencyContext?.convertPrice || ((price: number) => price)
+  const formatPrice =
+    currencyContext?.formatPrice ||
+    ((price: number, code: StorePaymentMethods) => `${price.toFixed(2)} ${code}`)
+  const mainCurrency = currencyContext?.mainCurrency ?? MAIN_CURRENCY
+  const activeCurrency = currencyContext?.currency ?? MAIN_CURRENCY
   
   // Memoize shippingOptions so that they are not regenerated needlessly on every render,
   // especially since t() is stable from next-intl and icons are static.
   // Use useMemo from React 18+/19 for better rerender efficiency.
-  const shippingOptions: ShippingOption[] = useMemo(() => [
-    ...(novaPostEnabled
-      ? [{
-          id: 'nova-post' as const,
-          name: t('novaPost'),
-          description: t('novaPostDescription'),
-          estimatedDays: '1-3 ' + t('businessDays'),
-          price: 65,
-          currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
-          icon: <Package className="h-5 w-5" />,
-        }]
-      : []),
-    {
-      id: 'express',
-      name: t('expressDelivery'),
-      description: t('expressDescription'),
-      estimatedDays: '1-2 ' + t('businessDays'),
-      price: 150,
-      currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
-      icon: <Truck className="h-5 w-5" />
-    },
-    {
-      id: 'standard',
-      name: t('standardDelivery'),
-      description: t('standardDescription'),
-      estimatedDays: '3-5 ' + t('businessDays'),
-      price: 45,
-      currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
-      icon: <Clock className="h-5 w-5" />
-    },
-    {
-      id: 'pickup',
-      name: t('storePickup'),
-      description: t('pickupDescription'),
-      estimatedDays: t('sameDay'),
-      price: 0,
-      currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
-      icon: <MapPin className="h-5 w-5" />
+  const nova = shippingConfig?.novaPost ?? DEFAULT_STORE_SETTINGS.shipping.novaPost
+  const pickup = shippingConfig?.pickup ?? DEFAULT_STORE_SETTINGS.shipping.pickup
+  const showNova = novaPostEnabled && nova.enabled
+  const showPickup = pickup.enabled
+
+  const shippingOptions: ShippingOption[] = useMemo(() => {
+    const options: ShippingOption[] = []
+    if (showNova) {
+      const days = nova.estimatedDays.trim() || '1-3'
+      options.push({
+        id: 'nova-post',
+        name: t('novaPost'),
+        description: t('novaPostDescription'),
+        estimatedDays: `${days} ${t('businessDays')}`,
+        price: nova.price,
+        currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
+        icon: <Package className="h-5 w-5" />,
+      })
     }
-  ], [t, novaPostEnabled])
+    if (showPickup) {
+      options.push({
+        id: 'pickup',
+        name: t('storePickup'),
+        description: t('pickupDescription'),
+        estimatedDays: pickup.estimatedDays.trim() || t('sameDay'),
+        price: pickup.price,
+        currency: { symbol: '₴', name: 'Ukrainian Hryvnia' },
+        icon: <MapPin className="h-5 w-5" />,
+      })
+    }
+    return options
+  }, [t, showNova, showPickup, nova.price, nova.estimatedDays, pickup.price, pickup.estimatedDays])
 
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Heading for the shipping method section */}
-      <h3 className="text-lg font-semibold">{t('shippingMethod')}</h3>
+      {hideTitle ? null : (
+        <h3 className="text-lg font-semibold">{t('shippingMethod')}</h3>
+      )}
       
       {/* List of shipping method options */}
       <div className="space-y-3">
@@ -139,48 +142,21 @@ function ShippingMethodSelector({
             }`}
             onClick={() => onMethodSelect(option.id)}
           >
-            <div className="flex items-center justify-between">
-              {/* Left side: icon, method name/details */}
-              <div className="flex items-center gap-3">
-                {/* Icon with changing color/background depending on selection */}
-                <div className={`p-2 rounded-lg ${
-                  selectedMethod === option.id ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {option.icon}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    {/* Method name and ETA */}
-                    <span className="font-medium">{option.name}</span>
-                    <span className="text-sm text-muted-foreground">({option.estimatedDays})</span>
-                  </div>
-                  {/* Small description text under option */}
-                  <p className="text-sm text-muted-foreground">{option.description}</p>
-                </div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="font-medium">{option.name}</div>
+                <div className="text-sm text-muted-foreground">({option.estimatedDays})</div>
+                <p className="text-sm text-muted-foreground">{option.description}</p>
               </div>
-              
-              {/* Right side: price info / promotional label */}
-              <div className="text-right">
-                <div className="font-semibold">
-                  {/* Free label if price zero, otherwise format/convert price as needed */}
-                  {option.price === 0
-                    ? t('free')
-                    :
-                    formatPrice(
-                      convertPrice(
-                        option.price, 
-                        // STUB: Confirm if symbol & currency are always needed for convertPrice
-                        // TODO: Adapt convertPrice API for broader international currencies if multi-currency support expands
-                        option.currency.symbol,
-                        option.currency.name
-                      ),
-                      option.currency.symbol,
-                      option.currency.name
-                    )
-                  }
-                </div>
+              <div className="shrink-0 text-right font-semibold">
+                {option.price === 0
+                  ? t('free')
+                  : formatPrice(
+                      convertPrice(option.price, mainCurrency, activeCurrency),
+                      activeCurrency,
+                    )}
                 {/* STUB: Promotional badge for discounted or special shipping rates */}
-                {/* 
+                {/*
                   // STUB: If/when option is on sale or flagged for promo, render badge here.
                   // TODO:
                   //   1. Add `isPromotional` or `oldPrice`/`salePrice` to ShippingOption type.
@@ -220,18 +196,16 @@ function ShippingMethodSelector({
 
       {/* Show pick-up place info if pickup is selected */}
       {selectedMethod === 'pickup' && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-4 rounded-lg border border-border bg-muted/40 p-4">
           <h4 className="font-medium mb-2">{t('pickupLocation')}</h4>
           <div className="text-sm text-muted-foreground">
-            {/* Address and hours, localized */}
-            <p>{t('pickupAddress')}</p>
-            <p className="mt-1">{t('pickupHours')}</p>
+            <p>{pickup.address?.trim() || t('pickupAddress')}</p>
+            <p className="mt-1">{pickup.hours?.trim() || t('pickupHours')}</p>
           </div>
         </div>
       )}
 
-      {/* Summary: estimated delivery time for the chosen option */}
-      <div className="text-sm text-gray-500 flex items-center gap-2">
+      <div className="text-sm text-muted-foreground flex items-center gap-2">
         <Clock className="h-4 w-4" />
         <span>
           {t('estimatedDelivery')}: {' '}

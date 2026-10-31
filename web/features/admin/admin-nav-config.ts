@@ -103,6 +103,8 @@ export type AdminNavLabelKey =
   | 'storeStock'
   | 'storeCommissions'
   | 'storeAddProduct'
+  | 'storeSettings'
+  | 'storePromotions'
   | 'daoPools'
   | 'daoCreate'
   | 'securityTabOverview'
@@ -491,44 +493,64 @@ export function getRailSubmenu(
           isActive: (p) => p.includes('/docs/') && p.includes('admin-wiki'),
         },
       ]
-    case 'store':
+    case 'store': {
+      const isAdmin = !role || isPlatformAdmin(role)
       return [
         {
           id: 'products',
           labelKey: 'storeProducts',
-          href: ROUTES.ADMIN_STORE_PRODUCTS,
+          href: isAdmin ? ROUTES.ADMIN_STORE_PRODUCTS : ROUTES.VENDOR_PRODUCTS,
           icon: 'Package',
-          isActive: (p) => p.includes('/admin/store/products') && !p.includes('/add'),
+          isActive: (p) =>
+            (p.includes('/admin/store/products') || p.includes('/vendor/products')) &&
+            !p.includes('/add'),
         },
         {
           id: 'orders',
           labelKey: 'storeOrders',
-          href: ROUTES.ADMIN_STORE_ORDERS,
+          href: isAdmin ? ROUTES.ADMIN_STORE_ORDERS : ROUTES.VENDOR_ORDERS,
           icon: 'ShoppingBag',
-          isActive: (p) => p.includes('/admin/store/orders'),
+          isActive: (p) => p.includes('/admin/store/orders') || p.includes('/vendor/orders'),
         },
         {
           id: 'stock',
           labelKey: 'storeStock',
-          href: ROUTES.ADMIN_STORE_STOCK,
+          href: isAdmin ? ROUTES.ADMIN_STORE_STOCK : ROUTES.VENDOR_STOCK,
           icon: 'Archive',
-          isActive: (p) => p.includes('/admin/store/stock'),
+          isActive: (p) => p.includes('/admin/store/stock') || p.includes('/vendor/stock'),
         },
         {
           id: 'commissions',
           labelKey: 'storeCommissions',
-          href: ROUTES.ADMIN_STORE_COMMISSIONS,
+          href: isAdmin ? ROUTES.ADMIN_STORE_COMMISSIONS : ROUTES.VENDOR_EARNINGS,
           icon: 'TrendingUp',
-          isActive: (p) => p.includes('/admin/store/commissions'),
+          isActive: (p) =>
+            p.includes('/admin/store/commissions') || p.includes('/vendor/earnings'),
+        },
+        {
+          id: 'settings',
+          labelKey: 'storeSettings',
+          href: ROUTES.ADMIN_STORE_SETTINGS,
+          icon: 'Settings',
+          isActive: (p) => p.includes('/admin/store/settings'),
+        },
+        {
+          id: 'promotions',
+          labelKey: 'storePromotions',
+          href: ROUTES.ADMIN_STORE_PROMOTIONS,
+          icon: 'Tags',
+          isActive: (p) => p.includes('/admin/store/promotions'),
         },
         {
           id: 'add-product',
           labelKey: 'storeAddProduct',
-          href: ROUTES.ADMIN_STORE_PRODUCTS_ADD,
+          href: isAdmin ? ROUTES.ADMIN_STORE_PRODUCTS_ADD : ROUTES.VENDOR_PRODUCTS_ADD,
           icon: 'Plus',
-          isActive: (p) => p.includes('/admin/store/products/add'),
+          isActive: (p) =>
+            p.includes('/admin/store/products/add') || p.includes('/vendor/products/add'),
         },
       ]
+    }
     case 'security': {
       const base = ROUTES.ADMIN_SECURITY(locale)
       return [

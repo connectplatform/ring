@@ -33,6 +33,12 @@ export interface AdminOrderDto {
   userId?: string
   createdAt?: string
   items?: AdminOrderItemDto[]
+  subtotal?: number
+  discountAmount?: number
+  shippingCost?: number
+  promoCode?: string
+  total?: number
+  currency?: string
 }
 
 export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): AdminOrderDto {
@@ -57,5 +63,11 @@ export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): 
     userId: row.userId != null ? String(row.userId) : undefined,
     createdAt: toIsoString(row.createdAt ?? row.created_at),
     items,
+    subtotal: typeof row.subtotal === 'number' ? row.subtotal : undefined,
+    discountAmount: typeof row.discountAmount === 'number' ? row.discountAmount : undefined,
+    shippingCost: typeof row.shippingCost === 'number' ? row.shippingCost : undefined,
+    promoCode: row.promoCode != null ? String(row.promoCode) : undefined,
+    total: typeof row.total === 'number' ? row.total : undefined,
+    currency: row.currency != null ? String(row.currency) : undefined,
   }
 }

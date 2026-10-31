@@ -31,6 +31,33 @@ import { curtainAdvertiseWriteFields } from '@/features/curtain/lib/advertise'
 import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
 import { createProductNodusWikiFromDraft } from '@/features/store/lib/product-nodus-wiki'
+import type { ProductPromotion } from '@/features/store/types/promotions'
+
+function parseProductPromotionsFromForm(formData: FormData): ProductPromotion[] {
+  const raw = String(formData.get('promotionsJson') ?? '').trim()
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as ProductPromotion[]
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((p) => p && typeof p === 'object' && p.type && p.id)
+      .map((p) => ({
+        id: String(p.id),
+        type: p.type,
+        enabled: Boolean(p.enabled),
+        label: p.label ? String(p.label) : undefined,
+        buyQty: typeof p.buyQty === 'number' ? p.buyQty : p.type === 'bogo' ? 2 : undefined,
+        getQty: typeof p.getQty === 'number' ? p.getQty : p.type === 'bogo' ? 1 : undefined,
+        percentOff: typeof p.percentOff === 'number' ? p.percentOff : undefined,
+        amountOff: typeof p.amountOff === 'number' ? p.amountOff : undefined,
+        currency: p.currency ? String(p.currency) : undefined,
+        startsAt: p.startsAt ? String(p.startsAt) : undefined,
+        endsAt: p.endsAt ? String(p.endsAt) : undefined,
+      }))
+  } catch {
+    return []
+  }
+}
 
 // Interface for a row of product referral rate details
 export interface ProductReferralRateRow {
@@ -434,6 +461,10 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
     if (fields.rep) {
       productDoc.rep = fields.rep
     }
+    const productPromotions = parseProductPromotionsFromForm(formData)
+    if (productPromotions.length > 0) {
+      productDoc.promotions = productPromotions
+    }
     Object.assign(productDoc, curtainAdvertiseWriteFields(formData))
 
     // Write to DB
@@ -513,6 +544,7 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
         ? { referralCommission: fields.referralCommission }
         : {}),
       ...(fields.rep ? { rep: fields.rep } : { rep: undefined }),
+      promotions: parseProductPromotionsFromForm(formData),
       ...curtainAdvertiseWriteFields(formData),
       ...(productAgentRaw ? { productAgent: productAgentRaw } : {}),
       ...(productNodusWikiPageId
@@ -718,4 +750,195 @@ export async function adjustProductStockAction(params: {
   })
   revalidatePath('/admin/store/stock')
   return result
+}
+
+async function assertStoreOperator() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Unauthorized')
+  if (isPlatformAdmin(session.user.role)) {
+    return { session, vendorEntityId: null as string | null }
+  }
+  const { getVendorEntity } = await import('@/features/entities/services/vendor-entity')
+  const vendor = await getVendorEntity(session.user.id)
+  if (!vendor?.id) throw new Error('Unauthorized')
+  return { session, vendorEntityId: vendor.id }
+}
+
+export async function getAdminStoreSettingsAction() {
+  const { vendorEntityId } = await assertStoreOperator()
+  const { getStoreSettings } = await import('@/features/store/services/store-settings-service')
+  const { mergeStoreSettings } = await import('@/features/store/types/store-settings')
+  const { isNovaPostEnabled } = await import('@/lib/shipping/nova-post')
+  const platform = await getStoreSettings()
+  if (!vendorEntityId) {
+    return {
+      settings: {
+        ...platform,
+        promotions: {
+          ...platform.promotions,
+          promoCodes: platform.promotions.promoCodes.filter((code) => !code.vendorEntityId),
+        },
+      },
+      novaPostKeyConfigured: isNovaPostEnabled(),
+      isPlatformAdmin: true,
+    }
+  }
+  const profile = await db().findDocById<Record<string, unknown>>('vendor_profiles', `vendor_${vendorEntityId}`)
+  const row = profile.success ? profile.data : null
+  const vendorPromos = (row?.promotions || {}) as {
+    promoCodes?: typeof platform.promotions.promoCodes
+    freeShipping?: typeof platform.promotions.freeShipping
+    checkoutSpecialOfferEnabled?: boolean
+  }
+  const shipping = row?.shipping
+    ? mergeStoreSettings({ shipping: row.shipping }).shipping
+    : platform.shipping
+  const platformByCode = new Map(
+    platform.promotions.promoCodes
+      .filter((code) => code.vendorEntityId === vendorEntityId)
+      .map((code) => [code.code.trim().toLowerCase(), code]),
+  )
+  const rawVendorCodes = Array.isArray(vendorPromos.promoCodes)
+    ? vendorPromos.promoCodes
+    : Array.from(platformByCode.values())
+  const promoCodes = rawVendorCodes.map((code) => {
+    const synced = platformByCode.get(code.code.trim().toLowerCase())
+    return {
+      ...code,
+      vendorEntityId,
+      redemptionCount: Math.max(code.redemptionCount ?? 0, synced?.redemptionCount ?? 0),
+    }
+  })
+  return {
+    settings: {
+      shipping,
+      promotions: {
+        promoCodes,
+        freeShipping: vendorPromos.freeShipping || platform.promotions.freeShipping,
+        checkoutSpecialOfferEnabled: Boolean(vendorPromos.checkoutSpecialOfferEnabled),
+      },
+    },
+    novaPostKeyConfigured: isNovaPostEnabled(),
+    isPlatformAdmin: false,
+  }
+}
+
+export async function updateAdminStoreShippingSettingsAction(
+  shipping: import('@/features/store/types/store-settings').StoreShippingSettings,
+) {
+  const { session, vendorEntityId } = await assertStoreOperator()
+  const { getStoreSettings, saveStoreSettings } = await import('@/features/store/services/store-settings-service')
+  if (vendorEntityId) {
+    const profileId = `vendor_${vendorEntityId}`
+    const existing = await db().findDocById<Record<string, unknown>>('vendor_profiles', profileId)
+    if (!existing.success || !existing.data) throw new Error('Vendor profile not found')
+    await db().updateDoc('vendor_profiles', profileId, {
+      shipping,
+      updatedAt: new Date().toISOString(),
+    })
+    revalidatePath('/admin/store/settings')
+    revalidatePath('/store/checkout')
+    return shipping
+  }
+  const current = await getStoreSettings()
+  const saved = await saveStoreSettings({ ...current, shipping }, session.user.id)
+  revalidatePath('/admin/store/settings')
+  revalidatePath('/store/checkout')
+  revalidatePath('/store/cart')
+  return saved.shipping
+}
+
+export async function updateAdminStorePromotionsAction(
+  promotions: import('@/features/store/types/store-settings').StorePromotionsSettings,
+) {
+  const { session, vendorEntityId } = await assertStoreOperator()
+  const { getStoreSettings, saveStoreSettings } = await import('@/features/store/services/store-settings-service')
+  const current = await getStoreSettings()
+  if (vendorEntityId) {
+    const prevCounts = new Map(
+      current.promotions.promoCodes
+        .filter((code) => code.vendorEntityId === vendorEntityId)
+        .map((code) => [code.code.trim().toLowerCase(), code.redemptionCount ?? 0]),
+    )
+    const stamped = promotions.promoCodes
+      .filter((code) => code.code.trim())
+      .map((code) => ({
+        ...code,
+        vendorEntityId,
+        redemptionCount: code.redemptionCount ?? prevCounts.get(code.code.trim().toLowerCase()) ?? 0,
+      }))
+    const others = current.promotions.promoCodes.filter((code) => code.vendorEntityId !== vendorEntityId)
+    const saved = await saveStoreSettings(
+      {
+        ...current,
+        promotions: { ...current.promotions, promoCodes: [...others, ...stamped] },
+      },
+      session.user.id,
+    )
+    const profileId = `vendor_${vendorEntityId}`
+    const existing = await db().findDocById<Record<string, unknown>>('vendor_profiles', profileId)
+    if (existing.success && existing.data) {
+      await db().updateDoc('vendor_profiles', profileId, {
+        promotions: {
+          promoCodes: stamped,
+          freeShipping: promotions.freeShipping,
+          checkoutSpecialOfferEnabled: promotions.checkoutSpecialOfferEnabled,
+        },
+        updatedAt: new Date().toISOString(),
+      })
+    }
+    revalidatePath('/vendor/dashboard')
+    revalidatePath('/admin/store/promotions')
+    revalidatePath('/store/cart')
+    revalidatePath('/store/checkout')
+    return { ...promotions, promoCodes: stamped }
+  }
+  const prevPlatformCounts = new Map(
+    current.promotions.promoCodes
+      .filter((code) => !code.vendorEntityId)
+      .map((code) => [code.code.trim().toLowerCase(), code.redemptionCount ?? 0]),
+  )
+  const vendorCodes = current.promotions.promoCodes.filter((code) => code.vendorEntityId)
+  const platformCodes = promotions.promoCodes.map((code) => ({
+    ...code,
+    vendorEntityId: null,
+    redemptionCount: code.redemptionCount ?? prevPlatformCounts.get(code.code.trim().toLowerCase()) ?? 0,
+  }))
+  const saved = await saveStoreSettings(
+    {
+      ...current,
+      promotions: { ...promotions, promoCodes: [...platformCodes, ...vendorCodes] },
+    },
+    session.user.id,
+  )
+  revalidatePath('/admin/store/promotions')
+  revalidatePath('/store/cart')
+  revalidatePath('/store/checkout')
+  return {
+    ...saved.promotions,
+    promoCodes: saved.promotions.promoCodes.filter((code) => !code.vendorEntityId),
+  }
+}
+
+export async function listPromotedProductsAction() {
+  const { vendorEntityId } = await assertStoreOperator()
+  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+    collection: 'store_products',
+    pagination: { limit: 120 },
+  })
+  if (!result.success || !result.data) return []
+  return result.data
+    .filter((row) => {
+      if (vendorEntityId) {
+        const owner = String(row.entity_id || row.vendorId || row.productOwner || '')
+        if (owner !== vendorEntityId) return false
+      }
+      return Array.isArray(row.promotions) && row.promotions.length > 0
+    })
+    .slice(0, 40)
+    .map((row) => ({
+      id: row.id,
+      name: String(row.name || row.id),
+      promotions: row.promotions,
+    }))
 }

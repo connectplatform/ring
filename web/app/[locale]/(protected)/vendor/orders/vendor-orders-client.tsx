@@ -8,6 +8,8 @@ interface VendorOrderRow {
   status?: string
   total?: number
   createdAt?: string
+  promoCode?: string
+  discountAmount?: number
   vendorSettlement?: {
     subtotal: number
     commission: number
@@ -58,7 +60,14 @@ export default function VendorOrdersClient({ orders, labels }: VendorOrdersClien
                     <td className="py-2 pr-4">
                       <Badge variant="secondary">{order.status ?? 'unknown'}</Badge>
                     </td>
-                    <td className="py-2 pr-4">{order.total?.toFixed(2) ?? '—'}</td>
+                    <td className="py-2 pr-4">
+                      {order.total?.toFixed(2) ?? '—'}
+                      {order.discountAmount ? (
+                        <div className="text-xs text-muted-foreground">
+                          {order.promoCode || 'promo'} -{order.discountAmount.toFixed(2)}
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="py-2 pr-4">
                       {order.vendorSettlement?.netAmount?.toFixed(2) ?? '—'}
                     </td>

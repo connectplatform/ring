@@ -12,6 +12,7 @@ import {
   type StorePaymentMethods,
 } from '@/features/store/currency-context'
 import { STORE_CART_UPDATED_EVENT } from '@/hooks/use-product-agent-chat'
+import { cartLineVendorId, priceCartLine } from '@/features/store/lib/cart-pricing'
 
 interface StoreContextType {
   // Legacy support
@@ -28,6 +29,10 @@ interface StoreContextType {
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
+  appliedPromoCode: string | null
+  setAppliedPromoCode: (code: string | null) => void
+  /** Public shipping + active promo codes. Null until the settings request returns. */
+  storefrontSettings: import('@/features/store/types/store-settings').StoreSettingsData | null
   totalItems: number
   /** Totals keyed by resolved catalog currency (ring-config SSOT). */
   totalPriceByCurrency: Record<string, number>
@@ -119,6 +124,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingEnhanced, setIsLoadingEnhanced] = useState(false)
 
   const [rawCart, setRawCart] = useLocalStorage<{ id: string; qty: number }[]>(`ring_cart`, [])
+  const [appliedPromoCode, setAppliedPromoCode] = useLocalStorage<string | null>('ring_store_promo', null)
+  const [storefrontSettings, setStorefrontSettings] = useState<import('@/features/store/types/store-settings').StoreSettingsData | null>(null)
   const [service, setService] = useState<ReturnType<any> | null>(null)
   const [, startTransition] = useTransition()
   const pathname = usePathname()
@@ -245,6 +252,58 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [rawCart, products])
 
+  const singleCartVendorId = useMemo(() => {
+    const ids = [...new Set(cartItems.map((item) => cartLineVendorId(item.product)).filter(Boolean))]
+    return ids.length === 1 ? ids[0] : ''
+  }, [cartItems])
+
+  useEffect(() => {
+    let cancelled = false
+    const url = singleCartVendorId
+      ? `/api/store/settings?vendorId=${encodeURIComponent(singleCartVendorId)}`
+      : '/api/store/settings'
+    void fetch(url)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (cancelled || !body?.shipping) return
+        const codes = Array.isArray(body.promoCodes) ? body.promoCodes : []
+        setStorefrontSettings({
+          shipping: body.shipping,
+          promotions: {
+            promoCodes: codes.map((code: {
+              code: string
+              discountType: 'percent' | 'fixed'
+              value: number
+              minOrderAmount?: number
+              vendorEntityId?: string | null
+              startsAt?: string
+              endsAt?: string
+              maxRedemptions?: number
+              redemptionCount?: number
+            }) => ({
+              id: code.code,
+              code: code.code,
+              discountType: code.discountType === 'percent' ? 'percent' : 'fixed',
+              value: Number(code.value) || 0,
+              minOrderAmount: Number(code.minOrderAmount) || 0,
+              enabled: true,
+              vendorEntityId: code.vendorEntityId || null,
+              startsAt: code.startsAt,
+              endsAt: code.endsAt,
+              maxRedemptions: code.maxRedemptions,
+              redemptionCount: code.redemptionCount,
+            })),
+            freeShipping: body.freeShipping || { mode: 'off' },
+            checkoutSpecialOfferEnabled: Boolean(body.checkoutSpecialOfferEnabled),
+          },
+        })
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [singleCartVendorId])
+
   // Authenticated: soft-hold + push server cart mirror (skip one tick after hydrate).
   // Use rawCart ids — never filter on product.name === 'Unknown' (products may still
   // be loading; that filter emptied holds and wiped the server mirror).
@@ -291,35 +350,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer)
   }, [rawCart, cartItems, authStatus])
 
-  // Guests: soft-hold attempt (401 ignored) — keep legacy path for unauthenticated
-  useEffect(() => {
-    if (authStatus === 'authenticated') return
-    const timer = setTimeout(() => {
-      const payload = {
-        items: cartItems
-          .filter((item) => item.product?.id && item.product.name !== 'Unknown')
-          .map((item) => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            isPreorder: item.isPreorder,
-            digitalProduct: item.product.digitalProduct,
-            instantDelivery: item.product.instantDelivery,
-          })),
-      }
-      // Guests never hold an empty cart — skip the guaranteed-401 noise POST.
-      if (payload.items.length === 0) return
-      void fetch('/api/store/cart/hold', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include',
-      }).catch(() => {
-        /* guest / offline */
-      })
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [cartItems, authStatus])
-
   const addToCart = (product: StoreProduct) => {
     setRawCart(prev => {
       const found = prev.find(i => i.id === product.id)
@@ -337,15 +367,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setRawCart(prev => prev.map(i => i.id === productId ? { ...i, qty: quantity } : i))
   }
 
-  const clearCart = () => setRawCart([])
+  const clearCart = () => {
+    setRawCart([])
+    setAppliedPromoCode(null)
+  }
 
   const totalItems = useMemo(() => cartItems.reduce((sum, i) => sum + i.quantity, 0), [cartItems])
 
   const totalPriceByCurrency = useMemo(() => {
     return cartItems.reduce<Record<string, number>>((acc, i) => {
-      const price = parseFloat(i.product.price || '0') * i.quantity
+      const unit = i.finalPrice ?? parseFloat(i.product.price || '0')
+      const priced = priceCartLine(unit, i.quantity, i.product.promotions)
       const cur = resolveStorePriceCurrency(i.product.currency as StorePaymentMethods)
-      acc[cur] = (acc[cur] || 0) + price
+      acc[cur] = (acc[cur] || 0) + priced.lineTotal
       return acc
     }, {})
   }, [cartItems])
@@ -373,6 +407,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeFromCart,
       updateQuantity,
       clearCart,
+      appliedPromoCode,
+      setAppliedPromoCode,
+      storefrontSettings,
       totalItems,
       totalPriceByCurrency,
       checkout,

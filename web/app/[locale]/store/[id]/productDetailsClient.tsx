@@ -5,7 +5,8 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { Package, Truck, Shield, Heart } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronLeft, Package, Truck, Shield, Heart } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
 import { useStorePaymentMethods } from '@/features/store/currency-context'
@@ -28,6 +29,7 @@ import ProductReviews from '@/components/store/product-reviews'
 import RelatedProductsCarousel from '@/components/store/related-products-carousel'
 import ProductSellerInfoCard from '@/components/store/product-seller-info-card'
 import FloatingButtons from '@/components/store/floating-buttons'
+import { clearStoreListPendingBack, readStoreListReturn } from '@/lib/pagination/store-list-return'
 import type { StoreProduct } from '@/features/store/types'
 import type { ProductReviewView } from '@/features/store/services/product-reviews'
 import type { ProductDetailsRailData } from '@/features/store/services/product-details-rail'
@@ -36,6 +38,7 @@ import {
   type GalleryItem,
   type GenerativeGalleryValue,
 } from '@/features/generative-media/types'
+import { applyProductPromotionToLine, formatPromotionBadge, isPromotionActive } from '@/features/store/types/promotions'
 
 function calcRatingDistribution(reviews: { rating: number }[]): number[] {
   const stars = [0, 0, 0, 0, 0]
@@ -104,6 +107,17 @@ export default function ProductDetailsClient({
 
   const { success } = useToast()
   const t = useTranslations('modules.store')
+  const router = useRouter()
+
+  const backToList = useCallback(() => {
+    const saved = readStoreListReturn()
+    clearStoreListPendingBack()
+    if (saved.fromList && window.history.length > 1) {
+      router.back()
+      return
+    }
+    router.push(saved.href || ROUTES.STORE(locale))
+  }, [locale, router])
   const storeCurrencyContext = useStorePaymentMethods()
   const categoryName = useStoreCategoryName(product.category ?? null)
 
@@ -218,9 +232,83 @@ export default function ProductDetailsClient({
   // Keep selectedVariants for future variant summary UI
   void selectedVariants
 
+  const overviewBlock = (
+    <div className="prose prose-lg max-w-none">
+      {product.description ? (
+        <p className="text-lg leading-relaxed text-muted-foreground">{product.description}</p>
+      ) : (
+        <p className="text-muted-foreground">{t('product.noOverview')}</p>
+      )}
+    </div>
+  )
+  const descriptionBlock = (
+    <div className="prose prose-lg max-w-none">
+      {product.longDescription ? (
+        <div className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{product.longDescription}</div>
+      ) : (
+        <p className="text-muted-foreground">{t('product.noDescription')}</p>
+      )}
+    </div>
+  )
+  const reviewsBlock = (
+    <div className="space-y-6">
+      {railData.vendor ? <ProductSellerInfoCard vendor={railData.vendor} /> : null}
+      <ProductReviews
+        reviews={reviews.map((r) => ({
+          id: r.id,
+          author: r.author,
+          rating: r.rating,
+          title: r.title ?? '',
+          content: r.content,
+          verifiedPurchase: r.verifiedPurchase,
+          helpful: r.helpful,
+          date: r.date,
+          images: Array.isArray(r.images)
+            ? (r.images as Array<string | { url: string }>).map((img) =>
+                typeof img === 'string' ? { url: img } : { url: img.url },
+              )
+            : undefined,
+          sellerResponse:
+            r.sellerResponse &&
+            typeof r.sellerResponse === 'object' &&
+            'content' in (r.sellerResponse as object)
+              ? (r.sellerResponse as { content: string; date: string })
+              : undefined,
+        }))}
+        averageRating={averageRating}
+        totalReviews={reviews.length}
+        ratingDistribution={calcRatingDistribution(reviews)}
+      />
+    </div>
+  )
+  const reassurance = nicheSuppressesCart(product) ? null : (
+    <div className="grid grid-cols-3 gap-4 border-t pt-6">
+      <div className="text-center">
+        <Package className="mx-auto mb-2 h-8 w-8 text-primary" />
+        <div className="text-xs font-medium">{t('freeShipping')}</div>
+      </div>
+      <div className="text-center">
+        <Truck className="mx-auto mb-2 h-8 w-8 text-primary" />
+        <div className="text-xs font-medium">{t('fastDelivery')}</div>
+      </div>
+      <div className="text-center">
+        <Shield className="mx-auto mb-2 h-8 w-8 text-primary" />
+        <div className="text-xs font-medium">{t('securePayment')}</div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="relative mx-auto w-full min-w-0 max-w-7xl space-y-8">
-      <div className="mb-2">
+      <div className="mb-2 space-y-2">
+        <button
+          type="button"
+          onClick={backToList}
+          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          {t('backToList')}
+        </button>
         <RingBreadcrumbs items={breadcrumbItems} />
       </div>
 
@@ -231,18 +319,40 @@ export default function ProductDetailsClient({
 
         <div className="min-w-0 space-y-6">
           <div>
-            <h1 className="mb-2 break-words text-3xl font-bold md:text-4xl">{product.name}</h1>
-            <div className="mb-4 flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-primary">
-                {formatPrice(
-                  convertPrice(
-                    finalPrice || parseFloat(product.price),
-                    product.currency,
-                    storeCurrencyContext.currency,
-                  ),
-                  storeCurrencyContext.currency,
-                )}
-              </span>
+            <h1 className="mb-2 break-words text-xl font-bold sm:text-2xl md:text-4xl">{product.name}</h1>
+            <div className="mb-4 flex flex-wrap items-baseline gap-3">
+              {(() => {
+                const base = finalPrice || parseFloat(product.price)
+                const active = (product.promotions || []).filter((promo) => isPromotionActive(promo))
+                const unitPromo = active.find((promo) => promo.type === 'percent_off' || promo.type === 'amount_off')
+                const payable = unitPromo ? applyProductPromotionToLine(base, 1, [unitPromo]).lineTotal : base
+                return (
+                  <>
+                    <span className="text-2xl font-bold text-primary md:text-4xl">
+                      {formatPrice(
+                        convertPrice(payable, product.currency, storeCurrencyContext.currency),
+                        storeCurrencyContext.currency,
+                      )}
+                    </span>
+                    {unitPromo && payable < base ? (
+                      <span className="text-lg text-muted-foreground line-through">
+                        {formatPrice(
+                          convertPrice(base, product.currency, storeCurrencyContext.currency),
+                          storeCurrencyContext.currency,
+                        )}
+                      </span>
+                    ) : null}
+                    {active.map((promo) => (
+                      <span
+                        key={promo.id}
+                        className="rounded-full bg-destructive px-2.5 py-0.5 text-xs font-semibold text-destructive-foreground"
+                      >
+                        {formatPromotionBadge(promo)}
+                      </span>
+                    ))}
+                  </>
+                )
+              })()}
             </div>
           </div>
 
@@ -265,6 +375,7 @@ export default function ProductDetailsClient({
             allowPreorder={product.allowPreorder || false}
             onAddToCart={handleAddToCart}
             showQuantitySelector={true}
+            quantityEmphasis
           />
           )}
 
@@ -278,22 +389,7 @@ export default function ProductDetailsClient({
           </button>
 
           {/* Shipping / payment reassurance only makes sense when the product can be bought here. */}
-          {nicheSuppressesCart(product) ? null : (
-          <div className="grid grid-cols-3 gap-4 border-t pt-6">
-            <div className="text-center">
-              <Package className="mx-auto mb-2 h-8 w-8 text-primary" />
-              <div className="text-xs font-medium">{t('freeShipping')}</div>
-            </div>
-            <div className="text-center">
-              <Truck className="mx-auto mb-2 h-8 w-8 text-primary" />
-              <div className="text-xs font-medium">{t('fastDelivery')}</div>
-            </div>
-            <div className="text-center">
-              <Shield className="mx-auto mb-2 h-8 w-8 text-primary" />
-              <div className="text-xs font-medium">{t('securePayment')}</div>
-            </div>
-          </div>
-          )}
+          <div className="hidden md:block">{reassurance}</div>
 
           {product.vendorName ? (
             <div className="rounded-lg border bg-muted/50 p-4">
@@ -325,7 +421,23 @@ export default function ProductDetailsClient({
         </div>
       ) : null}
 
-      <div id="product-reviews" className="mb-12 scroll-mt-24">
+      <div id="product-reviews" className="mb-12 scroll-mt-24 space-y-10 md:hidden">
+        <section>
+          <h2 className="mb-3 text-lg font-semibold">{t('product.overview')}</h2>
+          {overviewBlock}
+        </section>
+        <section>
+          <h2 className="mb-3 text-lg font-semibold">{t('product.description')}</h2>
+          {descriptionBlock}
+        </section>
+        <section>
+          <h2 className="mb-3 text-lg font-semibold">
+            {t('product.reviews')} ({reviews.length})
+          </h2>
+          {reviewsBlock}
+        </section>
+      </div>
+      <div className="mb-12 hidden scroll-mt-24 md:block">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">{t('product.overview')}</TabsTrigger>
@@ -334,59 +446,13 @@ export default function ProductDetailsClient({
               {t('product.reviews')} ({reviews.length})
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="overview" className="mt-6">
-            <div className="prose prose-lg max-w-none">
-              {product.description ? (
-                <p className="text-lg leading-relaxed text-muted-foreground">
-                  {product.description}
-                </p>
-              ) : (
-                <p className="text-muted-foreground">{t('product.noOverview')}</p>
-              )}
-            </div>
-          </TabsContent>
-          <TabsContent value="description" className="mt-6">
-            <div className="prose prose-lg max-w-none">
-              {product.longDescription ? (
-                <div className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
-                  {product.longDescription}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">{t('product.noDescription')}</p>
-              )}
-            </div>
-          </TabsContent>
-          <TabsContent value="reviews" className="mt-6 space-y-6">
-            {railData.vendor ? <ProductSellerInfoCard vendor={railData.vendor} /> : null}
-            <ProductReviews
-              reviews={reviews.map((r) => ({
-                id: r.id,
-                author: r.author,
-                rating: r.rating,
-                title: r.title ?? '',
-                content: r.content,
-                verifiedPurchase: r.verifiedPurchase,
-                helpful: r.helpful,
-                date: r.date,
-                images: Array.isArray(r.images)
-                  ? (r.images as Array<string | { url: string }>).map((img) =>
-                      typeof img === 'string' ? { url: img } : { url: img.url },
-                    )
-                  : undefined,
-                sellerResponse:
-                  r.sellerResponse &&
-                  typeof r.sellerResponse === 'object' &&
-                  'content' in (r.sellerResponse as object)
-                    ? (r.sellerResponse as { content: string; date: string })
-                    : undefined,
-              }))}
-              averageRating={averageRating}
-              totalReviews={reviews.length}
-              ratingDistribution={calcRatingDistribution(reviews)}
-            />
-          </TabsContent>
+          <TabsContent value="overview" className="mt-6">{overviewBlock}</TabsContent>
+          <TabsContent value="description" className="mt-6">{descriptionBlock}</TabsContent>
+          <TabsContent value="reviews" className="mt-6">{reviewsBlock}</TabsContent>
         </Tabs>
       </div>
+
+      <div className="mb-12 md:hidden">{reassurance}</div>
 
       {/* Similar products (same category) + more from this seller — center pane rails */}
       {railData.categoryProducts.length > 0 ? (

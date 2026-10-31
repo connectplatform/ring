@@ -87,6 +87,8 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     storeStock: safeLabel(t, 'storeStock'),
     storeCommissions: safeLabel(t, 'storeCommissions'),
     storeAddProduct: safeLabel(t, 'storeAddProduct'),
+    storeSettings: safeLabel(t, 'storeSettings'),
+    storePromotions: safeLabel(t, 'storePromotions'),
     daoPools: safeLabel(t, 'daoPools'),
     daoCreate: safeLabel(t, 'daoCreate'),
     securityTabOverview: safeLabel(t, 'securityHub.tabOverview'),

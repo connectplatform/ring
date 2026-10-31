@@ -114,6 +114,8 @@ const DEFAULT_LABELS: Record<string, string> = {
   storeStock: 'Stock',
   storeCommissions: 'Commissions',
   storeAddProduct: 'Add Product',
+  storeSettings: 'Store Settings',
+  storePromotions: 'Promotions',
   daoPools: 'Public Pools',
   daoCreate: 'Create Pool',
   securityTabOverview: 'Security Overview',

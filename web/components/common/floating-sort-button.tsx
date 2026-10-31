@@ -20,8 +20,8 @@
  */
 
 import { useState, useTransition, useCallback } from 'react'
-import { ArrowUpDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ArrowUpDown, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import {
   type SortOption,
@@ -37,20 +37,22 @@ interface FloatingSortButtonProps {
   title?: string
 }
 
-const DEFAULT_SORT_OPTIONS: SortOption[] = [
-  { value: 'name-asc', label: 'Name (A-Z)' },
-  { value: 'name-desc', label: 'Name (Z-A)' },
-  { value: 'price-asc', label: 'Price (Low to High)' },
-  { value: 'price-desc', label: 'Price (High to Low)' },
-  { value: 'newest', label: 'Newest First' },
-]
-
 export default function FloatingSortButton({
   currentSort = 'name-asc',
   onSortChange,
-  options = DEFAULT_SORT_OPTIONS,
-  title = 'Sort Products By',
+  options,
+  title,
 }: FloatingSortButtonProps) {
+  const t = useTranslations('modules.store.sort')
+  const tClose = useTranslations('common.actions')
+  const resolvedTitle = title ?? t('title')
+  const resolvedOptions = options ?? [
+    { value: 'name-asc', label: t('nameAsc') },
+    { value: 'name-desc', label: t('nameDesc') },
+    { value: 'price-asc', label: t('priceAsc') },
+    { value: 'price-desc', label: t('priceDesc') },
+    { value: 'newest', label: t('newest') },
+  ]
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -65,7 +67,7 @@ export default function FloatingSortButton({
   )
 
   const currentSortLabel =
-    options.find((opt) => opt.value === currentSort)?.label || 'Sort'
+    resolvedOptions.find((opt) => opt.value === currentSort)?.label || t('fallback')
 
   return (
     <div className="relative">
@@ -77,15 +79,20 @@ export default function FloatingSortButton({
               onClick={() => setIsOpen(false)}
             />
             <div className="absolute bottom-full left-0 z-20 mb-3 w-72 animate-in overflow-hidden rounded-xl border border-border bg-popover shadow-2xl fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
-              <div className="border-b border-border bg-gradient-to-r from-primary/10 to-primary/5 p-3">
-                <h3 className="flex items-center gap-2 px-2 py-1 text-sm font-semibold">
-                  <ArrowUpDown className="h-4 w-4" />
-                  {title}
-                </h3>
+              <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+                <h3 className="text-sm font-semibold">{resolvedTitle}</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+                  aria-label={tClose('close')}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
               </div>
               <div className="max-h-80 overflow-y-auto p-3">
                 <SortOptionsList
-                  options={options}
+                  options={resolvedOptions}
                   currentSort={currentSort}
                   onSelect={handleSortSelect}
                 />
@@ -103,33 +110,24 @@ export default function FloatingSortButton({
                 className="pointer-events-auto w-full max-w-md animate-in overflow-hidden rounded-2xl bg-popover shadow-2xl fade-in-0 zoom-in-95 slide-in-from-bottom-8 duration-300"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="border-b border-border bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-6">
-                  <h2 className="flex items-center gap-3 text-2xl font-bold">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-                      <ArrowUpDown className="h-6 w-6 text-primary" />
-                    </div>
-                    <span>{title}</span>
-                  </h2>
-                  <p className="mt-2 ml-[60px] text-sm text-muted-foreground">
-                    Choose how to sort your items
-                  </p>
+                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                  <h2 className="text-base font-semibold">{resolvedTitle}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+                    aria-label={tClose('close')}
+                  >
+                    <X className="h-5 w-5" aria-hidden />
+                  </button>
                 </div>
                 <div className="max-h-96 overflow-y-auto p-4">
                   <SortOptionsList
-                    options={options}
+                    options={resolvedOptions}
                     currentSort={currentSort}
                     onSelect={handleSortSelect}
                     className="space-y-2"
                   />
-                </div>
-                <div className="border-t border-border bg-muted/30 p-4">
-                  <Button
-                    onClick={() => setIsOpen(false)}
-                    variant="outline"
-                    className="w-full rounded-xl py-6 text-base font-semibold"
-                  >
-                    Close
-                  </Button>
                 </div>
               </div>
             </div>
@@ -137,25 +135,23 @@ export default function FloatingSortButton({
         </>
       )}
 
-      <Button
-        size="lg"
+      <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'flex h-14 w-14 items-center justify-center rounded-full p-0 shadow-lg transition-all hover:shadow-xl',
-          'bg-primary hover:bg-primary/90',
+          'inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           isOpen && 'scale-110 ring-4 ring-primary/20',
           isPending && 'opacity-80',
         )}
-        aria-label="Sort items"
+        aria-label={t('items')}
         title={currentSortLabel}
       >
         <ArrowUpDown
-          className={cn(
-            'h-6 w-6 text-primary-foreground transition-transform',
-            isOpen && 'rotate-180',
-          )}
+          className={cn('h-6 w-6 transition-transform', isOpen && 'rotate-180')}
+          aria-hidden
         />
-      </Button>
+      </button>
     </div>
   )
 }

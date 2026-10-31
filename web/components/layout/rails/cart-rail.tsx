@@ -11,7 +11,6 @@ import {
   Shield,
   BookOpen,
   CreditCard,
-  Percent,
   CheckCircle,
   Info,
   Package,
@@ -27,6 +26,8 @@ export interface CartSidebarContentProps {
   locale: Locale
   cartItems?: any[]
   totalPrice?: number
+  merchandiseTotal?: number
+  discount?: number
   totalItems?: number
   formatPrice?: (price: number) => string
   appliedPromo?: string | null
@@ -46,6 +47,8 @@ export default function CartSidebarContent({
   locale,
   cartItems = [],
   totalPrice = 0,
+  merchandiseTotal,
+  discount = 0,
   totalItems = 0,
   formatPrice = (p) => `${p.toFixed(2)} ₴`,
   appliedPromo,
@@ -81,13 +84,19 @@ export default function CartSidebarContent({
             <span>
               {t('subtotal', { defaultValue: 'Subtotal' })} ({totalItems} {totalItems === 1 ? t('item', { defaultValue: 'item' }) : t('items', { defaultValue: 'items' })})
             </span>
-            <span>{formatPrice(totalPrice)}</span>
+            <span>{formatPrice(merchandiseTotal ?? totalPrice)}</span>
           </div>
 
-          <div className="flex justify-between text-sm">
-            <span>{t('shipping', { defaultValue: 'Shipping' })}</span>
-            <span className="text-green-600">{t('free', { defaultValue: 'Free' })}</span>
-          </div>
+          {discount > 0 ? (
+            <div className="flex justify-between text-sm">
+              <span>{t('discount', { defaultValue: 'Discount' })}</span>
+              <span>-{formatPrice(discount)}</span>
+            </div>
+          ) : null}
+
+          <p className="text-sm text-muted-foreground">
+            {t('shippingCalculatedAtCheckout', { defaultValue: 'Shipping is calculated at checkout' })}
+          </p>
 
           <Separator />
 
@@ -136,7 +145,7 @@ export default function CartSidebarContent({
                   onClick={() => onApplyPromo?.(promoCode)}
                   disabled={!promoCode}
                 >
-                  <Percent className="h-4 w-4" />
+                  {t('apply')}
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground">

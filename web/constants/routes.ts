@@ -33,6 +33,8 @@ const BASE_ROUTES = {
   ADMIN_STORE_COMMISSIONS: '/admin/store/commissions',
   ADMIN_STORE_PRODUCTS: '/admin/store/products',
   ADMIN_STORE_PRODUCTS_ADD: '/admin/store/products/add',
+  ADMIN_STORE_SETTINGS: '/admin/store/settings',
+  ADMIN_STORE_PROMOTIONS: '/admin/store/promotions',
   ADMIN_STORE_PRODUCTS_EDIT: (id: string) => `/admin/store/products/${id}/edit`,
   ADMIN_CRM_ORDERS: '/admin/crm/orders',
   ADMIN_CRM_ORDER: (id: string) => `/admin/crm/orders/${id}`,
@@ -374,6 +376,8 @@ export const ROUTES = {
   ADMIN_STORE_STOCK: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/stock'),
   ADMIN_STORE_COMMISSIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/commissions'),
   ADMIN_STORE_PRODUCTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/products'),
+  ADMIN_STORE_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/settings'),
+  ADMIN_STORE_PROMOTIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/promotions'),
   ADMIN_STORE_PRODUCTS_ADD: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/products/add'),
   ADMIN_STORE_PRODUCTS_EDIT: (id: string, locale: Locale = defaultLocale) =>
     withLocale(locale, `/admin/store/products/${id}/edit`),

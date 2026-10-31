@@ -35,6 +35,10 @@ export interface VendorStorePromotions {
   checkoutSpecialOfferEnabled?: boolean
   /** Free shipping policy for this vendor's products. */
   freeShipping?: VendorFreeShippingPromotion
+  /** Promo codes owned by this vendor. Platform codes stay on platform_settings. */
+  promoCodes?: StorePromoCode[]
+  /** Optional Nova Post / pickup overrides for this vendor's own checkout. */
+  shipping?: import('./store-settings').StoreShippingSettings
 }
 
 export type ProductPromotionType =
@@ -76,11 +80,30 @@ export interface StorePromotionsConfig {
   defaultFreeShippingMinOrderAmount?: number
 }
 
+function parsePromoBoundary(value: string, bound: 'start' | 'end'): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return new Date(`${value.trim()}T${bound === 'start' ? '00:00:00.000' : '23:59:59.999'}Z`)
+  }
+  return new Date(value)
+}
+
 export function isPromotionActive(promo: ProductPromotion, now = new Date()): boolean {
   if (!promo.enabled) return false
-  if (promo.startsAt && new Date(promo.startsAt) > now) return false
-  if (promo.endsAt && new Date(promo.endsAt) < now) return false
+  if (promo.startsAt && parsePromoBoundary(promo.startsAt, 'start') > now) return false
+  if (promo.endsAt && parsePromoBoundary(promo.endsAt, 'end') < now) return false
   return true
+}
+
+export function formatPromotionBadge(promo: ProductPromotion): string {
+  if (promo.label?.trim()) return promo.label.trim()
+  if (promo.type === 'bogo') return `${promo.buyQty ?? 2}+${promo.getQty ?? 1}`
+  if (promo.type === 'percent_off' && typeof promo.percentOff === 'number') {
+    return `-${promo.percentOff}%`
+  }
+  if (promo.type === 'amount_off' && typeof promo.amountOff === 'number') {
+    return `-${promo.amountOff} ${promo.currency || ''}`.trim()
+  }
+  return promo.type
 }
 
 /**
@@ -144,4 +167,62 @@ export function isVendorFreeShippingQualified(
   if (fs.mode === 'always') return true
   const min = typeof fs.minOrderAmount === 'number' ? fs.minOrderAmount : 0
   return subtotalInThresholdCurrency >= min
+}
+
+export type StorePromoDiscountType = 'percent' | 'fixed'
+
+export interface StorePromoCode {
+  id: string
+  code: string
+  discountType: StorePromoDiscountType
+  /** Percent 1–100, or a fixed amount in the store main currency. */
+  value: number
+  minOrderAmount?: number
+  startsAt?: string
+  endsAt?: string
+  enabled: boolean
+  description?: string
+  /** When set, the code discounts only this vendor's lines. Empty means platform-wide. */
+  vendorEntityId?: string | null
+  /** Optional cap. 0 or omitted means unlimited. */
+  maxRedemptions?: number
+  redemptionCount?: number
+}
+
+export function isStorePromoCodeActive(promo: StorePromoCode, now = new Date()): boolean {
+  if (!promo.enabled || !promo.code.trim()) return false
+  if (promo.startsAt && parsePromoBoundary(promo.startsAt, 'start') > now) return false
+  if (promo.endsAt && parsePromoBoundary(promo.endsAt, 'end') < now) return false
+  if (
+    typeof promo.maxRedemptions === 'number' &&
+    promo.maxRedemptions > 0 &&
+    (promo.redemptionCount ?? 0) >= promo.maxRedemptions
+  ) {
+    return false
+  }
+  return true
+}
+
+export function findStorePromoCode(
+  codes: StorePromoCode[] | undefined,
+  rawCode: string,
+  now = new Date(),
+): StorePromoCode | undefined {
+  const needle = rawCode.trim().toLowerCase()
+  if (!needle) return undefined
+  return (codes || []).find(
+    (promo) => promo.code.trim().toLowerCase() === needle && isStorePromoCodeActive(promo, now),
+  )
+}
+
+/** Discount amount in the same currency as `subtotal`. Never exceeds the subtotal. */
+export function computePromoCodeDiscount(subtotal: number, promo: StorePromoCode | null | undefined): number {
+  if (!promo || subtotal <= 0) return 0
+  const min = typeof promo.minOrderAmount === 'number' ? promo.minOrderAmount : 0
+  if (subtotal < min) return 0
+  if (promo.discountType === 'percent') {
+    const pct = Math.min(100, Math.max(0, promo.value))
+    return Math.min(subtotal, (subtotal * pct) / 100)
+  }
+  return Math.min(subtotal, Math.max(0, promo.value))
 }

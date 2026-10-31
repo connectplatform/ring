@@ -180,11 +180,15 @@ export class ConversationService {
 
     const conversation = createResult.data;
 
-    for (const participantId of participantIds) {
-      try {
-        await publishToChannel(`user:${participantId}`, 'conversation:new', conversation);
-      } catch (error) {
-        console.warn(`Failed to publish conversation:new for user:${participantId}`, error);
+    const shouldAnnounceNew =
+      data.type !== 'product' || data.metadata?.buyerEngaged === true
+    if (shouldAnnounceNew) {
+      for (const participantId of participantIds) {
+        try {
+          await publishToChannel(`user:${participantId}`, 'conversation:new', conversation);
+        } catch (error) {
+          console.warn(`Failed to publish conversation:new for user:${participantId}`, error);
+        }
       }
     }
 
@@ -294,6 +298,12 @@ export class ConversationService {
       if (conversation.type === 'product' && conversation.metadata?.buyerEngaged !== true) {
         const replied = await this.productThreadHasBuyerReply(conversation.id, userId);
         if (!replied) continue;
+        void db()
+          .updateDoc('conversations', conversation.id, {
+            metadata: { ...conversation.metadata, buyerEngaged: true },
+          })
+          .catch(() => undefined);
+        conversation.metadata = { ...conversation.metadata, buyerEngaged: true };
       }
       const unreadCount = await this.getUnreadCount(conversation.id, userId);
       const enriched = await this.enrichParticipants(conversation, userId);

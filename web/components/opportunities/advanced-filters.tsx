@@ -21,12 +21,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { 
-  Briefcase,
-  HandHeart,
-  Users2,
-  GraduationCap,
-  Package,
-  Calendar as CalendarIcon,
   MapPin,
   DollarSign,
   Clock,
@@ -39,6 +33,10 @@ import {
 } from 'lucide-react'
 import { getClientMainCurrency } from '@/lib/ring-config-client'
 import { getOpportunityFilterCurrencies } from '@/features/opportunities/lib/opportunity-filter-presets'
+import {
+  opportunityFilterTypes,
+  opportunityTypeLabel,
+} from '@/features/opportunities/lib/opportunity-filter-types'
 
 interface FilterState {
   search: string
@@ -61,16 +59,7 @@ interface AdvancedFiltersProps {
   resultCount?: number
 }
 
-const opportunityTypes = [
-  { id: 'offer', icon: Briefcase, color: 'bg-blue-500', label: 'Offer' },
-  { id: 'request', icon: HandHeart, color: 'bg-green-500', label: 'Request' },
-  { id: 'partnership', icon: Users2, color: 'bg-purple-500', label: 'Partnership' },
-  { id: 'volunteer', icon: HandHeart, color: 'bg-orange-500', label: 'Volunteer' },
-  { id: 'mentorship', icon: GraduationCap, color: 'bg-indigo-500', label: 'Mentorship' },
-  { id: 'resource', icon: Package, color: 'bg-teal-500', label: 'Resource' },
-  { id: 'event', icon: CalendarIcon, color: 'bg-pink-500', label: 'Event' },
-  { id: 'ring_customization', icon: Package, color: 'bg-gradient-to-r from-violet-500 to-purple-500', label: 'Ring Customization' }
-]
+const opportunityTypes = opportunityFilterTypes('advanced')
 
 const categories = [
   'technology',
@@ -109,19 +98,7 @@ const AdvancedFilters = ({
   const [isExpanded, setIsExpanded] = useState(false)
   
   // Get translated type name
-  const getTypeTranslation = (type: string) => {
-    const typeMap: { [key: string]: string } = {
-      'offer': t('offer'),
-      'request': t('request'),
-      'partnership': t('partnership'),
-      'volunteer': t('volunteer'),
-      'mentorship': t('mentorship'),
-      'resource': t('resource'),
-      'event': t('event'),
-      'ring_customization': t('ring_customization')
-    }
-    return typeMap[type] || type
-  }
+  const getTypeTranslation = (type: string) => opportunityTypeLabel(t, type)
   
   // Get translated category name
   const getCategoryTranslation = (category: string) => {

@@ -22,9 +22,13 @@ export function MiniCart({ locale }: { locale: Locale }) {
   const [mounted, setMounted] = useState(false)
   const containerRef = React.useRef<HTMLDivElement | null>(null)
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Currency formatting
   const formatPrice = storeCurrency?.formatPrice || ((price: number, currency: StorePaymentMethods) => `${price.toFixed(2)} ${currency}`)
-  const convertPrice = storeCurrency?.convertPrice || ((price: number, from: StorePaymentMethods, to: StorePaymentMethods) => price)
+  const convertPrice = storeCurrency?.convertPrice || ((price: number, _from: StorePaymentMethods, _to: StorePaymentMethods) => price)
   const selectedCurrency = storeCurrency?.currency || MAIN_CURRENCY
 
   if (!store) { 
@@ -78,11 +82,15 @@ export function MiniCart({ locale }: { locale: Locale }) {
                 ))}
                 <div className="border-t pt-3 mt-4">
                   <div className="text-sm font-medium mb-3">
-                    {tStore('cart.total')}: {formatPrice(totalPriceByCurrency[selectedCurrency], selectedCurrency)} {store.cartItems.reduce((sum, item) => {
-                      const price = item.finalPrice || parseFloat(item.product.price)
-                      const convertedPrice = convertPrice(price, MAIN_CURRENCY, selectedCurrency)
-                      return sum + (convertedPrice * item.quantity)
-                    }, 0)} ${selectedCurrency}
+                    {tStore('cart.total')}:{' '}
+                    {formatPrice(
+                      store.cartItems.reduce((sum, item) => {
+                        const price = item.finalPrice ?? parseFloat(item.product.price || '0')
+                        const from = (item.product.currency || MAIN_CURRENCY) as StorePaymentMethods
+                        return sum + convertPrice(price, from, selectedCurrency) * item.quantity
+                      }, 0),
+                      selectedCurrency,
+                    )}
                   </div>
                   <div className="flex gap-3">
                     <Link

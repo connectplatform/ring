@@ -14,6 +14,7 @@ import {
 } from '@/lib/store-price-range'
 import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 import { applyNicheFilters, computeNicheFacets } from '@/features/store/niche/niche-filters'
+import { compareNicheSort } from '@/features/store/niche/niche-sort'
 import type { NicheFacet } from '@/features/store/niche/niche-facets'
 
 export interface StoreProductsResult {
@@ -93,6 +94,8 @@ export async function getStoreProducts(
 
     const sortBy = filters.sortBy || 'name-asc'
     filteredProducts.sort((a, b) => {
+      const nicheOrder = compareNicheSort(a, b, sortBy)
+      if (nicheOrder !== null) return nicheOrder
       switch (sortBy) {
         case 'name-asc':
           return a.name.localeCompare(b.name)

@@ -21,11 +21,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import {
-  Briefcase,
-  HandHeart,
-  Sparkles,
-  Package,
-  Calendar as CalendarIcon,
   MapPin,
   DollarSign,
   Clock,
@@ -40,6 +35,10 @@ import {
   OPPORTUNITY_FILTER_CATEGORY_IDS,
   getOpportunityFilterCurrencies,
 } from '@/features/opportunities/lib/opportunity-filter-presets'
+import {
+  opportunityFilterTypes,
+  opportunityTypeLabel,
+} from '@/features/opportunities/lib/opportunity-filter-types'
 import { davinciTerminalSurface } from '@/lib/ui/davinci'
 import { getClientMainCurrency } from '@/lib/ring-config-client'
 
@@ -66,16 +65,7 @@ interface OpportunitiesFiltersPanelProps {
   onOptimisticUpdate?: (optimisticOpportunities: any[]) => void
 }
 
-const opportunityTypes = [
-  { id: 'request', icon: HandHeart, color: 'bg-blue-500' },
-  { id: 'offer', icon: Briefcase, color: 'bg-green-500' },
-  { id: 'cv', icon: Sparkles, color: 'bg-indigo-500' },
-  {
-    id: 'ring_customization',
-    icon: Package,
-    color: 'bg-gradient-to-r from-violet-500 to-purple-500',
-  },
-] as const
+const opportunityTypes = opportunityFilterTypes('panel')
 
 const categories = [...OPPORTUNITY_FILTER_CATEGORY_IDS]
 
@@ -170,15 +160,7 @@ export default function OpportunitiesFiltersPanel({
   }, [filters, onFiltersApplied])
 
   // Get translated type name
-  const getTypeTranslation = (type: string) => {
-    const typeMap: Record<string, string> = {
-      ring_customization: t('ring_customization'),
-      request: t('request'),
-      offer: t('offer'),
-      cv: t('type_selector.cv.title'),
-    }
-    return typeMap[type] || type
-  }
+  const getTypeTranslation = (type: string) => opportunityTypeLabel(t, type)
 
   // Get translated category name
   const getCategoryTranslation = (category: string) => {

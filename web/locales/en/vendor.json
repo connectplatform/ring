@@ -116,6 +116,8 @@
       "stockLevels": "Stock Levels",
       "earnings": "Earnings",
       "storeSettings": "Store Settings",
+      "shippingSettings": "Shipping methods",
+      "promotions": "Promotions",
       "updateInventory": "Update inventory",
       "viewAnalytics": "View analytics",
       "settings": "Settings",

@@ -33,15 +33,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
 
-    const subtotal = items.reduce(
-      (sum: number, item: any) => sum + parseFloat(item.product?.price ?? item.price ?? '0') * (item.quantity || 1),
-      0
-    )
+    const { quoteStoreOrder } = await import('@/features/store/services/store-quote')
+    const quoted = await quoteStoreOrder({
+      items: items.map((item: any) => ({
+        productId: String(item.product?.id ?? item.productId ?? ''),
+        quantity: Number(item.quantity) || 1,
+      })),
+      method: info.method || info.shippingMethod,
+      promoCode: body?.promoCode || info.promoCode,
+    })
 
     const orderPayload = {
       items,
-      subtotal,
-      total: subtotal,
+      subtotal: quoted.subtotal,
+      discountAmount: quoted.discount,
+      shippingCost: quoted.shipping,
+      promoCode: quoted.appliedCode || undefined,
+      total: quoted.total,
+      ...(quoted.vendorSettlements.length ? { vendorSettlements: quoted.vendorSettlements } : {}),
       shippingInfo: {
         name: [info.firstName, info.lastName].filter(Boolean).join(' ') || info.name || '',
         phone: info.phone || '',
@@ -75,6 +84,10 @@ export async function POST(req: NextRequest) {
       referral || undefined,
       curtainAttribution.length ? { curtainAttribution } : undefined,
     )
+    if (quoted.appliedCode && quoted.discount > 0) {
+      const { incrementPromoCodeRedemption } = await import('@/features/store/services/store-settings-service')
+      await incrementPromoCodeRedemption(quoted.appliedCode).catch(() => undefined)
+    }
 
     // Promote cart soft-holds → order holds: release cart_${userId}, then reserve for orderId.
     try {

@@ -57,17 +57,23 @@ export async function POST(req: NextRequest) {
         // payment.method 'ring' = legacy credit alias (old "RING credits" naming) — NOT native token.
         // Prefs heal also maps ring→credit on write; keep route alias for old clients.
         const shippingInfo = data.shippingInfo || data.checkoutInfo
-        const total =
-          typeof data.total === 'number'
-            ? data.total
-            : Object.values(data.totals || {}).reduce((s, n) => s + (typeof n === 'number' ? n : 0), 0)
+        const { quoteStoreOrder } = await import('@/features/store/services/store-quote')
+        const quoted = await quoteStoreOrder({
+          items: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          method: shippingInfo?.method || data.shipping?.provider,
+          promoCode: data.promoCode,
+        })
 
         const normalized = {
           ...data,
           shippingInfo,
           checkoutInfo: data.checkoutInfo || shippingInfo,
-          total,
-          subtotal: data.subtotal ?? total,
+          total: quoted.total,
+          subtotal: quoted.subtotal,
+          discountAmount: quoted.discount,
+          shippingCost: quoted.shipping,
+          promoCode: quoted.appliedCode || undefined,
+          ...(quoted.vendorSettlements.length ? { vendorSettlements: quoted.vendorSettlements } : {}),
           payment: {
             ...data.payment,
             method:
@@ -97,6 +103,10 @@ export async function POST(req: NextRequest) {
       referral || undefined,
       curtainAttribution.length ? { curtainAttribution } : undefined,
     )
+    if (quoted.appliedCode && quoted.discount > 0) {
+      const { incrementPromoCodeRedemption } = await import('@/features/store/services/store-settings-service')
+      await incrementPromoCodeRedemption(quoted.appliedCode).catch(() => undefined)
+    }
 
     try {
       await releaseReservationsForOrder(cartHoldOrderId(session.user.id))

@@ -151,7 +151,6 @@ export class ProductAgentService {
         productName: product.name,
         subject,
         vendorId: product.productOwner,
-        buyerEngaged: true,
       },
     })
 
@@ -199,6 +198,15 @@ export class ProductAgentService {
       userId,
       userName,
     )
+
+    if (conversation.metadata?.buyerEngaged !== true) {
+      await this.conversationService.updateConversation(conversation.id, userId, {
+        metadata: { ...conversation.metadata, buyerEngaged: true },
+      })
+      conversation.metadata = { ...conversation.metadata, buyerEngaged: true }
+      const { publishToChannel } = await import('@/lib/tunnel/publisher')
+      await publishToChannel(`user:${userId}`, 'conversation:new', conversation).catch(() => undefined)
+    }
 
     const history = await this.messageService.getMessages(conversation.id, userId, { limit: 20 })
     const senderName = await getProductAgentSenderName(locale)

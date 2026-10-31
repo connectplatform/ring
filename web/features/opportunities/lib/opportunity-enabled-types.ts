@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { policyTypeIds } from '@/features/opportunities/lib/opportunity-type-policy'
 import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 
 const FALLBACK_ENABLED_TYPES = [
@@ -42,7 +43,11 @@ export function getEnabledOpportunityTypes(): string[] {
   } catch {
     // fall through
   }
-  return [...FALLBACK_ENABLED_TYPES]
+  const enabled = [...FALLBACK_ENABLED_TYPES] as string[]
+  for (const id of policyTypeIds()) {
+    if (!enabled.includes(id)) enabled.push(id)
+  }
+  return enabled
 }
 
 export function isOpportunityTypeEnabled(type: string): boolean {

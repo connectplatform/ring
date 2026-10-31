@@ -90,9 +90,7 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
   })
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">{t('paymentMethod')}</h3>
-
+    <div className="space-y-3">
       <div className="space-y-3">
         {paymentOptions.map((option) => (
           <button

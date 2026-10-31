@@ -80,6 +80,8 @@ export type ModulesAdminLabels = Partial<{
   storeStock: string
   storeCommissions: string
   storeAddProduct: string
+  storeSettings: string
+  storePromotions: string
   daoPools: string
   daoCreate: string
   securityTabOverview: string

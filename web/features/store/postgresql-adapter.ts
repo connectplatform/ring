@@ -51,6 +51,9 @@ function mapProductRow(row: ProductRow): StoreProduct {
       row.nicheData && typeof row.nicheData === 'object' && !Array.isArray(row.nicheData)
         ? (row.nicheData as Record<string, unknown>)
         : undefined,
+    promotions: Array.isArray(row.promotions)
+      ? (row.promotions as StoreProduct['promotions'])
+      : undefined,
   }
 }
 

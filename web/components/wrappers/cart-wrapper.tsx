@@ -4,7 +4,7 @@
  * CART PAGE WRAPPER - Ring Platform v2.0 (wired to ring-config SSOT)
  *
  * Thin modern wrapper using RingRightRailLayout + DavinciCenterPane.
- * Handles wire-up to ring-config APIs for pricing, currency, and formatting.
+ * Cart totals come from quoteFromSettings (product promotions + promo codes).
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
@@ -30,40 +30,13 @@ import {
   ArrowLeft,
   Tag,
   Bookmark,
-  Percent,
   CheckCircle,
+  Trash2,
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
-import type { StorePaymentMethods } from '@/features/store/currency-context'
-import { applyProductPromotionToLine } from '@/features/store/types/promotions'
-import { ProductAgentChatProvider } from '@/features/store/context/product-agent-chat-context'
-import { ProductAgentChatPanel } from '@/features/store/components/product-agent-chat-panel'
-import { readLastProductAgentContext } from '@/features/store/components/product-agent-cart-summary'
-
-/**
- * Computes cart total with correct currency conversion using SSOT.
- * Applies per-product promotions (BOGO / % / amount) after conversion.
- * convertPrice must be the context function — never a Hook wrapper.
- */
-function useCartTotal(
-  cartItems: any[],
-  currency: StorePaymentMethods,
-  convertPrice: (n: number, f: StorePaymentMethods, t: StorePaymentMethods) => number,
-): number {
-  return useMemo(() => {
-    return cartItems.reduce((sum, item) => {
-      const raw = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price)
-      const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
-      const unit = convertPrice(raw, from, currency)
-      const { lineTotal } = applyProductPromotionToLine(
-        unit,
-        item.quantity,
-        item.product.promotions,
-      )
-      return sum + lineTotal
-    }, 0)
-  }, [cartItems, convertPrice, currency])
-}
+import { findStorePromoCode } from '@/features/store/types/promotions'
+import { DEFAULT_STORE_SETTINGS, quoteFromSettings } from '@/features/store/types/store-settings'
+import { cartLineVendorId } from '@/features/store/lib/cart-pricing'
 
 // ---- Main Wrapper ----
 
@@ -77,16 +50,18 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   // Router for imperatively pushing (navigation)
   const router = useRouter()
   // Get cart items from global store context
-  const { cartItems } = useStore()
+  const { cartItems, clearCart, appliedPromoCode, setAppliedPromoCode, storefrontSettings } = useStore()
   // Currency SSOT — convertPrice/formatPrice are plain functions from context (safe in useMemo)
-  const { currency, convertPrice, formatPrice } = useStorePaymentMethods()
+  const { currency, convertPrice, formatPrice, mainCurrency } = useStorePaymentMethods()
 
   // Translation dictionary hook for cart
   const t = useTranslations('modules.store.cart')
+  const tCommon = useTranslations('common.actions')
 
   const formatCartPrice = useCallback(
-    (amount: number) => formatPrice(amount, currency),
-    [formatPrice, currency],
+    (amountMain: number) =>
+      formatPrice(convertPrice(amountMain, mainCurrency, currency), currency),
+    [formatPrice, convertPrice, mainCurrency, currency],
   )
 
   // Track mount state for conditional client rendering (to avoid hydration mismatches for toggles)
@@ -94,7 +69,9 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   // Whether floating sidebar is open (mobile/toggle)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
   const [promoCode, setPromoCode] = useState('')
-  const [appliedPromo, setAppliedPromo] = useState<string | null>(null)
+  const [promoRejected, setPromoRejected] = useState(false)
+  const [showClearModal, setShowClearModal] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   // Set mounted true after first render; used for mobile-component toggling
   useEffect(() => setMounted(true), [])
@@ -102,54 +79,47 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   // Until client storage hydrates, treat cart as empty so SSR HTML matches first paint.
   const visibleCartItems = mounted ? cartItems : []
   const totalItems = visibleCartItems.length
-  const cartTotal = useCartTotal(visibleCartItems, currency, convertPrice)
-
-  const [agentProduct, setAgentProduct] = useState<{
-    productId: string
-    productName: string
-  } | null>(null)
-
-  useEffect(() => {
-    if (!mounted) return
-    const remembered = readLastProductAgentContext()
-    if (remembered?.productId) {
-      setAgentProduct(remembered)
-      return
-    }
-    const first = visibleCartItems[0]?.product
-    if (first?.id) {
-      setAgentProduct({
-        productId: String(first.id),
-        productName: String(first.name || 'Product'),
-      })
-    }
-  }, [mounted, visibleCartItems])
+  const settings = storefrontSettings ?? DEFAULT_STORE_SETTINGS
+  const quote = useMemo(
+    () =>
+      quoteFromSettings({
+        lines: visibleCartItems.map((item) => {
+          const raw = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price || '0')
+          const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
+          return {
+            unitPrice: convertPrice(raw, from, mainCurrency),
+            quantity: item.quantity,
+            promotions: item.product.promotions,
+          vendorEntityId: cartLineVendorId(item.product),
+          }
+        }),
+        settings,
+        promoCode: appliedPromoCode,
+        method: 'pickup',
+      }),
+    [visibleCartItems, settings, appliedPromoCode, convertPrice, mainCurrency],
+  )
+  const cartTotal = Math.max(0, quote.subtotal - quote.discount)
 
   const handleApplyPromo = useCallback(() => {
-    if (promoCode.trim().toLowerCase() === 'welcome10') {
-      setAppliedPromo('WELCOME10')
-      setPromoCode('')
+    const match = findStorePromoCode(settings.promotions.promoCodes, promoCode)
+    if (!match) {
+      setPromoRejected(true)
+      return
     }
-  }, [promoCode])
+    setPromoRejected(false)
+    setAppliedPromoCode(match.code)
+    setPromoCode('')
+  }, [promoCode, setAppliedPromoCode, settings.promotions.promoCodes])
 
-  // Closes the side rail by setting state
+  const handleClearCart = useCallback(() => {
+    setClearing(true)
+    clearCart()
+    setClearing(false)
+    setShowClearModal(false)
+  }, [clearCart])
+
   const closeRail = useCallback(() => setRightSidebarOpen(false), [])
-
-  // The content for the Cart sidebar (rail) — product agent chat when context known
-  const productChatRail = useMemo(() => {
-    if (!agentProduct?.productId) return null
-    return (
-      <div className="flex h-[calc(100dvh-2rem)] min-h-[24rem] flex-col">
-        <ProductAgentChatPanel
-          productId={agentProduct.productId}
-          productName={agentProduct.productName}
-          locale={locale}
-          showCartSummary
-          className="min-h-0 flex-1"
-        />
-      </div>
-    )
-  }, [agentProduct, locale])
 
   function SideRail() {
     return (
@@ -157,12 +127,14 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
         locale={locale}
         cartItems={visibleCartItems}
         totalPrice={cartTotal}
+        merchandiseTotal={quote.subtotal}
+        discount={quote.discount}
         totalItems={totalItems}
         formatPrice={formatCartPrice}
-        appliedPromo={appliedPromo}
+        appliedPromo={appliedPromoCode}
         promoCode={promoCode}
         onApplyPromo={handleApplyPromo}
-        onRemovePromo={() => setAppliedPromo(null)}
+        onRemovePromo={() => setAppliedPromoCode(null)}
         onPromoCodeChange={setPromoCode}
         onNavigate={closeRail}
       />
@@ -172,27 +144,7 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
   const layout = (
     <RingRightRailLayout
       rightRailPurpose="cart"
-      rightRail={productChatRail || undefined}
-      rightRailContent={
-        productChatRail
-          ? undefined
-          : [
-              {
-                id: 'cart-sidebar',
-                blockType: 'cart-sidebar',
-                i18nKey: 'modules.store.cart.sidebar',
-                params: {
-                  locale,
-                  cartItems: visibleCartItems,
-                  totalPrice: cartTotal,
-                  totalItems: totalItems,
-                  formatPrice: formatCartPrice,
-                  onNavigate: closeRail,
-                },
-              },
-            ]
-      }
-      showRightRail={Boolean(productChatRail)}
+      showRightRail={false}
       isOpen={rightSidebarOpen}
       onToggle={setRightSidebarOpen}
       railWidth={380}
@@ -212,9 +164,22 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
               {t('back', { defaultValue: 'Back to Store' })}
             </Link>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {t('title', { defaultValue: 'Cart' })}
-          </h1>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold text-foreground">
+              {t('title', { defaultValue: 'Cart' })}
+            </h1>
+            {totalItems > 0 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowClearModal(true)}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t('clear')}
+              </Button>
+            ) : null}
+          </div>
         </div>
         {/* Main grid: products + order summary */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
@@ -243,14 +208,17 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
                         ? t('item', { defaultValue: 'item' })
                         : t('items', { defaultValue: 'items' })})
                     </span>
-                    <span>{formatCartPrice(cartTotal)}</span>
+                    <span>{formatCartPrice(quote.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>{t('shipping', { defaultValue: 'Shipping' })}</span>
-                    <span className="text-green-600">
-                      {t('free', { defaultValue: 'Free' })}
-                    </span>
-                  </div>
+                  {quote.discount > 0 ? (
+                    <div className="flex justify-between text-sm">
+                      <span>{t('discount', { defaultValue: 'Discount' })}</span>
+                      <span>-{formatCartPrice(quote.discount)}</span>
+                    </div>
+                  ) : null}
+                  <p className="text-sm text-muted-foreground">
+                    {t('shippingCalculatedAtCheckout')}
+                  </p>
                   <Separator />
                   <div className="flex justify-between font-medium">
                     <span>{t('total', { defaultValue: 'Total' })}</span>
@@ -271,16 +239,16 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
                     <Tag className="h-4 w-4" />
                     {t('promoCodes', { defaultValue: 'Promo Codes' })}
                   </h2>
-                  {appliedPromo ? (
-                    <div className="flex items-center justify-between p-2 rounded-lg border border-green-200/80 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900">
+                  {appliedPromoCode ? (
+                    <div className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/40">
                       <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium">{appliedPromo}</span>
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">{appliedPromoCode}</span>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setAppliedPromo(null)}
+                        onClick={() => setAppliedPromoCode(null)}
                       >
                         {t('remove', { defaultValue: 'Remove' })}
                       </Button>
@@ -301,13 +269,14 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
                           variant="outline"
                           onClick={handleApplyPromo}
                           disabled={!promoCode.trim()}
-                          aria-label={t('promoCodes', { defaultValue: 'Promo Codes' })}
                         >
-                          <Percent className="h-4 w-4" />
+                          {t('apply')}
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {t('tryCode', { defaultValue: 'Try code: WELCOME10 for $5 off' })}
+                        {promoRejected
+                          ? t('invalidPromo', { defaultValue: 'That code is not active.' })
+                          : t('tryCode', { defaultValue: 'Try code: WELCOME10 for $5 off' })}
                       </p>
                     </>
                   )}
@@ -387,28 +356,58 @@ export default function CartWrapper({ children, locale }: CartWrapperProps) {
     </RingRightRailLayout>
   )
 
-  if (agentProduct?.productId) {
-    return (
-      <ProductAgentChatProvider
-        productId={agentProduct.productId}
-        productName={agentProduct.productName}
-      >
-        {layout}
-      </ProductAgentChatProvider>
-    )
-  }
-
-  return layout
+  return (
+    <>
+      {layout}
+      {showClearModal ? (
+        <>
+          <div
+            className="fixed inset-0 z-50 animate-in fade-in-0 bg-black/60 backdrop-blur-sm duration-200"
+            onClick={() => setShowClearModal(false)}
+          />
+          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-6">
+            <div
+              className="pointer-events-auto w-full max-w-md animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 overflow-hidden rounded-2xl bg-popover shadow-2xl duration-300"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="border-b border-border bg-gradient-to-br from-destructive/20 via-destructive/10 to-transparent p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20">
+                    <Trash2 className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">{t('clearConfirmTitle')}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t('clearConfirmDescription').replace('{count}', totalItems.toString())}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3 p-6">
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  onClick={handleClearCart}
+                  disabled={clearing}
+                  className="w-full"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {clearing ? t('clearing') : t('yesClearCart')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setShowClearModal(false)}
+                  disabled={clearing}
+                  className="w-full"
+                >
+                  {tCommon('cancel')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </>
+  )
 }
-
-/* 
-==== TODOS AND STUBS ====
-
-- TODO: Modernize state/transition management with React 19/Next 16 server components and hooks, if/when those are supported (e.g., switch useState/useEffect for mount-detection to useOptimistic or server-aware lifecycle).
-- TODO: Replace `useEffect(() => setMounted(true), [])` and conditional `mounted` renderings with use client directive (where possible) as client-side APIs in Next 16/React 19 stabilize.
-- TODO: Refactor currency/format helpers to use a single source of truth from context or server action, not redundant hooks.
-- TODO: Replace asserts on `as StorePaymentMethods` for cartTotal/formatters with more deliberate typing, or stricter typing in context hooks for improved safety.
-- STUB: Shipping is hardcoded as 'Free'; future enhancement would bring in a dynamic shipping API and fee estimation (step-by-step: (1) design API, (2) update cart summary, (3) conditional shipping block).
-- TODO: Move all business logic (totalling, format, currency) into dedicated single-hook or backend utility for easier testability and SSR support.
-
-*/

@@ -65,9 +65,13 @@ export function resolveMembershipRoleFromAmount(amount: number): UserRolesArray 
   const tiers = getSystemConfigSnapshot().membership?.tiers;
   if (!tiers) return null;
   // Compare paid amount with known tier amounts (could improve to allow float errors?)
-  if (tiers.member.amount === amount) return UserRolesArray.member;
-  if (tiers.subscriber.amount === amount) return UserRolesArray.subscriber;
-  return null;
+  const close = (tierAmount: number | undefined) =>
+    typeof tierAmount === 'number' && Math.abs(tierAmount - amount) < 0.02
+  if (close(tiers.member.amount)) return UserRolesArray.member
+  const annual = (tiers as { memberAnnual?: { amount?: number } }).memberAnnual
+  if (close(annual?.amount)) return UserRolesArray.member
+  if (close(tiers.subscriber.amount)) return UserRolesArray.subscriber
+  return null
 }
 
 // PaymentResponse shape for caller convenience

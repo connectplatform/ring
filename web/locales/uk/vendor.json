@@ -116,6 +116,8 @@
       "stockLevels": "Рівні складу",
       "earnings": "Доходи",
       "storeSettings": "Налаштування магазину",
+      "shippingSettings": "Способи доставки",
+      "promotions": "Акції",
       "updateInventory": "Оновити склад",
       "viewAnalytics": "Аналітика",
       "settings": "Налаштування",

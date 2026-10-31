@@ -202,11 +202,18 @@ export async function createSettlement(
   vendorOrder: VendorOrder
 ): Promise<Settlement> {
   // Lookup vendor profile from ID
-  const profileId = vendorProfileId(Number(vendorOrder.vendorId))
-  const vendorResult = await db().findDocById<VendorProfile>(
+  const rawVendorId = String(vendorOrder.vendorId || '').trim()
+  const profileId = rawVendorId.startsWith('vendor_') ? rawVendorId : `vendor_${rawVendorId}`
+  let vendorResult = await db().findDocById<VendorProfile>(
     STORE_COLLECTIONS.vendorProfiles,
-    profileId.toString()
+    profileId
   )
+  if ((!vendorResult.success || !vendorResult.data) && rawVendorId !== profileId) {
+    vendorResult = await db().findDocById<VendorProfile>(
+      STORE_COLLECTIONS.vendorProfiles,
+      rawVendorId
+    )
+  }
   if (!vendorResult.success || !vendorResult.data) {
     throw new Error(`Vendor not found: ${vendorOrder.vendorId}`)
   }

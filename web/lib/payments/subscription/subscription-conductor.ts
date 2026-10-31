@@ -120,7 +120,8 @@ async function insertLedgerRow(
     next_payment_due: nextPaymentDue,
     failed_attempts: 0,
     max_failed_attempts: 3,
-    auto_renew: true,
+    // One-shot checkout sets metadata.auto_renew false. Default stays renewing.
+    auto_renew: input.metadata?.auto_renew !== false,
     total_paid: isPending ? '0' : String(input.amount),
     payments_count: isPending ? 0 : 1,
     created_at: now,

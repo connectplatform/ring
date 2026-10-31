@@ -210,6 +210,16 @@ function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCard
       <div className="text-sm">
         {t('createdLabel')}: {order.createdAt || '-'}
       </div>
+      {(order.subtotal != null || order.total != null) && (
+        <div className="text-sm mt-2 space-y-1">
+          {order.subtotal != null ? <div>Subtotal: {order.subtotal.toFixed(2)} {order.currency || ''}</div> : null}
+          {order.discountAmount ? (
+            <div>Discount{order.promoCode ? ` (${order.promoCode})` : ''}: -{order.discountAmount.toFixed(2)}</div>
+          ) : null}
+          {order.shippingCost != null ? <div>Shipping: {order.shippingCost.toFixed(2)}</div> : null}
+          {order.total != null ? <div className="font-medium">Total: {order.total.toFixed(2)} {order.currency || ''}</div> : null}
+        </div>
+      )}
 
       {order.items && order.items.length > 0 && (
         <div className="text-sm mt-2">

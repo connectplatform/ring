@@ -19,7 +19,8 @@ import {
   type StorePaymentMethods,
 } from '@/features/store/currency-context'
 import type { CartItem } from '@/features/store/types'
-import { applyProductPromotionToLine } from '@/features/store/types/promotions'
+import { DEFAULT_STORE_SETTINGS, quoteFromSettings } from '@/features/store/types/store-settings'
+import { cartLineVendorId } from '@/features/store/lib/cart-pricing'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
@@ -91,19 +92,26 @@ export function ProductAgentCartSummaryBar({
     storeCurrency?.formatPrice ??
     ((price: number, code: StorePaymentMethods) => `${price.toFixed(2)} ${code}`)
 
+  const mainCurrency = storeCurrency?.mainCurrency ?? MAIN_CURRENCY
+
   const total = useMemo(() => {
-    return cartItems.reduce((sum, item) => {
-      const raw = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price)
-      const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
-      const unit = convertPrice(raw, from, currency)
-      const { lineTotal } = applyProductPromotionToLine(
-        unit,
-        item.quantity,
-        item.product.promotions,
-      )
-      return sum + lineTotal
-    }, 0)
-  }, [cartItems, convertPrice, currency])
+    const quote = quoteFromSettings({
+      lines: cartItems.map((item) => {
+        const raw = item.finalPrice != null ? item.finalPrice : parseFloat(item.product.price)
+        const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
+        return {
+          unitPrice: convertPrice(raw, from, mainCurrency),
+          quantity: item.quantity,
+          promotions: item.product.promotions,
+          vendorEntityId: cartLineVendorId(item.product),
+        }
+      }),
+      settings: store?.storefrontSettings ?? DEFAULT_STORE_SETTINGS,
+      promoCode: store?.appliedPromoCode,
+      method: 'pickup',
+    })
+    return convertPrice(Math.max(0, quote.subtotal - quote.discount), mainCurrency, currency)
+  }, [cartItems, convertPrice, mainCurrency, currency, store?.storefrontSettings, store?.appliedPromoCode])
 
   const openCart = useCallback(() => {
     rememberProductAgentContext(productId, chatCtx?.productName || '')

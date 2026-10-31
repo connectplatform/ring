@@ -47,6 +47,8 @@ export default async function VendorOrdersPage({
       id: order.id,
       status: order.status,
       total: order.total,
+      promoCode: order.promoCode,
+      discountAmount: order.discountAmount,
       createdAt: order.createdAt,
       vendorSettlement,
     }

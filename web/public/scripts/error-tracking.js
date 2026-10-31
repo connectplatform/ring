@@ -111,6 +111,17 @@
      */
     trackError(error, context = {}) {
       try {
+        const errObj =
+          error && typeof error === 'object'
+            ? error
+            : {
+                message:
+                  typeof error === 'string'
+                    ? error
+                    : (context && context.message) || 'Resource or script error',
+                stack: '',
+                name: 'Error',
+              }
         const errorInfo = {
           id: `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           timestamp: Date.now(),
@@ -119,12 +130,12 @@
           type: 'javascript_error',
           
           // Error details
-          message: error.message || 'Unknown error',
-          stack: error.stack || 'No stack trace',
-          name: error.name || 'Error',
-          filename: error.filename || context.filename || 'unknown',
-          lineno: error.lineno || context.lineno || 0,
-          colno: error.colno || context.colno || 0,
+          message: errObj.message || 'Unknown error',
+          stack: errObj.stack || 'No stack trace',
+          name: errObj.name || 'Error',
+          filename: errObj.filename || context.filename || 'unknown',
+          lineno: errObj.lineno || context.lineno || 0,
+          colno: errObj.colno || context.colno || 0,
           
           // Context information
           url: window.location.href,
@@ -321,7 +332,8 @@
     attachErrorHandlers() {
       // Global error handler
       window.addEventListener('error', (event) => {
-        this.trackError(event.error, {
+        if (!event.error && event.target && event.target !== window) return
+        this.trackError(event.error || { message: event.message || 'Resource or script error' }, {
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,

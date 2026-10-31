@@ -65,6 +65,9 @@ export const orderCreateSchema = z.object({
   // Live checkout-client path
   total: z.number().nonnegative().optional(),
   subtotal: z.number().nonnegative().optional(),
+  discountAmount: z.number().nonnegative().optional(),
+  shippingCost: z.number().nonnegative().optional(),
+  promoCode: z.string().max(64).optional(),
   shippingInfo: checkoutInfoSchema.optional(),
   billingInfo: z.unknown().optional(),
   // Legacy / alternate path

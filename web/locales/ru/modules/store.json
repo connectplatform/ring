@@ -1,5 +1,6 @@
 {
   "title": "Магазин",
+  "backToList": "К списку",
   "store": "Магазин",
   "wishlist": "Список желаний",
   "orders": "Заказы",
@@ -181,6 +182,16 @@
     "noCurrencies": "Нет валют"
   },
   "searchPlaceholder": "Искать продукты...",
+  "sort": {
+    "title": "Сортировать по",
+    "items": "Сортировать товары",
+    "fallback": "Сортировка",
+    "nameAsc": "Название (А-Я)",
+    "nameDesc": "Название (Я-А)",
+    "priceAsc": "Цена (по возрастанию)",
+    "priceDesc": "Цена (по убыванию)",
+    "newest": "Сначала новые"
+  },
   "allCurrencies": "Все валюты",
   "sortByName": "Название",
   "sortByPrice": "Цена",
@@ -247,6 +258,8 @@
     "helpAvailable": "Помощь доступна 24/7",
     "shipping": "Доставка",
     "free": "Бесплатно",
+    "shippingCalculatedAtCheckout": "Доставка считается при оформлении",
+    "apply": "Применить",
     "tax": "Налог",
     "proceedToCheckout": "Перейти к оформлению",
     "promoCodes": "Промокоды",

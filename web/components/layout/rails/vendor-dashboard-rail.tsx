@@ -20,6 +20,7 @@ import {
   BookOpen,
   Sparkles,
   ShoppingBag,
+  Tag,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,8 @@ export function VendorDashboardRail({ locale, onNavigate }: VendorDashboardRailP
     { id: 'stock', label: t('quickActions.stockLevels'), icon: Package, href: `/${locale}/vendor/stock` },
     { id: 'earnings', label: t('quickActions.earnings'), icon: DollarSign, href: `/${locale}/vendor/earnings` },
     { id: 'settings', label: t('quickActions.storeSettings'), icon: Settings, href: `/${locale}/vendor/settings` },
+    { id: 'shipping', label: t('quickActions.shippingSettings'), icon: Settings, href: `/${locale}/admin/store/settings` },
+    { id: 'promotions', label: t('quickActions.promotions'), icon: Tag, href: `/${locale}/admin/store/promotions` },
   ]
 
   const navigate = (href: string) => {

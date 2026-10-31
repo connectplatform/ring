@@ -7,7 +7,11 @@ import { auth } from '@/auth'
 import { SessionProvider } from '@/features/auth/components/session-provider'
 import { resolveSessionUserRole, UserRolesArray } from '@/features/auth/user-role'
 import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
+import { withLocale } from '@/constants/routes'
+import { catalogRedirectForTypes } from '@/features/opportunities/lib/opportunity-type-policy'
+import { parseOpportunityListQuery } from '@/features/opportunities/lib/opportunity-search-params'
 import { routing } from '@/i18n/routing'
+import { redirect } from 'next/navigation'
 import type { Locale } from '@/i18n/shared'
 import type { LocalePageProps } from '@/utils/page-props'
 
@@ -71,6 +75,19 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
     ? (params.locale as Locale)
     : (routing.defaultLocale as Locale)
 
+  const normalizedSearchParams: Record<string, unknown> = {
+    ...(searchParams as Record<string, unknown>),
+  }
+  if (!normalizedSearchParams.types && normalizedSearchParams.type) {
+    normalizedSearchParams.types = normalizedSearchParams.type
+  }
+  const catalogPath = catalogRedirectForTypes(
+    parseOpportunityListQuery(normalizedSearchParams).types,
+  )
+  if (catalogPath) {
+    redirect(withLocale(locale, catalogPath))
+  }
+
   // Resolve optional user session (public visitors default to 'visitor' role)
   const session = await auth()
   const userRole = session?.user
@@ -91,16 +108,7 @@ export default async function OpportunitiesPage(props: LocalePageProps<{}>) {
     // - Enables tree-shaking and future code-splitting for custom role logic
     // - Can be refactored to a server action in Next 16
     const { searchOpportunities } = await import('@/features/opportunities/services/search-opportunities')
-    const { parseOpportunityListQuery } = await import(
-      '@/features/opportunities/lib/opportunity-search-params'
-    )
 
-    const normalizedSearchParams: Record<string, unknown> = {
-      ...(searchParams as Record<string, unknown>),
-    }
-    if (!normalizedSearchParams.types && normalizedSearchParams.type) {
-      normalizedSearchParams.types = normalizedSearchParams.type
-    }
     if (!normalizedSearchParams.categories && normalizedSearchParams.category) {
       normalizedSearchParams.categories = normalizedSearchParams.category
     }

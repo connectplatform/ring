@@ -16,6 +16,8 @@ import type { StorePaymentMethods } from '@/features/store/types'
 import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import { flattenShippingAddress } from '@/features/store/lib/flatten-shipping-address'
 import { isCheckoutSpecialOfferEnabledForVendors } from '@/app/_actions/vendor-actions'
+import { DEFAULT_STORE_SETTINGS, quoteFromSettings } from '@/features/store/types/store-settings'
+import { cartLineVendorId } from '@/features/store/lib/cart-pricing'
 import { followCheckoutResult } from '@/lib/payments/checkout-redirect'
 import { normalizePaymentRail } from '@/lib/payments/conductor/types'
 import {
@@ -34,7 +36,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
       ? crypto.randomUUID()
       : `ck_${Date.now()}_${Math.random().toString(36).slice(2)}`,
   )
-  const { cartItems, clearCart } = useStore()
+  const { cartItems, clearCart, appliedPromoCode, storefrontSettings } = useStore()
   const [step, setStep] = useState<'prebilling' | 'review' | 'confirmation'>('prebilling')
   const [billingData, setBillingData] = useState<BillingData | null>(null)
   const t = useTranslations('modules.store.checkout')
@@ -44,8 +46,12 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
   const currency = getMainCurrencySymbol()
   const billingRef = useRef(billingData)
   const cartRef = useRef(cartItems)
+  const promoRef = useRef(appliedPromoCode)
+  const settingsRef = useRef(storefrontSettings)
   billingRef.current = billingData
   cartRef.current = cartItems
+  promoRef.current = appliedPromoCode
+  settingsRef.current = storefrontSettings
 
   const placeOrderAction = async (
     _prev: PlaceAndPayStoreOrderState | null,
@@ -77,19 +83,27 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
       },
     }))
 
-    const cartTotal = cartRef.current.reduce((sum, item) => {
-      const price = item.finalPrice || parseFloat(item.product.price)
-      return sum + price * item.quantity
-    }, 0)
-
-    const shippingCost = billing.shippingMethod === 'pickup' ? 0 : 65
-    const total = cartTotal + shippingCost
+    const settings = settingsRef.current ?? DEFAULT_STORE_SETTINGS
+    const quote = quoteFromSettings({
+      lines: cartRef.current.map((item) => ({
+        unitPrice: item.finalPrice || parseFloat(String(item.product.price || '0')),
+        quantity: item.quantity,
+        promotions: item.product.promotions,
+        vendorEntityId: cartLineVendorId(item.product),
+      })),
+      settings,
+      method: billing.shippingMethod,
+      promoCode: promoRef.current,
+    })
+    const cartTotal = quote.subtotal
+    const total = quote.total
     const rail = normalizePaymentRail(billing.paymentMethod)
 
     const orderPayload = {
       items,
       total,
       subtotal: cartTotal,
+      promoCode: promoRef.current || undefined,
       shippingInfo: {
         firstName: billing.firstName,
         lastName: billing.lastName,
@@ -152,12 +166,14 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
   useEffect(() => {
     let cancelled = false
     if (vendorOwnerRefs.length === 0) {
-      setShowOffer(false)
+      setShowOffer(Boolean(storefrontSettings?.promotions.checkoutSpecialOfferEnabled))
       return
     }
     void isCheckoutSpecialOfferEnabledForVendors(vendorOwnerRefs)
       .then((enabled) => {
-        if (!cancelled) setShowOffer(enabled)
+        if (!cancelled) {
+          setShowOffer(enabled || Boolean(storefrontSettings?.promotions.checkoutSpecialOfferEnabled))
+        }
       })
       .catch(() => {
         if (!cancelled) setShowOffer(false)
@@ -165,7 +181,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
     return () => {
       cancelled = true
     }
-  }, [vendorOwnerRefs])
+  }, [vendorOwnerRefs, storefrontSettings])
 
   useEffect(() => {
     if (!placeState || placeState === handledStateRef.current) return
@@ -232,10 +248,18 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
     )
   }
 
-  const cartTotal = cartItems.reduce(
-    (sum, item) => sum + parseFloat(item.product.price) * item.quantity,
-    0,
-  )
+  const preview = quoteFromSettings({
+    lines: cartItems.map((item) => ({
+      unitPrice: item.finalPrice ?? parseFloat(item.product.price || '0'),
+      quantity: item.quantity,
+      promotions: item.product.promotions,
+      vendorEntityId: cartLineVendorId(item.product),
+    })),
+    settings: storefrontSettings ?? DEFAULT_STORE_SETTINGS,
+    promoCode: appliedPromoCode,
+    method: 'pickup',
+  })
+  const cartTotal = Math.max(0, preview.subtotal - preview.discount)
 
   return (
     <div>
@@ -272,7 +296,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
           <h1 className="text-2xl font-semibold mb-6">{t('reviewOrder')}</h1>
           <div className="space-y-6">
             <form action={placeAction}>
-              <ReviewStepSubmit />
+              <ReviewStepSubmit shippingMethod={billingData.shippingMethod} />
             </form>
             <div className="flex gap-3">
               <button className="underline" onClick={() => setStep('prebilling')} type="button">
@@ -286,7 +310,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
   )
 }
 
-function ReviewStepSubmit() {
+function ReviewStepSubmit({ shippingMethod }: { shippingMethod?: string }) {
   const { pending } = useFormStatus()
-  return <ReviewStep submitting={pending} asFormSubmit />
+  return <ReviewStep submitting={pending} asFormSubmit shippingMethod={shippingMethod} />
 }

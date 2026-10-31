@@ -109,6 +109,8 @@
       "stockLevels": "Остатки на складе",
       "earnings": "Доходы",
       "storeSettings": "Настройки магазина",
+      "shippingSettings": "Способы доставки",
+      "promotions": "Акции",
       "updateInventory": "Обновить склад",
       "viewAnalytics": "Аналитика",
       "settings": "Настройки",

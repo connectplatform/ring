@@ -5,14 +5,15 @@
 // ===================
 
 // Import core React hooks and features
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 // Preferences load via useEffect — do NOT call use() inside try/catch or with uncached promises.
 
 // Feature, UI, and model imports
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRolesArray } from '@/features/auth/user-role'
-import { useStorePaymentMethods } from '@/features/store/currency-context'
+import { useStorePaymentMethods, MAIN_CURRENCY, resolveStorePriceCurrency } from '@/features/store/currency-context'
+import { useStore } from '@/features/store/context'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddressManager } from './address-manager'
 import ShippingMethodSelector from './shipping-method-selector'
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { User, Mail, Phone, CreditCard, ChevronsUpDown } from 'lucide-react'
+import { User, Mail, Phone, CreditCard, Package } from 'lucide-react'
 import type { UserAddress } from '@/features/store/services/address-service'
 import type { NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
 import { 
@@ -43,6 +44,8 @@ import {
   DavinciDroplistItem,
   DavinciDroplistTrigger,
 } from '@/components/ui/davinci-droplist'
+import { DEFAULT_STORE_SETTINGS, quoteFromSettings } from '@/features/store/types/store-settings'
+import { priceCartLine, cartLineVendorId } from '@/features/store/lib/cart-pricing'
 
 const FIAT_PRESENTMENT: SupportedCurrencies[] = getSupportedCurrencies()
 const CRYPTO_PRESENTMENT: SupportedCrypto[] = getSupportedCrypto()
@@ -87,11 +90,13 @@ export interface BillingData {
 // ===========================
 export function PrebillingPage({ 
   cartItems, 
-  cartTotal, 
   onProceedToPayment,
   returnTo 
 }: PrebillingPageProps) {
   // Translation util for i18n
+  const { storefrontSettings, appliedPromoCode } = useStore()
+  const settings = storefrontSettings ?? DEFAULT_STORE_SETTINGS
+
   const t = useTranslations('modules.store.checkout')
 
   // Auth state, user details, and visitor role
@@ -125,9 +130,13 @@ export function PrebillingPage({
 
   // Shipping state for selected address, method, and NovaPost location
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null)   // User's selected shipping address
+  const [guestAddressLine1, setGuestAddressLine1] = useState('')
+  const [guestCity, setGuestCity] = useState('')
+  const [guestPostalCode, setGuestPostalCode] = useState('')
   const [novaPostEnabled, setNovaPostEnabled] = useState(false)
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('pickup')  // Default pickup (Nova Post optional)
   const [shippingLocation, setShippingLocation] = useState<NovaPostLocation | null>(null) // NovaPost office branch
+  const userPickedShippingRef = useRef(false)
 
   // Payment state for user's choices (method, addresses)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')     // Default: Card (PaymentConductor)
@@ -160,9 +169,10 @@ export function PrebillingPage({
     void fetch('/api/shipping/novapost/status', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data: { enabled?: boolean }) => {
-        if (!cancelled && data.enabled === true) {
+        if (!cancelled && data.enabled === true && settings.shipping.novaPost.enabled) {
           setNovaPostEnabled(true)
-          setShippingMethod((current) => (current === 'pickup' ? 'nova-post' : current))
+        } else if (!cancelled) {
+          setNovaPostEnabled(false)
         }
       })
       .catch(() => {
@@ -171,7 +181,26 @@ export function PrebillingPage({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [settings.shipping.novaPost.enabled])
+
+  useEffect(() => {
+    setShippingMethod((current) => {
+      if (current === 'express' || current === 'standard') {
+        return novaPostEnabled ? 'nova-post' : 'pickup'
+      }
+      if (current === 'nova-post' && !novaPostEnabled) return 'pickup'
+      if (current === 'pickup' && !settings.shipping.pickup.enabled && novaPostEnabled) return 'nova-post'
+      if (
+        !userPickedShippingRef.current &&
+        !prefsHydrated.current &&
+        novaPostEnabled &&
+        settings.shipping.defaultMethod === 'nova-post'
+      ) {
+        return 'nova-post'
+      }
+      return current
+    })
+  }, [novaPostEnabled, settings.shipping.pickup.enabled, settings.shipping.defaultMethod])
 
   // Load preferences after auth — never use() with an uncached server-action promise in try/catch.
   useEffect(() => {
@@ -211,10 +240,18 @@ export function PrebillingPage({
     prefsHydrated.current = true
     if (
       userPreferences.preferredShippingMethod &&
-      userPreferences.preferredShippingMethod !== 'manual' &&
-      (novaPostEnabled || userPreferences.preferredShippingMethod !== 'nova-post')
+      userPreferences.preferredShippingMethod !== 'manual'
     ) {
-      setShippingMethod(userPreferences.preferredShippingMethod)
+      const pref = userPreferences.preferredShippingMethod
+      const normalized: ShippingMethod =
+        pref === 'express' || pref === 'standard'
+          ? novaPostEnabled
+            ? 'nova-post'
+            : 'pickup'
+          : pref === 'nova-post' && !novaPostEnabled
+            ? 'pickup'
+            : pref
+      setShippingMethod(normalized)
     }
     if (userPreferences.preferredPaymentMethod) {
       setPaymentMethod(
@@ -248,6 +285,7 @@ export function PrebillingPage({
 
   // When user changes shipping method, persist to store
   const handleShippingMethodChange = (method: ShippingMethod) => {
+    userPickedShippingRef.current = true
     setShippingMethod(method)
     if (user?.id) {
       updateShippingPreference(method).catch(error => {
@@ -282,20 +320,32 @@ export function PrebillingPage({
             addressLine1: shippingLocation.address || shippingLocation.name,
           }
         : null
+    const pickupAddress: UserAddress = {
+      fullName: `${firstName} ${lastName}`.trim(),
+      phone,
+      country: 'UA',
+      city: '',
+      addressLine1: settings.shipping.pickup.address?.trim() || 'Store pickup',
+    }
+    const guestManualAddress: UserAddress | null =
+      !isAuthenticated && guestAddressLine1.trim() && guestCity.trim()
+        ? {
+            fullName: `${firstName} ${lastName}`.trim(),
+            phone,
+            country: 'UA',
+            city: guestCity.trim(),
+            postalCode: guestPostalCode.trim(),
+            addressLine1: guestAddressLine1.trim(),
+          }
+        : null
     const shippingAddress: UserAddress | null =
-      novaPostEnabled && shippingMethod === 'nova-post'
-        ? branchAddress
-        : novaPostEnabled
-          ? {
-              fullName: `${firstName} ${lastName}`.trim(),
-              phone,
-              country: 'UA',
-              city: '',
-              addressLine1: shippingMethod,
-            }
-          : selectedAddress
+      shippingMethod === 'pickup'
+        ? pickupAddress
+        : shippingMethod === 'nova-post'
+          ? branchAddress
+          : selectedAddress || guestManualAddress
     if (!shippingAddress) {
-      alert(novaPostEnabled ? t('pleaseSelectNovaPostLocation') : t('pleaseSelectAddress'))
+      alert(shippingMethod === 'nova-post' ? t('pleaseSelectNovaPostLocation') : t('pleaseSelectAddress'))
       return
     }
     if (shippingMethod === 'nova-post' && !shippingLocation) {
@@ -343,13 +393,33 @@ export function PrebillingPage({
   // Check if checkout is ready for submission: must have all key fields
   // TODO: Codemod: Migrate to Zod or Yup for schema-driven validation (add feedback for user)
   const deliveryReady =
-    shippingMethod === 'nova-post'
-      ? Boolean(shippingLocation)
-      : novaPostEnabled
-        ? shippingMethod === 'pickup'
-        : Boolean(selectedAddress)
+    shippingMethod === 'pickup'
+      ? true
+      : shippingMethod === 'nova-post'
+        ? Boolean(shippingLocation)
+        : Boolean(selectedAddress || (!isAuthenticated && guestAddressLine1.trim() && guestCity.trim()))
   const isFormValid = Boolean(
     firstName.trim() && lastName.trim() && email.trim() && deliveryReady,
+  )
+
+  const checkoutQuote = useMemo(
+    () =>
+      quoteFromSettings({
+        lines: cartItems.map((item) => {
+          const raw = item.finalPrice || parseFloat(item.product.price || '0')
+          const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
+          return {
+            unitPrice: convertPrice(raw, from, mainCurrency),
+            quantity: item.quantity,
+            promotions: item.product.promotions,
+            vendorEntityId: cartLineVendorId(item.product),
+          }
+        }),
+        settings,
+        method: shippingMethod,
+        promoCode: appliedPromoCode,
+      }),
+    [cartItems, convertPrice, mainCurrency, settings, shippingMethod, appliedPromoCode],
   )
 
   // ===========================
@@ -357,7 +427,7 @@ export function PrebillingPage({
   // ===========================
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* ===== Left column: Main Checkout Steps ===== */}
         <div className="space-y-8">
 
@@ -455,7 +525,7 @@ export function PrebillingPage({
             - Authenticated users: show AddressManager (stored addresses selector)
             - Guests/visitors: display stubbed address fields (to be implemented)
           */}
-          {isAuthenticated && user && !novaPostEnabled && (
+          {isAuthenticated && user && !novaPostEnabled && shippingMethod !== 'pickup' && (
             <Card>
               <CardContent className="p-6">
                 <AddressManager
@@ -467,24 +537,18 @@ export function PrebillingPage({
             </Card>
           )}
 
-          {!isAuthenticated && !novaPostEnabled && (
+          {!isAuthenticated && !novaPostEnabled && shippingMethod !== 'pickup' && (
             <Card>
               <CardHeader>
                 <CardTitle>{t('shippingAddress')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 
-                  // STUB: Guest checkout address entry (not implemented)
-                  // TODO: Step 1: Add useState for guest address fields: street, city, postal, etc.
-                  // TODO: Step 2: In handleProceed, assemble UserAddress object from these guest fields; call setSelectedAddress before validation.
-                  // TODO: Step 3: Replace these input chunks using React 19's useForm or a 3rd party form lib for validation/registration.
-                  // TODO: Step 4: Implement form validation UI for errors, required fields, etc. (use Zod/Yup or React 19 form validation)
-                  // TODO: Step 5: Remove AddressManager (should stay hidden for guests).
-                */}
                 <div className="space-y-2">
                   <Label htmlFor="guestAddress">{t('addressLine1')} *</Label>
                   <Input
                     id="guestAddress"
+                    value={guestAddressLine1}
+                    onChange={(e) => setGuestAddressLine1(e.target.value)}
                     placeholder={t('enterStreetAddress')}
                     required
                   />
@@ -494,6 +558,8 @@ export function PrebillingPage({
                     <Label htmlFor="guestCity">{t('city')} *</Label>
                     <Input
                       id="guestCity"
+                      value={guestCity}
+                      onChange={(e) => setGuestCity(e.target.value)}
                       placeholder={t('enterCity')}
                       required
                     />
@@ -502,6 +568,8 @@ export function PrebillingPage({
                     <Label htmlFor="guestPostalCode">{t('postalCode')}</Label>
                     <Input
                       id="guestPostalCode"
+                      value={guestPostalCode}
+                      onChange={(e) => setGuestPostalCode(e.target.value)}
                       placeholder="12345"
                     />
                   </div>
@@ -515,13 +583,21 @@ export function PrebillingPage({
             - If 'nova-post', will also let user select a NP branch/location
           */}
           <Card>
-            <CardContent className="p-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                {t('shippingMethod')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <ShippingMethodSelector
                 selectedMethod={shippingMethod}
                 onMethodSelect={handleShippingMethodChange}
                 selectedLocation={shippingLocation}
                 onLocationSelect={setShippingLocation}
                 novaPostEnabled={novaPostEnabled}
+                shippingConfig={settings.shipping}
+                hideTitle
               />
             </CardContent>
           </Card>
@@ -541,38 +617,6 @@ export function PrebillingPage({
                 method={paymentMethod}
                 setMethod={handlePaymentMethodChange}
               />
-              {/* 
-                Billing address toggle
-                // STUB: UI for separate billing address not yet implemented
-                // TODO: Add form section for specifying billing address if unchecked
-              */}
-              <div className="mt-6 space-y-4">
-                {shippingMethod !== 'nova-post' ? (
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="sameBillingAddress"
-                    checked={billingAddressSameAsShipping}
-                    onCheckedChange={(checked) => setBillingAddressSameAsShipping(!!checked)}
-                  />
-                  <Label htmlFor="sameBillingAddress" className="text-sm">
-                    {t('billingAddressSameAsShipping')}
-                  </Label>
-                </div>
-                ) : null}
-                {/* "Save payment"—only for authenticated */}
-                {isAuthenticated && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="savePaymentMethod"
-                      checked={savePaymentMethod}
-                      onCheckedChange={(checked) => setSavePaymentMethod(!!checked)}
-                    />
-                    <Label htmlFor="savePaymentMethod" className="text-sm">
-                      {t('savePaymentMethodForFuture')}
-                    </Label>
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
 
@@ -609,8 +653,11 @@ export function PrebillingPage({
               <div className="space-y-3">
                 {cartItems.map((item, index) => {
                   // Determine unit price (allowing override by chosen option/variant)
-                  const displayPrice = item.finalPrice || parseFloat(item.product.price)
-                  const itemTotal = displayPrice * item.quantity
+                  const rawUnit = item.finalPrice || parseFloat(item.product.price)
+                  const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
+                  const unitMain = convertPrice(rawUnit, from, mainCurrency)
+                  const priced = priceCartLine(unitMain, item.quantity, item.product.promotions)
+                  const itemTotal = priced.lineTotal
 
                   return (
                     <div key={index} className="flex justify-between items-start text-sm pb-3 border-b last:border-b-0 last:pb-0">
@@ -633,18 +680,14 @@ export function PrebillingPage({
                         {/* Show qty and unit price */}
                         <div className="text-muted-foreground mt-1">
                           {t('quantity')}: {item.quantity} × {formatCurrencyPrice(
-                            convertPrice(
-                              displayPrice,
-                              item.product.currency as StorePaymentMethods,
-                              activeCurrency
-                            ),
+                            convertPrice(unitMain, mainCurrency, activeCurrency),
                             activeCurrency
                           )}
                         </div>
                       </div>
                       <div className="font-medium ml-4">
                         {formatCurrencyPrice(
-                          convertPrice(itemTotal, item.product.currency as StorePaymentMethods, activeCurrency),
+                          convertPrice(itemTotal, mainCurrency, activeCurrency),
                           activeCurrency
                         )}
                       </div>
@@ -663,25 +706,10 @@ export function PrebillingPage({
               {(() => {
                 // Cart totals are stored in main currency; convert for display / presentment.
                 const mainKey = (mainCurrency || MAIN_CURRENCY_CODE) as StorePaymentMethods
-                let subtotalMain = 0
-                if (typeof cartTotal === 'object' && cartTotal !== null) {
-                  subtotalMain =
-                    cartTotal[mainKey] ??
-                    cartTotal[MAIN_CURRENCY_CODE as StorePaymentMethods] ??
-                    Object.values(cartTotal).find((v) => typeof v === 'number') ??
-                    0
-                } else {
-                  subtotalMain = typeof cartTotal === 'number' ? cartTotal : 0
-                }
-
-                let shippingCostMain = 0
-                if (shippingMethod === 'pickup') {
-                  shippingCostMain = 0
-                } else {
-                  shippingCostMain = 65
-                }
-
-                const grandTotalMain = subtotalMain + shippingCostMain
+                const subtotalMain = checkoutQuote.subtotal
+                const shippingCostMain = checkoutQuote.shipping
+                const discountMain = checkoutQuote.discount
+                const grandTotalMain = checkoutQuote.total
                 const showPresentment = paymentMethod === 'card' || paymentMethod === 'paypal'
                 const displayCode: StorePaymentMethods = showPresentment
                   ? (displayMode === 'native_token'
@@ -703,10 +731,21 @@ export function PrebillingPage({
                         )}
                       </span>
                     </div>
+                    {discountMain > 0 ? (
+                      <div className="flex justify-between">
+                        <span>
+                          {t('discount', { defaultValue: 'Discount' })}
+                          {checkoutQuote.appliedCode ? ` (${checkoutQuote.appliedCode})` : ''}
+                        </span>
+                        <span>
+                          -{formatCurrencyPrice(convertPrice(discountMain, mainKey, displayCode), displayCode)}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between">
                       <span>{t('shipping')}</span>
                       <span>
-                        {shippingMethod === 'pickup'
+                        {shippingCostMain <= 0
                           ? t('free')
                           : formatCurrencyPrice(
                               convertPrice(shippingCostMain, mainKey, displayCode),
@@ -715,9 +754,9 @@ export function PrebillingPage({
                       </span>
                     </div>
                     <Separator />
-                    <div className="flex items-center justify-between gap-3 font-semibold text-lg">
+                    <div className="flex items-baseline justify-between gap-3 font-semibold text-lg">
                       <span>{t('total')}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-baseline justify-end">
                         {showPresentment ? (
                           <DavinciDroplist
                             open={currencyDroplistOpen}
@@ -731,12 +770,9 @@ export function PrebillingPage({
                               <DavinciDroplistTrigger
                                 open={currencyDroplistOpen}
                                 onClick={() => setCurrencyDroplistOpen(true)}
-                                className="h-9 w-[7.5rem] shrink-0"
+                                className="h-auto w-auto shrink-0 border-0 bg-transparent !px-0 py-0 font-semibold text-lg shadow-none hover:bg-transparent"
                               >
-                                <span className="truncate">
-                                  {displayMode === 'native_token' ? activeCurrency : paymentCurrency}
-                                </span>
-                                <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                                <span>({displayCode})</span>
                               </DavinciDroplistTrigger>
                             }
                           >
@@ -761,12 +797,14 @@ export function PrebillingPage({
                               </DavinciDroplistItem>
                             ))}
                           </DavinciDroplist>
-                        ) : null}
-                        <span>
-                          {formatCurrencyPrice(
-                            convertPrice(grandTotalMain, mainKey, displayCode),
-                            displayCode,
-                          )}
+                        ) : (
+                          <span>({displayCode})</span>
+                        )}
+                        <span className="tabular-nums">
+                          {new Intl.NumberFormat(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }).format(convertPrice(grandTotalMain, mainKey, displayCode))}
                         </span>
                       </div>
                     </div>
@@ -776,22 +814,17 @@ export function PrebillingPage({
             </CardContent>
           </Card>
 
-          {/* Payment security badges section */}
-          <SecurityBadges />
-
-          {/* 
-            Final "Proceed to Payment" button.
-            - Blocks (disables) unless form is valid and not loading.
-            - Spinner is shown during async API call.
-          */}
           <Button
             onClick={handleProceed}
             disabled={!isFormValid || isLoading}
-            className="w-full h-12 text-lg mb-20 md:mb-0"
+            className="h-12 w-full text-lg"
           >
-            {/* Spinner or proceed call-to-action */}
             {isLoading ? t('processing') : t('proceedToPayment')}
           </Button>
+
+          <div className="mb-20 md:mb-0">
+            <SecurityBadges />
+          </div>
         </div>
       </div>
     </div>

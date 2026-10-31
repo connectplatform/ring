@@ -172,6 +172,23 @@ export async function updateLastUsedAddress(
   }
 }
 
+export async function updateStorePreferences(patch: {
+  preferredShippingMethod?: StoreUserPreferences['preferredShippingMethod']
+  preferredPaymentMethod?: StoreUserPreferences['preferredPaymentMethod']
+  preferredDisplayCurrency?: SupportedCurrencies
+  savePaymentMethods?: boolean
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'Authentication required' }
+    await StoreUserPreferencesService.upsert(session.user.id, patch)
+    return { success: true }
+  } catch (error) {
+    logger.error('Store Preferences Action: Error updating preferences', error)
+    return { success: false, error: 'Failed to update preferences' }
+  }
+}
+
 /**
  * Updates multiple user preferences at once
  */

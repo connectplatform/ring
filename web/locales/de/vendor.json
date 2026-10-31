@@ -80,6 +80,8 @@
       "stockLevels": "Bestandsstände",
       "earnings": "Einnahmen",
       "storeSettings": "Store-Einstellungen",
+      "shippingSettings": "Versandarten",
+      "promotions": "Aktionen",
       "updateInventory": "Inventar aktualisieren",
       "viewAnalytics": "Analytics ansehen",
       "settings": "Einstellungen",
