@@ -62,7 +62,14 @@ export async function POST(req: NextRequest) {
           items: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
           method: shippingInfo?.method || data.shipping?.provider,
           promoCode: data.promoCode,
+          userId: session.user.id,
+          buyerEmail: shippingInfo?.email || session.user.email,
         })
+
+        const isOfflinePayment =
+          (data.payment?.method as string | undefined) === 'cash' ||
+          (data.payment?.method as string | undefined) === 'cod' ||
+          (data.payment?.method as string | undefined) === 'invoice'
 
         const normalized = {
           ...data,
@@ -73,6 +80,9 @@ export async function POST(req: NextRequest) {
           discountAmount: quoted.discount,
           shippingCost: quoted.shipping,
           promoCode: quoted.appliedCode || undefined,
+          ...(isOfflinePayment && quoted.appliedCode && quoted.discount > 0
+            ? { promoRedemptionCounted: true }
+            : {}),
           ...(quoted.vendorSettlements.length ? { vendorSettlements: quoted.vendorSettlements } : {}),
           payment: {
             ...data.payment,
@@ -103,7 +113,7 @@ export async function POST(req: NextRequest) {
       referral || undefined,
       curtainAttribution.length ? { curtainAttribution } : undefined,
     )
-    if (quoted.appliedCode && quoted.discount > 0) {
+    if (isOfflinePayment && quoted.appliedCode && quoted.discount > 0) {
       const { incrementPromoCodeRedemption } = await import('@/features/store/services/store-settings-service')
       await incrementPromoCodeRedemption(quoted.appliedCode).catch(() => undefined)
     }

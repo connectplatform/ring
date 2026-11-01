@@ -550,7 +550,8 @@
     "holdReasonPrompt": "Hold reason",
     "holdError": "Failed to hold settlement",
     "releaseError": "Failed to release settlement",
-    "actions": "Actions"
+    "actions": "Actions",
+    "maxUsesPerUser": "Max per buyer"
   },
   "verificationQueue": {
     "pageTitle": "Identity Verification",

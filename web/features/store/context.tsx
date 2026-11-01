@@ -252,15 +252,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [rawCart, products])
 
-  const singleCartVendorId = useMemo(() => {
-    const ids = [...new Set(cartItems.map((item) => cartLineVendorId(item.product)).filter(Boolean))]
-    return ids.length === 1 ? ids[0] : ''
+  const cartVendorParam = useMemo(() => {
+    const ids = [...new Set(cartItems.map((item) => cartLineVendorId(item.product)).filter(Boolean))].sort()
+    return ids.join(',')
   }, [cartItems])
 
   useEffect(() => {
     let cancelled = false
-    const url = singleCartVendorId
-      ? `/api/store/settings?vendorId=${encodeURIComponent(singleCartVendorId)}`
+    const url = cartVendorParam
+      ? `/api/store/settings?vendorId=${encodeURIComponent(cartVendorParam)}`
       : '/api/store/settings'
     void fetch(url)
       .then((response) => (response.ok ? response.json() : null))
@@ -269,6 +269,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const codes = Array.isArray(body.promoCodes) ? body.promoCodes : []
         setStorefrontSettings({
           shipping: body.shipping,
+          ...(body.vendorShippingByEntityId && typeof body.vendorShippingByEntityId === 'object'
+            ? { vendorShippingByEntityId: body.vendorShippingByEntityId }
+            : {}),
           promotions: {
             promoCodes: codes.map((code: {
               code: string
@@ -279,6 +282,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               startsAt?: string
               endsAt?: string
               maxRedemptions?: number
+              maxUsesPerUser?: number
               redemptionCount?: number
             }) => ({
               id: code.code,
@@ -291,6 +295,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               startsAt: code.startsAt,
               endsAt: code.endsAt,
               maxRedemptions: code.maxRedemptions,
+              maxUsesPerUser: code.maxUsesPerUser,
               redemptionCount: code.redemptionCount,
             })),
             freeShipping: body.freeShipping || { mode: 'off' },
@@ -302,7 +307,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [singleCartVendorId])
+  }, [cartVendorParam])
 
   // Authenticated: soft-hold + push server cart mirror (skip one tick after hydrate).
   // Use rawCart ids — never filter on product.name === 'Unknown' (products may still

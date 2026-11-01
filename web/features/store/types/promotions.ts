@@ -186,6 +186,8 @@ export interface StorePromoCode {
   vendorEntityId?: string | null
   /** Optional cap. 0 or omitted means unlimited. */
   maxRedemptions?: number
+  /** Optional per-buyer cap. 0 or omitted means unlimited per buyer. */
+  maxUsesPerUser?: number
   redemptionCount?: number
 }
 

@@ -64,11 +64,31 @@ if [[ "$DRY" -eq 1 ]]; then
   exit 0
 fi
 
+# Avoid macOS git-credential-osxkeychain hangs by using the Forgejo PAT directly
+# with `-c credential.helper=` when AI-SECRETS is present.
+FORGE_TOKEN="${ORDER_LAB_WRITE_TOKEN:-${RINGDOM_CI_TOKEN:-${RING_CI_TOKEN:-}}}"
+if [[ -z "$FORGE_TOKEN" && -f "$ROOT/../AI-SECRETS/k3s-3/forgejo-tokens.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/../AI-SECRETS/k3s-3/forgejo-tokens.env"
+  set +a
+  FORGE_TOKEN="${ORDER_LAB_WRITE_TOKEN:-${RINGDOM_CI_TOKEN:-${RING_CI_TOKEN:-}}}"
+fi
+
+PUSH_TARGET="$REMOTE"
+if [[ -n "$FORGE_TOKEN" && "$ORIGIN_URL" == https://* ]]; then
+  PUSH_TARGET="$(printf '%s' "$ORIGIN_URL" | sed "s#https://#https://oauth2:${FORGE_TOKEN}@#")"
+fi
+
+export GIT_TERMINAL_PROMPT=0
 if [[ -n "$REF" ]]; then
   echo "[push-forgejo] git push ${REMOTE} ${REF}"
-  git push "$REMOTE" "$REF"
+  git -c credential.helper= push "$PUSH_TARGET" "$REF" 2>&1 | sed -E 's#oauth2:[^@[:space:]]+@#oauth2:***@#g'
 else
   echo "[push-forgejo] git push ${REMOTE}"
-  git push "$REMOTE"
+  git -c credential.helper= push "$PUSH_TARGET" HEAD:main 2>&1 | sed -E 's#oauth2:[^@[:space:]]+@#oauth2:***@#g'
+  if [[ "$PUSH_TARGET" != "$REMOTE" ]]; then
+    git -c credential.helper= fetch "$PUSH_TARGET" +refs/heads/main:refs/remotes/"${REMOTE}"/main >/dev/null 2>&1 || true
+  fi
 fi
 echo "[push-forgejo] Forgejo tip pushed. Prod roll: cd web && npm run push:layer1 (or ci:layer1 if already on origin)."

@@ -41,7 +41,15 @@ export async function POST(req: NextRequest) {
       })),
       method: info.method || info.shippingMethod,
       promoCode: body?.promoCode || info.promoCode,
+      userId: session.user.id,
+      buyerEmail: info.email || session.user.email,
     })
+
+    const isOfflineCheckout =
+      !body?.payment?.method ||
+      body?.payment?.method === 'cash' ||
+      body?.payment?.method === 'cod' ||
+      body?.payment?.method === 'invoice'
 
     const orderPayload = {
       items,
@@ -49,6 +57,9 @@ export async function POST(req: NextRequest) {
       discountAmount: quoted.discount,
       shippingCost: quoted.shipping,
       promoCode: quoted.appliedCode || undefined,
+      ...(isOfflineCheckout && quoted.appliedCode && quoted.discount > 0
+        ? { promoRedemptionCounted: true }
+        : {}),
       total: quoted.total,
       ...(quoted.vendorSettlements.length ? { vendorSettlements: quoted.vendorSettlements } : {}),
       shippingInfo: {
@@ -84,7 +95,7 @@ export async function POST(req: NextRequest) {
       referral || undefined,
       curtainAttribution.length ? { curtainAttribution } : undefined,
     )
-    if (quoted.appliedCode && quoted.discount > 0) {
+    if (isOfflineCheckout && quoted.appliedCode && quoted.discount > 0) {
       const { incrementPromoCodeRedemption } = await import('@/features/store/services/store-settings-service')
       await incrementPromoCodeRedemption(quoted.appliedCode).catch(() => undefined)
     }

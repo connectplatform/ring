@@ -545,7 +545,8 @@
     "holdReasonPrompt": "Motivo de retención",
     "holdError": "Error al retener",
     "releaseError": "Error al liberar",
-    "actions": "Acciones"
+    "actions": "Acciones",
+    "maxUsesPerUser": "Máx. por comprador"
   },
   "verificationQueue": {
     "pageTitle": "Verificación de identidad",

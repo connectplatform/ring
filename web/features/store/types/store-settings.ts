@@ -25,9 +25,16 @@ export interface StorePromotionsSettings {
   checkoutSpecialOfferEnabled: boolean
 }
 
+export interface VendorShippingOverride {
+  shipping: StoreShippingSettings
+  freeShipping: VendorFreeShippingPromotion
+}
+
 export interface StoreSettingsData {
   shipping: StoreShippingSettings
   promotions: StorePromotionsSettings
+  /** Optional per-vendor shipping overrides for multi-vendor carts. */
+  vendorShippingByEntityId?: Record<string, VendorShippingOverride>
 }
 
 export const DEFAULT_WELCOME_PROMO: StorePromoCode = {
@@ -74,6 +81,7 @@ export function publicPromoCodes(codes: StorePromoCode[]): StorePromoCode[] {
       startsAt: code.startsAt,
       endsAt: code.endsAt,
       maxRedemptions: code.maxRedemptions,
+      maxUsesPerUser: code.maxUsesPerUser,
       redemptionCount: code.redemptionCount,
     }))
 }
@@ -114,12 +122,30 @@ export function quoteFromSettings(input: {
     : input.lines
   const eligible = sumPromotedLines(eligibleLines)
   const discount = computePromoCodeDiscount(eligible, promo || null)
-  const shipping = resolveConfiguredShipping(
-    input.settings.shipping,
-    input.method,
-    subtotal,
-    input.settings.promotions.freeShipping,
-  )
+  const vendorIds = [
+    ...new Set(input.lines.map((line) => line.vendorEntityId).filter((v): v is string => Boolean(v))),
+  ]
+  let shipping = 0
+  if (vendorIds.length > 1 && input.settings.vendorShippingByEntityId) {
+    for (const vid of vendorIds) {
+      const vendorLines = input.lines.filter((line) => line.vendorEntityId === vid)
+      const vendorSubtotal = sumPromotedLines(vendorLines)
+      const override = input.settings.vendorShippingByEntityId[vid]
+      shipping += resolveConfiguredShipping(
+        override?.shipping ?? input.settings.shipping,
+        input.method,
+        vendorSubtotal,
+        override?.freeShipping ?? input.settings.promotions.freeShipping,
+      )
+    }
+  } else {
+    shipping = resolveConfiguredShipping(
+      input.settings.shipping,
+      input.method,
+      subtotal,
+      input.settings.promotions.freeShipping,
+    )
+  }
   const total = Math.max(0, subtotal - discount + Math.max(0, shipping))
   return {
     subtotal,

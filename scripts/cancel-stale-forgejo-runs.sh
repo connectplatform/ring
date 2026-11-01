@@ -53,6 +53,12 @@ REPOS = [
     "ringdom-clones/ring-greenfood-live",
     "ringdom-clones/ring-n9life-com",
     "ringdom-clones/ring-vikka-ua",
+    "ringdom-clones/ring-cherkasy-app",
+    "ringdom-clones/ring-legiox-pro",
+    "ringdom-clones/ring-connect-software",
+    "ringdom-clones/ring-ring-ck-ua",
+    "ringdom-clones/ring-automart-com-ua",
+    "ringdom-clones/ring-dealerdirect-app",
 ]
 
 # Gitea/Forgejo ActionRun status: 1 waiting, 2 running, 7 blocked (+ string forms).

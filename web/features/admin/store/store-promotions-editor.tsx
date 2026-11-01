@@ -156,6 +156,20 @@ export function StorePromotionsEditor({
                   }
                 />
               </div>
+              <div className="space-y-1">
+                <Label>{t('maxUsesPerUser')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder={t('unlimited')}
+                  value={code.maxUsesPerUser ?? ''}
+                  onChange={(event) =>
+                    updateCode(code.id, {
+                      maxUsesPerUser: event.target.value === '' ? undefined : Number(event.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
               <div className="flex items-end text-xs text-muted-foreground pb-2">
                 {t('redemptionsUsed')}: {code.redemptionCount ?? 0} / {code.maxRedemptions || '∞'}
               </div>

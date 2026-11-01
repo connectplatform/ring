@@ -274,6 +274,7 @@ export interface StoreOrder {
   discountAmount?: number
   shippingCost?: number
   promoCode?: string
+  promoRedemptionCounted?: boolean
   total: number
   status: 'new' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled'
   payment?: StorePayment
@@ -302,6 +303,7 @@ export interface VendorSettlement {
   vendorEntityId: string
   productIds: string[]
   subtotal: number
+  shippingFee?: number
   commission: number
   commissionRate: number
   netAmount: number

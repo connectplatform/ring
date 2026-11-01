@@ -548,7 +548,8 @@
     "holdReasonPrompt": "Причина утримання",
     "holdError": "Не вдалося утримати",
     "releaseError": "Не вдалося звільнити",
-    "actions": "Дії"
+    "actions": "Дії",
+    "maxUsesPerUser": "Макс. на покупця"
   },
   "verificationQueue": {
     "pageTitle": "Identity Verification",

@@ -155,15 +155,19 @@ export async function submitStoreCheckoutPayment(
       if (!result.success || !result.paid) {
         return { error: result.error ?? 'Credit payment failed' }
       }
-      await StoreOrdersService.updateOrderPaymentStatus(order.id, {
-        method: 'credit_balance',
-        processor: 'credit_balance',
-        status: 'paid',
+      const { fulfillStoreOrderPaid } = await import(
+        '@/lib/payments/conductor/fulfill-store-order-paid'
+      )
+      await fulfillStoreOrderPaid({
+        orderId: order.id,
+        orderReference: result.orderReference ?? `credit_${order.id}`,
         amount,
         currency,
-        paidAt: new Date().toISOString(),
+        rail: 'credit_balance',
+        processor: 'credit_balance',
+        processorPayload: { orderReference: result.orderReference },
+        source: 'Store credit balance (action)',
       })
-      await StoreOrdersService.adminUpdateOrderStatus(order.id, 'paid')
       return { success: true, doneInline: true }
     }
 
@@ -188,15 +192,20 @@ export async function submitStoreCheckoutPayment(
       if (!result.success || !result.paid) {
         return { error: result.error ?? 'Token payment failed' }
       }
-      await StoreOrdersService.updateOrderPaymentStatus(order.id, {
-        method: 'native_token',
-        processor: 'native_token',
-        status: 'paid',
+      const { fulfillStoreOrderPaid } = await import(
+        '@/lib/payments/conductor/fulfill-store-order-paid'
+      )
+      await fulfillStoreOrderPaid({
+        orderId: order.id,
+        orderReference: result.orderReference ?? `token_${order.id}`,
         amount,
         currency,
-        paidAt: new Date().toISOString(),
+        rail: 'native_token',
+        processor: 'native_token',
+        processorPayload: { orderReference: result.orderReference, txHash: result.txHash },
+        paymentDetails: { cryptoTxHash: result.txHash },
+        source: 'Store native token (action)',
       })
-      await StoreOrdersService.adminUpdateOrderStatus(order.id, 'paid')
       return { success: true, doneInline: true }
     }
 
@@ -301,6 +310,8 @@ export async function placeAndPayStoreOrder(
         items: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
         method: shippingInfo?.method,
         promoCode: data.promoCode,
+        userId: session.user.id,
+        buyerEmail: shippingInfo?.email || session.user.email,
       })
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Could not price this order' }
@@ -359,10 +370,8 @@ export async function placeAndPayStoreOrder(
       referral || undefined,
       curtainAttribution.length ? { curtainAttribution } : undefined,
     )
-    if (quoted.appliedCode && quoted.discount > 0) {
-      const { incrementPromoCodeRedemption } = await import('@/features/store/services/store-settings-service')
-      await incrementPromoCodeRedemption(quoted.appliedCode).catch(() => undefined)
-    }
+    // Online payment rails increment promo redemptions in fulfillStoreOrderPaid once paid,
+    // so abandoned checkouts do not burn maxRedemptions.
 
     try {
       const {

@@ -1,6 +1,6 @@
 {
   "name": "ring",
-  "version": "1.104.0",
+  "version": "1.106.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -145,6 +145,7 @@
     "@types/pg": "^8.20.0",
     "@vercel/blob": "^2.6.1",
     "@vercel/functions": "^3.7.5",
+    "astronomy-engine": "^2.1.19",
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "chess.js": "^1.4.0",

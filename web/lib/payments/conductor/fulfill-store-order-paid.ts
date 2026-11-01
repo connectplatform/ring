@@ -65,6 +65,10 @@ export async function fulfillStoreOrderPaid(
     return { success: false }
   }
 
+  const existingOrder = await StoreOrdersService.getOrderWithPaymentDetails(orderId)
+  const wasAlreadyPaid =
+    existingOrder?.status === 'paid' ||
+    existingOrder?.payment?.status === 'paid'
   const isNew = await paymentTransactionService.markPaid(orderReference, processorPayload)
 
   const payment: StorePayment = {
@@ -80,12 +84,36 @@ export async function fulfillStoreOrderPaid(
   await StoreOrdersService.updateOrderPaymentStatus(orderId, payment)
   await StoreOrdersService.adminUpdateOrderStatus(orderId, 'paid')
 
-  // Side effects run once per order, guarded by the ledger's idempotency check.
-  if (!isNew) {
+  // Side effects run once per order. For credit_balance and native_token,
+  // PaymentConductor.createCheckout already called markPaid(orderReference), so
+  // `isNew` is false on first call; fall back to `!wasAlreadyPaid` for those rails.
+  const shouldRunSideEffects =
+    isNew ||
+    ((rail === 'credit_balance' || rail === 'native_token') && !wasAlreadyPaid)
+  if (!shouldRunSideEffects) {
     return { success: true, orderId }
   }
 
-  const order = await StoreOrdersService.getOrderWithPaymentDetails(orderId)
+  const order = existingOrder ?? (await StoreOrdersService.getOrderWithPaymentDetails(orderId))
+
+  if (
+    order?.promoCode &&
+    (order.discountAmount ?? 0) > 0 &&
+    !order.promoRedemptionCounted
+  ) {
+    try {
+      const { incrementPromoCodeRedemption } = await import(
+        '@/features/store/services/store-settings-service'
+      )
+      await incrementPromoCodeRedemption(order.promoCode)
+      const { db } = await import('@/lib/database')
+      await db()
+        .updateDoc('orders', orderId, { promoRedemptionCounted: true })
+        .catch(() => undefined)
+    } catch (promoError) {
+      logger.error(`${source}: promo redemption increment failed`, { orderId, promoError })
+    }
+  }
 
   if (order?.items?.length) {
     try {

@@ -545,7 +545,8 @@
     "holdReasonPrompt": "Sperrgrund",
     "holdError": "Sperren fehlgeschlagen",
     "releaseError": "Freigabe fehlgeschlagen",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "maxUsesPerUser": "Max. pro Käufer"
   },
   "verificationQueue": {
     "pageTitle": "Identitätsverifizierung",

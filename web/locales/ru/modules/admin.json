@@ -549,7 +549,8 @@
     "holdReasonPrompt": "Причина удержания",
     "holdError": "Не удалось удержать",
     "releaseError": "Не удалось освободить",
-    "actions": "Действия"
+    "actions": "Действия",
+    "maxUsesPerUser": "Макс. на покупателя"
   },
   "verificationQueue": {
     "pageTitle": "Верификация личности",
