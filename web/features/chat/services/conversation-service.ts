@@ -1,3 +1,8 @@
+import {
+  normalizePublicProfileFields,
+  personalPageFieldEnabled,
+  personalPageSectionEnabled,
+} from '@/features/auth/lib/personal-page-sections';
 import { db } from '@/lib/database';
 import { publishToChannel } from '@/lib/tunnel/publisher';
 import {
@@ -338,7 +343,7 @@ export class ConversationService {
   ): Promise<Conversation> {
     const participants = await Promise.all(
       conversation.participants.map(async (participant) => {
-        if (participant.avatarUrl && participant.displayName) {
+        if (participant.profileLoaded && participant.displayName) {
           return participant;
         }
         try {
@@ -347,18 +352,37 @@ export class ConversationService {
             photoURL?: string
             name?: string
             username?: string
+            bio?: string
+            publicProfile?: boolean | string | number
+            publicProfileSections?: string[]
+            publicProfileFields?: unknown
           }>('users', participant.userId);
           if (!userResult.success || !userResult.data) {
-            return participant;
+            return { ...participant, profileLoaded: true };
           }
           const user = userResult.data;
           const avatarUrl = user.image || user.photoURL || participant.avatarUrl;
           const displayName =
             user.name || user.username || participant.displayName;
+          const publicProfile =
+            user.publicProfile === true ||
+            user.publicProfile === 'true' ||
+            user.publicProfile === 1 ||
+            user.publicProfile === '1';
+          const fields = normalizePublicProfileFields(user.publicProfileFields);
+          const bioVisible =
+            publicProfile &&
+            personalPageSectionEnabled(user.publicProfileSections, 'bio') &&
+            personalPageFieldEnabled(fields, 'bio', 'text') &&
+            Boolean(user.bio?.trim());
           return {
             ...participant,
             ...(avatarUrl ? { avatarUrl } : {}),
             ...(displayName ? { displayName } : {}),
+            ...(user.username ? { username: user.username } : {}),
+            ...(bioVisible && user.bio ? { bio: user.bio } : {}),
+            publicProfile,
+            profileLoaded: true,
           };
         } catch {
           return participant;

@@ -276,6 +276,14 @@ export interface NavigationConfigSchema {
    * Same items/exclude/extra contract. Labels are `navigation.*` keys.
    */
   userMenu?: PlatformMenuConfig
+  /**
+   * Signed-in desktop sidebar row order. Utility ids
+   * (profile, wallet, notifications, messages, games, tasks, cart, favorites)
+   * plus desktop primary-nav ids (store, entities, groupBuy, …).
+   * Omit to keep Layer1 order. `items` replaces that order; primary ids left
+   * out of `items` are appended. `exclude` hides ids. Chrome stays on Layer1.
+   */
+  desktopMenu?: Pick<PlatformMenuConfig, 'items' | 'exclude'>
 }
 
 /** Clone-local overflow catalog. Unknown ids are ignored unless listed in `extra`. */

@@ -10,6 +10,8 @@ import { isIosSafari, needsIosHomeScreenForPush } from '@/lib/browser/pwa-displa
 import { isTelegramMiniAppShell } from '@/lib/browser/telegram-webapp'
 import { emitInteractivePushFromFcmData } from '@/lib/notifications/incoming-from-push'
 import { isFcmConfigured } from '@/lib/firebase-client'
+import { isLoginPath } from '@/lib/pathname-without-locale'
+import { usePathname } from 'next/navigation'
 import { toast } from '@/hooks/use-toast'
 
 interface FCMContextType {
@@ -217,6 +219,7 @@ function getPromptDismissed(key: string): boolean {
 }
 
 export function FCMPermissionPrompt() {
+  const pathname = usePathname()
   const {
     isSupported,
     isEnabled,
@@ -225,12 +228,14 @@ export function FCMPermissionPrompt() {
     enableNotifications,
   } = useFCMContext()
   const [showPrompt, setShowPrompt] = useState(false)
+  const suppressed = isLoginPath(pathname)
 
   const dismissKey = needsHomeScreenInstall
     ? FCM_INSTALL_PROMPT_STORAGE_KEY
     : FCM_PROMPT_STORAGE_KEY
 
   useEffect(() => {
+    if (suppressed) return
     if (getPromptDismissed(dismissKey)) return
     if (!needsHomeScreenInstall && getBrowserNotificationPermission() === 'granted') return
     const timer = setTimeout(() => {
@@ -247,8 +252,9 @@ export function FCMPermissionPrompt() {
     }, 3000)
 
     return () => clearTimeout(timer)
-  }, [isSupported, isEnabled, isLoading, needsHomeScreenInstall, dismissKey])
+  }, [isSupported, isEnabled, isLoading, needsHomeScreenInstall, dismissKey, suppressed])
 
+  if (suppressed) return null
   if (typeof window !== 'undefined' && getPromptDismissed(dismissKey)) {
     return null
   }

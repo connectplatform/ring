@@ -91,6 +91,14 @@ export interface ConversationParticipant {
   /** Enriched from users.image / users.photoURL at read time */
   avatarUrl?: string
   displayName?: string
+  /** Public handle. Profile URL is /{locale}/{username} when publicProfile is true. */
+  username?: string
+  /** Present only when the public profile and bio section are visible. */
+  bio?: string
+  /** users.publicProfile — personal page is public. */
+  publicProfile?: boolean
+  /** Read-time marker so a later enrich does not skip profile fields. */
+  profileLoaded?: boolean
 }
 
 /** Canonical Message.type SSOT — keep in sync with API validTypes + interactive kit. */

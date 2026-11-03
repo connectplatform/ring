@@ -14,6 +14,7 @@ export const TASK_CLASS_ROUTES: Record<TaskClass, TaskClassRoute> = {
     preferred: [
       { provider: 'anthropic', modelId: 'claude-sonnet-4-5-20250929' },
       { provider: 'openai', modelId: 'gpt-5.6-terra' },
+      { provider: 'xai', modelId: 'grok-4.7' },
       { provider: 'xai', modelId: 'grok-4.3' },
       { provider: 'openrouter', modelId: 'anthropic/claude-sonnet-4-5' },
     ],
@@ -42,6 +43,7 @@ export const TASK_CLASS_ROUTES: Record<TaskClass, TaskClassRoute> = {
     preferred: [
       { provider: 'anthropic', modelId: 'claude-opus-4-20250514' },
       { provider: 'openai', modelId: 'gpt-5.6-sol' },
+      { provider: 'xai', modelId: 'grok-4.7' },
       { provider: 'xai', modelId: 'grok-4.3' },
     ],
     notes: 'Prefer Opus-class for settler/clone recipes',
@@ -50,19 +52,26 @@ export const TASK_CLASS_ROUTES: Record<TaskClass, TaskClassRoute> = {
   ghost_write: {
     taskClass: 'ghost_write',
     requiredMethod: 'chat',
-    preferred: [{ provider: 'xai', modelId: 'grok-4.3' }],
+    preferred: [
+      { provider: 'xai', modelId: 'grok-4.7' },
+      { provider: 'xai', modelId: 'grok-4.3' },
+    ],
   },
   research_web: {
     taskClass: 'research_web',
     requiredMethod: 'chat',
     requiredCapabilities: ['webSearch'],
-    preferred: [{ provider: 'xai', modelId: 'grok-4.3' }],
+    preferred: [
+      { provider: 'xai', modelId: 'grok-4.7' },
+      { provider: 'xai', modelId: 'grok-4.3' },
+    ],
   },
   structured_extract: {
     taskClass: 'structured_extract',
     requiredMethod: 'chat',
     requiredCapabilities: ['structuredOutput'],
     preferred: [
+      { provider: 'xai', modelId: 'grok-4.7' },
       { provider: 'xai', modelId: 'grok-4.3' },
       { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
       { provider: 'openai', modelId: 'gpt-5.6-luna' },
@@ -126,6 +135,7 @@ export const TASK_CLASS_ROUTES: Record<TaskClass, TaskClassRoute> = {
     preferred: [
       { provider: 'anthropic', modelId: 'claude-haiku-4-5-20250514' },
       { provider: 'openai', modelId: 'gpt-5.6-luna' },
+      { provider: 'xai', modelId: 'grok-4.7' },
       { provider: 'xai', modelId: 'grok-4.3' },
     ],
   },

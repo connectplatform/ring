@@ -303,8 +303,11 @@
       "daarPrice": "Ціна в токенах DAAR (Опціонально)",
       "daarPriceHint": "Розраховується автоматично з ціни в грн, якщо не вказано",
       "description": "Короткий опис",
-      "descriptionHint": "Короткий опис продукту (макс. 200 символів)",
+      "descriptionHint": "Короткий опис продукту (макс. 5000 символів)",
       "descriptionPlaceholder": "Свіжі органічні помідори з нашої ферми...",
+      "longDescription": "Повний опис товару",
+      "longDescriptionHint": "Повна стаття товару на сторінці продукту.",
+      "longDescriptionPlaceholder": "Напишіть повну історію товару…",
       "activeInMyStore": "Активний у моєму магазині",
       "activeInMyStoreHint": "Зробити продукт видимим у вашій вітрині",
       "submitToMainStore": "Подати до головного магазину",
@@ -356,7 +359,7 @@
       "photoInvalidType": "Фото має бути JPG, PNG або WebP",
       "videoSizeExceeded": "Розмір відео має бути менше 50МБ",
       "videoInvalidType": "Відео має бути MP4 або WebM",
-      "descriptionTooLong": "Опис має бути менше 200 символів"
+      "descriptionTooLong": "Опис має бути менше 5000 символів"
     },
     "deleteConfirm": {
       "title": "Видалити продукт",

@@ -464,7 +464,13 @@
       "delist": "Retirar del listado",
       "delistConfirm": "¿Retirar este producto del Main Store? La tienda del vendedor puede permanecer activa.",
       "delistError": "Error al retirar el producto del listado",
+      "delisted": "Retirado",
       "showMore": "Mostrar más",
+      "quickEdit": "Edición rápida",
+      "quickEditSave": "Guardar cambios",
+      "quickEditCancel": "Cancelar",
+      "quickEditError": "No se pudieron guardar los cambios",
+      "editProduct": "Editar producto",
       "form": {
         "vendorOwner": "Propietario vendedor",
         "vendorOwnerPlaceholder": "Seleccionar vendedor activo"
@@ -482,7 +488,9 @@
         "rejected": "Rechazado"
       },
       "columns": {
+        "photo": "Foto",
         "name": "Producto",
+        "category": "Categoría",
         "vendor": "Entidad vendedora",
         "price": "Precio",
         "stock": "Stock",

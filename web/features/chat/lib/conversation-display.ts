@@ -3,6 +3,39 @@ import { getMessageTimeMs } from '@/features/chat/lib/message-time'
 import { interactivePreviewLabel } from '@/features/chat/lib/interactive-notify'
 import { resolveInteractiveKind } from '@/features/chat/lib/interactive-kind'
 
+/** next-intl `t` or any `{key, values}` lookup. Omitted on the server keeps English fallbacks. */
+export type ChatLabeler = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string
+
+function tr(
+  t: ChatLabeler | undefined,
+  key: string,
+  fallback: string,
+  values?: Record<string, string | number>,
+): string {
+  return t ? t(key, values) : fallback
+}
+
+const TYPE_LABEL_KEYS: Record<string, string> = {
+  direct: 'typeDirect',
+  group: 'typeGroup',
+  product: 'typeProduct',
+  entity: 'typeEntity',
+  opportunity: 'typeOpportunity',
+  order_lab: 'typeOrderLab',
+  support: 'typeSupport',
+}
+
+export function getConversationTypeLabel(
+  type: string,
+  t?: ChatLabeler,
+): string {
+  const key = TYPE_LABEL_KEYS[type]
+  return key ? tr(t, key, type) : tr(t, 'typeConversation', type)
+}
+
 /**
  * SSOT conversation label helpers for roster + header.
  * Product (DAGI agent) chats use metadata.productName / subject — same inbox as human DMs.
@@ -10,6 +43,7 @@ import { resolveInteractiveKind } from '@/features/chat/lib/interactive-kind'
 export function getConversationTitle(
   conversation: Conversation,
   currentUserId: string,
+  t?: ChatLabeler,
 ): string {
   if (conversation.type === 'entity' && conversation.metadata.entityName) {
     return conversation.metadata.entityName
@@ -23,7 +57,7 @@ export function getConversationTitle(
   }
 
   if (conversation.type === 'group') {
-    return conversation.metadata.groupName?.trim() || 'Group'
+    return conversation.metadata.groupName?.trim() || tr(t, 'titleGroup', 'Group')
   }
 
   if (conversation.type === 'direct') {
@@ -34,14 +68,14 @@ export function getConversationTitle(
     if (other?.displayName) {
       return other.displayName
     }
-    return other ? other.userId : 'Direct'
+    return other ? other.userId : tr(t, 'titleDirect', 'Direct')
   }
 
   if (conversation.type === 'product') {
     return (
       conversation.metadata.subject ||
       conversation.metadata.productName ||
-      'Product chat'
+      tr(t, 'titleProduct', 'Product chat')
     )
   }
 
@@ -50,44 +84,55 @@ export function getConversationTitle(
   }
 
   if (conversation.type === 'support') {
-    return conversation.metadata.subject || 'Support'
+    return conversation.metadata.subject || tr(t, 'titleSupport', 'Support')
   }
 
-  return 'Conversation'
+  return tr(t, 'titleConversation', 'Conversation')
 }
 
 export function getConversationSubtitle(
   conversation: Conversation,
   currentUserId: string,
+  t?: ChatLabeler,
 ): string {
   if (conversation.type === 'product') {
     return conversation.metadata.productName
-      ? `Product agent · ${conversation.metadata.productName}`
-      : 'Product agent'
+      ? tr(t, 'titleProductAgentNamed', `Product agent · ${conversation.metadata.productName}`, {
+          name: conversation.metadata.productName,
+        })
+      : tr(t, 'titleProductAgent', 'Product agent')
   }
 
   if (conversation.type === 'direct') {
     const other = conversation.participants.find((p) => p.userId !== currentUserId)
-    return other?.isOnline ? 'Online' : 'Offline'
+    return other?.isOnline
+      ? tr(t, 'statusOnline', 'Online')
+      : tr(t, 'statusOffline', 'Offline')
   }
 
   const participantCount = conversation.participants.length
   const onlineCount = conversation.participants.filter((p) => p.isOnline).length
-  return `${participantCount} participant${participantCount !== 1 ? 's' : ''} · ${onlineCount} online`
+  return tr(
+    t,
+    'participantsLine',
+    `${participantCount} participants · ${onlineCount} online`,
+    { count: participantCount, online: onlineCount },
+  )
 }
 
 export function getLastMessagePreview(
   conversation: Conversation,
   currentUserId: string,
+  t?: ChatLabeler,
 ): string {
   if (!conversation.lastMessage) {
-    return 'No messages yet'
+    return tr(t, 'previewEmpty', 'No messages yet')
   }
 
   const last = conversation.lastMessage
   const { content, type, senderId } = last
   const isOwn = senderId === currentUserId
-  const prefix = isOwn ? 'You: ' : ''
+  const prefix = isOwn ? tr(t, 'previewYou', 'You: ') : ''
 
   // Dual-gate: prefer interactive kind (type OR metadata.kind)
   const interactive = resolveInteractiveKind(last)
@@ -97,9 +142,9 @@ export function getLastMessagePreview(
 
   switch (type) {
     case 'image':
-      return `${prefix}Image`
+      return `${prefix}${tr(t, 'previewImage', 'Image')}`
     case 'file':
-      return `${prefix}File`
+      return `${prefix}${tr(t, 'previewFile', 'File')}`
     case 'system':
       return content
     default:

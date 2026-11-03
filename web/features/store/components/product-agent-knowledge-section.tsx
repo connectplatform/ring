@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ROUTES } from '@/constants/routes'
+import { getClientCreditUnitLabel } from '@/lib/ring-config-client'
 import type { Locale } from '@/i18n/shared'
 import type { ProductNodusWikiRef } from '@/features/store/types'
 import type { WebProductFieldSuggestions } from '@/lib/web'
@@ -59,6 +60,8 @@ export function ProductAgentKnowledgeSection({
 }: Props) {
   const locale = useLocale() as Locale
   const t = useTranslations('modules.store.agentKnowledge')
+  const creditUnit = getClientCreditUnitLabel()
+  const researchCost = '0.10'
   const [markdown, setMarkdown] = useState(initialProductAgent)
   const [wiki, setWiki] = useState<ProductNodusWikiRef | null | undefined>(initialNodusWiki)
   const [researchOpen, setResearchOpen] = useState(false)
@@ -198,15 +201,27 @@ export function ProductAgentKnowledgeSection({
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}
-          {t('research', { defaultValue: 'Research' })}
+          {t('research', { defaultValue: 'Research' })} · {researchCost} {creditUnit}
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          {t('hint', {
-            defaultValue:
-              'Human-friendly markdown for the product sales agent. Full NODUS lives in Admin Wiki.',
-          })}
+          {t('hintLead', {
+            defaultValue: 'Human-friendly markdown for the product sales agent.',
+          })}{' '}
+          <Link
+            href={
+              wiki?.wikiPageId
+                ? ROUTES.ADMIN_WIKI_PAGE(wiki.wikiPageId, locale)
+                : productId
+                  ? ROUTES.ADMIN_WIKI_PAGE(`product-nodus-${productId}`, locale)
+                  : ROUTES.ADMIN_WIKI(locale)
+            }
+            className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+          >
+            {t('fullNodus', { defaultValue: 'Full NODUS' })}
+          </Link>{' '}
+          {t('hintTrail', { defaultValue: 'lives in Admin Wiki.' })}
         </p>
         {/* Hidden fields so parent form save also persists knowledge when present */}
         <input type="hidden" name="productAgent" value={markdown} />
@@ -240,7 +255,7 @@ export function ProductAgentKnowledgeSection({
             value={markdown}
             onChange={(e) => setMarkdown(e.target.value)}
             rows={10}
-            disabled={disabled || pending}
+            disabled={pending}
             placeholder={t('markdownPlaceholder', {
               defaultValue: 'Run Research or paste the linear sales brief…',
             })}
@@ -335,8 +350,10 @@ export function ProductAgentKnowledgeSection({
           onOpenChange={setResearchOpen}
           title={t('researchTitle', { defaultValue: 'Research product agent' })}
           description={t('researchDescription', {
+            cost: researchCost,
+            unit: creditUnit,
             defaultValue:
-              'Uses TextConductor with web search (same path as news generate-article). Writes productAgent markdown + Admin Wiki NODUS.',
+              'Writes the product article, sales brief, and Admin Wiki NODUS. This run costs {cost} {unit}.',
           })}
           className="sm:max-w-2xl"
           footer={
@@ -346,7 +363,11 @@ export function ProductAgentKnowledgeSection({
               </Button>
               <Button type="button" disabled={pending || !prompt.trim()} onClick={runResearch}>
                 {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {t('runResearch', { defaultValue: 'Run Research' })}
+                {t('runResearch', {
+                  cost: researchCost,
+                  unit: creditUnit,
+                  defaultValue: 'Run Research ({cost} {unit})',
+                })}
               </Button>
             </div>
           }

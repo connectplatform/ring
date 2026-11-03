@@ -88,6 +88,19 @@ export function WikiWorkspace({
         // Server Action: list + ensureTenantSchema (repair/resync when needed)
         const list = await wikiListAction(vk)
         setPages(list)
+        const requestedPageId =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('page')
+            : null
+        if (requestedPageId) {
+          const requested =
+            list.find((page) => page.id === requestedPageId || page.slug === requestedPageId) ||
+            findPageByWikiTarget(list, requestedPageId)
+          if (requested) {
+            setSelectedId(requested.id)
+            return
+          }
+        }
         const pendingTarget = pendingSelectTarget.current
         if (pendingTarget) {
           const hit = findPageByWikiTarget(list, pendingTarget)

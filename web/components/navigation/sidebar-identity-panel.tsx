@@ -22,6 +22,7 @@ import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
+import { resolveDesktopUtilityIds } from '@/lib/navigation/desktop-menu-order'
 import { NavCreditTrailing } from './nav-credit-trailing'
 
 type IdentityVariant = 'split' | 'rail' | 'aside' | 'rail-strip' | 'aside-strip'
@@ -136,9 +137,8 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
       return base
     }
 
-    return [
-      ...base,
-      {
+    const utility: Record<string, IdentityRowData> = {
+      profile: {
         key: 'profile',
         href: ROUTES.PROFILE(locale),
         rail: (
@@ -157,49 +157,56 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
           </div>
         ),
       },
-      {
+      wallet: {
         key: 'wallet',
         href: ROUTES.WALLET(locale),
         rail: <Wallet className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('wallet')} />,
       },
-      {
+      notifications: {
         key: 'notifications',
         href: ROUTES.NOTIFICATIONS(locale),
         rail: <Bell className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('notifications')} count={notificationCount} />,
       },
-      {
+      messages: {
         key: 'messages',
         href: ROUTES.MESSAGES(locale),
         rail: <MessageCircle className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('messages')} count={messagesCount} />,
       },
-      {
+      games: {
         key: 'games',
         href: ROUTES.GAMES(locale),
         rail: <Gamepad2 className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('games')} />,
       },
-      {
+      tasks: {
         key: 'tasks',
         href: ROUTES.TASKS(locale),
         rail: <ListTodo className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tNav('tasks')} />,
       },
-      {
+      cart: {
         key: 'cart',
         href: ROUTES.CART(locale),
         rail: <ShoppingCart className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tStore('cart.title')} count={cartCount} />,
       },
-      {
+      favorites: {
         key: 'favorites',
         href: ROUTES.STORE(locale),
         rail: <Heart className="size-[18px]" strokeWidth={1.5} />,
         aside: <AsideLabel title={tFav('button')} count={favorites.length} />,
       },
-    ]
+    }
+
+    const utilityRows = resolveDesktopUtilityIds().flatMap((id) => {
+      const row = utility[id]
+      return row ? [row] : []
+    })
+
+    return [...base, ...utilityRows]
   }, [
     cartCount,
     favorites.length,

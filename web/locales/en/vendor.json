@@ -302,8 +302,11 @@
       "daarPrice": "DAAR Token Price (Optional)",
       "daarPriceHint": "Auto-calculated from UAH price if left empty",
       "description": "Short Description",
-      "descriptionHint": "Brief product description (max 200 characters)",
+      "descriptionHint": "Brief product description (max 5000 characters)",
       "descriptionPlaceholder": "Fresh organic tomatoes from our farm...",
+      "longDescription": "Full Product Description",
+      "longDescriptionHint": "The full product article shown on the product page.",
+      "longDescriptionPlaceholder": "Write the full product story…",
       "activeInMyStore": "Active in My Store",
       "activeInMyStoreHint": "Make product visible in your vendor storefront",
       "submitToMainStore": "Submit to Main Store",
@@ -355,7 +358,7 @@
       "photoInvalidType": "Photos must be JPG, PNG, or WebP",
       "videoSizeExceeded": "Video size must be less than 50MB",
       "videoInvalidType": "Video must be MP4 or WebM",
-      "descriptionTooLong": "Description must be less than 200 characters"
+      "descriptionTooLong": "Description must be less than 5000 characters"
     },
     "deleteConfirm": {
       "title": "Delete Product",

@@ -266,8 +266,11 @@
       "daarPrice": "Precio del token DAAR (opcional)",
       "daarPriceHint": "Derivado de UAH cuando está vacío",
       "description": "Breve descripción",
-      "descriptionHint": "Texto breve (máx. 200 caracteres)",
+      "descriptionHint": "Texto breve (máx. 5000 caracteres)",
       "descriptionPlaceholder": "Lo que obtienen los compradores: alcance, SLA, alcance de entrega...",
+      "longDescription": "Descripción completa del producto",
+      "longDescriptionHint": "El artículo completo del producto en la página del producto.",
+      "longDescriptionPlaceholder": "Escribe la historia completa del producto…",
       "activeInMyStore": "Activo en mi tienda",
       "activeInMyStoreHint": "Visible en la tienda de su propio editor",
       "submitToMainStore": "Enviar al mercado principal",
@@ -319,7 +322,7 @@
       "photoInvalidType": "Imágenes: JPG, PNG o WebP",
       "videoSizeExceeded": "Vídeo máx. 50 megas",
       "videoInvalidType": "Vídeo: MP4 o WebM",
-      "descriptionTooLong": "Breve descripción máx. 200 caracteres"
+      "descriptionTooLong": "Breve descripción máx. 5000 caracteres"
     },
     "deleteConfirm": {
       "title": "Eliminar oferta",

@@ -174,9 +174,13 @@ export default function AdminWrapper({
 
   const closeRail = useCallback(() => setRightSidebarOpen(false), [])
 
+  // Store tabs and the wiki workspace already fill the center pane. The right rail
+  // only repeats that navigation and steals width from tables and the editor.
+  const railEnabled = pageContext === 'store' || pageContext === 'wiki' ? false : showRightRail
+
   const rightRail = useMemo(
     () =>
-      showRightRail ? (
+      railEnabled ? (
         <AdminSidebarContent
           locale={locale}
           pageContext={pageContext}
@@ -186,7 +190,7 @@ export default function AdminWrapper({
           onNavigate={closeRail}
         />
       ) : null,
-    [locale, pageContext, translations, labels, newsStats, closeRail, showRightRail],
+    [locale, pageContext, translations, labels, newsStats, closeRail, railEnabled],
   )
 
   if (!mounted) {
@@ -196,7 +200,7 @@ export default function AdminWrapper({
   return (
     <RingRightRailLayout
       rightRail={rightRail}
-      showRightRail={showRightRail}
+      showRightRail={railEnabled}
       flushCenterPane
       contentClassName="pb-24 lg:pb-8"
       isOpen={rightSidebarOpen}

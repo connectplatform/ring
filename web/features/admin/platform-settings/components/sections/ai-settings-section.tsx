@@ -57,7 +57,7 @@ export function AISettingsSection({
     openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
     anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
     openrouter: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o'],
-    xai: ['grok-4.3', 'grok-3'],
+    xai: ['grok-4.7', 'grok-4.6', 'grok-4.5', 'grok-4.3'],
   }
 
   async function handleTest() {

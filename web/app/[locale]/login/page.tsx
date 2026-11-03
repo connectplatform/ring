@@ -78,7 +78,7 @@ async function LoginPageInner(props: LocalePageProps<LoginParams>) {
         locale={locale}
         disabled={hasOAuthCallbackParams}
       />
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">{tPages('login.title')}</h1>

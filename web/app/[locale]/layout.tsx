@@ -7,6 +7,7 @@ import type { Locale } from '@/i18n/shared'
 import { supportedLocales } from '@/i18n/shared'
 import { setupResourcePreloading } from '@/lib/preload/setup'
 import { pathnameWithoutLocale } from '@/lib/seo-metadata'
+import { isLoginPath } from '@/lib/pathname-without-locale'
 import { buildMessages } from '@/lib/i18n'
 import { LocaleAppChrome } from '@/components/layout/locale-app-chrome'
 import { LocaleLayoutFallback } from '@/components/layout/locale-layout-fallback'
@@ -56,17 +57,17 @@ async function LocaleLayoutInner({
   // Register the request's active locale for downstream i18n logic
   setRequestLocale(validLocale)
 
-  // Optionally set up resource preloading hooks
-  setupResourcePreloading()
-
-  // Get translation messages for the full app corpus, not segment bundles
-  // This ensures unified shell does not refresh unnecessarily on client-side nav
-  const messages = await buildMessages(validLocale, 'full')
-
-  // Get request headers (headers() must be awaited in app router)
   const headersList = await headers()
-  // Compute the pathname *without* the locale prefix for hreflang/SEO
   const hreflangPath = pathnameWithoutLocale(headersList.get('x-pathname') ?? '/')
+  const isLoginShell = isLoginPath(hreflangPath)
+
+  if (!isLoginShell) {
+    setupResourcePreloading()
+  }
+
+  // Login stays on a small bundle (pages + auth). Other routes keep the full corpus
+  // so client navigations do not refetch messages.
+  const messages = await buildMessages(validLocale, isLoginShell ? 'auth' : 'full')
 
   // Determine if user is in the /account section; set shell variant accordingly
   const isAccountShell =
@@ -78,7 +79,7 @@ async function LocaleLayoutInner({
       locale={validLocale}
       messages={messages}
       hreflangPath={hreflangPath}
-      variant={isAccountShell ? 'minimal' : 'full'}
+      variant={isLoginShell ? 'login' : isAccountShell ? 'minimal' : 'full'}
     >
       {children}
     </LocaleAppChrome>

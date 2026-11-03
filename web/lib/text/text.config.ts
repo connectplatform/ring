@@ -30,7 +30,7 @@ export function isXaiWebSearchEnabled(): boolean {
 export function getXaiTextConfig(ctx: { model?: string; maxTokens?: number }) {
   let apiKey = process.env.XAI_API_KEY?.trim() ?? ''
   let baseUrl = (process.env.XAI_API_BASE_URL?.trim() || 'https://api.x.ai/v1').replace(/\/$/, '')
-  let model = ctx.model?.trim() || process.env.XAI_TEXT_MODEL?.trim() || 'grok-4.3'
+  let model = ctx.model?.trim() || process.env.XAI_TEXT_MODEL?.trim() || 'grok-4.7'
   try {
     if (ctx.model?.trim()) {
       const keyed = resolveKeyForModel('xai', ctx.model.trim())
@@ -43,7 +43,7 @@ export function getXaiTextConfig(ctx: { model?: string; maxTokens?: number }) {
         baseUrl = resolved.endpoint.baseUrl
         model = process.env.XAI_TEXT_MODEL?.trim() || resolved.modelId
       } else {
-        const keyed = resolveKeyForModel('xai', 'grok-4.3')
+        const keyed = resolveKeyForModel('xai', 'grok-4.7')
         apiKey = keyed.apiKey
         baseUrl = keyed.baseUrl
       }

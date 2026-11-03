@@ -467,7 +467,13 @@
       "delist": "Зняти з продажу",
       "delistConfirm": "Зняти товар з Main Store? Вітрина продавця може залишитися активною.",
       "delistError": "Не вдалося зняти товар з продажу",
+      "delisted": "Знято з продажу",
       "showMore": "Показати більше",
+      "quickEdit": "Швидке редагування",
+      "quickEditSave": "Зберегти зміни",
+      "quickEditCancel": "Скасувати",
+      "quickEditError": "Не вдалося зберегти зміни",
+      "editProduct": "Редагувати товар",
       "form": {
         "vendorOwner": "Продавець-власник",
         "vendorOwnerPlaceholder": "Оберіть активного продавця"
@@ -485,7 +491,9 @@
         "rejected": "Відхилено"
       },
       "columns": {
+        "photo": "Фото",
         "name": "Товар",
+        "category": "Категорія",
         "vendor": "Сутність продавця",
         "price": "Ціна",
         "stock": "Залишок",

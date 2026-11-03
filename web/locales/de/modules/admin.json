@@ -464,7 +464,13 @@
       "delist": "Aus Listing entfernen",
       "delistConfirm": "Dieses Produkt aus dem Main Store entfernen? Der Händler-Storefront kann aktiv bleiben.",
       "delistError": "Produkt konnte nicht aus Listing entfernt werden",
+      "delisted": "Aus dem Listing entfernt",
       "showMore": "Mehr anzeigen",
+      "quickEdit": "Schnellbearbeitung",
+      "quickEditSave": "Änderungen speichern",
+      "quickEditCancel": "Abbrechen",
+      "quickEditError": "Änderungen konnten nicht gespeichert werden",
+      "editProduct": "Produkt bearbeiten",
       "form": {
         "vendorOwner": "Händlerinhaber",
         "vendorOwnerPlaceholder": "Aktiven Händler auswählen"
@@ -482,7 +488,9 @@
         "rejected": "Abgelehnt"
       },
       "columns": {
+        "photo": "Foto",
         "name": "Produkt",
+        "category": "Kategorie",
         "vendor": "Händler-Entität",
         "price": "Preis",
         "stock": "Bestand",

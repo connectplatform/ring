@@ -67,6 +67,7 @@ export default async function AdminStoreStockPage({
           summary={summary}
           lowStockProducts={lowStockProducts}
           movements={movements}
+          locale={locale}
         />
       </Suspense>
     </AdminWrapper>

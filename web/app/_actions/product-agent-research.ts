@@ -8,12 +8,14 @@ import {
   buildProductResearchRequest,
   runProductAgentResearch,
 } from '@/features/store/lib/product-agent-research'
-import { wikiCreateAction, wikiUpdateAction } from '@/app/_actions/wiki'
+import { wikiCreateAction, wikiListAction, wikiUpdateAction } from '@/app/_actions/wiki'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import type { ProductNodusWikiRef } from '@/features/store/types'
 import { TENANT_VAULT } from '@/features/wiki/vault-key'
 import type { WikiFrontmatter, WikiPage } from '@/features/wiki/types'
 import { getVendorEntityById } from '@/features/entities/services/vendor-entity'
+import { resolveVendorEntityId } from '@/features/store/lib/product-document'
+import { billGenerativeTurn } from '@/features/generative-media/billing'
 import {
   saveProductResearchArtifacts,
   type ProductResearchMediaRef,
@@ -39,7 +41,18 @@ async function resolveResearchVendor(input: {
   vendorEntityId: string
 }) {
   const entity = await getVendorEntityById(input.vendorEntityId)
-  if (!entity) throw new Error('Vendor entity not found or inactive')
+  if (!entity) {
+    // Platform catalog rows (vendor_ring_portal_store and legacy imports) are not vendor entities.
+    if (isPlatformAdmin(input.sessionRole)) {
+      return {
+        id: input.vendorEntityId,
+        name: 'Ring Portal Store',
+        storeName: 'ring-portal-store',
+        addedBy: input.sessionUserId,
+      }
+    }
+    throw new Error('Vendor entity not found or inactive')
+  }
 
   if (!isPlatformAdmin(input.sessionRole)) {
     const { checkEntityOwnership } = await import(
@@ -49,6 +62,60 @@ async function resolveResearchVendor(input: {
     if (!owns) throw new Error('Forbidden')
   }
   return entity
+}
+
+function productVendorId(doc: Record<string, unknown>, role?: string | null): string {
+  return resolveVendorEntityId(doc) || (isPlatformAdmin(role) ? 'vendor_ring_portal_store' : '')
+}
+
+function productNodusSlug(productId: string): string {
+  return `product-nodus-${productId}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+}
+
+async function upsertProductNodusPage(input: {
+  productId: string
+  title: string
+  bodyMarkdown: string
+  frontmatter: WikiFrontmatter
+  existingPageId?: string
+}): Promise<string> {
+  if (input.existingPageId) {
+    await wikiUpdateAction(input.existingPageId, {
+      title: input.title,
+      bodyMarkdown: input.bodyMarkdown,
+      frontmatter: input.frontmatter,
+    })
+    return input.existingPageId
+  }
+
+  const slug = productNodusSlug(input.productId)
+  try {
+    const created = (await wikiCreateAction({
+      title: input.title,
+      slug,
+      vaultKey: TENANT_VAULT,
+      bodyMarkdown: input.bodyMarkdown,
+      kind: 'concept',
+      frontmatter: input.frontmatter,
+    })) as WikiPage
+    return created?.id || ''
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (!message.includes('Slug already exists')) throw error
+    const pages = await wikiListAction(TENANT_VAULT)
+    const existing = pages.find((page) => page.slug === slug)
+    if (!existing) throw error
+    await wikiUpdateAction(existing.id, {
+      title: input.title,
+      bodyMarkdown: input.bodyMarkdown,
+      frontmatter: input.frontmatter,
+    })
+    return existing.id
+  }
 }
 
 /**
@@ -76,14 +143,15 @@ export async function researchProductAgentAction(input: {
       return { error: 'Product not found' }
     }
 
-    const entityId = String(
-      existing.data.entity_id ||
-        existing.data.entityId ||
-        existing.data.ownerEntityId ||
-        existing.data.vendorId ||
-        '',
-    )
+    const entityId = productVendorId(existing.data, session.user.role)
     if (!entityId) return { error: 'Product has no vendor entity' }
+    const bill = await billGenerativeTurn({
+      userId: session.user.id,
+      action: 'product_research',
+      referenceId: `product-research:${productId}:${Date.now()}`,
+      metadata: { productId },
+    })
+    if (!bill.success) return { error: bill.error || 'Insufficient balance for research' }
     const vendorEntity = await resolveResearchVendor({
       sessionUserId: session.user.id,
       sessionRole: session.user.role,
@@ -142,24 +210,15 @@ export async function researchProductAgentAction(input: {
       aliases: [`product-agent-${productId}`],
     } satisfies WikiFrontmatter
 
-    if (wikiPageId) {
-      await wikiUpdateAction(wikiPageId, {
-        title: wikiTitle,
-        bodyMarkdown: wikiBody,
-        frontmatter: wikiFrontmatter,
-      })
-    } else {
-      const created = (await wikiCreateAction({
-        title: wikiTitle,
-        vaultKey: TENANT_VAULT,
-        bodyMarkdown: wikiBody,
-        kind: 'concept',
-        frontmatter: wikiFrontmatter,
-      })) as WikiPage
-      wikiPageId = created?.id || ''
-      if (!wikiPageId) {
-        console.warn('researchProductAgentAction: wiki create returned no id', created)
-      }
+    wikiPageId = await upsertProductNodusPage({
+      productId,
+      title: wikiTitle,
+      bodyMarkdown: wikiBody,
+      frontmatter: wikiFrontmatter,
+      existingPageId: wikiPageId,
+    })
+    if (!wikiPageId) {
+      console.warn('researchProductAgentAction: wiki upsert returned no id')
     }
 
     const productNodusWiki: ProductNodusWikiRef | undefined = wikiPageId
@@ -182,7 +241,7 @@ export async function researchProductAgentAction(input: {
       : []
     const update = flattenProductDocumentForWrite(existing.data, {
       productAgent: research.productAgentMarkdown,
-      longDescription: research.productAgentMarkdown,
+      longDescription: research.fields.longDescription || research.productAgentMarkdown,
       productResearchFields: research.fields,
       productResearchMedia: [...previousMedia, ...cabinet.media],
       productResearchLastRun: {
@@ -242,6 +301,14 @@ export async function researchProductDraftAction(input: {
     const productName = String(input.productName || '').trim()
     if (!vendorEntityId) return { error: 'Vendor entity is required' }
     if (productName.length < 2) return { error: 'Enter a product name before research' }
+
+    const bill = await billGenerativeTurn({
+      userId: session.user.id,
+      action: 'product_research',
+      referenceId: `product-research-draft:${vendorEntityId}:${Date.now()}`,
+      metadata: { vendorEntityId, productName },
+    })
+    if (!bill.success) return { error: bill.error || 'Insufficient balance for research' }
 
     const vendorEntity = await resolveResearchVendor({
       sessionUserId: session.user.id,
@@ -305,13 +372,7 @@ export async function buildDefaultResearchPromptAction(input: {
       input.productId,
     )
     if (!existing.success || !existing.data) return { error: 'Product not found' }
-    const entityId = String(
-      existing.data.entity_id ||
-        existing.data.entityId ||
-        existing.data.ownerEntityId ||
-        existing.data.vendorId ||
-        '',
-    )
+    const entityId = productVendorId(existing.data, session.user.role)
     if (!entityId) return { error: 'Product has no vendor entity' }
     await resolveResearchVendor({
       sessionUserId: session.user.id,
@@ -349,13 +410,7 @@ export async function saveProductAgentKnowledgeAction(input: {
       input.productId,
     )
     if (!existing.success || !existing.data) return { error: 'Product not found' }
-    const entityId = String(
-      existing.data.entity_id ||
-        existing.data.entityId ||
-        existing.data.ownerEntityId ||
-        existing.data.vendorId ||
-        '',
-    )
+    const entityId = productVendorId(existing.data, session.user.role)
     if (!entityId) return { error: 'Product has no vendor entity' }
     await resolveResearchVendor({
       sessionUserId: session.user.id,
@@ -365,7 +420,6 @@ export async function saveProductAgentKnowledgeAction(input: {
 
     const update = flattenProductDocumentForWrite(existing.data, {
       productAgent: input.productAgent,
-      longDescription: input.productAgent,
     })
     const result = await db().updateDoc('store_products', input.productId, update)
     if (!result.success) {

@@ -296,8 +296,11 @@
       "daarPrice": "Цена в токенах DAAR (Опционально)",
       "daarPriceHint": "Рассчитывается автоматически из цены в грн, если не указано",
       "description": "Краткое описание",
-      "descriptionHint": "Краткое описание продукта (макс. 200 символов)",
+      "descriptionHint": "Краткое описание продукта (макс. 5000 символов)",
       "descriptionPlaceholder": "Свежие органические помидоры с нашей фермы...",
+      "longDescription": "Полное описание товара",
+      "longDescriptionHint": "Полная статья товара на странице продукта.",
+      "longDescriptionPlaceholder": "Напишите полную историю товара…",
       "activeInMyStore": "Активен в моём магазине",
       "activeInMyStoreHint": "Сделать продукт видимым в вашей витрине",
       "submitToMainStore": "Подать в главный магазин",
@@ -349,7 +352,7 @@
       "photoInvalidType": "Фото должно быть JPG, PNG или WebP",
       "videoSizeExceeded": "Размер видео должен быть менее 50МБ",
       "videoInvalidType": "Видео должно быть MP4 или WebM",
-      "descriptionTooLong": "Описание должно быть менее 200 символов"
+      "descriptionTooLong": "Описание должно быть менее 5000 символов"
     },
     "deleteConfirm": {
       "title": "Удалить продукт",

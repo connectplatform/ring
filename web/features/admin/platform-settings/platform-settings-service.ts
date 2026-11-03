@@ -188,7 +188,7 @@ export async function importPlatformSettingsFromEnv(updatedBy: string): Promise<
         (llmProvider === 'anthropic'
           ? 'claude-3-5-sonnet-20241022'
           : llmProvider === 'xai'
-            ? process.env.XAI_TEXT_MODEL || 'grok-4.3'
+            ? process.env.XAI_TEXT_MODEL || 'grok-4.7'
             : 'gpt-4o'),
       matcher: resolveMatcherConfigFromEnv(),
     })

@@ -42,7 +42,7 @@ function envModel(provider: LlmProviderOption): string {
         }).modelId
       )
     }
-    if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.3'
+    if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.7'
     return resolveModel('chat_stream', {
       availableKeys: { OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'x' },
       preferred: [{ provider: 'openai', modelId: 'gpt-5.6-terra' }],
@@ -51,7 +51,7 @@ function envModel(provider: LlmProviderOption): string {
   } catch {
     if (provider === 'anthropic') return 'claude-sonnet-4-5-20250929'
     if (provider === 'openrouter') return 'anthropic/claude-sonnet-4-5'
-    if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.3'
+    if (provider === 'xai') return process.env.XAI_TEXT_MODEL || 'grok-4.7'
     return 'gpt-5.6-terra'
   }
 }

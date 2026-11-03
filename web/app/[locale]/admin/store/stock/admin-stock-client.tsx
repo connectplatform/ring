@@ -1,8 +1,10 @@
 'use client'
 
 import { useTransition, useState, useMemo } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +21,8 @@ import {
   STOCK_THRESHOLDS,
   ZERO_WAREHOUSE_ID,
 } from '@/features/store/constants/stock'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 
 interface AdminStockClientProps {
   summary: {
@@ -31,6 +35,7 @@ interface AdminStockClientProps {
   }
   lowStockProducts: StoreProduct[]
   movements: StockMovement[]
+  locale: Locale
 }
 
 type StockFilter = 'all' | 'low' | 'critical' | 'out'
@@ -39,9 +44,11 @@ export default function AdminStockClient({
   summary,
   lowStockProducts,
   movements,
+  locale,
 }: AdminStockClientProps) {
   const router = useRouter()
   const t = useTranslations('modules.admin.storeHub')
+  const tCat = useTranslations('vendor.onboarding.categories')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<StockFilter>('all')
@@ -157,16 +164,36 @@ export default function AdminStockClient({
             <p className="text-sm text-muted-foreground">{t('noLowStockAlerts')}</p>
           ) : (
             <ul className="divide-y divide-border">
-              {filteredLow.map((p) => (
+              {filteredLow.map((p) => {
+                const thumb = Array.isArray(p.images) ? p.images.find((url) => typeof url === 'string') : undefined
+                const category = p.category
+                return (
                 <li key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 text-sm">
-                  <div>
-                    <span className="font-medium">{p.name}</span>
-                    <Badge
-                      variant={(p.stock ?? 0) === 0 ? 'destructive' : 'secondary'}
-                      className="ml-2"
-                    >
-                      {t('stockUnits', { count: p.stock ?? 0 })}
-                    </Badge>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumb} alt="" className="h-10 w-10 rounded-md object-cover bg-muted" />
+                    ) : (
+                      <span className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <ImageIcon className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <Link href={ROUTES.ADMIN_STORE_PRODUCTS_EDIT(p.id, locale)} className="font-medium hover:underline">
+                        {p.name}
+                      </Link>
+                      {category ? (
+                        <p className="text-xs text-muted-foreground">
+                          {tCat.has(category) ? tCat(category) : category}
+                        </p>
+                      ) : null}
+                      <Badge
+                        variant={(p.stock ?? 0) === 0 ? 'destructive' : 'secondary'}
+                        className="mt-1"
+                      >
+                        {t('stockUnits', { count: p.stock ?? 0 })}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Input
@@ -184,7 +211,8 @@ export default function AdminStockClient({
                     </Button>
                   </div>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </CardContent>

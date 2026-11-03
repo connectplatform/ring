@@ -4,6 +4,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTyping } from '@/hooks/use-messaging'
 import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 
 interface TypingIndicatorProps {
   conversationId: string
@@ -33,6 +34,7 @@ const TypingDots = () => (
 
 export function TypingIndicator({ conversationId, className }: TypingIndicatorProps) {
   const { typingUsers } = useTyping(conversationId)
+  const t = useTranslations('modules.messenger')
 
   if (!typingUsers || typingUsers.length === 0) {
     return null
@@ -40,14 +42,20 @@ export function TypingIndicator({ conversationId, className }: TypingIndicatorPr
 
   const renderTypingText = () => {
     if (typingUsers.length === 1) {
-      return `${typingUsers[0].userName} is typing`
+      return t('typingOne', { name: typingUsers[0].userName })
     } else if (typingUsers.length === 2) {
-      return `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing`
+      return t('typingTwo', { name: typingUsers[0].userName, other: typingUsers[1].userName })
     } else if (typingUsers.length === 3) {
-      return `${typingUsers[0].userName}, ${typingUsers[1].userName} and ${typingUsers[2].userName} are typing`
-    } else {
-      return `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing`
+      return t('typingThree', {
+        name: typingUsers[0].userName,
+        second: typingUsers[1].userName,
+        third: typingUsers[2].userName,
+      })
     }
+    return t('typingMany', {
+      name: typingUsers[0].userName,
+      count: typingUsers.length - 1,
+    })
   }
 
   return (

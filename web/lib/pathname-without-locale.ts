@@ -23,6 +23,12 @@ export function localeFromPathname(pathname: string | null): Locale {
     : DEFAULT_LOCALE
 }
 
+/** Exact `/login` screen — lean shell, no push prompt, no mobile nav. */
+export function isLoginPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false
+  return stripLocalePrefix(pathname) === '/login'
+}
+
 /** Routes that mount wagmi (wallet, checkout, login crypto, NFT, admin web3). */
 export function pathNeedsWeb3(pathWithoutLocale: string): boolean {
   const p = pathWithoutLocale === '' ? '/' : pathWithoutLocale

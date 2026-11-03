@@ -12,6 +12,7 @@ export type MessageScope =
   | 'admin'
   | 'confidential'
   | 'presentation'
+  | 'auth'
   | 'full'
 
 export type LocaleFileId =
@@ -145,6 +146,9 @@ const CONFIDENTIAL_EXTRA: LocaleFileId[] = ['confidential']
 
 const PRESENTATION_EXTRA: LocaleFileId[] = ['pages', 'landing', 'modAuth']
 
+/** Login only: page copy + auth module. No nav, store, curtain, or notifications. */
+const AUTH_LEAN: LocaleFileId[] = ['common', 'pages', 'modAuth', 'config']
+
 const ALL_FILES: LocaleFileId[] = [
   ...CORE,
   'pages',
@@ -218,6 +222,8 @@ export function getLocaleFileIdsForScope(scope: MessageScope): LocaleFileId[] {
       return unique([...PUBLIC_HOME, ...PUBLIC_CONTENT, ...CONFIDENTIAL_EXTRA, 'modProfile', 'modSettings'])
     case 'presentation':
       return unique([...CORE, ...PRESENTATION_EXTRA])
+    case 'auth':
+      return unique(AUTH_LEAN)
     case 'full':
     default:
       return unique(ALL_FILES)
@@ -229,6 +235,7 @@ export function resolveMessageScope(pathname: string): MessageScope {
   const p = pathnameWithoutLocale(pathname || '/')
   const normalized = p === '' ? '/' : p
 
+  if (normalized === '/login') return 'auth'
   if (normalized.startsWith('/account/')) return 'authenticated'
   if (normalized.startsWith('/admin')) return 'admin'
   if (normalized.startsWith('/confidential')) return 'confidential'

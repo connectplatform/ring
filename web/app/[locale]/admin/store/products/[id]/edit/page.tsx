@@ -68,7 +68,7 @@ export default async function AdminStoreProductEditPage({
   return (
     <AdminWrapper locale={locale} pageContext="store" labels={adminLabels}>
       <StoreHubTabs locale={locale} active="products" />
-      <div className="max-w-3xl">
+      <div className="max-w-5xl">
         <ProductForm
           mode="edit"
           variant="admin"

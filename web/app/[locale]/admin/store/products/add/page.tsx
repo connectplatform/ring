@@ -61,7 +61,7 @@ export default async function AdminStoreProductAddPage({
   return (
     <AdminWrapper locale={locale} pageContext="store" labels={adminLabels}>
       <StoreHubTabs locale={locale} active="products" />
-      <div className="max-w-3xl">
+      <div className="max-w-5xl">
         <ProductForm
           mode="create"
           variant="admin"

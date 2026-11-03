@@ -1,8 +1,8 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { auth } from '@/auth'
-import { isPlatformAdmin } from '@/features/auth/user-role'
+import { isPlatformAdmin, isSuperadmin } from '@/features/auth/user-role'
 import { processDueSettlements } from '@/features/store/services/settlement'
 import { ERPStockService } from '@/features/store/services/erp-stock-service'
 import { db } from '@/lib/database'
@@ -15,7 +15,7 @@ import { getMerchantConfigByEntityId } from '@/features/store/lib/merchant-confi
 import { getMainCurrencySymbol } from '@/lib/ring-config-core'
 import type { MerchantConfiguration } from '@/features/store/types/vendor'
 import type { Settlement } from '@/features/store/services/settlement'
-import { resolveApprovalStatus, resolveVendorEntityId, resolveListStores, buildMainStoreListingPatch, flattenProductDocumentForWrite, MAIN_STORE_ID } from '@/features/store/lib/product-document'
+import { resolveApprovalStatus, resolveVendorEntityId, resolveListStores, resolveMainStoreStatus, buildMainStoreListingPatch, flattenProductDocumentForWrite, MAIN_STORE_ID } from '@/features/store/lib/product-document'
 import { getVendorEntityById, getVendorEntitiesByStatus } from '@/features/entities/services/vendor-entity'
 import {
   adminStoreProductApprovalSchema,
@@ -23,6 +23,8 @@ import {
   adminStoreProductCreateSchema,
   adminStoreProductUpdateSchema,
   adminStoreProductDelistSchema,
+  adminStoreProductQuickUpdateSchema,
+  formatStoreProductZodError,
   parseStoreProductFormData,
 } from '@/lib/zod'
 import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
@@ -176,42 +178,19 @@ export interface AdminStoreProductRow {
   category?: string
   /** Product SKU (quick-filter column). */
   sku?: string
+  /** Short catalog description for inline edit. */
+  description?: string
+  /** First product image, when one is stored. */
+  thumbnailUrl?: string
+  /** Main Store listing flag. Inactive means the product was delisted. */
+  mainStoreStatus?: 'active' | 'inactive'
 }
 
-export interface AdminStoreProductListResult {
-  items: AdminStoreProductRow[]
-  hasMore: boolean
-  nextOffset: number
-}
-
-// List products for admin panel (with filters for approval status)
-export async function listAdminStoreProducts(
-  rawQuery: Partial<{ limit: number; offset: number; approvalStatus: string }> = {},
-): Promise<AdminStoreProductListResult> {
-  await assertAdmin()
-
-  // Validate input using Zod
-  const query = adminStoreProductListQuerySchema.parse(rawQuery)
-  // Only set filter for approvalStatus if not 'all'
-  const filters =
-    query.approvalStatus === 'all'
-      ? undefined
-      : [{ field: 'approvalStatus', operator: '==', value: query.approvalStatus }]
-
-  // Query product documents
-  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
-    collection: 'store_products',
-    filters,
-    orderBy: [{ field: 'created_at', direction: 'desc' }],
-    pagination: { limit: query.limit, offset: query.offset },
-  })
-
-  if (!result.success || !result.data) {
-    return { items: [], hasMore: false, nextOffset: query.offset }
-  }
-
-  // Project fields for the row, with fallbacks
-  const items = result.data.map((row) => ({
+function mapAdminStoreProductRow(
+  row: Record<string, unknown> & { id: string },
+): AdminStoreProductRow {
+  const images = collectProductImageUrls(row)
+  return {
     id: row.id,
     name: String(row.name ?? row.id),
     vendorEntityId: resolveVendorEntityId(row) || '—',
@@ -223,13 +202,117 @@ export async function listAdminStoreProducts(
     createdAt: row.createdAt != null ? String(row.createdAt) : undefined,
     category: row.category != null ? String(row.category) : undefined,
     sku: row.sku != null ? String(row.sku) : undefined,
-  }))
+    description: row.description != null ? String(row.description) : '',
+    thumbnailUrl: images[0],
+    mainStoreStatus: resolveMainStoreStatus(row),
+  }
+}
 
-  const hasMore = items.length >= query.limit
+function refreshStoreCatalog() {
+  updateTag('store:products')
+  revalidatePath('/admin/store/products')
+  revalidatePath('/store')
+}
+
+export interface AdminStoreProductListResult {
+  items: AdminStoreProductRow[]
+  hasMore: boolean
+  nextOffset: number
+  /** Matches in the searched catalog, not just the current page. */
+  total: number
+}
+
+function productRowMatchesQuery(row: Record<string, unknown>, needle: string): boolean {
+  const haystack = [
+    row.name,
+    row.sku,
+    row.category,
+    row.description,
+    row.vendorName,
+    row.vendor_name,
+    resolveVendorEntityId(row),
+  ]
+    .filter((part) => part != null && String(part).trim())
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(needle)
+}
+
+const PRODUCT_SEARCH_PAGE = 200
+const PRODUCT_SEARCH_CAP = 5000
+
+// List products for admin panel (with filters for approval status)
+export async function listAdminStoreProducts(
+  rawQuery: Partial<{
+    limit: number
+    offset: number
+    approvalStatus: string
+    q: string
+    vendorEntityId: string
+  }> = {},
+): Promise<AdminStoreProductListResult> {
+  const session = await assertAdmin()
+
+  const query = adminStoreProductListQuerySchema.parse(rawQuery)
+  const needle = query.q.trim().toLowerCase()
+  // Superadmin searches the whole catalog. Any other caller is limited to their vendor store.
+  let vendorScope = query.vendorEntityId.trim()
+  if (!isSuperadmin(session.user.role)) {
+    const { getVendorEntity } = await import('@/features/entities/services/vendor-entity')
+    const ownVendor = session.user.id ? await getVendorEntity(session.user.id) : null
+    vendorScope = ownVendor?.id || vendorScope
+  }
+  const filters =
+    query.approvalStatus === 'all'
+      ? undefined
+      : [{ field: 'approvalStatus', operator: '==' as const, value: query.approvalStatus }]
+
+  if (!needle && !vendorScope) {
+    const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+      collection: 'store_products',
+      filters,
+      orderBy: [{ field: 'created_at', direction: 'desc' }],
+      pagination: { limit: query.limit, offset: query.offset },
+    })
+    if (!result.success || !result.data) {
+      return { items: [], hasMore: false, nextOffset: query.offset, total: 0 }
+    }
+    const items = result.data.map((row) => mapAdminStoreProductRow(row))
+    const hasMore = items.length >= query.limit
+    return {
+      items,
+      hasMore,
+      nextOffset: hasMore ? query.offset + items.length : query.offset,
+      total: query.offset + items.length + (hasMore ? 1 : 0),
+    }
+  }
+
+  const matches: AdminStoreProductRow[] = []
+  let dbOffset = 0
+  while (dbOffset < PRODUCT_SEARCH_CAP) {
+    const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+      collection: 'store_products',
+      filters,
+      orderBy: [{ field: 'created_at', direction: 'desc' }],
+      pagination: { limit: PRODUCT_SEARCH_PAGE, offset: dbOffset },
+    })
+    const rows = result.success && result.data ? result.data : []
+    for (const row of rows) {
+      if (vendorScope && resolveVendorEntityId(row) !== vendorScope) continue
+      if (needle && !productRowMatchesQuery(row, needle)) continue
+      matches.push(mapAdminStoreProductRow(row))
+    }
+    if (rows.length < PRODUCT_SEARCH_PAGE) break
+    dbOffset += rows.length
+  }
+
+  const items = matches.slice(query.offset, query.offset + query.limit)
+  const hasMore = query.offset + items.length < matches.length
   return {
     items,
     hasMore,
-    nextOffset: hasMore ? query.offset + items.length : query.offset,
+    nextOffset: query.offset + items.length,
+    total: matches.length,
   }
 }
 
@@ -304,8 +387,7 @@ export async function updateAdminProductApproval(formData: FormData) {
     }
   }
 
-  revalidatePath('/admin/store/products')
-  revalidatePath('/store')
+  refreshStoreCatalog()
   return { success: true as const }
 }
 
@@ -355,23 +437,26 @@ export async function delistAdminStoreProduct(formData: FormData) {
   }
 
   const now = new Date().toISOString()
-  // Set status and associated delist fields, remove from MAIN_STORE
+  const remainingStores = resolveListStores(existing.data).filter((id) => id !== MAIN_STORE_ID)
+  // status=inactive is what the catalog row and public visibility both read.
+  // An empty listStores array is treated as "still on the main store", so keep a non-main marker.
+  const listStores = remainingStores.length > 0 ? remainingStores : ['delisted']
   const update = flattenProductDocumentForWrite(existing.data, {
+    status: 'inactive',
+    activeInVendorStore: false,
     mainStoreStatus: 'inactive',
-    listStores: resolveListStores(existing.data).filter((id) => id !== MAIN_STORE_ID),
-    productListedAt: resolveListStores(existing.data).filter((id) => id !== MAIN_STORE_ID),
+    listStores,
+    productListedAt: listStores,
     delistedAt: now,
     delistedBy: session.user.id,
   })
 
-  // Commit update
   const result = await db().updateDoc('store_products', parsed.productId, update)
   if (!result.success) {
     throw result.error ?? new Error('Failed to delist product')
   }
 
-  revalidatePath('/admin/store/products')
-  revalidatePath('/store')
+  refreshStoreCatalog()
   return { success: true as const }
 }
 
@@ -417,6 +502,7 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
       id: productId,
       name: fields.name,
       description: fields.description,
+      longDescription: fields.longDescription,
       price: fields.price,
       currency: fields.currency,
       category: fields.category,
@@ -473,15 +559,14 @@ export async function createAdminStoreProduct(prevState: unknown, formData: Form
       return { error: result.error?.message ?? 'Failed to create product' }
     }
 
-    // Revalidate caches/pages
-    revalidatePath('/admin/store/products')
-    revalidatePath('/store')
+    refreshStoreCatalog()
     revalidatePath('/admin/wiki')
     return { success: true, productId }
   } catch (error) {
-    // TODO: Use server actions error boundaries in React 19 for concise error propagation
     if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error
-    return { error: error instanceof Error ? error.message : 'Failed to create product' }
+    return {
+      error: formatStoreProductZodError(error) || (error instanceof Error ? error.message : 'Failed to create product'),
+    }
   }
 }
 
@@ -527,6 +612,7 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
       ...listingPatch,
       name: fields.name,
       description: fields.description,
+      longDescription: fields.longDescription,
       price: fields.price,
       currency: fields.currency,
       category: fields.category,
@@ -565,12 +651,74 @@ export async function updateAdminStoreProduct(prevState: unknown, formData: Form
       return { error: result.error?.message ?? 'Failed to update product' }
     }
 
-    revalidatePath('/admin/store/products')
-    revalidatePath('/store')
+    refreshStoreCatalog()
     return { success: true, productId }
   } catch (error) {
-    // TODO: Use server actions error boundaries / Next16 global error support
-    return { error: error instanceof Error ? error.message : 'Failed to update product' }
+    return {
+      error: formatStoreProductZodError(error) || (error instanceof Error ? error.message : 'Failed to update product'),
+    }
+  }
+}
+
+/** Inline catalog edit: title, price, category, and description. */
+export async function quickUpdateAdminStoreProduct(input: {
+  productId: string
+  name: string
+  price: number | string
+  category: string
+  description?: string
+}) {
+  try {
+    await assertAdmin()
+    const parsed = adminStoreProductQuickUpdateSchema.parse(input)
+    const existing = await db().findDocById<Record<string, unknown>>('store_products', parsed.productId)
+    if (!existing.success || !existing.data) return { error: 'Product not found' }
+
+    const update = flattenProductDocumentForWrite(existing.data, {
+      name: parsed.name,
+      price: parsed.price,
+      category: parsed.category,
+      description: parsed.description,
+    })
+    const result = await db().updateDoc('store_products', parsed.productId, update)
+    if (!result.success) {
+      return { error: result.error?.message ?? 'Failed to update product' }
+    }
+    refreshStoreCatalog()
+    return { success: true as const, product: mapAdminStoreProductRow({ ...update, id: parsed.productId }) }
+  } catch (error) {
+    return {
+      error: formatStoreProductZodError(error) || (error instanceof Error ? error.message : 'Failed to update product'),
+    }
+  }
+}
+
+/** Remove a catalog product. Platform admins only. Media cleanup is best-effort. */
+export async function deleteAdminStoreProduct(productId: string) {
+  try {
+    await assertAdmin()
+    const id = String(productId || '').trim()
+    if (!id) return { error: 'Product not found' }
+    const existing = await db().findDocById<Record<string, unknown>>('store_products', id)
+    if (!existing.success || !existing.data) return { error: 'Product not found' }
+
+    const urls = collectProductImageUrls(existing.data)
+    const result = await db().deleteDoc('store_products', id)
+    if (!result.success) {
+      return { error: result.error?.message ?? 'Failed to delete product' }
+    }
+    if (urls.length > 0) {
+      try {
+        const { file } = await import('@/lib/file')
+        await Promise.all(urls.map((url) => file().delete(url).catch(() => undefined)))
+      } catch {
+        // The catalog row is already gone. A leftover image file can be cleaned later.
+      }
+    }
+    refreshStoreCatalog()
+    return { success: true as const }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to delete product' }
   }
 }
 

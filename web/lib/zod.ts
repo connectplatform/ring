@@ -114,6 +114,8 @@ export {
   adminStoreProductCreateSchema,
   adminStoreProductUpdateSchema,
   adminStoreProductDelistSchema,
+  adminStoreProductQuickUpdateSchema,
+  formatStoreProductZodError,
   parseStoreProductFormData,
   type StoreProductFormFields,
 } from '@/lib/zod/store-product'

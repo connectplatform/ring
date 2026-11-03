@@ -29,7 +29,7 @@ interface ProvidersProps {
  *   `useSession()` consumer (see `hooks/HOOKS-README.md` Provider matrix).
  *
  * NOTES:
- * - Google sign-in on the login UI uses `signIn('google')` (full-page OAuth), not a nested GIS provider.
+ * - Login UI uses the Ring Google button and Auth.js `signIn('google')`. One Tap stays on FedCM.
  * - To optimize for React 19 and Next 16, consider using the new `use` hook if session needs to be awaited in server components in the future.
  *   // TODO: If migrating part of this to a server component pattern, investigate replacing client context with `use()` for session fetching.
  */

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import {
   convertFromMainCurrency,
   convertToMainCurrency,
@@ -92,7 +92,8 @@ export const storeProductFormFieldsSchema = z.object({
   price: z.coerce.number().positive(),
   currency: z.enum(STORE_CURRENCIES).default(getMainCurrencySymbol()),
   stock: z.coerce.number().int().min(0),
-  description: z.string().trim().max(500).optional().default(''),
+  description: z.string().trim().max(5000).optional().default(''),
+  longDescription: z.string().trim().max(50000).optional().default(''),
   activeInMyStore: z.coerce.boolean(),
   submitToMainStore: z.coerce.boolean(),
   referralCommission: z.coerce.number().min(0).max(50).optional(),
@@ -110,6 +111,10 @@ export const adminStoreProductListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   approvalStatus: z.enum(['all', 'pending', 'approved', 'rejected']).default('all'),
   currency: z.enum(STORE_CURRENCIES).default(getMainCurrencySymbol()),
+  /** Case-insensitive match across name, SKU, category, description, and vendor id. */
+  q: z.string().trim().max(120).optional().default(''),
+  /** Restrict to one vendor entity. Superadmin catalog search leaves this empty. */
+  vendorEntityId: z.string().trim().max(120).optional().default(''),
 })
 
 export const adminStoreProductApprovalSchema = z.object({
@@ -131,6 +136,26 @@ export const adminStoreProductDelistSchema = z.object({
   productId: z.string().min(1),
 })
 
+/** Inline catalog edit — category stays a free slug so legacy rows outside the preset enum still save. */
+export const adminStoreProductQuickUpdateSchema = z.object({
+  productId: z.string().min(1),
+  name: z.string().trim().min(3).max(100),
+  category: z.string().trim().min(1).max(80),
+  price: z.coerce.number().positive(),
+  description: z.string().trim().max(5000).default(''),
+})
+
+/** Turn a Zod failure into one readable line instead of the raw issue JSON. */
+export function formatStoreProductZodError(error: unknown): string | null {
+  if (!(error instanceof ZodError)) return null
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length ? issue.path.join('.') : 'form'
+      return `${path}: ${issue.message}`
+    })
+    .join('; ')
+}
+
 /** Parse boolean fields from FormData string values. */
 export function parseStoreProductFormData(formData: FormData) {
   const referralRaw = (formData.get('referralCommission') as string | null)?.trim()
@@ -144,6 +169,7 @@ export function parseStoreProductFormData(formData: FormData) {
     currency,
     stock: formData.get('stock'),
     description: formData.get('description') ?? '',
+    longDescription: formData.get('longDescription') ?? '',
     activeInMyStore: formData.get('activeInMyStore') === 'true',
     submitToMainStore: formData.get('submitToMainStore') === 'true',
     referralCommission: referralRaw ? referralRaw : undefined,

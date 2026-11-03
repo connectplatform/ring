@@ -468,7 +468,13 @@
       "delist": "Снять с продажи",
       "delistConfirm": "Снять товар с Main Store? Витрина продавца может остаться активной.",
       "delistError": "Не удалось снять товар с продажи",
+      "delisted": "Снят с продажи",
       "showMore": "Показать ещё",
+      "quickEdit": "Быстрое редактирование",
+      "quickEditSave": "Сохранить изменения",
+      "quickEditCancel": "Отмена",
+      "quickEditError": "Не удалось сохранить изменения",
+      "editProduct": "Редактировать товар",
       "form": {
         "vendorOwner": "Продавец-владелец",
         "vendorOwnerPlaceholder": "Выберите активного продавца"
@@ -486,7 +492,9 @@
         "rejected": "Отклонено"
       },
       "columns": {
+        "photo": "Фото",
         "name": "Товар",
+        "category": "Категория",
         "vendor": "Сущность продавца",
         "price": "Цена",
         "stock": "Остаток",

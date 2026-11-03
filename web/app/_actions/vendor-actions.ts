@@ -373,6 +373,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     const stock = parseInt(formData.get('stock') as string, 10)
     const daarPrice = formData.get('daarPrice') ? parseFloat(formData.get('daarPrice') as string) : null
     const description = (formData.get('description') as string)?.trim() || ''
+    const longDescription = (formData.get('longDescription') as string)?.trim() || ''
     const rep = ((formData.get('rep') as string) ?? '').trim()
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
@@ -401,8 +402,8 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     if (isNaN(stock) || stock < 0) {
       return { error: 'Stock must be a non-negative number' }
     }
-    if (description.length > 200) {
-      return { error: 'Description must be less than 200 characters' }
+    if (description.length > 5000) {
+      return { error: 'Description must be less than 5000 characters' }
     }
 
     // Handle video upload (optional)
@@ -535,7 +536,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       ...(generativeGallery ? { generativeGallery } : {}),
       activeInVendorStore: activeInMyStore,
       slug: `${(vendorEntity as any).storeSlug ?? vendorEntity.id}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-      longDescription: researchForm.productAgent || '',
+      longDescription: longDescription || researchForm.researchFields?.longDescription || '',
       ...(researchForm.productAgent ? { productAgent: researchForm.productAgent } : {}),
       ...(researchForm.nodusDraft ? { productNodusDraft: researchForm.nodusDraft } : {}),
       ...(productNodusWiki ? { productNodusWiki } : {}),
@@ -643,6 +644,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     const stock = parseInt(formData.get('stock') as string, 10)
     const daarPrice = formData.get('daarPrice') ? parseFloat(formData.get('daarPrice') as string) : null
     const description = (formData.get('description') as string)?.trim() || ''
+    const longDescription = (formData.get('longDescription') as string)?.trim() || ''
     const rep = ((formData.get('rep') as string) ?? '').trim()
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
@@ -782,6 +784,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     const updatedData = flattenProductDocumentForWrite(existingProduct, {
       name,
       description,
+      longDescription,
       price: priceMain,
       currency,
       category,

@@ -10,8 +10,11 @@ import {
   getConversationSearchText,
   getConversationTitle,
   getConversationTypeGlyph,
+  getConversationTypeLabel,
   getLastMessagePreview,
+  type ChatLabeler,
 } from '@/features/chat/lib/conversation-display'
+import { useTranslations } from 'next-intl'
 import {
   getConversationAvatarUrl,
   getParticipantInitial,
@@ -55,8 +58,10 @@ function ConversationItem({
   onClick,
   currentUserId,
 }: ConversationItemProps) {
-  const title = getConversationTitle(conversation, currentUserId)
-  const preview = getLastMessagePreview(conversation, currentUserId)
+  const t = useTranslations('modules.messenger')
+  const label: ChatLabeler = (key, values) => (values ? t(key, values) : t(key))
+  const title = getConversationTitle(conversation, currentUserId, label)
+  const preview = getLastMessagePreview(conversation, currentUserId, label)
   const unreadCount = conversation.unreadCount ?? 0
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const other = conversation.participants.find((p) => p.userId !== currentUserId)
@@ -121,7 +126,7 @@ function ConversationItem({
         <div className="mt-1 flex items-center justify-between gap-2">
           <p className="truncate text-xs text-muted-foreground">{preview}</p>
           <Badge variant="outline" className="ml-2 shrink-0 text-xs">
-            {conversation.type}
+            {getConversationTypeLabel(conversation.type, label)}
           </Badge>
         </div>
       </div>

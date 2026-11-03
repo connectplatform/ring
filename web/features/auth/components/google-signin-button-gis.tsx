@@ -22,10 +22,11 @@ interface GoogleSignInButtonGISProps {
 }
 
 /**
- * Google sign-in: full-page OAuth via Auth.js (`signIn('google')`).
+ * Google sign-in: Ring outline button, full-page OAuth via Auth.js (`signIn('google')`).
  *
  * - **Locale**: Label from `next-intl` (`modules.auth`), not the GIS iframe (avoids browser-locale mismatch).
- * - **No popup**: Same-tab redirect — avoids popup blockers / FedCM quirks from embedded `GoogleLogin`.
+ * - **No GIS button**: Same-tab redirect. One Tap keeps FedCM in `gis-client.ts`. Do not call
+ *   `renderButton` here — `use_fedcm_for_button` paints Google's personalized account button.
  *
  * `useLocale()` (not pathname) stays correct under `localePrefix: 'as-needed'` (e.g. `/login` is not a locale).
  */

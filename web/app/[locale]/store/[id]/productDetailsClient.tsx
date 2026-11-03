@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Package, Truck, Shield, Heart } from 'lucide-react'
+import { WikiMarkdownPreview } from '@/features/wiki/wiki-markdown'
 import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
 import { useStorePaymentMethods } from '@/features/store/currency-context'
@@ -244,7 +245,7 @@ export default function ProductDetailsClient({
   const descriptionBlock = (
     <div className="prose prose-lg max-w-none">
       {product.longDescription ? (
-        <div className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{product.longDescription}</div>
+        <WikiMarkdownPreview markdown={product.longDescription} vaultKey="tenant" />
       ) : (
         <p className="text-muted-foreground">{t('product.noDescription')}</p>
       )}

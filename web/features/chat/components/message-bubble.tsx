@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import {
   hidesInteractiveTextBody,
@@ -97,6 +98,8 @@ export function MessageBubble({
   onReactionAction,
   className
 }: MessageBubbleProps) {
+  const t = useTranslations('modules.messenger')
+  const locale = useLocale()
   const isSystemMessage = message.type === 'system'
   
   if (isSystemMessage) {
@@ -137,7 +140,7 @@ export function MessageBubble({
             {message.senderAvatar ? (
               <Image 
                 src={message.senderAvatar} 
-                alt={message.senderName || 'User avatar'} 
+                alt={message.senderName || t('contactInfo')} 
                 width={32}
                 height={32}
                 className="w-full h-full object-cover" 
@@ -160,7 +163,7 @@ export function MessageBubble({
         {/* Reply indicator */}
         {message.replyTo && (
           <div className="text-xs text-muted-foreground mb-1 ml-3 italic">
-            Replying to message...
+            {t('replyingTo')}
           </div>
         )}
 
@@ -198,7 +201,7 @@ export function MessageBubble({
                         <div>
                           <Image 
                             src={attachment.derivatives?.thumb || attachment.url} 
-                            alt={attachment.name || 'Shared image'} 
+                            alt={attachment.name || t('sharedImage')} 
                             width={400}
                             height={300}
                             className="max-w-full h-auto rounded"
@@ -218,10 +221,10 @@ export function MessageBubble({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate text-sm">
-                              {attachment.name || 'File attachment'}
+                              {attachment.name || t('fileAttachment')}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {attachment.size ? `${(attachment.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
+                              {attachment.size ? `${(attachment.size / 1024 / 1024).toFixed(1)} MB` : t('unknownSize')}
                             </p>
                           </div>
                           <a
@@ -230,7 +233,7 @@ export function MessageBubble({
                             rel="noopener noreferrer"
                             className="flex-shrink-0 text-xs text-primary hover:underline"
                           >
-                            Download
+                            {t('download')}
                           </a>
                         </div>
                       )}
@@ -244,7 +247,7 @@ export function MessageBubble({
                 <div>
                   <Image 
                     src={message.content} 
-                    alt="Shared image" 
+                    alt={t('sharedImage')} 
                     width={400}
                     height={300}
                     className="max-w-full rounded"
@@ -255,7 +258,7 @@ export function MessageBubble({
               {!message.attachments && message.type === 'file' && (
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
-                    <p className="font-medium">File attachment</p>
+                    <p className="font-medium">{t('fileAttachment')}</p>
                     <p className="text-xs opacity-75">{message.content}</p>
                   </div>
                 </div>
@@ -266,7 +269,7 @@ export function MessageBubble({
             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label={t('messageActions')}>
                     <MoreVertical className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -274,13 +277,13 @@ export function MessageBubble({
                   {onReplyAction && (
                     <DropdownMenuItem onClick={() => onReplyAction(message)}>
                       <Reply className="h-3 w-3 mr-2" />
-                      Reply
+                      {t('reply')}
                     </DropdownMenuItem>
                   )}
                   {isOwn && onEditAction && (
                     <DropdownMenuItem onClick={() => onEditAction(message.id)}>
                       <Edit2 className="h-3 w-3 mr-2" />
-                      Edit
+                      {t('edit')}
                     </DropdownMenuItem>
                   )}
                   {isOwn && onDeleteAction && (
@@ -289,7 +292,7 @@ export function MessageBubble({
                       className="text-destructive"
                     >
                       <Trash2 className="h-3 w-3 mr-2" />
-                      Delete
+                      {t('delete')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -311,13 +314,13 @@ export function MessageBubble({
             isOwn ? "justify-end" : "justify-start"
           )}>
             <span>
-              {new Date(getMessageTimeMs(message.timestamp)).toLocaleTimeString([], { 
+              {new Date(getMessageTimeMs(message.timestamp)).toLocaleTimeString(locale, { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
             </span>
             {message.editedAt && (
-              <span className="italic">(edited)</span>
+              <span className="italic">({t('edited')})</span>
             )}
             {isOwn && <MessageStatus status={message.status} />}
           </div>

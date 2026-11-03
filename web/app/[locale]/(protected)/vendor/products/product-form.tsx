@@ -15,7 +15,8 @@
  * Mode: 'create' | 'edit'
  */
 
-import React, { useState } from 'react'
+import React, { useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
 import { useActionState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -28,18 +29,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
-import { createVendorProduct, updateVendorProduct } from '@/app/_actions/vendor-actions'
-import { createAdminStoreProduct, updateAdminStoreProduct } from '@/app/_actions/admin-store-erp'
+import { FsModal } from '@/components/ui/fs-modal'
+import { createVendorProduct, updateVendorProduct, deleteVendorProduct } from '@/app/_actions/vendor-actions'
+import { createAdminStoreProduct, updateAdminStoreProduct, deleteAdminStoreProduct } from '@/app/_actions/admin-store-erp'
 import type { AdminVendorOption } from '@/app/_actions/admin-store-erp'
 import VendorEntitySelect from '@/components/admin/vendor-entity-select'
 import { STORE_PRODUCT_CATEGORIES } from '@/lib/zod/store-product'
+import { ProductCategoryDroplist } from '@/components/store/product-category-droplist'
+import { resolveVendorEntityId } from '@/features/store/lib/product-document'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import NicheProductFieldsSection from '@/components/vendor/niche-product-fields-section'
@@ -54,6 +51,11 @@ import {
   type GenerativeGalleryValue,
 } from '@/features/generative-media/types'
 import { ProductAgentKnowledgeSection } from '@/features/store/components/product-agent-knowledge-section'
+
+const WikiRichEditor = dynamic(
+  () => import('@/features/wiki/components/wiki-rich-editor').then((mod) => mod.WikiRichEditor),
+  { ssr: false },
+)
 import type { ProductResearchMediaRef } from '@/features/store/lib/product-cabinet-media'
 import { useStorePaymentMethods } from '@/features/store/currency-context'
 import { displayPriceFromMainCurrency, getCurrencySymbol } from '@/lib/zod/store-product'
@@ -124,10 +126,11 @@ export default function ProductForm({
       : ROUTES.VENDOR_PRODUCTS(locale)
 
   const [state, formAction, isPending] = useActionState(serverAction, null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, startDelete] = useTransition()
   const [selectedVendorId, setSelectedVendorId] = useState<string>(
-    variant === 'admin'
-      ? String(existingProduct?.entity_id ?? existingProduct?.vendorId ?? vendorEntity?.id ?? '')
-      : vendorEntity?.id ?? '',
+    (existingProduct ? resolveVendorEntityId(existingProduct) : '') || vendorEntity?.id || '',
   )
 
   React.useEffect(() => {
@@ -152,6 +155,9 @@ export default function ProductForm({
   const [nameInput, setNameInput] = useState<string>(existingProduct?.name || '')
   const [descriptionInput, setDescriptionInput] = useState<string>(
     existingProduct?.description || '',
+  )
+  const [longDescriptionInput, setLongDescriptionInput] = useState<string>(
+    String(existingProduct?.longDescription ?? existingProduct?.data?.longDescription ?? ''),
   )
   const [repUsername, setRepUsername] = useState<string>(existingProduct?.rep ?? '')
   const [customFields, setCustomFields] = useState<Array<{ id: string; fieldName: string; fieldValue: string; fieldType: string }>>([])
@@ -191,6 +197,26 @@ export default function ProductForm({
       }
     })
   }, [])
+
+  const categoryLabel = (slug: string) => (tCat.has(slug) ? tCat(slug) : slug)
+
+  const handleDelete = () => {
+    if (!existingProduct?.id) return
+    startDelete(async () => {
+      setDeleteError(null)
+      const result =
+        variant === 'admin'
+          ? await deleteAdminStoreProduct(String(existingProduct.id))
+          : await deleteVendorProduct(String(existingProduct.id), locale)
+      if (result?.error) {
+        setDeleteError(result.error)
+        return
+      }
+      setDeleteOpen(false)
+      router.push(backHref)
+      router.refresh()
+    })
+  }
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -276,6 +302,7 @@ export default function ProductForm({
         <input type="hidden" name="activeInMyStore" value={activeInMyStore ? 'true' : 'false'} />
         <input type="hidden" name="submitToMainStore" value={submitToMainStore ? 'true' : 'false'} />
         <input type="hidden" name="productAudience" value={productAudience} />
+        <input type="hidden" name="longDescription" value={longDescriptionInput} />
 
         {variant === 'admin' && adminVendors && mode === 'create' && (
           <Card className="mb-6">
@@ -363,23 +390,15 @@ export default function ProductForm({
               <Label htmlFor="category">{tForm('category')} *</Label>
               {/* Hidden input: Radix Select value="" is invalid; guarantee FormData category on submit */}
               <input type="hidden" name="category" value={selectedCategory} required />
-              <Select
-                value={selectedCategory || undefined}
+              <ProductCategoryDroplist
+                value={selectedCategory}
+                onChange={setSelectedCategory}
+                categories={PRODUCT_CATEGORIES}
+                labelFor={categoryLabel}
+                scopeLabel={tForm('category')}
+                placeholder={tForm('categoryPlaceholder')}
                 disabled={isPending}
-                required
-                onValueChange={(val) => setSelectedCategory(val)}
-              >
-                <SelectTrigger id="category">
-                  <SelectValue placeholder={tForm('categoryPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>
-                      {tCat(cat)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
             {/* Per-product promotions (BOGO / % / amount) */}
@@ -552,8 +571,20 @@ export default function ProductForm({
                 value={descriptionInput}
                 onChange={(event) => setDescriptionInput(event.target.value)}
                 placeholder={tForm('descriptionPlaceholder')}
-                maxLength={200}
+                maxLength={5000}
                 disabled={isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="longDescription">{tForm('longDescription')}</Label>
+              <p className="text-xs text-muted-foreground">{tForm('longDescriptionHint')}</p>
+              <WikiRichEditor
+                value={longDescriptionInput}
+                onChange={setLongDescriptionInput}
+                disabled={isPending}
+                placeholder={tForm('longDescriptionPlaceholder')}
+                selectionMemoryScope={existingProduct?.id ? `product-${existingProduct.id}` : 'product-new'}
               />
             </div>
 
@@ -565,14 +596,18 @@ export default function ProductForm({
               categoryName={selectedCategory}
               description={descriptionInput}
               initialProductAgent={String(
-                existingProduct?.productAgent ||
-                  existingProduct?.longDescription ||
+                existingProduct?.productAgent ??
+                  existingProduct?.data?.productAgent ??
+                  existingProduct?.longDescription ??
                   '',
               )}
               initialNodusWiki={existingProduct?.productNodusWiki || null}
-              disabled={isPending || !(selectedVendorId || vendorEntity?.id)}
+              disabled={isPending || (mode === 'create' && !(selectedVendorId || vendorEntity?.id))}
               onUseResearchImage={useResearchImage}
               onUpdated={(next) => {
+                if (next.fields?.longDescription) {
+                  setLongDescriptionInput(next.fields.longDescription)
+                }
                 if (!next.fields) return
                 if (next.fields.name) setNameInput(next.fields.name)
                 if (
@@ -584,7 +619,7 @@ export default function ProductForm({
                   setSelectedCategory(next.fields.category)
                 }
                 if (next.fields.shortDescription) {
-                  setDescriptionInput(next.fields.shortDescription.slice(0, 200))
+                  setDescriptionInput(next.fields.shortDescription.slice(0, 5000))
                 }
                 if (next.fields.specifications.length) {
                   setCustomFields(
@@ -685,7 +720,40 @@ export default function ProductForm({
                   {tForm('cancel')}
                 </Button>
               </Link>
+              {mode === 'edit' && existingProduct?.id ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={isPending || isDeleting}
+                  onClick={() => {
+                    setDeleteError(null)
+                    setDeleteOpen(true)
+                  }}
+                >
+                  {tProducts('deleteConfirm.title')}
+                </Button>
+              ) : null}
             </div>
+            <FsModal
+              open={deleteOpen}
+              onOpenChange={setDeleteOpen}
+              title={tProducts('deleteConfirm.title')}
+              description={tProducts('deleteConfirm.message', {
+                name: nameInput || existingProduct?.name || '',
+              })}
+              footer={
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>
+                    {tProducts('deleteConfirm.cancel')}
+                  </Button>
+                  <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                    {tProducts('deleteConfirm.confirm')}
+                  </Button>
+                </div>
+              }
+            >
+              {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
+            </FsModal>
       </>
     )
   }

@@ -17,6 +17,7 @@ import { isCreditRewardsEnabled } from '@/lib/ring-config-core'
 import { EnabledLocalesProvider } from '@/components/providers/enabled-locales-provider'
 import { getUserOnboardingPendingSegments } from '@/features/onboarding/server'
 import { UserOnboardingGate } from '@/features/onboarding/components/user-onboarding-gate'
+import { LoginBackButton } from '@/features/auth/components/login-back-button'
 import type { Locale } from '@/i18n/shared'
 
 export interface LocaleAppChromeProps {
@@ -24,8 +25,8 @@ export interface LocaleAppChromeProps {
   messages: Record<string, unknown>
   hreflangPath?: string
   showReferralAttribution?: boolean
-  /** Minimal shell for suspended-account flows (no main navigation). */
-  variant?: 'full' | 'minimal'
+  /** Minimal shell for suspended-account flows (no main navigation). Login is leaner still. */
+  variant?: 'full' | 'minimal' | 'login'
   children: React.ReactNode
 }
 
@@ -45,6 +46,21 @@ export async function LocaleAppChrome({
   // user.requiredProfileFields (empty = no gate). Guests / satisfied users get [].
   const pendingOnboardingSegments =
     variant === 'full' ? await getUserOnboardingPendingSegments() : []
+
+  if (variant === 'login') {
+    return (
+      <I18nProvider locale={locale} messages={messages}>
+        <DocumentHtmlLang />
+        {hreflangPath != null ? <HreflangLinks pathname={hreflangPath} /> : null}
+        <div className="flex min-h-screen flex-col bg-background">
+          <div className="px-4 pt-4 sm:px-6">
+            <LoginBackButton />
+          </div>
+          <div className="flex flex-1 flex-col">{children}</div>
+        </div>
+      </I18nProvider>
+    )
+  }
 
   return (
     <I18nProvider locale={locale} messages={messages}>

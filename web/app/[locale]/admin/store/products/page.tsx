@@ -45,7 +45,7 @@ export default async function AdminStoreProductsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>
-  searchParams: Promise<{ approval?: string }>
+  searchParams: Promise<{ approval?: string; q?: string }>
 }) {
   await connection()
 
@@ -69,10 +69,12 @@ export default async function AdminStoreProductsPage({
       ? resolvedSearch.approval
       : 'all'
 
+  const catalogQuery = (resolvedSearch.q || '').trim().slice(0, 120)
   const productPage = await listAdminStoreProducts({
     limit: ADMIN_LIST_PAGE_SIZE,
     offset: 0,
     approvalStatus: approvalFilter,
+    q: catalogQuery,
   })
 
   return (
@@ -84,6 +86,8 @@ export default async function AdminStoreProductsPage({
           initialHasMore={productPage.hasMore}
           initialNextOffset={productPage.nextOffset}
           initialApprovalFilter={approvalFilter}
+          initialQuery={catalogQuery}
+          initialTotal={productPage.total}
           locale={locale}
         />
       </Suspense>

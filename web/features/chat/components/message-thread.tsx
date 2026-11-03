@@ -307,13 +307,7 @@ export function MessageThread({
           }
           replyTo={replyTo}
           onCancelReplyAction={handleCancelReply}
-          placeholder={
-            messages.length === 0
-              ? conversation?.type === 'product'
-                ? t('emptyThreadProduct')
-                : t('emptyThreadHello')
-              : undefined
-          }
+          placeholder={t('composerPlaceholder')}
         />
       </div>
 

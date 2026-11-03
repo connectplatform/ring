@@ -469,7 +469,13 @@
       "delist": "Delist",
       "delistConfirm": "Delist this product from the Main Store? The vendor storefront may remain active.",
       "delistError": "Failed to delist product",
+      "delisted": "Delisted",
       "showMore": "Show more",
+      "quickEdit": "Quick edit",
+      "quickEditSave": "Save changes",
+      "quickEditCancel": "Cancel",
+      "quickEditError": "Could not save changes",
+      "editProduct": "Edit product",
       "form": {
         "vendorOwner": "Vendor owner",
         "vendorOwnerPlaceholder": "Select active vendor"
@@ -487,7 +493,9 @@
         "rejected": "Rejected"
       },
       "columns": {
+        "photo": "Photo",
         "name": "Product",
+        "category": "Category",
         "vendor": "Vendor entity",
         "price": "Price",
         "stock": "Stock",

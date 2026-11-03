@@ -1,6 +1,7 @@
 'use client'
 
 import React, { Suspense } from 'react'
+import { usePathname } from 'next/navigation'
 import type { Session } from 'next-auth'
 import { SessionProvider } from '@/features/auth/components/session-provider'
 import { CreditBalanceProvider } from '@/components/providers/credit-balance-provider'
@@ -13,6 +14,7 @@ import {
   type PublicInstanceConfig,
 } from '@/components/common/whitelabel/instance-config-client'
 import { getPublicInstanceConfigFromSnapshot } from '@/lib/ring-config-core'
+import { isLoginPath } from '@/lib/pathname-without-locale'
 import { AppProvider } from '@/contexts/app-context'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
@@ -60,6 +62,19 @@ export function AppClientShell({
   initialExchangeRates?: Record<string, number> | null
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
+  if (isLoginPath(pathname)) {
+    return (
+      <SessionProvider session={session}>
+        <ThemeProvider>
+          <InstanceConfigClientProvider value={instanceConfig}>
+            {children}
+          </InstanceConfigClientProvider>
+        </ThemeProvider>
+      </SessionProvider>
+    )
+  }
+
   return (
     <SessionProvider session={session}>
       <WebVitalsProvider>

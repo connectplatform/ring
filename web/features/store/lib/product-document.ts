@@ -114,17 +114,30 @@ export function isVisibleOnMainStore(doc: ProductDoc): boolean {
  * Tries, in order: entity_id, entityId, ownerEntityId, vendorId, legacy nested vendorId inside `data`.
  * Always coerces to string for output.
  */
+function firstNonBlankId(...values: unknown[]): string {
+  for (const value of values) {
+    const id = value == null ? '' : String(value).trim()
+    if (id) return id
+  }
+  return ''
+}
+
 export function resolveVendorEntityId(doc: ProductDoc): string {
-  return String(
-    doc.entity_id ??
-      doc.entityId ??
-      doc.ownerEntityId ??
-      doc.vendorId ??
-      doc.productOwner ??
-      (doc.data && typeof doc.data === 'object'
-        ? (doc.data as ProductDoc).vendorId ?? (doc.data as ProductDoc).productOwner
-        : '') ??
-      '',
+  const nested =
+    doc.data && typeof doc.data === 'object' && !Array.isArray(doc.data)
+      ? (doc.data as ProductDoc)
+      : {}
+  return firstNonBlankId(
+    doc.entity_id,
+    doc.entityId,
+    doc.ownerEntityId,
+    doc.vendorId,
+    doc.productOwner,
+    nested.entity_id,
+    nested.entityId,
+    nested.vendorId,
+    nested.productOwner,
+    nested.ownerEntityId,
   )
 }
 

@@ -39,8 +39,14 @@ export async function createProductNodusWikiFromDraft(input: {
   ].join('\n')
 
   try {
+    const slug = `product-nodus-${input.productId}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80)
     const page = (await wikiCreateAction({
       title,
+      slug,
       vaultKey: TENANT_VAULT,
       bodyMarkdown,
       kind: 'concept',

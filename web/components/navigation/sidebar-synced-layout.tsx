@@ -44,6 +44,7 @@ import {
   resolvePackAsideNav,
   sidebarPathIsActive,
 } from '@/lib/navigation/desktop-primary-nav'
+import { resolveDesktopMenuIds } from '@/lib/navigation/desktop-menu-order'
 import { getPrimaryNavIcon } from '@/lib/navigation/primary-nav-icons'
 import { LocaleCodeMenu } from '@/components/common/locale-code-menu'
 import { storeRailCurrencyGlyph, useStorePaymentMethods } from '@/features/store/currency-context'
@@ -167,91 +168,13 @@ export function SidebarSyncedLayout({
       },
     ]
 
-    if (!session?.user) {
-      list.push({
-        kind: 'pair',
-        key: 'sign-in',
-        href: ROUTES.LOGIN(locale),
-        rail: <User className={ICON} strokeWidth={1.5} />,
-        aside: <AsideLabel title={tNav('sidebar.signIn')} />,
-      })
-    } else {
-      list.push(
-        {
-          kind: 'pair',
-          key: 'profile',
-          href: ROUTES.PROFILE(locale),
-          rail: (
-            <Avatar
-              src={session.user.image || session.user.photoURL}
-              alt={session.user.name || 'User'}
-              size="sm"
-              fallback={session.user.name?.charAt(0) || 'U'}
-              className="size-8"
-            />
-          ),
-          aside: (
-            <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-[16px]">
-              <span className="truncate font-medium">{session.user.name || 'Anonymous'}</span>
-              <NavCreditTrailing />
-            </div>
-          ),
-        },
-        {
-          kind: 'pair',
-          key: 'wallet',
-          href: ROUTES.WALLET(locale),
-          rail: <Wallet className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tNav('wallet')} />,
-        },
-        {
-          kind: 'pair',
-          key: 'notifications',
-          href: ROUTES.NOTIFICATIONS(locale),
-          rail: <Bell className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tNav('notifications')} count={notificationCount} />,
-        },
-        {
-          kind: 'pair',
-          key: 'messages',
-          href: ROUTES.MESSAGES(locale),
-          rail: <MessageCircle className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tNav('messages')} count={messagesCount} />,
-        },
-        {
-          kind: 'pair',
-          key: 'games',
-          href: ROUTES.GAMES(locale),
-          rail: <Gamepad2 className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tNav('games')} />,
-        },
-        {
-          kind: 'pair',
-          key: 'tasks',
-          href: ROUTES.TASKS(locale),
-          rail: <ListTodo className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tNav('tasks')} />,
-        },
-        {
-          kind: 'pair',
-          key: 'cart',
-          href: ROUTES.CART(locale),
-          rail: <ShoppingCart className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tStore('cart.title')} count={cartCount} />,
-        },
-        {
-          kind: 'pair',
-          key: 'favorites',
-          href: ROUTES.STORE(locale),
-          rail: <Heart className={ICON} strokeWidth={1.5} />,
-          aside: <AsideLabel title={tFav('button')} count={favorites.length} />,
-        },
-      )
-    }
-
     const primaryNav = resolveDesktopPrimaryNav(locale, tNav, pathname, search)
+    const primaryById: Record<string, (typeof primaryNav)[number]> = {}
+    for (const item of primaryNav) primaryById[item.id] = item
 
-    for (const item of primaryNav) {
+    const pushPrimary = (id: string) => {
+      const item = primaryById[id]
+      if (!item) return false
       const Icon = getPrimaryNavIcon(item.icon)
       list.push({
         kind: 'pair',
@@ -265,6 +188,96 @@ export function SidebarSyncedLayout({
           </div>
         ),
       })
+      return true
+    }
+
+    if (!session?.user) {
+      list.push({
+        kind: 'pair',
+        key: 'sign-in',
+        href: ROUTES.LOGIN(locale),
+        rail: <User className={ICON} strokeWidth={1.5} />,
+        aside: <AsideLabel title={tNav('sidebar.signIn')} />,
+      })
+      for (const item of primaryNav) pushPrimary(item.id)
+    } else {
+      const utilityRows: Record<string, SyncedRow> = {
+        profile: {
+            kind: 'pair',
+            key: 'profile',
+            href: ROUTES.PROFILE(locale),
+            rail: (
+              <Avatar
+                src={session.user.image || session.user.photoURL}
+                alt={session.user.name || 'User'}
+                size="sm"
+                fallback={session.user.name?.charAt(0) || 'U'}
+                className="size-8"
+              />
+            ),
+            aside: (
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-[16px]">
+                <span className="truncate font-medium">{session.user.name || 'Anonymous'}</span>
+                <NavCreditTrailing />
+              </div>
+            ),
+          },
+        wallet: {
+            kind: 'pair',
+            key: 'wallet',
+            href: ROUTES.WALLET(locale),
+            rail: <Wallet className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tNav('wallet')} />,
+          },
+        notifications: {
+            kind: 'pair',
+            key: 'notifications',
+            href: ROUTES.NOTIFICATIONS(locale),
+            rail: <Bell className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tNav('notifications')} count={notificationCount} />,
+          },
+        messages: {
+            kind: 'pair',
+            key: 'messages',
+            href: ROUTES.MESSAGES(locale),
+            rail: <MessageCircle className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tNav('messages')} count={messagesCount} />,
+          },
+        games: {
+            kind: 'pair',
+            key: 'games',
+            href: ROUTES.GAMES(locale),
+            rail: <Gamepad2 className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tNav('games')} />,
+          },
+        tasks: {
+            kind: 'pair',
+            key: 'tasks',
+            href: ROUTES.TASKS(locale),
+            rail: <ListTodo className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tNav('tasks')} />,
+          },
+        cart: {
+            kind: 'pair',
+            key: 'cart',
+            href: ROUTES.CART(locale),
+            rail: <ShoppingCart className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tStore('cart.title')} count={cartCount} />,
+          },
+        favorites: {
+            kind: 'pair',
+            key: 'favorites',
+            href: ROUTES.STORE(locale),
+            rail: <Heart className={ICON} strokeWidth={1.5} />,
+            aside: <AsideLabel title={tFav('button')} count={favorites.length} />,
+          },
+      }
+
+      for (const id of resolveDesktopMenuIds(primaryNav.map((item) => item.id))) {
+        if (pushPrimary(id)) continue
+        const row = utilityRows[id]
+        if (row) list.push(row)
+      }
     }
 
     if (showAdminToggle) {

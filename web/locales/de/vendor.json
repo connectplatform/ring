@@ -266,8 +266,11 @@
       "daarPrice": "DAAR-Token-Preis (optional)",
       "daarPriceHint": "Wird aus UAH abgeleitet, wenn leer",
       "description": "Kurzbeschreibung",
-      "descriptionHint": "Kurztext (max. 200 Zeichen)",
+      "descriptionHint": "Kurztext (max. 5000 Zeichen)",
       "descriptionPlaceholder": "Was Käuferinnen bekommen: Umfang, SLAs, Lieferumfang …",
+      "longDescription": "Vollständige Produktbeschreibung",
+      "longDescriptionHint": "Der vollständige Produktartikel auf der Produktseite.",
+      "longDescriptionPlaceholder": "Schreiben Sie die vollständige Produktgeschichte…",
       "activeInMyStore": "In meinem Store aktiv",
       "activeInMyStoreHint": "Sichtbar im eigenen Publisher-Storefront",
       "submitToMainStore": "Für Haupt-Marketplace einreichen",
@@ -319,7 +322,7 @@
       "photoInvalidType": "Bilder: JPG, PNG oder WebP",
       "videoSizeExceeded": "Video max. 50 MB",
       "videoInvalidType": "Video: MP4 oder WebM",
-      "descriptionTooLong": "Kurzbeschreibung max. 200 Zeichen"
+      "descriptionTooLong": "Kurzbeschreibung max. 5000 Zeichen"
     },
     "deleteConfirm": {
       "title": "Angebot löschen",

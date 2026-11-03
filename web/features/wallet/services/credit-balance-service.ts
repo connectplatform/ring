@@ -427,8 +427,10 @@ export class CreditBalanceService {
           );
         }
 
-        const newAmount = (currentAmount - spendAmount).toString();
-        const mainCurrencyEquivalent = (spendAmount * parseFloat(mainCurrencyRate)).toString();
+        const newAmount = Number((currentAmount - spendAmount).toFixed(8)).toString();
+        const mainCurrencyEquivalent = Number(
+          (spendAmount * parseFloat(mainCurrencyRate)).toFixed(8),
+        ).toString();
         const transactionId = this._generateTransactionId();
         const creditTransaction: CreditTransaction = {
           id: transactionId,
@@ -447,8 +449,10 @@ export class CreditBalanceService {
         const updatedBalance: UserCreditBalance = {
           ...currentBalance,
           amount: newAmount,
-          main_currency_equivalent: (
-            parseFloat(currentBalance.main_currency_equivalent) - parseFloat(mainCurrencyEquivalent)
+          main_currency_equivalent: Number(
+            (
+              parseFloat(currentBalance.main_currency_equivalent) - parseFloat(mainCurrencyEquivalent)
+            ).toFixed(8),
           ).toString(),
           main_currency: currentBalance.main_currency ?? mainCurrency,
           last_updated: now.getTime(),
