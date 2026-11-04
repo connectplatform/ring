@@ -62,7 +62,7 @@ export default async function AdminWikiPage({
   const adminLabels = buildModulesAdminLabels(t)
 
   return (
-    <AdminWrapper locale={validLocale} pageContext="wiki" labels={adminLabels}>
+    <AdminWrapper locale={validLocale} pageContext="wiki" labels={adminLabels} showRightRail={false}>
       <div className="container mx-auto px-0 py-0">
         <WikiWorkspace locale={validLocale} initialVaultKey="tenant" />
       </div>

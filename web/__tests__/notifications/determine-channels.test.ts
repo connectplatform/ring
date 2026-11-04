@@ -27,6 +27,16 @@ describe('determineChannels', () => {
     expect(determineChannels(undefined, null)).toEqual([NotificationChannel.IN_APP])
   })
 
+  it('does not throw when a stored prefs row has no channels map', () => {
+    const channels = determineChannels(
+      [NotificationChannel.PUSH, NotificationChannel.IN_APP],
+      { enabled: true } as DetailedNotificationPreferences,
+    )
+    expect(channels).toEqual(
+      expect.arrayContaining([NotificationChannel.IN_APP, NotificationChannel.PUSH]),
+    )
+  })
+
   it('honors stored channels.push opt-out', () => {
     const channels = determineChannels(
       [NotificationChannel.PUSH, NotificationChannel.IN_APP],

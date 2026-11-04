@@ -102,6 +102,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'generative-media',
       // Trust & brand
       'authentication',
+      'phone-otp',
       'security',
       'admin',
       'admin-wiki',
@@ -254,6 +255,7 @@ export const AUDIENCE_CURATED_DOCS = {
       'email-ai-crm',
       'ring-mailer',
       'authentication',
+      'phone-otp',
       'security',
       'admin',
       'admin-wiki',

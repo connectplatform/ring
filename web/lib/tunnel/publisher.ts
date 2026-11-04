@@ -53,19 +53,19 @@ export async function publishToUserTunnel(
         userId,
         type: TunnelMessageType.NOTIFICATION,
       });
-      const { sseDelivered, wsDelivered } = hub.publishToUser(userId, message);
+      const { sseDelivered, wsDelivered, queued } = hub.publishToUser(userId, message);
       const deliveredLive = sseDelivered || wsDelivered;
       if (deliveredLive) {
         console.log(
           `TunnelPublisher: Published to user ${userId} on channel ${channel} (sse=${sseDelivered}, ws=${wsDelivered})`,
         );
-      } else {
-        // No live SSE/WS socket at publish time — message is queued for delivery
-        // on next connect (see drainUserQueue in hub/in-memory-hub.ts). This is
-        // expected during the tunnel connect boot race (HTTP ingest already
-        // persisted the data), not a delivery failure — debug level only.
+      } else if (queued) {
         console.debug(
           `TunnelPublisher: Queued for user ${userId} on channel ${channel} (no live socket yet)`,
+        );
+      } else {
+        console.debug(
+          `TunnelPublisher: Dropped for user ${userId} on channel ${channel} (live-only hub, no active socket)`,
         );
       }
       return { deliveredLive };

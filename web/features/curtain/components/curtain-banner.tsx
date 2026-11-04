@@ -38,7 +38,7 @@ export function CurtainBanner({
 
   return (
     <div
-      className={cn('fixed inset-x-0 top-0 z-[48]', offer.kind === 'a2hs' && 'md:hidden')}
+      className="fixed inset-x-0 top-0 z-[48]"
       style={{ height, minHeight: '4.5rem' }}
     >
       {nextOffer ? (

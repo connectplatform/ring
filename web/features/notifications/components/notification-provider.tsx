@@ -111,15 +111,22 @@ export function NotificationProvider({
 
   // Real-time unread count via useUnreadCount → useSync → tunnel channel `notifications:unread`
 
-  // Safe localStorage (avoid "getItem is not a function" during build/SSR polyfill)
-  const safeLocalStorage = typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function' ? localStorage : null;
+  function readBrowserStorage(): Storage | null {
+    if (typeof window === 'undefined') return null
+    try {
+      return window.localStorage
+    } catch {
+      return null
+    }
+  }
 
   // Load settings from localStorage
   useEffect(() => {
-    if (!safeLocalStorage) return;
-    const savedPosition = safeLocalStorage.getItem('notification-toast-position');
-    const savedDuration = safeLocalStorage.getItem('notification-toast-duration');
-    const savedMaxToasts = safeLocalStorage.getItem('notification-max-toasts');
+    const storage = readBrowserStorage()
+    if (!storage) return;
+    const savedPosition = storage.getItem('notification-toast-position');
+    const savedDuration = storage.getItem('notification-toast-duration');
+    const savedMaxToasts = storage.getItem('notification-max-toasts');
 
     if (savedPosition) {
       setToastPosition(savedPosition as any);
@@ -130,23 +137,23 @@ export function NotificationProvider({
     if (savedMaxToasts) {
       setMaxToasts(parseInt(savedMaxToasts));
     }
-  }, [safeLocalStorage]);
+  }, []);
 
   // Save settings to localStorage
   const handleSetToastPosition = useCallback((position: typeof toastPosition) => {
     setToastPosition(position);
-    safeLocalStorage?.setItem('notification-toast-position', position);
-  }, [safeLocalStorage]);
+    readBrowserStorage()?.setItem('notification-toast-position', position);
+  }, []);
 
   const handleSetToastDuration = useCallback((duration: number) => {
     setToastDuration(duration);
-    safeLocalStorage?.setItem('notification-toast-duration', duration.toString());
-  }, [safeLocalStorage]);
+    readBrowserStorage()?.setItem('notification-toast-duration', duration.toString());
+  }, []);
 
   const handleSetMaxToasts = useCallback((max: number) => {
     setMaxToasts(max);
-    safeLocalStorage?.setItem('notification-max-toasts', max.toString());
-  }, [safeLocalStorage]);
+    readBrowserStorage()?.setItem('notification-max-toasts', max.toString());
+  }, []);
 
   const contextValue: NotificationContextType = {
     // Toast management

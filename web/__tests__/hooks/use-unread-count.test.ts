@@ -72,8 +72,8 @@ describe('useUnreadCount', () => {
     const cacheTime = Date.now() - 60000 // 1 minute ago (within 2-minute TTL)
 
     mockSessionStorage.getItem.mockImplementation((key: string) => {
-      if (key === 'notifications-unread') return '3'
-      if (key === 'notifications-unread-time') return cacheTime.toString()
+      if (key === 'notifications-unread:test-user') return '3'
+      if (key === 'notifications-unread:test-user-time') return cacheTime.toString()
       return null
     })
 
@@ -90,8 +90,8 @@ describe('useUnreadCount', () => {
     const cacheTime = Date.now() - 180000 // 3 minutes ago (expired)
 
     mockSessionStorage.getItem.mockImplementation((key: string) => {
-      if (key === 'notifications-unread') return '3'
-      if (key === 'notifications-unread-time') return cacheTime.toString()
+      if (key === 'notifications-unread:test-user') return '3'
+      if (key === 'notifications-unread:test-user-time') return cacheTime.toString()
       return null
     })
 
@@ -113,11 +113,11 @@ describe('useUnreadCount', () => {
     });
 
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith(
-      'notifications-unread',
+      'notifications-unread:test-user',
       '5'
     );
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith(
-      'notifications-unread-time',
+      'notifications-unread:test-user-time',
       expect.any(String)
     );
   });
@@ -149,8 +149,8 @@ describe('useUnreadCount', () => {
     });
 
     // Should clear cache
-    expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread');
-    expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread-time');
+    expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread:test-user');
+    expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread:test-user-time');
 
     // Should fetch fresh data
     expect(global.fetch).toHaveBeenCalled();
@@ -183,8 +183,8 @@ describe('useUnreadCount', () => {
     });
 
     await waitFor(() => {
-      expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread');
-      expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread-time');
+      expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread:test-user');
+      expect(mockSessionStorage.removeItem).toHaveBeenCalledWith('notifications-unread:test-user-time');
     });
   });
 

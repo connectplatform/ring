@@ -46,8 +46,9 @@ export function DeviceTelemetryProvider({
 
     const signature = deviceContextSignature(snapshot)
     const elapsed = now - lastPostAtRef.current
-    if (!force && signature === lastSignatureRef.current && elapsed < MIN_POST_INTERVAL_MS) {
-      return
+    if (!force) {
+      if (elapsed < MIN_POST_INTERVAL_MS) return
+      if (signature === lastSignatureRef.current && elapsed < 15 * 60_000) return
     }
 
     lastSignatureRef.current = signature

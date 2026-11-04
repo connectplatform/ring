@@ -323,6 +323,16 @@ export class TunnelTransportManager implements TunnelTransport {
         this.fallbackReconnectInFlight = true;
 
         try {
+          const primary = this.fallbackChain[0];
+          if (
+            primary === TunnelProvider.WEBSOCKET &&
+            this.currentProvider &&
+            this.currentProvider !== TunnelProvider.WEBSOCKET
+          ) {
+            this.fallbackIndex = 0;
+            await this.connectWithFallback(this.config.connection);
+            return;
+          }
           // Try to reconnect with same provider first
           await this.connectToProvider(this.currentProvider!, this.config.connection);
         } catch (error) {

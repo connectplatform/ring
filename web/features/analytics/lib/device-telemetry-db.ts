@@ -115,6 +115,55 @@ function mergeTelemetryPayload(
   }
 }
 
+function snapshotField(row: Record<string, unknown>, key: string): unknown {
+  if (row[key] !== undefined) return row[key]
+  const payload = row.payload
+  if (payload && typeof payload === 'object') {
+    return (payload as Record<string, unknown>)[key]
+  }
+  return undefined
+}
+
+function stableJson(value: unknown): string {
+  if (!value || typeof value !== 'object') return JSON.stringify(value ?? null)
+  const record = value as Record<string, unknown>
+  const keys = Object.keys(record).sort()
+  return JSON.stringify(keys.map((key) => [key, record[key]]))
+}
+
+/** Ignore server.recordedAt and updated_at — those change on every write. */
+function telemetrySnapshotUnchanged(
+  previous: Record<string, unknown>,
+  next: Record<string, unknown>,
+): boolean {
+  const fields = [
+    'deviceLabel',
+    'formFactor',
+    'locale',
+    'timezone',
+    'connectionType',
+    'visibility',
+    'screen',
+    'geo',
+  ]
+  for (const field of fields) {
+    if (stableJson(snapshotField(previous, field)) !== stableJson(snapshotField(next, field))) {
+      return false
+    }
+  }
+  const prevServer = previous.server
+  const nextServer = next.server
+  const prevCountry =
+    prevServer && typeof prevServer === 'object'
+      ? (prevServer as Record<string, unknown>).ipCountry
+      : undefined
+  const nextCountry =
+    nextServer && typeof nextServer === 'object'
+      ? (nextServer as Record<string, unknown>).ipCountry
+      : undefined
+  return stableJson(prevCountry) === stableJson(nextCountry)
+}
+
 /**
  * Upsert last-known reading (efficient: one row per user+device+domain, not append-only).
  */
@@ -136,6 +185,12 @@ export async function upsertUserDeviceTelemetry(
 
   const existing = await db().readDoc(USER_DEVICE_TELEMETRY, docId)
   if (existing.success && existing.data) {
+    const previous = existing.data as Record<string, unknown>
+    const updatedAt = Date.parse(String(previous.updated_at ?? ''))
+    const fresh = !Number.isNaN(updatedAt) && Date.now() - updatedAt < 15 * 60_000
+    if (fresh && telemetrySnapshotUnchanged(previous, row)) {
+      return { success: true, skipped: true, docId }
+    }
     const updated = await db().updateDoc(USER_DEVICE_TELEMETRY, docId, row)
     return { success: updated.success, skipped: false, docId }
   }

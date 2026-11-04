@@ -1,7 +1,7 @@
 // 🚀 OPTIMIZED SERVICE: Ring-native implementation
 // - DatabaseService for persistence (NO Firebase!)
 // - Tunnel protocol for real-time updates (replaces Firebase RTDB)
-// - React 19 patterns: NO cache() for mutations, revalidatePath()
+// - React 19 patterns: NO cache() for mutations
 // - Multi-protocol support: WebSocket/SSE/Supabase/Long-polling based on backend mode
 
 import { db } from '@/lib/database';
@@ -12,8 +12,6 @@ import {
   MessageAttachment
 } from '@/features/chat/types'
 import { EntityDatabaseError, ValidationError, FetchError, logRingError } from '@/lib/errors'
-import { revalidatePath } from 'next/cache';
-
 // Tunnel protocol for real-time (replaces Firebase RTDB)
 import { publishToChannel } from '@/lib/tunnel/publisher';
 import { ConversationService } from '@/features/chat/services/conversation-service';
@@ -186,9 +184,6 @@ export class MessageService {
         logRingError(error, `Failed to send notifications for conversation ${data.conversationId}`)
       }
       
-      // Revalidate conversation page (React 19 pattern)
-      revalidatePath(`/[locale]/chat/${data.conversationId}`);
-
       return message
     } catch (error) {
       // Enhanced error logging with cause information
@@ -645,10 +640,6 @@ export class MessageService {
         editedAt: Date.now(),
       })
 
-      if (conversationId) {
-        revalidatePath(`/[locale]/chat/${conversationId}`)
-      }
-
       return updated
     } catch (error) {
       if (error instanceof ValidationError) {
@@ -706,11 +697,6 @@ export class MessageService {
         editedAt: Date.now()
       });
       
-      // Revalidate conversation (React 19 pattern)
-      if (conversationId) {
-        revalidatePath(`/[locale]/chat/${conversationId}`);
-      }
-      
       return updated;
       
     } catch (error) {
@@ -766,9 +752,6 @@ export class MessageService {
         content: '[Message deleted]',
         deletedAt: Date.now()
       });
-      
-      // Revalidate conversation (React 19 pattern)
-      revalidatePath(`/[locale]/chat/${conversationId}`);
       
     } catch (error) {
       if (error instanceof ValidationError) {

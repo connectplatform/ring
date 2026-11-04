@@ -10,7 +10,19 @@ import { TunnelProvider } from '@/lib/tunnel/types';
 import { getTunnelHub } from '@/lib/tunnel/hub';
 
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const queryToken = new URL(request.url).searchParams.get('token');
+  const hadExplicitToken = Boolean(
+    (authHeader?.startsWith('Bearer ') && authHeader.slice(7)) || queryToken,
+  );
   const authResult = await verifyAuth(request);
+
+  if (!authResult && hadExplicitToken) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   let userId: string;
   let email: string | undefined;

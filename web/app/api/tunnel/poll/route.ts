@@ -8,7 +8,16 @@ import { verifyAuth } from '@/lib/auth/edge-jwt';
 import { getTunnelHub } from '@/lib/tunnel/hub';
 
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const queryToken = new URL(request.url).searchParams.get('token');
+  const hadExplicitToken = Boolean(
+    (authHeader?.startsWith('Bearer ') && authHeader.slice(7)) || queryToken,
+  );
   const authResult = await verifyAuth(request);
+
+  if (!authResult && hadExplicitToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   let userId: string;
 

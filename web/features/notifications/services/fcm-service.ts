@@ -1,7 +1,8 @@
 // Token storage: Server Action + API route via fcm-token-db.ts
 // Push delivery: Firebase Admin SDK (FCM infrastructure)
 
-import { getMessaging, type BatchResponse, type Message } from 'firebase-admin/messaging'
+import { type BatchResponse, type Message } from 'firebase-admin/messaging'
+import { getAdminMessaging } from '@/lib/firebase-admin.server'
 import { db } from '@/lib/database'
 import { isInteractivePushNotificationType } from '@/features/notifications/lib/push-ttl'
 import {
@@ -38,11 +39,11 @@ function extractToken(row: FcmTokenRow): string | null {
 }
 
 export class FCMService {
-  private messaging: ReturnType<typeof getMessaging> | null = null
+  private messaging: ReturnType<typeof getAdminMessaging> | null = null
 
   private getMessagingInstance() {
     if (!this.messaging) {
-      this.messaging = getMessaging()
+      this.messaging = getAdminMessaging()
     }
     return this.messaging
   }

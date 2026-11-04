@@ -315,14 +315,16 @@ export class InMemoryTunnelHub implements TunnelHub {
   }
 
   /**
-   * Live SSE/WS only — no offline or poll enqueue.
+   * Live SSE/WS only — no offline enqueue.
    * Used by PostgresFanoutTunnelHub so publishing pods do not accumulate
    * ghost offline queues for users connected on other replicas (double-delivery).
+   * Poll clients on this pod still receive the frame.
    */
   publishToUserLive(userId: string, message: TunnelMessage): PublishToUserResult {
     const msg = ensureMessageId(message);
     const sseDelivered = this.deliverSseToUser(userId, msg);
     const wsDelivered = this.deliverWsToUser(userId, msg);
+    pushQueue(this.userPollQueues, userId, msg);
     return { sseDelivered, wsDelivered, queued: false };
   }
 

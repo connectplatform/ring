@@ -9,17 +9,11 @@ import { Button } from '@/components/ui/button'
 import { useOptionalStore } from '@/features/store/context'
 import { useCallSession } from '@/features/chat/providers/call-session-provider'
 import { usePeerGameBusy } from '@/features/peer-games/lib/peer-game-mutex'
-import { isIosBrowserTab, isIosSafari, isStandaloneDisplay } from '@/lib/browser/pwa-display'
+import { isIosBrowserTab, isIosDevice, isIosSafari, isStandaloneDisplay, canOfferHomeScreenInstall } from '@/lib/browser/pwa-display'
 import { isTelegramMiniAppShell } from '@/lib/browser/telegram-webapp'
+import { INSTALL_PROMPT_EVENT, readInstallPrompt, storeInstallPrompt } from '@/lib/browser/install-prompt'
 import { getClientCurtainPolicy, getClientMainCurrency } from '@/lib/ring-config-client'
-import {
-  CURTAIN_DROP_EVENT,
-  CURTAIN_EVENT_TYPES,
-  CURTAIN_PAGE_EVENT,
-  CURTAIN_PAGE_GATE_MS,
-  CURTAIN_QUEUE_MAX,
-  CURTAIN_SCROLL_STOP_MS,
-} from '@/features/curtain/constants'
+import { A2HS_OFFER_ID, CURTAIN_DROP_EVENT, CURTAIN_EVENT_TYPES, CURTAIN_HEIGHT_VH, CURTAIN_PAGE_EVENT, CURTAIN_PAGE_GATE_MS, CURTAIN_QUEUE_MAX, CURTAIN_SCROLL_STOP_MS } from '@/features/curtain/constants'
 import { CurtainBanner } from '@/features/curtain/components/curtain-banner'
 import { loadServerCurtainPrefs, requestCurtainDrop, syncCurtainPrefs } from '@/features/curtain/actions'
 import { curtainEventPayload, trackCurtain } from '@/features/curtain/lib/analytics'
@@ -59,9 +53,26 @@ function textOrFallback(
   return t.has(key) ? t(key) : CURTAIN_COPY[key]
 }
 
-function withoutA2hsOnTelegram(offers: CurtainDropParams[]): CurtainDropParams[] {
-  if (!isTelegramMiniAppShell()) return offers
-  return offers.filter((offer) => offer.kind !== 'a2hs')
+function canOfferA2hsNow(hasInstallPrompt: boolean): boolean {
+  return canOfferHomeScreenInstall({
+    isStandalone: isStandaloneDisplay(),
+    isTelegram: isTelegramMiniAppShell(),
+    isIosDevice: isIosDevice(),
+    isIosSafari: isIosSafari(),
+    hasInstallPrompt,
+  })
+}
+
+function a2hsOffer(pathname: string): CurtainDropParams {
+  return {
+    offerId: A2HS_OFFER_ID,
+    kind: 'a2hs',
+    line1: { text: '' },
+    ctaText: '',
+    ctaAction: 'a2hs',
+    heightVh: CURTAIN_HEIGHT_VH,
+    pagePath: pathname,
+  }
 }
 
 export function CurtainHost() {
@@ -109,9 +120,9 @@ export function CurtainHost() {
   const enqueue = useCallback((incoming: CurtainDropParams[]) => {
     const prefs = readCurtainPrefsClient()
     const now = Date.now()
-    const mobile = window.matchMedia('(max-width: 767px)').matches
-    const filtered = withoutA2hsOnTelegram(incoming).filter((offerRow) => {
-      if (offerRow.kind === 'a2hs' && !mobile) return false
+    const installable = canOfferA2hsNow(Boolean(deferredPrompt.current || readInstallPrompt()))
+    const filtered = incoming.filter((offerRow) => {
+      if (offerRow.kind === 'a2hs' && !installable) return false
       return canShowOffer(prefs.offers[offerRow.offerId], now, policy.maxImpressionsPerDay)
     })
     if (filtered.length === 0) return
@@ -205,15 +216,16 @@ export function CurtainHost() {
       }
     }
     if (offer.kind === 'a2hs') {
-      const promptEvent = deferredPrompt.current
+      const promptEvent = deferredPrompt.current || readInstallPrompt()
       if (promptEvent) {
+        deferredPrompt.current = promptEvent
         await promptEvent.prompt()
         deferredPrompt.current = null
+        window.__ringInstallPrompt = null
       } else if (isIosSafari()) {
         setInstallHelp('safari')
         return
-      } else if (isIosBrowserTab()) {
-        setInstallHelp('chrome')
+      } else {
         return
       }
     }
@@ -241,11 +253,26 @@ export function CurtainHost() {
   useEffect(() => {
     const onPrompt = (event: Event) => {
       event.preventDefault()
-      deferredPrompt.current = event as BeforeInstallPromptEvent
+      const promptEvent = event as BeforeInstallPromptEvent
+      storeInstallPrompt(promptEvent)
+      deferredPrompt.current = promptEvent
+      if (canOfferA2hsNow(true)) enqueue([a2hsOffer(pathname)])
     }
+    const onStored = () => {
+      const stored = readInstallPrompt()
+      if (!stored) return
+      deferredPrompt.current = stored
+      if (canOfferA2hsNow(true)) enqueue([a2hsOffer(pathname)])
+    }
+    deferredPrompt.current = readInstallPrompt()
+    if (deferredPrompt.current && canOfferA2hsNow(true)) enqueue([a2hsOffer(pathname)])
     window.addEventListener('beforeinstallprompt', onPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
-  }, [])
+    window.addEventListener(INSTALL_PROMPT_EVENT, onStored)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener(INSTALL_PROMPT_EVENT, onStored)
+    }
+  }, [enqueue, pathname])
 
   useEffect(() => {
     const onCustom = (event: Event) => {

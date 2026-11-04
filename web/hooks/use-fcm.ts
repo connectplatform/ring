@@ -36,15 +36,32 @@ async function subscribeWithVapid(): Promise<string | null> {
   const firebaseApp = getFirebaseClientApp()
   if (!firebaseApp || !vapidKey) return null
   const { getMessaging, getToken } = await import('firebase/messaging')
-  return getToken(getMessaging(firebaseApp), { vapidKey })
+  const registration =
+    typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+      ? await navigator.serviceWorker.getRegistration().catch(() => undefined)
+      : undefined
+  return getToken(getMessaging(firebaseApp), {
+    vapidKey,
+    ...(registration ? { serviceWorkerRegistration: registration } : {}),
+  })
 }
 
 let fcmInitializationInProgress = false
 let lastRegistrationTime = 0
 const REGISTRATION_DEBOUNCE_MS = 5000
 
-const FCM_SW_URL = '/firebase-messaging-sw.js'
-const RFC_SW_URL = '/push-sw.js'
+import { FCM_SW_URL, RFC_SW_URL, registerAppShellServiceWorker } from '@/lib/notifications/register-app-shell-sw'
+
+function applicationServerKeysMatch(existing: ArrayBuffer | null, publicKey: string): boolean {
+  if (!existing) return false
+  const current = new Uint8Array(existing)
+  const next = urlBase64ToUint8Array(publicKey)
+  if (current.length !== next.length) return false
+  for (let i = 0; i < current.length; i += 1) {
+    if (current[i] !== next[i]) return false
+  }
+  return true
+}
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -90,8 +107,16 @@ async function registerRfcWebPushSubscription(): Promise<boolean> {
 
     const existing = await registration.pushManager.getSubscription()
     if (existing) {
-      // FCM (or another stack) already owns this scope — do not dual-bind.
-      return false
+      if (isFcmConfigured()) {
+        // Chrome FCM owns this PushManager subscription. Do not replace it.
+        return false
+      }
+      const sameKey = applicationServerKeysMatch(
+        existing.options?.applicationServerKey ?? null,
+        data.publicKey,
+      )
+      if (sameKey) return false
+      await existing.unsubscribe()
     }
 
     const applicationServerKey = urlBase64ToUint8Array(data.publicKey)
@@ -145,18 +170,7 @@ async function registerPushServiceWorker(fcmUsable: boolean): Promise<void> {
   }
 
   try {
-    const existingFcm = await navigator.serviceWorker.getRegistration(FCM_SW_URL)
-    if (existingFcm) {
-      // FCM SW already owns `/` — do not replace it with push-sw.js.
-      return
-    }
-    const existingRfc = await navigator.serviceWorker.getRegistration(RFC_SW_URL)
-    if (!existingRfc) {
-      await navigator.serviceWorker.register(RFC_SW_URL, {
-        scope: '/',
-        updateViaCache: 'none',
-      })
-    }
+    await registerAppShellServiceWorker()
   } catch (swError) {
     console.warn('RFC Service Worker registration failed:', swError)
   }
@@ -324,7 +338,6 @@ export function useFCM(): FCMHookReturn {
           isLoading: false,
         }))
       } finally {
-        lastRegistrationTime = Date.now()
         fcmInitializationInProgress = false
       }
     }
@@ -402,8 +415,6 @@ export function useFCM(): FCMHookReturn {
     try {
       if (!session?.user?.id) return
 
-      lastRegistrationTime = Date.now()
-
       const deviceFingerprint = getOrCreateDeviceFingerprint()
       if (!deviceFingerprint) {
         console.warn('FCM device fingerprint unavailable')
@@ -417,23 +428,17 @@ export function useFCM(): FCMHookReturn {
         lastSeen: new Date().toISOString(),
       }
 
-      const response = await fetch('/api/notifications/fcm/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          deviceFingerprint,
-          deviceInfo,
-          platform: 'web',
-        }),
+      const { upsertFcmToken } = await import('@/app/_actions/fcm')
+      const result = await upsertFcmToken({
+        token,
+        deviceFingerprint,
+        deviceInfo,
+        platform: 'web',
       })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(
-          (data as { error?: string }).error || 'Failed to register token with server',
-        )
+      if ('error' in result) {
+        throw new Error(result.error)
       }
+      lastRegistrationTime = Date.now()
     } catch (error) {
       console.error('FCM token registration failed:', error)
     }

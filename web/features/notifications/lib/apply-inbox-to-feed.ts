@@ -75,5 +75,11 @@ export function applyInboxToFeed(
     actionUrl: incoming.actionUrl,
   }
 
+  // Skip rows the current filter would hide anyway: an already-read
+  // notification must not surface inside the "unread" list.
+  if (typeFilter === 'unread' && (incoming.readAt || incoming.status === NotificationStatus.READ)) {
+    return items
+  }
+
   return [mapped, ...items.filter((item) => item.id !== mapped.id)]
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals'
 import {
+  canOfferHomeScreenInstall,
   isIosSafariFromUa,
   needsIosHomeScreenForPushFromState,
 } from '@/lib/browser/pwa-display'
@@ -61,5 +62,52 @@ describe('pwa-display iOS Safari install CTA', () => {
         hasPushManager: false,
       }),
     ).toBe(false)
+  })
+})
+
+describe('home screen install offer', () => {
+  it('shows for iOS Safari tabs and Chromium only after the install prompt', () => {
+    expect(canOfferHomeScreenInstall({
+      isStandalone: false,
+      isTelegram: false,
+      isIosDevice: true,
+      isIosSafari: true,
+      hasInstallPrompt: false,
+    })).toBe(true)
+    expect(canOfferHomeScreenInstall({
+      isStandalone: false,
+      isTelegram: false,
+      isIosDevice: true,
+      isIosSafari: false,
+      hasInstallPrompt: true,
+    })).toBe(false)
+    expect(canOfferHomeScreenInstall({
+      isStandalone: false,
+      isTelegram: true,
+      isIosDevice: false,
+      isIosSafari: false,
+      hasInstallPrompt: true,
+    })).toBe(false)
+    expect(canOfferHomeScreenInstall({
+      isStandalone: true,
+      isTelegram: false,
+      isIosDevice: false,
+      isIosSafari: false,
+      hasInstallPrompt: true,
+    })).toBe(false)
+    expect(canOfferHomeScreenInstall({
+      isStandalone: false,
+      isTelegram: false,
+      isIosDevice: false,
+      isIosSafari: false,
+      hasInstallPrompt: false,
+    })).toBe(false)
+    expect(canOfferHomeScreenInstall({
+      isStandalone: false,
+      isTelegram: false,
+      isIosDevice: false,
+      isIosSafari: false,
+      hasInstallPrompt: true,
+    })).toBe(true)
   })
 })

@@ -93,6 +93,8 @@ function TunnelProviderRuntime({
   pathnameRef.current = pathname;
   const sessionUserIdRef = useRef<string | null>(null);
   sessionUserIdRef.current = session?.user?.id ?? null;
+  const connectedUserIdRef = useRef<string | null>(null);
+  const identitySwapRef = useRef(false);
 
   // Track authentication state changes for racing protection
   useEffect(() => {
@@ -229,10 +231,45 @@ function TunnelProviderRuntime({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, debug, timingStrategy]);
 
-  // Effect B — session-aware initial connect with auth grace (no subscription teardown)
+  // Effect B — session-aware initial connect with auth grace (no subscription teardown).
+  // Reconnect when the socket identity changes (anon guest → member, or sign-out).
   useEffect(() => {
     const manager = managerRef.current;
-    if (!manager || sessionStatus === 'loading' || manager.isConnected()) {
+    if (!manager || sessionStatus === 'loading' || identitySwapRef.current) {
+      return;
+    }
+
+    const targetUserId =
+      sessionStatus === 'authenticated' ? (session?.user?.id ?? null) : 'anon';
+    if (sessionStatus === 'authenticated' && !targetUserId) {
+      return;
+    }
+
+    const connectForIdentity = () => {
+      connectedUserIdRef.current = targetUserId;
+      tunnelTimingManager.forgetInitializedRoutes();
+      void tunnelTimingManager.initializeForRoute(pathnameRef.current).catch(err => {
+        console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
+        setError(err);
+      });
+    };
+
+    if (manager.isConnected() && connectedUserIdRef.current === targetUserId) {
+      return;
+    }
+
+    if (manager.isConnected() && connectedUserIdRef.current !== targetUserId) {
+      identitySwapRef.current = true;
+      void manager.disconnect().then(async () => {
+        connectedUserIdRef.current = targetUserId;
+        tunnelTimingManager.forgetInitializedRoutes();
+        await tunnelTimingManager.initializeForRoute(pathnameRef.current);
+      }).catch(err => {
+        console.error('[TunnelProvider] Failed to reconnect tunnel for session:', err);
+        setError(err as Error);
+      }).finally(() => {
+        identitySwapRef.current = false;
+      });
       return;
     }
 
@@ -244,20 +281,14 @@ function TunnelProviderRuntime({
     if (isRecentlyAuthenticated) {
       const timeoutId = setTimeout(() => {
         if (!manager.isConnected()) {
-          void tunnelTimingManager.initializeForRoute(pathnameRef.current).catch(err => {
-            console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
-            setError(err);
-          });
+          connectForIdentity();
         }
       }, Math.max(0, authGraceMs - timeSinceAuth));
       return () => clearTimeout(timeoutId);
     }
 
-    void tunnelTimingManager.initializeForRoute(pathnameRef.current).catch(err => {
-      console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
-      setError(err);
-    });
-  }, [sessionStatus, lastAuthTime]);
+    connectForIdentity();
+  }, [sessionStatus, lastAuthTime, session?.user?.id]);
 
   // Effect C — route timing updates without tearing down channel subscriptions
   useEffect(() => {

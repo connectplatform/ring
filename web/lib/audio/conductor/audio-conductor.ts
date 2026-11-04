@@ -113,7 +113,9 @@ export const AudioConductor = {
       const upload = await file().upload(objectKey, output.buffer, {
         access: 'public',
         contentType: output.contentType,
-        ringbaseType: 'media',
+        // Same as TTS: type=media is image-validated on the live filebase-api
+        // image until isImageType stops treating non-image media as images.
+        ringbaseType: 'other',
         derivativesProfile: 'none',
         metadata: {
           source: 'suno',

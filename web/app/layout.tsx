@@ -23,6 +23,7 @@ import {
   SUPPORTED_LOCALES,
   type Locale,
 } from '@/lib/locale-config'
+import { INSTALL_PROMPT_BOOT_SCRIPT } from '@/lib/browser/install-prompt'
 
 // --- Pre-computed client config strings (inlined into beforeInteractive scripts) ---
 const CLIENT_LOCALE_CONFIG = getClientLocaleConfig()
@@ -232,6 +233,11 @@ export default function RootLayout({
           id="ring-locale-config"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: LOCALE_CONFIG_SCRIPT }}
+        />
+        <Script
+          id="ring-install-prompt"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_BOOT_SCRIPT }}
         />
         <Script
           id="ring-sidebar-cookie"

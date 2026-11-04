@@ -79,12 +79,12 @@ export function determineChannels(
   priority?: NotificationPriority,
   now: Date = new Date(),
 ): NotificationChannel[] {
-  if (!preferences) {
+  if (!preferences || !preferences.channels) {
     const channels = new Set<NotificationChannel>([NotificationChannel.IN_APP])
     if (requestedChannels?.includes(NotificationChannel.PUSH)) {
       channels.add(NotificationChannel.PUSH)
     }
-    return [...channels]
+    return suppressQuietChannels([...channels], preferences, priority, now)
   }
 
   const availableChannels: NotificationChannel[] = []

@@ -49,7 +49,7 @@ export interface UseSyncReturn<T> {
   error: string | null
   usingTunnel: boolean
   tunnelConnected: boolean
-  refresh: () => Promise<T | null>
+  refresh: (options?: { ignoreCache?: boolean }) => Promise<T | null>
   clearCache: () => void
   clearError: () => void
 }
@@ -153,7 +153,7 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
     setCached(nextData)
   }, [setCached])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { ignoreCache?: boolean }) => {
     if (!enabledRef.current || inFlightRef.current) {
       return dataRef.current
     }
@@ -162,7 +162,7 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
     setError(null)
 
     try {
-      const cached = getCached()
+      const cached = options?.ignoreCache ? null : getCached()
       if (cached !== null) {
         applyData(cached)
         return cached
@@ -212,7 +212,8 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
         }
 
         if (action.shouldRefetch) {
-          void refresh()
+          clearCache()
+          void refresh({ ignoreCache: true })
         }
       })
       setUsingTunnel((prev) => (prev ? prev : true))

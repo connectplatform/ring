@@ -295,6 +295,14 @@ class TunnelTimingManager {
   }
 
   /**
+   * Allow the same route to connect again after a session-identity change.
+   * Does not reset timing config loaded from the environment.
+   */
+  forgetInitializedRoutes(): void {
+    this.initializedRoutes.clear();
+  }
+
+  /**
    * Reset for testing
    */
   reset(): void {

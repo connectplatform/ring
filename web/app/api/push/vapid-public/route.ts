@@ -3,9 +3,10 @@
  * Dedicated keypair — not the Firebase Console certificate.
  */
 
-import { NextResponse } from 'next/server'
+import { NextResponse, connection } from 'next/server'
 
 export async function GET() {
+  await connection()
   const publicKey = process.env.VAPID_PUBLIC_KEY?.trim()
   if (!publicKey) {
     return NextResponse.json(

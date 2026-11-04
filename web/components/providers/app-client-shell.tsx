@@ -16,6 +16,7 @@ import {
 import { getPublicInstanceConfigFromSnapshot } from '@/lib/ring-config-core'
 import { isLoginPath } from '@/lib/pathname-without-locale'
 import { AppProvider } from '@/contexts/app-context'
+import { AppShellServiceWorker } from '@/components/providers/app-shell-service-worker'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
 import { CallSessionProvider } from '@/features/chat/providers/call-session-provider'
@@ -97,6 +98,7 @@ export function AppClientShell({
                             <Suspense fallback={null}>
                               <RingAnalyticsBeacon />
                             </Suspense>
+                            <AppShellServiceWorker />
                           </StoreProvider>
                         </StorePaymentMethodsProvider>
                       </Web3ScopeProvider>

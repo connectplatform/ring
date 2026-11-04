@@ -77,4 +77,17 @@ describe('applyInboxToFeed', () => {
     const kept = [row('a')]
     expect(applyInboxToFeed(kept, { action: 'notification', notification: { id: 'x' } }, 'all')).toBe(kept)
   })
+
+  it('does not surface an already-read arrival inside the unread filter', () => {
+    const items = [row('old')]
+    const next = applyInboxToFeed(
+      items,
+      {
+        action: 'notification',
+        notification: { id: 'seen', title: 'Seen', readAt: '2026-01-02T00:00:00.000Z' },
+      },
+      'unread',
+    )
+    expect(next).toBe(items)
+  })
 })

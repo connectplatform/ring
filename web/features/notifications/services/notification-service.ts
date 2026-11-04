@@ -1,16 +1,9 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
-
 /**
  * Notification Service
- * Server-side service for managing notifications in Ring platform
- * Follows Ring's established service patterns with Firebase Admin SDK
+ * Unread counts are a live COUNT plus publishToUserTunnel.
+ * Do not wrap the count in React cache() — that would pin the badge for the request.
  */
 
-import { cache } from 'react';
 import { db } from '@/lib/database';
 
 import {
@@ -626,12 +619,39 @@ export async function updateUserNotificationPreferences(
     )
 
     const now = new Date()
-    const currentPrefs =
+    const currentPrefs: Partial<DetailedNotificationPreferences> =
       readResult.success && readResult.data ? readResult.data : {}
+
+    const currentChannels =
+      currentPrefs.channels && typeof currentPrefs.channels === 'object'
+        ? currentPrefs.channels
+        : undefined
+    const currentTypes =
+      currentPrefs.types && typeof currentPrefs.types === 'object' ? currentPrefs.types : undefined
+    const currentQuiet =
+      currentPrefs.quietHours && typeof currentPrefs.quietHours === 'object'
+        ? currentPrefs.quietHours
+        : undefined
+    const currentFrequency =
+      currentPrefs.frequency && typeof currentPrefs.frequency === 'object'
+        ? currentPrefs.frequency
+        : undefined
 
     const updatedPrefs = {
       ...currentPrefs,
       ...preferences,
+      ...(currentChannels || preferences.channels
+        ? { channels: { ...currentChannels, ...preferences.channels } }
+        : {}),
+      ...(currentTypes || preferences.types
+        ? { types: { ...currentTypes, ...preferences.types } }
+        : {}),
+      ...(currentQuiet || preferences.quietHours
+        ? { quietHours: { ...currentQuiet, ...preferences.quietHours } }
+        : {}),
+      ...(currentFrequency || preferences.frequency
+        ? { frequency: { ...currentFrequency, ...preferences.frequency } }
+        : {}),
       updated_at: now,
       updatedAt: now,
     }
@@ -664,11 +684,9 @@ function shouldSendNotification(
   type: NotificationType,
   preferences: DetailedNotificationPreferences | null
 ): boolean {
-  if (!preferences || !preferences.enabled) {
-    return true; // Default to sending if no preferences set
-  }
-
-  return preferences.types[type] !== false; // Default to true if not specified
+  if (!preferences) return true
+  if (preferences.enabled === false) return false
+  return preferences.types?.[type] !== false
 }
 
 
@@ -722,6 +740,9 @@ async function processNotificationDelivery(notification: Notification): Promise<
               if (dualStatus === 'failed') {
                 delivery.status = NotificationStatus.FAILED
                 delivery.failureReason = `FCM ${fcm.sent}/${fcm.attempted} RFC ${rfc.sent}/${rfc.attempted}`
+              } else if (dualStatus === 'noop') {
+                delivery.status = NotificationStatus.CANCELLED
+                delivery.failureReason = 'No active push subscriptions'
               } else {
                 delivery.status = NotificationStatus.DELIVERED
                 delivery.deliveredAt = new Date()

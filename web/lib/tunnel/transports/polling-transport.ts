@@ -16,6 +16,7 @@ import {
   TunnelEventHandler,
 } from '../types';
 import { MessageConverter, createTunnelMessage, TunnelMessageType } from '../protocol';
+import { isJwtExpired } from '../jwt-exp';
 
 export class PollingTransport implements TunnelTransport {
   private connectionState: TunnelConnectionState = TunnelConnectionState.DISCONNECTED;
@@ -61,10 +62,13 @@ export class PollingTransport implements TunnelTransport {
     this.connectionState = TunnelConnectionState.CONNECTING;
     
     try {
+      if (this.authToken && isJwtExpired(this.authToken)) {
+        this.authToken = undefined;
+      }
       // Get auth token if needed
-      if (this.options.auth?.token) {
+      if (this.options.auth?.token && !isJwtExpired(this.options.auth.token)) {
         this.authToken = this.options.auth.token;
-      } else {
+      } else if (!this.authToken) {
         this.authToken = await this.fetchAuthToken();
       }
 
@@ -128,6 +132,10 @@ export class PollingTransport implements TunnelTransport {
     const startTime = Date.now();
     
     try {
+      if (this.authToken && isJwtExpired(this.authToken)) {
+        this.authToken = await this.fetchAuthToken();
+      }
+
       const url = new URL(this.options.url!, window.location.origin);
       
       // Add query parameters
@@ -159,6 +167,9 @@ export class PollingTransport implements TunnelTransport {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          this.authToken = undefined;
+        }
         throw new Error(`Poll failed: ${response.status}`);
       }
 

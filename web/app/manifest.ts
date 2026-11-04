@@ -10,8 +10,6 @@ export default function manifest(): MetadataRoute.Manifest {
   const snap = getSystemConfigSnapshot()
   const apple =
     snap.branding?.logo?.appleTouchIcon || '/apple-touch-icon.png'
-  const favicon = pub.brand.faviconUrl || '/favicon.ico'
-  const logo = pub.brand.logoUrl || '/images/logo.svg'
   const shortName = snap.clone?.shortName || pub.name
 
   return {
@@ -24,21 +22,21 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: pub.brand.colors.primary,
     icons: [
       {
-        src: apple,
-        sizes: '180x180',
+        src: '/icons/pwa-192.png',
+        sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: favicon,
-        sizes: 'any',
-        type: 'image/x-icon',
+        src: '/icons/pwa-512.png',
+        sizes: '512x512',
+        type: 'image/png',
         purpose: 'any',
       },
       {
-        src: logo,
-        sizes: '192x192',
-        type: 'image/svg+xml',
+        src: apple,
+        sizes: '180x180',
+        type: 'image/png',
         purpose: 'any',
       },
     ],

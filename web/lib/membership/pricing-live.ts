@@ -14,6 +14,7 @@ import 'server-only'
  */
 
 import { getNativeTokenToMainCurrencyRate } from '@/lib/ring-oracle'
+import { getSystemConfigSnapshot } from '@/lib/ring-config-core'
 import type { MemberTierConfig } from '@/lib/ring-config-types'
 import {
   getMemberMainCurrencyTierForPeriod,
@@ -40,11 +41,26 @@ export async function getLiveMembershipMainCurrencyAmountForPeriod(
   return getLiveMembershipMainCurrencyAmountForNative(getMembershipRingAmountForPeriod(period))
 }
 
+/**
+ * When `pricedInNativeToken` is false, `membership.tiers.*.amount` is the
+ * charge. The desk oracle must not replace it with token × rate.
+ */
+function fiatLockedTierAmount(period: MembershipBillingPeriod): number | null {
+  const tiers = getSystemConfigSnapshot().membership?.tiers as
+    | Record<string, { amount?: number; pricedInNativeToken?: boolean }>
+    | undefined
+  const row = tiers?.[period === 'yearly' ? 'memberAnnual' : 'member']
+  if (!row || row.pricedInNativeToken !== false) return null
+  return Number.isFinite(row.amount) ? Number(row.amount) : null
+}
+
 /** Live desk tier for the pay path — same shape as the sync tier, live amount. */
 export async function getLiveMemberMainCurrencyTierForPeriod(
   period: MembershipBillingPeriod,
 ): Promise<MemberTierConfig> {
   const tier = getMemberMainCurrencyTierForPeriod(period)
+  const locked = fiatLockedTierAmount(period)
+  if (locked != null) return { ...tier, amount: locked }
   return {
     ...tier,
     amount: await getLiveMembershipMainCurrencyAmountForPeriod(period),

@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { MessageConverter, createTunnelMessage, TunnelMessageType } from '../protocol';
 import { computeReconnectDelay } from '../reconnect-backoff';
+import { isJwtExpired } from '../jwt-exp';
 
 export class SSETransport implements TunnelTransport {
   private eventSource: EventSource | null = null;
@@ -60,10 +61,13 @@ export class SSETransport implements TunnelTransport {
     this.connectionState = TunnelConnectionState.CONNECTING;
     
     try {
+      if (this.authToken && isJwtExpired(this.authToken)) {
+        this.authToken = undefined;
+      }
       // Get auth token if available (optional for public connections)
-      if (this.options.auth?.token) {
+      if (this.options.auth?.token && !isJwtExpired(this.options.auth.token)) {
         this.authToken = this.options.auth.token;
-      } else {
+      } else if (!this.authToken) {
         // Try to get auth token, but don't fail if unavailable
         try {
           this.authToken = await this.fetchAuthToken();

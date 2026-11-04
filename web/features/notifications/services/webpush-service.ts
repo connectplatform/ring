@@ -134,7 +134,7 @@ export class WebPushService {
         err && typeof err === 'object' && 'statusCode' in err
           ? Number((err as { statusCode: number }).statusCode)
           : 0
-      if (statusCode === 404 || statusCode === 410) {
+      if (statusCode === 404 || statusCode === 410 || statusCode === 401 || statusCode === 403) {
         await deactivatePushSubscription(sub.id)
       }
       throw err

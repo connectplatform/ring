@@ -32,13 +32,18 @@ function extractOutputText(payload: XaiResponsesPayload): string {
 
 function buildTools(ctx: GenerateTextContext, config: ReturnType<typeof getXaiTextConfig>) {
   const tools: Array<Record<string, unknown>> = []
-  if (ctx.webSearch ?? config.webSearch) {
+  // Structured /responses calls default search tools off. Callers that need
+  // web_search (article draft, product research) pass webSearch/xSearch: true.
+  // Undefined + jsonSchema used to attach both tools and 400 with text.format.
+  const webSearch = ctx.webSearch ?? (ctx.jsonSchema ? false : config.webSearch)
+  const xSearch = ctx.xSearch ?? (ctx.jsonSchema ? false : config.xSearch)
+  if (webSearch) {
     const tool: Record<string, unknown> = { type: 'web_search' }
     if (ctx.allowedDomains?.length) tool.allowed_domains = ctx.allowedDomains.slice(0, 5)
     if (ctx.excludedDomains?.length) tool.excluded_domains = ctx.excludedDomains.slice(0, 5)
     tools.push(tool)
   }
-  if (ctx.xSearch ?? config.xSearch) {
+  if (xSearch) {
     tools.push({ type: 'x_search' })
   }
   return tools
@@ -69,9 +74,11 @@ export async function generateXaiText(ctx: GenerateTextContext): Promise<XaiText
   }
 
   if (ctx.jsonSchema) {
-    body.response_format = {
-      type: 'json_schema',
-      json_schema: {
+    // POST /v1/responses rejects Chat Completions `response_format` (HTTP 400).
+    // Structured output on this endpoint is `text.format`.
+    body.text = {
+      format: {
+        type: 'json_schema',
         name: ctx.jsonSchema.name,
         strict: ctx.jsonSchema.strict ?? true,
         schema: ctx.jsonSchema.schema,

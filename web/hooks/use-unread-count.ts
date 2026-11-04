@@ -79,7 +79,9 @@ export function useUnreadCount(options: UseUnreadCountOptions = {}): UseUnreadCo
     autoRefresh,
     refreshInterval,
     cache: {
-      key: 'notifications-unread',
+      key: session?.user?.id
+        ? `notifications-unread:${session.user.id}`
+        : 'notifications-unread:anon',
       ttlMs: cacheTimeout
     },
     fetcher: fetchUnreadCount,

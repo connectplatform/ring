@@ -27,6 +27,8 @@ export interface NotificationsSidebarContentProps {
   quietHours?: boolean
   onQuietHoursChange?: (value: boolean) => void
   quietHoursUpdating?: boolean
+  /** Hide the quick toggle where the full preferences editor owns it (settings page). */
+  showQuietHours?: boolean
   onNavigate?: () => void
 }
 
@@ -42,6 +44,7 @@ export function NotificationsSidebarContent({
   quietHours = false,
   onQuietHoursChange,
   quietHoursUpdating = false,
+  showQuietHours = true,
   onNavigate,
 }: NotificationsSidebarContentProps) {
   const router = useRouter()
@@ -100,7 +103,10 @@ export function NotificationsSidebarContent({
         </CardContent>
       </Card>
 
-      {/* Quiet Hours Toggle (persisted via notification preferences) */}
+      {/* Quiet Hours Toggle — quick toggle on the list page only.
+          Where the full preferences editor owns it (settings page) it is hidden
+          to avoid two unsynchronized instances of the same preference. */}
+      {showQuietHours && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -136,6 +142,7 @@ export function NotificationsSidebarContent({
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }

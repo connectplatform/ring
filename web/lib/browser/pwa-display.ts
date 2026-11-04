@@ -49,13 +49,29 @@ export function isIosSafari(): boolean {
 /** iPhone/iPad running as a browser tab, not a Home Screen web app (any iOS browser). */
 export function isIosBrowserTab(): boolean {
   if (typeof window === 'undefined') return false
-  const ua = window.navigator.userAgent || ''
-  const iOS = isIosDeviceFromUa(
-    ua,
-    window.navigator.platform || '',
-    window.navigator.maxTouchPoints || 0,
-  )
-  return iOS && !isStandaloneDisplay()
+  return isIosDevice() && !isStandaloneDisplay()
+}
+
+export function isIosDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  const nav = window.navigator
+  return isIosDeviceFromUa(nav.userAgent || '', nav.platform || '', nav.maxTouchPoints || 0)
+}
+
+/**
+ * Install curtain: not already installed, and this browser can complete install.
+ * Chromium only after `beforeinstallprompt`. iOS only real Safari. Telegram never.
+ */
+export function canOfferHomeScreenInstall(opts: {
+  isStandalone: boolean
+  isTelegram: boolean
+  isIosDevice: boolean
+  isIosSafari: boolean
+  hasInstallPrompt: boolean
+}): boolean {
+  if (opts.isStandalone || opts.isTelegram) return false
+  if (opts.isIosDevice) return opts.isIosSafari
+  return opts.hasInstallPrompt
 }
 
 export function needsIosHomeScreenForPushFromState(opts: {

@@ -67,6 +67,7 @@ export default function NotificationsWrapper({
         quietHours={quietHoursEnabled}
         onQuietHoursChange={handleQuietHoursChange}
         quietHoursUpdating={updatingPreferences}
+        showQuietHours={showTitleRow}
         onNavigate={closeRail}
       />
     ),

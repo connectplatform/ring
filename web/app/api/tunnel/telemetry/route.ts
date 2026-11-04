@@ -43,12 +43,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { domain, deviceId, ts, payload } = parsed.data
-    await publishToUserTunnel(userId, telemetryChannelForDomain(domain), {
-      domain,
-      deviceId,
-      ts: ts ?? Date.now(),
-      payload,
-    })
+    if (!skipped) {
+      await publishToUserTunnel(userId, telemetryChannelForDomain(domain), {
+        domain,
+        deviceId,
+        ts: ts ?? Date.now(),
+        payload,
+      })
+    }
 
     return NextResponse.json({
       success: true,

@@ -86,6 +86,8 @@ export function useConversations(
   const [hasMore, setHasMore] = useState(false)
 
   const cursorRef = useRef<string | null>(null)
+  const appliedInboxIdsRef = useRef(new Set<string>())
+  const rosterRefreshRef = useRef(false)
   const filtersKey = stableFiltersKey(filters)
   const limit = pagination?.limit ?? 20
 
@@ -233,8 +235,13 @@ export function useConversations(
       const cid = payload.conversationId
       const selfId = session?.user?.id
       const incoming = payload.message
-      setConversations((prev) =>
-        prev.map((c) => {
+      if (appliedInboxIdsRef.current.has(incoming.id)) return
+      appliedInboxIdsRef.current.add(incoming.id)
+      let known = false
+      setConversations((prev) => {
+        known = prev.some((c) => c.id === cid)
+        if (!known) return prev
+        return prev.map((c) => {
           if (c.id !== cid) return c
           const bump =
             incoming.senderId !== selfId ? (c.unreadCount ?? 0) + 1 : (c.unreadCount ?? 0)
@@ -253,17 +260,32 @@ export function useConversations(
             } as Message,
             updatedAt: new Date(),
           }
-        }),
-      )
+        })
+      })
+      if (!known && !rosterRefreshRef.current) {
+        rosterRefreshRef.current = true
+        void fetchConversations(true).finally(() => {
+          rosterRefreshRef.current = false
+        })
+      }
     },
-    [session?.user?.id],
+    [session?.user?.id, fetchConversations],
   )
 
-  useTunnelChannel({
+  const { isConnected: inboxTunnelConnected } = useTunnelChannel({
     channel: 'conversations:inbox',
     enabled: Boolean(session?.user?.id),
     onTunnelMessage: handleInboxTunnel,
   })
+
+  const wasInboxConnected = useRef(false)
+  useEffect(() => {
+    const up = inboxTunnelConnected
+    if (up && !wasInboxConnected.current && session?.user?.id) {
+      void fetchConversations(true)
+    }
+    wasInboxConnected.current = up
+  }, [inboxTunnelConnected, session?.user?.id, fetchConversations])
 
   const clearUnread = useCallback((conversationId: string) => {
     setConversations((prev) =>
@@ -548,6 +570,24 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
     window.addEventListener(CONVERSATION_MESSAGE_EVENT, onLocal)
     return () => window.removeEventListener(CONVERSATION_MESSAGE_EVENT, onLocal)
   }, [])
+
+  const wasThreadConnected = useRef(false)
+  useEffect(() => {
+    const up = isTunnelConnected
+    if (up && !wasThreadConnected.current && session?.user?.id && conversationId) {
+      void fetchMessages(false, { quiet: true })
+    }
+    wasThreadConnected.current = up
+  }, [isTunnelConnected, session?.user?.id, conversationId, fetchMessages])
+
+  useEffect(() => {
+    if (!session?.user?.id || !conversationId) return
+    const onVisible = () => {
+      if (!document.hidden) void fetchMessages(false, { quiet: true })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [session?.user?.id, conversationId, fetchMessages])
 
   // Tunnel-down safety net — quiet catch-up merges latest page; never wipes loaded history
   useEffect(() => {

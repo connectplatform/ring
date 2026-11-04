@@ -66,6 +66,11 @@ export type DocsArticleEnrichment = {
     contentSha256: string
     generatedAt: string
   }
+  /**
+   * Bump when the radio-host prompt or provider contract changes.
+   * Rows below the current revision regenerate script + TTS once.
+   */
+  audibleRevision?: number
   /** In-flight flags for page-load / Create flows */
   generatingAudible?: boolean
   generatingLlm?: boolean
@@ -99,6 +104,9 @@ function enrichmentId(locale: string, slug: string[]): string {
     200,
   )
 }
+
+/** Radio-host contract. Legacy rows (no revision) and older scripts regenerate once. */
+const AUDIBLE_SCRIPT_REVISION = 2
 
 /** Full content SHA-256 — also used as ring-filebase audio filename stem. */
 export function hashArticleContentSha256(locale: string, slug: string[], plain: string): string {
@@ -222,9 +230,11 @@ async function saveEnrichment(record: DocsArticleEnrichment): Promise<void> {
   try {
     const existing = await db().findDocById('docs_article_enrichment', record.id)
     if (existing.success && existing.data) {
+      const prior = existing.data as DocsArticleEnrichment
       await db().updateDoc('docs_article_enrichment', record.id, {
         ...record,
-        created_at: (existing.data as DocsArticleEnrichment).created_at ?? record.created_at,
+        audibleRevision: record.audibleRevision ?? prior.audibleRevision,
+        created_at: prior.created_at ?? record.created_at,
       })
       return
     }
@@ -258,7 +268,10 @@ function invalidatePriorAudible(
   }
   // Reuse radio-host script for same SHA even when TTS object is still missing
   const keepAudibleText =
-    !!existing && existing.contentSha256 === nextSha && !!existing.audibleText?.trim()
+    !!existing &&
+    existing.contentSha256 === nextSha &&
+    existing.audibleRevision === AUDIBLE_SCRIPT_REVISION &&
+    !!existing.audibleText?.trim()
 
   if (existing?.ttsAudio && existing.contentSha256 !== nextSha) {
     history.audibles.push({
@@ -413,6 +426,8 @@ export async function ensureAudibleText(input: {
       instructions: priorAudible
         ? alignAudibleInstructions(input.locale, priorAudible, article.plain)
         : radioHostInstructions(input.locale),
+      webSearch: false,
+      xSearch: false,
     },
     {
       name: 'docs_audible_text',
@@ -443,6 +458,7 @@ export async function ensureAudibleText(input: {
     locale: input.locale,
     slug: input.slug.join('/') || 'index',
     contentSha256: article.contentSha256,
+    audibleRevision: AUDIBLE_SCRIPT_REVISION,
     audibleText,
     ttsAudio: keepAudibleText ? existing?.ttsAudio : undefined,
     llmText:
@@ -480,6 +496,7 @@ export async function ensureTtsAudio(input: {
     !!row.ttsAudio?.url &&
     row.ttsAudio.contentSha256 === article.contentSha256 &&
     row.ttsAudio.objectKey === docsAudioObjectKey(article.contentSha256) &&
+    row.audibleRevision === AUDIBLE_SCRIPT_REVISION &&
     !!row.audibleText
 
   if (ttsReady(existing)) {
