@@ -26,7 +26,7 @@ export function resolveRingBaseUploadType(opts: {
   const ct = opts.contentType.toLowerCase()
   if (ct.startsWith('image/')) return 'image'
   if (ct.startsWith('video/')) return 'media'
-  if (ct.startsWith('audio/')) return 'other'
+  if (ct.startsWith('audio/')) return 'media'
   return 'other'
 }
 

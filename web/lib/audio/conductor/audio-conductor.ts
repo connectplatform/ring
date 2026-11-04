@@ -57,9 +57,7 @@ export const AudioConductor = {
       const upload = await file().upload(objectKey, output.buffer, {
         access: 'public',
         contentType,
-        // RingFileBase isImageType() includes `media`, so MP3s fail with
-        // "Invalid image file". `other` allows */* until filebase-api is patched.
-        ringbaseType: 'other',
+        ringbaseType: 'media',
         derivativesProfile: 'none',
         metadata: {
           source: provider,
@@ -113,9 +111,7 @@ export const AudioConductor = {
       const upload = await file().upload(objectKey, output.buffer, {
         access: 'public',
         contentType: output.contentType,
-        // Same as TTS: type=media is image-validated on the live filebase-api
-        // image until isImageType stops treating non-image media as images.
-        ringbaseType: 'other',
+        ringbaseType: 'media',
         derivativesProfile: 'none',
         metadata: {
           source: 'suno',

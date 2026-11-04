@@ -77,7 +77,7 @@ export function resolveRingbaseTypeForPurpose(
   const ct = (contentType || '').toLowerCase()
   if (ct.startsWith('image/')) return 'image'
   if (ct.startsWith('video/')) return 'media'
-  if (ct.startsWith('audio/')) return 'other'
+  if (ct.startsWith('audio/')) return 'media'
   if (
     p.includes('kyc') ||
     p.includes('verification') ||
