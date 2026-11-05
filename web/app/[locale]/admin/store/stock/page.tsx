@@ -13,8 +13,9 @@ import AdminWrapper from '@/components/wrappers/admin-wrapper'
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
 import { connection } from 'next/server'
 import StoreHubTabs from '@/components/admin/store-hub-tabs'
-import { ERPStockService } from '@/features/store/services/erp-stock-service'
-import AdminStockClient from './admin-stock-client'
+import { getWarehouseStockReport } from '@/features/store/services/warehouse-fulfillment'
+import { WarehouseStockPanel } from '@/features/admin/store/warehouse-stock-panel'
+import { ZERO_WAREHOUSE_ID } from '@/features/store/constants/stock'
 
 export async function generateMetadata({
   params,
@@ -36,12 +37,15 @@ export async function generateMetadata({
 
 export default async function AdminStoreStockPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>
+  searchParams: Promise<{ warehouse?: string }>
 }) {
   await connection()
 
   const { locale: localeParam } = await params
+  const { warehouse } = await searchParams
   const locale = routing.locales.includes(localeParam as Locale)
     ? (localeParam as Locale)
     : routing.defaultLocale
@@ -52,23 +56,13 @@ export default async function AdminStoreStockPage({
 
   const t = await getTranslations('modules.admin')
   const adminLabels = buildModulesAdminLabels(t)
-
-  const [summary, lowStockProducts, movements] = await Promise.all([
-    ERPStockService.getStockSummary(),
-    ERPStockService.getLowStockProducts(),
-    ERPStockService.getRecentStockMovements(25),
-  ])
+  const report = await getWarehouseStockReport(warehouse || ZERO_WAREHOUSE_ID)
 
   return (
     <AdminWrapper locale={locale} pageContext="store" labels={adminLabels}>
       <StoreHubTabs locale={locale} active="stock" />
       <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded-lg" />}>
-        <AdminStockClient
-          summary={summary}
-          lowStockProducts={lowStockProducts}
-          movements={movements}
-          locale={locale}
-        />
+        <WarehouseStockPanel report={report} locale={locale} allowSwitcher />
       </Suspense>
     </AdminWrapper>
   )

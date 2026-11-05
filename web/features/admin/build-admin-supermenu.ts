@@ -112,6 +112,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   storeProducts: 'Products',
   storeOrders: 'Orders',
   storeStock: 'Stock',
+  storeWarehouses: 'Warehouses',
   storeCommissions: 'Commissions',
   storeAddProduct: 'Add Product',
   storeSettings: 'Store Settings',

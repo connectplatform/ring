@@ -49,27 +49,19 @@ export default async function NotificationSettingsPage({ params }: NotificationS
 
   return (
     <NotificationsWrapper locale={validLocale} showTitleRow={false}>
-      <div className="max-w-4xl mx-auto py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <Link href={ROUTES.SETTINGS(validLocale)} className="flex items-center text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                {t('backToSettings') || 'Back to Settings'}
-              </Link>
-            </div>
-            
+      <div className="w-full min-w-0">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-5 lg:px-6">
+          <Link href={ROUTES.SETTINGS(validLocale)} className="flex items-center text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="mr-2 h-5 w-5" />
+            {t('backToSettings')}
+          </Link>
+          <Button variant="outline" size="sm" asChild>
             <Link href={ROUTES.NOTIFICATIONS(validLocale)}>
-              <Button variant="outline" size="sm">
-                <Bell className="w-4 h-4 mr-2" />
-                {t('viewNotifications') || 'View Notifications'}  
-              </Button>
+              <Bell className="mr-2 h-4 w-4" />
+              {t('viewNotifications')}
             </Link>
-          </div>
+          </Button>
         </div>
-
-        {/* Notification Preferences */}
         <NotificationPreferences />
       </div>
     </NotificationsWrapper>

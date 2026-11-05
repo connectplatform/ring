@@ -51,12 +51,12 @@ export function useNotificationNavigation() {
   const navigateToNotificationsList = useCallback((options: NotificationNavigationOptions = {}) => {
     startTransition(() => {
       if (options.replace) {
-        router.replace('/notifications', { scroll: options.scroll });
+        router.replace(ROUTES.NOTIFICATIONS(locale), { scroll: options.scroll });
       } else {
-        router.push('/notifications', { scroll: options.scroll });
+        router.push(ROUTES.NOTIFICATIONS(locale), { scroll: options.scroll });
       }
     });
-  }, [router]);
+  }, [locale, router]);
 
   // Navigate to home/dashboard
   const navigateToHome = useCallback((options: NotificationNavigationOptions = {}) => {

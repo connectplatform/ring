@@ -101,6 +101,7 @@ export type AdminNavLabelKey =
   | 'storeProducts'
   | 'storeOrders'
   | 'storeStock'
+  | 'storeWarehouses'
   | 'storeCommissions'
   | 'storeAddProduct'
   | 'storeSettings'
@@ -519,6 +520,17 @@ export function getRailSubmenu(
           icon: 'Archive',
           isActive: (p) => p.includes('/admin/store/stock') || p.includes('/vendor/stock'),
         },
+        ...(isAdmin
+          ? [
+              {
+                id: 'warehouses',
+                labelKey: 'storeWarehouses' as const,
+                href: ROUTES.ADMIN_STORE_WAREHOUSES,
+                icon: 'Archive' as const,
+                isActive: (p: string) => p.includes('/admin/store/warehouses'),
+              },
+            ]
+          : []),
         {
           id: 'commissions',
           labelKey: 'storeCommissions',

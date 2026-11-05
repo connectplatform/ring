@@ -79,5 +79,12 @@
       "hybrid": "Híbrido",
       "onsite": "Presencial"
     }
+  },
+  "rail": {
+    "sections": "Secciones de ajustes",
+    "profile": "Perfil",
+    "overview": "Resumen",
+    "privacy": "Privacidad y consentimiento",
+    "notifications": "Notificaciones e IA"
   }
 }

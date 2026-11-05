@@ -10,7 +10,6 @@ import { UserSettings } from '@/features/auth/types'
 import { useSession } from 'next-auth/react'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
@@ -18,7 +17,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { davinciGlassSurface, davinciPanelSurface } from '@/lib/ui/davinci'
+import { davinciGlassSurface } from '@/lib/ui/davinci'
 import { useActionState } from 'react'
 import {
   Brain,
@@ -284,15 +283,14 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   }
 
   const renderProfileSettings = () => (
-    <Card className={cn(davinciPanelSurface, 'border-primary/[0.06]')}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
+    <section className={cn(davinciGlassSurface, 'space-y-4 p-4')}>
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Settings className="h-5 w-5" />
-          Profile Settings
-        </CardTitle>
-        <CardDescription>Customize your Ring Platform experience and app settings</CardDescription>
-      </CardHeader>
-      <CardContent>
+          {t('userSettings')}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('userSettingsDescription')}</p>
+      </div>
         <div className="space-y-3">
           {/* Theme + Language */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -353,7 +351,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
           <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-muted sm:col-span-2">
             <div className="flex items-center gap-2">
               <Banknote className="h-4 w-4" />
-              <span className="text-sm">{tp('displayCurrency') || 'Display currency'}</span>
+              <span className="text-sm">{tp('displayCurrency')}</span>
             </div>
             <Select
               value={displayCurrency}
@@ -407,20 +405,18 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </section>
   )
 
   const renderPrivacy = () => (
-    <Card className={cn(davinciPanelSurface, 'border-primary/[0.06]')}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <section className={cn(davinciGlassSurface, 'space-y-6 p-4')}>
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Lock className="h-5 w-5" />
           {tp('privacy')}
-        </CardTitle>
-        <CardDescription>{tp('privacyDescription')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{tp('privacyDescription')}</p>
+      </div>
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">{tp('dataSharingConsent')}</h3>
           <div className="flex items-center justify-between">
@@ -487,21 +483,16 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
             <Switch defaultChecked disabled />
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </section>
   )
 
   const renderPreferences = () => (
     <div className="space-y-6">
-      {/* Notification Channels */}
-      <Card className={cn(davinciPanelSurface, 'border-primary/[0.06]')}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            {tp('preferences')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <section className={cn(davinciGlassSurface, 'space-y-6 p-4')}>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Bell className="h-5 w-5" />
+          {tp('preferences')}
+        </h2>
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">{tp('notificationChannels')}</h3>
             <div className="flex items-center justify-between">
@@ -550,7 +541,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Brain className="h-5 w-5" />
-              {t('aiMatching.title') || 'AI Matching'}
+              {t('aiMatching.title')}
             </h3>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -562,7 +553,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('aiMatching.minMatchScore') || tp('minimumMatchScore')}</Label>
+              <Label>{t('aiMatching.minMatchScore')}</Label>
               <Select 
                 value={preferencesForm.minMatchScore} 
                 onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, minMatchScore: value }))}
@@ -579,7 +570,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t('aiMatching.maxMatchesPerDay') || tp('maxMatchesPerDay')}</Label>
+              <Label>{t('aiMatching.maxMatchesPerDay')}</Label>
               <Select 
                 value={preferencesForm.maxMatchesPerDay} 
                 onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, maxMatchesPerDay: value }))}
@@ -617,8 +608,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </section>
     </div>
   )
 

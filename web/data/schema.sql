@@ -2340,6 +2340,44 @@ COMMENT ON TABLE public.wallet_transactions IS 'Blockchain wallet transactions (
 
 
 --
+-- Name: warehouses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.warehouses (
+    id character varying(255) NOT NULL,
+    data jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE warehouses; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.warehouses IS 'Ring inventory locations (platform warehouse directory). Not Nova Post carrier branches.';
+
+
+--
+-- Name: warehouse_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.warehouse_assignments (
+    id character varying(255) NOT NULL,
+    data jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE warehouse_assignments; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.warehouse_assignments IS 'Ring users assigned to operate a Ring inventory warehouse. Not Nova Post branches.';
+
+
+--
 -- Name: web_vitals; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3253,6 +3291,22 @@ ALTER TABLE ONLY public.wallet_access_tokens
 
 ALTER TABLE ONLY public.wallet_transactions
     ADD CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: warehouses warehouses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warehouses
+    ADD CONSTRAINT warehouses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: warehouse_assignments warehouse_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warehouse_assignments
+    ADD CONSTRAINT warehouse_assignments_pkey PRIMARY KEY (id);
 
 
 --
@@ -6722,6 +6776,41 @@ CREATE INDEX idx_wat_token_hash ON public.wallet_access_tokens USING btree (((da
 --
 
 CREATE INDEX idx_wat_user_id ON public.wallet_access_tokens USING btree (((data ->> 'userId'::text)));
+
+
+--
+-- Name: idx_warehouses_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_warehouses_code ON public.warehouses USING btree (((data ->> 'code'::text)));
+
+
+--
+-- Name: idx_warehouses_data_gin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_warehouses_data_gin ON public.warehouses USING gin (data);
+
+
+--
+-- Name: idx_warehouse_assignments_data_gin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_warehouse_assignments_data_gin ON public.warehouse_assignments USING gin (data);
+
+
+--
+-- Name: idx_warehouse_assignments_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_warehouse_assignments_user_id ON public.warehouse_assignments USING btree (((data ->> 'userId'::text)));
+
+
+--
+-- Name: idx_warehouse_assignments_warehouse_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_warehouse_assignments_warehouse_id ON public.warehouse_assignments USING btree (((data ->> 'warehouseId'::text)));
 
 
 --

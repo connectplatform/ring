@@ -85,6 +85,7 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     storeProducts: safeLabel(t, 'storeProducts'),
     storeOrders: safeLabel(t, 'storeOrders'),
     storeStock: safeLabel(t, 'storeStock'),
+    storeWarehouses: safeLabel(t, 'storeWarehouses'),
     storeCommissions: safeLabel(t, 'storeCommissions'),
     storeAddProduct: safeLabel(t, 'storeAddProduct'),
     storeSettings: safeLabel(t, 'storeSettings'),

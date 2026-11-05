@@ -79,5 +79,12 @@
       "hybrid": "Hybrid",
       "onsite": "Vor Ort"
     }
+  },
+  "rail": {
+    "sections": "Einstellungsbereiche",
+    "profile": "Profil",
+    "overview": "Übersicht",
+    "privacy": "Datenschutz und Einwilligung",
+    "notifications": "Benachrichtigungen und KI"
   }
 }

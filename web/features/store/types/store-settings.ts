@@ -33,6 +33,8 @@ export interface VendorShippingOverride {
 export interface StoreSettingsData {
   shipping: StoreShippingSettings
   promotions: StorePromotionsSettings
+  /** Global referral percent used when the product and merchant do not set one. */
+  referralCommissionPercent?: number
   /** Optional per-vendor shipping overrides for multi-vendor carts. */
   vendorShippingByEntityId?: Record<string, VendorShippingOverride>
 }
@@ -179,5 +181,9 @@ export function mergeStoreSettings(raw: unknown): StoreSettingsData {
       },
       checkoutSpecialOfferEnabled: Boolean(promotions.checkoutSpecialOfferEnabled),
     },
+    referralCommissionPercent:
+      typeof source.referralCommissionPercent === 'number' && !Number.isNaN(source.referralCommissionPercent)
+        ? source.referralCommissionPercent
+        : undefined,
   }
 }

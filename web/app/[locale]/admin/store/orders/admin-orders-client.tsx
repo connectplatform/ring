@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { updateOrderStatus, refreshOrders, loadMoreAdminOrders } from '@/app/_actions/admin-orders'
+import { updateOrderStatus, refreshOrders, loadMoreAdminOrders, refreshOrderTracking } from '@/app/_actions/admin-orders'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { AdminOrderDto } from '@/lib/admin/admin-list-dto'
@@ -184,6 +184,7 @@ interface OrderCardProps {
 
 function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCardProps) {
   const t = useTranslations('modules.admin.storeHub.ordersPage')
+  const [, startTrack] = useTransition()
   const [selectedStatus, setSelectedStatus] = useState(order.status || 'new')
   const currentStatus = order.status || 'new'
 
@@ -229,6 +230,7 @@ function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCard
               <div key={idx} className="flex justify-between">
                 <span>
                   {item.name} × {item.quantity}
+                  {item.fulfillmentWarehouseId ? ` · ${item.fulfillmentWarehouseId}` : ''}
                 </span>
                 <span>
                   {item.price} {item.currency}
@@ -238,6 +240,41 @@ function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCard
           </div>
         </div>
       )}
+
+      <div className="text-sm mt-2 space-y-1">
+        {order.shippingMethod ? <div>{t('shippingMethod')}: {order.shippingMethod}</div> : null}
+        {order.shippingBranch ? <div>{t('branch')}: {order.shippingBranch}</div> : null}
+        {order.paymentStatus ? <div>{t('payment')}: {order.paymentStatus}</div> : null}
+        {order.shipment?.number ? (
+          <div>
+            {t('shipment')}: {order.shipment.number}
+            {order.shipment.status ? ` · ${order.shipment.status}` : ''}
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                className="text-primary underline"
+                onClick={() => {
+                  startTrack(async () => {
+                    await refreshOrderTracking(order.id)
+                  })
+                }}
+              >
+                {t('track')}
+              </button>
+              <a className="text-primary underline" href={`/api/shipping/novapost/shipments/${encodeURIComponent(order.shipment.number)}/print`}>
+                {t('printSlip')}
+              </a>
+            </div>
+            {order.shipment.history?.length ? (
+              <ul className="mt-1 text-xs text-muted-foreground">
+                {order.shipment.history.map((entry, index) => (
+                  <li key={`${entry.date}-${index}`}>{entry.date} {entry.status}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       <div className="mt-2 flex items-center gap-2">
         <select

@@ -211,6 +211,8 @@ export class BackendSelector implements IDatabaseService {
       { collection: 'usernames', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'products', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'inventory_levels', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'warehouses', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
+      { collection: 'warehouse_assignments', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       { collection: 'inventory_reservations', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },
       // Actively-queried via db() abstraction (must be registered to avoid infinite recursion)
       { collection: 'product_custom_fields', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: false },

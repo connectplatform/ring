@@ -90,6 +90,7 @@ export function normalizeProductReferralInput(
 export function resolveReferralCommissionPercent(
   product?: ReferralCommissionProductInput | null,
   merchantConfig?: MerchantConfiguration | null,
+  platformPercent?: number | null,
 ): ResolvedReferralCommission {
   const productDirect = product?.referralCommission
   if (productDirect !== undefined && productDirect !== null && !Number.isNaN(productDirect)) {
@@ -104,6 +105,10 @@ export function resolveReferralCommissionPercent(
   const merchantRate = merchantConfig?.commissionStructure?.referralCommission
   if (merchantRate !== undefined && merchantRate !== null && !Number.isNaN(merchantRate)) {
     return { percent: clampReferralPercent(merchantRate), source: 'merchant' }
+  }
+
+  if (typeof platformPercent === 'number' && !Number.isNaN(platformPercent)) {
+    return { percent: clampReferralPercent(platformPercent), source: 'default' }
   }
 
   const constantDefault = DEFAULT_COMMISSION_STRUCTURE.referralCommission
@@ -137,6 +142,7 @@ export function computeWeightedReferralCommissionFromOrderItems(
   hasReferralCode: boolean,
   merchantConfig?: MerchantConfiguration | null,
   productsById?: Map<string, ReferralCommissionProductInput>,
+  platformPercent?: number | null,
 ): WeightedReferralCommission {
   if (!hasReferralCode || items.length === 0) {
     return { amount: 0, effectivePercent: 0, itemRates: [] }
@@ -151,7 +157,7 @@ export function computeWeightedReferralCommissionFromOrderItems(
     if (subtotal <= 0) continue
 
     const product = productsById?.get(item.productId)
-    const resolved = resolveReferralCommissionPercent(product, merchantConfig)
+    const resolved = resolveReferralCommissionPercent(product, merchantConfig, platformPercent)
     const amount = (subtotal * resolved.percent) / 100
 
     totalSubtotal += subtotal

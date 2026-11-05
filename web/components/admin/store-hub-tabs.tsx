@@ -9,7 +9,15 @@ import { ROUTES } from '@/constants/routes'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import type { Locale } from '@/i18n/shared'
 
-export type StoreHubTab = 'hub' | 'products' | 'orders' | 'stock' | 'commissions' | 'settings' | 'promotions'
+export type StoreHubTab =
+  | 'hub'
+  | 'products'
+  | 'orders'
+  | 'stock'
+  | 'warehouses'
+  | 'commissions'
+  | 'settings'
+  | 'promotions'
 
 interface StoreHubTabsProps {
   locale: Locale
@@ -20,6 +28,7 @@ export default function StoreHubTabs({ locale, active }: StoreHubTabsProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const isAdmin = !session?.user || isPlatformAdmin(session.user.role)
+  const platformAdmin = Boolean(session?.user && isPlatformAdmin(session.user.role))
   const t = useTranslations('modules.admin.storeHub')
 
   const tabs: { id: StoreHubTab; href: string; label: string }[] = [
@@ -43,6 +52,15 @@ export default function StoreHubTabs({ locale, active }: StoreHubTabsProps) {
       href: isAdmin ? ROUTES.ADMIN_STORE_STOCK(locale) : ROUTES.VENDOR_STOCK(locale),
       label: t('stock'),
     },
+    ...(platformAdmin
+      ? [
+          {
+            id: 'warehouses' as const,
+            href: ROUTES.ADMIN_STORE_WAREHOUSES(locale),
+            label: t('warehouses'),
+          },
+        ]
+      : []),
     {
       id: 'commissions',
       href: isAdmin ? ROUTES.ADMIN_STORE_COMMISSIONS(locale) : ROUTES.VENDOR_EARNINGS(locale),

@@ -137,42 +137,53 @@ export const ERPStockService = {
       }
 
       const now = new Date().toISOString()
+      const { getFulfillmentWarehouse } = await import('@/features/store/services/warehouse-fulfillment')
+      const warehouse = await getFulfillmentWarehouse(update.warehouseId || ZERO_WAREHOUSE_ID)
+      let warehouseBefore = currentStock
+      let warehouseAfter = newStock
+      let productStock = newStock
 
       try {
         await db().transaction(async (transaction) => {
-          const inventoryId = `${update.productId}_${DEFAULT_INVENTORY_STORE_ID}`
+          const inventoryId = `${update.productId}_${warehouse.inventoryStoreId}`
           const levelDoc = await transaction.read('inventory_levels', inventoryId)
           const level = levelDoc?.data as
-            | { available: number; reserved: number; syncVersion: number }
+            | { available: number; reserved: number; syncVersion: number; unitCost?: number }
             | undefined
           const reserved = level?.reserved ?? 0
+          const oldTotal = (level?.available ?? 0) + reserved
 
-          if (update.operation === 'set' && newStock < reserved) {
+          if (update.operation === 'set' && update.quantityChange < reserved) {
             throw new Error(
-              `Cannot set stock (${newStock}) below reserved (${reserved}) for product ${update.productId}`,
+              `Cannot set stock (${update.quantityChange}) below reserved (${reserved}) for product ${update.productId}`,
             )
           }
 
           let available: number
-          if (!level) {
-            available = Math.max(0, newStock - reserved)
+          if (!level && update.operation !== 'add' && update.operation !== 'set') {
+            available = 0
           } else if (update.operation === 'add') {
-            available = level.available + update.quantityChange
+            available = (level?.available ?? 0) + update.quantityChange
           } else if (update.operation === 'subtract') {
-            available = Math.max(0, level.available - update.quantityChange)
+            available = Math.max(0, (level?.available ?? 0) - update.quantityChange)
           } else {
-            available = Math.max(0, newStock - reserved)
+            available = Math.max(0, update.quantityChange - reserved)
           }
 
           const levelPayload = {
             productId: update.productId,
-            storeId: DEFAULT_INVENTORY_STORE_ID,
+            storeId: warehouse.inventoryStoreId,
             available,
             reserved,
             total: available + reserved,
             lastUpdated: now,
             syncVersion: (level?.syncVersion || 0) + 1,
+            unitCost: level?.unitCost ?? 0,
           }
+          warehouseBefore = oldTotal
+          warehouseAfter = available + reserved
+          const delta = warehouseAfter - oldTotal
+          productStock = Math.max(0, currentStock + delta)
 
           if (level) {
             await transaction.update('inventory_levels', inventoryId, levelPayload)
@@ -181,8 +192,8 @@ export const ERPStockService = {
           }
 
           await transaction.update('store_products', update.productId, {
-            stock: newStock,
-            inStock: newStock > 0,
+            stock: productStock,
+            inStock: productStock > 0,
             updatedAt: now,
           })
         })
@@ -197,12 +208,11 @@ export const ERPStockService = {
       await this.logStockMovement({
         id: `mov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         productId: update.productId,
-        warehouseId: update.warehouseId || ZERO_WAREHOUSE_ID,
+        warehouseId: warehouse.id,
         movementType: update.orderId ? 'sale' : 'adjustment',
-        quantityBefore: currentStock,
-        quantityChange:
-          update.operation === 'subtract' ? -update.quantityChange : update.quantityChange,
-        quantityAfter: newStock,
+        quantityBefore: warehouseBefore,
+        quantityChange: warehouseAfter - warehouseBefore,
+        quantityAfter: warehouseAfter,
         orderId: update.orderId,
         userId: update.userId,
         reason: update.reason,
@@ -216,7 +226,7 @@ export const ERPStockService = {
         operation: update.operation,
         quantityChange: update.quantityChange,
         previousStock: currentStock,
-        newStock,
+        newStock: productStock,
         reason: update.reason,
         orderId: update.orderId,
       })
@@ -227,17 +237,17 @@ export const ERPStockService = {
           productId: update.productId,
           warehouseId: update.warehouseId || ZERO_WAREHOUSE_ID,
           previousStock: currentStock,
-          newStock,
+          newStock: productStock,
           operation: update.operation,
           orderId: update.orderId,
         },
       })
 
-      if (newStock <= STOCK_THRESHOLDS.LOW_STOCK) {
-        await this.triggerLowStockAlert(update.productId, newStock)
+      if (productStock <= STOCK_THRESHOLDS.LOW_STOCK) {
+        await this.triggerLowStockAlert(update.productId, productStock)
       }
 
-      return { success: true, newQuantity: newStock }
+      return { success: true, newQuantity: productStock }
     } catch (error) {
       logger.error('[ERPStockService] Error updating stock:', error)
       return { success: false, newQuantity: 0, error: error instanceof Error ? error.message : 'Unknown error' }

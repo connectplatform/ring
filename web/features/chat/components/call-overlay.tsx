@@ -19,7 +19,7 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { CallRoundButton } from '@/features/chat/components/call-round-button'
 import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { toast } from '@/hooks/use-toast'
@@ -189,36 +189,26 @@ export function CallOverlay({ call, peerLabel, className }: CallOverlayProps) {
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-600">
             {media === 'video' ? (
-              <Video className="h-5 w-5" aria-hidden />
+              <Video size={22} color="#059669" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
             ) : (
-              <Phone className="h-5 w-5" aria-hidden />
+              <Phone size={22} color="#059669" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
             )}
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{peerLabel}</p>
             <p className="truncate text-xs text-muted-foreground">{statusText}</p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-9 w-9 shrink-0 rounded-full p-0"
-            aria-label={t('callRestore')}
-            onClick={() => setMinimized(false)}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="h-9 w-9 shrink-0 rounded-full p-0"
-            aria-label={t('callHangup')}
+          <CallRoundButton tone="neutral" label={t('callRestore')} onClick={() => setMinimized(false)}>
+            <Maximize2 size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+          </CallRoundButton>
+          <CallRoundButton
+            tone="end"
+            label={t('callHangup')}
             onClick={() => void hangup()}
             disabled={phase === 'ended'}
           >
-            <PhoneOff className="h-4 w-4" />
-          </Button>
+            <PhoneOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+          </CallRoundButton>
         </div>
       </>
     )
@@ -269,16 +259,11 @@ export function CallOverlay({ call, peerLabel, className }: CallOverlayProps) {
           )}
 
           {phase !== 'incoming' && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="absolute right-4 top-4 h-10 w-10 rounded-full p-0"
-              aria-label={t('callMinimize')}
-              onClick={() => setMinimized(true)}
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
+            <div className="absolute right-4 top-4">
+              <CallRoundButton tone="neutral" label={t('callMinimize')} onClick={() => setMinimized(true)}>
+                <Minimize2 size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+              </CallRoundButton>
+            </div>
           )}
         </div>
 
@@ -294,94 +279,63 @@ export function CallOverlay({ call, peerLabel, className }: CallOverlayProps) {
 
           {phase === 'incoming' ? (
             <div className="flex items-center justify-center gap-6">
-              <Button
-                type="button"
-                size="lg"
-                variant="destructive"
-                className="h-14 w-14 rounded-full p-0"
-                onClick={() => void rejectCall()}
-                aria-label={t('callReject')}
-              >
-                <PhoneOff className="h-6 w-6" />
-              </Button>
-              <Button
-                type="button"
-                size="lg"
-                className="h-14 w-14 rounded-full bg-emerald-600 p-0 hover:bg-emerald-500"
-                onClick={() => void acceptCall()}
-                aria-label={t('callAccept')}
-              >
-                <Phone className="h-6 w-6" />
-              </Button>
+              <CallRoundButton tone="end" label={t('callReject')} onClick={() => void rejectCall()}>
+                <PhoneOff size={26} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+              </CallRoundButton>
+              <CallRoundButton tone="answer" label={t('callAccept')} onClick={() => void acceptCall()}>
+                <Phone size={26} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+              </CallRoundButton>
             </div>
           ) : (
             <div className="flex items-center justify-center gap-4">
-              <Button
-                type="button"
-                variant="secondary"
-                size="lg"
-                className={cn(
-                  'h-12 w-12 rounded-full p-0',
-                  !audioEnabled && 'bg-zinc-700 text-zinc-400',
-                )}
+              <CallRoundButton
+                tone={audioEnabled ? 'neutral' : 'end'}
+                label={audioEnabled ? t('callMute') : t('callUnmute')}
                 onClick={toggleAudio}
-                aria-label={audioEnabled ? t('callMute') : t('callUnmute')}
               >
-                {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-              </Button>
+                {audioEnabled ? (
+                  <Mic size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+                ) : (
+                  <MicOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+                )}
+              </CallRoundButton>
 
               {media === 'video' && phase === 'connected' && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="lg"
-                  className={cn(
-                    'h-12 w-12 rounded-full p-0',
-                    screenSharing &&
-                      'bg-emerald-600 text-primary-foreground hover:bg-emerald-500',
-                  )}
+                <CallRoundButton
+                  tone={screenSharing ? 'answer' : 'neutral'}
+                  label={screenSharing ? t('callStopShareScreen') : t('callShareScreen')}
                   onClick={() => void onToggleScreenShare()}
-                  aria-label={screenSharing ? t('callStopShareScreen') : t('callShareScreen')}
                 >
                   {screenSharing ? (
-                    <MonitorOff className="h-5 w-5" />
+                    <MonitorOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
                   ) : (
-                    <MonitorUp className="h-5 w-5" />
+                    <MonitorUp size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
                   )}
-                </Button>
+                </CallRoundButton>
               )}
 
               {media === 'video' && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="lg"
-                  className={cn(
-                    'h-12 w-12 rounded-full p-0',
-                    !videoEnabled && 'bg-zinc-700 text-zinc-400',
-                  )}
+                <CallRoundButton
+                  tone={videoEnabled ? 'neutral' : 'end'}
+                  label={videoEnabled ? t('callStopVideo') : t('callStartVideo')}
                   onClick={toggleVideo}
-                  aria-label={videoEnabled ? t('callStopVideo') : t('callStartVideo')}
                 >
                   {videoEnabled ? (
-                    <Video className="h-5 w-5" />
+                    <Video size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
                   ) : (
-                    <VideoOff className="h-5 w-5" />
+                    <VideoOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
                   )}
-                </Button>
+                </CallRoundButton>
               )}
 
-              <Button
-                type="button"
-                size="lg"
-                variant="destructive"
-                className="h-14 w-14 rounded-full p-0"
+              <CallRoundButton
+                tone="end"
+                label={t('callHangup')}
                 onClick={() => void hangup()}
-                aria-label={t('callHangup')}
                 disabled={phase === 'ended'}
               >
-                <PhoneOff className="h-6 w-6" />
-              </Button>
+                <PhoneOff size={26} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+              </CallRoundButton>
             </div>
           )}
         </div>

@@ -6,26 +6,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Bell, 
-  Mail, 
-  Smartphone, 
+import {
+  Bell,
+  Mail,
+  Smartphone,
   MessageSquare,
-  Clock,
   Globe,
-  Shield,
   Settings,
   Save,
-  RefreshCw,
   Check,
   X,
   Info,
-  AlertTriangle,
   Moon,
-  Sun,
   Volume2,
-  VolumeX,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/use-notifications';
 import { useTranslations } from 'next-intl';
@@ -36,140 +30,137 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import TimezoneSelect from '@/components/ui/timezone-select';
+import { routing } from '@/i18n/routing';
+import { davinciGlassSurface } from '@/lib/ui/davinci';
+import { NotificationErrorBoundary } from './notification-error-boundary';
 
 interface NotificationPreferencesProps {
   className?: string;
 }
 
-const notificationTypeGroups = {
-  'Opportunities': [
-    NotificationType.OPPORTUNITY_CREATED,
-    NotificationType.OPPORTUNITY_UPDATED,
-    NotificationType.OPPORTUNITY_EXPIRED,
-    NotificationType.OPPORTUNITY_SAVED,
-    NotificationType.OPPORTUNITY_APPLIED
-  ],
-  'Entities': [
-    NotificationType.ENTITY_CREATED,
-    NotificationType.ENTITY_UPDATED,
-    NotificationType.ENTITY_VERIFIED,
-    NotificationType.ENTITY_REJECTED
-  ],
-  'Account & Security': [
-    NotificationType.ACCOUNT_VERIFICATION,
-    NotificationType.ROLE_UPGRADE_REQUEST,
-    NotificationType.ROLE_UPGRADE_APPROVED,
-    NotificationType.ROLE_UPGRADE_REJECTED,
-    NotificationType.PROFILE_UPDATE,
-    NotificationType.SECURITY_ALERT
-  ],
-  'Wallet & Transactions': [
-    NotificationType.WALLET_CREATED,
-    NotificationType.WALLET_TRANSACTION,
-    NotificationType.WALLET_BALANCE_LOW,
-    NotificationType.PAYMENT_REQUEST,
-    NotificationType.ENV_REQUEST,
-  ],
-  'System': [
-    NotificationType.SYSTEM_MAINTENANCE,
-    NotificationType.SYSTEM_UPDATE
-  ],
-  'Social': [
-    NotificationType.MESSAGE_RECEIVED,
-    NotificationType.MENTION_RECEIVED,
-    NotificationType.FOLLOW_REQUEST,
-    NotificationType.TASK_ASSIGNED,
-    NotificationType.TASK_UPDATED,
-    NotificationType.POLL_CREATED,
-    NotificationType.POLL_CLOSED,
-    NotificationType.RSVP_INVITE,
-    NotificationType.RSVP_UPDATED,
-    NotificationType.DAO_JAR_UPDATE,
-    NotificationType.GAME_REQUEST,
-    NotificationType.GAME_UPDATED,
-    NotificationType.CALL_INVITE,
-  ],
-  'KYC & Verification': [
-    NotificationType.KYC_REQUIRED,
-    NotificationType.KYC_APPROVED,
-    NotificationType.KYC_REJECTED,
-    NotificationType.KYC_EXPIRING
-  ]
-};
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: 'English',
+  uk: 'Українська',
+  ru: 'Русский',
+  de: 'Deutsch',
+  es: 'Español',
+}
 
-const typeLabels = {
-  [NotificationType.OPPORTUNITY_CREATED]: 'New opportunities matching your criteria',
-  [NotificationType.OPPORTUNITY_UPDATED]: 'Updates to opportunities you\'ve saved',
-  [NotificationType.OPPORTUNITY_EXPIRED]: 'Opportunity expiration alerts',
-  [NotificationType.OPPORTUNITY_SAVED]: 'Confirmation when you save opportunities',
-  [NotificationType.OPPORTUNITY_APPLIED]: 'Application status updates',
-  [NotificationType.ENTITY_CREATED]: 'New entity registrations',
-  [NotificationType.ENTITY_UPDATED]: 'Entity profile updates',
-  [NotificationType.ENTITY_VERIFIED]: 'Entity verification status changes',
-  [NotificationType.ENTITY_REJECTED]: 'Entity rejection notifications',
-  [NotificationType.ACCOUNT_VERIFICATION]: 'Account verification status',
-  [NotificationType.ROLE_UPGRADE_REQUEST]: 'Role upgrade requests',
-  [NotificationType.ROLE_UPGRADE_APPROVED]: 'Role upgrade approvals',
-  [NotificationType.ROLE_UPGRADE_REJECTED]: 'Role upgrade rejections',
-  [NotificationType.PROFILE_UPDATE]: 'Profile update confirmations',
-  [NotificationType.SECURITY_ALERT]: 'Security alerts and login notifications',
-  [NotificationType.WALLET_CREATED]: 'Wallet creation confirmations',
-  [NotificationType.WALLET_TRANSACTION]: 'Transaction confirmations',
-  [NotificationType.WALLET_BALANCE_LOW]: 'Low balance alerts',
-  [NotificationType.PAYMENT_REQUEST]: 'Native-token payment requests in chat',
-  [NotificationType.ENV_REQUEST]: 'Order Lab key update requests from your integrator',
-  [NotificationType.SYSTEM_MAINTENANCE]: 'Maintenance notifications',
-  [NotificationType.SYSTEM_UPDATE]: 'System updates and new features',
-  [NotificationType.MESSAGE_RECEIVED]: 'New messages',
-  [NotificationType.MENTION_RECEIVED]: 'When you\'re mentioned',
-  [NotificationType.FOLLOW_REQUEST]: 'New follow requests',
-  [NotificationType.TASK_ASSIGNED]: 'When you are assigned a chat task',
-  [NotificationType.TASK_UPDATED]: 'Updates on tasks you report or work on',
-  [NotificationType.POLL_CREATED]: 'New polls in your chats',
-  [NotificationType.POLL_CLOSED]: 'When a poll you follow closes',
-  [NotificationType.RSVP_INVITE]: 'RSVP invites in chat',
-  [NotificationType.RSVP_UPDATED]: 'Updates on RSVPs you joined',
-  [NotificationType.DAO_JAR_UPDATE]: 'DAO jar posts and contribution updates',
-  [NotificationType.GAME_REQUEST]: 'Game challenges in chat',
-  [NotificationType.GAME_UPDATED]: 'Updates when a game is accepted or finished',
-  [NotificationType.CALL_INVITE]: 'Incoming call alerts when you are offline',
-  [NotificationType.KYC_REQUIRED]: 'KYC verification required',
-  [NotificationType.KYC_APPROVED]: 'KYC verification approved',
-  [NotificationType.KYC_REJECTED]: 'KYC verification rejected',
-  [NotificationType.KYC_EXPIRING]: 'KYC expiration warnings'
-};
+const notificationTypeGroups: Array<{ id: string; types: NotificationType[] }> = [
+  {
+    id: 'opportunities',
+    types: [
+      NotificationType.OPPORTUNITY_CREATED,
+      NotificationType.OPPORTUNITY_UPDATED,
+      NotificationType.OPPORTUNITY_EXPIRED,
+      NotificationType.OPPORTUNITY_SAVED,
+      NotificationType.OPPORTUNITY_APPLIED,
+      NotificationType.OPPORTUNITY_MATCHED_AI,
+    ],
+  },
+  {
+    id: 'entities',
+    types: [
+      NotificationType.ENTITY_CREATED,
+      NotificationType.ENTITY_UPDATED,
+      NotificationType.ENTITY_VERIFIED,
+      NotificationType.ENTITY_REJECTED,
+    ],
+  },
+  {
+    id: 'account',
+    types: [
+      NotificationType.ACCOUNT_VERIFICATION,
+      NotificationType.ROLE_UPGRADE_REQUEST,
+      NotificationType.ROLE_UPGRADE_APPROVED,
+      NotificationType.ROLE_UPGRADE_REJECTED,
+      NotificationType.PROFILE_UPDATE,
+      NotificationType.SECURITY_ALERT,
+      NotificationType.REFERRAL_REWARD_MINTED,
+    ],
+  },
+  {
+    id: 'wallet',
+    types: [
+      NotificationType.WALLET_CREATED,
+      NotificationType.WALLET_TRANSACTION,
+      NotificationType.WALLET_BALANCE_LOW,
+      NotificationType.PAYMENT_REQUEST,
+      NotificationType.ENV_REQUEST,
+      NotificationType.REWARD_CREDIT_RECEIVED,
+    ],
+  },
+  {
+    id: 'system',
+    types: [NotificationType.SYSTEM_MAINTENANCE, NotificationType.SYSTEM_UPDATE],
+  },
+  {
+    id: 'social',
+    types: [
+      NotificationType.MESSAGE_RECEIVED,
+      NotificationType.MENTION_RECEIVED,
+      NotificationType.FOLLOW_REQUEST,
+      NotificationType.TASK_ASSIGNED,
+      NotificationType.TASK_UPDATED,
+      NotificationType.POLL_CREATED,
+      NotificationType.POLL_CLOSED,
+      NotificationType.RSVP_INVITE,
+      NotificationType.RSVP_UPDATED,
+      NotificationType.DAO_JAR_UPDATE,
+      NotificationType.GAME_REQUEST,
+      NotificationType.GAME_UPDATED,
+      NotificationType.CALL_INVITE,
+    ],
+  },
+  {
+    id: 'kyc',
+    types: [
+      NotificationType.KYC_REQUIRED,
+      NotificationType.KYC_APPROVED,
+      NotificationType.KYC_REJECTED,
+      NotificationType.KYC_EXPIRING,
+    ],
+  },
+]
 
-export function NotificationPreferences({ className }: NotificationPreferencesProps) {
-  const { preferences, updatePreferences, updatingPreferences, fetchPreferences } = useNotifications();
+function PreferenceSection({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className={cn(davinciGlassSurface, 'space-y-4 p-4')}>
+      <div>
+        <h3 className="flex items-center text-base font-semibold text-foreground">
+          {icon}
+          <span className="ml-2">{title}</span>
+        </h3>
+        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function NotificationPreferencesForm({ className }: NotificationPreferencesProps) {
+  const { preferences, updatePreferences, error } = useNotifications();
+  const t = useTranslations('modules.notifications.preferences')
   const tTypeLabels = useTranslations('modules.notifications.typeLabels')
 
   const [localPreferences, setLocalPreferences] = useState<Partial<DetailedNotificationPreferences>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  const interactiveTypeLabelKeys = new Set([
-    NotificationType.POLL_CREATED,
-    NotificationType.POLL_CLOSED,
-    NotificationType.RSVP_INVITE,
-    NotificationType.RSVP_UPDATED,
-    NotificationType.DAO_JAR_UPDATE,
-    NotificationType.GAME_REQUEST,
-    NotificationType.GAME_UPDATED,
-  ])
-
-  const labelForType = (type: NotificationType) => {
-    if (interactiveTypeLabelKeys.has(type)) {
-      try {
-        return tTypeLabels(type)
-      } catch {
-        return typeLabels[type] ?? type
-      }
-    }
-    return typeLabels[type] ?? type
-  }
+  const labelForType = (type: NotificationType) => tTypeLabels(type)
 
   // Initialize local preferences when data loads
   useEffect(() => {
@@ -232,198 +223,106 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
   if (!preferences) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2 className="w-8 h-8 animate-spin mr-3" />
-        <span>Loading preferences...</span>
+        <Loader2 className="mr-3 h-8 w-8 animate-spin" />
+        <span>{t('loading')}</span>
       </div>
     );
   }
 
+  const channels: Array<{
+    id: 'inApp' | 'email' | 'sms' | 'push'
+    icon: typeof Bell
+    live: boolean
+  }> = [
+    { id: 'inApp', icon: Bell, live: true },
+    { id: 'push', icon: Volume2, live: true },
+    { id: 'email', icon: Mail, live: false },
+    { id: 'sms', icon: Smartphone, live: false },
+  ]
+
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className={cn('w-full min-w-0 space-y-6', className)}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">
-            Notification Preferences
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Customize how and when you receive notifications
-          </p>
+          <h2 className="text-2xl font-bold text-foreground">{t('title')}</h2>
+          <p className="mt-1 text-muted-foreground">{t('description')}</p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           {hasChanges && (
             <Button variant="outline" onClick={handleReset}>
-              <X className="w-4 h-4 mr-2" />
-              Reset
+              <X className="mr-2 h-4 w-4" />
+              {t('reset')}
             </Button>
           )}
-          
-          <Button 
-            onClick={handleSave} 
-            disabled={!hasChanges || saveStatus === 'saving'}
-          >
+          <Button onClick={handleSave} disabled={!hasChanges || saveStatus === 'saving'}>
             {saveStatus === 'saving' ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : saveStatus === 'saved' ? (
-              <Check className="w-4 h-4 mr-2" />
+              <Check className="mr-2 h-4 w-4" />
             ) : (
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="mr-2 h-4 w-4" />
             )}
-            {saveStatus === 'saved' ? 'Saved!' : 'Save Changes'}
+            {saveStatus === 'saving' ? t('saving') : saveStatus === 'saved' ? t('saved') : t('save')}
           </Button>
         </div>
       </div>
+      {saveStatus === 'saved' ? <p className="text-sm text-muted-foreground">{t('saved')}</p> : null}
+      {saveStatus === 'error' ? (
+        <p className="text-sm text-red-600 dark:text-red-400">{error || t('saveError')}</p>
+      ) : null}
 
-      {/* Master Toggle */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Bell className="w-5 h-5 mr-2" />
-            Master Control
-          </CardTitle>
-          <CardDescription>
-            Enable or disable all notifications globally
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="master-toggle" className="text-base font-medium">
-                Enable Notifications
-              </Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                Turn off to stop receiving all notifications
-              </p>
-            </div>
-            <Switch
-              id="master-toggle"
-              checked={localPreferences.enabled || false}
-              onCheckedChange={(checked) => updateLocalPreference('enabled', checked)}
-            />
+      <PreferenceSection icon={<Bell className="h-5 w-5" />} title={t('masterTitle')} description={t('masterDescription')}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="master-toggle" className="text-base font-medium">{t('enableLabel')}</Label>
+            <p className="mt-1 text-sm text-muted-foreground">{t('enableHint')}</p>
           </div>
-        </CardContent>
-      </Card>
+          <Switch
+            id="master-toggle"
+            checked={localPreferences.enabled || false}
+            onCheckedChange={(checked) => updateLocalPreference('enabled', checked)}
+          />
+        </div>
+      </PreferenceSection>
 
-      {/* Delivery Channels */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <MessageSquare className="w-5 h-5 mr-2" />
-            Delivery Channels
-          </CardTitle>
-          <CardDescription>
-            Choose how you want to receive notifications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* In-App Notifications */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Bell className="w-5 h-5 text-blue-500" />
-                <div>
-                  <Label className="text-base font-medium">In-App</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Notifications within the platform
-                  </p>
-                  <Badge variant="default" className="mt-1">Available</Badge>
+      <PreferenceSection icon={<MessageSquare className="h-5 w-5" />} title={t('channelsTitle')} description={t('channelsDescription')}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {channels.map((channel) => {
+            const Icon = channel.icon
+            return (
+              <div key={channel.id} className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <Label className="text-base font-medium">{t(channel.id)}</Label>
+                    <p className="text-sm text-muted-foreground">{t(`${channel.id}Hint`)}</p>
+                    <Badge variant={channel.live ? 'default' : 'secondary'} className="mt-1">
+                      {channel.live ? t('available') : t('comingSoon')}
+                    </Badge>
+                  </div>
                 </div>
+                <Switch
+                  checked={localPreferences.channels?.[channel.id] || false}
+                  onCheckedChange={(checked) => updateLocalPreference(`channels.${channel.id}`, checked)}
+                  disabled={!localPreferences.enabled}
+                />
               </div>
-              <Switch
-                checked={localPreferences.channels?.inApp || false}
-                onCheckedChange={(checked) => updateLocalPreference('channels.inApp', checked)}
-                disabled={!localPreferences.enabled}
-              />
-            </div>
+            )
+          })}
+        </div>
+      </PreferenceSection>
 
-            {/* Email Notifications */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-green-500" />
-                <div>
-                  <Label className="text-base font-medium">Email</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Rich HTML email notifications
-                  </p>
-                  <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
-                </div>
-              </div>
-              <Switch
-                checked={localPreferences.channels?.email || false}
-                onCheckedChange={(checked) => updateLocalPreference('channels.email', checked)}
-                disabled={!localPreferences.enabled}
-              />
-            </div>
-
-            {/* SMS Notifications */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Smartphone className="w-5 h-5 text-orange-500" />
-                <div>
-                  <Label className="text-base font-medium">SMS</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Critical alerts via text message
-                  </p>
-                  <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
-                </div>
-              </div>
-              <Switch
-                checked={localPreferences.channels?.sms || false}
-                onCheckedChange={(checked) => updateLocalPreference('channels.sms', checked)}
-                disabled={!localPreferences.enabled}
-              />
-            </div>
-
-            {/* Push Notifications */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Volume2 className="w-5 h-5 text-purple-500" />
-                <div>
-                  <Label className="text-base font-medium">Push</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Browser and mobile push notifications
-                  </p>
-                  <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
-                </div>
-              </div>
-              <Switch
-                checked={localPreferences.channels?.push || false}
-                onCheckedChange={(checked) => updateLocalPreference('channels.push', checked)}
-                disabled={!localPreferences.enabled}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notification Types */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Settings className="w-5 h-5 mr-2" />
-            Notification Types
-          </CardTitle>
-          <CardDescription>
-            Choose which types of notifications you want to receive
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {Object.entries(notificationTypeGroups).map(([groupName, types]) => (
-            <div key={groupName}>
-              <h4 className="font-medium text-foreground mb-3">
-                {groupName}
-              </h4>
+      <PreferenceSection icon={<Settings className="h-5 w-5" />} title={t('typesTitle')} description={t('typesDescription')}>
+        <div className="space-y-6">
+          {notificationTypeGroups.map((group, index) => (
+            <div key={group.id}>
+              <h4 className="mb-3 font-medium text-foreground">{t(`groups.${group.id}`)}</h4>
               <div className="space-y-3">
-                {types.map((type) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <Label className="text-sm font-medium">
-                        {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {labelForType(type)}
-                      </p>
+                {group.types.map((type) => (
+                  <div key={type} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-muted-foreground">{labelForType(type)}</p>
                     </div>
                     <Switch
                       checked={localPreferences.types?.[type] !== false}
@@ -433,143 +332,101 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                   </div>
                 ))}
               </div>
-              {groupName !== 'KYC & Verification' && <Separator className="mt-4" />}
+              {index < notificationTypeGroups.length - 1 ? <Separator className="mt-4" /> : null}
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </PreferenceSection>
 
-      {/* Quiet Hours */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Moon className="w-5 h-5 mr-2" />
-            Quiet Hours
-          </CardTitle>
-          <CardDescription>
-            Set times when you don't want to receive notifications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Enable Quiet Hours</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                Notifications will be queued during these hours
-              </p>
-            </div>
-            <Switch
-              checked={localPreferences.quietHours?.enabled || false}
-              onCheckedChange={(checked) => updateLocalPreference('quietHours.enabled', checked)}
-              disabled={!localPreferences.enabled}
-            />
+      <PreferenceSection icon={<Moon className="h-5 w-5" />} title={t('quietTitle')} description={t('quietDescription')}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-base font-medium">{t('quietEnable')}</Label>
+            <p className="mt-1 text-sm text-muted-foreground">{t('quietHint')}</p>
           </div>
-
-          {localPreferences.quietHours?.enabled && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-              <div>
-                <Label htmlFor="quiet-start">Start Time</Label>
-                <Input
-                  id="quiet-start"
-                  type="time"
-                  value={localPreferences.quietHours?.startTime || '22:00'}
-                  onChange={(e) => updateLocalPreference('quietHours.startTime', e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="quiet-end">End Time</Label>
-                <Input
-                  id="quiet-end"
-                  type="time"
-                  value={localPreferences.quietHours?.endTime || '08:00'}
-                  onChange={(e) => updateLocalPreference('quietHours.endTime', e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Language & Timezone */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Globe className="w-5 h-5 mr-2" />
-            Language & Region
-          </CardTitle>
-          <CardDescription>
-            Set your preferred language and timezone for notifications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Switch
+            checked={localPreferences.quietHours?.enabled || false}
+            onCheckedChange={(checked) => updateLocalPreference('quietHours.enabled', checked)}
+            disabled={!localPreferences.enabled}
+          />
+        </div>
+        {localPreferences.quietHours?.enabled ? (
+          <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 md:grid-cols-2">
             <div>
-              <Label htmlFor="language">Language</Label>
-              <Select
-                value={localPreferences.language || 'en'}
-                onValueChange={(value) => updateLocalPreference('language', value)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="uk">Українська</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="quiet-start">{t('start')}</Label>
+              <Input
+                id="quiet-start"
+                type="time"
+                value={localPreferences.quietHours?.startTime || '22:00'}
+                onChange={(e) => updateLocalPreference('quietHours.startTime', e.target.value)}
+                className="mt-1"
+              />
             </div>
-
             <div>
-              <Label htmlFor="timezone">Timezone</Label>
-              <Select
+              <Label htmlFor="quiet-end">{t('end')}</Label>
+              <Input
+                id="quiet-end"
+                type="time"
+                value={localPreferences.quietHours?.endTime || '08:00'}
+                onChange={(e) => updateLocalPreference('quietHours.endTime', e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        ) : null}
+      </PreferenceSection>
+
+      <PreferenceSection icon={<Globe className="h-5 w-5" />} title={t('regionTitle')} description={t('regionDescription')}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <Label htmlFor="language">{t('language')}</Label>
+            <Select
+              value={localPreferences.language || 'en'}
+              onValueChange={(value) => updateLocalPreference('language', value)}
+            >
+              <SelectTrigger id="language" className="mt-1">
+                <SelectValue placeholder={t('selectLanguage')} />
+              </SelectTrigger>
+              <SelectContent>
+                {routing.locales.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {LANGUAGE_LABELS[code] ?? code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="timezone">{t('timezone')}</Label>
+            <div className="mt-1">
+              <TimezoneSelect
                 value={localPreferences.quietHours?.timezone || 'UTC'}
-                onValueChange={(value) => updateLocalPreference('quietHours.timezone', value)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UTC">UTC</SelectItem>
-                  <SelectItem value="Europe/Kiev">Europe/Kiev</SelectItem>
-                  <SelectItem value="Europe/London">Europe/London</SelectItem>
-                  <SelectItem value="America/New_York">America/New_York</SelectItem>
-                  <SelectItem value="America/Los_Angeles">America/Los_Angeles</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(value) => updateLocalPreference('quietHours.timezone', value)}
+              />
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Save Status */}
-      {saveStatus === 'error' && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <div className="flex items-center">
-            <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
-            <span className="text-red-700 dark:text-red-300">
-              Failed to save preferences. Please try again.
-            </span>
-          </div>
         </div>
-      )}
+      </PreferenceSection>
 
-      {/* Info */}
-      <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <div className="flex items-start">
-          <Info className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
-          <div className="text-sm text-blue-700 dark:text-blue-300">
-            <p className="font-medium mb-1">About Notification Preferences</p>
-            <ul className="space-y-1 text-xs">
-              <li>• Changes are saved automatically when you click "Save Changes"</li>
-              <li>• Some delivery channels are coming soon and will be enabled when available</li>
-              <li>• Security alerts cannot be disabled for your account safety</li>
-              <li>• Quiet hours apply to all channels except urgent security notifications</li>
-            </ul>
-          </div>
-        </div>
+      <div className={cn(davinciGlassSurface, 'p-4 text-sm text-muted-foreground')}>
+        <p className="mb-1 flex items-center font-medium text-foreground">
+          <Info className="mr-2 h-5 w-5" />
+          {t('aboutTitle')}
+        </p>
+        <ul className="space-y-1 text-xs">
+          <li>{t('aboutSave')}</li>
+          <li>{t('aboutChannels')}</li>
+          <li>{t('aboutQuiet')}</li>
+        </ul>
       </div>
     </div>
   );
+}
+
+export function NotificationPreferences(props: NotificationPreferencesProps) {
+  return (
+    <NotificationErrorBoundary>
+      <NotificationPreferencesForm {...props} />
+    </NotificationErrorBoundary>
+  )
 } 

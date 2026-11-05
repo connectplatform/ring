@@ -16,6 +16,7 @@ export async function getStoreSettings(): Promise<StoreSettingsData> {
     return mergeStoreSettings({
       shipping: doc.data.shipping,
       promotions: doc.data.promotions,
+      referralCommissionPercent: doc.data.referralCommissionPercent as number | undefined,
     })
   } catch {
     return DEFAULT_STORE_SETTINGS
@@ -29,6 +30,7 @@ export async function saveStoreSettings(next: StoreSettingsData, updatedBy: stri
   const payload = {
     shipping: merged.shipping,
     promotions: merged.promotions,
+    referralCommissionPercent: merged.referralCommissionPercent,
     updatedBy,
     updatedAt: new Date().toISOString(),
   }

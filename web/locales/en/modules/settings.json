@@ -79,5 +79,12 @@
         "hybrid": "Hybrid",
         "onsite": "On-site"
       }
-    }
+    },
+  "rail": {
+    "sections": "Settings Sections",
+    "profile": "Profile",
+    "overview": "Overview",
+    "privacy": "Privacy & Consent",
+    "notifications": "Notifications & AI"
+  }
 }

@@ -179,6 +179,12 @@ export class PostgreSQLAdapter implements IDatabaseService {
     stock_movements: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    warehouses: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    warehouse_assignments: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     process_runs: new Set([
       'id', 'created_at', 'updated_at'
     ]),

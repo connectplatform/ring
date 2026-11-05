@@ -51,6 +51,10 @@ export async function updateOrderStatus(formData: FormData) {
       status,
       adminId: session.user.id,
     })
+    if (status === 'shipped') {
+      const { ensureNovaPostShipment } = await import('@/lib/shipping/nova-post-shipment')
+      await ensureNovaPostShipment(orderId)
+    }
     await StoreOrdersService.adminUpdateOrderStatus(orderId, status)
 
     if (status === 'canceled') {
@@ -111,6 +115,17 @@ export async function refreshOrders() {
 /**
  * Load the next admin orders page (offset pagination; plain DTO for RSC/client).
  */
+export async function refreshOrderTracking(orderId: string) {
+  const session = await auth()
+  if (!session?.user || !isPlatformAdmin(session.user.role)) {
+    throw new Error('Admin access required')
+  }
+  const { refreshNovaPostTracking } = await import('@/lib/shipping/nova-post-shipment')
+  const shipment = await refreshNovaPostTracking(orderId)
+  revalidatePath('/admin/store/orders')
+  return { success: true, shipment }
+}
+
 export async function loadMoreAdminOrders(input: {
   offset: number
   limit?: number

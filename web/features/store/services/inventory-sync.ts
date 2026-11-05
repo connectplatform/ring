@@ -27,6 +27,11 @@ import {
 } from '@/features/store/constants/stock'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
 import type { StockMovement } from '@/features/store/types/erp-stock'
+import {
+  chooseFulfillmentWarehouse,
+  getFulfillmentWarehouse,
+  levelsForProduct,
+} from '@/features/store/services/warehouse-fulfillment'
 
 /** PostgreSQL tables (snake_case — see data/migrations/008_inventory_schema.sql). */
 export const INVENTORY_COLLECTIONS = {
@@ -46,6 +51,7 @@ export interface InventoryReservation {
   id: string
   productId: string
   storeId: string
+  warehouseId?: string
   orderId: string
   quantity: number
   reservedAt: string
@@ -98,10 +104,11 @@ export async function ensureInventoryLevel(
     'store_products',
     productId,
   )
-  const stock =
-    productResult.success && productResult.data
-      ? Number((productResult.data as StoreProduct).stock ?? 0)
-      : 0
+  const siblingLevels = await levelsForProduct(productId)
+  const bootstrapFromProduct = storeId === DEFAULT_INVENTORY_STORE_ID && siblingLevels.length === 0
+  const stock = bootstrapFromProduct && productResult.success && productResult.data
+    ? Number((productResult.data as StoreProduct).stock ?? 0)
+    : 0
 
   const now = new Date().toISOString()
   const level: InventoryLevel = {
@@ -241,7 +248,8 @@ export async function reserveInventory(
   storeId: string,
   orderId: string,
   quantity: number,
-  reservationMinutes: number = 15
+  reservationMinutes: number = 15,
+  warehouseId: string = ZERO_WAREHOUSE_ID,
 ): Promise<InventoryReservation> {
   const reservationId = `res_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const now = new Date()
@@ -251,6 +259,7 @@ export async function reserveInventory(
     id: reservationId,
     productId,
     storeId,
+    warehouseId,
     orderId,
     quantity,
     reservedAt: now.toISOString(),
@@ -295,6 +304,8 @@ export async function reserveInventoryForOrder(
     productId: string
     quantity: number
     storeId?: string
+    warehouseId?: string
+    fulfillmentWarehouseId?: string
     isPreorder?: boolean
     digitalProduct?: boolean
     instantDelivery?: boolean
@@ -318,7 +329,20 @@ export async function reserveInventoryForOrder(
       skipped.push(item.productId)
       continue
     }
-    const storeId = item.storeId || DEFAULT_INVENTORY_STORE_ID
+    let storeId = item.storeId
+    let warehouseId = item.warehouseId || item.fulfillmentWarehouseId
+    if (!storeId) {
+      const existing = await levelsForProduct(item.productId)
+      if (existing.length === 0) await ensureInventoryLevel(item.productId)
+      const choice = await chooseFulfillmentWarehouse({
+        productId: item.productId,
+        quantity: item.quantity,
+        explicitWarehouseId: warehouseId,
+      })
+      if (!choice) throw new Error(`Insufficient inventory for product ${item.productId}`)
+      storeId = choice.storeId
+      warehouseId = choice.warehouseId
+    }
     await ensureInventoryLevel(item.productId, storeId)
     const reservation = await reserveInventory(
       item.productId,
@@ -326,6 +350,7 @@ export async function reserveInventoryForOrder(
       orderId,
       item.quantity,
       reservationMinutes,
+      warehouseId || ZERO_WAREHOUSE_ID,
     )
     reserved.push(reservation)
   }
@@ -510,7 +535,15 @@ export async function commitSaleForOrder(
         }
       }
 
-      // 2. Deduct stock per line; re-assert available = stock - reserved (covers no-hold paid path)
+      // 2. Deduct the fulfilling warehouse. A reservation already moved available → reserved.
+      const holdsByProduct = new Map<string, InventoryReservation[]>()
+      for (const reservation of activeReservations) {
+        const queue = holdsByProduct.get(reservation.productId) || []
+        queue.push(reservation)
+        holdsByProduct.set(reservation.productId, queue)
+      }
+      const lineWarehouses: Array<{ productId: string; warehouseId: string }> = []
+
       for (const item of items) {
         if (shouldSkipPhysicalStock(item)) continue
         const productId = item.product?.id
@@ -526,7 +559,6 @@ export async function commitSaleForOrder(
         }
 
         const productData = productDoc.data as StoreProduct & Record<string, unknown>
-        // Prefer live product flags if cart item omitted them
         if (
           shouldSkipPhysicalStock({
             isPreorder: item.isPreorder,
@@ -541,57 +573,69 @@ export async function commitSaleForOrder(
           continue
         }
 
-        const currentStock = Number(productData.stock ?? 0)
         const qty = item.quantity || 1
-        const newStock = Math.max(0, currentStock - qty)
+        const hold = holdsByProduct.get(productId)?.shift()
+        const explicit = (item as { fulfillmentWarehouseId?: string }).fulfillmentWarehouseId
+        const choice = hold
+          ? {
+              warehouseId: hold.warehouseId || ZERO_WAREHOUSE_ID,
+              storeId: hold.storeId || DEFAULT_INVENTORY_STORE_ID,
+            }
+          : await chooseFulfillmentWarehouse({
+              productId,
+              quantity: qty,
+              explicitWarehouseId: explicit,
+            })
+        if (!choice) {
+          failedProducts.push(productId)
+          throw new Error(`Insufficient inventory for product ${productId}`)
+        }
 
+        const inventoryId = inventoryLevelId(productId, choice.storeId)
+        const levelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
+        const level = levelDoc?.data as InventoryLevel | undefined
+        const beforeAvailable = Number(level?.available ?? 0)
+        const beforeReserved = Number(level?.reserved ?? 0)
+        let available = beforeAvailable
+        const reserved = beforeReserved
+        if (!hold) {
+          if (beforeAvailable < qty) {
+            failedProducts.push(productId)
+            throw new Error(`Insufficient inventory for product ${productId}`)
+          }
+          available = beforeAvailable - qty
+          const next: InventoryLevel = {
+            productId,
+            storeId: choice.storeId,
+            available,
+            reserved,
+            total: available + reserved,
+            lastUpdated: now,
+            syncVersion: (level?.syncVersion || 0) + 1,
+          }
+          if (level) {
+            await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, next)
+          } else {
+            await transaction.create(INVENTORY_COLLECTIONS.levels, next, { id: inventoryId })
+          }
+        }
+
+        const currentStock = Number(productData.stock ?? beforeAvailable + beforeReserved)
+        const newStock = Math.max(0, currentStock - qty)
         await transaction.update('store_products', productId, {
           stock: newStock,
           inStock: newStock > 0,
           updatedAt: now,
         })
 
-        const storeId = DEFAULT_INVENTORY_STORE_ID
-        const inventoryId = inventoryLevelId(productId, storeId)
-        const levelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
-        const level = levelDoc?.data as InventoryLevel | undefined
-        const reserved = level?.reserved ?? 0
-        // Always re-assert invariant after stock change (fixes unpaid→paid without hold drift)
-        const available = Math.max(0, newStock - reserved)
-
-        const aligned: InventoryLevel = {
-          productId,
-          storeId,
-          available,
-          reserved,
-          total: available + reserved,
-          lastUpdated: now,
-          syncVersion: (level?.syncVersion || 0) + 1,
-        }
-
-        if (level) {
-          await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, aligned)
-        } else {
-          await transaction.create(
-            INVENTORY_COLLECTIONS.levels,
-            {
-              ...aligned,
-              available: newStock,
-              reserved: 0,
-              total: newStock,
-            },
-            { id: inventoryId },
-          )
-        }
-
         const movement: StockMovement = {
           id: `mov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           productId,
-          warehouseId: ZERO_WAREHOUSE_ID,
+          warehouseId: choice.warehouseId,
           movementType: 'sale',
-          quantityBefore: currentStock,
+          quantityBefore: beforeAvailable + beforeReserved,
           quantityChange: -qty,
-          quantityAfter: newStock,
+          quantityAfter: (hold ? beforeAvailable : available) + reserved,
           orderId,
           userId,
           reason: `Order #${orderId} - ${item.product?.name ?? productId} x${qty}`,
@@ -600,10 +644,28 @@ export async function commitSaleForOrder(
           assisted: referralMeta?.assisted,
         }
         await transaction.create(STORE_COLLECTIONS.stockMovements, movement, { id: movement.id })
-
+        lineWarehouses.push({ productId, warehouseId: choice.warehouseId })
         deductedProducts.push(productId)
         if (newStock <= STOCK_THRESHOLDS.LOW_STOCK) {
           lowStockAlerts.push({ productId, stock: newStock })
+        }
+      }
+
+      if (lineWarehouses.length > 0) {
+        const orderDoc = await transaction.read('orders', orderId)
+        const orderItems = Array.isArray((orderDoc?.data as { items?: unknown[] } | undefined)?.items)
+          ? ([...(orderDoc?.data as { items: Array<Record<string, unknown>> }).items])
+          : []
+        if (orderItems.length > 0) {
+          const pending = [...lineWarehouses]
+          const nextItems = orderItems.map((entry) => {
+            const productId = String(entry.productId || (entry.product as { id?: string } | undefined)?.id || '')
+            const matchIndex = pending.findIndex((row) => row.productId === productId)
+            if (matchIndex < 0) return entry
+            const match = pending.splice(matchIndex, 1)[0]
+            return { ...entry, fulfillmentWarehouseId: match.warehouseId }
+          })
+          await transaction.update('orders', orderId, { items: nextItems })
         }
       }
     })
@@ -710,6 +772,7 @@ export async function restoreStockForOrder(orderId: string): Promise<{
       const productData = productDoc.data as StoreProduct & Record<string, unknown>
       const currentStock = Number(productData.stock ?? 0)
       const newStock = currentStock + qty
+      const warehouse = await getFulfillmentWarehouse(sale.warehouseId || ZERO_WAREHOUSE_ID)
 
       await transaction.update('store_products', sale.productId, {
         stock: newStock,
@@ -717,15 +780,15 @@ export async function restoreStockForOrder(orderId: string): Promise<{
         updatedAt: now,
       })
 
-      const inventoryId = inventoryLevelId(sale.productId, DEFAULT_INVENTORY_STORE_ID)
+      const inventoryId = inventoryLevelId(sale.productId, warehouse.inventoryStoreId)
       const levelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
       const level = levelDoc?.data as InventoryLevel | undefined
       const reserved = level?.reserved ?? 0
-      const available = (level?.available ?? currentStock - reserved) + qty
+      const available = Number(level?.available ?? 0) + qty
 
       const aligned: InventoryLevel = {
         productId: sale.productId,
-        storeId: DEFAULT_INVENTORY_STORE_ID,
+        storeId: warehouse.inventoryStoreId,
         available,
         reserved,
         total: available + reserved,
@@ -742,7 +805,7 @@ export async function restoreStockForOrder(orderId: string): Promise<{
       const movement: StockMovement = {
         id: `mov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         productId: sale.productId,
-        warehouseId: ZERO_WAREHOUSE_ID,
+        warehouseId: warehouse.id,
         movementType: 'return',
         quantityBefore: currentStock,
         quantityChange: qty,
@@ -1062,28 +1125,33 @@ export async function detectInventoryDrift(limit: number = 500): Promise<{
     : []) as InventoryLevel[]
 
   const samples: InventoryDriftSample[] = []
-  let checked = 0
-
+  const byProduct = new Map<string, { available: number; reserved: number }>()
   for (const level of levels) {
+    const current = byProduct.get(level.productId) || { available: 0, reserved: 0 }
+    current.available += Number(level.available ?? 0)
+    current.reserved += Number(level.reserved ?? 0)
+    byProduct.set(level.productId, current)
+  }
+
+  let checked = 0
+  for (const [productId, totals] of byProduct) {
     checked += 1
     const productResult = await db().findDocById<StoreProduct & Record<string, unknown>>(
       'store_products',
-      level.productId,
+      productId,
     )
     const stock = Number(
       productResult.success && productResult.data
         ? (productResult.data as StoreProduct).stock ?? 0
         : 0,
     )
-    const available = Number(level.available ?? 0)
-    const reserved = Number(level.reserved ?? 0)
-    const expectedStock = available + reserved
+    const expectedStock = totals.available + totals.reserved
     if (stock !== expectedStock) {
       samples.push({
-        productId: level.productId,
+        productId,
         stock,
-        available,
-        reserved,
+        available: totals.available,
+        reserved: totals.reserved,
         expectedStock,
         delta: stock - expectedStock,
       })

@@ -148,6 +148,7 @@ export function calculateCommission(
   vendor: VendorProfile,
   merchantConfig?: MerchantConfiguration,
   productsById?: Map<string, ReferralCommissionProductInput>,
+  platformPercent?: number | null,
 ): CommissionBreakdown {
   const subtotal = vendorOrder.subtotal
 
@@ -164,6 +165,7 @@ export function calculateCommission(
     Boolean(vendorOrder.metadata?.referralCode),
     merchantConfig,
     productsById,
+    platformPercent,
   )
   const referralCommission = referralResult.amount
 
@@ -233,9 +235,17 @@ export async function createSettlement(
 
   // Load products by productId for item-level referral/commission logic
   const productsById = await loadProductsForOrderItems(vendorOrder.items)
+  const { getStoreSettings } = await import('@/features/store/services/store-settings-service')
+  const storeSettings = await getStoreSettings()
 
   // Compute total commission and breakdown (including custom splits, weighted referral, etc)
-  const commission = calculateCommission(vendorOrder, vendor, merchantConfig, productsById)
+  const commission = calculateCommission(
+    vendorOrder,
+    vendor,
+    merchantConfig,
+    productsById,
+    storeSettings.referralCommissionPercent,
+  )
 
   // Net payout to vendor after all commissions and splits
   const netPayout = vendorOrder.subtotal - commission.totalCommission

@@ -11,7 +11,9 @@ import {
   previewDueSettlementsAction,
   processDueSettlementsAction,
   releaseHeldSettlementAction,
+  setVendorReferralPercentAction,
 } from '@/app/_actions/admin-store-erp'
+import { Input } from '@/components/ui/input'
 import type { Settlement } from '@/features/store/services/settlement'
 import type { ProductReferralRateRow } from '@/app/_actions/admin-store-erp'
 
@@ -33,6 +35,8 @@ export default function AdminCommissionsClient({
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [dryRun, setDryRun] = useState<string | null>(null)
+  const [vendorId, setVendorId] = useState('')
+  const [vendorPercent, setVendorPercent] = useState('5')
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return settlements
@@ -143,6 +147,42 @@ export default function AdminCommissionsClient({
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('vendorReferral')}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <Input value={vendorId} placeholder={t('vendor')} onChange={(event) => setVendorId(event.target.value)} />
+          <Input
+            className="max-w-[8rem]"
+            type="number"
+            min={0}
+            max={50}
+            value={vendorPercent}
+            onChange={(event) => setVendorPercent(event.target.value)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending || !vendorId.trim()}
+            onClick={() =>
+              startTransition(async () => {
+                setError(null)
+                try {
+                  await setVendorReferralPercentAction(vendorId, Number(vendorPercent))
+                  setMessage(t('saved'))
+                  router.refresh()
+                } catch {
+                  setError(t('saveFailed'))
+                }
+              })
+            }
+          >
+            {t('save')}
+          </Button>
+        </CardContent>
+      </Card>
 
       {dryRun && <p className="text-sm text-muted-foreground">{dryRun}</p>}
       {message && <p className="text-sm text-emerald-600">{message}</p>}

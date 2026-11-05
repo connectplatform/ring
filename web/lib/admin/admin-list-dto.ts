@@ -22,9 +22,18 @@ export function toIsoStringRequired(value: unknown, fallback = new Date(0).toISO
 
 export interface AdminOrderItemDto {
   name?: string
+  productId?: string
   quantity?: number
   price?: string
   currency?: string
+  fulfillmentWarehouseId?: string
+}
+
+export interface AdminOrderShipmentDto {
+  id?: string
+  number?: string
+  status?: string
+  history?: Array<{ status?: string; date?: string }>
 }
 
 export interface AdminOrderDto {
@@ -39,17 +48,26 @@ export interface AdminOrderDto {
   promoCode?: string
   total?: number
   currency?: string
+  paymentStatus?: string
+  shippingMethod?: string
+  shippingBranch?: string
+  shippingSettlementId?: string
+  shipment?: AdminOrderShipmentDto
 }
 
 export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): AdminOrderDto {
   const rawItems = Array.isArray(row.items) ? row.items : []
   const items: AdminOrderItemDto[] = rawItems.map((item) => {
     const entry = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    const product = entry.product && typeof entry.product === 'object' ? (entry.product as Record<string, unknown>) : {}
     return {
       name: entry.name != null ? String(entry.name) : undefined,
+      productId: entry.productId != null ? String(entry.productId) : product.id != null ? String(product.id) : undefined,
       quantity: typeof entry.quantity === 'number' ? entry.quantity : Number(entry.quantity) || undefined,
       price: entry.price != null ? String(entry.price) : undefined,
       currency: entry.currency != null ? String(entry.currency) : undefined,
+      fulfillmentWarehouseId:
+        entry.fulfillmentWarehouseId != null ? String(entry.fulfillmentWarehouseId) : undefined,
     }
   })
 
@@ -69,5 +87,44 @@ export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): 
     promoCode: row.promoCode != null ? String(row.promoCode) : undefined,
     total: typeof row.total === 'number' ? row.total : undefined,
     currency: row.currency != null ? String(row.currency) : undefined,
+    paymentStatus:
+      row.payment && typeof row.payment === 'object' && (row.payment as { status?: unknown }).status != null
+        ? String((row.payment as { status?: unknown }).status)
+        : undefined,
+    shippingMethod:
+      row.shippingInfo && typeof row.shippingInfo === 'object'
+        ? String((row.shippingInfo as { method?: unknown }).method || '')
+        : undefined,
+    shippingBranch:
+      row.shippingInfo && typeof row.shippingInfo === 'object'
+        ? String(
+            ((row.shippingInfo as { location?: { name?: unknown } }).location || {}).name ||
+              (row.shippingInfo as { address?: unknown }).address ||
+              '',
+          )
+        : undefined,
+    shippingSettlementId:
+      row.shippingInfo && typeof row.shippingInfo === 'object'
+        ? String(
+            ((row.shippingInfo as { location?: { settlementId?: unknown } }).location || {}).settlementId || '',
+          )
+        : undefined,
+    shipment:
+      row.shipment && typeof row.shipment === 'object'
+        ? {
+            id: (row.shipment as { id?: unknown }).id != null ? String((row.shipment as { id?: unknown }).id) : undefined,
+            number:
+              (row.shipment as { number?: unknown }).number != null
+                ? String((row.shipment as { number?: unknown }).number)
+                : undefined,
+            status:
+              (row.shipment as { status?: unknown }).status != null
+                ? String((row.shipment as { status?: unknown }).status)
+                : undefined,
+            history: Array.isArray((row.shipment as { history?: unknown }).history)
+              ? ((row.shipment as { history: Array<{ status?: string; date?: string }> }).history)
+              : undefined,
+          }
+        : undefined,
   }
 }

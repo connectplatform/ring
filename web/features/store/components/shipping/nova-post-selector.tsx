@@ -10,6 +10,8 @@ export interface NovaPostLocation {
   name: string
   address: string
   externalId?: string
+  settlementId?: string
+  settlementName?: string
   settlement?: { name: string; region?: { name: string } }
 }
 
@@ -112,6 +114,8 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
       externalId: branch.ref,
       name: branch.name,
       address: branch.address,
+      settlementId: city.ref,
+      settlementName: city.name,
       settlement: { name: city.name, region: city.area ? { name: city.area } : undefined },
     })
     setBranches([])

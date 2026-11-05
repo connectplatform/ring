@@ -420,8 +420,15 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
   )
 
   const acceptCall = useCallback(async () => {
-    if (!selfId || !callIdRef.current) return
+    if (!selfId || !callIdRef.current) {
+      setError('Call is not ready')
+      return
+    }
     if (phaseRef.current !== 'incoming') return
+    if (!isConnected) {
+      setError('Realtime tunnel required for calls')
+      return
+    }
 
     try {
       setError(null)
@@ -452,24 +459,14 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to accept call')
-      const cid = callIdRef.current
-      if (cid) {
-        void signal('call:reject', {
-          callId: cid,
-          fromUserId: selfId,
-          media: mediaRef.current,
-          reason: 'accept_failed',
-        }).catch(() => {})
-      }
-      void recordCallEnded('failed')
-      resetIdle()
+      setPhase('incoming')
+      phaseRef.current = 'incoming'
     }
   }, [
     applyRemoteOffer,
     attachLocal,
     ensurePc,
-    recordCallEnded,
-    resetIdle,
+    isConnected,
     selfId,
     selfName,
     signal,

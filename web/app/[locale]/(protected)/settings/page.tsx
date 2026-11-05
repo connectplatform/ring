@@ -8,11 +8,9 @@ import SettingsContent from '@/features/auth/components/settings-content'
 import { updateSettings } from '@/app/_actions/settings'
 import { auth } from '@/auth'
 import { UserSettings } from '@/features/auth/types'
-import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { getTranslations } from 'next-intl/server'
 import { connection } from 'next/server'
 import { logger } from '@/lib/logger'
 // Define the type for the settings route params
@@ -83,11 +81,6 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
     logger.error('SettingsPage: Failed to check/create user document:', migrationError);
   }
 
-  const translations = await getTranslations('settings');
-  const title = `${(translations as any).settings?.title || 'Settings'} | Zemna AI`;
-  const description = (translations as any).settings?.description || 'Manage your Ring account settings, preferences, and privacy options.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://zemna.ai"}${ROUTES.SETTINGS(validLocale)}`;
-
   let initialSettings: UserSettings | null = null;
   let error: string | null = null;
 
@@ -123,11 +116,6 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
 
   return (
     <>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-      <meta name="robots" content="noindex, nofollow" />
-      <meta name="googlebot" content="noindex, nofollow" />
       <SettingsWrapper locale={validLocale} userStats={userStats}>
         <SettingsContent
           initialSettings={initialSettings}

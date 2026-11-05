@@ -78,6 +78,7 @@ export type ModulesAdminLabels = Partial<{
   storeProducts: string
   storeOrders: string
   storeStock: string
+  storeWarehouses: string
   storeCommissions: string
   storeAddProduct: string
   storeSettings: string

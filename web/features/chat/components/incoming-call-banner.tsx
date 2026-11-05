@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Phone, PhoneOff, Video } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/components/ui/button'
+import { CallRoundButton } from '@/features/chat/components/call-round-button'
 import { useTunnel } from '@/hooks/use-tunnel'
 import { useTunnelChannel } from '@/hooks/use-tunnel-channel'
 import type { IncomingCallInvite } from '@/hooks/use-webrtc-call'
@@ -155,9 +155,9 @@ export function IncomingCallBanner({
     >
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-600">
         {invite.media === 'video' ? (
-          <Video className="h-5 w-5" aria-hidden />
+          <Video size={22} color="currentColor" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
         ) : (
-          <Phone className="h-5 w-5" aria-hidden />
+          <Phone size={22} color="currentColor" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
         )}
       </div>
       <div className="min-w-0 flex-1">
@@ -166,33 +166,28 @@ export function IncomingCallBanner({
         </p>
         <p className="text-xs text-muted-foreground">{t('callIncoming')}</p>
       </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="destructive"
-        className="h-9 w-9 rounded-full p-0"
-        aria-label={t('callReject')}
+      <CallRoundButton
+        tone="end"
+        label={t('callReject')}
         onClick={() => {
           void apiClient.post('/api/calls/pending', { callId: invite.callId }).catch(() => {})
           onDeclineAction(invite)
           setInvite(null)
         }}
       >
-        <PhoneOff className="h-4 w-4" />
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        className="h-9 w-9 rounded-full bg-emerald-600 p-0 hover:bg-emerald-500"
-        aria-label={t('callAccept')}
+        <PhoneOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+      </CallRoundButton>
+      <CallRoundButton
+        tone="answer"
+        label={t('callAccept')}
         onClick={() => {
           void apiClient.post('/api/calls/pending', { callId: invite.callId }).catch(() => {})
           onAcceptAction(invite)
           setInvite(null)
         }}
       >
-        <Phone className="h-4 w-4" />
-      </Button>
+        <Phone size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+      </CallRoundButton>
     </div>
   )
 }

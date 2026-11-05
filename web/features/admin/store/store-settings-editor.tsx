@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { updateAdminStoreShippingSettingsAction } from '@/app/_actions/admin-store-erp'
+import { updateAdminStoreShippingSettingsAction, updateAdminReferralDefaultAction } from '@/app/_actions/admin-store-erp'
 import type { StoreSettingsData, StoreShippingSettings } from '@/features/store/types/store-settings'
 
 export function StoreSettingsEditor({
@@ -20,6 +20,9 @@ export function StoreSettingsEditor({
   const [shipping, setShipping] = useState<StoreShippingSettings>(initial.shipping)
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
+  const [referralPercent, setReferralPercent] = useState(
+    initial.referralCommissionPercent != null ? String(initial.referralCommissionPercent) : '',
+  )
 
   const save = () => {
     setMessage(null)
@@ -184,6 +187,35 @@ export function StoreSettingsEditor({
           <option value="nova-post">{t('novaPost')}</option>
           <option value="pickup">{t('storePickup')}</option>
         </select>
+      </div>
+
+      <div className="space-y-2 max-w-xs">
+        <Label htmlFor="referral-default">{t('referralDefault')}</Label>
+        <Input
+          id="referral-default"
+          type="number"
+          min={0}
+          max={50}
+          value={referralPercent}
+          onChange={(event) => setReferralPercent(event.target.value)}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending || referralPercent.trim() === ''}
+          onClick={() =>
+            startTransition(async () => {
+              try {
+                await updateAdminReferralDefaultAction(Number(referralPercent))
+                setMessage(t('saved'))
+              } catch {
+                setMessage(t('saveFailed'))
+              }
+            })
+          }
+        >
+          {t('save')}
+        </Button>
       </div>
 
       <div className="flex items-center gap-3">

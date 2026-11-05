@@ -8,7 +8,7 @@ import { CreditBalanceProvider } from '@/components/providers/credit-balance-pro
 import { Web3ScopeProvider } from '@/components/providers/web3-scope-provider'
 import { WebVitalsProvider } from '@/components/providers/web-vitals-provider'
 import { DeviceTelemetryProvider } from '@/components/providers/device-telemetry-provider'
-import { ThemeProvider } from '@/components/providers/theme-provider'
+import { ThemeProvider, themeDefaultFromInstance } from '@/components/providers/theme-provider'
 import {
   InstanceConfigClientProvider,
   type PublicInstanceConfig,
@@ -41,7 +41,7 @@ const APP_SHELL_STATIC_INSTANCE_CONFIG: PublicInstanceConfig =
 /** Minimal shell for cacheComponents static prerender (root Suspense fallback). Must not render route children. */
 export function AppShellStaticFallback() {
   return (
-    <ThemeProvider>
+    <ThemeProvider defaultTheme={themeDefaultFromInstance(APP_SHELL_STATIC_INSTANCE_CONFIG.theme?.default)}>
       <InstanceConfigClientProvider value={APP_SHELL_STATIC_INSTANCE_CONFIG}>
         <div className="min-h-screen animate-pulse bg-muted/20" aria-hidden="true" />
       </InstanceConfigClientProvider>
@@ -49,7 +49,7 @@ export function AppShellStaticFallback() {
   )
 }
 
-/** Full client chrome after hydration (session, tunnel, wagmi, FCM). */
+/** Full client chrome after hydration (session, tunnel, FCM). Wagmi loads only on web3 paths. */
 export function AppClientShell({
   instanceConfig,
   session = null,
@@ -64,23 +64,18 @@ export function AppClientShell({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  if (isLoginPath(pathname)) {
-    return (
-      <SessionProvider session={session}>
-        <ThemeProvider>
-          <InstanceConfigClientProvider value={instanceConfig}>
-            {children}
-          </InstanceConfigClientProvider>
-        </ThemeProvider>
-      </SessionProvider>
-    )
-  }
+  // Soft-nav to /login updates this pathname before the locale RSC swaps the
+  // full chrome (nav, curtain, incoming-call banner) for the login shell.
+  // Those still-mounted clients call useCallSession / useCreditBalanceContext.
+  // Dropping their providers here throws and the login error boundary shows
+  // "Oops". Keep one provider tree; only skip login-screen prompts.
+  const loginScreen = isLoginPath(pathname)
 
   return (
     <SessionProvider session={session}>
       <WebVitalsProvider>
         <DeviceTelemetryProvider>
-          <ThemeProvider>
+          <ThemeProvider defaultTheme={themeDefaultFromInstance(instanceConfig.theme?.default)}>
             <InstanceConfigClientProvider value={instanceConfig}>
               <AppProvider>
                 <MediaUseTargetProvider>
@@ -92,9 +87,11 @@ export function AppClientShell({
                         <StorePaymentMethodsProvider initialExchangeRates={initialExchangeRates}>
                           <StoreProvider>
                             {children}
-                            <Suspense fallback={null}>
-                              <GoogleOneTap />
-                            </Suspense>
+                            {loginScreen ? null : (
+                              <Suspense fallback={null}>
+                                <GoogleOneTap />
+                              </Suspense>
+                            )}
                             <Suspense fallback={null}>
                               <RingAnalyticsBeacon />
                             </Suspense>
@@ -103,7 +100,7 @@ export function AppClientShell({
                         </StorePaymentMethodsProvider>
                       </Web3ScopeProvider>
                     </CreditBalanceProvider>
-                    <FCMPermissionPrompt />
+                    {loginScreen ? null : <FCMPermissionPrompt />}
                     <Toaster />
                     </CallSessionProvider>
                   </TunnelProvider>

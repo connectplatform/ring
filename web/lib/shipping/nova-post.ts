@@ -115,6 +115,36 @@ export async function getNovaPostJwt(apiKey: string): Promise<string> {
   return body.jwt
 }
 
+export async function novaPostSend(
+  method: 'GET' | 'POST',
+  path: string,
+  jwt: string,
+  body?: unknown,
+): Promise<{ ok: boolean; status: number; json?: unknown; buffer?: ArrayBuffer; contentType?: string }> {
+  const headers: Record<string, string> = { Authorization: jwt, 'Accept-Language': 'uk' }
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  let res = await fetch(`${NOVA_POST_API_BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+  })
+  if (res.status === 401 && method === 'POST') {
+    res = await fetch(`${NOVA_POST_API_BASE}${path}`, {
+      method,
+      headers: { ...headers, Authorization: `Bearer ${jwt}` },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+    })
+  }
+  const contentType = res.headers.get('content-type') || ''
+  if (contentType.includes('pdf') || contentType.includes('octet-stream')) {
+    return { ok: res.ok, status: res.status, buffer: await res.arrayBuffer(), contentType }
+  }
+  const json = await res.json().catch(() => undefined)
+  return { ok: res.ok, status: res.status, json, contentType }
+}
+
 async function novaPostGet(path: string, jwt: string): Promise<unknown> {
   const res = await fetch(`${NOVA_POST_API_BASE}${path}`, {
     headers: { Authorization: jwt, 'Accept-Language': 'uk' },

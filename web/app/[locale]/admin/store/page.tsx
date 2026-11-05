@@ -137,6 +137,9 @@ export default async function AdminStoreHubPage({
             <Link href={ROUTES.ADMIN_STORE_STOCK(locale)}>{th('stock')}</Link>
           </Button>
           <Button asChild variant="outline">
+            <Link href={ROUTES.ADMIN_STORE_WAREHOUSES(locale)}>{th('warehouses')}</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href={ROUTES.ADMIN_STORE_COMMISSIONS(locale)}>{th('commissions')}</Link>
           </Button>
           <Button asChild variant="outline">

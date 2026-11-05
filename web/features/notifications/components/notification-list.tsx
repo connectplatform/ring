@@ -24,6 +24,7 @@ import { useTunnelChannel } from '@/hooks/use-tunnel-channel';
 import { NotificationItem } from './notification-item';
 import { NotificationType, NotificationPriority } from '@/features/notifications/types';
 import { applyInboxToFeed } from '@/features/notifications/lib/apply-inbox-to-feed';
+import { NotificationErrorBoundary } from './notification-error-boundary';
 import { cn } from '@/lib/utils';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCursorFeed } from '@/hooks/use-cursor-feed';
@@ -308,6 +309,7 @@ export function NotificationList({ className }: NotificationListProps) {
   ];
 
   return (
+    <NotificationErrorBoundary>
     <div className={cn('w-full min-w-0 max-w-4xl mx-auto', className)}>
       {/* Stats + controls row (title lives in right rail — site-wide pattern) */}
       <div className="flex items-center justify-between mb-4">
@@ -603,5 +605,6 @@ export function NotificationList({ className }: NotificationListProps) {
         {hasMore && <div ref={sentinelRef} className="h-10" aria-hidden />}
       </div>
     </div>
+    </NotificationErrorBoundary>
   );
 }

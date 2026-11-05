@@ -34,6 +34,11 @@ import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
 import { createProductNodusWikiFromDraft } from '@/features/store/lib/product-nodus-wiki'
 import type { ProductPromotion } from '@/features/store/types/promotions'
+import {
+  DEFAULT_INVENTORY_STORE_ID,
+  DEFAULT_WAREHOUSE_NAME,
+  ZERO_WAREHOUSE_ID,
+} from '@/features/store/constants/stock'
 
 function parseProductPromotionsFromForm(formData: FormData): ProductPromotion[] {
   const raw = String(formData.get('promotionsJson') ?? '').trim()
@@ -1089,4 +1094,426 @@ export async function listPromotedProductsAction() {
       name: String(row.name || row.id),
       promotions: row.promotions,
     }))
+}
+
+/** Platform warehouse directory row. Quantities stay on the default warehouse. */
+export interface WarehouseDirectoryRow {
+  id: string
+  name: string
+  code: string
+  address: string
+  active: boolean
+  isDefault: boolean
+  inventoryStoreId: string
+}
+
+const WAREHOUSES_COLLECTION = 'warehouses'
+
+function asWarehouse(row: { id: string } & Record<string, unknown>): WarehouseDirectoryRow {
+  const id = String(row.id)
+  const isDefault = Boolean(row.isDefault) || id === ZERO_WAREHOUSE_ID
+  const storedStoreId = typeof row.inventoryStoreId === 'string' ? row.inventoryStoreId : ''
+  return {
+    id,
+    name: typeof row.name === 'string' ? row.name : '',
+    code: typeof row.code === 'string' ? row.code : '',
+    address: typeof row.address === 'string' ? row.address : '',
+    active: row.active !== false,
+    isDefault,
+    inventoryStoreId: isDefault ? storedStoreId || DEFAULT_INVENTORY_STORE_ID : storedStoreId,
+  }
+}
+
+function sortWarehouses(rows: WarehouseDirectoryRow[]): WarehouseDirectoryRow[] {
+  return [...rows].sort((a, b) => {
+    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1
+    return a.name.localeCompare(b.name) || a.code.localeCompare(b.code)
+  })
+}
+
+async function readWarehouses(): Promise<WarehouseDirectoryRow[]> {
+  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+    collection: WAREHOUSES_COLLECTION,
+    pagination: { limit: 500 },
+  })
+  if (!result.success || !result.data) {
+    throw result.error || new Error('Failed to list warehouses')
+  }
+  return sortWarehouses(result.data.map((row) => asWarehouse(row)))
+}
+
+async function ensureDefaultWarehouse(): Promise<void> {
+  const existing = await db().findDocById<Record<string, unknown>>(
+    WAREHOUSES_COLLECTION,
+    ZERO_WAREHOUSE_ID,
+  )
+  if (!existing.success) {
+    throw existing.error || new Error('Failed to read the default warehouse')
+  }
+  if (existing.data) return
+
+  const created = await db().createDoc(
+    WAREHOUSES_COLLECTION,
+    {
+      id: ZERO_WAREHOUSE_ID,
+      name: DEFAULT_WAREHOUSE_NAME,
+      code: 'main',
+      address: '',
+      active: true,
+      isDefault: true,
+      inventoryStoreId: DEFAULT_INVENTORY_STORE_ID,
+    },
+    { id: ZERO_WAREHOUSE_ID },
+  )
+  if (created.success) return
+
+  const again = await db().findDocById(WAREHOUSES_COLLECTION, ZERO_WAREHOUSE_ID)
+  if (again.success && again.data) return
+  throw created.error || new Error('Failed to seed the default warehouse')
+}
+
+function assertUniqueWarehouseCode(rows: WarehouseDirectoryRow[], code: string, exceptId?: string) {
+  const needle = code.trim().toLowerCase()
+  const taken = rows.some(
+    (row) => row.id !== exceptId && row.code.trim().toLowerCase() === needle,
+  )
+  if (taken) throw new Error('Warehouse code is already in use')
+}
+
+function revalidateWarehouses() {
+  revalidatePath('/admin/store/warehouses')
+}
+
+export async function listWarehousesAction(): Promise<WarehouseDirectoryRow[]> {
+  await assertAdmin()
+  await ensureDefaultWarehouse()
+  return readWarehouses()
+}
+
+export async function createWarehouseAction(input: {
+  name: string
+  code: string
+  address?: string
+}): Promise<WarehouseDirectoryRow[]> {
+  await assertAdmin()
+  await ensureDefaultWarehouse()
+  const name = input.name.trim()
+  const code = input.code.trim()
+  if (!name) throw new Error('Warehouse name is required')
+  if (!code) throw new Error('Warehouse code is required')
+
+  const rows = await readWarehouses()
+  assertUniqueWarehouseCode(rows, code)
+
+  const id = `warehouse_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const created = await db().createDoc(
+    WAREHOUSES_COLLECTION,
+    {
+      id,
+      name,
+      code,
+      address: (input.address || '').trim(),
+      active: true,
+      isDefault: false,
+      inventoryStoreId: id,
+    },
+    { id },
+  )
+  if (!created.success) throw created.error || new Error('Failed to create warehouse')
+  revalidateWarehouses()
+  return readWarehouses()
+}
+
+export async function updateWarehouseAction(input: {
+  id: string
+  name: string
+  code: string
+  address?: string
+  active: boolean
+  isDefault?: boolean
+  inventoryStoreId?: string
+}): Promise<WarehouseDirectoryRow[]> {
+  await assertAdmin()
+  const id = input.id.trim()
+  const current = await db().findDocById<Record<string, unknown>>(WAREHOUSES_COLLECTION, id)
+  if (!current.success) throw current.error || new Error('Failed to read warehouse')
+  if (!current.data) throw new Error('Warehouse not found')
+
+  const row = asWarehouse(current.data)
+  const name = input.name.trim()
+  const code = input.code.trim()
+  if (!name) throw new Error('Warehouse name is required')
+  if (!code) throw new Error('Warehouse code is required')
+
+  if (row.isDefault) {
+    if (input.active === false || input.isDefault === false) {
+      throw new Error('The default warehouse stays active')
+    }
+    if (
+      input.inventoryStoreId !== undefined &&
+      input.inventoryStoreId !== row.inventoryStoreId
+    ) {
+      throw new Error('The default warehouse inventory store cannot be changed')
+    }
+  } else if (input.isDefault === true) {
+    throw new Error('Only the main warehouse can be the default')
+  }
+
+  const rows = await readWarehouses()
+  assertUniqueWarehouseCode(rows, code, id)
+
+  const updated = await db().updateDoc(WAREHOUSES_COLLECTION, id, {
+    id,
+    name,
+    code,
+    address: (input.address || '').trim(),
+    active: row.isDefault ? true : input.active,
+    isDefault: row.isDefault,
+    inventoryStoreId: row.inventoryStoreId,
+  })
+  if (!updated.success) throw updated.error || new Error('Failed to update warehouse')
+  revalidateWarehouses()
+  return readWarehouses()
+}
+
+export async function deleteWarehouseAction(id: string): Promise<WarehouseDirectoryRow[]> {
+  await assertAdmin()
+  const warehouseId = id.trim()
+  const current = await db().findDocById<Record<string, unknown>>(
+    WAREHOUSES_COLLECTION,
+    warehouseId,
+  )
+  if (!current.success) throw current.error || new Error('Failed to read warehouse')
+  if (!current.data) throw new Error('Warehouse not found')
+
+  const row = asWarehouse(current.data)
+  if (row.isDefault || warehouseId === ZERO_WAREHOUSE_ID) {
+    throw new Error('This warehouse cannot be deleted.')
+  }
+
+  const movements = await db().queryDocs({
+    collection: 'stock_movements',
+    filters: [{ field: 'warehouseId', operator: '=', value: warehouseId }],
+    pagination: { limit: 1 },
+  })
+  if (!movements.success) {
+    throw movements.error || new Error('Failed to check stock movements')
+  }
+  if (movements.data && movements.data.length > 0) {
+    throw new Error('This warehouse cannot be deleted.')
+  }
+
+  const deleted = await db().deleteDoc(WAREHOUSES_COLLECTION, warehouseId)
+  if (!deleted.success) throw deleted.error || new Error('Failed to delete warehouse')
+  revalidateWarehouses()
+  return readWarehouses()
+}
+
+export async function assertWarehouseOperator(warehouseId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Unauthorized')
+  if (isPlatformAdmin(session.user.role)) return { session, role: 'admin' as const }
+  const assignment = await db().findDocById<Record<string, unknown>>(
+    'warehouse_assignments',
+    `${warehouseId}_${session.user.id}`,
+  )
+  if (!assignment.success || !assignment.data || assignment.data.active === false) {
+    throw new Error('Unauthorized')
+  }
+  return { session, role: String(assignment.data.role || 'worker') }
+}
+
+export async function receiveWarehouseStockAction(input: {
+  warehouseId: string
+  productId: string
+  quantity: number
+  unitCost: number
+  amountPaid: number
+  amountOwed: number
+  supplierName?: string
+}) {
+  const { session } = await assertWarehouseOperator(input.warehouseId)
+  const { receiveIntoWarehouse } = await import('@/features/store/services/warehouse-fulfillment')
+  await receiveIntoWarehouse({ ...input, userId: session.user.id })
+  revalidatePath('/admin/store/stock')
+  revalidatePath('/admin/store/warehouses')
+  revalidatePath(`/warehouses/${input.warehouseId}`)
+}
+
+export async function transferWarehouseStockAction(input: {
+  fromWarehouseId: string
+  toWarehouseId: string
+  productId: string
+  quantity: number
+}) {
+  const { session } = await assertWarehouseOperator(input.fromWarehouseId)
+  const { transferBetweenWarehouses } = await import('@/features/store/services/warehouse-fulfillment')
+  await transferBetweenWarehouses({ ...input, userId: session.user.id })
+  revalidatePath('/admin/store/stock')
+  revalidatePath('/admin/store/warehouses')
+}
+
+export async function recordSupplierPaymentAction(input: { movementId: string; warehouseId: string; amount: number }) {
+  await assertWarehouseOperator(input.warehouseId)
+  const { recordSupplierPayment } = await import('@/features/store/services/warehouse-fulfillment')
+  await recordSupplierPayment(input.movementId, input.amount)
+  revalidatePath('/admin/store/stock')
+}
+
+export interface WarehouseAssignmentRow {
+  id: string
+  warehouseId: string
+  userId: string
+  role: 'manager' | 'worker'
+  active: boolean
+  email?: string
+  name?: string
+}
+
+export async function listWarehouseAssignmentsAction(warehouseId: string): Promise<WarehouseAssignmentRow[]> {
+  const access = await assertWarehouseOperator(warehouseId)
+  if (access.role === 'worker') return []
+  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+    collection: 'warehouse_assignments',
+    filters: [{ field: 'warehouseId', operator: '=', value: warehouseId }],
+    pagination: { limit: 100 },
+  })
+  const rows = result.success && result.data ? result.data : []
+  return rows.map((row) => ({
+    id: row.id,
+    warehouseId,
+    userId: String(row.userId || ''),
+    role: row.role === 'manager' ? 'manager' : 'worker',
+    active: row.active !== false,
+    email: typeof row.email === 'string' ? row.email : undefined,
+    name: typeof row.name === 'string' ? row.name : undefined,
+  }))
+}
+
+export async function searchWarehouseUsersAction(query: string) {
+  await assertAdmin()
+  const needle = query.trim().toLowerCase()
+  if (needle.length < 2) return []
+  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+    collection: 'users',
+    pagination: { limit: 80 },
+  })
+  const rows = result.success && result.data ? result.data : []
+  return rows
+    .filter((row) => {
+      const email = String(row.email || '').toLowerCase()
+      const name = String(row.name || row.displayName || '').toLowerCase()
+      return email.includes(needle) || name.includes(needle)
+    })
+    .slice(0, 12)
+    .map((row) => ({
+      id: row.id,
+      email: String(row.email || ''),
+      name: String(row.name || row.displayName || row.email || row.id),
+    }))
+}
+
+export async function saveWarehouseAssignmentAction(input: {
+  warehouseId: string
+  userId: string
+  role: 'manager' | 'worker'
+  active: boolean
+  email?: string
+  name?: string
+}) {
+  const access = await assertWarehouseOperator(input.warehouseId)
+  if (access.role === 'worker') throw new Error('Unauthorized')
+  const id = `${input.warehouseId}_${input.userId}`
+  const existing = await db().findDocById('warehouse_assignments', id)
+  const payload = {
+    id,
+    warehouseId: input.warehouseId,
+    userId: input.userId,
+    role: input.role,
+    active: input.active,
+    email: input.email || '',
+    name: input.name || '',
+  }
+  const saved = existing.success && existing.data
+    ? await db().updateDoc('warehouse_assignments', id, payload)
+    : await db().createDoc('warehouse_assignments', payload, { id })
+  if (!saved.success) throw saved.error || new Error('Failed to save assignment')
+  revalidatePath(`/admin/store/warehouses/${input.warehouseId}`)
+  revalidatePath('/warehouses')
+}
+
+export async function saveWarehouseSenderAction(input: {
+  warehouseId: string
+  novaPostSenderDivisionId: string
+  novaPostSenderDivisionName: string
+  novaPostSenderAddress: string
+}) {
+  await assertAdmin()
+  const updated = await db().updateDoc(WAREHOUSES_COLLECTION, input.warehouseId, {
+    novaPostSenderDivisionId: input.novaPostSenderDivisionId,
+    novaPostSenderDivisionName: input.novaPostSenderDivisionName,
+    novaPostSenderAddress: input.novaPostSenderAddress,
+  })
+  if (!updated.success) throw updated.error || new Error('Failed to save sender branch')
+  revalidatePath(`/admin/store/warehouses/${input.warehouseId}`)
+}
+
+export async function listMyWarehousesAction() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Unauthorized')
+  if (isPlatformAdmin(session.user.role)) {
+    const { listFulfillmentWarehouses } = await import('@/features/store/services/warehouse-fulfillment')
+    return listFulfillmentWarehouses()
+  }
+  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
+    collection: 'warehouse_assignments',
+    filters: [{ field: 'userId', operator: '=', value: session.user.id }],
+    pagination: { limit: 50 },
+  })
+  const rows = (result.success && result.data ? result.data : []).filter((row) => row.active !== false)
+  const { getFulfillmentWarehouse } = await import('@/features/store/services/warehouse-fulfillment')
+  const warehouses = []
+  for (const row of rows) {
+    warehouses.push(await getFulfillmentWarehouse(String(row.warehouseId || '')))
+  }
+  return warehouses
+}
+
+export async function updateAdminReferralDefaultAction(percent: number) {
+  const session = await assertAdmin()
+  const { getStoreSettings, saveStoreSettings } = await import('@/features/store/services/store-settings-service')
+  const current = await getStoreSettings()
+  await saveStoreSettings({ ...current, referralCommissionPercent: percent }, session.user.id)
+  revalidatePath('/admin/store/settings')
+  revalidatePath('/admin/store/commissions')
+}
+
+export async function setVendorReferralPercentAction(vendorEntityId: string, percent: number) {
+  await assertAdmin()
+  const entityId = vendorEntityId.trim()
+  if (!entityId) throw new Error('Vendor is required')
+  const { getMerchantConfigByEntityId } = await import('@/features/store/lib/merchant-config')
+  const existing = await getMerchantConfigByEntityId(entityId)
+  if (existing?.id) {
+    const updated = await db().updateDoc('merchant_configs', existing.id, {
+      commissionStructure: {
+        ...(existing.commissionStructure || {}),
+        referralCommission: percent,
+      },
+    })
+    if (!updated.success) throw updated.error || new Error('Failed to save vendor referral percent')
+  } else {
+    const id = `merchant_${entityId}`
+    const created = await db().createDoc(
+      'merchant_configs',
+      {
+        id,
+        ownerEntityId: entityId,
+        commissionStructure: { referralCommission: percent },
+      },
+      { id },
+    )
+    if (!created.success) throw created.error || new Error('Failed to save vendor referral percent')
+  }
+  revalidatePath('/admin/store/commissions')
 }
