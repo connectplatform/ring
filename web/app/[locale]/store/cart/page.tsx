@@ -29,7 +29,6 @@ export async function generateMetadata({
 }
 
 // This is the main Cart Page, rendered as a server component.
-// TODO: Next.js 13+ now allows simpler params type: use `{ params: { locale: Locale } }` directly as prop, removing the need for a Promise and await.
 export default async function CartPage({ params }: { params: Promise<{ locale: Locale }> }) {
   // Await the params and extract the locale
   const { locale } = await params

@@ -456,7 +456,11 @@
     "quantity": "Кількість",
     "bulkRestock": "Масове поповнення",
     "warehouse": "Склад",
-    "lowStock": "Мало на складі"
+    "lowStock": "Мало на складі",
+    "unitCost": "Собівартість",
+    "amountPaid": "Сплачено",
+    "amountOwed": "Борг",
+    "unknownCostHint": "Вартість 0 означає невідомо і не входить у середню."
   },
   "navbar": {
     "myStore": "Мій магазин",

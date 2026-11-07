@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
 import { FsModal } from '@/components/ui/fs-modal'
 import { Button } from '@/components/ui/button'
@@ -77,6 +78,8 @@ function a2hsOffer(pathname: string): CurtainDropParams {
 
 export function CurtainHost() {
   const t = useTranslations('modules.curtain')
+  const fulfillment = useTranslations('modules.store.fulfillment')
+  const { success } = useToast()
   const pathname = usePathname()
   const policy = getClientCurtainPolicy()
   const { data: session, status } = useSession()
@@ -203,7 +206,7 @@ export function CurtainHost() {
       })
       writeCurtainAttributionClient(touches)
       if (store && offer.productName && offer.productPrice != null) {
-        store.addToCart({
+        const result = await store.addToCart({
           id: offer.productId,
           name: offer.productName,
           price: String(offer.productPrice),
@@ -211,6 +214,13 @@ export function CurtainHost() {
           inStock: true,
           images: offer.mediaUrl ? [offer.mediaUrl] : [],
         })
+        if (!result.ok) {
+          success({
+            title: fulfillment('oneWarehouse'),
+            description: result.max != null ? fulfillment('shortfall', { max: result.max }) : undefined,
+          })
+          return
+        }
       } else if (offer.ctaHref) {
         window.location.assign(offer.ctaHref)
       }
@@ -239,7 +249,7 @@ export function CurtainHost() {
     writeCurtainPrefsClient(patched)
     if (session?.user?.id) void syncCurtainPrefs(patched)
     promote(offer.offerId)
-  }, [hide, offer, pathname, policy.notTodayHours, promote, session?.user?.id, store])
+  }, [fulfillment, hide, offer, pathname, policy.notTodayHours, promote, session?.user?.id, store, success])
 
   useEffect(() => {
     if (!offer || !visible || busy || skipPath) return

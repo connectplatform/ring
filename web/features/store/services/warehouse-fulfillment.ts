@@ -6,6 +6,19 @@ import {
 } from '@/features/store/constants/stock'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
 import type { StockMovement } from '@/features/store/types/erp-stock'
+import {
+  formatFulfillmentShortfall,
+  isKnownUnitCost,
+  movementDocId,
+  movementValue,
+  movingAverage,
+  pickFulfillmentWarehouse,
+  paymentExceedsRemaining,
+  supplierRemainingOwed,
+  type WarehouseAvailability,
+} from '@/features/store/services/fulfillment-ledger'
+
+export { movingAverage } from '@/features/store/services/fulfillment-ledger'
 interface LevelRow {
   id?: string
   productId: string
@@ -26,6 +39,8 @@ export interface FulfillmentWarehouse {
   novaPostSenderDivisionId?: string
   novaPostSenderDivisionName?: string
   novaPostSenderAddress?: string
+  senderPhone?: string
+  canShip?: boolean
 }
 
 const syntheticDefault = (): FulfillmentWarehouse => ({
@@ -56,6 +71,8 @@ function asWarehouse(row: { id: string } & Record<string, unknown>): Fulfillment
       typeof row.novaPostSenderDivisionName === 'string' ? row.novaPostSenderDivisionName : undefined,
     novaPostSenderAddress:
       typeof row.novaPostSenderAddress === 'string' ? row.novaPostSenderAddress : undefined,
+    senderPhone: typeof row.senderPhone === 'string' ? row.senderPhone : undefined,
+    canShip: row.canShip === true,
   }
 }
 
@@ -88,9 +105,12 @@ export async function listFulfillmentWarehouses(): Promise<FulfillmentWarehouse[
   }
 }
 
-export async function getFulfillmentWarehouse(warehouseId: string): Promise<FulfillmentWarehouse> {
+export async function getFulfillmentWarehouse(warehouseId: string): Promise<FulfillmentWarehouse | null> {
   const rows = await listFulfillmentWarehouses()
-  return rows.find((row) => row.id === warehouseId) || syntheticDefault()
+  const found = rows.find((row) => row.id === warehouseId)
+  if (found) return found
+  if (!warehouseId || warehouseId === ZERO_WAREHOUSE_ID) return syntheticDefault()
+  return null
 }
 
 export async function levelsForProduct(productId: string): Promise<LevelRow[]> {
@@ -103,41 +123,66 @@ export async function levelsForProduct(productId: string): Promise<LevelRow[]> {
   return result.data
 }
 
+function toAvailability(
+  warehouses: FulfillmentWarehouse[],
+  levels: LevelRow[],
+): WarehouseAvailability[] {
+  return warehouses.map((warehouse) => {
+    const level = levels.find((row) => row.storeId === warehouse.inventoryStoreId)
+    return {
+      id: warehouse.id,
+      name: warehouse.name,
+      code: warehouse.code,
+      storeId: warehouse.inventoryStoreId,
+      active: warehouse.active,
+      isDefault: warehouse.isDefault,
+      available: Number(level?.available ?? 0),
+    }
+  })
+}
+
 export async function chooseFulfillmentWarehouse(input: {
   productId: string
   quantity: number
   explicitWarehouseId?: string
 }): Promise<{ warehouseId: string; storeId: string } | null> {
-  const warehouses = (await listFulfillmentWarehouses()).filter((row) => row.active)
+  const warehouses = await listFulfillmentWarehouses()
   const levels = await levelsForProduct(input.productId)
-  const availableAt = (warehouse: FulfillmentWarehouse) => {
-    const level = levels.find((row) => row.storeId === warehouse.inventoryStoreId)
-    return Number(level?.available ?? 0)
-  }
-  const explicit = input.explicitWarehouseId
-    ? warehouses.find((row) => row.id === input.explicitWarehouseId)
-    : undefined
-  if (explicit) {
-    return availableAt(explicit) >= input.quantity
-      ? { warehouseId: explicit.id, storeId: explicit.inventoryStoreId }
-      : null
-  }
-  const preferred = warehouses.find((row) => row.id === ZERO_WAREHOUSE_ID) || warehouses.find((row) => row.isDefault)
-  if (preferred && availableAt(preferred) >= input.quantity) {
-    return { warehouseId: preferred.id, storeId: preferred.inventoryStoreId }
-  }
-  const rest = warehouses
-    .filter((row) => row.id !== preferred?.id)
-    .sort((a, b) => a.code.localeCompare(b.code))
-  const match = rest.find((row) => availableAt(row) >= input.quantity)
-  if (!match) return null
-  return { warehouseId: match.id, storeId: match.inventoryStoreId }
+  return pickFulfillmentWarehouse({
+    quantity: input.quantity,
+    explicitWarehouseId: input.explicitWarehouseId,
+    warehouses: toAvailability(warehouses, levels),
+  })
 }
 
-export function movingAverage(onHand: number, oldCost: number, qty: number, unitCost: number): number {
-  const next = onHand + qty
-  if (next <= 0) return unitCost
-  return (onHand * oldCost + qty * unitCost) / next
+export async function explainFulfillmentShortfall(input: {
+  productId: string
+  quantity: number
+}): Promise<{ max: number; message: string; warehouses: WarehouseAvailability[] }> {
+  const warehouses = await listFulfillmentWarehouses()
+  const levels = await levelsForProduct(input.productId)
+  const rows = toAvailability(warehouses, levels).filter((row) => row.active)
+  const formatted = formatFulfillmentShortfall({
+    requested: input.quantity,
+    rows,
+  })
+  return { ...formatted, warehouses: rows }
+}
+
+export async function maxShippableQuantity(productId: string): Promise<{
+  max: number
+  warehouses: Array<{ id: string; name: string; code: string; available: number }>
+}> {
+  const explained = await explainFulfillmentShortfall({ productId, quantity: 1 })
+  return {
+    max: explained.max,
+    warehouses: explained.warehouses.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      available: row.available,
+    })),
+  }
 }
 
 export async function sumLevelsForProduct(productId: string): Promise<number> {
@@ -164,6 +209,8 @@ export interface WarehouseMovementRow {
   amountPaid?: number
   amountOwed?: number
   timestamp: string
+  userId?: string
+  receiptMovementId?: string
 }
 
 export interface WarehouseStockReport {
@@ -184,7 +231,10 @@ export interface WarehouseStockReport {
 
 export async function getWarehouseStockReport(warehouseId: string): Promise<WarehouseStockReport> {
   const warehouses = await listFulfillmentWarehouses()
-  const warehouse = warehouses.find((row) => row.id === warehouseId) || (await getFulfillmentWarehouse(warehouseId))
+  const warehouse =
+    warehouses.find((row) => row.id === warehouseId) ||
+    (await getFulfillmentWarehouse(warehouseId)) ||
+    warehouses[0]
   const levelsResult = await db().queryDocs<LevelRow & { id: string }>({
     collection: 'inventory_levels',
     filters: [{ field: 'storeId', operator: '=', value: warehouse.inventoryStoreId }],
@@ -245,6 +295,10 @@ export async function getWarehouseStockReport(warehouseId: string): Promise<Ware
       supplierPaid += Number(row.amountPaid || 0)
       supplierOwed += Number(row.amountOwed || 0)
     }
+    if (row.movementType === 'supplier_payment') {
+      supplierPaid += Number(row.amountPaid || 0)
+      supplierOwed -= Number(row.amountPaid || 0)
+    }
     if (row.movementType === 'transfer' && row.counterWarehouseId === warehouse.id) {
       receivedQty += Math.abs(Number(row.quantityChange || 0))
     }
@@ -296,28 +350,49 @@ export async function getWarehouseStockReport(warehouseId: string): Promise<Ware
     reserved: products.reduce((sum, row) => sum + row.reserved, 0),
     receivedQty,
     supplierPaid,
-    supplierOwed,
+    supplierOwed: Math.max(0, supplierOwed),
     referralOwed,
     vendorNetOwed,
     vendorNetPaid,
     products,
     catalog: [...names.entries()].map(([productId, name]) => ({ productId, name })).sort((a, b) => a.name.localeCompare(b.name)),
-    movements: combined.slice(0, 40).map((row) => ({
-      id: row.id,
-      productId: row.productId,
-      productName: names.get(row.productId) || row.productId,
-      movementType: row.movementType,
-      quantityChange: Number(row.quantityChange || 0),
-      counterWarehouseId: row.counterWarehouseId,
-      amountPaid: row.amountPaid,
-      amountOwed: row.amountOwed,
-      timestamp: row.timestamp,
-    })),
+    movements: combined.slice(0, 40).map((row) => {
+      const paidLater = own
+        .filter((payment) => payment.movementType === 'supplier_payment' && payment.receiptMovementId === row.id)
+        .reduce((sum, payment) => sum + Number(payment.amountPaid || 0), 0)
+      return {
+        id: row.id,
+        productId: row.productId,
+        productName: names.get(row.productId) || row.productId,
+        movementType: row.movementType,
+        quantityChange: Number(row.quantityChange || 0),
+        counterWarehouseId: row.counterWarehouseId,
+        amountPaid: row.amountPaid,
+        amountOwed:
+          row.movementType === 'receipt'
+            ? Math.max(0, Number(row.amountOwed || 0) - paidLater)
+            : row.amountOwed,
+        timestamp: row.timestamp,
+        userId: row.userId,
+        receiptMovementId: row.receiptMovementId,
+      }
+    }),
   }
 }
 
-function movementId(): string {
-  return `mov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+type LockedLevel = {
+  available?: number
+  reserved?: number
+  syncVersion?: number
+  unitCost?: number
+}
+
+async function movementExists(
+  transaction: { read: (collection: string, id: string) => Promise<{ data?: unknown } | null> },
+  id: string,
+): Promise<boolean> {
+  const existing = await transaction.read(STORE_COLLECTIONS.stockMovements, id)
+  return Boolean(existing?.data)
 }
 
 export async function receiveIntoWarehouse(input: {
@@ -329,23 +404,27 @@ export async function receiveIntoWarehouse(input: {
   amountOwed: number
   supplierName?: string
   userId?: string
+  idempotencyKey?: string
 }): Promise<void> {
   const quantity = Math.floor(input.quantity)
   if (quantity < 1) throw new Error('Quantity is required')
+  if (Number(input.unitCost) < 0 || Number(input.amountPaid) < 0 || Number(input.amountOwed) < 0) {
+    throw new Error('Cost and amounts cannot be negative')
+  }
   const warehouse = await getFulfillmentWarehouse(input.warehouseId)
+  if (!warehouse) throw new Error('Warehouse not found')
   const product = await db().findDocById<{ stock?: number; name?: string }>('store_products', input.productId)
   if (!product.success || !product.data) throw new Error('Product not found')
   const now = new Date().toISOString()
   const levelId = `${input.productId}_${warehouse.inventoryStoreId}`
+  const movementId = movementDocId(input.idempotencyKey)
 
   await db().transaction(async (transaction) => {
+    const productDoc = await transaction.read('store_products', input.productId)
+    if (!productDoc?.data) throw new Error('Product not found')
+    if (await movementExists(transaction, movementId)) return
     const levelDoc = await transaction.read('inventory_levels', levelId)
-    const level = levelDoc?.data as {
-      available?: number
-      reserved?: number
-      syncVersion?: number
-      unitCost?: number
-    } | undefined
+    const level = levelDoc?.data as LockedLevel | undefined
     const available = Number(level?.available || 0)
     const reserved = Number(level?.reserved || 0)
     const onHand = available + reserved
@@ -364,14 +443,15 @@ export async function receiveIntoWarehouse(input: {
     if (level) await transaction.update('inventory_levels', levelId, payload)
     else await transaction.create('inventory_levels', payload, { id: levelId })
 
-    const stock = Number(product.data?.stock || 0) + quantity
+    const currentStock = Number((productDoc.data as { stock?: number }).stock || 0)
+    const stock = currentStock + quantity
     await transaction.update('store_products', input.productId, {
       stock,
       inStock: stock > 0,
       updatedAt: now,
     })
     const movement: StockMovement = {
-      id: movementId(),
+      id: movementId,
       productId: input.productId,
       warehouseId: warehouse.id,
       movementType: 'receipt',
@@ -396,24 +476,24 @@ export async function transferBetweenWarehouses(input: {
   productId: string
   quantity: number
   userId?: string
+  idempotencyKey?: string
 }): Promise<void> {
   const quantity = Math.floor(input.quantity)
   if (quantity < 1) throw new Error('Quantity is required')
   if (input.fromWarehouseId === input.toWarehouseId) throw new Error('Choose another warehouse')
   const source = await getFulfillmentWarehouse(input.fromWarehouseId)
   const target = await getFulfillmentWarehouse(input.toWarehouseId)
+  if (!source || !target) throw new Error('Warehouse not found')
   const now = new Date().toISOString()
   const sourceLevelId = `${input.productId}_${source.inventoryStoreId}`
   const targetLevelId = `${input.productId}_${target.inventoryStoreId}`
+  const movementId = movementDocId(input.idempotencyKey)
 
   await db().transaction(async (transaction) => {
+    await transaction.read('store_products', input.productId)
+    if (await movementExists(transaction, movementId)) return
     const sourceDoc = await transaction.read('inventory_levels', sourceLevelId)
-    const sourceLevel = sourceDoc?.data as {
-      available?: number
-      reserved?: number
-      syncVersion?: number
-      unitCost?: number
-    } | undefined
+    const sourceLevel = sourceDoc?.data as LockedLevel | undefined
     const available = Number(sourceLevel?.available || 0)
     if (!sourceLevel || available < quantity) throw new Error('Not enough remaining stock')
     const reserved = Number(sourceLevel.reserved || 0)
@@ -427,12 +507,7 @@ export async function transferBetweenWarehouses(input: {
     })
 
     const targetDoc = await transaction.read('inventory_levels', targetLevelId)
-    const targetLevel = targetDoc?.data as {
-      available?: number
-      reserved?: number
-      syncVersion?: number
-      unitCost?: number
-    } | undefined
+    const targetLevel = targetDoc?.data as LockedLevel | undefined
     const targetAvailable = Number(targetLevel?.available || 0)
     const targetReserved = Number(targetLevel?.reserved || 0)
     const targetOnHand = targetAvailable + targetReserved
@@ -451,7 +526,7 @@ export async function transferBetweenWarehouses(input: {
     else await transaction.create('inventory_levels', targetPayload, { id: targetLevelId })
 
     const movement: StockMovement = {
-      id: movementId(),
+      id: movementId,
       productId: input.productId,
       warehouseId: source.id,
       counterWarehouseId: target.id,
@@ -468,17 +543,143 @@ export async function transferBetweenWarehouses(input: {
   })
 }
 
-export async function recordSupplierPayment(movementId: string, amount: number): Promise<void> {
+export async function recordSupplierPayment(
+  receiptMovementId: string,
+  amount: number,
+  userId?: string,
+  idempotencyKey?: string,
+): Promise<void> {
   const payment = Number(amount)
   if (!Number.isFinite(payment) || payment <= 0) throw new Error('Payment amount is required')
-  const current = await db().findDocById<StockMovement>('stock_movements', movementId)
+  const current = await db().findDocById<StockMovement>('stock_movements', receiptMovementId)
   if (!current.success || !current.data) throw new Error('Receipt not found')
   if (current.data.movementType !== 'receipt') throw new Error('Receipt not found')
-  const owed = Math.max(0, Number(current.data.amountOwed || 0) - payment)
-  const paid = Number(current.data.amountPaid || 0) + payment
-  const updated = await db().updateDoc('stock_movements', movementId, {
-    amountOwed: owed,
-    amountPaid: paid,
+  const now = new Date().toISOString()
+  const movementId = movementDocId(idempotencyKey)
+  await db().transaction(async (transaction) => {
+    const receipt = await transaction.read(STORE_COLLECTIONS.stockMovements, receiptMovementId)
+    const receiptRow = receipt?.data as StockMovement | undefined
+    if (!receiptRow || receiptRow.movementType !== 'receipt') throw new Error('Receipt not found')
+    if (await movementExists(transaction, movementId)) return
+    const payments = await db().queryDocs<StockMovement & { id: string }>({
+      collection: STORE_COLLECTIONS.stockMovements,
+      filters: [
+        { field: 'movementType', operator: '=', value: 'supplier_payment' },
+        { field: 'receiptMovementId', operator: '=', value: receiptMovementId },
+      ],
+      pagination: { limit: 500 },
+    })
+    const paymentRows = payments.success && payments.data ? payments.data : []
+    if (paymentRows.length >= 500) throw new Error('Payment history is incomplete')
+    const paid = paymentRows.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0)
+    const remaining = supplierRemainingOwed(Number(receiptRow.amountOwed || 0), paid)
+    if (paymentExceedsRemaining(payment, remaining)) {
+      throw new Error(`Payment exceeds the remaining ${remaining.toFixed(2)}`)
+    }
+    const movement: StockMovement = {
+      id: movementId,
+      productId: receiptRow.productId,
+      warehouseId: current.data!.warehouseId,
+      movementType: 'supplier_payment',
+      quantityBefore: Number(receiptRow.quantityAfter || 0),
+      quantityChange: 0,
+      quantityAfter: Number(receiptRow.quantityAfter || 0),
+      userId,
+      reason: `Supplier payment against ${receiptMovementId}`,
+      timestamp: now,
+      amountPaid: payment,
+      receiptMovementId,
+    }
+    await transaction.create(STORE_COLLECTIONS.stockMovements, movement, { id: movement.id })
   })
-  if (!updated.success) throw updated.error || new Error('Failed to record payment')
+}
+
+export async function adjustWarehouseStock(input: {
+  warehouseId: string
+  productId: string
+  quantity: number
+  direction: 'add' | 'subtract'
+  reason: string
+  userId?: string
+  idempotencyKey?: string
+}): Promise<void> {
+  await postQuantityChange({ ...input, movementType: 'adjustment' })
+}
+
+export async function damageWarehouseStock(input: {
+  warehouseId: string
+  productId: string
+  quantity: number
+  reason: string
+  userId?: string
+  idempotencyKey?: string
+}): Promise<void> {
+  await postQuantityChange({ ...input, direction: 'subtract', movementType: 'damaged' })
+}
+
+async function postQuantityChange(input: {
+  warehouseId: string
+  productId: string
+  quantity: number
+  direction: 'add' | 'subtract'
+  reason: string
+  userId?: string
+  idempotencyKey?: string
+  movementType: 'adjustment' | 'damaged'
+}): Promise<void> {
+  const quantity = Math.floor(input.quantity)
+  const reason = input.reason.trim()
+  if (quantity < 1) throw new Error('Quantity is required')
+  if (!reason) throw new Error('Reason is required')
+  const warehouse = await getFulfillmentWarehouse(input.warehouseId)
+  if (!warehouse) throw new Error('Warehouse not found')
+  const now = new Date().toISOString()
+  const levelId = `${input.productId}_${warehouse.inventoryStoreId}`
+  const movementId = movementDocId(input.idempotencyKey)
+  const delta = input.direction === 'add' ? quantity : -quantity
+
+  await db().transaction(async (transaction) => {
+    await transaction.read('store_products', input.productId)
+    if (await movementExists(transaction, movementId)) return
+    const levelDoc = await transaction.read('inventory_levels', levelId)
+    const level = levelDoc?.data as LockedLevel | undefined
+    const available = Number(level?.available || 0)
+    const reserved = Number(level?.reserved || 0)
+    if (!level || available + delta < 0) {
+      throw new Error('Cannot reduce stock below the reserved quantity')
+    }
+    const average = Number(level.unitCost || 0)
+    const nextAvailable = available + delta
+    await transaction.update('inventory_levels', levelId, {
+      available: nextAvailable,
+      reserved,
+      total: nextAvailable + reserved,
+      unitCost: average,
+      lastUpdated: now,
+      syncVersion: (level.syncVersion || 0) + 1,
+    })
+    const productDoc = await transaction.read('store_products', input.productId)
+    const currentStock = Number((productDoc?.data as { stock?: number } | undefined)?.stock || 0)
+    const stock = Math.max(0, currentStock + delta)
+    await transaction.update('store_products', input.productId, {
+      stock,
+      inStock: stock > 0,
+      updatedAt: now,
+    })
+    const movement: StockMovement = {
+      id: movementId,
+      productId: input.productId,
+      warehouseId: warehouse.id,
+      movementType: input.movementType,
+      quantityBefore: available + reserved,
+      quantityChange: delta,
+      quantityAfter: nextAvailable + reserved,
+      userId: input.userId,
+      reason,
+      timestamp: now,
+      unitCost: isKnownUnitCost(average) ? average : 0,
+      value: movementValue(quantity, average),
+    }
+    await transaction.create(STORE_COLLECTIONS.stockMovements, movement, { id: movement.id })
+  })
 }

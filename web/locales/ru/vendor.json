@@ -449,7 +449,11 @@
     "quantity": "Количество",
     "bulkRestock": "Массовое пополнение",
     "warehouse": "Склад",
-    "lowStock": "Мало на складе"
+    "lowStock": "Мало на складе",
+    "unitCost": "Себестоимость",
+    "amountPaid": "Оплачено",
+    "amountOwed": "Долг",
+    "unknownCostHint": "Стоимость 0 означает неизвестно и не входит в среднюю."
   },
   "navbar": {
     "myStore": "Мой магазин",

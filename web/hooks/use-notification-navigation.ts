@@ -45,7 +45,7 @@ export function useNotificationNavigation() {
         router.push(url, { scroll: options.scroll });
       }
     });
-  }, [router]);
+  }, [locale, router]);
 
   // Navigate to full notifications list
   const navigateToNotificationsList = useCallback((options: NotificationNavigationOptions = {}) => {
@@ -62,12 +62,12 @@ export function useNotificationNavigation() {
   const navigateToHome = useCallback((options: NotificationNavigationOptions = {}) => {
     startTransition(() => {
       if (options.replace) {
-        router.replace('/', { scroll: options.scroll });
+        router.replace(ROUTES.HOME(locale), { scroll: options.scroll });
       } else {
-        router.push('/', { scroll: options.scroll });
+        router.push(ROUTES.HOME(locale), { scroll: options.scroll });
       }
     });
-  }, [router]);
+  }, [locale, router]);
 
   // Generic navigation function
   const navigateTo = useCallback((

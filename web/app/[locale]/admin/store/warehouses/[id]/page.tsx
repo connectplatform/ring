@@ -93,6 +93,8 @@ export default async function AdminWarehouseDetailPage({
                 id: report.warehouse.novaPostSenderDivisionId,
                 name: report.warehouse.novaPostSenderDivisionName,
                 address: report.warehouse.novaPostSenderAddress,
+                senderPhone: report.warehouse.senderPhone,
+                canShip: report.warehouse.canShip,
               }}
             />
           </div>

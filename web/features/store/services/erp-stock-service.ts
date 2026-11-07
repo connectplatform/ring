@@ -31,6 +31,7 @@ import {
 import {
   ensureInventoryLevel,
 } from '@/features/store/services/inventory-sync'
+import { refuseSetBelowReserved } from '@/features/store/services/fulfillment-ledger'
 import type {
   BatchAddStockResult,
   StockLevel,
@@ -139,6 +140,9 @@ export const ERPStockService = {
       const now = new Date().toISOString()
       const { getFulfillmentWarehouse } = await import('@/features/store/services/warehouse-fulfillment')
       const warehouse = await getFulfillmentWarehouse(update.warehouseId || ZERO_WAREHOUSE_ID)
+      if (!warehouse) {
+        return { success: false, newQuantity: currentStock, error: 'Warehouse not found' }
+      }
       let warehouseBefore = currentStock
       let warehouseAfter = newStock
       let productStock = newStock
@@ -153,7 +157,7 @@ export const ERPStockService = {
           const reserved = level?.reserved ?? 0
           const oldTotal = (level?.available ?? 0) + reserved
 
-          if (update.operation === 'set' && update.quantityChange < reserved) {
+          if (update.operation === 'set' && refuseSetBelowReserved(update.quantityChange, reserved)) {
             throw new Error(
               `Cannot set stock (${update.quantityChange}) below reserved (${reserved}) for product ${update.productId}`,
             )
@@ -196,6 +200,26 @@ export const ERPStockService = {
             inStock: productStock > 0,
             updatedAt: now,
           })
+          const movementId = `mov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+          await transaction.create(
+            STORE_COLLECTIONS.stockMovements,
+            {
+              id: movementId,
+              productId: update.productId,
+              warehouseId: warehouse.id,
+              movementType: update.orderId ? 'sale' : 'adjustment',
+              quantityBefore: warehouseBefore,
+              quantityChange: warehouseAfter - warehouseBefore,
+              quantityAfter: warehouseAfter,
+              orderId: update.orderId,
+              userId: update.userId,
+              reason: update.reason,
+              timestamp: now,
+              referralCode: update.referralCode,
+              assisted: update.assisted,
+            },
+            { id: movementId },
+          )
         })
       } catch (txnError) {
         return {
@@ -204,22 +228,6 @@ export const ERPStockService = {
           error: txnError instanceof Error ? txnError.message : 'Failed to update stock',
         }
       }
-
-      await this.logStockMovement({
-        id: `mov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        productId: update.productId,
-        warehouseId: warehouse.id,
-        movementType: update.orderId ? 'sale' : 'adjustment',
-        quantityBefore: warehouseBefore,
-        quantityChange: warehouseAfter - warehouseBefore,
-        quantityAfter: warehouseAfter,
-        orderId: update.orderId,
-        userId: update.userId,
-        reason: update.reason,
-        timestamp: now,
-        referralCode: update.referralCode,
-        assisted: update.assisted,
-      })
 
       logger.info('[ERPStockService] Stock updated', {
         productId: update.productId,

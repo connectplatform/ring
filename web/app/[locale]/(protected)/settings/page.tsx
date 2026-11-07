@@ -109,7 +109,7 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
   const lastLoginRaw = userAny?.lastLogin;
   const userStats = {
     accountAge: accountAgeStr,
-    lastLogin: lastLoginRaw ? new Date(String(lastLoginRaw)).toLocaleDateString() : 'Today',
+    lastLogin: lastLoginRaw ? new Date(String(lastLoginRaw)).toLocaleDateString(validLocale) : '',
     createdAt: createdAt.toISOString(),
     profileCompleteness: 85, // Default - will be refined client-side
   };

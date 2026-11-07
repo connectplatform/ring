@@ -26,6 +26,7 @@
   "errorFetchingSettings": "Fehler beim Laden der Einstellungen. Bitte erneut versuchen.",
   "userSettings": "Benutzereinstellungen",
   "userSettingsDescription": "Kontoeinstellungen und Benachrichtigungen verwalten",
+  "accountAge": "Kontodauer",
   "settingsDescription": "Konto- und Datenschutzeinstellungen verwalten",
   "backToSettings": "Zurück zu Einstellungen",
   "viewNotifications": "Benachrichtigungen ansehen",

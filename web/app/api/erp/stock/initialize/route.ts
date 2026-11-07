@@ -13,7 +13,9 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
-import { ERPStockService, ZERO_WAREHOUSE_ID, DEFAULT_WAREHOUSE_NAME } from '@/features/store/services/erp-stock-service'
+import { ERPStockService, DEFAULT_WAREHOUSE_NAME } from '@/features/store/services/erp-stock-service'
+import { ZERO_WAREHOUSE_ID } from '@/features/store/constants/stock'
+import { confirmedWarehouseId } from '@/features/store/services/fulfillment-ledger'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 
 export async function POST(request: NextRequest) {
@@ -44,8 +46,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
 
     // Extract quantity and warehouseId, setting defaults if not present
+    const warehouseId = confirmedWarehouseId({ confirm: body.confirm, warehouseId: body.warehouseId })
+    if (!warehouseId) {
+      return NextResponse.json(
+        { error: 'confirm: true and an explicit warehouseId are required' },
+        { status: 400 },
+      )
+    }
     const quantity = body.quantity || 100
-    const warehouseId = body.warehouseId || ZERO_WAREHOUSE_ID
     
     // Log the beginning of the stock initialization process
     logger.info('[ERP Stock Init] Starting stock initialization', {

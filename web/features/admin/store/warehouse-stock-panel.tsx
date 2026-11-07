@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import {
+  adjustWarehouseStockAction,
+  damageWarehouseStockAction,
   receiveWarehouseStockAction,
   recordSupplierPaymentAction,
   transferWarehouseStockAction,
@@ -21,10 +23,21 @@ export function WarehouseStockPanel({
   report,
   locale,
   allowSwitcher = false,
+  watch = null,
 }: {
   report: WarehouseStockReport
   locale: Locale
   allowSwitcher?: boolean
+  watch?: {
+    drifted: number
+    sampleIds: string[]
+    released: number
+    failed: number
+    capped: boolean
+    failedIds: string[]
+    hasDriftRun: boolean
+    hasReservationRun: boolean
+  } | null
 }) {
   const t = useTranslations('modules.admin.storeHub')
   const router = useRouter()
@@ -35,20 +48,30 @@ export function WarehouseStockPanel({
   const [unitCost, setUnitCost] = useState('0')
   const [amountPaid, setAmountPaid] = useState('0')
   const [amountOwed, setAmountOwed] = useState('0')
+  const [payments, setPayments] = useState<Record<string, string>>({})
   const [supplierName, setSupplierName] = useState('')
   const [targetId, setTargetId] = useState(
     report.warehouses.find((row) => row.id !== report.warehouse.id)?.id || '',
   )
+  const [reason, setReason] = useState('')
+  const [adjustDirection, setAdjustDirection] = useState<'add' | 'subtract'>('subtract')
+  const idempotency = useRef<Record<string, string>>({})
 
-  const run = (work: () => Promise<void>) => {
+  const keyFor = (slot: string) => {
+    if (!idempotency.current[slot]) idempotency.current[slot] = crypto.randomUUID()
+    return idempotency.current[slot]
+  }
+
+  const run = (slot: string, work: () => Promise<void>) => {
     setMessage(null)
     startTransition(async () => {
       try {
         await work()
+        delete idempotency.current[slot]
         setMessage(t('saved'))
         router.refresh()
-      } catch {
-        setMessage(t('saveFailed'))
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : t('saveFailed'))
       }
     })
   }
@@ -66,10 +89,25 @@ export function WarehouseStockPanel({
 
   return (
     <div className="space-y-6">
+      {watch?.hasDriftRun ? (
+        <p className="text-sm">
+          {t('driftCount', { count: watch.drifted })}
+          {watch.sampleIds.length ? ` ${t('driftSamples', { ids: watch.sampleIds.join(', ') })}` : ''}
+        </p>
+      ) : null}
+      {watch?.hasReservationRun ? (
+        <p className="text-sm">
+          {t('reservationsReleased', { released: watch.released })}
+          {watch.failed > 0 ? ` ${t('reservationsFailed', { failed: watch.failed })}` : ''}
+          {watch.capped ? ` ${t('reservationsCapped')}` : ''}
+          {watch.failedIds.length ? ` ${watch.failedIds.join(', ')}` : ''}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{report.warehouse.name}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t('stockPageHint')}</p>
+          <p className="text-sm text-muted-foreground">{t('transferHint')}</p>
         </div>
         {allowSwitcher ? (
           <label className="text-sm space-y-1">
@@ -116,7 +154,8 @@ export function WarehouseStockPanel({
                 <th className="py-2 pr-3">{t('remaining')}</th>
                 <th className="py-2 pr-3">{t('reserved')}</th>
                 <th className="py-2 pr-3">{t('unitCost')}</th>
-                <th className="py-2">{t('stockValue')}</th>
+                <th className="py-2 pr-3">{t('stockValue')}</th>
+                <th className="py-2">{t('transferStock')}</th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +165,20 @@ export function WarehouseStockPanel({
                   <td className="py-2 pr-3">{row.available}</td>
                   <td className="py-2 pr-3">{row.reserved}</td>
                   <td className="py-2 pr-3">{row.unitCost.toFixed(2)}</td>
-                  <td className="py-2">{row.stockValue.toFixed(2)}</td>
+                  <td className="py-2 pr-3">{row.stockValue.toFixed(2)}</td>
+                  <td className="py-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setProductId(row.productId)
+                        setQuantity(String(Math.max(1, row.available)))
+                      }}
+                    >
+                      {t('transferThis')}
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -181,7 +233,7 @@ export function WarehouseStockPanel({
               type="button"
               disabled={pending || !productId}
               onClick={() =>
-                run(() =>
+                run('receive', () =>
                   receiveWarehouseStockAction({
                     warehouseId: report.warehouse.id,
                     productId,
@@ -190,6 +242,7 @@ export function WarehouseStockPanel({
                     amountPaid: Number(amountPaid) || 0,
                     amountOwed: Number(amountOwed) || 0,
                     supplierName,
+                    idempotencyKey: keyFor('receive'),
                   }),
                 )
               }
@@ -226,12 +279,13 @@ export function WarehouseStockPanel({
               variant="outline"
               disabled={pending || !productId || !targetId}
               onClick={() =>
-                run(() =>
+                run('transfer', () =>
                   transferWarehouseStockAction({
                     fromWarehouseId: report.warehouse.id,
                     toWarehouseId: targetId,
                     productId,
                     quantity: Number(quantity),
+                    idempotencyKey: keyFor('transfer'),
                   }),
                 )
               }
@@ -244,6 +298,71 @@ export function WarehouseStockPanel({
 
       <Card>
         <CardHeader>
+          <CardTitle>{t('adjustStock')}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 max-w-xl">
+          <div className="space-y-1">
+            <Label htmlFor="adjust-reason">{t('reason')}</Label>
+            <Input id="adjust-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={adjustDirection === 'add' ? 'default' : 'outline'}
+              onClick={() => setAdjustDirection('add')}
+            >
+              +
+            </Button>
+            <Button
+              type="button"
+              variant={adjustDirection === 'subtract' ? 'default' : 'outline'}
+              onClick={() => setAdjustDirection('subtract')}
+            >
+              −
+            </Button>
+            <Button
+              type="button"
+              disabled={pending || !productId || !reason.trim()}
+              onClick={() =>
+                run('adjust', () =>
+                  adjustWarehouseStockAction({
+                    warehouseId: report.warehouse.id,
+                    productId,
+                    quantity: Number(quantity),
+                    direction: adjustDirection,
+                    reason,
+                    idempotencyKey: keyFor('adjust'),
+                  }),
+                )
+              }
+            >
+              {t('adjustStock')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || !productId || !reason.trim()}
+              onClick={() =>
+                run('damage', () =>
+                  damageWarehouseStockAction({
+                    warehouseId: report.warehouse.id,
+                    productId,
+                    quantity: Number(quantity),
+                    reason,
+                    idempotencyKey: keyFor('damage'),
+                  }),
+                )
+              }
+            >
+              {t('damageStock')}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">{t('unknownCost')}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>{t('movements')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
@@ -253,25 +372,38 @@ export function WarehouseStockPanel({
                 {row.productName} · {row.movementType} · {row.quantityChange > 0 ? `+${row.quantityChange}` : row.quantityChange}
                 {row.counterWarehouseId ? ` → ${row.counterWarehouseId}` : ''}
               </span>
-              <span className="text-muted-foreground">{row.timestamp ? new Date(row.timestamp).toLocaleString() : ''}</span>
+              <span className="text-muted-foreground">
+                {row.timestamp ? new Date(row.timestamp).toLocaleString() : ''}
+                {row.userId ? ` · ${row.userId}` : ''}
+              </span>
               {row.movementType === 'receipt' && Number(row.amountOwed || 0) > 0 ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() =>
-                    run(() =>
-                      recordSupplierPaymentAction({
-                        movementId: row.id,
-                        warehouseId: report.warehouse.id,
-                        amount: Number(row.amountOwed),
-                      }),
-                    )
-                  }
-                >
-                  {t('recordPayment')}
-                </Button>
+                <span className="flex items-center gap-2">
+                  <Input
+                    className="h-8 w-28"
+                    aria-label={t('paymentAmount')}
+                    value={payments[row.id] ?? String(row.amountOwed)}
+                    onChange={(event) => setPayments((current) => ({ ...current, [row.id]: event.target.value }))}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() =>
+                      run(`pay-${row.id}`, async () => {
+                        const result = await recordSupplierPaymentAction({
+                          movementId: row.id,
+                          warehouseId: report.warehouse.id,
+                          amount: Number(payments[row.id] ?? row.amountOwed),
+                          idempotencyKey: keyFor(`pay-${row.id}`),
+                        })
+                        if (!result.success) throw new Error(result.error)
+                      })
+                    }
+                  >
+                    {t('recordPayment')}
+                  </Button>
+                </span>
               ) : null}
             </div>
           ))}

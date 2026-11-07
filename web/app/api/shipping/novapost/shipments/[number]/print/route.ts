@@ -3,8 +3,6 @@ import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import { getNovaPostJwt, novaPostApiKey, novaPostSend } from '@/lib/shipping/nova-post'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ number: string }> },

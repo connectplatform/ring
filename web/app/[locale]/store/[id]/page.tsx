@@ -10,6 +10,8 @@ import { generateProductEmbedding } from '@/lib/vector-search'
 import { getProductReviews } from '@/features/store/services/product-reviews'
 import { loadProductDetailsRailData } from '@/features/store/services/product-details-rail'
 import { notFound } from 'next/navigation'
+import { shouldSkipPhysicalStock } from '@/features/store/constants/stock'
+import { maxShippableQuantity } from '@/features/store/services/warehouse-fulfillment'
 
 async function loadProduct(id: string) {
   try {
@@ -98,6 +100,9 @@ export default async function ProductDetailsPage({
     })
   }
 
+  const shippable = shouldSkipPhysicalStock({ product: currentProduct })
+    ? null
+    : await maxShippableQuantity(id)
   const reviewsResult = await getProductReviews(id)
   const railData = await loadProductDetailsRailData({
     product: currentProduct,
@@ -118,6 +123,7 @@ export default async function ProductDetailsPage({
         reviews={reviewsResult.reviews}
         averageRating={reviewsResult.averageRating}
         railData={railData}
+        maxShippable={shippable?.max}
       />
     </ProductDetailsWrapper>
   )

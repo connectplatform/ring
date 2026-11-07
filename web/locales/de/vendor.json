@@ -419,7 +419,11 @@
     "quantity": "Menge",
     "bulkRestock": "Massenauffüllung",
     "warehouse": "Lager",
-    "lowStock": "Niedriger Bestand"
+    "lowStock": "Niedriger Bestand",
+    "unitCost": "Stückkosten",
+    "amountPaid": "Bezahlt",
+    "amountOwed": "Offen",
+    "unknownCostHint": "Kosten 0 bedeuten unbekannt und gehen nicht in den Durchschnitt ein."
   },
   "navbar": {
     "myStore": "Mein Store",

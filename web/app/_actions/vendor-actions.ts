@@ -30,8 +30,8 @@ import { convertFromMainCurrency, getMainCurrencySymbol } from '@/lib/ring-oracl
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale } from '@/i18n/shared'
 import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
-import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
-import { collectProductImageUrls } from '@/features/generative-media/types'
+import { resolveProductImagesFromForm, mergeUploadedProductGallery } from '@/features/generative-media/parse-product-images'
+import { collectProductImageUrls, type GenerativeGalleryValue } from '@/features/generative-media/types'
 import { curtainAdvertiseWriteFields } from '@/features/curtain/lib/advertise'
 import { getVendorProfile } from '@/features/store/services/vendor-profile'
 import type { VendorProfile } from '@/features/store/types/vendor'
@@ -432,7 +432,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     // Prefer GenerativeMediaField pre-uploaded URLs (SSOT); fall back to legacy File photo-*
     const resolved = resolveProductImagesFromForm(formData)
     let photoUrls = resolved.photoUrls
-    const generativeGallery = resolved.gallery
+    let generativeGallery = resolved.gallery
 
     if (photoUrls.length === 0) {
       const photoFiles: File[] = []
@@ -459,7 +459,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
           return { error: 'Photos must be JPG, PNG, or WebP' }
         }
       }
-      photoUrls = await Promise.all(
+      const uploaded = await Promise.all(
         photoFiles.map(async (photo, index) => {
           const ext = photo.name.split('.').pop() || 'webp'
           const result = await file().upload(`products/${productId}/photo-${index}.${ext}`, photo, {
@@ -468,12 +468,14 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
             contentType: photo.type || undefined,
             ...ringbaseDerivativeUploadOptions('vendor:product-media', photo.type, 'public'),
           })
-          if (!result.success) {
+          if (!result.success || !result.url) {
             throw new Error(result.error || `Failed to upload photo ${index}`)
           }
-          return result.url
-        })
+          return result
+        }),
       )
+      photoUrls = uploaded.map((result) => result.url)
+      generativeGallery = mergeUploadedProductGallery({ uploads: uploaded })
     }
     if (photoUrls.length > 5) {
       return { error: 'Maximum 5 photos allowed' }
@@ -678,7 +680,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       collectProductImageUrls(existingProduct as Record<string, unknown>),
     )
     let photoUrls = resolved.photoUrls
-    const generativeGallery = resolved.gallery
+    let generativeGallery = resolved.gallery
 
     const newPhotoFiles: File[] = []
     let newPhotoIndex = 0
@@ -691,7 +693,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     }
 
     if (newPhotoFiles.length > 0 && !generativeGallery) {
-      const newUrls = await Promise.all(
+      const uploaded = await Promise.all(
         newPhotoFiles.map(async (photo, index) => {
           const ext = photo.name.split('.').pop() || 'webp'
           const result = await file().upload(
@@ -704,21 +706,33 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
               ...ringbaseDerivativeUploadOptions('vendor:product-media', photo.type, 'public'),
             },
           )
-          if (!result.success) {
+          if (!result.success || !result.url) {
             throw new Error(result.error || `Failed to upload new photo ${index}`)
           }
-          return result.url
-        })
+          return result
+        }),
       )
-      photoUrls = [...photoUrls, ...newUrls]
+      photoUrls = [...photoUrls, ...uploaded.map((result) => result.url)]
+      const existingGallery = existingProduct.generativeGallery as GenerativeGalleryValue | undefined
+      generativeGallery = mergeUploadedProductGallery({
+        existing: existingGallery?.items ? existingGallery : null,
+        uploads: uploaded,
+      })
     }
 
-    if (!generativeGallery) {
+    if (!resolved.gallery) {
       const deletedPhotos = formData.get('deletedPhotos') as string
       if (deletedPhotos) {
-        const deletedUrls = JSON.parse(deletedPhotos)
-        photoUrls = photoUrls.filter((url: string) => !deletedUrls.includes(url))
-        await Promise.all(deletedUrls.map((url: string) => file().delete(url).catch(e => console.error('Delete failed:', e))))
+        const deletedUrls = JSON.parse(deletedPhotos) as string[]
+        if (Array.isArray(deletedUrls)) {
+          photoUrls = photoUrls.filter((url: string) => !deletedUrls.includes(url))
+          if (generativeGallery) {
+            generativeGallery = {
+              items: generativeGallery.items.filter((item) => !deletedUrls.includes(item.originalUrl)),
+            }
+          }
+          await Promise.all(deletedUrls.map((url: string) => file().delete(url).catch(e => console.error('Delete failed:', e))))
+        }
       }
     }
 

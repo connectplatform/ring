@@ -26,6 +26,7 @@
   "errorFetchingSettings": "Error al cargar los ajustes. Inténtalo de nuevo.",
   "userSettings": "Ajustes de usuario",
   "userSettingsDescription": "Gestiona las preferencias de tu cuenta y las notificaciones",
+  "accountAge": "Antigüedad de la cuenta",
   "settingsDescription": "Gestiona preferencias de cuenta y privacidad",
   "backToSettings": "Volver a ajustes",
   "viewNotifications": "Ver notificaciones",

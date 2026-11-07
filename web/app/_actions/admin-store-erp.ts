@@ -27,8 +27,8 @@ import {
   formatStoreProductZodError,
   parseStoreProductFormData,
 } from '@/lib/zod'
-import { resolveProductImagesFromForm } from '@/features/generative-media/parse-product-images'
-import { collectProductImageUrls } from '@/features/generative-media/types'
+import { resolveProductImagesFromForm, mergeUploadedProductGallery } from '@/features/generative-media/parse-product-images'
+import { collectProductImageUrls, type GenerativeGalleryValue } from '@/features/generative-media/types'
 import { curtainAdvertiseWriteFields } from '@/features/curtain/lib/advertise'
 import { ringbaseDerivativeUploadOptions } from '@/lib/file/derivatives-profile'
 import { parseProductResearchFormData } from '@/features/store/lib/product-research-form'
@@ -85,10 +85,19 @@ async function assertAdmin() {
 }
 
 // Initialize ERP warehouse stock for all products (or for the specified quantity)
-export async function initializeWarehouseStock(quantity: number = 100) {
+export async function initializeWarehouseStock(input: {
+  confirm?: boolean
+  warehouseId?: string
+  quantity?: number
+}) {
   await assertAdmin()
-  const result = await ERPStockService.addInitialStockToAllProducts(quantity)
-  revalidatePath('/admin/store/stock') // Revalidate stock listing
+  const { confirmedWarehouseId } = await import('@/features/store/services/fulfillment-ledger')
+  const warehouseId = confirmedWarehouseId({ confirm: input?.confirm, warehouseId: input?.warehouseId })
+  if (!warehouseId) {
+    throw new Error('confirm: true and an explicit warehouseId are required')
+  }
+  const result = await ERPStockService.addInitialStockToAllProducts(input.quantity ?? 100, warehouseId)
+  revalidatePath('/admin/store/stock')
   return result
 }
 
@@ -759,6 +768,7 @@ async function uploadProductPhotosFromForm(
     photoIndex++
   }
 
+  let builtGallery: GenerativeGalleryValue | null = null
   if (newPhotoFiles.length > 0) {
     const uploaded = await Promise.all(
       newPhotoFiles.map(async (photo, index) => {
@@ -773,11 +783,16 @@ async function uploadProductPhotosFromForm(
             ...ringbaseDerivativeUploadOptions('vendor:product-media', photo.type, 'public'),
           },
         )
-        if (!result.success) throw new Error(result.error || 'Photo upload failed')
-        return result.url
+        if (!result.success || !result.url) throw new Error(result.error || 'Photo upload failed')
+        return result
       }),
     )
-    photoUrls = [...photoUrls, ...uploaded]
+    photoUrls = [...photoUrls, ...uploaded.map((result) => result.url)]
+    const existingGallery = existing?.generativeGallery as GenerativeGalleryValue | undefined
+    builtGallery = mergeUploadedProductGallery({
+      existing: existingGallery?.items ? existingGallery : resolved.gallery,
+      uploads: uploaded,
+    })
   }
 
   const deletedPhotos = formData.get('deletedPhotos') as string | null
@@ -786,6 +801,11 @@ async function uploadProductPhotosFromForm(
       const deleted = JSON.parse(deletedPhotos) as string[]
       if (Array.isArray(deleted)) {
         photoUrls = photoUrls.filter((url) => !deleted.includes(url))
+        if (builtGallery) {
+          builtGallery = {
+            items: builtGallery.items.filter((item) => !deleted.includes(item.originalUrl)),
+          }
+        }
         await Promise.all(
           deleted.map((url) => file().delete(url).catch((e) => console.error('Delete failed:', e))),
         )
@@ -795,11 +815,20 @@ async function uploadProductPhotosFromForm(
     }
   }
 
-  return { photoUrls, generativeGallery: resolved.gallery }
+  return { photoUrls, generativeGallery: builtGallery || resolved.gallery }
 }
 
 // Add to current stock for vendor product (call from vendor portal)
-export async function restockVendorProduct(productId: string, quantity: number) {
+export async function restockVendorProduct(input: {
+  productId: string
+  quantity: number
+  unitCost: number
+  amountPaid: number
+  amountOwed: number
+  idempotencyKey: string
+}) {
+  const productId = input.productId
+  const quantity = input.quantity
   const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
@@ -831,18 +860,22 @@ export async function restockVendorProduct(productId: string, quantity: number) 
   }
 
   const { ZERO_WAREHOUSE_ID } = await import('@/features/store/constants/stock')
-  const result = await ERPStockService.updateStock({
-    productId,
+  const { receiveIntoWarehouse } = await import('@/features/store/services/warehouse-fulfillment')
+  await receiveIntoWarehouse({
     warehouseId: ZERO_WAREHOUSE_ID,
-    quantityChange: quantity,
-    operation: 'add',
-    reason: 'Vendor restock',
+    productId,
+    quantity,
+    unitCost: Number(input.unitCost) || 0,
+    amountPaid: Number(input.amountPaid) || 0,
+    amountOwed: Number(input.amountOwed) || 0,
+    supplierName: 'Vendor restock',
     userId: session.user.id,
+    idempotencyKey: input.idempotencyKey,
   })
 
   revalidatePath('/vendor/stock')
   revalidatePath('/admin/store/stock')
-  return result
+  return { success: true }
 }
 
 /** Admin: hold a settlement (blocks payout). */
@@ -884,7 +917,7 @@ export async function previewDueSettlementsAction() {
   }
 }
 
-/** Admin adjust stock with reason (add/subtract/set). */
+/** Admin adjust stock with reason. A set that rewrites the warehouse total is closed. */
 export async function adjustProductStockAction(params: {
   productId: string
   quantity: number
@@ -892,17 +925,22 @@ export async function adjustProductStockAction(params: {
   reason: string
 }) {
   const session = await assertAdmin()
+  const { stockOperationAllowed } = await import('@/features/store/services/fulfillment-ledger')
+  if (!stockOperationAllowed(params.operation)) {
+    throw new Error('Set stock is closed. Add or subtract a quantity.')
+  }
   const { ZERO_WAREHOUSE_ID } = await import('@/features/store/constants/stock')
-  const result = await ERPStockService.updateStock({
-    productId: params.productId,
+  const { adjustWarehouseStock } = await import('@/features/store/services/warehouse-fulfillment')
+  await adjustWarehouseStock({
     warehouseId: ZERO_WAREHOUSE_ID,
-    quantityChange: params.quantity,
-    operation: params.operation,
-    reason: params.reason || 'Admin adjustment',
+    productId: params.productId,
+    quantity: params.quantity,
+    direction: params.operation,
+    reason: params.reason,
     userId: session.user!.id,
   })
   revalidatePath('/admin/store/stock')
-  return result
+  return { success: true }
 }
 
 async function assertStoreOperator() {
@@ -1120,7 +1158,7 @@ function asWarehouse(row: { id: string } & Record<string, unknown>): WarehouseDi
     address: typeof row.address === 'string' ? row.address : '',
     active: row.active !== false,
     isDefault,
-    inventoryStoreId: isDefault ? storedStoreId || DEFAULT_INVENTORY_STORE_ID : storedStoreId,
+    inventoryStoreId: isDefault ? storedStoreId || DEFAULT_INVENTORY_STORE_ID : storedStoreId || id,
   }
 }
 
@@ -1138,6 +1176,14 @@ async function readWarehouses(): Promise<WarehouseDirectoryRow[]> {
   })
   if (!result.success || !result.data) {
     throw result.error || new Error('Failed to list warehouses')
+  }
+  for (const row of result.data) {
+    const isDefault = Boolean(row.isDefault) || row.id === ZERO_WAREHOUSE_ID
+    const stored = typeof row.inventoryStoreId === 'string' ? row.inventoryStoreId : ''
+    if (!isDefault && !stored) {
+      await db().updateDoc(WAREHOUSES_COLLECTION, row.id, { inventoryStoreId: row.id })
+      row.inventoryStoreId = row.id
+    }
   }
   return sortWarehouses(result.data.map((row) => asWarehouse(row)))
 }
@@ -1323,6 +1369,27 @@ export async function assertWarehouseOperator(warehouseId: string) {
   return { session, role: String(assignment.data.role || 'worker') }
 }
 
+async function assertWarehouseCapability(
+  warehouseId: string,
+  action: import('@/features/store/services/fulfillment-ledger').WarehouseAction,
+) {
+  const access = await assertWarehouseOperator(warehouseId)
+  const { operatorMay } = await import('@/features/store/services/fulfillment-ledger')
+  const role = access.role === 'manager' || access.role === 'worker' ? access.role : null
+  if (
+    !operatorMay({
+      isPlatformAdmin: access.role === 'admin',
+      assignmentRole: role,
+      assignedWarehouseId: warehouseId,
+      warehouseId,
+      action,
+    })
+  ) {
+    throw new Error('Unauthorized')
+  }
+  return access
+}
+
 export async function receiveWarehouseStockAction(input: {
   warehouseId: string
   productId: string
@@ -1331,8 +1398,9 @@ export async function receiveWarehouseStockAction(input: {
   amountPaid: number
   amountOwed: number
   supplierName?: string
+  idempotencyKey?: string
 }) {
-  const { session } = await assertWarehouseOperator(input.warehouseId)
+  const { session } = await assertWarehouseCapability(input.warehouseId, 'receive')
   const { receiveIntoWarehouse } = await import('@/features/store/services/warehouse-fulfillment')
   await receiveIntoWarehouse({ ...input, userId: session.user.id })
   revalidatePath('/admin/store/stock')
@@ -1345,19 +1413,62 @@ export async function transferWarehouseStockAction(input: {
   toWarehouseId: string
   productId: string
   quantity: number
+  idempotencyKey?: string
 }) {
-  const { session } = await assertWarehouseOperator(input.fromWarehouseId)
+  const { session } = await assertWarehouseCapability(input.fromWarehouseId, 'transfer')
   const { transferBetweenWarehouses } = await import('@/features/store/services/warehouse-fulfillment')
   await transferBetweenWarehouses({ ...input, userId: session.user.id })
   revalidatePath('/admin/store/stock')
   revalidatePath('/admin/store/warehouses')
 }
 
-export async function recordSupplierPaymentAction(input: { movementId: string; warehouseId: string; amount: number }) {
-  await assertWarehouseOperator(input.warehouseId)
-  const { recordSupplierPayment } = await import('@/features/store/services/warehouse-fulfillment')
-  await recordSupplierPayment(input.movementId, input.amount)
+export async function adjustWarehouseStockAction(input: {
+  warehouseId: string
+  productId: string
+  quantity: number
+  direction: 'add' | 'subtract'
+  reason: string
+  idempotencyKey?: string
+}) {
+  const { session } = await assertWarehouseCapability(input.warehouseId, 'adjust')
+  const { adjustWarehouseStock } = await import('@/features/store/services/warehouse-fulfillment')
+  await adjustWarehouseStock({ ...input, userId: session.user.id })
   revalidatePath('/admin/store/stock')
+  revalidatePath(`/warehouses/${input.warehouseId}`)
+}
+
+export async function damageWarehouseStockAction(input: {
+  warehouseId: string
+  productId: string
+  quantity: number
+  reason: string
+  idempotencyKey?: string
+}) {
+  const { session } = await assertWarehouseCapability(input.warehouseId, 'damage')
+  const { damageWarehouseStock } = await import('@/features/store/services/warehouse-fulfillment')
+  await damageWarehouseStock({ ...input, userId: session.user.id })
+  revalidatePath('/admin/store/stock')
+  revalidatePath(`/warehouses/${input.warehouseId}`)
+}
+
+export async function recordSupplierPaymentAction(input: {
+  movementId: string
+  warehouseId: string
+  amount: number
+  idempotencyKey?: string
+}) {
+  try {
+    const access = await assertWarehouseCapability(input.warehouseId, 'supplier_payment')
+    const { recordSupplierPayment } = await import('@/features/store/services/warehouse-fulfillment')
+    await recordSupplierPayment(input.movementId, input.amount, access.session.user.id, input.idempotencyKey)
+    revalidatePath('/admin/store/stock')
+    return { success: true as const }
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : 'Payment failed',
+    }
+  }
 }
 
 export interface WarehouseAssignmentRow {
@@ -1394,23 +1505,32 @@ export async function searchWarehouseUsersAction(query: string) {
   await assertAdmin()
   const needle = query.trim().toLowerCase()
   if (needle.length < 2) return []
-  const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
-    collection: 'users',
-    pagination: { limit: 80 },
-  })
-  const rows = result.success && result.data ? result.data : []
-  return rows
-    .filter((row) => {
-      const email = String(row.email || '').toLowerCase()
-      const name = String(row.name || row.displayName || '').toLowerCase()
-      return email.includes(needle) || name.includes(needle)
-    })
-    .slice(0, 12)
-    .map((row) => ({
-      id: row.id,
-      email: String(row.email || ''),
-      name: String(row.name || row.displayName || row.email || row.id),
-    }))
+  const [byEmail, byName] = await Promise.all([
+    db().queryDocs<Record<string, unknown> & { id: string }>({
+      collection: 'users',
+      filters: [{ field: 'email', operator: 'ilike', value: `%${needle}%` }],
+      pagination: { limit: 12 },
+    }),
+    db().queryDocs<Record<string, unknown> & { id: string }>({
+      collection: 'users',
+      filters: [{ field: 'name', operator: 'ilike', value: `%${needle}%` }],
+      pagination: { limit: 12 },
+    }),
+  ])
+  const merged = new Map<string, { id: string; email: string; name: string }>()
+  for (const result of [byEmail, byName]) {
+    if (!result.success || !result.data) continue
+    for (const row of result.data) {
+      if (!row.id || merged.has(row.id)) continue
+      merged.set(row.id, {
+        id: row.id,
+        email: String(row.email || ''),
+        name: String(row.name || row.displayName || row.email || row.id),
+      })
+      if (merged.size >= 12) break
+    }
+  }
+  return [...merged.values()]
 }
 
 export async function saveWarehouseAssignmentAction(input: {
@@ -1447,12 +1567,22 @@ export async function saveWarehouseSenderAction(input: {
   novaPostSenderDivisionId: string
   novaPostSenderDivisionName: string
   novaPostSenderAddress: string
+  senderPhone: string
+  canShip: boolean
 }) {
-  await assertAdmin()
+  await assertWarehouseCapability(input.warehouseId, 'sender')
+  const divisionId = input.novaPostSenderDivisionId.trim()
+  const senderPhone = input.senderPhone.trim()
+  if (!divisionId) throw new Error('Choose a Nova Post branch')
+  if (input.canShip && !senderPhone) {
+    throw new Error('A sender phone is required before this warehouse can ship')
+  }
   const updated = await db().updateDoc(WAREHOUSES_COLLECTION, input.warehouseId, {
-    novaPostSenderDivisionId: input.novaPostSenderDivisionId,
+    novaPostSenderDivisionId: divisionId,
     novaPostSenderDivisionName: input.novaPostSenderDivisionName,
     novaPostSenderAddress: input.novaPostSenderAddress,
+    senderPhone,
+    canShip: input.canShip === true && Boolean(senderPhone),
   })
   if (!updated.success) throw updated.error || new Error('Failed to save sender branch')
   revalidatePath(`/admin/store/warehouses/${input.warehouseId}`)

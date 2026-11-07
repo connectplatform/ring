@@ -53,6 +53,10 @@ export default async function VendorStockPage({
             bulkRestock: t('bulkRestock'),
             warehouse: t('warehouse'),
             lowStock: t('lowStock'),
+            unitCost: t('unitCost'),
+            amountPaid: t('amountPaid'),
+            amountOwed: t('amountOwed'),
+            unknownCostHint: t('unknownCostHint'),
           }}
         />
       </div>

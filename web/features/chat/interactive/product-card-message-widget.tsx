@@ -52,6 +52,7 @@ export function ProductCardMessageWidget({
   const { addToCart } = useStore()
   const { success } = useToast()
   const t = useTranslations('modules.store.product')
+  const fulfillment = useTranslations('modules.store.fulfillment')
   const [adding, setAdding] = useState(false)
 
   if (!card) {
@@ -62,7 +63,14 @@ export function ProductCardMessageWidget({
     if (adding) return
     setAdding(true)
     try {
-      addToCart(snapshotToStoreProduct(card))
+      const result = await addToCart(snapshotToStoreProduct(card))
+      if (!result.ok) {
+        success({
+          title: fulfillment('oneWarehouse'),
+          description: result.max != null ? fulfillment('shortfall', { max: result.max }) : undefined,
+        })
+        return
+      }
       success({
         title: t('addedToCart', {
           name: card.title,

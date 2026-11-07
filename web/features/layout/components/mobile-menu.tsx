@@ -13,7 +13,7 @@ import {
   Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
   Building2, Wallet, Shield, Crown, Heart, Bell, MessageCircle,
   Home, Info, Phone, FileText, HelpCircle, ChevronRight,
-  Sparkles, Zap, Globe, ListTodo
+  Sparkles, Zap, Globe, ListTodo, Warehouse
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
@@ -133,6 +133,26 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 }) => {
   const t = useTranslations('navigation')
   const { signOut } = useAuth()
+  const [showWarehouses, setShowWarehouses] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!user) {
+      setShowWarehouses(false)
+      return
+    }
+    let cancelled = false
+    void import('@/app/_actions/admin-store-erp')
+      .then(({ listMyWarehousesAction }) => listMyWarehousesAction())
+      .then((rows) => {
+        if (!cancelled) setShowWarehouses(Array.isArray(rows) && rows.some(Boolean))
+      })
+      .catch(() => {
+        if (!cancelled) setShowWarehouses(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const handleSignOut = React.useCallback(async () => {
     onClose()
@@ -208,7 +228,15 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         label: t('membership'),
         icon: Heart,
         gradient: 'from-red-500 to-pink-600'
-      }
+      },
+      ...(showWarehouses
+        ? [{
+            href: ROUTES.WAREHOUSES(locale),
+            label: t('warehouses'),
+            icon: Warehouse,
+            gradient: 'from-emerald-500 to-teal-600',
+          }]
+        : []),
     ] : []
 
     // Confidential links for high-tier users
@@ -232,7 +260,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     ] : []
 
     return [...mainLinks, ...userLinks, ...confidentialLinks]
-  }, [navigationLinks, locale, t, user, userRole])
+  }, [navigationLinks, locale, t, user, userRole, showWarehouses])
 
   // Animation variants
   const containerVariants = {

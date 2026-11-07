@@ -80,6 +80,7 @@ export function ProductCard({
 
   // i18n translations for product module
   const t = useTranslations('modules.store.product')
+  const fulfillment = useTranslations('modules.store.fulfillment')
 
   /**
    * Handle "Add to Cart" click handler.
@@ -90,10 +91,15 @@ export function ProductCard({
     if (adding) return // Prevent double-adds
     setAdding(true)
     try {
-      await Promise.resolve(addToCart(product)) // Await add to cart action
-      // Wait a short moment to signal success visually
+      const result = await addToCart(product)
+      if (!result.ok) {
+        success({
+          title: fulfillment('oneWarehouse'),
+          description: result.max != null ? fulfillment('shortfall', { max: result.max }) : undefined,
+        })
+        return
+      }
       await new Promise(res => setTimeout(res, 600))
-      // Success toast message with product name
       success({ title: t('addedToCart', { name: product.name }) })
     } finally {
       setAdding(false)

@@ -62,7 +62,7 @@ export function SettingsSidebarContent({
             variant="outline"
             size="sm"
             className="w-full justify-start"
-            onClick={() => router.push(`/${locale}/profile` as any)}
+            onClick={() => router.push('/profile', { locale })}
           >
             <User className="mr-2 h-4 w-4" />
             {t('profile')}

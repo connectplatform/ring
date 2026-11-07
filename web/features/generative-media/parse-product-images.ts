@@ -5,6 +5,7 @@
 
 import type { GenerativeGalleryValue, GalleryItem } from '@/features/generative-media/types'
 import { galleryItemUrl, toProductImageUrls } from '@/features/generative-media/types'
+import type { MediaDerivatives } from '@/lib/file/interfaces/IFileService'
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim())
@@ -80,4 +81,53 @@ export function resolveProductImagesFromForm(
   }
 
   return { photoUrls, gallery: null }
+}
+
+export type ProductUploadDerivativeResult = {
+  url: string
+  fileId?: string
+  contentType?: string
+  derivatives?: MediaDerivatives
+}
+
+/** Gallery item for a RingBase product photo. originalUrl stays the original file. */
+export function galleryItemFromProductUpload(
+  result: ProductUploadDerivativeResult,
+  opts?: { isPrimary?: boolean },
+): GalleryItem {
+  const derivatives = result.derivatives
+  const webpUrl =
+    derivatives?.card?.w640?.webp || derivatives?.thumb || derivatives?.mobile || undefined
+  return {
+    id: result.fileId || `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    originalUrl: result.url,
+    ...(result.fileId ? { fileId: result.fileId } : {}),
+    ...(webpUrl ? { webpUrl } : {}),
+    ...(derivatives ? { derivatives } : {}),
+    contentType: result.contentType || 'image/jpeg',
+    source: 'upload',
+    enabled: true,
+    isPrimary: opts?.isPrimary ?? false,
+    createdAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Append RingBase uploads onto an existing gallery.
+ * Legacy URL-only items stay so the card does not drop photos that have no ladder yet.
+ */
+export function mergeUploadedProductGallery(input: {
+  existing?: GenerativeGalleryValue | null
+  uploads: ProductUploadDerivativeResult[]
+}): GenerativeGalleryValue {
+  const existingItems = (input.existing?.items || []).filter((item) => item && item.originalUrl)
+  const hasPrimary = existingItems.some((item) => item.isPrimary)
+  const added = input.uploads
+    .filter((upload) => upload.url)
+    .map((upload, index) =>
+      galleryItemFromProductUpload(upload, {
+        isPrimary: !hasPrimary && existingItems.length === 0 && index === 0,
+      }),
+    )
+  return { items: [...existingItems, ...added] }
 }

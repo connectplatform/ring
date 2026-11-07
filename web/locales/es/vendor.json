@@ -419,7 +419,11 @@
     "quantity": "Cantidad",
     "bulkRestock": "Reposición masiva",
     "warehouse": "Almacén",
-    "lowStock": "Stock bajo"
+    "lowStock": "Stock bajo",
+    "unitCost": "Costo unitario",
+    "amountPaid": "Pagado",
+    "amountOwed": "Adeudado",
+    "unknownCostHint": "El costo 0 es desconocido y no entra en el promedio."
   },
   "navbar": {
     "myStore": "mi tienda",

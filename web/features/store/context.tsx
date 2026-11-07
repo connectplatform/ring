@@ -13,6 +13,7 @@ import {
 } from '@/features/store/currency-context'
 import { STORE_CART_UPDATED_EVENT } from '@/hooks/use-product-agent-chat'
 import { cartLineVendorId, priceCartLine } from '@/features/store/lib/cart-pricing'
+import { guardShippableAdd } from '@/features/store/lib/shippable-cache'
 
 interface StoreContextType {
   // Legacy support
@@ -25,7 +26,10 @@ interface StoreContextType {
   aiRecommendedProducts: StoreProduct[]
 
   cartItems: CartItem[]
-  addToCart: (product: StoreProduct) => void
+  addToCart: (
+    product: StoreProduct,
+    options?: { next?: number },
+  ) => Promise<{ ok: boolean; max: number | null; message?: string }>
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -37,6 +41,8 @@ interface StoreContextType {
   /** Totals keyed by resolved catalog currency (ring-config SSOT). */
   totalPriceByCurrency: Record<string, number>
   checkout: (info: CheckoutInfo) => Promise<{ orderId: string }>
+  stockNotice: string | null
+  clearStockNotice: () => void
 
   // ERP Extension: Loading states
   isLoadingEnhanced: boolean
@@ -125,6 +131,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const [rawCart, setRawCart] = useLocalStorage<{ id: string; qty: number }[]>(`ring_cart`, [])
   const [appliedPromoCode, setAppliedPromoCode] = useLocalStorage<string | null>('ring_store_promo', null)
+  const [stockNotice, setStockNotice] = useState<string | null>(null)
   const [storefrontSettings, setStorefrontSettings] = useState<import('@/features/store/types/store-settings').StoreSettingsData | null>(null)
   const [service, setService] = useState<ReturnType<any> | null>(null)
   const [, startTransition] = useTransition()
@@ -348,19 +355,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           items: lines.map((l) => ({ id: l.productId, qty: l.quantity })),
         }),
         credentials: 'include',
-      }).catch(() => {
-        /* offline */
       })
+        .then(async (response) => {
+          if (response.status === 409) {
+            const body = await response.json().catch(() => ({}))
+            setStockNotice(typeof body.error === 'string' ? body.error : 'One warehouse must cover this quantity.')
+            return
+          }
+          if (response.ok) setStockNotice(null)
+        })
+        .catch(() => {
+          /* offline */
+        })
     }, 600)
     return () => clearTimeout(timer)
   }, [rawCart, cartItems, authStatus])
 
-  const addToCart = (product: StoreProduct) => {
-    setRawCart(prev => {
-      const found = prev.find(i => i.id === product.id)
-      if (found) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, { id: product.id, qty: 1 }]
+  const addToCart = async (product: StoreProduct, options?: { next?: number }) => {
+    const current = rawCart.find((item) => item.id === product.id)?.qty ?? 0
+    const next = options?.next ?? current + 1
+    if (next < 1) return { ok: true, max: null }
+    const decision = await guardShippableAdd({
+      productId: product.id,
+      digitalProduct: product.digitalProduct,
+      instantDelivery: product.instantDelivery,
+      allowPreorder: product.allowPreorder,
+      nextQty: next,
     })
+    if (!decision.ok) {
+      setStockNotice(decision.message || 'One warehouse must cover this quantity.')
+      return decision
+    }
+    setStockNotice(null)
+    setRawCart((prev) => {
+      const found = prev.find((item) => item.id === product.id)
+      if (!found) return [...prev, { id: product.id, qty: next }]
+      return prev.map((item) => (item.id === product.id ? { ...item, qty: next } : item))
+    })
+    return { ok: true, max: null }
   }
 
   const removeFromCart = (productId: string) => {
@@ -418,6 +450,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       totalItems,
       totalPriceByCurrency,
       checkout,
+      stockNotice,
+      clearStockNotice: () => setStockNotice(null),
 
       // ERP Extension: Loading states
       isLoadingEnhanced,

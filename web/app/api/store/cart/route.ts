@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to save cart'
     logger.warn('POST /api/store/cart failed', { error: message })
-    const status = message.toLowerCase().includes('insufficient') ? 409 : 500
+    const status = /insufficient|one warehouse must cover/i.test(message) ? 409 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

@@ -455,7 +455,11 @@
     "quantity": "Quantity",
     "bulkRestock": "Bulk restock",
     "warehouse": "Warehouse",
-    "lowStock": "Low stock"
+    "lowStock": "Low stock",
+    "unitCost": "Unit cost",
+    "amountPaid": "Amount paid",
+    "amountOwed": "Amount owed",
+    "unknownCostHint": "Cost 0 means unknown and does not enter the average."
   },
   "navbar": {
     "myStore": "My Store",

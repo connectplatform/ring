@@ -29,9 +29,17 @@ import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
 import type { StockMovement } from '@/features/store/types/erp-stock'
 import {
   chooseFulfillmentWarehouse,
+  explainFulfillmentShortfall,
   getFulfillmentWarehouse,
   levelsForProduct,
 } from '@/features/store/services/warehouse-fulfillment'
+import {
+  movementDocId,
+  movementValue,
+  isKnownUnitCost,
+  remainingReturnable,
+  returnedAgainstSale,
+} from '@/features/store/services/fulfillment-ledger'
 
 /** PostgreSQL tables (snake_case — see data/migrations/008_inventory_schema.sql). */
 export const INVENTORY_COLLECTIONS = {
@@ -273,7 +281,7 @@ export async function reserveInventory(
     const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
     if (!currentLevel || currentLevel.available < quantity) {
-      throw new Error(`Insufficient inventory for product ${productId}`)
+      throw new Error(`One warehouse must cover ${quantity}. Not enough remaining stock for product ${productId}.`)
     }
 
     const available = currentLevel.available - quantity
@@ -314,6 +322,7 @@ export async function reserveInventoryForOrder(
 ): Promise<{ reserved: InventoryReservation[]; skipped: string[] }> {
   const reserved: InventoryReservation[] = []
   const skipped: string[] = []
+  const planned: Array<{ productId: string; quantity: number; storeId: string; warehouseId: string }> = []
 
   for (const item of items) {
     if (!item.productId) continue
@@ -339,18 +348,33 @@ export async function reserveInventoryForOrder(
         quantity: item.quantity,
         explicitWarehouseId: warehouseId,
       })
-      if (!choice) throw new Error(`Insufficient inventory for product ${item.productId}`)
+      if (!choice) {
+        const shortfall = await explainFulfillmentShortfall({
+          productId: item.productId,
+          quantity: item.quantity,
+        })
+        throw new Error(shortfall.message)
+      }
       storeId = choice.storeId
       warehouseId = choice.warehouseId
     }
-    await ensureInventoryLevel(item.productId, storeId)
+    planned.push({
+      productId: item.productId,
+      quantity: item.quantity,
+      storeId,
+      warehouseId: warehouseId || ZERO_WAREHOUSE_ID,
+    })
+  }
+
+  for (const item of planned) {
+    await ensureInventoryLevel(item.productId, item.storeId)
     const reservation = await reserveInventory(
       item.productId,
-      storeId,
+      item.storeId,
       orderId,
       item.quantity,
       reservationMinutes,
-      warehouseId || ZERO_WAREHOUSE_ID,
+      item.warehouseId,
     )
     reserved.push(reservation)
   }
@@ -442,6 +466,43 @@ export async function releaseReservationsForOrder(orderId: string): Promise<numb
     await releaseReservation(reservation.id, false)
   }
   return active.length
+}
+
+/** Release part of one active hold. The rest of the hold stays active. */
+export async function releaseReservationQuantity(reservationId: string, quantity: number): Promise<void> {
+  const qty = Math.floor(quantity)
+  if (qty < 1) throw new Error('Quantity is required')
+  await db().transaction(async (transaction) => {
+    const reservationDoc = await transaction.read(INVENTORY_COLLECTIONS.reservations, reservationId)
+    const reservation = reservationDoc?.data as InventoryReservation | undefined
+    if (!reservation || reservation.status !== 'active') return
+    const release = Math.min(qty, reservation.quantity)
+    const now = new Date().toISOString()
+    if (release >= reservation.quantity) {
+      await transaction.update(INVENTORY_COLLECTIONS.reservations, reservationId, {
+        status: 'cancelled',
+        updatedAt: now,
+      })
+    } else {
+      await transaction.update(INVENTORY_COLLECTIONS.reservations, reservationId, {
+        quantity: reservation.quantity - release,
+        updatedAt: now,
+      })
+    }
+    const inventoryId = inventoryLevelId(reservation.productId, reservation.storeId)
+    const levelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
+    const level = levelDoc?.data as InventoryLevel | undefined
+    if (!level) return
+    const available = level.available + release
+    const reserved = Math.max(0, level.reserved - release)
+    await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, {
+      available,
+      reserved,
+      total: available + reserved,
+      lastUpdated: now,
+      syncVersion: level.syncVersion + 1,
+    })
+  })
 }
 
 /** Fulfill path: clear reserved without restoring available (Flaw E). Prefer commitSaleForOrder txn. */
@@ -588,7 +649,7 @@ export async function commitSaleForOrder(
             })
         if (!choice) {
           failedProducts.push(productId)
-          throw new Error(`Insufficient inventory for product ${productId}`)
+          throw new Error(`One warehouse must cover ${qty}. Not enough remaining stock for product ${productId}.`)
         }
 
         const inventoryId = inventoryLevelId(productId, choice.storeId)
@@ -601,7 +662,7 @@ export async function commitSaleForOrder(
         if (!hold) {
           if (beforeAvailable < qty) {
             failedProducts.push(productId)
-            throw new Error(`Insufficient inventory for product ${productId}`)
+            throw new Error(`One warehouse must cover ${qty}. Not enough remaining stock for product ${productId}.`)
           }
           available = beforeAvailable - qty
           const next: InventoryLevel = {
@@ -772,7 +833,16 @@ export async function restoreStockForOrder(orderId: string): Promise<{
       const productData = productDoc.data as StoreProduct & Record<string, unknown>
       const currentStock = Number(productData.stock ?? 0)
       const newStock = currentStock + qty
-      const warehouse = await getFulfillmentWarehouse(sale.warehouseId || ZERO_WAREHOUSE_ID)
+      const warehouse =
+        (await getFulfillmentWarehouse(sale.warehouseId || ZERO_WAREHOUSE_ID)) || {
+          id: ZERO_WAREHOUSE_ID,
+          name: 'Main warehouse',
+          code: 'main',
+          address: '',
+          active: true,
+          isDefault: true,
+          inventoryStoreId: DEFAULT_INVENTORY_STORE_ID,
+        }
 
       await transaction.update('store_products', sale.productId, {
         stock: newStock,
@@ -825,6 +895,124 @@ export async function restoreStockForOrder(orderId: string): Promise<{
   })
 
   return { success: true, skipped: false, restoredProducts }
+}
+
+/**
+ * Return part of one sale. Resellable units go back to that warehouse.
+ * Damaged units stay out of available and are valued at the current average.
+ * The same idempotency key posts once.
+ */
+export async function restoreSaleQuantity(input: {
+  saleMovementId: string
+  quantity: number
+  userId?: string
+  idempotencyKey?: string
+  mode: 'resellable' | 'damaged'
+}): Promise<void> {
+  const requested = Math.floor(input.quantity)
+  if (requested < 1) throw new Error('Quantity is required')
+  const saleResult = await db().findDocById<StockMovement>('stock_movements', input.saleMovementId)
+  if (!saleResult.success || !saleResult.data || saleResult.data.movementType !== 'sale') {
+    throw new Error('Sale movement not found')
+  }
+  const sale = saleResult.data
+  const related = await db().queryDocs<StockMovement & { id: string }>({
+    collection: STORE_COLLECTIONS.stockMovements,
+    filters: [{ field: 'reversesMovementId', operator: '=', value: input.saleMovementId }],
+    pagination: { limit: 50 },
+  })
+  const already = returnedAgainstSale(related.success && related.data ? related.data : [])
+  const remaining = remainingReturnable(Number(sale.quantityChange || 0), already)
+  if (remaining < 1 || requested > remaining) {
+    throw new Error(
+      remaining < 1
+        ? 'Nothing left to return for this line'
+        : `Only ${remaining} left to return for this line`,
+    )
+  }
+
+  const warehouse =
+    (await getFulfillmentWarehouse(sale.warehouseId || ZERO_WAREHOUSE_ID)) || {
+      id: ZERO_WAREHOUSE_ID,
+      inventoryStoreId: DEFAULT_INVENTORY_STORE_ID,
+    }
+  const now = new Date().toISOString()
+  const movementId = movementDocId(input.idempotencyKey)
+  const inventoryId = inventoryLevelId(sale.productId, warehouse.inventoryStoreId)
+
+  await db().transaction(async (transaction) => {
+    await transaction.read('store_products', sale.productId)
+    const existing = await transaction.read(STORE_COLLECTIONS.stockMovements, movementId)
+    if (existing?.data) return
+    const relatedNow = await db().queryDocs<StockMovement & { id: string }>({
+      collection: STORE_COLLECTIONS.stockMovements,
+      filters: [{ field: 'reversesMovementId', operator: '=', value: input.saleMovementId }],
+      pagination: { limit: 50 },
+    })
+    if (!relatedNow.success) throw new Error('Could not read prior returns for this line')
+    const alreadyNow = returnedAgainstSale(relatedNow.data || [])
+    const remainingNow = remainingReturnable(Number(sale.quantityChange || 0), alreadyNow)
+    if (remainingNow < 1 || requested > remainingNow) {
+      throw new Error(
+        remainingNow < 1
+          ? 'Nothing left to return for this line'
+          : `Only ${remainingNow} left to return for this line`,
+      )
+    }
+    const qty = requested
+    const levelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
+    const level = levelDoc?.data as InventoryLevel | undefined
+    const available = Number(level?.available ?? 0)
+    const reserved = Number(level?.reserved ?? 0)
+    const average = Number((level as { unitCost?: number } | undefined)?.unitCost || 0)
+    const nextAvailable = input.mode === 'resellable' ? available + qty : available
+    const aligned = {
+      productId: sale.productId,
+      storeId: warehouse.inventoryStoreId,
+      available: nextAvailable,
+      reserved,
+      total: nextAvailable + reserved,
+      lastUpdated: now,
+      syncVersion: (level?.syncVersion || 0) + 1,
+      unitCost: isKnownUnitCost(average) ? average : 0,
+    }
+    if (level) {
+      await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, aligned)
+    } else if (input.mode === 'resellable') {
+      await transaction.create(INVENTORY_COLLECTIONS.levels, aligned, { id: inventoryId })
+    }
+    if (input.mode === 'resellable') {
+      const productDoc = await transaction.read('store_products', sale.productId)
+      const currentStock = Number((productDoc?.data as { stock?: number } | undefined)?.stock || 0)
+      const stock = currentStock + qty
+      await transaction.update('store_products', sale.productId, {
+        stock,
+        inStock: stock > 0,
+        updatedAt: now,
+      })
+    }
+    const movement: StockMovement = {
+      id: movementId,
+      productId: sale.productId,
+      warehouseId: warehouse.id,
+      movementType: input.mode === 'resellable' ? 'return' : 'damaged',
+      quantityBefore: available + reserved,
+      quantityChange: input.mode === 'resellable' ? qty : 0,
+      quantityAfter: nextAvailable + reserved,
+      orderId: sale.orderId,
+      userId: input.userId,
+      reason:
+        input.mode === 'resellable'
+          ? `Returned parcel restock for sale ${input.saleMovementId}`
+          : `Returned parcel damaged for sale ${input.saleMovementId}`,
+      timestamp: now,
+      unitCost: isKnownUnitCost(average) ? average : 0,
+      value: movementValue(qty, average),
+      reversesMovementId: input.saleMovementId,
+      unsellableQuantity: input.mode === 'damaged' ? qty : undefined,
+    }
+    await transaction.create(STORE_COLLECTIONS.stockMovements, movement, { id: movement.id })
+  })
 }
 
 /**
@@ -1033,26 +1221,107 @@ export async function processInventoryTransfer(
 /**
  * Clean up expired reservations (cancel path — restore available)
  */
-export async function cleanupExpiredReservations(): Promise<void> {
+export type ReservationCleanupResult = {
+  seen: number
+  released: number
+  failed: number
+  failedIds: string[]
+  capped: boolean
+}
+
+/**
+ * Release expired holds one at a time. A failure is counted and the next hold
+ * is still attempted. The page is always the still-active set, so a released
+ * row drops out instead of being skipped by an offset.
+ */
+export async function cleanupExpiredReservations(): Promise<ReservationCleanupResult> {
   const now = new Date().toISOString()
+  const pageSize = 200
+  const max = 1000
+  const attempted = new Set<string>()
+  let seen = 0
+  let released = 0
+  let failed = 0
+  const failedIds: string[] = []
+  let capped = false
 
-  const result = await db().queryDocs<InventoryReservation & Record<string, unknown>>({
-    collection: INVENTORY_COLLECTIONS.reservations,
-    filters: [
-      { field: 'status', operator: '=', value: 'active' },
-      { field: 'expiresAt', operator: '<', value: now }
-    ]
+  while (seen < max) {
+    const result = await db().queryDocs<InventoryReservation & Record<string, unknown>>({
+      collection: INVENTORY_COLLECTIONS.reservations,
+      filters: [
+        { field: 'status', operator: '=', value: 'active' },
+        { field: 'expiresAt', operator: '<', value: now },
+      ],
+      pagination: { limit: pageSize },
+    })
+    if (!result.success || !result.data || result.data.length === 0) break
+    const fresh = (result.data as InventoryReservation[]).filter((row) => row.id && !attempted.has(row.id))
+    if (fresh.length === 0) {
+      capped = result.data.length >= pageSize
+      break
+    }
+    for (const reservation of fresh) {
+      if (seen >= max) {
+        capped = true
+        break
+      }
+      attempted.add(reservation.id)
+      seen += 1
+      try {
+        await releaseReservation(reservation.id, false)
+        released += 1
+      } catch {
+        failed += 1
+        if (failedIds.length < 20) failedIds.push(reservation.id)
+      }
+    }
+  }
+
+  if (seen >= max && !capped) {
+    const more = await db().queryDocs<InventoryReservation & Record<string, unknown>>({
+      collection: INVENTORY_COLLECTIONS.reservations,
+      filters: [
+        { field: 'status', operator: '=', value: 'active' },
+        { field: 'expiresAt', operator: '<', value: now },
+      ],
+      pagination: { limit: pageSize },
+    })
+    const leftover = (more.success && more.data ? more.data : []).some((row) => row.id && !attempted.has(row.id))
+    if (leftover) capped = true
+  }
+
+  return { seen, released, failed, failedIds, capped }
+}
+
+export async function returnableForLines(
+  orderId: string,
+  lines: Array<{ productId?: string; fulfillmentWarehouseId?: string }>,
+): Promise<Map<string, number>> {
+  const remaining = new Map<string, number>()
+  const result = await db().queryDocs<StockMovement & { id: string }>({
+    collection: STORE_COLLECTIONS.stockMovements,
+    filters: [{ field: 'orderId', operator: '=', value: orderId }],
+    pagination: { limit: 200 },
   })
-
-  if (!result.success || !result.data) {
-    return
+  const rows = result.success && result.data ? result.data : []
+  if (rows.length >= 200) return remaining
+  for (const line of lines) {
+    const productId = line.productId || ''
+    if (!productId) continue
+    const sales = rows.filter((row) => row.movementType === 'sale' && row.productId === productId)
+    const sale = line.fulfillmentWarehouseId
+      ? sales.find((row) => (row.warehouseId || ZERO_WAREHOUSE_ID) === line.fulfillmentWarehouseId)
+      : sales[0]
+    if (!sale) continue
+    const returned = returnedAgainstSale(
+      rows.filter((row) => row.reversesMovementId === sale.id),
+    )
+    remaining.set(
+      `${productId}:${line.fulfillmentWarehouseId || ''}`,
+      remainingReturnable(Number(sale.quantityChange || 0), returned),
+    )
   }
-
-  const expiredReservations = result.data as InventoryReservation[]
-
-  for (const reservation of expiredReservations) {
-    await releaseReservation(reservation.id, false)
-  }
+  return remaining
 }
 
 /**
@@ -1104,6 +1373,9 @@ export type InventoryDriftSample = {
   reserved: number
   expectedStock: number
   delta: number
+  storeId?: string
+  reservationQuantity?: number
+  reservationDelta?: number
 }
 
 /**
@@ -1156,6 +1428,39 @@ export async function detectInventoryDrift(limit: number = 500): Promise<{
         delta: stock - expectedStock,
       })
     }
+  }
+
+  const reservationLimit = 2000
+  const reservationResult = await db().queryDocs<InventoryReservation & Record<string, unknown>>({
+    collection: INVENTORY_COLLECTIONS.reservations,
+    filters: [{ field: 'status', operator: '=', value: 'active' }],
+    pagination: { limit: reservationLimit },
+  })
+  const reservationRows = reservationResult.success && reservationResult.data ? reservationResult.data : []
+  const reservationPageComplete = reservationRows.length < reservationLimit
+  const openByLevel = new Map<string, number>()
+  if (reservationPageComplete) {
+  for (const reservation of reservationRows) {
+    const key = `${reservation.productId}:${reservation.storeId}`
+    openByLevel.set(key, (openByLevel.get(key) || 0) + Number(reservation.quantity || 0))
+  }
+  for (const level of levels) {
+    const key = `${level.productId}:${level.storeId}`
+    const reservationQuantity = openByLevel.get(key) || 0
+    const reserved = Number(level.reserved || 0)
+    if (reserved === reservationQuantity) continue
+    samples.push({
+      productId: level.productId,
+      storeId: level.storeId,
+      stock: reserved,
+      available: Number(level.available || 0),
+      reserved,
+      expectedStock: reservationQuantity,
+      delta: reserved - reservationQuantity,
+      reservationQuantity,
+      reservationDelta: reserved - reservationQuantity,
+    })
+  }
   }
 
   if (samples.length > 0) {

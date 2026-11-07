@@ -93,6 +93,8 @@
     "checkoutGuide": "Leitfaden Kasse",
     "discount": "Rabatt",
     "remove": "Entfernen",
+    "decreaseQuantity": "Menge verringern",
+    "increaseQuantity": "Menge erhöhen",
     "noSavedItems": "Keine Artikel für später gespeichert",
     "quickNavigation": "Schnellnavigation",
     "cartOverview": "Warenkorb-Überblick",
@@ -398,5 +400,11 @@
   },
   "loading": "Weitere Produkte werden geladen…",
   "shareEarnHint": "Andere einladen und Referral-Rewards verdienen",
-  "fastDelivery": "Schnelle Lieferung"
+  "fastDelivery": "Schnelle Lieferung",
+  "fulfillment": {
+    "oneWarehouse": "Ein Lager muss diese Menge decken",
+    "shortfall": "Ein Lager kann höchstens {max} versenden. Verlagern Sie Bestand, bevor Sie mehr bestellen.",
+    "tracking": "Sendungsverfolgung",
+    "refreshTracking": "Sendung aktualisieren"
+  }
 }

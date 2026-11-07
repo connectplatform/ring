@@ -7,6 +7,8 @@
  * The key and JWT never leave the server. JWT is cached for 50 minutes.
  */
 
+import { readDivisionSettlement } from '@/features/store/services/fulfillment-ledger'
+
 export const NOVA_POST_API_BASE = 'https://api.novapost.com/v.1.0'
 
 export type NovaPostCity = {
@@ -27,6 +29,12 @@ let jwtCache: JwtCache | null = null
 
 export function isNovaPostEnabled(): boolean {
   return Boolean(process.env.NOVAPOST_API_KEY?.trim())
+}
+
+/** Create/print/track shipments. Locator search stays on NOVAPOST_API_KEY alone. */
+export function isNovaPostShipmentsEnabled(): boolean {
+  const flag = process.env.NOVAPOST_SHIPMENTS_ENABLED?.trim().toLowerCase()
+  return flag === 'true' || flag === '1'
 }
 
 export function novaPostApiKey(): string | null {
@@ -190,4 +198,24 @@ export async function searchNovaPostDivisions(
       row.number.toLowerCase().includes(needle) ||
       row.address.toLowerCase().includes(needle),
   )
+}
+
+/** Resolve one division through the same /divisions API. Empty settlementId means unresolved. */
+export async function getNovaPostDivision(
+  apiKey: string,
+  divisionId: string,
+): Promise<ReturnType<typeof readDivisionSettlement>> {
+  const id = divisionId.trim()
+  if (!id) return null
+  try {
+    const jwt = await getNovaPostJwt(apiKey)
+    const params = new URLSearchParams()
+    params.append('ids[]', id)
+    params.set('limit', '5')
+    const body = (await novaPostGet(`/divisions?${params}`, jwt)) as { items?: unknown }
+    const items = Array.isArray(body.items) ? body.items : []
+    return readDivisionSettlement(items[0]) 
+  } catch {
+    return null
+  }
 }

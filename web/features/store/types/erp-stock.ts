@@ -31,7 +31,15 @@ export interface StockMovement {
   id: string
   productId: string
   warehouseId: string
-  movementType: 'sale' | 'restock' | 'adjustment' | 'transfer' | 'return' | 'damaged' | 'receipt'
+  movementType:
+    | 'sale'
+    | 'restock'
+    | 'adjustment'
+    | 'transfer'
+    | 'return'
+    | 'damaged'
+    | 'receipt'
+    | 'supplier_payment'
   quantityBefore: number
   quantityChange: number
   quantityAfter: number
@@ -46,6 +54,10 @@ export interface StockMovement {
   amountPaid?: number
   amountOwed?: number
   supplierName?: string
+  receiptMovementId?: string
+  reversesMovementId?: string
+  value?: number
+  unsellableQuantity?: number
 }
 
 export interface BatchAddStockResult {

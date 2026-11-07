@@ -7,6 +7,9 @@ import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
 import { setRequestLocale } from 'next-intl/server'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
+import { getTranslations } from 'next-intl/server'
+import { refreshOwnOrderTracking } from '@/app/_actions/admin-orders'
+import { readOrderShipments } from '@/features/store/services/fulfillment-ledger'
 
 // Generate the page's metadata (title, robots, i18n, etc) based on params.
 export async function generateMetadata({
@@ -59,6 +62,8 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
     return <div>Order not found</div>
   }
 
+  const t = await getTranslations({ locale: validLocale, namespace: 'modules.store.fulfillment' })
+  const shipments = readOrderShipments(order as unknown as Record<string, unknown>).filter((row) => row.number)
   const orderCurrency = order.items?.[0]?.currency || 'UAH'
   const fmt = (value?: number) => (typeof value === 'number' ? `${value.toFixed(2)} ${orderCurrency}` : '—')
 
@@ -86,6 +91,26 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
               : order.shipping?.provider ?? '—'}
           </div>
           <div className="text-sm font-medium">Total: {fmt(order.total)}</div>
+          {shipments.length ? (
+            <div className="text-sm space-y-2">
+              {shipments.map((shipment) => (
+                <div key={shipment.warehouseId}>
+                  {t('tracking')}: {shipment.number}
+                  {shipment.status ? ` · ${shipment.status}` : ''}
+                  {shipment.history?.length ? (
+                    <ul className="mt-1 text-xs text-muted-foreground">
+                      {shipment.history.map((entry, index) => (
+                        <li key={`${entry.date}-${index}`}>{entry.date} {entry.status}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ))}
+              <form action={refreshOwnOrderTracking.bind(null, order.id)}>
+                <button type="submit" className="underline">{t('refreshTracking')}</button>
+              </form>
+            </div>
+          ) : null}
           <div className="text-sm font-medium mt-4">Items</div>
           <div className="space-y-1">
             {/* Map through order items and render them */}

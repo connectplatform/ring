@@ -56,7 +56,7 @@ export default function AddToCartButton({
 
   const t = useTranslations('modules.store')
 
-  const effectiveMaxQuantity = maxQuantity || stock || 99
+  const effectiveMaxQuantity = maxQuantity ?? stock ?? 99
   const isOutOfStock = stock !== undefined && stock === 0
   const canPreorder = isOutOfStock && allowPreorder
   const isLowStock = stock !== undefined && stock > 0 && stock <= 5

@@ -21,6 +21,8 @@ import {
   toAdminOrderDto,
   type AdminOrderDto,
 } from '@/lib/admin/admin-list-dto'
+import { withReturnableQuantities } from '@/lib/admin/order-returnable'
+import { ProcessConductor } from '@/lib/processes'
 
 const AdminOrdersClient = dynamicImport(() => import('./admin-orders-client'), {
   loading: () => (
@@ -55,9 +57,10 @@ async function getAdminOrders(statusFilter?: string): Promise<{
     }
 
     const result = await StoreOrdersService.adminListAllOrders(options)
-    const items = result.items.map((row) =>
+    const mapped = result.items.map((row) =>
       toAdminOrderDto(row as Record<string, unknown> & { id: string }),
     )
+    const items = await withReturnableQuantities(mapped)
     logger.info('AdminOrders: Orders fetched successfully', { count: items.length })
 
     return { items, hasMore: result.hasMore, nextOffset: result.nextOffset }
@@ -124,6 +127,18 @@ export default async function AdminOrdersPage({
   })
 
   const { items: orders, hasMore, nextOffset } = await getAdminOrders(statusFilter)
+  const driftRuns = await ProcessConductor.getRunHistory('inventory-drift', 1).catch(() => [])
+  const driftResult = driftRuns[0]?.result
+  const alerts = driftResult && typeof driftResult === 'object'
+    ? (driftResult as { shipmentAlerts?: { stalePending?: number; refused?: number; truncated?: boolean } }).shipmentAlerts
+    : undefined
+  const shipmentWatch = alerts
+    ? {
+        stalePending: Number(alerts.stalePending || 0),
+        refused: Number(alerts.refused || 0),
+        truncated: Boolean(alerts.truncated),
+      }
+    : null
 
   logger.info('AdminOrdersPage: Rendering', {
     orderCount: orders.length,
@@ -147,6 +162,7 @@ export default async function AdminOrdersPage({
           initialNextOffset={nextOffset}
           currentStatusFilter={statusFilter}
           locale={validLocale}
+          shipmentWatch={shipmentWatch}
         />
       </Suspense>
     </AdminWrapper>

@@ -2,6 +2,8 @@
  * Admin list DTO helpers — keep RSC→client props plain JSON (no Date / fat blobs).
  */
 
+import { readOrderShipments, redactCarrierError, warehouseIdsForShipment } from '@/features/store/services/fulfillment-ledger'
+
 export const ADMIN_LIST_PAGE_SIZE = 50
 
 export function toIsoString(value: unknown): string | undefined {
@@ -27,6 +29,19 @@ export interface AdminOrderItemDto {
   price?: string
   currency?: string
   fulfillmentWarehouseId?: string
+  returnable?: number
+}
+
+export interface AdminWarehouseShipmentDto {
+  warehouseId: string
+  number?: string
+  status?: string
+  history?: Array<{ status?: string; date?: string }>
+  intentStatus?: string
+  intentAt?: string
+  intentDetail?: string
+  parcel?: { weight: number; length: number; width: number; height: number }
+  needsParcel: boolean
 }
 
 export interface AdminOrderShipmentDto {
@@ -52,7 +67,11 @@ export interface AdminOrderDto {
   shippingMethod?: string
   shippingBranch?: string
   shippingSettlementId?: string
+  shippingDivisionId?: string
+  shipmentParcel?: { weight: number; length: number; width: number; height: number }
+  shipmentIntentStatus?: string
   shipment?: AdminOrderShipmentDto
+  shipments?: AdminWarehouseShipmentDto[]
 }
 
 export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): AdminOrderDto {
@@ -75,7 +94,7 @@ export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): 
   // SalesBox imports used British "cancelled"; Ring UI/status SSOT is "canceled"
   const status = rawStatus === 'cancelled' ? 'canceled' : rawStatus
 
-  return {
+  const base = {
     id: String(row.id),
     status,
     userId: row.userId != null ? String(row.userId) : undefined,
@@ -109,22 +128,72 @@ export function toAdminOrderDto(row: Record<string, unknown> & { id: string }): 
             ((row.shippingInfo as { location?: { settlementId?: unknown } }).location || {}).settlementId || '',
           )
         : undefined,
-    shipment:
-      row.shipment && typeof row.shipment === 'object'
-        ? {
-            id: (row.shipment as { id?: unknown }).id != null ? String((row.shipment as { id?: unknown }).id) : undefined,
-            number:
-              (row.shipment as { number?: unknown }).number != null
-                ? String((row.shipment as { number?: unknown }).number)
-                : undefined,
-            status:
-              (row.shipment as { status?: unknown }).status != null
-                ? String((row.shipment as { status?: unknown }).status)
-                : undefined,
-            history: Array.isArray((row.shipment as { history?: unknown }).history)
-              ? ((row.shipment as { history: Array<{ status?: string; date?: string }> }).history)
-              : undefined,
-          }
+    shippingDivisionId:
+      row.shippingInfo && typeof row.shippingInfo === 'object'
+        ? String(
+            ((row.shippingInfo as { location?: { id?: unknown; externalId?: unknown } }).location || {}).id ||
+              ((row.shippingInfo as { location?: { externalId?: unknown } }).location || {}).externalId ||
+              '',
+          )
         : undefined,
+    shipmentParcel: (() => {
+      const parcel = row.shipmentParcel
+      if (!parcel || typeof parcel !== 'object') return undefined
+      const record = parcel as { weight?: unknown; length?: unknown; width?: unknown; height?: unknown }
+      const weight = Number(record.weight)
+      const length = Number(record.length)
+      const width = Number(record.width)
+      const height = Number(record.height)
+      if (![weight, length, width, height].every((value) => Number.isFinite(value) && value > 0)) return undefined
+      return { weight, length, width, height }
+    })(),
+    shipmentIntentStatus: undefined,
+    shipment: undefined,
+    shipments: [],
+  }
+  const method = base.shippingMethod || ''
+  const stored = readOrderShipments(row)
+  const lineIds = warehouseIdsForShipment(
+    rawItems.map((raw) => {
+      const entry = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+      const product = entry.product && typeof entry.product === 'object' ? (entry.product as Record<string, unknown>) : {}
+      return {
+        fulfillmentWarehouseId:
+          entry.fulfillmentWarehouseId != null ? String(entry.fulfillmentWarehouseId) : undefined,
+        isPreorder: Boolean(entry.isPreorder),
+        digitalProduct: Boolean(entry.digitalProduct || product.digitalProduct),
+        instantDelivery: Boolean(entry.instantDelivery || product.instantDelivery),
+      }
+    }),
+  )
+  const ids = method === 'nova-post'
+    ? [...new Set([...stored.map((record) => record.warehouseId), ...lineIds])]
+    : stored.filter((record) => record.number || record.intent).map((record) => record.warehouseId)
+  const shipments: AdminWarehouseShipmentDto[] = ids.map((warehouseId) => {
+    const record = stored.find((row) => row.warehouseId === warehouseId)
+    const parcel = record?.parcel
+    return {
+      warehouseId,
+      number: record?.number,
+      status: record?.status,
+      history: record?.history,
+      intentStatus: record?.intent?.status,
+      intentAt: record?.intent?.at,
+      intentDetail: record?.intent?.detail ? redactCarrierError(record.intent.detail) : undefined,
+      parcel: parcel
+        ? { weight: parcel.weight, length: parcel.length, width: parcel.width, height: parcel.height }
+        : undefined,
+      needsParcel: method === 'nova-post' && !record?.number && !parcel,
+    }
+  })
+  const numbered = shipments.find((record) => record.number)
+  const pending = shipments.find((record) => record.intentStatus === 'pending')
+  return {
+    ...base,
+    shipmentIntentStatus: pending?.intentStatus || shipments.find((record) => record.intentStatus)?.intentStatus,
+    shipment: numbered
+      ? { id: undefined, number: numbered.number, status: numbered.status, history: numbered.history }
+      : undefined,
+    shipments,
   }
 }

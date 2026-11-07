@@ -101,6 +101,8 @@
     "checkoutGuide": "Checkout Guide",
     "discount": "Discount",
     "remove": "Remove",
+    "decreaseQuantity": "Decrease quantity",
+    "increaseQuantity": "Increase quantity",
     "noSavedItems": "No items saved for later",
     "quickNavigation": "Quick Navigation",
     "cartOverview": "Cart Overview",
@@ -467,5 +469,11 @@
   },
   "loading": "Loading more products…",
   "shareEarnHint": "Invite others and earn referral rewards",
-  "fastDelivery": "Fast delivery"
+  "fastDelivery": "Fast delivery",
+  "fulfillment": {
+    "oneWarehouse": "One warehouse must cover this quantity",
+    "shortfall": "The most one warehouse can ship is {max}. Transfer stock before ordering more.",
+    "tracking": "Tracking",
+    "refreshTracking": "Refresh tracking"
+  }
 }

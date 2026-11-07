@@ -1,9 +1,20 @@
 'use client'
 
-import React, { useEffect, useState, useTransition } from 'react'
+import React, { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { updateOrderStatus, refreshOrders, loadMoreAdminOrders, refreshOrderTracking } from '@/app/_actions/admin-orders'
+import {
+  confirmOrderParcelAction,
+  loadMoreAdminOrders,
+  clearShipmentIntentAction,
+  refreshOrderTracking,
+  refreshOrders,
+  resolveOrderSettlementAction,
+  restockReturnedLineAction,
+  saveOrderNovaPostLocationAction,
+  updateOrderStatus,
+} from '@/app/_actions/admin-orders'
+import { NovaPostSelector, type NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import type { AdminOrderDto } from '@/lib/admin/admin-list-dto'
@@ -18,6 +29,7 @@ interface AdminOrdersClientProps {
   initialNextOffset: number
   currentStatusFilter?: string
   locale: Locale
+  shipmentWatch?: { stalePending: number; refused: number; truncated: boolean } | null
 }
 
 export default function AdminOrdersClient({
@@ -26,6 +38,7 @@ export default function AdminOrdersClient({
   initialNextOffset,
   currentStatusFilter = '',
   locale,
+  shipmentWatch = null,
 }: AdminOrdersClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -112,6 +125,16 @@ export default function AdminOrdersClient({
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-4">{t('title')}</h1>
+      {shipmentWatch && (shipmentWatch.stalePending > 0 || shipmentWatch.refused > 0) ? (
+        <div className="mb-4 space-y-1 text-sm">
+          {shipmentWatch.stalePending > 0 ? (
+            <p>{t('stalePending', { count: shipmentWatch.stalePending })}</p>
+          ) : null}
+          {shipmentWatch.refused > 0 ? (
+            <p>{t('refusedShipments', { count: shipmentWatch.refused })}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-3 mb-4">
         <select
@@ -184,9 +207,18 @@ interface OrderCardProps {
 
 function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCardProps) {
   const t = useTranslations('modules.admin.storeHub.ordersPage')
+  const router = useRouter()
   const [, startTrack] = useTransition()
   const [selectedStatus, setSelectedStatus] = useState(order.status || 'new')
+  const [location, setLocation] = useState<NovaPostLocation | null>(null)
+  const [parcels, setParcels] = useState<Record<string, { weight: string; length: string; width: string; height: string }>>({})
+  const [returnQty, setReturnQty] = useState<Record<string, string>>({})
+  const [note, setNote] = useState<string | null>(null)
+  const keys = useRef<Record<string, string>>({})
   const currentStatus = order.status || 'new'
+  const shipments = order.shipments || []
+  const needsSettlement = order.shippingMethod === 'nova-post' && !order.shippingSettlementId && !shipments.some((row) => row.number)
+  const parcelDraft = (warehouseId: string) => parcels[warehouseId] || { weight: '', length: '', width: '', height: '' }
 
   const handleUpdateClick = () => {
     if (selectedStatus !== order.status) {
@@ -245,36 +277,233 @@ function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCard
         {order.shippingMethod ? <div>{t('shippingMethod')}: {order.shippingMethod}</div> : null}
         {order.shippingBranch ? <div>{t('branch')}: {order.shippingBranch}</div> : null}
         {order.paymentStatus ? <div>{t('payment')}: {order.paymentStatus}</div> : null}
-        {order.shipment?.number ? (
-          <div>
-            {t('shipment')}: {order.shipment.number}
-            {order.shipment.status ? ` · ${order.shipment.status}` : ''}
-            <div className="flex gap-2 mt-1">
+        {shipments.map((shipment) => (
+          <div key={shipment.warehouseId}>
+            <div>
+              {t('shipment')} · {shipment.warehouseId}
+              {shipment.number ? `: ${shipment.number}` : ''}
+              {shipment.status ? ` · ${shipment.status}` : ''}
+            </div>
+            {shipment.intentStatus === 'pending' && shipment.intentAt ? (
+              <div className="text-xs text-muted-foreground">{t('shipmentPendingSince', { at: shipment.intentAt })}</div>
+            ) : null}
+            {shipment.intentStatus === 'failed' && shipment.intentDetail ? (
+              <div className="text-xs">{t('shipmentRefused', { detail: shipment.intentDetail })}</div>
+            ) : null}
+            {shipment.number ? (
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  className="text-primary underline"
+                  onClick={() => {
+                    startTrack(async () => {
+                      await refreshOrderTracking(order.id)
+                      router.refresh()
+                    })
+                  }}
+                >
+                  {t('track')}
+                </button>
+                <a className="text-primary underline" href={`/api/shipping/novapost/shipments/${encodeURIComponent(shipment.number)}/print`}>
+                  {t('printSlip')}
+                </a>
+              </div>
+            ) : shipment.intentStatus === 'pending' ? (
               <button
                 type="button"
                 className="text-primary underline"
                 onClick={() => {
                   startTrack(async () => {
-                    await refreshOrderTracking(order.id)
+                    try {
+                      await clearShipmentIntentAction(order.id, shipment.warehouseId)
+                      setNote(t('intentCleared'))
+                      router.refresh()
+                    } catch (error) {
+                      setNote(error instanceof Error ? error.message : t('updateStatusError'))
+                    }
                   })
                 }}
               >
-                {t('track')}
+                {t('clearShipmentIntent')}
               </button>
-              <a className="text-primary underline" href={`/api/shipping/novapost/shipments/${encodeURIComponent(order.shipment.number)}/print`}>
-                {t('printSlip')}
-              </a>
-            </div>
-            {order.shipment.history?.length ? (
+            ) : null}
+            {shipment.history?.length ? (
               <ul className="mt-1 text-xs text-muted-foreground">
-                {order.shipment.history.map((entry, index) => (
+                {shipment.history.map((entry, index) => (
                   <li key={`${entry.date}-${index}`}>{entry.date} {entry.status}</li>
                 ))}
               </ul>
             ) : null}
           </div>
-        ) : null}
+        ))}
       </div>
+
+      {needsSettlement ? (
+        <div className="mt-3 space-y-2">
+          <p className="text-sm">{t('settlementMissing')}</p>
+          {order.shippingDivisionId ? (
+            <button
+              type="button"
+              className="text-primary underline text-sm"
+              onClick={() =>
+                startTrack(async () => {
+                  setNote(null)
+                  const result = await resolveOrderSettlementAction(order.id)
+                  setNote(result.resolved ? t('resolveSaved') : t('settlementMissing'))
+                  if (result.resolved) router.refresh()
+                })
+              }
+            >
+              {t('resolveSettlement')}
+            </button>
+          ) : null}
+          <NovaPostSelector selected={location} onSelect={setLocation} />
+          <button
+            type="button"
+            className="text-sm underline"
+            disabled={!location?.id || !location.settlementId}
+            onClick={() =>
+              startTrack(async () => {
+                if (!location?.id || !location.settlementId) return
+                await saveOrderNovaPostLocationAction({
+                  orderId: order.id,
+                  id: location.id,
+                  name: location.name,
+                  address: location.address,
+                  settlementId: location.settlementId,
+                  settlementName: location.settlementName,
+                })
+                router.refresh()
+              })
+            }
+          >
+            {t('saveBranch')}
+          </button>
+        </div>
+      ) : null}
+      {shipments.filter((row) => row.needsParcel).map((shipment) => {
+        const draft = parcelDraft(shipment.warehouseId)
+        return (
+          <div key={`parcel-${shipment.warehouseId}`} className="mt-3 grid grid-cols-2 gap-2 max-w-sm">
+            <p className="col-span-2 text-sm">{t('confirmParcelFor', { warehouse: shipment.warehouseId })}</p>
+            {(['weight', 'length', 'width', 'height'] as const).map((field) => (
+              <input
+                key={field}
+                className="border rounded px-2 py-1 text-sm"
+                placeholder={t(field === 'weight' ? 'parcelWeight' : field === 'length' ? 'parcelLength' : field === 'width' ? 'parcelWidth' : 'parcelHeight')}
+                value={draft[field]}
+                onChange={(event) => setParcels((current) => ({
+                  ...current,
+                  [shipment.warehouseId]: { ...draft, [field]: event.target.value },
+                }))}
+              />
+            ))}
+            <button
+              type="button"
+              className="text-sm underline col-span-2 text-left"
+              onClick={() =>
+                startTrack(async () => {
+                  await confirmOrderParcelAction({
+                    orderId: order.id,
+                    warehouseId: shipment.warehouseId,
+                    weight: Number(draft.weight),
+                    length: Number(draft.length),
+                    width: Number(draft.width),
+                    height: Number(draft.height),
+                  })
+                  router.refresh()
+                })
+              }
+            >
+              {t('confirmParcel')}
+            </button>
+          </div>
+        )
+      })}
+      {order.items?.some((item) => item.productId && shipments.some((row) => row.number && (!item.fulfillmentWarehouseId || row.warehouseId === item.fulfillmentWarehouseId))) ? (
+        <div className="mt-2 space-y-1">
+          {order.items.map((item, index) => {
+            const shipment = shipments.find((row) => row.number && (!item.fulfillmentWarehouseId || row.warehouseId === item.fulfillmentWarehouseId))
+            if (!item.productId || !shipment?.number) return null
+            const slot = `${item.productId}:${item.fulfillmentWarehouseId || shipment.warehouseId}`
+            const remaining = item.returnable ?? item.quantity ?? 1
+            const quantity = Number(returnQty[slot] ?? remaining)
+            return (
+              <div key={`${item.productId}-${index}`} className="flex flex-wrap items-center gap-2 text-xs">
+                <span>{item.name}</span>
+                <span>{t('returnableLeft', { count: remaining })}</span>
+                <input
+                  className="w-16 border rounded px-1 py-0.5"
+                  aria-label={t('returnQuantity')}
+                  value={returnQty[slot] ?? String(remaining)}
+                  onChange={(event) => setReturnQty((current) => ({ ...current, [slot]: event.target.value }))}
+                />
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() =>
+                    startTrack(async () => {
+                      const key = `return-${slot}`
+                      if (!keys.current[key]) keys.current[key] = crypto.randomUUID()
+                      try {
+                        const result = await restockReturnedLineAction({
+                          orderId: order.id,
+                          productId: item.productId || '',
+                          warehouseId: item.fulfillmentWarehouseId || shipment.warehouseId,
+                          quantity,
+                          mode: 'resellable',
+                          idempotencyKey: keys.current[key],
+                        })
+                        if (result.success === false) {
+                          setNote(result.error)
+                          return
+                        }
+                        delete keys.current[key]
+                        router.refresh()
+                      } catch (error) {
+                        setNote(error instanceof Error ? error.message : t('updateStatusError'))
+                      }
+                    })
+                  }
+                >
+                  {t('restockReturn')}
+                </button>
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() =>
+                    startTrack(async () => {
+                      const key = `damage-${slot}`
+                      if (!keys.current[key]) keys.current[key] = crypto.randomUUID()
+                      try {
+                        const result = await restockReturnedLineAction({
+                          orderId: order.id,
+                          productId: item.productId || '',
+                          warehouseId: item.fulfillmentWarehouseId || shipment.warehouseId,
+                          quantity,
+                          mode: 'damaged',
+                          idempotencyKey: keys.current[key],
+                        })
+                        if (result.success === false) {
+                          setNote(result.error)
+                          return
+                        }
+                        delete keys.current[key]
+                        router.refresh()
+                      } catch (error) {
+                        setNote(error instanceof Error ? error.message : t('updateStatusError'))
+                      }
+                    })
+                  }
+                >
+                  {t('markDamaged')}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+      {note ? <p className="text-sm text-muted-foreground">{note}</p> : null}
 
       <div className="mt-2 flex items-center gap-2">
         <select

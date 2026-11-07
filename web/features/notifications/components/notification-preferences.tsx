@@ -267,8 +267,8 @@ function NotificationPreferencesForm({ className }: NotificationPreferencesProps
           </Button>
         </div>
       </div>
-      {saveStatus === 'saved' ? <p className="text-sm text-muted-foreground">{t('saved')}</p> : null}
-      {saveStatus === 'error' ? (
+      {saveStatus === 'saved' && !error ? <p className="text-sm text-muted-foreground">{t('saved')}</p> : null}
+      {error ? (
         <p className="text-sm text-red-600 dark:text-red-400">{error || t('saveError')}</p>
       ) : null}
 
@@ -400,7 +400,11 @@ function NotificationPreferencesForm({ className }: NotificationPreferencesProps
             <Label htmlFor="timezone">{t('timezone')}</Label>
             <div className="mt-1">
               <TimezoneSelect
-                value={localPreferences.quietHours?.timezone || 'UTC'}
+                value={
+                  localPreferences.quietHours?.timezone === 'Europe/Kiev'
+                    ? 'Europe/Kyiv'
+                    : localPreferences.quietHours?.timezone || 'UTC'
+                }
                 onChange={(value) => updateLocalPreference('quietHours.timezone', value)}
               />
             </div>

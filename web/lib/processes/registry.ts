@@ -99,8 +99,8 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     cronPath: '/api/cron/cleanup-reservations',
     handler: async () => {
       const startTime = Date.now()
-      await cleanupExpiredReservations()
-      return { success: true, duration: Date.now() - startTime }
+      const cleanup = await cleanupExpiredReservations()
+      return { success: true, ...cleanup, duration: Date.now() - startTime }
     },
   },
   {
@@ -152,7 +152,14 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     handler: async () => {
       const startTime = Date.now()
       const report = await detectInventoryDrift(500)
-      return { success: true, ...report, duration: Date.now() - startTime }
+      let shipmentAlerts: unknown = null
+      try {
+        const { scanShipmentAlerts } = await import('@/lib/shipping/nova-post-shipment')
+        shipmentAlerts = await scanShipmentAlerts()
+      } catch {
+        shipmentAlerts = { stalePending: 0, refused: 0, truncated: true, pending: [], refusedSamples: [] }
+      }
+      return { success: true, ...report, shipmentAlerts, duration: Date.now() - startTime }
     },
   },
   // ---- Membership subscription cron pipelines (Phase S4) ----

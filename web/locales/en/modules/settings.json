@@ -26,6 +26,7 @@
   "errorFetchingSettings": "Error fetching settings. Please try again.",
   "userSettings": "User Settings",
   "userSettingsDescription": "Manage your account preferences and notification settings",
+  "accountAge": "Account age",
   "settingsDescription": "Manage your account preferences and privacy settings",
   "backToSettings": "Back to Settings",
   "viewNotifications": "View Notifications",

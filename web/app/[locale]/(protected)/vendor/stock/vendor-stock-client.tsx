@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +24,10 @@ interface VendorStockClientProps {
     bulkRestock?: string
     warehouse?: string
     lowStock?: string
+    unitCost?: string
+    amountPaid?: string
+    amountOwed?: string
+    unknownCostHint?: string
   }
 }
 
@@ -33,7 +37,22 @@ export default function VendorStockClient({ products, labels }: VendorStockClien
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [bulkQty, setBulkQty] = useState('10')
+  const [unitCost, setUnitCost] = useState('0')
+  const [amountPaid, setAmountPaid] = useState('0')
+  const [amountOwed, setAmountOwed] = useState('0')
   const [error, setError] = useState<string | null>(null)
+  const idempotency = useRef<Record<string, string>>({})
+
+  const costs = () => ({
+    unitCost: Number(unitCost) || 0,
+    amountPaid: Number(amountPaid) || 0,
+    amountOwed: Number(amountOwed) || 0,
+  })
+
+  const keyFor = (productId: string) => {
+    if (!idempotency.current[productId]) idempotency.current[productId] = crypto.randomUUID()
+    return idempotency.current[productId]
+  }
 
   const handleRestock = (productId: string) => {
     const qty = parseInt(quantities[productId] || '10', 10)
@@ -41,7 +60,13 @@ export default function VendorStockClient({ products, labels }: VendorStockClien
     startTransition(async () => {
       setError(null)
       try {
-        await restockVendorProduct(productId, qty)
+        await restockVendorProduct({
+          productId,
+          quantity: qty,
+          ...costs(),
+          idempotencyKey: keyFor(productId),
+        })
+        delete idempotency.current[productId]
         router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Restock failed')
@@ -60,7 +85,13 @@ export default function VendorStockClient({ products, labels }: VendorStockClien
       setError(null)
       try {
         for (const id of ids) {
-          await restockVendorProduct(id, qty)
+          await restockVendorProduct({
+            productId: id,
+            quantity: qty,
+            ...costs(),
+            idempotencyKey: keyFor(id),
+          })
+          delete idempotency.current[id]
         }
         setSelected({})
         router.refresh()
@@ -104,6 +135,37 @@ export default function VendorStockClient({ products, labels }: VendorStockClien
           </Button>
         </div>
       )}
+
+      <div className="grid gap-3 sm:grid-cols-3 max-w-3xl">
+        <Input
+          type="number"
+          min={0}
+          step="0.01"
+          value={unitCost}
+          onChange={(event) => setUnitCost(event.target.value)}
+          aria-label={labels.unitCost || 'Unit cost'}
+          placeholder={labels.unitCost || 'Unit cost'}
+        />
+        <Input
+          type="number"
+          min={0}
+          step="0.01"
+          value={amountPaid}
+          onChange={(event) => setAmountPaid(event.target.value)}
+          aria-label={labels.amountPaid || 'Amount paid'}
+          placeholder={labels.amountPaid || 'Amount paid'}
+        />
+        <Input
+          type="number"
+          min={0}
+          step="0.01"
+          value={amountOwed}
+          onChange={(event) => setAmountOwed(event.target.value)}
+          aria-label={labels.amountOwed || 'Amount owed'}
+          placeholder={labels.amountOwed || 'Amount owed'}
+        />
+      </div>
+      {labels.unknownCostHint ? <p className="text-sm text-muted-foreground">{labels.unknownCostHint}</p> : null}
 
       <Card>
         <CardHeader>

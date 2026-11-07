@@ -69,12 +69,33 @@ export async function updateUserSettings(data: Partial<UserSettings>): Promise<b
     // userData contains all user fields as stored in the DB
     const userData = userResult.data;
 
-    // TODO: Consider deep-merging settings (merge old + new) instead of overwriting all at once
-    // Construct a new user object that merges previous data and incoming settings
+    const existingSettings = (userData.settings as Partial<UserSettings> | undefined) ?? {};
+    const mergedSettings: UserSettings = {
+      language: data.language ?? existingSettings.language ?? 'en',
+      theme: data.theme ?? existingSettings.theme ?? 'system',
+      notifications: data.notifications ?? existingSettings.notifications ?? true,
+      notificationPreferences: {
+        email: true,
+        inApp: true,
+        sms: false,
+        ...existingSettings.notificationPreferences,
+        ...data.notificationPreferences,
+      },
+      aiMatching: {
+        enabled: existingSettings.aiMatching?.enabled ?? true,
+        minMatchScore: existingSettings.aiMatching?.minMatchScore ?? 70,
+        maxMatchesPerDay: existingSettings.aiMatching?.maxMatchesPerDay ?? 5,
+        preferredCategories: existingSettings.aiMatching?.preferredCategories ?? [],
+        preferredWorkTypes: existingSettings.aiMatching?.preferredWorkTypes ?? [],
+        autoFillSuggestions: existingSettings.aiMatching?.autoFillSuggestions ?? true,
+        ...data.aiMatching,
+      },
+    };
+
     const updatedUserData = {
       ...userData,
-      settings: data, // TODO: Deep merge for partial settings instead of overwriting the whole settings object
-      updated_at: new Date(), // Record time of update (Helps with sync/conflict resolution)
+      settings: mergedSettings,
+      updated_at: new Date(),
     };
 
     // Step 4: Update the user document in the DB with the merged settings

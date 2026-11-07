@@ -84,6 +84,7 @@ export type ProductDetailsClientProps = {
   averageRating: number
   /** Right-rail data (vendor / category / seller products) — rendered in the center pane. */
   railData: ProductDetailsRailData
+  maxShippable?: number
 }
 
 export default function ProductDetailsClient({
@@ -93,8 +94,9 @@ export default function ProductDetailsClient({
   reviews,
   averageRating,
   railData,
+  maxShippable,
 }: ProductDetailsClientProps) {
-  const { addToCart, updateQuantity, products } = useStore()
+  const { addToCart, products, cartItems } = useStore()
   const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
   const [finalPrice, setFinalPrice] = useState(0)
@@ -186,16 +188,22 @@ export default function ProductDetailsClient({
 
   const handleAddToCart = useCallback(
     async (quantity: number) => {
-      await Promise.resolve(addToCart(product))
-      if (quantity > 1) {
-        updateQuantity(product.id, quantity)
+      const current = cartItems.find((item) => item.product.id === product.id)?.quantity ?? 0
+      const next = quantity > 1 ? quantity : current + 1
+      const result = await addToCart(product, { next })
+      if (!result.ok) {
+        success({
+          title: t('fulfillment.oneWarehouse'),
+          description: result.max != null ? t('fulfillment.shortfall', { max: result.max }) : undefined,
+        })
+        return
       }
       success({
         title: t('product.addedToCart', { name: product.name }),
-        description: t('quantityCount', { count: quantity }),
+        description: t('quantityCount', { count: next }),
       })
     },
-    [product, addToCart, updateQuantity, success, t],
+    [product, addToCart, success, t, cartItems],
   )
 
   const handleVariantChange = useCallback(
@@ -210,7 +218,14 @@ export default function ProductDetailsClient({
     async (productId: string) => {
       const productToAdd = products.find((p) => p.id === productId)
       if (productToAdd) {
-        await Promise.resolve(addToCart(productToAdd))
+        const result = await addToCart(productToAdd)
+        if (!result.ok) {
+          success({
+            title: t('fulfillment.oneWarehouse'),
+            description: result.max != null ? t('fulfillment.shortfall', { max: result.max }) : undefined,
+          })
+          return
+        }
         success({ title: t('product.addedToCart', { name: productToAdd.name }) })
       }
     },
@@ -372,7 +387,8 @@ export default function ProductDetailsClient({
             productName={product.name}
             price={finalPrice || parseFloat(product.price)}
             currency={product.currency}
-            stock={product.stock || 25}
+            stock={maxShippable ?? (product.stock || 25)}
+            maxQuantity={maxShippable}
             allowPreorder={product.allowPreorder || false}
             onAddToCart={handleAddToCart}
             showQuantitySelector={true}

@@ -38,8 +38,6 @@ import {
   Eye,
   EyeOff,
   Banknote,
-  Sparkles,
-  TrendingUp,
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
 import {
@@ -49,6 +47,9 @@ import {
 import { getSupportedCurrencies } from '@/lib/ring-config-core'
 import type { SupportedCurrencies } from '@/lib/ring-config-types'
 import { updateDisplayCurrencyPreference } from '@/app/_actions/store-preferences-actions'
+import { saveAiMatching, savePrivacyConsent } from '@/app/_actions/settings'
+import Link from 'next/link'
+import { ROUTES } from '@/constants/routes'
 
 const FIAT_DISPLAY_OPTIONS: SupportedCurrencies[] = getSupportedCurrencies()
 
@@ -126,6 +127,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   userStats,
 }) => {
   const t = useTranslations('modules.settings')
+  const tRail = useTranslations('modules.settings.rail')
   const tp = useTranslations('modules.profile')
   const localeHook = useLocale() as Locale
   const { theme, setTheme } = useTheme()
@@ -168,9 +170,9 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
 
   // Settings tab menu items
   const settingsMenuItems = [
-    { id: 'profile-settings', label: 'Overview', icon: Settings },
-    { id: 'privacy', label: 'Privacy & Consent', icon: Lock },
-    { id: 'preferences', label: 'Notifications & AI', icon: Bell },
+    { id: 'profile-settings', label: tRail('overview'), icon: Settings },
+    { id: 'privacy', label: tRail('privacy'), icon: Lock },
+    { id: 'preferences', label: tRail('notifications'), icon: Bell },
   ]
 
   // Form states for each section
@@ -188,16 +190,46 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   })
 
   const [preferencesForm, setPreferencesForm] = useState({
-    emailNotifications: false,
-    inAppNotifications: false,
-    smsNotifications: false,
-    notificationFrequency: 'immediate',
     aiMatchingEnabled: settings?.aiMatching?.enabled ?? true,
     minMatchScore: String(settings?.aiMatching?.minMatchScore ?? 70),
     maxMatchesPerDay: String(settings?.aiMatching?.maxMatchesPerDay ?? 5),
     autoFillSuggestions: settings?.aiMatching?.autoFillSuggestions ?? true,
-    compactView: false,
   })
+
+  const reportSave = (ok: boolean, message: string) => {
+    setSaveMessage(ok ? { type: 'success', message: t('saved') } : { type: 'error', message })
+  }
+
+  const persistPrivacy = async (next: typeof privacyForm) => {
+    const previous = privacyForm
+    setPrivacyForm(next)
+    const result = await savePrivacyConsent({
+      analytics: next.analyticsConsent,
+      personalization: next.personalizationConsent,
+      anonymizedResearch: next.anonymizedResearchConsent,
+      marketing: next.marketingCommunications,
+      opportunities: next.opportunitiesNotifications,
+    })
+    if (!result.success) {
+      setPrivacyForm(previous)
+      reportSave(false, result.message)
+    }
+  }
+
+  const persistAiMatching = async (next: typeof preferencesForm) => {
+    const previous = preferencesForm
+    setPreferencesForm(next)
+    const result = await saveAiMatching({
+      enabled: next.aiMatchingEnabled,
+      minMatchScore: Number(next.minMatchScore),
+      maxMatchesPerDay: Number(next.maxMatchesPerDay),
+      autoFillSuggestions: next.autoFillSuggestions,
+    })
+    if (!result.success) {
+      setPreferencesForm(previous)
+      reportSave(false, result.message)
+    }
+  }
 
   // Clear save message after 3 seconds
   useEffect(() => {
@@ -230,17 +262,17 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
     if (state?.success && state.settings) {
       setSettings(state.settings)
       setError(null)
-      setSaveMessage({ type: 'success', message: 'Settings saved successfully!' })
+      setSaveMessage({ type: 'success', message: t('saved') })
     } else if (state && !state.success) {
       setError(state.message)
       setSaveMessage({ type: 'error', message: state.message })
     }
-  }, [state])
+  }, [state, t])
 
   const formatDate = (date: Date | string | null) => {
-    if (!date) return 'N/A'
+    if (!date) return '—'
     const d = typeof date === 'string' ? new Date(date) : date
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    return d.toLocaleDateString(localeHook, { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
   // Language switching
@@ -340,9 +372,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="en">🇺🇸 English</SelectItem>
-                <SelectItem value="uk">🇺🇦 Українська</SelectItem>
-                <SelectItem value="ru">🇷🇺 Русский</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="uk">Українська</SelectItem>
+                <SelectItem value="ru">Русский</SelectItem>
+                <SelectItem value="de">Deutsch</SelectItem>
+                <SelectItem value="es">Español</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -373,33 +407,25 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
 
           {/* Account Info Summary */}
           <div className={cn('rounded-xl p-4', davinciGlassSurface)}>
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold">Account Overview</h3>
-              <Badge variant="secondary" className="ml-auto text-[10px]">
-                <Sparkles className="h-3 w-3 mr-1" />
-                {userStats?.profileCompleteness || 0}% complete
-              </Badge>
-            </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Member Since</span>
+                <span className="text-muted-foreground">{tp('memberSince')}</span>
                 <span>{userStats?.createdAt ? formatDate(userStats.createdAt) : formatDate((session?.user as any)?.createdAt || null)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Account Age</span>
+                <span className="text-muted-foreground">{t('accountAge')}</span>
                 <span>{userStats?.accountAge || '—'}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Last Login</span>
+                <span className="text-muted-foreground">{tp('lastLogin')}</span>
                 <span>{userStats?.lastLogin || '—'}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Email</span>
+                <span className="text-muted-foreground">{tp('email')}</span>
                 <span className="truncate ml-2">{session?.user?.email}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Role</span>
+                <span className="text-muted-foreground">{tp('role')}</span>
                 <Badge variant="secondary">{session?.user?.role}</Badge>
               </div>
             </div>
@@ -424,9 +450,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <Label>{tp('analyticsAndPerformance')}</Label>
               <p className="text-sm text-muted-foreground">{tp('helpImproveRingPlatform')}</p>
             </div>
-            <Switch 
-              checked={privacyForm.analyticsConsent} 
-              onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, analyticsConsent: checked }))} 
+            <Switch
+              checked={privacyForm.analyticsConsent}
+              onCheckedChange={(checked) => {
+                void persistPrivacy({ ...privacyForm, analyticsConsent: checked })
+              }}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -434,9 +462,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <Label>{tp('personalization')}</Label>
               <p className="text-sm text-muted-foreground">{tp('personalizedContentAndRecommendations')}</p>
             </div>
-            <Switch 
-              checked={privacyForm.personalizationConsent} 
-              onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, personalizationConsent: checked }))} 
+            <Switch
+              checked={privacyForm.personalizationConsent}
+              onCheckedChange={(checked) => {
+                void persistPrivacy({ ...privacyForm, personalizationConsent: checked })
+              }}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -444,9 +474,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <Label>{tp('anonymizedResearch')}</Label>
               <p className="text-sm text-muted-foreground">{tp('helpImproveAIFeatures')}</p>
             </div>
-            <Switch 
-              checked={privacyForm.anonymizedResearchConsent} 
-              onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, anonymizedResearchConsent: checked }))} 
+            <Switch
+              checked={privacyForm.anonymizedResearchConsent}
+              onCheckedChange={(checked) => {
+                void persistPrivacy({ ...privacyForm, anonymizedResearchConsent: checked })
+              }}
             />
           </div>
         </div>
@@ -460,9 +492,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <Label>{tp('marketingCommunications')}</Label>
               <p className="text-sm text-muted-foreground">{tp('updatesAboutNewFeaturesAndOffers')}</p>
             </div>
-            <Switch 
-              checked={privacyForm.marketingCommunications} 
-              onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, marketingCommunications: checked }))} 
+            <Switch
+              checked={privacyForm.marketingCommunications}
+              onCheckedChange={(checked) => {
+                void persistPrivacy({ ...privacyForm, marketingCommunications: checked })
+              }}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -470,9 +504,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <Label>{tp('opportunities')}</Label>
               <p className="text-sm text-muted-foreground">{tp('jobAndCollaborationOpportunities')}</p>
             </div>
-            <Switch 
-              checked={privacyForm.opportunitiesNotifications} 
-              onCheckedChange={(checked) => setPrivacyForm(prev => ({ ...prev, opportunitiesNotifications: checked }))} 
+            <Switch
+              checked={privacyForm.opportunitiesNotifications}
+              onCheckedChange={(checked) => {
+                void persistPrivacy({ ...privacyForm, opportunitiesNotifications: checked })
+              }}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -493,46 +529,14 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
           <Bell className="h-5 w-5" />
           {tp('preferences')}
         </h2>
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">{tp('notificationChannels')}</h3>
-            <div className="flex items-center justify-between">
-              <Label>{tp('emailNotifications')}</Label>
-              <Switch 
-                checked={preferencesForm.emailNotifications} 
-                onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, emailNotifications: checked }))} 
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>{tp('inAppNotifications')}</Label>
-              <Switch 
-                checked={preferencesForm.inAppNotifications} 
-                onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, inAppNotifications: checked }))} 
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>{tp('smsNotifications')}</Label>
-              <Switch 
-                checked={preferencesForm.smsNotifications} 
-                onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, smsNotifications: checked }))} 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{tp('notificationFrequency')}</Label>
-              <Select 
-                value={preferencesForm.notificationFrequency} 
-                onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, notificationFrequency: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="immediate">{tp('immediate')}</SelectItem>
-                  <SelectItem value="daily">{tp('dailyDigest')}</SelectItem>
-                  <SelectItem value="weekly">{tp('weeklySummary')}</SelectItem>
-                  <SelectItem value="monthly">{tp('monthlyReport')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">{t('notificationPreferencesTitle')}</h3>
+            <p className="text-sm text-muted-foreground">{t('notificationPreferencesDescription')}</p>
+            <Button variant="outline" asChild>
+              <Link href={ROUTES.NOTIFICATIONS_SETTINGS(locale)}>
+                {t('notificationPreferencesTitle')}
+              </Link>
+            </Button>
           </div>
 
           <Separator />
@@ -547,16 +551,20 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <div className="space-y-0.5">
                 <Label>{tp('getAIPoweredOpportunityRecommendations')}</Label>
               </div>
-              <Switch 
-                checked={preferencesForm.aiMatchingEnabled} 
-                onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, aiMatchingEnabled: checked }))} 
+              <Switch
+                checked={preferencesForm.aiMatchingEnabled}
+                onCheckedChange={(checked) => {
+                  void persistAiMatching({ ...preferencesForm, aiMatchingEnabled: checked })
+                }}
               />
             </div>
             <div className="space-y-2">
               <Label>{t('aiMatching.minMatchScore')}</Label>
               <Select 
                 value={preferencesForm.minMatchScore} 
-                onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, minMatchScore: value }))}
+                onValueChange={(value) => {
+                  void persistAiMatching({ ...preferencesForm, minMatchScore: value })
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -573,7 +581,9 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               <Label>{t('aiMatching.maxMatchesPerDay')}</Label>
               <Select 
                 value={preferencesForm.maxMatchesPerDay} 
-                onValueChange={(value) => setPreferencesForm(prev => ({ ...prev, maxMatchesPerDay: value }))}
+                onValueChange={(value) => {
+                  void persistAiMatching({ ...preferencesForm, maxMatchesPerDay: value })
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -588,23 +598,11 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <Label>{tp('autoFillSuggestions')}</Label>
-              <Switch 
-                checked={preferencesForm.autoFillSuggestions} 
-                onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, autoFillSuggestions: checked }))} 
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Display */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">{tp('display')}</h3>
-            <div className="flex items-center justify-between">
-              <Label>{tp('compactView')}</Label>
-              <Switch 
-                checked={preferencesForm.compactView} 
-                onCheckedChange={(checked) => setPreferencesForm(prev => ({ ...prev, compactView: checked }))} 
+              <Switch
+                checked={preferencesForm.autoFillSuggestions}
+                onCheckedChange={(checked) => {
+                  void persistAiMatching({ ...preferencesForm, autoFillSuggestions: checked })
+                }}
               />
             </div>
           </div>
@@ -646,9 +644,9 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
           </h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          {activeTab === 'profile-settings' && 'Customize your app experience'}
-          {activeTab === 'privacy' && 'Control your privacy and data sharing'}
-          {activeTab === 'preferences' && 'Customize notifications and AI matching'}
+          {activeTab === 'profile-settings' && t('userSettingsDescription')}
+          {activeTab === 'privacy' && tp('privacyDescription')}
+          {activeTab === 'preferences' && t('settingsDescription')}
         </p>
       </div>
 
