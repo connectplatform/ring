@@ -128,7 +128,8 @@
       "timezone": "часовий пояс",
       "representative": "представника",
       "vendor": "вендора",
-      "organization": "організацію"
+      "organization": "організацію",
+      "district": "район"
     },
     "searching": "Пошук…"
   }

@@ -45,8 +45,10 @@ import { OrganizationEntitySelect } from '@/components/profile/organization-enti
 import { PositionTagCloud } from '@/components/profile/position-tag-cloud'
 import { SkillsTagCloud } from '@/components/profile/skills-tag-cloud'
 import { CurriculumVitaeWidget } from '@/components/profile/curriculum-vitae-widget'
+import { DistrictSelect, listCityDistricts } from '@/components/profile/district-select'
+import { ProfileUnfilledInbox } from '@/features/auth/components/profile-unfilled-inbox'
 import { davinciGlassSurface } from '@/lib/ui/davinci'
-import { KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
+import { KYCStatus, KYCLevel, KYCDocumentType, type AuthUser } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
 import { PhoneOtpPanel } from '@/features/auth/components/phone-otp-panel'
 import { UserRolesArray } from '@/features/auth/user-role'
@@ -109,7 +111,6 @@ import { UserProgressWidget } from './user-progress-widget'
 import { ProfileHeroBalances } from './profile-hero-balances'
 import { isClientCreditRewardsEnabled } from '@/lib/ring-config-client'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
-import type { AuthUser } from '@/features/auth/types'
 import { displayEmailClient, isVirtualEmailClient } from '@/lib/auth/virtual-email-client'
 
 const PROFILE_TABS = [
@@ -203,6 +204,14 @@ export default function ProfileContent({
   const [isEditing, setIsEditing] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [liveUser, setLiveUser] = useState<AuthUser | null>(initialUser)
+  const [districtDraft, setDistrictDraft] = useState(initialUser?.cultural?.district || '')
+  const [whatsappDraft, setWhatsappDraft] = useState(
+    initialUser?.communication?.whatsappNumber || '',
+  )
+  const [instagramDraft, setInstagramDraft] = useState(
+    initialUser?.communication?.instagramUsername || '',
+  )
   const initialTabParam =
     typeof searchParams?.tab === 'string'
       ? searchParams.tab
@@ -230,12 +239,30 @@ export default function ProfileContent({
   )
 
   useEffect(() => {
+    if (initialUser) setLiveUser(initialUser)
+  }, [initialUser])
+
+  const savedDistrict = (liveUser || initialUser)?.cultural?.district || ''
+  const savedWhatsapp = (liveUser || initialUser)?.communication?.whatsappNumber || ''
+  const savedInstagram = (liveUser || initialUser)?.communication?.instagramUsername || ''
+
+  useEffect(() => {
+    setDistrictDraft(savedDistrict)
+  }, [savedDistrict])
+  useEffect(() => {
+    setWhatsappDraft(savedWhatsapp)
+  }, [savedWhatsapp])
+  useEffect(() => {
+    setInstagramDraft(savedInstagram)
+  }, [savedInstagram])
+
+  useEffect(() => {
     const fromUrl = resolveProfileTab(clientSearchParams?.get('tab'))
     setActiveTabState((prev) => (prev === fromUrl ? prev : fromUrl))
   }, [clientSearchParams])
 
-  // Priority: initialUser (preferred, freshly fetched) > session user
-  const user = initialUser || session?.user
+  // Priority: optimistic edits, then the server user, then the session
+  const user = liveUser || initialUser || session?.user
   const realEmail = user
     ? displayEmailClient({
         email: user.email,
@@ -415,6 +442,57 @@ export default function ProfileContent({
     } finally {
       setAvatarUploading(false)
     }
+  }
+
+  const applyProfilePatch = (prev: AuthUser, patch: Record<string, unknown>): AuthUser => {
+    const next: AuthUser = { ...prev }
+    if (typeof patch.name === 'string') next.name = patch.name
+    if (typeof patch.bio === 'string') next.bio = patch.bio
+    if (patch.communication && typeof patch.communication === 'object') {
+      next.communication = {
+        ...(prev.communication || { preferredContactMethod: 'email' }),
+        ...(patch.communication as object),
+      }
+    }
+    if (patch.cultural && typeof patch.cultural === 'object') {
+      next.cultural = {
+        ...(prev.cultural || { timezone: '', languages: [] }),
+        ...(patch.cultural as object),
+      }
+    }
+    if (Array.isArray(patch.profilePromptDismissals)) {
+      const prevIds = Array.isArray(prev.profilePromptDismissals) ? prev.profilePromptDismissals : []
+      next.profilePromptDismissals = [
+        ...new Set([...prevIds, ...(patch.profilePromptDismissals as string[])]),
+      ]
+    }
+    return next
+  }
+
+  const saveProfilePatch = async (patch: Record<string, unknown>) => {
+    const formData = new FormData()
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null) continue
+      formData.set(key, typeof value === 'string' ? value : JSON.stringify(value))
+    }
+    const result = await updateProfile({ success: false, message: '' }, formData)
+    if (!result.success) {
+      setUploadError(result.message || t('saveFailed'))
+      return false
+    }
+    setUploadError(null)
+    setLiveUser((prev) => (prev ? applyProfilePatch(prev, patch) : prev))
+    await updateSession()
+    await refreshSession()
+    router.refresh()
+    return true
+  }
+
+  const dismissProfileBlock = async (blockId: string) => {
+    const current = Array.isArray((user as AuthUser | undefined)?.profilePromptDismissals)
+      ? ((user as AuthUser).profilePromptDismissals as string[])
+      : []
+    return saveProfilePatch({ profilePromptDismissals: [...current, blockId] })
   }
 
   /**
@@ -795,6 +873,25 @@ export default function ProfileContent({
               {/* Overview tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-4">
+                  {user ? (
+                    <ProfileUnfilledInbox
+                      user={user as AuthUser}
+                      realEmail={realEmail}
+                      hasPhoto={Boolean(
+                        (user as AuthUser).photoURL ||
+                          (user as AuthUser).avatarThumb ||
+                          session?.user?.image,
+                      )}
+                      onSave={saveProfilePatch}
+                      onDismiss={dismissProfileBlock}
+                      onOpenUsername={() => setSetUsernameModalOpen(true)}
+                      onOpenEmail={() => setLinkEmailOpen(true)}
+                      onOpenLocation={() => setLocationModalOpen(true)}
+                      onOpenTimezone={() => setTimezoneModalOpen(true)}
+                      onOpenTelegram={() => setTelegramLinking(true)}
+                      onAvatarFile={(file) => void handleAvatarUpload(file)}
+                    />
+                  ) : null}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <PersonalPageWidget
                       username={user?.username || null}
@@ -1002,7 +1099,8 @@ export default function ProfileContent({
                           <Input
                             placeholder={t('inputPlaceholder', { platform: 'WhatsApp' }) || 'Enter your WhatsApp number'}
                             className="mt-1 h-8 text-sm"
-                            defaultValue={(user as any)?.communication?.whatsappNumber || ''}
+                            value={whatsappDraft}
+                            onChange={(event) => setWhatsappDraft(event.target.value)}
                           />
                         </div>
                   </div>
@@ -1022,8 +1120,24 @@ export default function ProfileContent({
                           <Input
                             placeholder={t('inputPlaceholder', { platform: 'Instagram' }) || 'Enter your Instagram username'}
                             className="mt-1 h-8 text-sm"
-                            defaultValue={(user as any)?.communication?.instagramUsername || ''}
+                            value={instagramDraft}
+                            onChange={(event) => setInstagramDraft(event.target.value)}
                           />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="mt-2 shrink-0"
+                            onClick={() =>
+                              void saveProfilePatch({
+                                communication: {
+                                  whatsappNumber: whatsappDraft.trim(),
+                                  instagramUsername: instagramDraft.trim(),
+                                },
+                              })
+                            }
+                          >
+                            {t('save')}
+                          </Button>
                         </div>
                   </div>
                 </div>
@@ -1116,61 +1230,75 @@ export default function ProfileContent({
 
               {/* Regional/location tab (country, timezone, map modal) */}
               {activeTab === 'regional' && (
-                <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
+                <div className="space-y-4">
+                  <div className={cn(davinciGlassSurface, 'space-y-4 p-4 sm:p-5')}>
+                    <div>
+                      <h2 className="flex items-center gap-2 text-base font-semibold">
+                        <MapPin className="h-5 w-5 text-[var(--davinci-beam)]" />
                         {t('regional')}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <p className="text-sm text-muted-foreground">{t('regionalDescription') || 'Manage your location and timezone settings'}</p>
-                      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-                        {/* Country/Location */}
-                        <div className="space-y-3 p-4 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <Label className="flex items-center gap-2 text-base">
-                              <MapPin className="w-4 h-4 text-primary" />
-                              <span>{t('country')}</span>
-                            </Label>
-                          </div>
-                          <p className="font-medium">{(user as any)?.cultural?.country || 'Not set'}</p>
-                          {(user as any)?.cultural?.address && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">{(user as any)?.cultural?.address}</p>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setLocationModalOpen(true)}
-                            className="w-full"
-                          >
-                            <MapPin className="w-3.5 h-3.5 mr-1" />
-                            {t('selectLocation') || 'Select preferred location'}
-                          </Button>
-                        </div>
-                        {/* Timezone select */}
-                        <div className="space-y-3 p-4 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <Label className="flex items-center gap-2 text-base">
-                              <Globe className="w-4 h-4 text-primary" />
-                              <span>{t('timezone')}</span>
-                            </Label>
-                          </div>
-                          <p className="font-medium">{(user as any)?.cultural?.timezone || 'Not set'}</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setTimezoneModalOpen(true)}
-                            className="w-full"
-                          >
-                            <Globe className="w-3.5 h-3.5 mr-1" />
-                            {t('selectTimezone') || 'Select my timezone'}
-                          </Button>
-                        </div>
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t('regionalDescription')}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className={cn(davinciGlassSurface, 'space-y-3 p-4')}>
+                        <Label className="flex items-center gap-2 text-base">
+                          <MapPin className="h-4 w-4 text-[var(--davinci-beam)]" />
+                          <span>{t('country')}</span>
+                        </Label>
+                        <p className="font-medium">{(user as AuthUser | undefined)?.cultural?.country || t('notSet')}</p>
+                        {(user as AuthUser | undefined)?.cultural?.address ? (
+                          <p className="line-clamp-2 text-sm text-muted-foreground">
+                            {(user as AuthUser).cultural?.address}
+                          </p>
+                        ) : null}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setLocationModalOpen(true)}
+                          className="w-full"
+                        >
+                          <MapPin className="mr-1 h-3.5 w-3.5" />
+                          {t('selectLocation')}
+                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className={cn(davinciGlassSurface, 'space-y-3 p-4')}>
+                        <Label className="flex items-center gap-2 text-base">
+                          <Globe className="h-4 w-4 text-[var(--davinci-beam)]" />
+                          <span>{t('timezone')}</span>
+                        </Label>
+                        <p className="font-medium">
+                          {(user as AuthUser | undefined)?.cultural?.timezone || t('notSet')}
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTimezoneModalOpen(true)}
+                          className="w-full"
+                        >
+                          <Globe className="mr-1 h-3.5 w-3.5" />
+                          {t('selectTimezone')}
+                        </Button>
+                      </div>
+                      {listCityDistricts().length > 0 ? (
+                        <div className={cn(davinciGlassSurface, 'space-y-3 p-4 md:col-span-2')}>
+                          <Label className="text-base">{t('district')}</Label>
+                          <DistrictSelect value={districtDraft} onChange={setDistrictDraft} />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!districtDraft.trim() || districtDraft === savedDistrict}
+                            onClick={() =>
+                              void saveProfilePatch({ cultural: { district: districtDraft.trim() } })
+                            }
+                          >
+                            {t('save')}
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               )}
 

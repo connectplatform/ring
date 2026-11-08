@@ -128,7 +128,8 @@
       "timezone": "Zeitzone",
       "representative": "Vertreter",
       "vendor": "Anbieter",
-      "organization": "Organisation"
+      "organization": "Organisation",
+      "district": "Bezirk"
     },
     "searching": "Suche…"
   }

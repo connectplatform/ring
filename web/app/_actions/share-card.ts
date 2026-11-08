@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
-import type { Message, ShareCardMetadata } from '@/features/chat/types'
+import type { ShareCardMetadata } from '@/features/chat/types'
 import { defaultLocale, type Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 
@@ -147,6 +147,3 @@ export async function shareToContacts(input: {
     }
   }
 }
-
-/** Used by tests / callers that already have a Message. */
-export type { Message }

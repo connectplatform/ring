@@ -128,7 +128,8 @@
       "timezone": "timezone",
       "representative": "representative",
       "vendor": "vendor",
-      "organization": "organization"
+      "organization": "organization",
+      "district": "district"
     },
     "searching": "Searching…"
   }

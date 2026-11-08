@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import type { NovaPostCity, NovaPostWarehouse } from '@/lib/shipping/nova-post'
@@ -29,7 +29,8 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
       : null,
   )
   const [cities, setCities] = useState<NovaPostCity[]>([])
-  const [branchQuery, setBranchQuery] = useState('')
+  const [branchQuery, setBranchQuery] = useState(selected?.name ?? '')
+  const lockedBranchQuery = useRef(selected?.name?.trim() ?? '')
   const [branches, setBranches] = useState<NovaPostWarehouse[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +40,7 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
       setCities([])
       return
     }
+    let cancelled = false
     const handle = window.setTimeout(() => {
       void (async () => {
         setLoading(true)
@@ -49,6 +51,7 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
             { cache: 'no-store' },
           )
           const data = await res.json()
+          if (cancelled) return
           if (!res.ok) {
             setError(data?.error === 'invalid_key' ? t('novaPostInvalidKey') : t('novaPostSearchFailed'))
             setCities([])
@@ -56,14 +59,19 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
           }
           setCities(Array.isArray(data.cities) ? data.cities : [])
         } catch {
-          setError(t('novaPostSearchFailed'))
-          setCities([])
+          if (!cancelled) {
+            setError(t('novaPostSearchFailed'))
+            setCities([])
+          }
         } finally {
-          setLoading(false)
+          if (!cancelled) setLoading(false)
         }
       })()
     }, 300)
-    return () => window.clearTimeout(handle)
+    return () => {
+      cancelled = true
+      window.clearTimeout(handle)
+    }
   }, [cityQuery, city?.name, t])
 
   useEffect(() => {
@@ -72,15 +80,21 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
       return
     }
     const q = branchQuery.trim()
+    if (q && q === lockedBranchQuery.current) {
+      setBranches([])
+      return
+    }
+    let cancelled = false
     const handle = window.setTimeout(() => {
       void (async () => {
         setLoading(true)
         setError(null)
         try {
           const params = new URLSearchParams({ cityRef: city.ref })
-          if (q.length >= 2) params.set('q', q)
+          if (q.length >= 1) params.set('q', q)
           const res = await fetch(`/api/shipping/novapost/warehouses?${params}`, { cache: 'no-store' })
           const data = await res.json()
+          if (cancelled) return
           if (!res.ok) {
             setError(data?.error === 'invalid_key' ? t('novaPostInvalidKey') : t('novaPostSearchFailed'))
             setBranches([])
@@ -88,20 +102,26 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
           }
           setBranches(Array.isArray(data.warehouses) ? data.warehouses : [])
         } catch {
-          setError(t('novaPostSearchFailed'))
-          setBranches([])
+          if (!cancelled) {
+            setError(t('novaPostSearchFailed'))
+            setBranches([])
+          }
         } finally {
-          setLoading(false)
+          if (!cancelled) setLoading(false)
         }
       })()
     }, 300)
-    return () => window.clearTimeout(handle)
+    return () => {
+      cancelled = true
+      window.clearTimeout(handle)
+    }
   }, [city?.ref, branchQuery, t])
 
   function pickCity(next: NovaPostCity) {
     setCity(next)
     setCityQuery(next.name)
     setCities([])
+    lockedBranchQuery.current = ''
     setBranchQuery('')
     setBranches([])
     onSelect(null)
@@ -109,6 +129,9 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
 
   function pickBranch(branch: NovaPostWarehouse) {
     if (!city) return
+    lockedBranchQuery.current = branch.name.trim()
+    setBranchQuery(branch.name)
+    setBranches([])
     onSelect({
       id: branch.ref,
       externalId: branch.ref,
@@ -118,7 +141,6 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
       settlementName: city.name,
       settlement: { name: city.name, region: city.area ? { name: city.area } : undefined },
     })
-    setBranches([])
   }
 
   return (
@@ -166,7 +188,14 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
           autoComplete="off"
           disabled={!city?.ref}
           placeholder={t('novaPostBranchPlaceholder')}
-          onChange={(event) => setBranchQuery(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value
+            if (next.trim() !== lockedBranchQuery.current) {
+              lockedBranchQuery.current = ''
+              if (selected) onSelect(null)
+            }
+            setBranchQuery(next)
+          }}
         />
         {branches.length > 0 ? (
           <ul className="max-h-56 overflow-auto rounded-md border bg-background">
@@ -179,7 +208,7 @@ export function NovaPostSelector({ selected, onSelect }: Props) {
                 >
                   <span className="font-medium">{branch.name}</span>
                   {branch.address && branch.address !== branch.name ? (
-                    <span className="block text-xs text-muted-foreground">{branch.address}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{branch.address}</span>
                   ) : null}
                 </button>
               </li>

@@ -5,18 +5,6 @@ import { useTranslations } from 'next-intl'
 import { MAIN_CURRENCY, useOptionalStorePaymentMethods } from '@/features/store/currency-context'
 import { Clock, MapPin, Package } from 'lucide-react'
 import { NovaPostSelector, type NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
-
-function novaPostPlaceLine(settlement?: NovaPostLocation['settlement']): string {
-  if (!settlement) return ''
-  const region = settlement.region
-  const regionName =
-    typeof region === 'string'
-      ? region
-      : region && typeof region.name === 'string'
-        ? region.name
-        : ''
-  return [settlement.name, regionName].filter(Boolean).join(', ')
-}
 import type { StorePaymentMethods } from '@/features/store/types'
 import type { SupportedCurrencies } from '@/lib/ring-config-types'
 import type { ShippingProvider } from '@/lib/zod'
@@ -181,13 +169,19 @@ function ShippingMethodSelector({
           />
           {/* Details of the currently selected NovaPost location (if any) */}
           {selectedLocation && (
-            <div className="mt-3 rounded border bg-background p-3 text-sm text-foreground">
-              <div className="font-medium">{selectedLocation.name}</div>
-              <div className="text-muted-foreground">
-                {novaPostPlaceLine(selectedLocation.settlement)}
-              </div>
-              <div className="text-muted-foreground">
-                {selectedLocation.address}
+            <div className="mt-3 grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-3 rounded border bg-background p-3 text-sm text-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo-vendors/nova-poshta-logo.svg"
+                alt=""
+                aria-hidden
+                className="h-12 w-12 object-contain"
+              />
+              <div className="min-w-0">
+                <div className="font-medium">{selectedLocation.name}</div>
+                {selectedLocation.address ? (
+                  <div className="text-muted-foreground">{selectedLocation.address}</div>
+                ) : null}
               </div>
             </div>
           )}

@@ -56,6 +56,7 @@ function getLocation(user: LooseUser): string | null {
   const v =
     (user.location as string) ||
     (cultural?.location as string) ||
+    (cultural?.district as string) ||
     (cultural?.timezone as string)
   return typeof v === 'string' && v.trim() ? v.trim() : null
 }

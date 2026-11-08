@@ -93,12 +93,18 @@ export interface CommunicationChannels {
   /** Verified numeric Telegram user id — SSOT for linked state / rewards / bots. */
   telegramId?: string;
   telegramLinkedAt?: string;
+  instagramUsername?: string;
 }
 
 // Cultural & Geographic Context
 export interface CulturalContext {
   country?: string;
   timezone: string;
+  /** City district name from ring-config `city.districts`, when the clone defines them. */
+  district?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
   languages: string[];
   culturalBackground?: any; // Flexible JSON structure
 }
@@ -381,6 +387,9 @@ export interface AuthUser extends GlobalUserIdentity {
   // Cultural context
   cultural?: CulturalContext;
 
+  /** Inbox block ids the resident closed without filling. */
+  profilePromptDismissals?: string[];
+
   // Ethical AI profiling (positive reinforcement only)
   ethicalAI?: EthicalAIProfiling;
 
@@ -537,6 +546,8 @@ export type ProfileFormData = Partial<ExtendedProfile> & Pick<AuthUser, 'name' |
   settings?: UserSettings | string; // Can be object or JSON string from FormData
   /** Curriculum vitae JSON (markdown + file meta) */
   curriculumVitae?: CurriculumVitae | string;
+  /** Closed unfilled-profile prompts. FormData may send a JSON string. */
+  profilePromptDismissals?: string[] | string;
 }
 
 /**

@@ -231,6 +231,44 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
       }
     }
 
+    // Partial cultural patches (district, timezone, address) must not wipe the rest.
+    if (
+      processedData.cultural &&
+      typeof processedData.cultural === 'object' &&
+      !Array.isArray(processedData.cultural)
+    ) {
+      const prevCultural =
+        before &&
+        typeof before.cultural === 'object' &&
+        before.cultural &&
+        !Array.isArray(before.cultural)
+          ? (before.cultural as Record<string, unknown>)
+          : {}
+      processedData.cultural = {
+        ...prevCultural,
+        ...(processedData.cultural as Record<string, unknown>),
+      }
+    }
+
+    if (typeof processedData.profilePromptDismissals === 'string') {
+      try {
+        processedData.profilePromptDismissals = JSON.parse(processedData.profilePromptDismissals)
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse profilePromptDismissals JSON:', e)
+        delete processedData.profilePromptDismissals
+      }
+    }
+    if (Array.isArray(processedData.profilePromptDismissals)) {
+      const prevIds = Array.isArray(before?.profilePromptDismissals)
+        ? (before.profilePromptDismissals as unknown[])
+        : []
+      const incomingIds = processedData.profilePromptDismissals as unknown[]
+      const merged = [...prevIds, ...incomingIds]
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        .map((id) => id.trim())
+      processedData.profilePromptDismissals = [...new Set(merged)].slice(0, 40)
+    }
+
     const updateData = {
       ...processedData,
       updatedAt: new Date(), // Add a timestamp for the update

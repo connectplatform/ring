@@ -128,7 +128,8 @@
       "timezone": "zona horaria",
       "representative": "representante",
       "vendor": "vendedor",
-      "organization": "organización"
+      "organization": "organización",
+      "district": "distrito"
     },
     "searching": "Buscando…"
   }

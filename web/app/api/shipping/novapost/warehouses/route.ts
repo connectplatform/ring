@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  normalizeNovaPostQuery,
+  normalizeNovaPostBranchQuery,
   novaPostApiKey,
   searchNovaPostDivisions,
 } from '@/lib/shipping/nova-post'
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const cityRef = (req.nextUrl.searchParams.get('cityRef') || '').trim()
   if (!cityRef) return NextResponse.json({ enabled: true, warehouses: [] })
 
-  const q = normalizeNovaPostQuery(req.nextUrl.searchParams.get('q'))
+  const q = normalizeNovaPostBranchQuery(req.nextUrl.searchParams.get('q'))
 
   try {
     const warehouses = await searchNovaPostDivisions(apiKey, cityRef, q)
