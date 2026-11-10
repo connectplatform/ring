@@ -2013,6 +2013,40 @@ COMMENT ON COLUMN public.telegram_admin_audit.error IS 'Error message if operati
 
 
 --
+-- Name: token_mint_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.token_mint_events (
+    id character varying(255) DEFAULT (gen_random_uuid())::text NOT NULL,
+    project_id character varying(255) NOT NULL,
+    superadmin_user_id character varying(255) NOT NULL,
+    superadmin_email character varying(255),
+    amount numeric(40, 18) NOT NULL,
+    amount_raw numeric(78, 0) NOT NULL,
+    mint_address character varying(255) NOT NULL,
+    destination character varying(255) NOT NULL,
+    tx_signature character varying(255),
+    note text,
+    cluster character varying(64),
+    status character varying(32) DEFAULT 'pending'::character varying NOT NULL,
+    error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT token_mint_events_pkey PRIMARY KEY (id),
+    CONSTRAINT token_mint_events_tx_signature_key UNIQUE (tx_signature),
+    CONSTRAINT token_mint_events_status_check CHECK (status IN ('pending', 'confirmed', 'failed'))
+);
+
+COMMENT ON TABLE public.token_mint_events IS 'Superadmin native-token mint audit. project_id names the clone that triggered the mint so two projects sharing one mint can be joined.';
+
+CREATE INDEX idx_token_mint_events_created_at ON public.token_mint_events USING btree (created_at DESC);
+
+CREATE INDEX idx_token_mint_events_mint ON public.token_mint_events USING btree (mint_address);
+
+CREATE INDEX idx_token_mint_events_project_id ON public.token_mint_events USING btree (project_id);
+
+
+--
 -- Name: user_addresses; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7372,6 +7406,7 @@ INSERT INTO public.schema_versions (version, description, applied_at, applied_by
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('045', '045_docs_media_and_enrichment: generated_docs_media + docs_article_enrichment', '2026-08-04 00:00:00+03', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('4.1.0', 'Flattened SSOT: schema.sql absorbs migrations through 043 + 2026-06-13 notification_preferences', '2026-08-06 14:54:52.780787+03', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('044', 'store_user_carts: authenticated buyer cart mirror for agent commerce', '2026-08-06 14:54:53.63468+03', 'ring_user');
+INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('056', 'token_mint_events: audit log for superadmin native-token treasury mints', '2026-11-10 17:30:00+02', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('4.0.4-push-subscriptions-jsonb', 'push_subscriptions JSONB for RFC web-push dual-stack', '2026-08-06 14:54:53.693803+03', 'ring_user');
 
 

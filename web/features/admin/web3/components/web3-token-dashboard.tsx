@@ -5,10 +5,25 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Coins, Users, Wallet, Flame, Scale } from 'lucide-react'
+
+type TokenMintEventRow = {
+  id: string
+  projectId: string
+  superadminUserId: string
+  superadminEmail: string | null
+  amount: string
+  destination: string
+  txSignature: string | null
+  note: string | null
+  status: 'pending' | 'confirmed' | 'failed'
+  createdAt: string
+  explorerUrl: string | null
+}
 
 type TokenSummary = {
   token: {
@@ -22,16 +37,30 @@ type TokenSummary = {
   supply: { raw: string; ui: string }
   holders: { estimated: number; note: string }
   gas: { sol: number; lamports: number; address: string; healthy: boolean } | null
+  cluster?: string
+  recentMints?: TokenMintEventRow[]
+  recentMintsUnavailable?: boolean
+}
+
+function shortAddr(addr: string) {
+  return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '-'
+}
+
+function amountStep(decimals: number | undefined): string {
+  if (decimals == null || decimals < 0) return 'any'
+  if (decimals === 0) return '1'
+  return (1 / 10 ** decimals).toFixed(decimals)
 }
 
 export function Web3TokenDashboard() {
   const t = useTranslations('modules.admin')
+  const tw = useTranslations('modules.admin.web3')
   const [data, setData] = useState<TokenSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // ── Mint / Burn state ──
   const [mintAmount, setMintAmount] = useState('')
+  const [mintNote, setMintNote] = useState('')
   const [burnAmount, setBurnAmount] = useState('')
   const [isMinting, startMint] = useTransition()
   const [isBurning, startBurn] = useTransition()
@@ -45,7 +74,8 @@ export function Web3TokenDashboard() {
   const [isDiversifying, startDiversify] = useTransition()
   const [diversifyMsg, setDiversifyMsg] = useState<string | null>(null)
 
-  // ── Load ──
+  const symbol = data?.token.symbol ?? ''
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -97,16 +127,16 @@ export function Web3TokenDashboard() {
     })
   }
 
-  // ── Mint ──
   const handleMint = () => {
     startMint(async () => {
       setTxResult(null)
       try {
-        const { adminMintRING } = await import('@/app/_actions/admin-web3')
-        const result = await adminMintRING(mintAmount)
+        const { adminMintNativeToken } = await import('@/app/_actions/admin-web3')
+        const result = await adminMintNativeToken(mintAmount, mintNote)
         if (result.success) {
           setTxResult({ type: 'mint', txHash: result.txHash })
           setMintAmount('')
+          setMintNote('')
           await load()
         } else {
           setTxResult({ type: 'mint', error: result.error })
@@ -117,7 +147,6 @@ export function Web3TokenDashboard() {
     })
   }
 
-  // ── Burn ──
   const handleBurn = () => {
     startBurn(async () => {
       setTxResult(null)
@@ -137,8 +166,11 @@ export function Web3TokenDashboard() {
     })
   }
 
-  // ── Short address ──
-  const short = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '—'
+  const statusLabel = (status: TokenMintEventRow['status']) => {
+    if (status === 'confirmed') return tw('statusConfirmed')
+    if (status === 'failed') return tw('statusFailed')
+    return tw('statusPending')
+  }
 
   if (loading) {
     return (
@@ -148,6 +180,9 @@ export function Web3TokenDashboard() {
     )
   }
 
+  const recentMints = data?.recentMints ?? []
+  const amountMin = data?.token.decimals ? amountStep(data.token.decimals) : 'any'
+
   return (
     <div className="space-y-6">
       {error && (
@@ -156,68 +191,68 @@ export function Web3TokenDashboard() {
         </Alert>
       )}
 
-      {/* Token Summary Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5" /> {data?.token.name ?? 'Native Token'}
+            <Coins className="h-5 w-5" /> {data?.token.name ?? symbol}
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-muted-foreground">{t('tokenSymbol') ?? 'Symbol'}</p>
-            <p className="font-mono font-semibold">{data?.token.symbol ?? '—'}</p>
+            <p className="text-muted-foreground">{tw('tokenSymbol')}</p>
+            <p className="font-mono font-semibold">{data?.token.symbol ?? '-'}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">{t('tokenDecimals') ?? 'Decimals'}</p>
-            <p className="font-mono font-semibold">{data?.token.decimals ?? '—'}</p>
+            <p className="text-muted-foreground">{tw('tokenDecimals')}</p>
+            <p className="font-mono font-semibold">{data?.token.decimals ?? '-'}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">{t('tokenProgram') ?? 'Program'}</p>
-            <p className="font-mono text-xs">{data?.token.program ?? '—'}</p>
+            <p className="text-muted-foreground">{tw('tokenProgram')}</p>
+            <p className="font-mono text-xs">{data?.token.program ?? '-'}</p>
           </div>
           <div className="sm:col-span-2">
-            <p className="text-muted-foreground">{t('tokenMint') ?? 'Mint Address'}</p>
-            <p className="font-mono text-xs break-all">{data?.token.mintAddress ?? '—'}</p>
+            <p className="text-muted-foreground">{tw('tokenMint')}</p>
+            <p className="font-mono text-xs break-all">{data?.token.mintAddress ?? '-'}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">{t('tokenTreasury') ?? 'Treasury'}</p>
-            <p className="font-mono text-xs">{short(data?.token.treasuryAddress ?? '')}</p>
+            <p className="text-muted-foreground">{tw('tokenTreasury')}</p>
+            <p className="font-mono text-xs">{shortAddr(data?.token.treasuryAddress ?? '')}</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Supply + Holders */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('tokenTotalSupply') ?? 'Total Supply'}</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{tw('onChainTotalSupply')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data?.supply.ui ?? '0'}</p>
+            <p className="text-2xl font-bold">
+              {data?.supply.ui ?? '0'} {symbol}
+            </p>
             <p className="text-xs text-muted-foreground">{data?.supply.raw ?? '0'} raw</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <Users className="h-4 w-4" /> {t('tokenHolders') ?? 'Holders'}
+              <Users className="h-4 w-4" /> {tw('tokenHolders')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data?.holders.estimated ?? '—'}</p>
+            <p className="text-2xl font-bold">{data?.holders.estimated ?? '-'}</p>
             <p className="text-xs text-muted-foreground">{data?.holders.note ?? ''}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <Wallet className="h-4 w-4" /> {t('feePayerGas') ?? 'Fee Payer Gas'}
+              <Wallet className="h-4 w-4" /> {tw('feePayerGas')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data?.gas?.sol.toFixed(4) ?? '—'} SOL</p>
-            <p className="text-xs font-mono">{short(data?.gas?.address ?? '')}</p>
+            <p className="text-2xl font-bold">{data?.gas?.sol.toFixed(4) ?? '-'} SOL</p>
+            <p className="text-xs font-mono">{shortAddr(data?.gas?.address ?? '')}</p>
             {data?.gas != null && (
               <Badge variant={data.gas.healthy ? 'default' : 'destructive'} className="mt-1 text-xs">
                 {data.gas.healthy ? 'Healthy' : 'Low Gas'}
@@ -227,73 +262,78 @@ export function Web3TokenDashboard() {
         </Card>
       </div>
 
-      {/* Transaction Result */}
       {txResult && (
         <Alert variant={txResult.error ? 'destructive' : 'default'}>
           <AlertDescription>
-            {txResult.error
-              ? `${txResult.type === 'mint' ? 'Mint' : 'Burn'} failed: ${txResult.error}`
-              : `${txResult.type === 'mint' ? 'Minted' : 'Burned'}! Tx: ${txResult.txHash?.slice(0, 12)}...`}
+            {txResult.type === 'mint'
+              ? txResult.error
+                ? tw('mintFailed', { error: txResult.error })
+                : tw('mintSuccess', { tx: `${txResult.txHash?.slice(0, 12) ?? ''}...` })
+              : txResult.error
+                ? tw('burnFailed', { error: txResult.error })
+                : tw('burnSuccess', { tx: `${txResult.txHash?.slice(0, 12) ?? ''}...` })}
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Mint Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5" /> {t('mintTokens') ?? 'Mint Tokens'}
+            <Coins className="h-5 w-5" /> {tw('mintTokens')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Create new {data?.token.symbol ?? 'RING'} tokens into the treasury.
-            Increases total supply. Requires superadmin + funded fee payer.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-md">
-            <div className="flex-1">
-              <Label htmlFor="mint-amount">Amount ({data?.token.symbol ?? 'RING'})</Label>
+          <p className="text-sm text-muted-foreground">{tw('mintHint', { symbol })}</p>
+          <div className="flex flex-col gap-3 max-w-md">
+            <div>
+              <Label htmlFor="mint-amount">{tw('amountLabel', { symbol })}</Label>
               <Input
                 id="mint-amount"
                 type="number"
-                min="1"
-                step="1"
+                min={amountMin === 'any' ? undefined : amountMin}
+                step={amountStep(data?.token.decimals)}
                 value={mintAmount}
                 onChange={(e) => setMintAmount(e.target.value)}
                 placeholder="1000"
               />
             </div>
+            <div>
+              <Label htmlFor="mint-note">{tw('mintNote')}</Label>
+              <Textarea
+                id="mint-note"
+                value={mintNote}
+                onChange={(e) => setMintNote(e.target.value)}
+                placeholder={tw('mintNotePlaceholder')}
+                rows={3}
+              />
+            </div>
             <Button
               onClick={handleMint}
-              disabled={isMinting || !mintAmount || parseFloat(mintAmount) <= 0}
-              className="self-end"
+              disabled={isMinting || !mintAmount || parseFloat(mintAmount) <= 0 || !mintNote.trim()}
+              className="self-start"
             >
-              {isMinting ? <Loader2 className="h-4 w-4 animate-spin" /> : t('mint') ?? 'Mint'}
+              {isMinting ? <Loader2 className="h-4 w-4 animate-spin" /> : tw('mint')}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Burn Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Flame className="h-5 w-5" /> {t('burnTokens') ?? 'Burn Tokens'}
+            <Flame className="h-5 w-5" /> {tw('burnTokens')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Destroy {data?.token.symbol ?? 'RING'} tokens from the treasury.
-            Decreases total supply. Requires superadmin + funded fee payer.
-          </p>
+          <p className="text-sm text-muted-foreground">{tw('burnHint', { symbol })}</p>
           <div className="flex flex-col sm:flex-row gap-3 max-w-md">
             <div className="flex-1">
-              <Label htmlFor="burn-amount">Amount ({data?.token.symbol ?? 'RING'})</Label>
+              <Label htmlFor="burn-amount">{tw('amountLabel', { symbol })}</Label>
               <Input
                 id="burn-amount"
                 type="number"
-                min="1"
-                step="1"
+                min={amountMin === 'any' ? undefined : amountMin}
+                step={amountStep(data?.token.decimals)}
                 value={burnAmount}
                 onChange={(e) => setBurnAmount(e.target.value)}
                 placeholder="500"
@@ -305,13 +345,98 @@ export function Web3TokenDashboard() {
               variant="destructive"
               className="self-end"
             >
-              {isBurning ? <Loader2 className="h-4 w-4 animate-spin" /> : t('burn') ?? 'Burn'}
+              {isBurning ? <Loader2 className="h-4 w-4 animate-spin" /> : tw('burn')}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Diversify — equalize allowlisted non-native treasury holdings via oracle */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{tw('recentMints')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data?.recentMintsUnavailable ? (
+            <p className="text-sm text-muted-foreground">{tw('recentMintsUnavailable')}</p>
+          ) : recentMints.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{tw('recentMintsEmpty')}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventTime')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventProject')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventWho')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventAmount')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventDestination')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventTx')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventNote')}</th>
+                    <th className="py-2 font-medium">{tw('mintEventStatus')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentMints.map((event) => (
+                    <tr key={event.id} className="border-b last:border-0 align-top">
+                      <td className="py-2 pr-3 whitespace-nowrap">
+                        {new Date(event.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-2 pr-3 font-mono text-xs">{event.projectId}</td>
+                      <td className="py-2 pr-3">
+                        <div>{event.superadminEmail || event.superadminUserId}</div>
+                        {event.superadminEmail ? (
+                          <div className="font-mono text-xs text-muted-foreground">
+                            {shortAddr(event.superadminUserId)}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="py-2 pr-3 whitespace-nowrap">
+                        {event.amount} {symbol}
+                      </td>
+                      <td className="py-2 pr-3 font-mono text-xs">{shortAddr(event.destination)}</td>
+                      <td className="py-2 pr-3 font-mono text-xs">
+                        {event.txSignature ? (
+                          event.explorerUrl ? (
+                            <a
+                              href={event.explorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                              title={tw('viewOnExplorer')}
+                            >
+                              {shortAddr(event.txSignature)}
+                            </a>
+                          ) : (
+                            shortAddr(event.txSignature)
+                          )
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="py-2 pr-3 max-w-xs break-words">{event.note || '-'}</td>
+                      <td className="py-2">
+                        <Badge
+                          variant={
+                            event.status === 'failed'
+                              ? 'destructive'
+                              : event.status === 'confirmed'
+                                ? 'default'
+                                : 'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {statusLabel(event.status)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className={diversifyHealth?.ready ? '' : 'border-dashed opacity-90'}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

@@ -1,9 +1,18 @@
-import { NextRequest, NextResponse, connection } from 'next/server'
+import { NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { isSuperadmin } from '@/features/auth/user-role'
-import { getNativeTokenAddress, getNativeTokenDecimals, getNativeTokenSymbol, getNativeTokenName } from '@/lib/ring-config-chain'
+import { listTokenMintEvents } from '@/app/_actions/admin-web3'
+import {
+  getNativeChainConfig,
+  getNativeTokenAddress,
+  getNativeTokenDecimals,
+  getNativeTokenName,
+  getNativeTokenSymbol,
+  getNativeTokenTreasuryAddress,
+} from '@/lib/ring-config-chain'
 import { getFeePayerSolBalance } from '@/features/wallet/chains/solana/solana-gas-reserve'
-import { getFeePayerKeypair, getSolanaConnection } from '@/features/wallet/chains/solana/solana-client'
+import { getSolanaConnection, getTreasuryKeypair } from '@/features/wallet/chains/solana/solana-client'
+import { nativeTokenRawToUi } from '@/lib/wallet/native-token-amount'
 import { getMint } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 import { db } from '@/lib/database'
@@ -13,9 +22,10 @@ import { db } from '@/lib/database'
  *
  * Returns native token summary for the superadmin dashboard:
  *   - token:   symbol, name, decimals, mint address, treasury address
- *   - supply:  total supply (on-chain), formatted UI
+ *   - supply:  on-chain total supply from getMint, formatted by mint decimals
  *   - holders: estimated count of member+ users with a native wallet
  *   - gas:     fee payer SOL balance + health
+ *   - recentMints: token_mint_events for this project's database
  */
 export async function GET() {
   await connection()
@@ -27,42 +37,49 @@ export async function GET() {
 
   const symbol = getNativeTokenSymbol()
   const name = getNativeTokenName()
-  const decimals = getNativeTokenDecimals()
+  const configDecimals = getNativeTokenDecimals()
   const mintAddress = getNativeTokenAddress()
+  const cluster = getNativeChainConfig().solana?.network ?? 'devnet'
 
-  // ── On-chain: token supply via SPL ──────────────────────────────────────
   let totalSupply = '0'
   let totalSupplyUi = '0'
+  let decimals = configDecimals ?? 0
   let treasuryAddress = ''
 
-  try {
-    const connection = getSolanaConnection()
-    const feePayer = getFeePayerKeypair()
-    const mint = new PublicKey(mintAddress)
-    const mintInfo = await getMint(connection, mint)
-    totalSupply = mintInfo.supply.toString()
-    totalSupplyUi = (Number(mintInfo.supply) / (10 ** (decimals ?? 8))).toLocaleString()
-    treasuryAddress = feePayer.publicKey.toBase58()
-  } catch {
-    // Token info unavailable on-chain — return what we have from config
+  const treasury = getTreasuryKeypair()
+  if (treasury) {
+    treasuryAddress = treasury.publicKey.toBase58()
+  } else {
+    const configured = getNativeTokenTreasuryAddress()
+    treasuryAddress = configured && configured !== 'RING' ? configured : ''
   }
 
-  // ── DB: estimated holders (member+ users with a native wallet) ────────────
+  try {
+    if (!mintAddress) throw new Error('Native token address not configured')
+    const connection = getSolanaConnection()
+    const mint = new PublicKey(mintAddress)
+    const mintInfo = await getMint(connection, mint)
+    decimals = mintInfo.decimals
+    totalSupply = mintInfo.supply.toString()
+    const ui = nativeTokenRawToUi(mintInfo.supply, mintInfo.decimals)
+    const [whole, frac] = ui.split('.')
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    totalSupplyUi = frac ? `${grouped}.${frac}` : grouped
+  } catch {
+    // Token info unavailable on-chain, so return what we have from config
+  }
+
   let holdersEstimate = 0
   try {
-    const result = await db().queryDocs<{ wallets?: Array<{ chain?: string }> }>({
+    await db().queryDocs<{ wallets?: Array<{ chain?: string }> }>({
       collection: 'users',
-      // No exact filter for "has wallet" — estimate by role count
       filters: [{ field: 'role', operator: 'in', value: 'member,subscriber,admin,superadmin,editor,moderator' }],
       pagination: { limit: 1 },
     })
-    // Better approach: count users who have a non-empty wallets array
-    // For now, fall back to a simpler query
   } catch {
     // Holders count unavailable
   }
 
-  // ── Gas reserve ──────────────────────────────────────────────────────────
   let gasReserve = null
   try {
     gasReserve = await getFeePayerSolBalance()
@@ -70,11 +87,13 @@ export async function GET() {
     // Gas reserve unavailable
   }
 
+  const mintHistory = await listTokenMintEvents(25)
+
   return NextResponse.json({
     token: {
       symbol,
       name,
-      decimals: decimals ?? 8,
+      decimals,
       mintAddress,
       treasuryAddress,
       program: 'spl-token',
@@ -88,5 +107,8 @@ export async function GET() {
       note: 'Count of member+ users who have a native wallet provisioned via WalletConductor.ensureNativeWallet',
     },
     gas: gasReserve,
+    cluster,
+    recentMints: mintHistory.events,
+    recentMintsUnavailable: mintHistory.unavailable === true,
   })
 }
