@@ -475,5 +475,35 @@
     "shortfall": "The most one warehouse can ship is {max}. Transfer stock before ordering more.",
     "tracking": "Tracking",
     "refreshTracking": "Refresh tracking"
+  },
+  "myOrders": {
+    "title": "Your orders",
+    "subtitle": "Payment, packing, and delivery movement for everything you bought.",
+    "empty": "No orders yet.",
+    "loading": "Loading…",
+    "signIn": "Sign in to see your orders",
+    "status": "Status",
+    "shipment": "Shipment",
+    "noShipment": "No shipment yet",
+    "tracking": "Waybill",
+    "placed": "Placed",
+    "open": "Open order",
+    "groupBuys": "Collective purchases",
+    "groupBuysHint": "Open group orders from producers in this ring.",
+    "sales": "Ongoing sales",
+    "salesHint": "Vendor offers that are live now, with the promotion conditions.",
+    "noOffers": "Nothing open right now.",
+    "conditions": "Conditions",
+    "live": "Refreshing from the order record",
+    "statuses": {
+      "new": "New",
+      "paid": "Paid",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "canceled": "Canceled",
+      "cancelled": "Canceled"
+    }
   }
 }

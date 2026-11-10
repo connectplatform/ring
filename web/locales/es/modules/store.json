@@ -406,5 +406,35 @@
     "shortfall": "Lo máximo que un almacén puede enviar es {max}. Transfiera stock antes de pedir más.",
     "tracking": "Seguimiento",
     "refreshTracking": "Actualizar seguimiento"
+  },
+  "myOrders": {
+    "title": "Tus pedidos",
+    "subtitle": "Pago, preparación y movimiento de entrega de todo lo que compraste.",
+    "empty": "Aún no hay pedidos.",
+    "loading": "Cargando…",
+    "signIn": "Entra para ver tus pedidos",
+    "status": "Estado",
+    "shipment": "Envío",
+    "noShipment": "Aún no hay envío",
+    "tracking": "Albarán",
+    "placed": "Creado",
+    "open": "Abrir pedido",
+    "groupBuys": "Compras colectivas",
+    "groupBuysHint": "Pedidos grupales abiertos de los productores de este anillo.",
+    "sales": "Ofertas en curso",
+    "salesHint": "Ofertas de vendedores activas ahora, con las condiciones de la promoción.",
+    "noOffers": "Nada abierto ahora.",
+    "conditions": "Condiciones",
+    "live": "Actualizando desde el registro del pedido",
+    "statuses": {
+      "new": "Nuevo",
+      "paid": "Pagado",
+      "processing": "En preparación",
+      "shipped": "Enviado",
+      "delivered": "Entregado",
+      "completed": "Completado",
+      "canceled": "Cancelado",
+      "cancelled": "Cancelado"
+    }
   }
 }

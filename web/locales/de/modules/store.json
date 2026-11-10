@@ -406,5 +406,35 @@
     "shortfall": "Ein Lager kann höchstens {max} versenden. Verlagern Sie Bestand, bevor Sie mehr bestellen.",
     "tracking": "Sendungsverfolgung",
     "refreshTracking": "Sendung aktualisieren"
+  },
+  "myOrders": {
+    "title": "Ihre Bestellungen",
+    "subtitle": "Zahlung, Packen und Lieferung für alles, was Sie gekauft haben.",
+    "empty": "Noch keine Bestellungen.",
+    "loading": "Wird geladen…",
+    "signIn": "Melden Sie sich an, um Bestellungen zu sehen",
+    "status": "Status",
+    "shipment": "Sendung",
+    "noShipment": "Noch keine Sendung",
+    "tracking": "Frachtbrief",
+    "placed": "Erstellt",
+    "open": "Bestellung öffnen",
+    "groupBuys": "Gemeinschaftskäufe",
+    "groupBuysHint": "Offene Gruppenbestellungen der Erzeuger in diesem Ring.",
+    "sales": "Laufende Angebote",
+    "salesHint": "Aktuelle Händlerangebote, einschließlich der Aktionsbedingungen.",
+    "noOffers": "Gerade nichts offen.",
+    "conditions": "Bedingungen",
+    "live": "Aktualisierung aus dem Bestelldatensatz",
+    "statuses": {
+      "new": "Neu",
+      "paid": "Bezahlt",
+      "processing": "In Bearbeitung",
+      "shipped": "Versendet",
+      "delivered": "Zugestellt",
+      "completed": "Abgeschlossen",
+      "canceled": "Storniert",
+      "cancelled": "Storniert"
+    }
   }
 }

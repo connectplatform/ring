@@ -47,6 +47,7 @@ import { NavLegalFooter } from '@/components/navigation/nav-legal-footer'
 import { FsModal } from '@/components/ui/fs-modal'
 import { HeroAmbient } from '@/lib/ui/davinci'
 import { LoginWidget } from '@/features/auth/components/login-widget'
+import { isTelegramMiniAppPath } from '@/lib/browser/telegram-webapp'
 
 /**
  * Props for each bottom navigation item
@@ -588,20 +589,26 @@ export default function BottomNavigation() {
   }, [session?.user])
 
   const MOBILE_BOTTOM_NAV_H = 'calc(3.5rem + env(safe-area-inset-bottom, 0px))'
+  const hideForTelegramMiniApp = isTelegramMiniAppPath(pathname || '')
 
-  // Own --mobile-bottom-nav-h on :root so sibling overlays (Admin / Ring / Add) inherit it
+  // Own --mobile-bottom-nav-h on :root so sibling overlays (Admin / Ring / Add) inherit it.
+  // Skip on the Mini App path so a feature-local nav can own the variable.
   useEffect(() => {
+    if (hideForTelegramMiniApp) return
     const root = document.documentElement
     root.style.setProperty('--mobile-bottom-nav-h', MOBILE_BOTTOM_NAV_H)
     return () => {
       root.style.removeProperty('--mobile-bottom-nav-h')
     }
-  }, [])
+  }, [hideForTelegramMiniApp])
+
+  if (hideForTelegramMiniApp) return null
 
   return (
     <>
       {/* Bottom navigation bar, fixed only on mobile */}
       <nav
+        data-ring-bottom-navigation
         className="fixed bottom-0 left-0 right-0 z-[9000] md:hidden transform-gpu touch-manipulation"
         style={{ transform: 'translateZ(0)' }}
       >

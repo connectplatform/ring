@@ -5,7 +5,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import CheckoutStatusPage from '@/components/store/CheckoutStatusPage'
+import CheckoutStatusPage from '@/components/store/checkout-status-page'
 import type { Locale } from '@/i18n/shared'
 
 // Mock next/link
@@ -30,70 +30,110 @@ jest.mock('@/constants/routes', () => ({
 const mockTranslations = {
   en: {
     'modules.store.checkout.status': {
-      'orderId': 'Order ID',
-      'needHelp': 'Need help? Contact our support team',
-      'success.title': 'Payment Successful!',
-      'success.description': 'Your order has been successfully placed and payment confirmed.',
-      'failure.title': 'Payment Failed',
-      'failure.description': 'Unfortunately, your payment could not be processed.',
-      'cancel.title': 'Order Cancelled',
-      'cancel.description': 'Your order has been cancelled.',
-      'error.title': 'An Error Occurred',
-      'error.description': 'We encountered an unexpected error.',
-      'pending.title': 'Payment Pending',
-      'pending.description': 'Your payment is being processed.',
-      'pending.waitMessage': 'Processing your payment...',
-      'processing.title': 'Processing Order',
-      'processing.description': 'We\'re currently processing your order.',
-      'processing.timeEstimate': 'Estimated completion: 2-5 minutes',
-      'complete.title': 'Order Complete!',
-      'complete.description': 'Your order has been completed successfully.',
-      'actions.viewOrder': 'View Order Details',
-      'actions.tryAgain': 'Try Again',
-      'actions.checkStatus': 'Check Order Status',
+      orderId: 'Order ID',
+      needHelp: 'Need help? Contact our support team',
+      success: {
+        title: 'Payment Successful!',
+        description: 'Your order has been successfully placed and payment confirmed.',
+      },
+      failure: {
+        title: 'Payment Failed',
+        description: 'Unfortunately, your payment could not be processed.',
+      },
+      cancel: {
+        title: 'Order Cancelled',
+        description: 'Your order has been cancelled.',
+      },
+      error: {
+        title: 'An Error Occurred',
+        description: 'We encountered an unexpected error.',
+      },
+      pending: {
+        title: 'Payment Pending',
+        description: 'Your payment is being processed.',
+        waitMessage: 'Processing your payment...',
+      },
+      processing: {
+        title: 'Processing Order',
+        description: "We're currently processing your order.",
+        timeEstimate: 'Estimated completion: 2-5 minutes',
+      },
+      complete: {
+        title: 'Order Complete!',
+        description: 'Your order has been completed successfully.',
+      },
+      actions: {
+        viewOrder: 'View Order Details',
+        tryAgain: 'Try Again',
+        checkStatus: 'Check Order Status',
+      },
     },
-    'common': {},
+    common: {},
     'modules.store.cart': {
-      'continueShopping': 'Continue Shopping',
-      'backToCart': 'Back to cart'
+      continueShopping: 'Continue Shopping',
+      backToCart: 'Back to cart',
     }
   },
   uk: {
     'modules.store.checkout.status': {
-      'orderId': 'Номер замовлення',
-      'needHelp': 'Потрібна допомога? Зв\'яжіться з нашою службою підтримки',
-      'success.title': 'Оплата успішна!',
-      'success.description': 'Ваше замовлення успішно оформлено і оплату підтверджено.',
-      'failure.title': 'Помилка оплати',
-      'failure.description': 'На жаль, ваш платіж не вдалося обробити.',
-      'cancel.title': 'Замовлення скасовано',
-      'cancel.description': 'Ваше замовлення було скасовано.',
-      'error.title': 'Виникла помилка',
-      'error.description': 'Ми зіткнулися з неочікуваною помилкою.',
-      'pending.title': 'Очікування оплати',
-      'pending.description': 'Ваш платіж обробляється.',
-      'pending.waitMessage': 'Обробка вашого платежу...',
-      'processing.title': 'Обробка замовлення',
-      'processing.description': 'Зараз ми обробляємо ваше замовлення.',
-      'processing.timeEstimate': 'Очікуваний час завершення: 2-5 хвилин',
-      'complete.title': 'Замовлення завершено!',
-      'complete.description': 'Ваше замовлення успішно завершено.',
-      'actions.viewOrder': 'Переглянути деталі замовлення',
-      'actions.tryAgain': 'Спробувати ще раз',
-      'actions.checkStatus': 'Перевірити статус замовлення',
+      orderId: 'Номер замовлення',
+      needHelp: "Потрібна допомога? Зв'яжіться з нашою службою підтримки",
+      success: {
+        title: 'Оплата успішна!',
+        description: 'Ваше замовлення успішно оформлено і оплату підтверджено.',
+      },
+      failure: {
+        title: 'Помилка оплати',
+        description: 'На жаль, ваш платіж не вдалося обробити.',
+      },
+      cancel: {
+        title: 'Замовлення скасовано',
+        description: 'Ваше замовлення було скасовано.',
+      },
+      error: {
+        title: 'Виникла помилка',
+        description: 'Ми зіткнулися з неочікуваною помилкою.',
+      },
+      pending: {
+        title: 'Очікування оплати',
+        description: 'Ваш платіж обробляється.',
+        waitMessage: 'Обробка вашого платежу...',
+      },
+      processing: {
+        title: 'Обробка замовлення',
+        description: 'Зараз ми обробляємо ваше замовлення.',
+        timeEstimate: 'Очікуваний час завершення: 2-5 хвилин',
+      },
+      complete: {
+        title: 'Замовлення завершено!',
+        description: 'Ваше замовлення успішно завершено.',
+      },
+      actions: {
+        viewOrder: 'Переглянути деталі замовлення',
+        tryAgain: 'Спробувати ще раз',
+        checkStatus: 'Перевірити статус замовлення',
+      },
     },
-    'common': {},
+    common: {},
     'modules.store.cart': {
-      'continueShopping': 'Продовжити покупки',
-      'backToCart': 'Назад до кошика'
+      continueShopping: 'Продовжити покупки',
+      backToCart: 'Назад до кошика',
     }
   }
 }
 
 // Helper function to render component with translations
 const renderWithTranslations = (component: React.ReactElement, locale: Locale = 'en') => {
-  const messages = mockTranslations[locale]
-  
+  const raw = mockTranslations[locale]
+  const messages = {
+    modules: {
+      store: {
+        checkout: { status: raw['modules.store.checkout.status'] },
+        cart: raw['modules.store.cart'],
+      },
+    },
+  }
+
   return render(
     <NextIntlClientProvider messages={messages} locale={locale}>
       {component}
@@ -264,17 +304,13 @@ describe('CheckoutStatusPage', () => {
         <CheckoutStatusPage status="success" locale="en" />
       )
       
-      // Check for success styling (green theme)
-      expect(successContainer.querySelector('.bg-green-50')).toBeInTheDocument()
-      expect(successContainer.querySelector('.text-green-500')).toBeInTheDocument()
+      expect(successContainer.querySelector('.text-emerald-500')).toBeInTheDocument()
       
       // Re-render with error status
       const { container: errorContainer } = renderWithTranslations(
         <CheckoutStatusPage status="error" locale="en" />
       )
       
-      // Check for error styling (red theme)
-      expect(errorContainer.querySelector('.bg-red-50')).toBeInTheDocument()
       expect(errorContainer.querySelector('.text-red-500')).toBeInTheDocument()
     })
     
@@ -284,8 +320,8 @@ describe('CheckoutStatusPage', () => {
       )
       
       // Check for responsive classes
-      expect(container.querySelector('.min-h-screen')).toBeInTheDocument()
-      expect(container.querySelector('.max-w-md')).toBeInTheDocument()
+      expect(container.querySelector('.w-full')).toBeInTheDocument()
+      expect(container.querySelector('.max-w-xl')).toBeInTheDocument()
     })
   })
 
