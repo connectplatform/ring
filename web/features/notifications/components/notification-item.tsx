@@ -16,6 +16,7 @@ import {
   Check,
   Loader2,
   Clock,
+  Trash2,
   User,
   Building,
   Wallet,
@@ -337,12 +338,13 @@ export function NotificationItem({
                 )}
               </div>
 
-              {/* Mark as read button */}
-              {isUnread && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleMarkAsRead}
+              <div className="flex items-center space-x-1">
+                {/* Mark as read button */}
+                {isUnread && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleMarkAsRead}
                   disabled={isMarkingAsRead}
                   className="text-xs"
                 >
@@ -353,7 +355,21 @@ export function NotificationItem({
                   )}
                   <span className="ml-1">{isMarkingAsRead ? t('marking') : t('markRead')}</span>
                 </Button>
-              )}
+                )}
+
+                {/* Delete button — visible when the parent wires onDeleteAction */}
+                {onDeleteAction && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="text-xs text-muted-foreground hover:text-destructive"
+                    aria-label={t('delete')}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 

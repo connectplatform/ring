@@ -15,6 +15,7 @@ import { ROUTES } from '@/constants/routes'
 import VendorDashboardWrapper from '@/components/wrappers/vendor-dashboard-wrapper'
 import { DAGIActivationCard } from '@/components/vendor/dagi-activation-card'
 import { VendorDashboard } from '@/components/vendor/vendor-dashboard'
+import { CollectedInterest } from '@/components/vendor/collected-interest'
 import { RecentOrders } from '@/components/vendor/recent-orders'
 import { connection } from 'next/server'
 import { routing } from '@/i18n/routing'
@@ -138,6 +139,8 @@ export default async function VendorDashboardPage({
           locale={validLocale}
           recentOrders={recentOrders}
         />
+
+        <CollectedInterest vendorEntityId={vendorEntity.id} locale={validLocale} />
 
         <div className="grid gap-6 lg:grid-cols-2 mt-8 mb-8">
           <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>

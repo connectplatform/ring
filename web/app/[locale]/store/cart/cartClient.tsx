@@ -60,6 +60,12 @@ const CartLine = memo(function CartLine({
   onChangeQuantity,
   labels,
 }: CartLineProps) {
+  const shelfEmpty =
+    !item.product.digitalProduct &&
+    !item.product.instantDelivery &&
+    !item.product.allowPreorder &&
+    (max === 0 || (Boolean(item.waiting) && typeof max !== 'number'))
+  const shownQty = shelfEmpty ? 0 : item.quantity
   const rawPrice = item.finalPrice ?? parseFloat(item.product.price)
   const basePrice = parseFloat(item.product.price)
   const from = resolveStorePriceCurrency(item.product.currency || MAIN_CURRENCY)
@@ -67,17 +73,17 @@ const CartLine = memo(function CartLine({
   const displayBasePrice = convert(basePrice, from, displayCurrency)
   const { lineTotal: rawItemTotal, applied: appliedPromo } = applyProductPromotionToLine(
     rawPrice,
-    item.quantity,
+    shownQty,
     item.product.promotions,
   )
   const itemTotal = convert(rawItemTotal, from, displayCurrency)
   const hasVariants = Boolean(item.selectedVariants && Object.keys(item.selectedVariants).length)
   const hasPriceModifier = Boolean(item.finalPrice && item.finalPrice !== basePrice)
-  const blocked = increaseBlocked(max, item.quantity, item.product.allowPreorder)
+  const blocked = shelfEmpty || increaseBlocked(max, shownQty, item.product.allowPreorder)
   const money = (amount: number) => formatPrice(amount, displayCurrency)
 
   return (
-    <div className="border-b border-border/60 py-4 last:border-b-0">
+    <div className={`border-b border-border/60 py-4 last:border-b-0 ${shelfEmpty ? 'opacity-60 grayscale' : ''}`}>
       <div className="flex gap-6">
         <div className="flex-shrink-0">
           <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-muted">
@@ -147,12 +153,12 @@ const CartLine = memo(function CartLine({
                 size="sm"
                 aria-label={labels.decrease}
                 onClick={() => onChangeQuantity(item.product.id, item.quantity - 1)}
-                disabled={item.quantity <= 1}
+                disabled={shelfEmpty || shownQty <= 1}
                 className="h-8 w-8 p-0 hover:bg-background"
               >
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="w-12 text-center text-lg font-semibold">{item.quantity}</span>
+              <span className="w-12 text-center text-lg font-semibold">{shownQty}</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -161,7 +167,7 @@ const CartLine = memo(function CartLine({
                   if (blocked) return
                   onChangeQuantity(item.product.id, item.quantity + 1)
                 }}
-                disabled={blocked}
+                disabled={shelfEmpty || blocked}
                 className="h-8 w-8 p-0 hover:bg-background"
               >
                 <Plus className="h-4 w-4" />
@@ -206,6 +212,10 @@ export default function CartClient({ locale }: { locale: Locale }) {
     setShippable(next)
     for (const item of cartItems) {
       const max = next[item.product.id]
+      if (max === 0 && !item.product.allowPreorder && !item.product.digitalProduct && !item.product.instantDelivery) {
+        if (!item.waiting) updateQuantity(item.product.id, 0)
+        continue
+      }
       if (typeof max !== 'number' || item.quantity <= max) continue
       if (max === 0 && item.product.allowPreorder) continue
       updateQuantity(item.product.id, max)
@@ -277,7 +287,13 @@ export default function CartClient({ locale }: { locale: Locale }) {
         ) : (
           <div className="pb-28 lg:pb-0">
             <div className="space-y-3">
-              {visibleItems.map((item) => (
+              {[...visibleItems]
+                .sort((a, b) => {
+                  const rank = (item: CartItem) =>
+                    item.waiting || shippable[item.product.id] === 0 ? 1 : 0
+                  return rank(a) - rank(b)
+                })
+                .map((item) => (
                 <CartLine
                   key={item.product.id}
                   item={item}

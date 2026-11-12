@@ -537,6 +537,8 @@
         "vendor": "Entidad vendedora",
         "price": "Precio",
         "stock": "Stock",
+        "carts": "Carritos",
+        "waiting": "{count} en espera",
         "status": "Estado",
         "approval": "Aprobación",
         "actions": "Acciones"

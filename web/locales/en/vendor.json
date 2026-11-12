@@ -133,6 +133,17 @@
     "resourcesDescription": "Learn how to maximize your store's potential",
     "viewVendorGuide": "View Vendor Guide →",
     "subtitle": "Manage your store, orders, and payouts",
+    "interest": {
+      "wantedTitle": "Collected interest",
+      "wantedHint": "Carts · waiting carts",
+      "wantedEmpty": "No carts hold your products yet.",
+      "fillableTitle": "Can fill now",
+      "fillableHint": "Waiting carts whose product already has stock",
+      "fillableEmpty": "No waiting cart can be filled from current stock.",
+      "quietTitle": "Quiet shelf",
+      "quietHint": "Stock on hand, and nobody has it in a cart",
+      "quietEmpty": "Every stocked product is in at least one cart."
+    },
     "trustScore": "Trust score",
     "taxVerified": "Tax verified",
     "taxPending": "Tax pending",

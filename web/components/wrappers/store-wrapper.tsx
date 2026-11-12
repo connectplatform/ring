@@ -231,6 +231,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
     <RingRightRailLayout
       flushCenterPane
       rightRailPurpose="store"
+      toggleOptions={{ tabletWidth: '500px' }}
       rightRailContent={[
         { blockType: 'store-filters' },
         { blockType: 'share-earn' },

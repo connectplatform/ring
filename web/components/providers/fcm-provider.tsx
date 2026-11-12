@@ -2,6 +2,8 @@
 
 import React, { createContext, use, useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useTranslations } from 'next-intl'
+import { hasRoleAtLeast, resolvePersistedUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { useFCM, useFCMMessages } from '@/hooks/use-fcm'
 import { unregisterCurrentDevicePush } from '@/lib/notifications/fcm-client-cleanup'
 import { setPushOptedOut } from '@/lib/notifications/push-opt-out'
@@ -51,6 +53,9 @@ export function FCMProvider({ children }: FCMProviderProps) {
 
 function FCMProviderRuntime({ children }: FCMProviderProps) {
   const { data: session } = useSession()
+  // NOTE: this runtime sits ABOVE NextIntlClientProvider (locale chrome mounts
+  // inside `children`) — useTranslations() would throw here. Toast copy stays
+  // EN until the toasts move to an intl-scoped listener (plan Phase 2).
   const {
     token,
     permission,
@@ -109,9 +114,12 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
     const data = (latestMessage.data || {}) as Record<string, string>
     const interactive = emitInteractivePushFromFcmData(data, session?.user?.id || '')
 
-    if (!interactive && latestMessage.notification) {
+    if (!interactive && latestMessage.notification?.title) {
+      // Foreground push toast: title/body come from the (server-localized) push
+      // payload. Titleless payloads route silently instead of showing an
+      // untranslated fallback string.
       toast({
-        title: latestMessage.notification.title || 'New Notification',
+        title: latestMessage.notification.title,
         description: latestMessage.notification.body,
         duration: 5000,
       })
@@ -132,26 +140,17 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
   }, [session?.user?.id, isEnabled])
 
   const enableNotifications = async (): Promise<boolean> => {
+    // Toast copy lives at call sites inside the locale chrome (this provider
+    // sits ABOVE NextIntlClientProvider — see FCMProviderRuntime note).
     try {
       setPushOptedOut(false)
       const granted = await requestPermission()
       if (granted) {
-        toast({
-          title: 'Notifications Enabled',
-          description: 'You will now receive push notifications for important updates.',
-          duration: 3000,
-        })
         await fetchTokenCount()
       }
       return granted
     } catch (error) {
       console.error('Error enabling notifications:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to enable notifications. Please try again.',
-        variant: 'destructive',
-        duration: 5000,
-      })
       return false
     }
   }
@@ -162,21 +161,9 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
       await unregisterCurrentDevicePush()
       resetLocalPushState()
 
-      toast({
-        title: 'Notifications Disabled',
-        description: 'You will no longer receive push notifications.',
-        duration: 3000,
-      })
-
       setTokenCount(0)
     } catch (error) {
       console.error('Error disabling notifications:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to disable notifications. Please try again.',
-        variant: 'destructive',
-        duration: 5000,
-      })
     }
   }
 
@@ -220,6 +207,10 @@ function getPromptDismissed(key: string): boolean {
 
 export function FCMPermissionPrompt() {
   const pathname = usePathname()
+  // Mounted inside LocaleAppChrome's I18nProvider — see locale-app-chrome.tsx.
+  const t = useTranslations('modules.notifications.pushPrompt')
+  const tStatus = useTranslations('modules.notifications.status')
+  const { data: session, status: sessionStatus } = useSession()
   const {
     isSupported,
     isEnabled,
@@ -230,12 +221,21 @@ export function FCMPermissionPrompt() {
   const [showPrompt, setShowPrompt] = useState(false)
   const suppressed = isLoginPath(pathname)
 
+  // Push enable requires an authenticated session for token registration
+  // (server-side upsert). Visitors only get browser-level permission with no
+  // token to deliver to — that path produced a guaranteed error toast.
+  // Prompt is subscriber+ only, and hidden entirely on /login.
+  const canPrompt =
+    sessionStatus === 'authenticated' &&
+    Boolean(session?.user) &&
+    hasRoleAtLeast(resolvePersistedUserRole(session?.user?.role), UserRolesArray.subscriber)
+
   const dismissKey = needsHomeScreenInstall
     ? FCM_INSTALL_PROMPT_STORAGE_KEY
     : FCM_PROMPT_STORAGE_KEY
 
   useEffect(() => {
-    if (suppressed) return
+    if (suppressed || !canPrompt) return
     if (getPromptDismissed(dismissKey)) return
     if (!needsHomeScreenInstall && getBrowserNotificationPermission() === 'granted') return
     const timer = setTimeout(() => {
@@ -252,9 +252,9 @@ export function FCMPermissionPrompt() {
     }, 3000)
 
     return () => clearTimeout(timer)
-  }, [isSupported, isEnabled, isLoading, needsHomeScreenInstall, dismissKey, suppressed])
+  }, [isSupported, isEnabled, isLoading, needsHomeScreenInstall, dismissKey, suppressed, canPrompt])
 
-  if (suppressed) return null
+  if (suppressed || !canPrompt) return null
   if (typeof window !== 'undefined' && getPromptDismissed(dismissKey)) {
     return null
   }
@@ -270,6 +270,19 @@ export function FCMPermissionPrompt() {
     if (success) {
       setShowPrompt(false)
       sessionStorage.setItem(FCM_PROMPT_STORAGE_KEY, 'true')
+      // Reuse the status-page copy (already translated ×5) for the outcome toast.
+      toast({
+        title: tStatus('permission.granted.title'),
+        description: tStatus('permission.granted.description'),
+        duration: 3000,
+      })
+    } else {
+      toast({
+        title: t('errorTitle'),
+        description: t('errorEnable'),
+        variant: 'destructive',
+        duration: 5000,
+      })
     }
   }
 
@@ -290,18 +303,16 @@ export function FCMPermissionPrompt() {
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-foreground">
-            {needsHomeScreenInstall ? 'Install for notifications' : 'Enable Push Notifications'}
+            {needsHomeScreenInstall ? t('installTitle') : t('title')}
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {needsHomeScreenInstall
-              ? 'iPhone and iPad only allow push from a Home Screen web app (iOS 16.4+).'
-              : 'Get real-time updates about opportunities, messages, and important news.'}
+            {needsHomeScreenInstall ? t('installDescription') : t('description')}
           </p>
           {needsHomeScreenInstall && (
             <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
-              <li>Tap the Share button in Safari</li>
-              <li>Choose Add to Home Screen</li>
-              <li>Open the new icon, then tap Enable</li>
+              <li>{t('iosSteps.step1')}</li>
+              <li>{t('iosSteps.step2')}</li>
+              <li>{t('iosSteps.step3')}</li>
             </ol>
           )}
           <div className="mt-3 flex space-x-2">
@@ -310,14 +321,14 @@ export function FCMPermissionPrompt() {
                 onClick={() => void handleEnable()}
                 className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
-                Enable
+                {t('enable')}
               </button>
             )}
             <button
               onClick={handleDismiss}
               className="inline-flex items-center px-3 py-1.5 border border-border text-xs font-medium rounded-md text-foreground bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
-              {needsHomeScreenInstall ? 'Got it' : 'Not now'}
+              {needsHomeScreenInstall ? t('dismiss') : t('notNow')}
             </button>
           </div>
         </div>

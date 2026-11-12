@@ -45,6 +45,29 @@ export function applyInboxToFeed(
     return items.filter((item) => item.id !== id)
   }
 
+  // SD5 undo: a restored row comes back with its full payload.
+  if (action === 'restore') {
+    const incoming = payload.notification as
+      | (Partial<Notification> & { id?: string; title?: string })
+      | undefined
+    if (!incoming?.id || !incoming.title) return items
+
+    const mapped = mapIncomingRow(incoming as Partial<Notification> & { id: string; title: string })
+
+    // Respect the active type filter, same as new arrivals.
+    if (typeFilter !== 'all' && typeFilter !== 'unread' && mapped.type !== typeFilter) {
+      return items
+    }
+
+    // A restored READ row must not surface inside the "unread" list.
+    if (typeFilter === 'unread' && (mapped.readAt || mapped.status === NotificationStatus.READ)) {
+      return items
+    }
+
+    // Restored rows return to the top (newest-first feeds) — acceptable UX.
+    return [mapped, ...items.filter((item) => item.id !== mapped.id)]
+  }
+
   if (action !== 'notification') return items
 
   const incoming = payload.notification as
@@ -57,7 +80,27 @@ export function applyInboxToFeed(
     return items
   }
 
-  const mapped: Notification = {
+  const mapped = mapIncomingRow(incoming as Partial<Notification> & { id: string; title: string })
+
+  // Skip rows the current filter would hide anyway: an already-read
+  // notification must not surface inside the "unread" list.
+  if (typeFilter === 'unread' && (mapped.readAt || mapped.status === NotificationStatus.READ)) {
+    return items
+  }
+
+  return [mapped, ...items.filter((item) => item.id !== mapped.id)]
+}
+
+/**
+ * Map a partial inbox payload to a full feed row. Shared by the
+ * `notification` (new arrival) and `restore` (SD5 undo) branches.
+ */
+function mapIncomingRow(
+  incoming: Partial<Notification> & { id: string; title: string },
+): Notification {
+  const incomingType = (incoming.type as NotificationType) ?? NotificationType.SYSTEM_UPDATE
+
+  return {
     id: incoming.id,
     userId: incoming.userId ?? '',
     title: incoming.title,
@@ -74,12 +117,4 @@ export function applyInboxToFeed(
     actionText: incoming.actionText,
     actionUrl: incoming.actionUrl,
   }
-
-  // Skip rows the current filter would hide anyway: an already-read
-  // notification must not surface inside the "unread" list.
-  if (typeFilter === 'unread' && (incoming.readAt || incoming.status === NotificationStatus.READ)) {
-    return items
-  }
-
-  return [mapped, ...items.filter((item) => item.id !== mapped.id)]
 }

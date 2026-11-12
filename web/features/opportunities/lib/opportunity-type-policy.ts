@@ -12,6 +12,15 @@ export type OpportunityTypePolicy = {
   defaultVisibility?: OpportunityVisibility
   defaultStatus?: 'active' | 'pending'
   buildMetadata?: (formData: FormData) => Record<string, unknown>
+  /** Optional per-type lean-form overrides (pack verticals). Defaults keep the lean policy form. */
+  formOverrides?: Partial<{
+    showBudget: boolean
+    showSkills: boolean
+    showDeadline: boolean
+    showPriority: boolean
+    showMaxApplicants: boolean
+    showApplicationDeadline: boolean
+  }>
 }
 
 export const OPPORTUNITY_TYPE_POLICIES: Record<string, OpportunityTypePolicy> = {}

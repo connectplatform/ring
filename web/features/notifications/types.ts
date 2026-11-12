@@ -99,7 +99,9 @@ export enum NotificationStatus {
   DELIVERED = 'delivered',
   READ = 'read',
   FAILED = 'failed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
+  /** Soft-deleted — hidden from feeds/counts, hard-purged by the retention cron (SD6). */
+  DELETED = 'deleted'
 }
 
 /**
@@ -257,6 +259,10 @@ export interface Notification {
   scheduledFor?: Date;
   readAt?: Date;
   expiresAt?: Date;
+  /** Soft-delete bookkeeping (SD): set on delete, cleared on restore. */
+  deletedAt?: Date;
+  /** Status before soft-delete — restored on undo. */
+  deletedFrom?: NotificationStatus;
   
   // Metadata
   templateId?: string;

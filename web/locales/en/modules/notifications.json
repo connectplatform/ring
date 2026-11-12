@@ -113,7 +113,19 @@
     "title": "Enable Push Notifications",
     "description": "Get real-time updates about collaborations, comments, and publication status.",
     "enable": "Enable",
-    "notNow": "Not now"
+    "notNow": "Not now",
+    "installTitle": "Install for notifications",
+    "installDescription": "iPhone and iPad only allow push from a Home Screen web app (iOS 16.4+).",
+    "iosSteps": {
+      "step1": "Tap the Share button in Safari",
+      "step2": "Choose Add to Home Screen",
+      "step3": "Open the new icon, then tap Enable"
+    },
+    "dismiss": "Got it",
+    "newNotification": "New Notification",
+    "errorTitle": "Something went wrong",
+    "errorEnable": "Failed to enable notifications. Please try again.",
+    "errorDisable": "Failed to disable notifications. Please try again."
   },
   "typeLabels": {
     "opportunity_created": "New opportunities matching your criteria",
@@ -256,7 +268,12 @@
       "normal": "Normal",
       "low": "Low"
     },
-    "selectNotification": "Select notification"
+    "selectNotification": "Select notification",
+    "delete": "Delete",
+    "deleteSelected": "Delete selected",
+    "undo": "Undo",
+    "deleted": "Notification deleted",
+    "deletedCount": "{count, plural, =1 {Notification deleted} other {# notifications deleted}}"
   },
   "item": {
     "markRead": "Mark Read",
@@ -288,7 +305,8 @@
       "message": "Messages",
       "social": "Social",
       "kyc": "KYC"
-    }
+    },
+    "delete": "Delete notification"
   },
   "rail": {
     "subtitle": "Stay up to date with your activities",
@@ -298,5 +316,24 @@
     "quietHours": "Quiet Hours",
     "quietHoursDescription": "Silence non-urgent notifications during your quiet hours window",
     "quietHoursActiveHint": "Quiet hours are active — notifications are muted in this window"
+  },
+  "center": {
+    "connection": {
+      "connected": "Connected",
+      "connecting": "Connecting...",
+      "reconnecting": "Reconnecting...",
+      "disconnected": "Disconnected",
+      "error": "Connection error"
+    },
+    "unreadCount": "{count} unread",
+    "updating": "Updating...",
+    "viewAll": "View all notifications",
+    "noMatch": "No notifications match your search",
+    "clearSearch": "Clear search",
+    "reconnect": "Reconnect",
+    "settings": "Notification settings",
+    "close": "Close notifications",
+    "bellAria": "{count, plural, =0 {Notifications} other {Notifications ({count} unread)}}",
+    "newBadge": "new"
   }
 }

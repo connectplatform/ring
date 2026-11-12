@@ -15,6 +15,7 @@ import {
   Bell,
   Settings,
   ChevronDown,
+  Trash2,
   X,
   Loader2
 } from 'lucide-react';
@@ -28,6 +29,8 @@ import { NotificationErrorBoundary } from './notification-error-boundary';
 import { cn } from '@/lib/utils';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCursorFeed } from '@/hooks/use-cursor-feed';
+import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint';
 import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response';
 import { apiClient, type ApiResponse } from '@/lib/api-client';
@@ -64,6 +67,7 @@ export function NotificationList({ className }: NotificationListProps) {
   // i18n
   const t = useTranslations('modules.notifications.list');
   const tItem = useTranslations('modules.notifications.item');
+  const tTitle = useTranslations('modules.notifications');
   const locale = useLocale();
 
   // Hooks — actions/stats from useNotifications; list pagination via useCursorFeed SSOT
@@ -75,6 +79,8 @@ export function NotificationList({ className }: NotificationListProps) {
     error: statsError,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    restoreNotification,
     refresh,
   } = useNotifications({
     unreadOnly: selectedFilter === 'unread',
@@ -272,12 +278,51 @@ export function NotificationList({ className }: NotificationListProps) {
     setSelectedNotifications(newSelected);
   };
 
-  // Bulk actions (only working actions are exposed — delete has no backend)
+  // Bulk actions (only working actions are exposed)
   const handleBulkMarkAsRead = async () => {
     const promises = Array.from(selectedNotifications).map(id => markAsRead(id));
     await Promise.all(promises);
     setSelectedNotifications(new Set());
   };
+
+  // Bulk delete — per-id DELETE; tunnel delete events patch the open feed live.
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedNotifications);
+    await Promise.all(ids.map(id => deleteNotification(id)));
+    setSelectedNotifications(new Set());
+    if (ids.length > 0) {
+      // SD5: 30s grace window — one Undo restores all deleted rows.
+      toast({
+        title: t('deletedCount', { count: ids.length }),
+        duration: 30000,
+        action: (
+          <ToastAction altText={t('undo')} onClick={() => {
+            void Promise.all(ids.map(id => restoreNotification(id)));
+          }}>
+            {t('undo')}
+          </ToastAction>
+        ),
+      });
+    }
+  };
+
+  // SD5: per-row delete with 30s undo grace toast.
+  const handleDeleteWithUndo = useCallback(async (id: string) => {
+    const ok = await deleteNotification(id);
+    if (ok) {
+      toast({
+        title: t('deleted'),
+        duration: 30000,
+        action: (
+          <ToastAction altText={t('undo')} onClick={() => {
+            void restoreNotification(id);
+          }}>
+            {t('undo')}
+          </ToastAction>
+        ),
+      });
+    }
+  }, [deleteNotification, restoreNotification, t]);
 
   const handleSettings = () => {
     navigateToSettings();
@@ -311,11 +356,17 @@ export function NotificationList({ className }: NotificationListProps) {
   return (
     <NotificationErrorBoundary>
     <div className={cn('w-full min-w-0 max-w-4xl mx-auto', className)}>
-      {/* Stats + controls row (title lives in right rail — site-wide pattern) */}
+      {/* Title + stats + controls row (full-page layout — no right rail) */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground tabular-nums">
-          {t('totalUnread', { total: totalCount, unread: unreadCount })}
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Bell className="h-5 w-5" aria-hidden />
+            {tTitle('title')}
+          </h1>
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {t('totalUnread', { total: totalCount, unread: unreadCount })}
+          </p>
+        </div>
 
         <div className="flex items-center space-x-2">
           {/* Refresh button */}
@@ -399,6 +450,15 @@ export function NotificationList({ className }: NotificationListProps) {
               >
                 <Check className="w-4 h-4" />
                 <span>{t('markSelectedRead')}</span>
+              </Button>
+              <Button
+                onClick={handleBulkDelete}
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{t('deleteSelected')}</span>
               </Button>
             </div>
           )}
@@ -587,6 +647,7 @@ export function NotificationList({ className }: NotificationListProps) {
                   <NotificationItem
                     notification={notification}
                     onMarkAsReadAction={markAsRead}
+                    onDeleteAction={handleDeleteWithUndo}
                     showActions={true}
                   />
                 </div>

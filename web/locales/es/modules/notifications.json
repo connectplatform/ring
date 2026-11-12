@@ -113,7 +113,19 @@
     "title": "Activar notificaciones push",
     "description": "Recibe actualizaciones en tiempo real sobre colaboraciones, comentarios y estado de publicación.",
     "enable": "Activar",
-    "notNow": "Ahora no"
+    "notNow": "Ahora no",
+    "installTitle": "Instalar para notificaciones",
+    "installDescription": "iPhone y iPad solo permiten push desde una web app en la pantalla de inicio (iOS 16.4+).",
+    "iosSteps": {
+      "step1": "Toca el botón Compartir en Safari",
+      "step2": "Elige «Añadir a pantalla de inicio»",
+      "step3": "Abre el nuevo icono y toca Activar"
+    },
+    "dismiss": "Entendido",
+    "newNotification": "Nueva notificación",
+    "errorTitle": "Algo salió mal",
+    "errorEnable": "No se pudieron activar las notificaciones. Inténtalo de nuevo.",
+    "errorDisable": "No se pudieron desactivar las notificaciones. Inténtalo de nuevo."
   },
   "typeLabels": {
     "opportunity_created": "Nuevas oportunidades que coinciden con tus criterios",
@@ -256,7 +268,12 @@
       "normal": "Normal",
       "low": "Baja"
     },
-    "selectNotification": "Seleccionar notificación"
+    "selectNotification": "Seleccionar notificación",
+    "delete": "Eliminar",
+    "deleteSelected": "Eliminar seleccionadas",
+    "undo": "Deshacer",
+    "deleted": "Notificación eliminada",
+    "deletedCount": "{count, plural, =1 {Notificación eliminada} other {# notificaciones eliminadas}}"
   },
   "item": {
     "markRead": "Marcar leída",
@@ -288,7 +305,8 @@
       "message": "Mensajes",
       "social": "Social",
       "kyc": "KYC"
-    }
+    },
+    "delete": "Eliminar notificación"
   },
   "rail": {
     "subtitle": "Mantente al día con tus actividades",
@@ -298,5 +316,24 @@
     "quietHours": "Horas de silencio",
     "quietHoursDescription": "Silencia notificaciones no urgentes durante tus horas de silencio",
     "quietHoursActiveHint": "Horas de silencio activas — notificaciones silenciadas en esta ventana"
+  },
+  "center": {
+    "connection": {
+      "connected": "Conectado",
+      "connecting": "Conectando...",
+      "reconnecting": "Reconectando...",
+      "disconnected": "Desconectado",
+      "error": "Error de conexión"
+    },
+    "unreadCount": "{count} no leídas",
+    "updating": "Actualizando...",
+    "viewAll": "Ver todas las notificaciones",
+    "noMatch": "No hay notificaciones que coincidan con tu búsqueda",
+    "clearSearch": "Limpiar búsqueda",
+    "reconnect": "Reconectar",
+    "settings": "Configuración de notificaciones",
+    "close": "Cerrar notificaciones",
+    "bellAria": "{count, plural, =0 {Notificaciones} other {Notificaciones ({count} no leídas)}}",
+    "newBadge": "nuevas"
   }
 }

@@ -306,6 +306,7 @@ export default function AdminProductsClient({
                   <th className="py-2 pr-4">{t('columns.vendor')}</th>
                   <th className="py-2 pr-4">{t('columns.price')}</th>
                   <th className="py-2 pr-4">{t('columns.stock')}</th>
+                  <th className="py-2 pr-4">{t('columns.carts')}</th>
                   <th className="py-2 pr-4">{t('columns.status')}</th>
                   <th className="py-2 pr-4">{t('columns.approval')}</th>
                   <th className="py-2">{t('columns.actions')}</th>
@@ -348,6 +349,14 @@ export default function AdminProductsClient({
                           {product.price} {product.currency}
                         </td>
                         <td className="py-2 pr-4">{product.stock}</td>
+                        <td className="py-2 pr-4 tabular-nums">
+                          {product.cartCount ?? 0}
+                          {product.waitingCarts ? (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              {t('columns.waiting', { count: product.waitingCarts })}
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="py-2 pr-4">{delisted ? t('delisted') : (product.status ?? '—')}</td>
                         <td className="py-2 pr-4">{approvalBadge(product.approvalStatus)}</td>
                         <td className="py-2" onClick={(event) => event.stopPropagation()}>

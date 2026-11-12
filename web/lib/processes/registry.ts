@@ -31,6 +31,7 @@ export const PIPELINE_IDS = [
   'cleanup-reservations',
   'cleanup-usernames',
   'cleanup-news-deleted',
+  'cleanup-notifications-deleted',
   'cleanup-email-tokens',
   'train',
   'settlement-payout',
@@ -120,6 +121,19 @@ export const PIPELINE_REGISTRY: PipelineDefinition[] = [
     handler: async () => {
       const startTime = Date.now()
       const result = await cleanupDeletedNews()
+      return { ...result, success: true, duration: Date.now() - startTime }
+    },
+  },
+  {
+    id: 'cleanup-notifications-deleted',
+    category: 'cleanup',
+    cronPath: '/api/cron/cleanup-notifications-deleted',
+    handler: async () => {
+      const startTime = Date.now()
+      const { purgeDeletedNotifications } = await import(
+        '@/features/notifications/services/notification-service'
+      )
+      const result = await purgeDeletedNotifications(30)
       return { ...result, success: true, duration: Date.now() - startTime }
     },
   },

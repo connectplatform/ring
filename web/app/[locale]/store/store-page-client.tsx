@@ -14,6 +14,7 @@ import {
   NicheCatalogView,
   NicheProductCard,
 } from '@/components/store/niche-catalog'
+import { productCardImageSrc } from '@/features/store/components/product-card'
 import { useCursorFeed } from '@/hooks/use-cursor-feed'
 import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
 import { RingBreadcrumbs } from '@/components/common/ring-breadcrumbs'
@@ -62,6 +63,16 @@ export default function StorePageClient({
   // Store and filtered record counts
   const [totalRecords, setTotalRecords] = useState(0)
   const [filteredRecords, setFilteredRecords] = useState<number | undefined>(undefined)
+  const [unavailableImageIds, setUnavailableImageIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [shippableMax, setShippableMax] = useState<Record<string, number | null>>({})
+  const markImageUnavailable = useCallback((productId: string) => {
+    setUnavailableImageIds((prev) => {
+      if (prev.has(productId)) return prev
+      const next = new Set(prev)
+      next.add(productId)
+      return next
+    })
+  }, [])
 
   // Key for comparing current debounced catalog filters (for use in price range tracking)
   const catalogFilterKey = useMemo(
@@ -117,13 +128,18 @@ export default function StorePageClient({
   }, [filters, debouncedFilters])
 
   // Asynchronously fetch products for the store page (with cursor for pagination)
+  const listFingerprintRef = useRef(filterFingerprint)
+  listFingerprintRef.current = filterFingerprint
+
   const fetchStorePage = useCallback(
     async (cursor: string | null) => {
+      const fingerprintAtStart = listFingerprintRef.current
+      const filtersForRequest = debouncedFiltersRef.current
       // Dynamic import for server action to avoid bundling on client
       const { getStoreProducts } = await import('@/app/_actions/store-products')
       const data = await getStoreProducts({
-        ...debouncedFiltersRef.current, // Always use latest debounced filters
-        limit: 24,
+        ...filtersForRequest,
+        limit: STORE_PAGE_SIZE,
         startAfter: cursor ?? undefined,
       })
 
@@ -131,9 +147,11 @@ export default function StorePageClient({
         throw new Error(data.error || 'Failed to load products')
       }
 
+      const stale = fingerprintAtStart !== listFingerprintRef.current
       // Convert result to array
       const newItems = Array.isArray(data.items) ? data.items : []
-      // Update record counters
+      // A cleared filter must not inherit the previous query's "0 found" count.
+      if (!stale) {
       setTotalRecords(data.total ?? newItems.length)
       setFilteredRecords(data.filteredTotal)
 
@@ -148,6 +166,7 @@ export default function StorePageClient({
 
       if (!cursor && data.nicheFacets) {
         onNicheFacetsUpdate?.(data.nicheFacets)
+      }
       }
 
       // Return results for infinite scroll feed
@@ -169,7 +188,7 @@ export default function StorePageClient({
   } = useCursorFeed<{ id: string }>({
     moduleId: 'store',
     locale,
-    limit: 24,
+    limit: STORE_PAGE_SIZE,
     filterFingerprint,
     initialItems: [],
     initialCursor: null,
@@ -195,13 +214,47 @@ export default function StorePageClient({
     filters.search !== '' ||
     filters.categories.length > 0 ||
     filters.priceMin > 0 ||
-    (filters.priceMax !== null && filters.priceMax !== undefined) ||
-    filters.inStock !== null
+    (filters.priceMax != null && filters.priceMax > 0) ||
+    filters.inStock !== null ||
+    Boolean(filters.vendor) ||
+    Boolean(filters.niche && Object.keys(filters.niche).length > 0)
 
   // Call counts update callback when records or filters change
   useEffect(() => {
     onCountsUpdate?.(totalRecords, hasActiveFilters ? filteredRecords : undefined)
   }, [totalRecords, filteredRecords, hasActiveFilters, onCountsUpdate])
+
+  const shippableKey = items.map((item) => item.id).join(',')
+  useEffect(() => {
+    const ids = shippableKey.split(',').filter(Boolean)
+    const missing = ids.filter((id) => !(id in shippableMax))
+    if (missing.length === 0) return
+    let cancelled = false
+    void (async () => {
+      const next: Record<string, number | null> = {}
+      for (let index = 0; index < missing.length; index += 40) {
+        const slice = missing.slice(index, index + 40)
+        const response = await fetch(
+          `/api/store/fulfillment/shippable?ids=${encodeURIComponent(slice.join(','))}`,
+          { credentials: 'include' },
+        )
+        if (!response.ok) continue
+        const body = (await response.json()) as {
+          items?: Array<{ productId?: string; max?: number | null }>
+        }
+        for (const row of body.items || []) {
+          if (!row.productId) continue
+          next[row.productId] = row.max === null || typeof row.max === 'number' ? row.max : 0
+        }
+      }
+      if (!cancelled && Object.keys(next).length > 0) {
+        setShippableMax((prev) => ({ ...prev, ...next }))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [shippableKey, shippableMax])
 
   // Main rendering logic
   return (
@@ -228,11 +281,15 @@ export default function StorePageClient({
           ))}
         </div>
       ) : (
-        <div className={NICHE_CATALOG_GRID_CLASS}>
-          {items.map((p) => (
-            <NicheProductCard key={p.id} product={p as StoreProduct} locale={locale} />
-          ))}
-        </div>
+        <StoreProductSections
+          items={items as StoreProduct[]}
+          locale={locale}
+          unavailableImageIds={unavailableImageIds}
+          onImageUnavailable={markImageUnavailable}
+          shippableMax={shippableMax}
+          withPhotoLabel={t('sectionWithPhoto')}
+          noPhotoLabel={t('sectionNoPhoto')}
+        />
       )}
       </div>
 
@@ -250,6 +307,103 @@ export default function StorePageClient({
       {hasMore && <div ref={sentinelRef} className="h-10" />}
     </div>
     </NicheCatalogView>
+  )
+}
+
+const STORE_PAGE_SIZE = 24
+
+function productHasPhoto(product: StoreProduct, unavailableImageIds: ReadonlySet<string>) {
+  return Boolean(productCardImageSrc(product)) && !unavailableImageIds.has(product.id)
+}
+
+function StoreProductSections({
+  items,
+  locale,
+  unavailableImageIds,
+  onImageUnavailable,
+  shippableMax,
+  withPhotoLabel,
+  noPhotoLabel,
+}: {
+  items: StoreProduct[]
+  locale: Locale
+  unavailableImageIds: ReadonlySet<string>
+  onImageUnavailable: (productId: string) => void
+  shippableMax: Record<string, number | null>
+  withPhotoLabel: string
+  noPhotoLabel: string
+}) {
+  // First fetched page stays the head. No-photo rows sit at the end of that
+  // page. Later infinite-scroll pages render after them, so the no-photo
+  // block does not get pushed down by every new fetch.
+  const head = items.slice(0, STORE_PAGE_SIZE)
+  const tail = items.slice(STORE_PAGE_SIZE)
+  const hasPhoto = (product: StoreProduct) => productHasPhoto(product, unavailableImageIds)
+  const headPhotos = head.filter(hasPhoto)
+  const noPhoto = [...head.filter((product) => !hasPhoto(product)), ...tail.filter((product) => !hasPhoto(product))]
+  const tailPhotos = tail.filter(hasPhoto)
+  const split = headPhotos.length > 0 && noPhoto.length > 0
+
+  return (
+    <div className="space-y-8">
+      {headPhotos.length > 0 ? (
+        <section>
+          {split ? (
+            <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted-foreground">
+              {withPhotoLabel}
+            </h2>
+          ) : null}
+          <div className={NICHE_CATALOG_GRID_CLASS}>
+            {headPhotos.map((product) => (
+              <NicheProductCard
+                key={product.id}
+                product={product}
+                locale={locale}
+                layout="photo"
+                onImageUnavailable={onImageUnavailable}
+                shippableMax={shippableMax[product.id]}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {noPhoto.length > 0 ? (
+        <section>
+          {split || tailPhotos.length > 0 ? (
+            <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted-foreground">
+              {noPhotoLabel}
+            </h2>
+          ) : null}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {noPhoto.map((product) => (
+              <NicheProductCard
+                key={product.id}
+                product={product}
+                locale={locale}
+                layout="plain"
+                shippableMax={shippableMax[product.id]}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {tailPhotos.length > 0 ? (
+        <section>
+          <div className={NICHE_CATALOG_GRID_CLASS}>
+            {tailPhotos.map((product) => (
+              <NicheProductCard
+                key={product.id}
+                product={product}
+                locale={locale}
+                layout="photo"
+                onImageUnavailable={onImageUnavailable}
+                shippableMax={shippableMax[product.id]}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
   )
 }
 

@@ -155,25 +155,32 @@ export default function StoreFiltersPanel({
     }
   }, [filters, onFiltersApplied])
 
-  // When catalog result set changes (from server action or parent props), sync [sliderMax] and [filters.priceMin/max]
+  // Catalog bounds drive the slider track only. Copying them into priceMin/priceMax
+  // marks a cleared filter as active and refetches, which is how "0 of N" comes back
+  // after Clear all. Clamp an explicit user range that fell outside the new catalog.
   useEffect(() => {
     if (!catalogPriceBounds) return
 
     setSliderMax(catalogPriceBounds.maxPrice)
+    if (!catalogPriceBounds.enabled) return
 
-    // Only update filter bounds if enabled (don't overwrite if unavailable)
-    if (!catalogPriceBounds.enabled) {
-      return
-    }
-
+    const minBound = catalogPriceBounds.minPrice
+    const maxBound = catalogPriceBounds.maxPrice
     setFilters((current) => {
-      const next = {
-        ...current,
-        priceMin: catalogPriceBounds.minPrice,
-        priceMax: catalogPriceBounds.maxPrice,
+      let priceMin = current.priceMin
+      let priceMax = current.priceMax
+      let changed = false
+      if (priceMin > maxBound) {
+        priceMin = PRICE_MIN
+        changed = true
       }
-      isApplyingFilters.current = true // signal for parent update
-      return next
+      if (priceMax != null && (priceMax > maxBound || priceMax < minBound)) {
+        priceMax = null
+        changed = true
+      }
+      if (!changed) return current
+      isApplyingFilters.current = true
+      return { ...current, priceMin, priceMax }
     })
   }, [catalogPriceBounds])
 
@@ -215,11 +222,15 @@ export default function StoreFiltersPanel({
 
   // Reset all filters and immediately push to parent
   const handleClearFilters = useCallback(() => {
+    if (priceChangeTimeoutRef.current) {
+      clearTimeout(priceChangeTimeoutRef.current)
+      priceChangeTimeoutRef.current = null
+    }
     const clearedFilters: StoreFilterState = {
       search: '',
       categories: [],
       priceMin: PRICE_MIN,
-      priceMax: priceFilterEnabled ? catalogPriceBounds?.maxPrice ?? sliderMax : null,
+      priceMax: null,
       currency: catalogFilterCurrency,
       vendor: '',
       inStock: null,
@@ -228,7 +239,7 @@ export default function StoreFiltersPanel({
     }
     setFilters(clearedFilters)
     onFiltersApplied?.(clearedFilters)
-  }, [priceFilterEnabled, catalogPriceBounds, sliderMax, catalogFilterCurrency, onFiltersApplied])
+  }, [catalogFilterCurrency, onFiltersApplied])
 
   // Toggle selection of a category chip (add/remove to filters.categories)
   // TODO: If category list is large, replace with controlled virtual list component for efficiency
@@ -242,19 +253,22 @@ export default function StoreFiltersPanel({
 
   // Memoized flag to quickly check if ANY filter is active (for UI bages/buttons)
   const hasActiveFilters = useMemo(() => {
-    return filters.search ||
+    const catalogMax = catalogPriceBounds?.maxPrice ?? sliderMax
+    const priceMaxActive =
+      filters.priceMax != null &&
+      (!priceFilterEnabled || filters.priceMax < catalogMax)
+    return Boolean(filters.search) ||
       filters.categories.length > 0 ||
-      filters.priceMin !== PRICE_MIN ||
-      (priceFilterEnabled &&
-        (filters.priceMin !== (catalogPriceBounds?.minPrice ?? PRICE_MIN) ||
-          filters.priceMax !== (catalogPriceBounds?.maxPrice ?? sliderMax))) ||
-      filters.currency !== MAIN_CURRENCY ||
-      filters.vendor ||
-      filters.inStock !== null
+      filters.priceMin > PRICE_MIN ||
+      priceMaxActive ||
+      Boolean(filters.vendor) ||
+      filters.inStock !== null ||
+      Boolean(filters.niche && Object.keys(filters.niche).length > 0)
   }, [filters, priceFilterEnabled, catalogPriceBounds, sliderMax])
 
-  // Which record count to show (filtered if defined, else total)
-  const displayRecords = filteredRecords !== undefined ? filteredRecords : totalRecords
+  // Which record count to show. A cleared filter must not keep the previous "0 found".
+  const displayRecords =
+    hasActiveFilters && filteredRecords !== undefined ? filteredRecords : totalRecords
 
   function getCategoryIcon(category: string) {
     const meta = STORE_VENDOR_CATEGORY_META[category as StoreVendorCategoryId]
@@ -283,11 +297,22 @@ export default function StoreFiltersPanel({
   return (
     <div className="flex flex-col relative min-h-0 text-foreground">
       {/* Fixed Header - filter label and count */}
-      <div className="flex-shrink-0 pb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Store className="w-5 h-5" />
-          {t('filters.searchLabel')}
-        </h2>
+      <div className="sticky top-0 z-10 -mx-1 flex-shrink-0 bg-background/95 px-1 pb-4 backdrop-blur-sm">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Store className="w-5 h-5" />
+            {t('filters.searchLabel')}
+          </h2>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="lg:hidden -mr-1 h-8 shrink-0 px-2 text-sm"
+            onClick={() => window.dispatchEvent(new Event('ring:close-floating-sidebar'))}
+          >
+            {t('product.close')}
+          </Button>
+        </div>
         {/* Display filtered/total result counts */}
         <p className="text-xs text-muted-foreground mt-1">
           {hasActiveFilters && filteredRecords !== undefined ? (

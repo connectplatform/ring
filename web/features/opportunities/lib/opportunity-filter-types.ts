@@ -1,13 +1,18 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Briefcase,
+  Building2,
   Calendar,
+  FlaskConical,
   GraduationCap,
   HandHeart,
+  Landmark,
   Package,
   Plug2,
+  Rocket,
   Server,
   Sparkles,
+  TrendingUp,
   Trophy,
   Users2,
   Zap,
@@ -58,6 +63,15 @@ const VERTICAL_VISUALS: Record<string, { icon: LucideIcon; color: string }> = {
   mcp_wanted: { icon: Server, color: 'bg-slate-500' },
   skillset_wanted: { icon: Sparkles, color: 'bg-indigo-500' },
   router_brief: { icon: Zap, color: 'bg-amber-500' },
+  // Cherkasy technopark (pack `technopark`)
+  investment_offer: { icon: TrendingUp, color: 'bg-sky-500' },
+  startup_pitch: { icon: Rocket, color: 'bg-indigo-500' },
+  grant_application: { icon: Landmark, color: 'bg-stone-500' },
+  research_collaboration: { icon: FlaskConical, color: 'bg-violet-500' },
+  service_offer: { icon: Briefcase, color: 'bg-cyan-500' },
+  talent_request: { icon: Users2, color: 'bg-blue-500' },
+  coworking_space: { icon: Building2, color: 'bg-emerald-500' },
+  equipment_sharing: { icon: Package, color: 'bg-amber-500' },
   bounty: { icon: Trophy, color: 'bg-yellow-500' },
 }
 

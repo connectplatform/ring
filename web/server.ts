@@ -23,7 +23,10 @@ loadEnvConfig(projectDir);
 
 const dev = process.env.NODE_ENV !== 'production';
 // Next internals should not use HOSTNAME=0.0.0.0 (k8s listen-all); keep bind separate.
-const listenHost = process.env.HOSTNAME ?? '0.0.0.0';
+// Dev default binds + prints localhost so the browser origin matches the
+// GCP OAuth allowlist (FedCM/GIS is scheme-exact: 0.0.0.0 is NOT localhost).
+// K8s sets HOSTNAME=0.0.0.0 explicitly for listen-all.
+const listenHost = process.env.HOSTNAME ?? 'localhost';
 const nextHostname =
   !listenHost || listenHost === '0.0.0.0' || listenHost === '::'
     ? 'localhost'

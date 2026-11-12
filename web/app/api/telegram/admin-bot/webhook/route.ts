@@ -25,9 +25,20 @@ import { logInteraction, logFailedRequest } from '@/lib/telegram/admin-bot/audit
 import { assertKnownUserRole, UserRolesArray } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 import { handleNewsCallback } from '@/lib/telegram/admin-bot/news-callback-handler'
+import {
+  handleStarsPreCheckout,
+  handleStarsSuccessfulPayment,
+} from '@/lib/telegram/stars-bot/payment-handler'
 
 interface TelegramUpdate {
   update_id: number
+  pre_checkout_query?: {
+    id: string
+    from: { id: number }
+    currency: string
+    invoice_payload: string
+    total_amount: number
+  }
   callback_query?: {
     id: string
     from: { id: number }
@@ -48,6 +59,13 @@ interface TelegramUpdate {
     }
     date: number
     text?: string
+    successful_payment?: {
+      currency: string
+      invoice_payload: string
+      telegram_payment_charge_id: string
+      provider_payment_charge_id?: string
+      total_amount: number
+    }
   }
 }
 
@@ -71,6 +89,18 @@ export async function POST(request: NextRequest) {
 
     // Parse Telegram update
     const update: TelegramUpdate = await request.json()
+
+    // Same-bot multiplex: Stars payments ride the admin webhook.
+    // Bot API allows one webhook per token; dispatch by update type.
+    if (update.pre_checkout_query) {
+      await handleStarsPreCheckout(update.pre_checkout_query)
+      return NextResponse.json({ ok: true }, { status: 200 })
+    }
+    const successfulPayment = update.message?.successful_payment
+    if (successfulPayment) {
+      await handleStarsSuccessfulPayment(successfulPayment)
+      return NextResponse.json({ ok: true }, { status: 200 })
+    }
 
     if (update.callback_query?.data?.startsWith('news_')) {
       const cq = update.callback_query

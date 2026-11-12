@@ -113,7 +113,19 @@
     "title": "Push-Benachrichtigungen aktivieren",
     "description": "Erhalten Sie Echtzeit-Updates zu Kollaborationen, Kommentaren und Publikationsstatus.",
     "enable": "Aktivieren",
-    "notNow": "Nicht jetzt"
+    "notNow": "Nicht jetzt",
+    "installTitle": "Für Benachrichtigungen installieren",
+    "installDescription": "iPhone und iPad erlauben Push nur über eine Web-App auf dem Home-Bildschirm (iOS 16.4+).",
+    "iosSteps": {
+      "step1": "Tippen Sie in Safari auf die Teilen-Schaltfläche",
+      "step2": "Wählen Sie „Zum Home-Bildschirm“",
+      "step3": "Öffnen Sie das neue Symbol und tippen Sie auf „Aktivieren“"
+    },
+    "dismiss": "Verstanden",
+    "newNotification": "Neue Benachrichtigung",
+    "errorTitle": "Etwas ist schiefgelaufen",
+    "errorEnable": "Benachrichtigungen konnten nicht aktiviert werden. Bitte versuchen Sie es erneut.",
+    "errorDisable": "Benachrichtigungen konnten nicht deaktiviert werden. Bitte versuchen Sie es erneut."
   },
   "typeLabels": {
     "opportunity_created": "Neue Möglichkeiten, die zu deinen Kriterien passen",
@@ -256,7 +268,12 @@
       "normal": "Normal",
       "low": "Niedrig"
     },
-    "selectNotification": "Benachrichtigung auswählen"
+    "selectNotification": "Benachrichtigung auswählen",
+    "delete": "Löschen",
+    "deleteSelected": "Auswahl löschen",
+    "undo": "Rückgängig",
+    "deleted": "Benachrichtigung gelöscht",
+    "deletedCount": "{count, plural, =1 {Benachrichtigung gelöscht} other {# Benachrichtigungen gelöscht}}"
   },
   "item": {
     "markRead": "Gelesen markieren",
@@ -288,7 +305,8 @@
       "message": "Nachrichten",
       "social": "Sozial",
       "kyc": "KYC"
-    }
+    },
+    "delete": "Benachrichtigung löschen"
   },
   "rail": {
     "subtitle": "Bleiben Sie über Ihre Aktivitäten auf dem Laufenden",
@@ -298,5 +316,24 @@
     "quietHours": "Ruhezeiten",
     "quietHoursDescription": "Stummschalten nicht dringender Benachrichtigungen während Ihrer Ruhezeiten",
     "quietHoursActiveHint": "Ruhezeiten sind aktiv — Benachrichtigungen werden in diesem Zeitraum stummgeschaltet"
+  },
+  "center": {
+    "connection": {
+      "connected": "Verbunden",
+      "connecting": "Verbinde...",
+      "reconnecting": "Wiederverbinden...",
+      "disconnected": "Getrennt",
+      "error": "Verbindungsfehler"
+    },
+    "unreadCount": "{count} ungelesen",
+    "updating": "Aktualisiere...",
+    "viewAll": "Alle Benachrichtigungen anzeigen",
+    "noMatch": "Keine passenden Benachrichtigungen",
+    "clearSearch": "Suche löschen",
+    "reconnect": "Neu verbinden",
+    "settings": "Benachrichtigungseinstellungen",
+    "close": "Benachrichtigungen schließen",
+    "bellAria": "{count, plural, =0 {Benachrichtigungen} other {Benachrichtigungen ({count} ungelesen)}}",
+    "newBadge": "neue"
   }
 }

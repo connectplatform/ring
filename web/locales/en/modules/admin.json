@@ -542,6 +542,8 @@
         "vendor": "Vendor entity",
         "price": "Price",
         "stock": "Stock",
+        "carts": "Carts",
+        "waiting": "{count} waiting",
         "status": "Status",
         "approval": "Approval",
         "actions": "Actions"

@@ -37,7 +37,9 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 interface NotificationCenterProps {
   className?: string;
@@ -97,11 +99,13 @@ export function NotificationCenter({
   } = useRealtimeNotifications();
 
   const { unreadCount: cachedUnreadCount, refreshUnreadCount } = useNotificationContext();
+  const t = useTranslations('modules.notifications.center');
+  const tList = useTranslations('modules.notifications.list');
 
   // Local state for notifications (combines WebSocket and initial load)
   const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
   const [isLoadingInitial, setIsLoadingInitial] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<boolean>(false);
 
   // React 19 useOptimistic for instant UI updates
   const [optimisticNotifications, addOptimisticUpdate] = useOptimistic(
@@ -148,7 +152,7 @@ export function NotificationCenter({
     if (!session?.user?.id || initialLoadComplete) return;
 
     setIsLoadingInitial(true);
-    setLoadError(null);
+    setLoadError(false);
 
     try {
       const response = await apiClient.get('/api/notifications', {
@@ -164,7 +168,7 @@ export function NotificationCenter({
       }
     } catch (error) {
       console.error('Failed to load initial notifications:', error);
-      setLoadError('Failed to load notifications');
+      setLoadError(true);
       // Don't prevent WebSocket connection on initial load failure
       setInitialLoadComplete(true);
     } finally {
@@ -240,13 +244,13 @@ export function NotificationCenter({
   useEffect(() => {
     if (connectionError) {
       toast({
-        title: 'Connection Error',
+        title: t('connection.error'),
         description: connectionError?.message || String(connectionError),
         variant: 'destructive',
         duration: 5000,
       });
     }
-  }, [connectionError]);
+  }, [connectionError, t]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -294,10 +298,11 @@ export function NotificationCenter({
       wsMarkAsRead([notificationId]);
     }
     
-    // Also update via API for persistence
+    // Also update via API for persistence.
+    // FIX: route exports POST only — the old PATCH call 405'd silently.
     startTransition(async () => {
       try {
-        const response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {
+        const response = await apiClient.post(`/api/notifications/${notificationId}/read`, undefined, {
           timeout: 3000,
           retries: 1
         });
@@ -328,14 +333,16 @@ export function NotificationCenter({
       wsMarkAllAsRead();
     }
     
-    // Also update via API for persistence
+    // Also update via API for persistence.
+    // FIX: route exports POST only — the old PATCH call 405'd and the button
+    // silently no-op'ed (the /notifications page banner already used POST).
     startTransition(async () => {
       try {
-        const response = await apiClient.patch('/api/notifications/read-all', {
+        const response = await apiClient.post('/api/notifications/read-all', undefined, {
           timeout: 5000,
           retries: 1
         });
-        
+
         if (!response.success) {
           console.error('Failed to mark all notifications as read');
         } else {
@@ -348,19 +355,20 @@ export function NotificationCenter({
   };
 
   /**
-   * Delete notification with optimistic update
+   * Delete notification with optimistic update + SD5 undo grace toast.
+   * Undo re-inserts via optimistic ADD (works even with the WS down).
    */
   const handleDeleteNotification = async (notificationId: string): Promise<void> => {
     // Instant optimistic UI update
     addOptimisticUpdate({ type: 'DELETE', id: notificationId });
-    
+
     // Clear from WebSocket cache if available
     if (isConnected) {
       // Since WebSocket hook doesn't have delete, we can clear and refresh
       wsClearNotifications();
       setTimeout(() => wsRefresh(), 100);
     }
-    
+
     // Delete via API for persistence
     startTransition(async () => {
       try {
@@ -368,11 +376,32 @@ export function NotificationCenter({
           timeout: 3000,
           retries: 1
         });
-        
+
         if (!response.success) {
           console.error('Failed to delete notification');
         } else {
           void refreshUnreadCount();
+          // SD5 undo: the tunnel `restore` event re-inserts the row in
+          // tunnel-driven feeds; the center refreshes its own data source.
+          const undo = async () => {
+            const restored = await apiClient.post(`/api/notifications/${notificationId}/restore`, undefined, {
+              timeout: 3000,
+              retries: 1
+            });
+            if (restored.success) {
+              void refreshUnreadCount();
+              wsRefresh();
+            }
+          };
+          toast({
+            title: tList('deleted'),
+            duration: 30000,
+            action: (
+              <ToastAction altText={tList('undo')} onClick={() => void undo()}>
+                {tList('undo')}
+              </ToastAction>
+            ),
+          });
         }
       } catch (error) {
         console.error('Failed to delete notification:', error);
@@ -383,11 +412,11 @@ export function NotificationCenter({
   // Connection status indicator component
   const ConnectionStatus = () => {
     const statusConfig = {
-      connected: { icon: Wifi, color: 'text-green-600', text: 'Connected' },
-      connecting: { icon: WifiOff, color: 'text-yellow-600 animate-pulse', text: 'Connecting...' },
-      reconnecting: { icon: RefreshCw, color: 'text-orange-600 animate-spin', text: 'Reconnecting...' },
-      disconnected: { icon: WifiOff, color: 'text-red-600', text: 'Disconnected' },
-      error: { icon: AlertCircle, color: 'text-red-600', text: 'Connection Error' }
+      connected: { icon: Wifi, color: 'text-green-600', text: t('connection.connected') },
+      connecting: { icon: WifiOff, color: 'text-yellow-600 animate-pulse', text: t('connection.connecting') },
+      reconnecting: { icon: RefreshCw, color: 'text-orange-600 animate-spin', text: t('connection.reconnecting') },
+      disconnected: { icon: WifiOff, color: 'text-destructive', text: t('connection.disconnected') },
+      error: { icon: AlertCircle, color: 'text-destructive', text: t('connection.error') }
     };
 
     const config = statusConfig[connectionStatus] || statusConfig.disconnected;
@@ -407,15 +436,15 @@ export function NotificationCenter({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'relative p-2 rounded-full hover:bg-gray-100 transition-all duration-200',
-          isOpen && 'bg-gray-100',
+          'relative p-2 rounded-full hover:bg-muted transition-colors duration-200',
+          isOpen && 'bg-muted',
           (isNavigating || isPending) && 'opacity-75'
         )}
-        aria-label={`Notifications ${optimisticUnreadCount > 0 ? `(${optimisticUnreadCount} unread)` : ''}`}
+        aria-label={t('bellAria', { count: optimisticUnreadCount })}
         disabled={isNavigating}
       >
                 <Bell className="w-6 h-6 text-muted-foreground" />
-        
+
         {/* Real-time unread count badge */}
         <AnimatePresence>
           {optimisticUnreadCount > 0 && (
@@ -424,7 +453,7 @@ export function NotificationCenter({
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
               className={cn(
-                "absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1",
+                "absolute -top-1 -right-1 min-w-[20px] h-5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full flex items-center justify-center px-1",
                 isPending && "animate-pulse"
               )}
             >
@@ -442,14 +471,14 @@ export function NotificationCenter({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[600px] flex flex-col overflow-hidden"
+            className="absolute right-0 mt-2 w-96 rounded-lg shadow-xl border border-border bg-popover text-popover-foreground z-50 max-h-[600px] flex flex-col overflow-hidden"
           >
             {/* Header with Connection Status */}
-            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-white to-gray-50">
+            <div className="p-4 border-b border-border bg-muted/30">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Notifications
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {tList('allTypes')}
                   </h3>
                   <ConnectionStatus />
                 </div>
@@ -458,31 +487,31 @@ export function NotificationCenter({
                   {!isConnected && !isConnecting && (
                     <button
                       onClick={() => reconnectWebSocket()}
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      aria-label="Reconnect"
+                      className="p-1 rounded hover:bg-muted transition-colors"
+                      aria-label={t('reconnect')}
                     >
                       <RefreshCw className="w-4 h-4 text-muted-foreground" />
                     </button>
                   )}
-                  
+
                   {/* Settings button */}
                   <button
                     onClick={handleSettings}
                     className={cn(
-                      "p-1 rounded hover:bg-gray-100 transition-colors",
+                      "p-1 rounded hover:bg-muted transition-colors",
                       (isNavigating || isPending) && "opacity-50"
                     )}
-                    aria-label="Notification settings"
+                    aria-label={t('settings')}
                     disabled={isNavigating || isPending}
                   >
                     <Settings className="w-4 h-4 text-muted-foreground" />
                   </button>
-                  
+
                   {/* Close button */}
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="p-1 rounded hover:bg-gray-100 transition-colors"
-                    aria-label="Close notifications"
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                    aria-label={t('close')}
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>
@@ -491,13 +520,13 @@ export function NotificationCenter({
 
               {/* Search Bar */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden />
                 <input
                   type="text"
-                  placeholder="Search notifications..."
+                  placeholder={tList('searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm transition-colors duration-200 bg-transparent"
                   disabled={isPending}
                 />
               </div>
@@ -505,18 +534,18 @@ export function NotificationCenter({
               {/* Quick Actions */}
               {optimisticUnreadCount > 0 && (
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-sm text-muted-foreground">
-                    {optimisticUnreadCount} unread
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    {t('unreadCount', { count: optimisticUnreadCount })}
                   </span>
                   <button
                     onClick={handleMarkAllAsRead}
-                    disabled={isPending || !isConnected}
+                    disabled={isPending}
                     className={cn(
-                      "text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors",
-                      (isPending || !isConnected) && "opacity-50 cursor-not-allowed"
+                      "text-sm text-primary hover:text-primary/80 font-medium transition-colors",
+                      isPending && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    {isPending ? 'Updating...' : 'Mark all as read'}
+                    {isPending ? t('updating') : tList('markAllAsRead')}
                   </button>
                 </div>
               )}
@@ -526,32 +555,32 @@ export function NotificationCenter({
             <ScrollArea className="flex-1">
               {isLoadingInitial ? (
                 <div className="p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-sm text-muted-foreground mt-2">Loading notifications...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-sm text-muted-foreground mt-2">{tList('loading')}</p>
                 </div>
               ) : loadError && !isConnected ? (
                 <div className="p-8 text-center">
-                  <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-                  <p className="text-sm text-red-600 mb-2">{loadError}</p>
+                  <AlertCircle className="w-12 h-12 text-destructive/60 mx-auto mb-3" aria-hidden />
+                  <p className="text-sm text-destructive mb-2">{tList('errorTitle')}</p>
                   <button
                     onClick={loadInitialNotifications}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="text-sm text-primary hover:text-primary/80"
                   >
-                    Try again
+                    {tList('retry')}
                   </button>
                 </div>
               ) : recentNotifications.length === 0 ? (
                 <div className="p-8 text-center">
-                  <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <Bell className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" aria-hidden />
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? 'No notifications match your search' : 'No notifications yet'}
+                    {searchQuery ? t('noMatch') : tList('emptyTitle')}
                   </p>
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="text-sm text-blue-600 hover:text-blue-800 mt-2"
+                      className="text-sm text-primary hover:text-primary/80 mt-2"
                     >
-                      Clear search
+                      {t('clearSearch')}
                     </button>
                   )}
                 </div>
@@ -565,7 +594,7 @@ export function NotificationCenter({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2 }}
-                        className="border-b border-gray-100 last:border-b-0"
+                        className="border-b border-border last:border-b-0"
                       >
                         <NotificationItem
                           notification={notification}
@@ -581,22 +610,22 @@ export function NotificationCenter({
 
             {/* Footer */}
             {recentNotifications.length > 0 && (
-              <div className="p-3 border-t border-gray-200 bg-gray-50">
+              <div className="p-3 border-t border-border bg-muted/20">
                 <button
                   onClick={handleViewAll}
                   disabled={isNavigating || isPending}
                   className={cn(
-                    "w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-2 rounded-md hover:bg-white transition-all duration-200",
+                    "w-full text-center text-sm text-primary hover:text-primary/80 font-medium py-2 rounded-md hover:bg-background transition-colors duration-200",
                     (isNavigating || isPending) && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   {isNavigating ? (
                     <span className="flex items-center justify-center">
                       <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Loading...
+                      {tList('loading')}
                     </span>
                   ) : (
-                    'View all notifications'
+                    t('viewAll')
                   )}
                 </button>
               </div>
@@ -618,13 +647,14 @@ interface NotificationBadgeProps {
   animated?: boolean;
 }
 
-export function NotificationBadge({ 
-  className, 
+export function NotificationBadge({
+  className,
   onClick,
-  animated = true 
+  animated = true
 }: NotificationBadgeProps) {
   const { unreadCount } = useNotificationContext();
   const { isConnected } = useRealtimeConnection();
+  const t = useTranslations('modules.notifications.center');
 
   if (unreadCount === 0) {
     return null;
@@ -640,18 +670,18 @@ export function NotificationBadge({
         whileTap={{ scale: 0.95 }}
         onClick={onClick}
         className={cn(
-          'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-all duration-200',
-          isConnected 
-            ? 'bg-red-100 text-red-800 hover:bg-red-200' 
-                  : 'bg-gray-100 text-muted-foreground',
+          'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200',
+          isConnected
+            ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                  : 'bg-muted text-muted-foreground',
           animated && 'animate-pulse',
           className
         )}
       >
-        <span className="mr-1">{unreadCount > 99 ? '99+' : unreadCount}</span>
-        <span>new</span>
+        <span className="mr-1 tabular-nums">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        <span>{t('newBadge')}</span>
         {!isConnected && (
-          <WifiOff className="w-3 h-3 ml-1" />
+          <WifiOff className="w-3 h-3 ml-1" aria-hidden />
         )}
       </motion.button>
     </AnimatePresence>
@@ -666,6 +696,7 @@ export function NotificationToast() {
   const { lastNotification } = useRealtimeNotifications();
   const { data: session } = useSession();
   const [displayedNotification, setDisplayedNotification] = useState<Notification | null>(null);
+  const t = useTranslations('modules.notifications.center');
 
   useEffect(() => {
     if (lastNotification && session?.user?.id) {
@@ -713,11 +744,11 @@ export function NotificationToast() {
         initial={{ opacity: 0, y: 50, x: 50 }}
         animate={{ opacity: 1, y: 0, x: 0 }}
         exit={{ opacity: 0, y: 50, x: 50 }}
-        className="fixed bottom-4 right-4 max-w-sm bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50"
+        className="fixed bottom-4 right-4 max-w-sm rounded-lg shadow-lg border border-border bg-popover text-popover-foreground p-4 z-50"
       >
         <div className="flex items-start space-x-3">
           <div className="flex-shrink-0">
-            <CheckCircle className="w-5 h-5 text-green-500" />
+            <CheckCircle className="w-5 h-5 text-green-600" aria-hidden />
           </div>
           <div className="flex-1">
                 <h4 className="text-sm font-medium text-foreground">
@@ -729,9 +760,10 @@ export function NotificationToast() {
           </div>
           <button
             onClick={() => setDisplayedNotification(null)}
-            className="flex-shrink-0 p-1 rounded hover:bg-gray-100"
+            className="flex-shrink-0 p-1 rounded hover:bg-muted"
+            aria-label={t('close')}
           >
-            <X className="w-4 h-4 text-gray-400" />
+            <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
       </motion.div>

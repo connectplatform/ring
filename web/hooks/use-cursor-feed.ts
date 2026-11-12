@@ -63,6 +63,7 @@ export function useCursorFeed<T extends { id: string }>({
 }: UseCursorFeedOptions<T>): UseCursorFeedResult<T> {
   const hydratedRef = useRef(false)
   const inFlightRef = useRef(false)
+  const flightTokenRef = useRef(0)
   const lastFingerprintRef = useRef(filterFingerprint)
   const needsInitialFetchRef = useRef(false)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -167,6 +168,9 @@ export function useCursorFeed<T extends { id: string }>({
     setError(null)
     hydratedRef.current = true
     needsInitialFetchRef.current = initialItems.length === 0
+    // Invalidate the in-flight page so its response cannot overwrite this reset.
+    flightTokenRef.current += 1
+    inFlightRef.current = false
   }, [filterFingerprint, initialCursor, initialItems, locale, moduleId])
 
   // Refs keep loadPage/reload identities stable across item/cursor updates so
@@ -189,14 +193,21 @@ export function useCursorFeed<T extends { id: string }>({
       if (!enabledRef.current || inFlightRef.current) return
       if (!reset && (!hasMoreRef.current || !cursorRef.current)) return
 
+      const token = ++flightTokenRef.current
       inFlightRef.current = true
       setLoading(true)
       setError(null)
 
       const requestCursor = reset ? null : cursorRef.current
+      const fingerprintAtStart = lastFingerprintRef.current
+      const stillCurrent = () =>
+        token === flightTokenRef.current && fingerprintAtStart === lastFingerprintRef.current
 
       try {
         const page = await fetchPageRef.current(requestCursor)
+        // A Clear-all (or any filter change) can resolve after a newer request.
+        // Drop that payload so it cannot replace the visible list with 0 rows.
+        if (!stillCurrent()) return
         const fetched = page.items ?? []
 
         const base = reset ? [] : itemsRef.current
@@ -225,13 +236,16 @@ export function useCursorFeed<T extends { id: string }>({
 
         persistSession(merged, nextCursor, nextHasMore, getScrollY())
       } catch (err) {
+        if (!stillCurrent()) return
         console.error(`[useCursorFeed:${moduleId}] load error`, err)
         setError(err instanceof Error ? err.message : 'Failed to load feed')
         setHasMore(false)
         setCursor(null)
       } finally {
-        setLoading(false)
-        inFlightRef.current = false
+        if (token === flightTokenRef.current) {
+          setLoading(false)
+          inFlightRef.current = false
+        }
       }
     },
     [getScrollY, moduleId, persistSession],

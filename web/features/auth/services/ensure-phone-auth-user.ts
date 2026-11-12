@@ -96,7 +96,7 @@ export async function ensurePhoneAuthUser(
       name: null,
       image: null,
       emailVerified: null,
-      role: UserRolesArray.visitor,
+      role: UserRolesArray.subscriber,
     })
 
     const nowIso = new Date().toISOString()

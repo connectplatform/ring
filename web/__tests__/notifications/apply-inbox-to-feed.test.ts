@@ -90,4 +90,27 @@ describe('applyInboxToFeed', () => {
     )
     expect(next).toBe(items)
   })
+
+  it('re-inserts a restored row (SD5 undo) and honors the unread filter', () => {
+    const next = applyInboxToFeed(
+      [],
+      {
+        action: 'restore',
+        notification: { id: 'a', title: 'Title a', type: NotificationType.SYSTEM_UPDATE },
+      },
+      'all',
+    )
+    expect(next.map((item) => item.id)).toEqual(['a'])
+
+    // Restored READ row stays hidden under the unread filter.
+    const kept = applyInboxToFeed(
+      [],
+      {
+        action: 'restore',
+        notification: { id: 'b', title: 'Title b', readAt: '2026-01-02T00:00:00.000Z' },
+      },
+      'unread',
+    )
+    expect(kept).toEqual([])
+  })
 })

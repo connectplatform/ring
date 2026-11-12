@@ -14,6 +14,8 @@ import type { StoreProduct } from '@/features/store/types'
 export type ServerCartLine = {
   productId: string
   qty: number
+  /** Backorder. qty stays 0 until a warehouse can ship. */
+  waiting?: boolean
 }
 
 export type ServerCartDoc = {
@@ -30,12 +32,57 @@ function cartDocId(userId: string): string {
 }
 
 function normalizeLines(items: ServerCartLine[]): ServerCartLine[] {
-  return items
-    .filter((i) => i.productId && Number.isFinite(i.qty) && i.qty > 0)
-    .map((i) => ({
-      productId: String(i.productId),
-      qty: Math.max(1, Math.floor(i.qty)),
-    }))
+  const seen = new Set<string>()
+  const lines: ServerCartLine[] = []
+  for (const item of items) {
+    const productId = String(item.productId || '').trim()
+    if (!productId || seen.has(productId)) continue
+    seen.add(productId)
+    if (item.waiting) {
+      lines.push({ productId, qty: 0, waiting: true })
+      continue
+    }
+    if (!Number.isFinite(item.qty) || item.qty <= 0) continue
+    lines.push({ productId, qty: Math.max(1, Math.floor(item.qty)), waiting: false })
+  }
+  return lines
+}
+
+async function replaceCartLineIndex(userId: string, items: ServerCartLine[]): Promise<void> {
+  const { getSharedPgPool } = await import('@/lib/database/shared-pg-pool')
+  const pool = await getSharedPgPool()
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('DELETE FROM store_cart_lines WHERE user_id = $1', [userId])
+    if (items.length > 0) {
+      await client.query(
+        `INSERT INTO store_cart_lines (user_id, product_id, qty, waiting)
+         SELECT $1, x.product_id, x.qty, x.waiting
+           FROM jsonb_to_recordset($2::jsonb) AS x(product_id varchar, qty int, waiting boolean)`,
+        [
+          userId,
+          JSON.stringify(
+            items.map((line) => ({
+              product_id: line.productId,
+              qty: line.waiting ? 0 : line.qty,
+              waiting: Boolean(line.waiting),
+            })),
+          ),
+        ],
+      )
+    }
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    const { logger } = await import('@/lib/logger')
+    logger.warn('store_cart_lines index was not updated', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    client.release()
+  }
 }
 
 export async function getServerCart(userId: string): Promise<ServerCartDoc> {
@@ -50,6 +97,7 @@ export async function getServerCart(userId: string): Promise<ServerCartDoc> {
         items.map((i) => ({
           productId: String(i.productId || ''),
           qty: Number(i.qty),
+          waiting: Boolean(i.waiting),
         })),
       ),
       updatedAt: String(existing.data.updatedAt || new Date().toISOString()),
@@ -107,7 +155,11 @@ export async function setServerCart(
     })
   }
 
-  await syncCartSoftHolds(userId, holdItems)
+  await syncCartSoftHolds(
+    userId,
+    holdItems.filter((line) => line.quantity > 0),
+  )
+  await replaceCartLineIndex(userId, normalized)
   return doc
 }
 
@@ -121,7 +173,11 @@ export async function addToServerCart(
   const nextItems = existing
     ? cart.items.map((i) =>
         i.productId === productId
-          ? { ...i, qty: i.qty + Math.max(1, Math.floor(qtyDelta)) }
+          ? {
+              productId,
+              qty: (i.waiting ? 0 : i.qty) + Math.max(1, Math.floor(qtyDelta)),
+              waiting: false,
+            }
           : i,
       )
     : [...cart.items, { productId, qty: Math.max(1, Math.floor(qtyDelta)) }]

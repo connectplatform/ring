@@ -214,6 +214,8 @@ export interface CartItem {
   selectedVariants?: Record<string, string> // Phase 2: variant name -> value
   finalPrice?: number // Price including variant modifiers
   isPreorder?: boolean // Flag for preorder items (stock=0 at time of cart add)
+  /** Backorder. Shown at qty 0 until a warehouse can ship. */
+  waiting?: boolean
 }
 
 export interface CheckoutInfo {

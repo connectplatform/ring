@@ -66,7 +66,14 @@ export default async function AdminUsersPage({
   const adminLabels = buildModulesAdminLabels(t)
 
   return (
-    <AdminWrapper locale={validLocale} pageContext="users" labels={adminLabels}>
+    <AdminWrapper
+      locale={validLocale}
+      pageContext="users"
+      labels={adminLabels}
+      // The right rail duplicates the center-pane tabs nav on this tabbed page and
+      // steals width from the users table — center pane fills available width.
+      showRightRail={false}
+    >
       <AdminUsersDashboardClient
         initialUsers={usersPage.items}
         initialHasMore={usersPage.hasMore}

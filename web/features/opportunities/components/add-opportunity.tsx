@@ -121,6 +121,7 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: false,
       showApplicationDeadline: false,
+      ...(policy.formOverrides ?? {}),
     }
   }
   const configs = {

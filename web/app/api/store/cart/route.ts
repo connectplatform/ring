@@ -24,7 +24,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        items: cart.items.map((i) => ({ id: i.productId, qty: i.qty })),
+        items: cart.items.map((i) => ({ id: i.productId, qty: i.qty, waiting: Boolean(i.waiting) })),
         updatedAt: cart.updatedAt,
       },
     })
@@ -54,17 +54,22 @@ export async function POST(req: NextRequest) {
 
     const rawItems = Array.isArray(body?.items) ? body.items : []
     const items: ServerCartLine[] = rawItems
-      .map((item: Record<string, unknown>) => ({
-        productId: String(item.productId || item.id || ''),
-        qty: Math.max(1, Math.floor(Number(item.qty ?? item.quantity ?? 1) || 1)),
-      }))
+      .map((item: Record<string, unknown>) => {
+        const waiting = item.waiting === true
+        const qty = Math.floor(Number(item.qty ?? item.quantity ?? (waiting ? 0 : 1)))
+        return {
+          productId: String(item.productId || item.id || ''),
+          qty: waiting ? 0 : Math.max(1, Number.isFinite(qty) ? qty : 1),
+          waiting,
+        }
+      })
       .filter((i: ServerCartLine) => Boolean(i.productId))
 
     const cart = await setServerCart(session.user.id, items)
     return NextResponse.json({
       success: true,
       data: {
-        items: cart.items.map((i) => ({ id: i.productId, qty: i.qty })),
+        items: cart.items.map((i) => ({ id: i.productId, qty: i.qty, waiting: Boolean(i.waiting) })),
         updatedAt: cart.updatedAt,
       },
     })

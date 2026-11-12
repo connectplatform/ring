@@ -1,5 +1,6 @@
 import React from 'react'
 import { NotificationProvider } from '@/features/notifications/components/notification-provider'
+import { FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import { TelegramMiniAppLocaleSync } from '@/components/providers/telegram-mini-app-locale-sync'
 import { TelegramMiniAppChromeSync } from '@/components/providers/telegram-mini-app-chrome-sync'
@@ -71,6 +72,9 @@ export async function LocaleAppChrome({
         <TelegramMiniAppChromeSync />
         {/* Must sit under NextIntlClientProvider — banners use useTranslations + next-intl router. */}
         <GlobalTunnelListeners />
+        {/* Localized push/permission prompt — needs BOTH contexts: FCM (ancestor
+            AppClientShell) and I18nProvider (this tree). Suppresses itself on login. */}
+        <FCMPermissionPrompt />
         {isCreditRewardsEnabled() ? <CreditRewardReceivedListener /> : null}
         <UserOnboardingGate
           pendingSegments={pendingOnboardingSegments}

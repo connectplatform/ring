@@ -4,10 +4,11 @@ import {
   resolvePersistedUserRole,
   UserRolesArray,
 } from '@/features/auth/user-role';
-import {
-  getNotificationService,
-  isNotificationServiceAvailable,
-} from '@/features/notifications/services/notification-service-loader';
+// FIX: direct import — the loader's CJS require() returned a shape without
+// named exports under the custom-server runtime (Turbopack), 500'ing every
+// loader-based action. The GET route already direct-imports and works.
+import { markNotificationAsRead } from '@/features/notifications/services/notification-service';
+import { isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 // import { logger } from '@/lib/logger'; // Unused import, TODO: Prefer native Next.js logger or edge runtime logging
 
 /**
@@ -95,11 +96,7 @@ export async function POST(
     });
 
     // TODO: Migrate to server actions if possible for atomicity and SSR streaming
-    const notificationService = getNotificationService();
-
-    // Mark the notification as read for the specific user
-    // TODO: Add return value/confirmation for logging and robust client feedback
-    await notificationService.markNotificationAsRead(notificationId, userId);
+    await markNotificationAsRead(notificationId, userId);
 
     // (8) Respond to client on success
     console.log(

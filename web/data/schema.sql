@@ -1902,6 +1902,25 @@ COMMENT ON TABLE public.store_user_carts IS 'Session cart mirror for authenticat
 
 
 --
+-- Name: store_cart_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.store_cart_lines (
+    user_id character varying(255) NOT NULL,
+    product_id character varying(255) NOT NULL,
+    qty integer DEFAULT 0 NOT NULL,
+    waiting boolean DEFAULT false NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT store_cart_lines_pkey PRIMARY KEY (user_id, product_id),
+    CONSTRAINT store_cart_lines_qty_nonnegative CHECK (qty >= 0)
+);
+
+COMMENT ON TABLE public.store_cart_lines IS 'Cart demand index. One row per buyer and product. waiting=true is a backorder held at qty 0 until a warehouse can ship.';
+
+CREATE INDEX idx_store_cart_lines_product ON public.store_cart_lines USING btree (product_id) INCLUDE (qty, waiting);
+
+
+--
 -- Name: subscription_ledger; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2010,6 +2029,7 @@ COMMENT ON COLUMN public.telegram_admin_audit.result IS 'Operation results and r
 --
 
 COMMENT ON COLUMN public.telegram_admin_audit.error IS 'Error message if operation failed';
+
 
 
 --
@@ -7406,6 +7426,7 @@ INSERT INTO public.schema_versions (version, description, applied_at, applied_by
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('045', '045_docs_media_and_enrichment: generated_docs_media + docs_article_enrichment', '2026-08-04 00:00:00+03', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('4.1.0', 'Flattened SSOT: schema.sql absorbs migrations through 043 + 2026-06-13 notification_preferences', '2026-08-06 14:54:52.780787+03', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('044', 'store_user_carts: authenticated buyer cart mirror for agent commerce', '2026-08-06 14:54:53.63468+03', 'ring_user');
+INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('055', 'store_cart_lines: indexed cart demand for backorders and vendor interest', '2026-11-09 12:00:00+02', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('056', 'token_mint_events: audit log for superadmin native-token treasury mints', '2026-11-10 17:30:00+02', 'ring_user');
 INSERT INTO public.schema_versions (version, description, applied_at, applied_by) VALUES ('4.0.4-push-subscriptions-jsonb', 'push_subscriptions JSONB for RFC web-push dual-stack', '2026-08-06 14:54:53.693803+03', 'ring_user');
 

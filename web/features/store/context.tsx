@@ -30,6 +30,7 @@ interface StoreContextType {
     product: StoreProduct,
     options?: { next?: number },
   ) => Promise<{ ok: boolean; max: number | null; message?: string }>
+  addBackorder: (product: StoreProduct) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -129,7 +130,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [aiRecommendedProducts, setAiRecommendedProducts] = useState<StoreProduct[]>([])
   const [isLoadingEnhanced, setIsLoadingEnhanced] = useState(false)
 
-  const [rawCart, setRawCart] = useLocalStorage<{ id: string; qty: number }[]>(`ring_cart`, [])
+  const [rawCart, setRawCart] = useLocalStorage<{ id: string; qty: number; waiting?: boolean }[]>(`ring_cart`, [])
   const [appliedPromoCode, setAppliedPromoCode] = useLocalStorage<string | null>('ring_store_promo', null)
   const [stockNotice, setStockNotice] = useState<string | null>(null)
   const [storefrontSettings, setStorefrontSettings] = useState<import('@/features/store/types/store-settings').StoreSettingsData | null>(null)
@@ -152,14 +153,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/store/cart', { credentials: 'include' })
       if (!res.ok) return
       const json = (await res.json()) as {
-        data?: { items?: Array<{ id: string; qty: number }> }
+        data?: { items?: Array<{ id: string; qty: number; waiting?: boolean }> }
       }
       const items = Array.isArray(json.data?.items) ? json.data!.items! : []
       skipNextServerPush.current = true
       setRawCart(
         items
           .filter((i) => i && typeof i.id === 'string' && Number.isFinite(i.qty))
-          .map((i) => ({ id: i.id, qty: Math.max(1, Math.floor(i.qty)) })),
+          .map((i) => ({
+            id: i.id,
+            qty: i.waiting ? 0 : Math.max(1, Math.floor(i.qty)),
+            waiting: Boolean(i.waiting),
+          })),
       )
     } catch {
       /* offline */
@@ -247,7 +252,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const source = Array.isArray(rawCart)
       ? rawCart.filter((entry) => entry && typeof entry.id === 'string' && typeof entry.qty === 'number' && Number.isFinite(entry.qty))
       : []
-    return source.map(({ id, qty }) => ({
+    return source.map(({ id, qty, waiting }) => ({
       product: productMap.get(id) || {
         id,
         name: 'Unknown',
@@ -255,7 +260,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         currency: MAIN_CURRENCY as StoreProduct['currency'],
         inStock: false,
       },
-      quantity: Math.max(0, Math.floor(qty)),
+      quantity: waiting ? 0 : Math.max(0, Math.floor(qty)),
+      waiting: Boolean(waiting),
     }))
   }, [rawCart, products])
 
@@ -335,13 +341,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             entry.id &&
             typeof entry.qty === 'number' &&
             Number.isFinite(entry.qty) &&
-            entry.qty > 0,
+            (entry.qty > 0 || entry.waiting),
         )
         .map((entry) => {
           const product = cartItems.find((c) => c.product?.id === entry.id)?.product
+          const waiting = Boolean(entry.waiting)
           return {
             productId: entry.id,
-            quantity: Math.max(1, Math.floor(entry.qty)),
+            quantity: waiting ? 0 : Math.max(1, Math.floor(entry.qty)),
+            waiting,
             digitalProduct: product?.digitalProduct,
             instantDelivery: product?.instantDelivery,
           }
@@ -352,7 +360,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: lines.map((l) => ({ id: l.productId, qty: l.quantity })),
+          items: lines.map((l) => ({
+            id: l.productId,
+            qty: l.quantity,
+            waiting: l.waiting,
+          })),
         }),
         credentials: 'include',
       })
@@ -395,13 +407,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return { ok: true, max: null }
   }
 
+  const addBackorder = (product: StoreProduct) => {
+    setStockNotice(null)
+    setRawCart((prev) => {
+      const found = prev.find((item) => item.id === product.id)
+      if (found?.waiting) return prev
+      if (found) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, qty: 0, waiting: true } : item,
+        )
+      }
+      return [...prev, { id: product.id, qty: 0, waiting: true }]
+    })
+  }
+
   const removeFromCart = (productId: string) => {
     setRawCart(prev => prev.filter(i => i.id !== productId))
   }
 
   const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) return removeFromCart(productId)
-    setRawCart(prev => prev.map(i => i.id === productId ? { ...i, qty: quantity } : i))
+    if (quantity <= 0) {
+      setRawCart((prev) =>
+        prev.map((item) => (item.id === productId ? { ...item, qty: 0, waiting: true } : item)),
+      )
+      return
+    }
+    setRawCart((prev) =>
+      prev.map((item) =>
+        item.id === productId ? { ...item, qty: quantity, waiting: false } : item,
+      ),
+    )
   }
 
   const clearCart = () => {
@@ -423,8 +458,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const checkout = async (info: CheckoutInfo) => {
     if (!service) throw new Error('Store service not ready')
-    const result = await service.checkout(cartItems, info)
-    clearCart()
+    const payable = cartItems.filter((item) => !item.waiting && item.quantity > 0)
+    const result = await service.checkout(payable, info)
+    setRawCart((prev) => prev.filter((item) => item.waiting))
     return result
   }
 
@@ -441,6 +477,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       cartItems,
       addToCart,
+      addBackorder,
       removeFromCart,
       updateQuantity,
       clearCart,

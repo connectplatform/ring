@@ -18,9 +18,23 @@ export function NicheCatalogView({ children }: { children: ReactNode }) {
 export function NicheProductCard({
   product,
   locale,
+  layout = 'photo',
+  onImageUnavailable,
+  shippableMax,
 }: {
   product: StoreProduct
   locale: Locale
+  layout?: 'photo' | 'plain'
+  onImageUnavailable?: (productId: string) => void
+  shippableMax?: number | null
 }) {
-  return <ProductCard product={product} locale={locale} />
+  return (
+    <ProductCard
+      product={product}
+      locale={locale}
+      layout={layout}
+      onImageUnavailable={onImageUnavailable}
+      shippableMax={shippableMax}
+    />
+  )
 }

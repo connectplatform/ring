@@ -82,5 +82,6 @@
     "escrowHeldTitle": "Ескроу профінансовано",
     "escrowHeldBody": "Кошти утримано для завдання",
     "viewTask": "Переглянути"
-  }
+  },
+  "unitMainCurrency": "Основна валюта"
 }

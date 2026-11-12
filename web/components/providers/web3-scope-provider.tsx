@@ -43,11 +43,14 @@ function Web3ScopeProviderInner({ children }: Web3ScopeProviderProps) {
   const [Web3Provider, setWeb3Provider] = useState<Web3ProviderComponent | null>(null)
   const needsWeb3 = pathNeedsWeb3(pathWithoutLocale)
 
+  // FIX (WagmiProviderNotFoundError): retain wagmi once loaded. Removing the
+  // provider mid-tree on route change (e.g. /wallet -> /notifications) crashed
+  // still-visible wallet components that call useConnection()/useBalance
+  // during the transition, aborting navigation ("stuck on /wallet").
+  // Lazy first-load stays: on non-web3 paths we simply never load the chunk.
   useEffect(() => {
-    if (!needsWeb3) {
-      setWeb3Provider(null)
-      return
-    }
+    if (Web3Provider) return
+    if (!needsWeb3) return
     let cancelled = false
     import('@/providers/web3-provider').then((mod) => {
       if (!cancelled) setWeb3Provider(() => mod.Web3Provider)
@@ -55,7 +58,7 @@ function Web3ScopeProviderInner({ children }: Web3ScopeProviderProps) {
     return () => {
       cancelled = true
     }
-  }, [needsWeb3])
+  }, [needsWeb3, Web3Provider])
 
   if (!needsWeb3 || !Web3Provider) {
     return <>{children}</>

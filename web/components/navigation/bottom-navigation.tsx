@@ -187,6 +187,125 @@ function CenterAddButton({ onClick }: { onClick: () => void }) {
 }
 
 
+function useKeyboardOverlap(): number {
+  const [overlap, setOverlap] = useState(0)
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+    const measure = () => {
+      const covered = window.innerHeight - viewport.height - viewport.offsetTop
+      setOverlap(covered > 72 ? Math.round(covered) : 0)
+    }
+    measure()
+    viewport.addEventListener('resize', measure)
+    viewport.addEventListener('scroll', measure)
+    return () => {
+      viewport.removeEventListener('resize', measure)
+      viewport.removeEventListener('scroll', measure)
+    }
+  }, [])
+  return overlap
+}
+
+/** Language | publisher/version | theme. Same row as the platform menu. */
+function MobileMenuUtilityRow({
+  onLocaleChange,
+  roomy = false,
+}: {
+  onLocaleChange?: () => void
+  roomy?: boolean
+}) {
+  const t = useTranslations('navigation')
+  const { setTheme, theme, resolvedTheme } = useTheme()
+  const themeButton = (
+    <button
+      type="button"
+      onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
+      className={cn(
+        'flex items-center justify-center border border-border bg-muted/50 hover:bg-muted',
+        roomy ? 'h-16 w-full rounded-2xl px-4 py-4' : 'size-11 shrink-0 rounded-xl',
+      )}
+      aria-label={t('toggleTheme')}
+    >
+      {resolvedTheme === 'dark' ? (
+        <Moon className={roomy ? 'h-6 w-6' : 'h-4 w-4'} />
+      ) : (
+        <Sun className={roomy ? 'h-6 w-6' : 'h-4 w-4'} />
+      )}
+    </button>
+  )
+  if (!roomy) {
+    return (
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
+        <LocaleCodeMenu variant="icon" align="start" onLocaleChange={onLocaleChange} />
+        <NavLegalFooter density="comfortable" align="center" className="min-w-0 px-1" />
+        {themeButton}
+      </div>
+    )
+  }
+  return (
+    <div className="grid grid-cols-3 gap-1">
+      <LocaleCodeMenu
+        variant="icon"
+        align="center"
+        onLocaleChange={onLocaleChange}
+        className="w-full"
+        triggerClassName="h-16 w-full rounded-2xl px-4 py-4"
+      />
+      <div className="flex h-16 items-center justify-center rounded-2xl px-3 py-3">
+        <NavLegalFooter density="comfortable" align="center" className="w-full text-sm" />
+      </div>
+      {themeButton}
+    </div>
+  )
+}
+
+function useScreenLogoSize() {
+  const [size, setSize] = useState(140)
+  useEffect(() => {
+    const measure = () => setSize(Math.round(Math.min(window.innerWidth, 520) * 0.35))
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  return size
+}
+
+function MobileLoginSheet({ children }: { children: React.ReactNode }) {
+  const overlap = useKeyboardOverlap()
+  const logoSize = useScreenLogoSize()
+  const intrusion = overlap > 0 ? Math.max(0, overlap - 56) : 0
+  return (
+    <div className="flex h-full min-h-full flex-col">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col px-5',
+          intrusion > 0 ? 'justify-end' : 'items-center justify-center py-8',
+        )}
+        style={intrusion > 0 ? { paddingBottom: intrusion + 16 } : undefined}
+        onFocusCapture={() => {
+          window.setTimeout(() => {
+            const active = document.activeElement
+            if (active instanceof HTMLElement && active.tagName === 'INPUT') {
+              active.scrollIntoView({ block: 'end' })
+            }
+          }, 280)
+        }}
+      >
+        <div className="mb-5 flex justify-center">
+          <AnimatedLogo size={logoSize} />
+        </div>
+        {children}
+      </div>
+      {intrusion === 0 ? (
+        <div className="shrink-0 border-t border-border px-2 pb-2 pt-2">
+          <MobileMenuUtilityRow roomy />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 // Menu item data type for menu modals
 type BottomNavMenuItem = {
   id: string
@@ -223,7 +342,6 @@ function BottomNavFullscreenMenu({
   brandSubtitle,
 }: BottomNavFullscreenMenuProps) {
   const t = useTranslations('navigation')
-  const { setTheme, theme, resolvedTheme } = useTheme()
   const [animateIn, setAnimateIn] = useState(false)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
@@ -361,30 +479,7 @@ function BottomNavFullscreenMenu({
             animateIn ? 'opacity-100' : 'opacity-0'
           )}
         >
-          <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
-            <LocaleCodeMenu
-              variant="icon"
-              align="start"
-              onLocaleChange={() => onItemNavigate()}
-            />
-            <NavLegalFooter
-              density="comfortable"
-              align="center"
-              className="min-w-0 px-1"
-            />
-            <button
-              type="button"
-              onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 hover:bg-muted"
-              aria-label={t('toggleTheme')}
-            >
-              {resolvedTheme === 'dark' ? (
-                <Moon className="h-4 w-4" />
-              ) : (
-                <Sun className="h-4 w-4" />
-              )}
-            </button>
-          </div>
+          <MobileMenuUtilityRow onLocaleChange={() => onItemNavigate()} />
         </div>
       </div>
     </div>
@@ -682,7 +777,7 @@ export default function BottomNavigation() {
         pinAboveMobileNav
         chromeBackdrop={<HeroAmbient className="opacity-100" />}
         headerClassName="bg-transparent pb-1"
-        contentClassName="!bg-transparent !px-4 !pt-1"
+        contentClassName="!flex !h-full !flex-col !bg-transparent !px-0 !py-0 max-lg:!px-0"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onPointerDownOutside={(event) => {
           if (Date.now() - loginOpenedAt.current < GHOST_CLICK_MS) {
@@ -695,11 +790,14 @@ export default function BottomNavigation() {
           }
         }}
       >
-        <LoginWidget
-          locale={locale}
-          from={search ? `${pathname}?${search}` : pathname}
-          onAuthAction={() => setLoginOpen(false)}
-        />
+        <MobileLoginSheet>
+          <LoginWidget
+            locale={locale}
+            variant="sheet"
+            from={search ? `${pathname}?${search}` : pathname}
+            onAuthAction={() => setLoginOpen(false)}
+          />
+        </MobileLoginSheet>
       </FsModal>
 
       {/* Admin supermenu mobile panel */}

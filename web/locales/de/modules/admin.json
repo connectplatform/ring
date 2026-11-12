@@ -537,6 +537,8 @@
         "vendor": "Händler-Entität",
         "price": "Preis",
         "stock": "Bestand",
+        "carts": "Warenkörbe",
+        "waiting": "{count} warten",
         "status": "Status",
         "approval": "Genehmigung",
         "actions": "Aktionen"

@@ -46,7 +46,7 @@ export async function ensureEmailAuthUser(email: string): Promise<UserRow> {
       name: null,
       image: null,
       emailVerified: new Date(),
-      role: UserRolesArray.visitor,
+      role: UserRolesArray.subscriber,
     })
   } catch (error) {
     if (isUniqueViolation(error)) {

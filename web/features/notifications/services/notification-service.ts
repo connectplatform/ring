@@ -85,7 +85,7 @@ function toInboxNotificationPayload(notification: Notification) {
   };
 }
 
-type InboxTunnelAction = 'notification' | 'read' | 'read_all' | 'delete';
+type InboxTunnelAction = 'notification' | 'read' | 'read_all' | 'delete' | 'restore';
 
 async function publishInboxEvent(
   userId: string,
@@ -226,7 +226,12 @@ export async function createNotification(
 }
 
 /**
- * Get user notifications with pagination
+ * Get user notifications with pagination (SD3)
+ *
+ * Raw SQL via the sanctioned escape hatch (same as markAllNotificationsAsRead):
+ * queryDocs only supports `==` filters, but soft-deleted rows must be excluded
+ * (`status <> 'deleted'`), so the list path needs a negation. Cursor pagination
+ * keys on (created_at, id) so id-only cursors stay opaque to clients.
  *
  * @param userId - The user ID
  * @param options - Query options
@@ -244,59 +249,73 @@ export async function getUserNotifications(
   console.log('NotificationService: Getting user notifications', { userId, options });
 
   try {
-    // Build database query
-    // NOTE: rows are written with snake_case fields (user_id/read_at) — see createNotification.
-    const filters: Array<{ field: string; operator: string; value: any }> = [{ field: 'user_id', operator: '==', value: userId }];
-    const orderBy = [{ field: 'created_at', direction: 'desc' as const }];
-    const pagination: any = {};
+    const limit = options.limit || 20;
 
-    // Apply filters
+    // Fetch limit+1 to compute hasMore without a second count query.
+    const params: unknown[] = [userId, limit + 1];
+    const conditions: string[] = [
+      `data->>'user_id' = $1`,
+      // SD3: soft-deleted rows never resurface in feeds.
+      `COALESCE(data->>'status', '') <> 'deleted'`,
+    ];
+
     if (options.unreadOnly) {
-      filters.push({ field: 'read_at', operator: '==' as const, value: null });
+      conditions.push(`data->>'read_at' IS NULL`);
     }
 
     if (options.types && options.types.length > 0) {
-      filters.push({ field: 'type', operator: 'in', value: options.types });
+      params.push(options.types);
+      conditions.push(`data->>'type' = ANY($${params.length}::text[])`);
     }
 
-    // Apply pagination
-    if (options.limit) {
-      pagination.limit = options.limit;
+    if (options.startAfter) {
+      params.push(options.startAfter);
+      const cursorIdx = params.length;
+      conditions.push(
+        `(created_at, id) < ((SELECT created_at, id FROM notifications WHERE id = $${cursorIdx}))`,
+      );
     }
 
-    // Execute database query
-    const queryResult = await db().queryDocs({
-      collection: 'notifications',
-      filters,
-      orderBy,
-      pagination
-    });
+    const { getSharedPgPool } = await import('@/lib/database/shared-pg-pool');
+    const pool = await getSharedPgPool();
 
-    if (!queryResult.success) {
-      throw new Error('Failed to query notifications');
-    }
+    const result = await pool.query(
+      `SELECT id, data, created_at, updated_at
+         FROM notifications
+        WHERE ${conditions.join('\n          AND ')}
+        ORDER BY created_at DESC, id DESC
+        LIMIT $2`,
+      params,
+    );
 
-    const notifications = queryResult.data.map(row => ({
-      ...row,
-      createdAt: row.created_at || new Date(),
-      readAt: row.read_at || null,
-      deliveredAt: row.delivered_at || null
-    })) as unknown as Notification[];
+    const rows = (result.rows ?? []) as Array<Record<string, unknown>>;
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
 
-    // Get the last document for pagination
-    const lastDoc = queryResult.data[queryResult.data.length - 1];
-    const nextCursor = lastDoc ? lastDoc.id : null;
+    const notifications = page.map(row => {
+      const data = (row.data || {}) as Record<string, unknown>;
+      return {
+        id: row.id,
+        ...data,
+        createdAt: row.created_at || new Date(),
+        readAt: data.read_at || null,
+        deliveredAt: data.delivered_at || null,
+      };
+    }) as unknown as Notification[];
+
+    const lastDoc = page[page.length - 1];
+    const nextCursor = lastDoc ? String(lastDoc.id) : undefined;
 
     return {
       notifications,
       unreadCount: 0, // Will be calculated separately if needed
       totalCount: notifications.length,
-      hasMore: queryResult.data.length === (options.limit || 20),
-      lastVisible: lastDoc ? lastDoc.id : undefined
+      hasMore,
+      lastVisible: nextCursor
     };
-
   } catch (error) {
     console.error('NotificationService: Error getting user notifications:', error);
+
     
     // Check if it's a connection/network error
     if (error instanceof Error && (
@@ -346,6 +365,11 @@ export async function markNotificationAsRead(
     const notification = readResult.data;
     if (notification.user_id !== userId) {
       throw new Error('Unauthorized access to notification');
+    }
+
+    // SD: never flip a soft-deleted row back to READ.
+    if (notification.status === NotificationStatus.DELETED) {
+      return;
     }
 
     // Update the notification
@@ -406,6 +430,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
              updated_at = now()
        WHERE data->>'user_id' = $1
          AND data->>'read_at' IS NULL
+         AND COALESCE(data->>'status', '') <> 'deleted'
        RETURNING id`,
       [userId, readAtIso, NotificationStatus.READ],
     );
@@ -434,8 +459,15 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
 }
 
 /**
- * Delete a notification
- * 
+ * Soft-delete a notification (SD2)
+ *
+ * Flips status to DELETED and stamps deleted_at + the previous status
+ * (for undo). The row stays in the DB — hidden from feeds/counts by the
+ * status filter (SD3) and hard-purged by the retention cron (SD6).
+ *
+ * Tunnel contract is byte-identical to hard delete: clients remove the
+ * row from view on the `delete` event — no client change needed.
+ *
  * @param notificationId - The notification ID
  * @param userId - The user ID (for security)
  * @returns Promise<void>
@@ -444,7 +476,7 @@ export async function deleteNotification(
   notificationId: string,
   userId: string
 ): Promise<void> {
-  console.log('NotificationService: Deleting notification', { notificationId, userId });
+  console.log('NotificationService: Soft-deleting notification', { notificationId, userId });
 
   try {
     const readResult = await db().readDoc('notifications', notificationId);
@@ -458,8 +490,30 @@ export async function deleteNotification(
       throw new Error('Unauthorized access to notification');
     }
 
-    const deleteResult = await db().deleteDoc('notifications', notificationId);
-    if (!deleteResult.success) {
+    if (notification.status === NotificationStatus.DELETED) {
+      // Idempotent: already soft-deleted — republish the event so a late
+      // client still removes the row, then return success.
+      try {
+        await publishUnreadCountForUser(userId);
+        await publishInboxEvent(userId, { action: 'delete', notificationId });
+      } catch (tunnelError) {
+        console.warn('NotificationService: Failed to publish tunnel updates after delete:', tunnelError);
+      }
+      return;
+    }
+
+    const previousStatus = (notification.status as NotificationStatus) || NotificationStatus.SENT;
+
+    const updateData = {
+      ...notification,
+      status: NotificationStatus.DELETED,
+      deleted_at: new Date(),
+      deleted_from: previousStatus,
+      updated_at: new Date()
+    };
+
+    const updateResult = await db().updateDoc('notifications', notificationId, updateData);
+    if (!updateResult.success) {
       throw new Error('Failed to delete notification');
     }
 
@@ -473,6 +527,89 @@ export async function deleteNotification(
   } catch (error) {
     console.error('NotificationService: Error deleting notification:', error);
     throw new Error(`Failed to delete notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Restore a soft-deleted notification (SD5 undo)
+ *
+ * Reverts status to the pre-delete value, clears delete bookkeeping, and
+ * publishes a `restore` tunnel event carrying the full row so open feeds
+ * re-insert it live.
+ */
+export async function restoreNotification(
+  notificationId: string,
+  userId: string
+): Promise<void> {
+  console.log('NotificationService: Restoring notification', { notificationId, userId });
+
+  try {
+    const readResult = await db().readDoc('notifications', notificationId);
+
+    if (!readResult.success || !readResult.data) {
+      throw new Error('Notification not found');
+    }
+
+    const notification = readResult.data;
+    if (notification.user_id !== userId) {
+      throw new Error('Unauthorized access to notification');
+    }
+
+    if (notification.status !== NotificationStatus.DELETED) {
+      // Idempotent: nothing to restore.
+      return;
+    }
+
+    const restoredStatus =
+      (notification.deleted_from as NotificationStatus) || NotificationStatus.SENT;
+
+    const restoredAt = notification.created_at
+      ? new Date(String(notification.created_at))
+      : new Date();
+
+    const updateData = {
+      ...notification,
+      status: restoredStatus,
+      deleted_at: null,
+      deleted_from: null,
+      updated_at: new Date()
+    };
+
+    const updateResult = await db().updateDoc('notifications', notificationId, updateData);
+    if (!updateResult.success) {
+      throw new Error('Failed to restore notification');
+    }
+
+    try {
+      await publishUnreadCountForUser(userId);
+      await publishInboxEvent(userId, {
+        action: 'restore',
+        notificationId,
+        notification: {
+          id: notificationId,
+          userId,
+          title: String(notification.title ?? ''),
+          body: String(notification.body ?? ''),
+          type: notification.type as NotificationType,
+          priority: notification.priority as NotificationPriority,
+          status: restoredStatus,
+          trigger: (notification.trigger_type as NotificationTrigger) || NotificationTrigger.SYSTEM_EVENT,
+          channels: (notification.channels as NotificationChannel[]) || [NotificationChannel.IN_APP],
+          deliveries: (notification.deliveries as Notification['deliveries']) || [],
+          data: (notification.data as Notification['data']) || {},
+          createdAt: restoredAt,
+          readAt: notification.read_at ? new Date(String(notification.read_at)) : undefined,
+          actionText: notification.action_text as string | undefined,
+          actionUrl: notification.action_url as string | undefined,
+        },
+      });
+    } catch (tunnelError) {
+      console.warn('NotificationService: Failed to publish tunnel updates after restore:', tunnelError);
+    }
+
+  } catch (error) {
+    console.error('NotificationService: Error restoring notification:', error);
+    throw new Error(`Failed to restore notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -498,11 +635,11 @@ export async function getNotificationStats(
       throw new Error('Failed to query notifications');
     }
 
-    const notifications = queryResult.data.map(row => ({
+    const notifications = (queryResult.data.map(row => ({
       ...row,
       createdAt: row.created_at || new Date(),
       readAt: row.read_at || null
-    })) as Notification[];
+    })) as unknown as Notification[]).filter(n => n.status !== NotificationStatus.DELETED);
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -854,3 +991,33 @@ async function sendWebPushNotification(notification: Notification): Promise<Push
     return { attempted: 0, sent: 0, failed: 1 }
   }
 } 
+/**
+ * Hard-purge soft-deleted notifications past the retention window (SD6).
+ *
+ * Tunnel contract untouched: rows leaving the DB are already invisible to
+ * feeds/counts (status='deleted'). Runs from /api/cron/cleanup-notifications-deleted.
+ */
+export async function purgeDeletedNotifications(retentionDays = 30): Promise<{ purged: number }> {
+  console.log('NotificationService: Purging soft-deleted notifications', { retentionDays });
+
+  try {
+    const { getSharedPgPool } = await import('@/lib/database/shared-pg-pool');
+    const pool = await getSharedPgPool();
+
+    const result = await pool.query(
+      `DELETE FROM notifications
+        WHERE COALESCE(data->>'status', '') = 'deleted'
+          AND COALESCE(data->>'deleted_at', '') <> ''
+          AND (data->>'deleted_at')::timestamptz < now() - ($1 || ' days')::interval
+        RETURNING id`,
+      [String(retentionDays)],
+    );
+
+    const purged = result.rowCount ?? 0;
+    console.log(`NotificationService: Purged ${purged} soft-deleted notifications (>${retentionDays}d)`);
+    return { purged };
+  } catch (error) {
+    console.error('NotificationService: Error purging deleted notifications:', error);
+    throw new Error(`Failed to purge deleted notifications: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}

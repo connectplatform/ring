@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse, connection } from 'next/server';
 import { auth } from '@/auth';
 import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
+// FIX: direct import — loader's require() lost named exports under the
+// custom-server runtime (see [id]/read note).
+import { markAllNotificationsAsRead } from '@/features/notifications/services/notification-service';
 import { UserRolesArray } from '@/features/auth/user-role';
 import { hasRoleAtLeast } from '@/features/auth/types';
 
@@ -72,15 +75,8 @@ export async function POST(req: NextRequest) {
     // LOG: Proceeding to mark all notifications as read
     console.log('API: /api/notifications/read-all - Marking all notifications as read', { userId });
 
-    // Retrieve the current notification service implementation (could be stub in some deployments)
-    const notificationService = getNotificationService();
-
-    // STUB: For stub implementations, replace with: 
-    // // STUB: notificationService.markAllNotificationsAsRead should be implemented to update all unread notifications for the userId.
-    // // TODO: Implement this using an efficient DB bulk update and consider race conditions for real-time notification systems.
-
     // Mark all notifications as read for this user and obtain the count of changed notifications
-    const markedCount = await notificationService.markAllNotificationsAsRead(userId);
+    const markedCount = await markAllNotificationsAsRead(userId);
 
     // ----- Step 5: Success handling -----
     // LOG: All user notifications marked as read; report how many were updated

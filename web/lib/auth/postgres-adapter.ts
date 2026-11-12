@@ -20,7 +20,7 @@ import {
   findUserByEmail,
   normalizeAuthEmail,
 } from "@/features/auth/services/user-resolve"
-import { UserRolesArray } from "@/features/auth/user-role"
+import { resolvePersistedUserRole } from "@/features/auth/user-role"
 
 // Represents a row from the user table with optional fields for profile information
 type UserRow = Record<string, unknown> & {
@@ -97,7 +97,10 @@ export function PostgreSQLAdapter(): Adapter {
           emailVerified: user.emailVerified || null,
           name: user.name,
           image: user.image,
-          role: requestedRole ?? UserRolesArray.visitor, // fallback to visitor role
+          // Visitor is a session-only guest label — never a persisted role.
+          // Route through resolvePersistedUserRole so OAuth intent 'visitor'
+          // (and any unknown value) resolves to 'subscriber' at creation.
+          role: resolvePersistedUserRole(requestedRole),
           isVerified: !!user.emailVerified,
           createdAt: now,
           lastLogin: now,

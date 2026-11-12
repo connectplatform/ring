@@ -124,10 +124,10 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
           </motion.div>
           <div>
             <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-lime-600 bg-clip-text text-transparent">
-              🌾 Become a Vendor
+              {t('filters.becomeVendor')}
             </h3>
             <p className="text-xs text-muted-foreground">
-              Join the marketplace
+              {t('filters.becomeVendorEyebrow')}
             </p>
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
         {/* Benefits list */}
         <ul className="text-xs space-y-2 mb-5">
           <motion.li
-            className="flex items-center gap-2 text-muted-foreground"
+            className="flex items-start gap-2 text-muted-foreground"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
@@ -148,10 +148,10 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
               <span className="text-emerald-600 text-xs">✓</span>
             </div>
-            <span>Reach thousands of customers</span>
+            <span>{t('filters.vendorBenefitReach')}</span>
           </motion.li>
           <motion.li
-            className="flex items-center gap-2 text-muted-foreground"
+            className="flex items-start gap-2 text-muted-foreground"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
@@ -159,10 +159,10 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
               <Sparkles className="w-3 h-3 text-emerald-600" />
             </div>
-            <span>AI product enrichment</span>
+            <span>{t('filters.vendorBenefitTools')}</span>
           </motion.li>
           <motion.li
-            className="flex items-center gap-2 text-muted-foreground"
+            className="flex items-start gap-2 text-muted-foreground"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
@@ -170,10 +170,10 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
               <TrendingUp className="w-3 h-3 text-emerald-600" />
             </div>
-            <span>Automated settlements</span>
+            <span>{t('filters.vendorBenefitPayouts')}</span>
           </motion.li>
           <motion.li
-            className="flex items-center gap-2 text-muted-foreground"
+            className="flex items-start gap-2 text-muted-foreground"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 }}
@@ -181,7 +181,7 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
               <Zap className="w-3 h-3 text-emerald-600" />
             </div>
-            <span>DAAR token rewards</span>
+            <span>{t('filters.vendorBenefitRewards')}</span>
           </motion.li>
         </ul>
 
@@ -207,7 +207,7 @@ export default function VendorCTACard({ className }: VendorCTACardProps) {
         {/* Trust indicator */}
         <div className="mt-4 text-center">
           <p className="text-[10px] text-muted-foreground">
-            🛡️ Trusted by 50+ Ukrainian farms
+            {t('filters.vendorBenefitTrust')}
           </p>
         </div>
       </div>

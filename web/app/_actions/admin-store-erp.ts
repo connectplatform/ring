@@ -198,6 +198,10 @@ export interface AdminStoreProductRow {
   thumbnailUrl?: string
   /** Main Store listing flag. Inactive means the product was delisted. */
   mainStoreStatus?: 'active' | 'inactive'
+  /** Authenticated carts that currently hold this product. */
+  cartCount?: number
+  /** Those carts that are waiting because the shelf is empty. */
+  waitingCarts?: number
 }
 
 function mapAdminStoreProductRow(
@@ -220,6 +224,20 @@ function mapAdminStoreProductRow(
     thumbnailUrl: images[0],
     mainStoreStatus: resolveMainStoreStatus(row),
   }
+}
+
+async function withCartDemand(items: AdminStoreProductRow[]): Promise<AdminStoreProductRow[]> {
+  if (items.length === 0) return items
+  const { cartDemandForProducts } = await import('@/features/store/services/cart-demand')
+  const demand = await cartDemandForProducts(items.map((item) => item.id))
+  return items.map((item) => {
+    const row = demand.get(item.id)
+    return {
+      ...item,
+      cartCount: row?.carts ?? 0,
+      waitingCarts: row?.waitingCarts ?? 0,
+    }
+  })
 }
 
 function refreshStoreCatalog() {
@@ -291,7 +309,7 @@ export async function listAdminStoreProducts(
     if (!result.success || !result.data) {
       return { items: [], hasMore: false, nextOffset: query.offset, total: 0 }
     }
-    const items = result.data.map((row) => mapAdminStoreProductRow(row))
+    const items = await withCartDemand(result.data.map((row) => mapAdminStoreProductRow(row)))
     const hasMore = items.length >= query.limit
     return {
       items,
@@ -320,7 +338,7 @@ export async function listAdminStoreProducts(
     dbOffset += rows.length
   }
 
-  const items = matches.slice(query.offset, query.offset + query.limit)
+  const items = await withCartDemand(matches.slice(query.offset, query.offset + query.limit))
   const hasMore = query.offset + items.length < matches.length
   return {
     items,

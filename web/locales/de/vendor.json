@@ -97,6 +97,17 @@
     "resourcesDescription": "Erfahren Sie, wie Sie das Potenzial Ihres Stores maximieren",
     "viewVendorGuide": "Vendor-Guide ansehen →",
     "subtitle": "Store, Bestellungen und Auszahlungen verwalten",
+    "interest": {
+      "wantedTitle": "Gesammeltes Interesse",
+      "wantedHint": "Warenkörbe · wartende Warenkörbe",
+      "wantedEmpty": "Noch kein Warenkorb enthält Ihre Produkte.",
+      "fillableTitle": "Jetzt erfüllbar",
+      "fillableHint": "Wartende Warenkörbe, deren Produkt schon Bestand hat",
+      "fillableEmpty": "Keine Warteliste lässt sich mit dem aktuellen Bestand füllen.",
+      "quietTitle": "Stilles Regal",
+      "quietHint": "Bestand vorhanden, und niemand hat es im Warenkorb",
+      "quietEmpty": "Jedes Produkt mit Bestand liegt schon in mindestens einem Warenkorb."
+    },
     "trustScore": "Trust-Score",
     "taxVerified": "Steuer verifiziert",
     "taxPending": "Steuer ausstehend",

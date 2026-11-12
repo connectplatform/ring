@@ -97,6 +97,17 @@
     "resourcesDescription": "Aprende a maximizar el potencial de tu store",
     "viewVendorGuide": "Ver guía de vendor →",
     "subtitle": "Gestiona tu store, pedidos y pagos",
+    "interest": {
+      "wantedTitle": "Interés recogido",
+      "wantedHint": "Carritos · carritos en espera",
+      "wantedEmpty": "Ningún carrito tiene tus productos todavía.",
+      "fillableTitle": "Se puede cubrir ya",
+      "fillableHint": "Esperas cuyo producto ya tiene stock",
+      "fillableEmpty": "Ninguna espera se cubre con el stock actual.",
+      "quietTitle": "Estante quieto",
+      "quietHint": "Hay stock y nadie lo tiene en un carrito",
+      "quietEmpty": "Cada producto con stock ya está en al menos un carrito."
+    },
     "trustScore": "Puntuación de confianza",
     "taxVerified": "Impuestos verificados",
     "taxPending": "Impuestos pendientes",

@@ -82,5 +82,6 @@
     "escrowHeldTitle": "Task escrow funded",
     "escrowHeldBody": "Escrow is held for your task",
     "viewTask": "View task"
-  }
+  },
+  "unitMainCurrency": "Moneda principal"
 }

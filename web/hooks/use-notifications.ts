@@ -55,6 +55,8 @@ interface UseNotificationsReturn {
   fetchMore: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
+  deleteNotification: (notificationId: string) => Promise<boolean>;
+  restoreNotification: (notificationId: string) => Promise<boolean>;
   fetchStats: () => Promise<void>;
   fetchPreferences: () => Promise<void>;
   updatePreferences: (preferences: Partial<DetailedNotificationPreferences>) => Promise<boolean>;
@@ -130,6 +132,13 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       if (action === 'delete' && (payload as { notificationId?: string }).notificationId) {
         const id = String((payload as { notificationId: string }).notificationId)
         setNotifications((prev) => prev.filter((n) => n.id !== id))
+        void refreshUnreadCount()
+        return
+      }
+
+      // SD5 undo — restored rows arrive with full payload; open feeds patch
+      // themselves via applyInboxToFeed, this hook array is hidden state.
+      if (action === 'restore') {
         void refreshUnreadCount()
         return
       }
@@ -382,6 +391,74 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     }
   }, [session, markingAllAsRead, refreshUnreadCount]);
 
+  // Delete a notification with Ring API Client.
+  // The service publishes a tunnel `delete` event — open feeds (applyInboxToFeed)
+  // and this hook's tunnel handler remove the row live; no refetch needed.
+  const deleteNotification = useCallback(async (notificationId: string): Promise<boolean> => {
+    if (!session) return false;
+
+    try {
+      const response: ApiResponse = await apiClient.delete(`/api/notifications/${notificationId}`, {
+        timeout: 6000,
+        retries: 1
+      });
+
+      if (response.success) {
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        void refreshUnreadCount();
+        return true;
+      }
+
+      throw new Error(response.error || 'Failed to delete notification');
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Delete notification failed:', {
+          endpoint: '/api/notifications/[id] (DELETE)',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to delete notification');
+        console.error('Unexpected error deleting notification:', err);
+      }
+      return false;
+    }
+  }, [session, refreshUnreadCount]);
+
+  // SD5 undo — restore a soft-deleted notification (30s grace window).
+  const restoreNotification = useCallback(async (notificationId: string): Promise<boolean> => {
+    if (!session) return false;
+
+    try {
+      const response: ApiResponse = await apiClient.post(
+        `/api/notifications/${notificationId}/restore`,
+        undefined,
+        { timeout: 6000, retries: 1 }
+      );
+
+      if (response.success) {
+        void refreshUnreadCount();
+        return true;
+      }
+
+      throw new Error(response.error || 'Failed to restore notification');
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Restore notification failed:', {
+          endpoint: '/api/notifications/[id]/restore',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to restore notification');
+        console.error('Unexpected error restoring notification:', err);
+      }
+      return false;
+    }
+  }, [session, refreshUnreadCount]);
+
   // Fetch notification stats with Ring API Client
   const fetchStats = useCallback(async () => {
     if (!session) return;
@@ -573,6 +650,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     fetchMore,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    restoreNotification,
     fetchStats,
     fetchPreferences,
     updatePreferences,

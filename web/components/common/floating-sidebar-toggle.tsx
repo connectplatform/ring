@@ -62,6 +62,12 @@ export default function FloatingSidebarToggle({
     setIsOpen(false)
   }, [pathname, setIsOpen])
 
+  useEffect(() => {
+    const close = () => setIsOpen(false)
+    window.addEventListener('ring:close-floating-sidebar', close)
+    return () => window.removeEventListener('ring:close-floating-sidebar', close)
+  }, [setIsOpen])
+
   const controlsRow = (
     <div className="flex items-center justify-center gap-2">
       <LocaleCodeMenu variant="panel" align="start" />
@@ -97,7 +103,7 @@ export default function FloatingSidebarToggle({
       {/* Floating Toggle Button - Only visible on mobile (controlled by showFloatingButton prop) */}
       {showFloatingButton && mounted && (
         <div
-          className="lg:hidden fixed top-1/2 right-4 z-50 transform -translate-y-1/2"
+          className="lg:hidden fixed top-1/2 right-4 z-[9060] transform -translate-y-1/2"
           data-floating-sidebar-toggle-btn=""
         >
           <Button
@@ -119,7 +125,7 @@ export default function FloatingSidebarToggle({
       {/* Mobile Sidebar Overlay */}
       {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="lg:hidden fixed inset-0 z-[9040] bg-black/50 backdrop-blur-sm"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -127,12 +133,14 @@ export default function FloatingSidebarToggle({
       {/* Mobile/iPad Sidebar with Responsive Controls */}
       <div
           className={cn(
-            "lg:hidden fixed top-0 right-0 z-50 h-full bg-background border-l border-border shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col",
+            "lg:hidden fixed top-0 right-0 z-[9050] h-full max-w-[100vw] bg-background border-l border-border shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col",
+            "w-[var(--floating-sidebar-mobile-width)] md:w-[var(--floating-sidebar-tablet-width)]",
             isOpen ? "translate-x-0" : "translate-x-full",
             className
           )}
           style={{
-            width: `clamp(280px, ${mobileWidth}, 90vw)`, // Mobile: 90%, iPad: 280px
+            ['--floating-sidebar-mobile-width' as string]: mobileWidth,
+            ['--floating-sidebar-tablet-width' as string]: tabletWidth,
           }}
           data-floating-sidebar="true"
         >

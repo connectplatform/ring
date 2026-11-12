@@ -19,6 +19,43 @@ import { applyProductPromotionToLine, formatPromotionBadge, isPromotionActive } 
 
 // TODO: Use React 19/Next.js 16 Server Actions (app/actions) for cart add-on for more robust UX and built-in loader state
 
+/** Card/thumb URL, or '' when the product has nothing to paint. */
+export function productCardImageSrc(product: StoreProduct): string {
+  const galleryItems = product.generativeGallery?.items
+  const primaryGalleryItem =
+    galleryItems?.find((i) => i.isPrimary && i.enabled) ||
+    galleryItems?.find((i) => i.enabled) ||
+    galleryItems?.[0]
+  if (primaryGalleryItem) {
+    return (
+      pickGalleryDisplayUrl(primaryGalleryItem, 'card') ||
+      pickGalleryDisplayUrl(primaryGalleryItem, 'thumb') ||
+      primaryGalleryItem.webpUrl ||
+      primaryGalleryItem.originalUrl ||
+      ''
+    )
+  }
+  return Array.isArray(product.images) && product.images.length > 0
+    ? product.images[0]
+    : ''
+}
+
+/**
+ * A physical line is empty when one warehouse cannot ship even one unit.
+ * Catalog `inStock` can stay true while every warehouse is at zero.
+ */
+export function shelfIsEmpty(
+  product: StoreProduct,
+  shippableMax?: number | null,
+): boolean {
+  if (product.digitalProduct || product.instantDelivery) return false
+  if (shippableMax === null) return false
+  if (typeof shippableMax === 'number') return shippableMax <= 0
+  if (product.inStock === false) return true
+  if (typeof product.stock === 'number') return product.stock <= 0
+  return false
+}
+
 // ERP Extension: Enhanced Product Card with Vendor Quality Data
 interface EnhancedProductCardProps {
   product: StoreProduct
@@ -27,6 +64,15 @@ interface EnhancedProductCardProps {
   showQualityBadges?: boolean
   showTrustScore?: boolean
   showSustainabilityRating?: boolean
+  /** `plain` skips the photo well. The store list uses this for the no-photo section. */
+  layout?: 'photo' | 'plain'
+  /** Fired when a URL is missing or the image fails, so the list can regroup. */
+  onImageUnavailable?: (productId: string) => void
+  /**
+   * Largest quantity one warehouse can ship. `0` is an empty shelf even when
+   * the catalog `inStock` flag is still true. `null` means stock is not physical.
+   */
+  shippableMax?: number | null
 }
 
 export function ProductCard({
@@ -35,17 +81,20 @@ export function ProductCard({
   vendorProfile,
   showQualityBadges = true,
   showTrustScore = true,
-  showSustainabilityRating = false
+  showSustainabilityRating = false,
+  layout = 'photo',
+  onImageUnavailable,
+  shippableMax,
 }: EnhancedProductCardProps) {
   // Get cart mutation from store context
-  const { addToCart } = useStore()
+  const { addToCart, addBackorder, cartItems } = useStore()
+  const inCart = cartItems.some((item) => item.product?.id === product.id)
 
   // Currency state/formatter and conversion (SSOT: StorePaymentMethodsProvider)
   const {
     currency,
     convertPrice,
     formatPrice,
-    equivalentCurrency,
     mainCurrency,
   } = useStorePaymentMethods()
 
@@ -64,16 +113,14 @@ export function ProductCard({
     convertPrice(priceAmount, fromCurrency, currency),
     currency,
   )
-  const equivalentPrice = formatPrice(
-    convertPrice(priceAmount, fromCurrency, equivalentCurrency),
-    equivalentCurrency,
-  )
 
   // --- Add to cart async UI state ---
   // TODO: Switch to React's useTransition for async UX (React 19+), and to useOptimistic for UI feedback
   // const [isPending, startTransition] = useTransition(); 
   // Would allow: startTransition(() => { ...async add to cart... })
   const [adding, setAdding] = useState(false)
+  const [imageReady, setImageReady] = useState(false)
+  const [imageFailed, setImageFailed] = useState(false)
 
   // Toasted success notification
   const { success } = useToast()
@@ -245,57 +292,140 @@ export function ProductCard({
     return desc.length > 160 ? desc.slice(0, 160) + '...' : desc
   }
 
-  // Prefer generativeGallery card/thumb when present; else first images[] URL
-  const galleryItems = product.generativeGallery?.items
-  const primaryGalleryItem =
-    galleryItems?.find((i) => i.isPrimary && i.enabled) ||
-    galleryItems?.find((i) => i.enabled) ||
-    galleryItems?.[0]
-  const cardImageSrc = primaryGalleryItem
-    ? pickGalleryDisplayUrl(primaryGalleryItem, 'card') ||
-      pickGalleryDisplayUrl(primaryGalleryItem, 'thumb') ||
-      primaryGalleryItem.webpUrl ||
-      primaryGalleryItem.originalUrl
-    : Array.isArray(product.images) && product.images.length > 0
-      ? product.images[0]
-      : ''
+  const cardImageSrc = productCardImageSrc(product)
+  const showPhoto = layout === 'photo' && Boolean(cardImageSrc) && !imageFailed
+  const vendorLabel = product.vendorName?.trim() || ''
+  const leftChip = vendorLabel || getCategory()
+  const outOfStock = shelfIsEmpty(product, shippableMax)
+  const stockLabel = outOfStock ? t('inStockNo') : t('inStockYes')
+  const productHref = `${ROUTES.STORE(locale.toLowerCase() as Locale)}/${product.id}`
+  const cartHref = ROUTES.CART(locale.toLowerCase() as Locale)
+  const cartLabel = adding
+    ? t('adding')
+    : outOfStock
+      ? t('backorder')
+      : inCart
+        ? t('inCart')
+        : t('addToCart')
 
-  // TODO: Use next/image's <Image /> for auto lazy loading and better webperf. Example available in Next.js docs.
-  // Can replace <img> below with:
-  // <Image src={product.images[0]} alt={product.name} fill className="..." />
+  const markUnavailable = () => {
+    setImageFailed(true)
+    onImageUnavailable?.(product.id)
+  }
+
+  const priceBlock = (
+    <div className="mr-auto min-w-0">
+      <p className="whitespace-nowrap text-lg font-bold tabular-nums leading-none">{primaryPrice}</p>
+      {activePromo && promotedUnit < priceAmount ? (
+        <p className="mt-1 text-xs text-muted-foreground line-through">{listPrice}</p>
+      ) : null}
+    </div>
+  )
+
+  const handleBackorder = () => {
+    addBackorder(product)
+    success({ title: t('backorderSent', { name: product.name }) })
+  }
+
+  const cartAction = nicheSuppressesCart(product) ? null : outOfStock ? (
+    <button
+      className="shrink-0 whitespace-nowrap text-sm font-semibold leading-none text-muted-foreground underline-offset-2 hover:underline"
+      onClick={handleBackorder}
+      type="button"
+      aria-label={t('backorder')}
+    >
+      {t('backorder')}
+    </button>
+  ) : inCart && !adding ? (
+    <Link
+      href={cartHref}
+      className="shrink-0 whitespace-nowrap text-sm font-semibold leading-none text-primary underline-offset-2 hover:underline"
+      aria-label={t('inCart')}
+    >
+      {t('inCart')}
+    </Link>
+  ) : (
+    <button
+      className={`shrink-0 whitespace-nowrap text-sm font-semibold leading-none underline-offset-2 hover:underline ${
+        adding ? 'cursor-not-allowed opacity-60' : ''
+      } text-primary`}
+      onClick={handleAdd}
+      disabled={adding}
+      aria-busy={adding}
+      aria-label={cartLabel}
+      type="button"
+    >
+      {cartLabel}
+    </button>
+  )
+
+  const stockChip = (
+    <span
+      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold leading-none backdrop-blur-sm ${
+        outOfStock
+          ? 'bg-muted/90 text-muted-foreground'
+          : 'bg-background/90 text-emerald-700 dark:text-emerald-300'
+      }`}
+    >
+      {stockLabel}
+    </span>
+  )
+
+  if (!showPhoto) {
+    return (
+      <div className="flex gap-3 rounded-xl border bg-background p-3">
+        <div
+          className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+          aria-hidden
+        >
+          <svg className="size-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            {leftChip ? (
+              <span className="truncate text-xs font-semibold text-primary">{leftChip}</span>
+            ) : null}
+            <span className={`ml-auto shrink-0 text-xs font-semibold ${outOfStock ? 'text-muted-foreground' : 'text-emerald-700 dark:text-emerald-300'}`}>
+              {stockLabel}
+            </span>
+          </div>
+          <Link href={productHref}>
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug hover:text-primary">{product.name}</h3>
+          </Link>
+          <div className="mt-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t pt-2">
+            {priceBlock}
+            {cartAction}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="group border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-background">
-      {/* Product Image display. Should use next/image for best perf. */}
-      <Link
-        href={`${ROUTES.STORE(locale.toLowerCase() as Locale)}/${product.id}`}
-        className="block relative aspect-square overflow-hidden"
-      >
-        {cardImageSrc ? (
-          // TODO: Replace with <Image /> as described above.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cardImageSrc}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          // Fallback: No product image, show icon illustration
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            <svg className="w-16 h-16 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        )}
+    <div className="group overflow-hidden rounded-xl border bg-background transition-shadow duration-300 hover:shadow-lg">
+      <Link href={productHref} className="relative block aspect-video overflow-hidden bg-muted">
+        {/* Hidden until load so a dead URL never paints the broken-image icon. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cardImageSrc}
+          alt={product.name}
+          className={`h-full w-full object-cover object-center transition duration-300 group-hover:scale-105 ${
+            imageReady ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={() => setImageReady(true)}
+          onError={markUnavailable}
+        />
 
-        {/* Category badge (top left of image) */}
-        {getCategory() && (
-          <div className="absolute top-3 left-3">
-            <div className="bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm">
-              {getCategory()}
-            </div>
-          </div>
-        )}
+        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+          {leftChip ? (
+            <span className="max-w-[68%] truncate rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-sm">
+              {leftChip}
+            </span>
+          ) : null}
+          <span className="ml-auto">{stockChip}</span>
+        </div>
 
         {activePromo ? (
           <div className="absolute bottom-3 left-3">
@@ -304,98 +434,44 @@ export function ProductCard({
             </span>
           </div>
         ) : null}
-        {showQualityBadges && vendorProfile && vendorProfile.qualityProfile && (
-          <div className="absolute top-3 right-3 flex flex-col gap-1">
-            {vendorProfile.compliance && vendorProfile.compliance.organicCertified && (
-              <span className="bg-green-100/90 text-green-800 text-xs px-2 py-1 rounded-full font-medium backdrop-blur-sm">
-                🌱 Organic
+        {showQualityBadges && vendorProfile?.qualityProfile ? (
+          <div className="absolute bottom-3 right-3 flex flex-col items-end gap-1">
+            {vendorProfile.compliance?.organicCertified ? (
+              <span className="rounded-full bg-green-100/90 px-2 py-1 text-xs font-medium text-green-800 backdrop-blur-sm">
+                Organic
               </span>
-            )}
-            {vendorProfile.compliance && vendorProfile.compliance.fairTradeCertified && (
-              <span className="bg-blue-100/90 text-blue-800 text-xs px-2 py-1 rounded-full font-medium backdrop-blur-sm">
-                ⚖️ Fair Trade
+            ) : null}
+            {vendorProfile.compliance?.fairTradeCertified ? (
+              <span className="rounded-full bg-blue-100/90 px-2 py-1 text-xs font-medium text-blue-800 backdrop-blur-sm">
+                Fair Trade
               </span>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </Link>
 
-      {/* Content: product title, desc, badges+vendor, price/stock/actions */}
-      <div className="p-4 space-y-3">
-        {/* Product name heading, links to product */}
-        <Link href={`${ROUTES.STORE(locale.toLowerCase() as Locale)}/${product.id}`}>
-          <h3 className="font-semibold text-base hover:text-primary transition-colors line-clamp-2 min-h-[2.5rem]">
+      <div className="space-y-3 p-4">
+        <Link href={productHref}>
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-base font-semibold leading-snug hover:text-primary">
             {product.name}
           </h3>
         </Link>
 
         <NicheProductCardMeta product={product} />
 
-        {/* Description excerpt if available */}
-        {getDescriptionExcerpt() && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {getDescriptionExcerpt()}
-          </p>
-        )}
+        {getDescriptionExcerpt() ? (
+          <p className="line-clamp-2 text-sm text-muted-foreground">{getDescriptionExcerpt()}</p>
+        ) : null}
 
-        {/* Composite badges and scores: trust, sustainability, AI */}
         <div className="flex flex-wrap gap-2 text-xs">
           {renderTrustScore()}
           {renderSustainabilityRating()}
           {renderAiRecommendation()}
         </div>
 
-        {/* Vendor info: vendor name, possible satisfaction star */}
-        {(vendorProfile || product.vendorName) && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="font-medium">
-              {/* STUB: Vendor display logic: future step - replace with vendor link/profile avatar when available */}
-              {product.vendorName ? product.vendorName : (vendorProfile && vendorProfile.entityId ? vendorProfile.entityId : '')}
-            </span>
-            {/* Show satisfaction score if available (vendor analytics) */}
-            {vendorProfile && vendorProfile.analytics && typeof vendorProfile.analytics.customerSatisfactionScore === 'number' && (
-              <span className="ml-1">★ {vendorProfile.analytics.customerSatisfactionScore}/5</span>
-            )}
-          </div>
-        )}
-
-        {/* Price, stock, and action row */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <div className="flex flex-col">
-            <span className="text-lg font-bold">{primaryPrice}</span>
-            {activePromo && promotedUnit < priceAmount ? (
-              <span className="text-xs text-muted-foreground line-through">{listPrice}</span>
-            ) : (
-              <span className="text-xs text-muted-foreground">≈ {equivalentPrice}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Stock status label */}
-            <span className={`text-xs font-medium ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
-              {product.inStock ? t('inStockYes') : t('inStockNo')}
-            </span>
-            {nicheSuppressesCart(product) ? null : (
-            <button
-              className={`text-sm font-medium underline hover:no-underline transition-colors ${
-                adding ? 'opacity-60 cursor-not-allowed animate-pulse' : ''
-              } ${!product.inStock ? 'text-amber-600 hover:text-amber-700' : 'text-primary hover:text-primary/80'}`}
-              onClick={handleAdd}
-              disabled={adding}
-              aria-busy={adding}
-              aria-label={
-                adding
-                  ? t('adding')
-                  : (product.inStock ? t('addToCart') : t('preorder'))
-              }
-              type="button"
-            >
-              {adding ? t('adding') : (product.inStock ? t('addToCart') : t('preorder'))}
-            </button>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t pt-3">
+          {priceBlock}
+          {cartAction}
         </div>
       </div>
     </div>

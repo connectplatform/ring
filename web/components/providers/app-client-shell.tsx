@@ -17,7 +17,7 @@ import { getPublicInstanceConfigFromSnapshot } from '@/lib/ring-config-core'
 import { isLoginPath } from '@/lib/pathname-without-locale'
 import { AppProvider } from '@/contexts/app-context'
 import { AppShellServiceWorker } from '@/components/providers/app-shell-service-worker'
-import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
+import { FCMProvider } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
 import { CallSessionProvider } from '@/features/chat/providers/call-session-provider'
 import { StorePaymentMethodsProvider } from '@/features/store/currency-context'
@@ -100,7 +100,9 @@ export function AppClientShell({
                         </StorePaymentMethodsProvider>
                       </Web3ScopeProvider>
                     </CreditBalanceProvider>
-                    {loginScreen ? null : <FCMPermissionPrompt />}
+                    {/* FCMPermissionPrompt moved to LocaleAppChrome — it must sit inside
+                        NextIntlClientProvider for localized copy (useTranslations), and
+                        login suppression is handled by the component's own isLoginPath. */}
                     <Toaster />
                     </CallSessionProvider>
                   </TunnelProvider>

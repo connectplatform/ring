@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition } from 'react'
 import { AuthUser } from '@/features/auth/types'
-import { UserRolesArray } from '@/features/auth/user-role'
+import { ADMIN_GUI_ASSIGNABLE_ROLES, UserRolesArray } from '@/features/auth/user-role'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -203,6 +203,16 @@ export function AdminUserManager({
       day: 'numeric',
     })
 
+  /** Short identifier for rows without email/name (e.g. crypto-wallet signups with 0x… ids). */
+  const shortIdentifier = (id: string) =>
+    id.startsWith('0x') && id.length > 14 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id
+
+  const displayName = (user: AuthUser) =>
+    user.name || user.email || shortIdentifier(user.id) || t('usersNoName')
+
+  const displayEmail = (user: AuthUser) =>
+    user.email || shortIdentifier(user.id)
+
   const busy = loading || isPending
 
   return (
@@ -251,7 +261,9 @@ export function AdminUserManager({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('usersFilterAllRoles')}</SelectItem>
-                  {Object.values(UserRolesArray).map((role) => (
+                  {/* SSOT: ADMIN_GUI_ASSIGNABLE_ROLES — visitor (session-only guest label)
+                      and superadmin (privilege abuse / lockout guard) are excluded. */}
+                  {ADMIN_GUI_ASSIGNABLE_ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {role}
                     </SelectItem>
@@ -317,8 +329,8 @@ export function AdminUserManager({
                         )}
                       </div>
                       <div>
-                        <div className="font-medium">{user.name || t('usersNoName')}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="font-medium">{displayName(user)}</div>
+                        <div className="text-sm text-muted-foreground">{displayEmail(user)}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -384,7 +396,9 @@ export function AdminUserManager({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.values(UserRolesArray).map((role) => (
+                          {/* SSOT: ADMIN_GUI_ASSIGNABLE_ROLES only — never offer
+                              visitor (guest label) or superadmin (lockout guard). */}
+                          {ADMIN_GUI_ASSIGNABLE_ROLES.map((role) => (
                             <SelectItem key={role} value={role.toString()}>
                               {role}
                             </SelectItem>
