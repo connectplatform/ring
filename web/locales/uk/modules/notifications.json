@@ -315,7 +315,9 @@
     "openSettings": "Відкрити налаштування",
     "quietHours": "Години тиші",
     "quietHoursDescription": "Приглушуйте нетермінові сповіщення у години тиші",
-    "quietHoursActiveHint": "Години тиші активні — сповіщення приглушені у цьому вікні"
+    "quietHoursActiveHint": "Години тиші активні — сповіщення приглушені у цьому вікні",
+    "quietHoursStart": "Початок",
+    "quietHoursEnd": "Кінець"
   },
   "center": {
     "connection": {

@@ -165,7 +165,10 @@
       "examples": {
         "freelancer": "Freelancer für mein Projekt gesucht",
         "service": "Beratungsleistungen gesucht",
-        "advice": "Fachliche Einschätzung gewünscht"
+        "advice": "Fachliche Einschätzung gewünscht",
+        "service_request": "Serviceanfrage",
+        "help_wanted": "Hilfe gesucht",
+        "community_need": "Community-Bedarf"
       },
       "button": "Anfrage erstellen"
     },
@@ -175,7 +178,9 @@
       "examples": {
         "job": "Stellenausschreibung in unserem Unternehmen",
         "contract": "Verfügbare Vertragsstelle",
-        "internship": "Praktikumsplatz"
+        "internship": "Praktikumsplatz",
+        "service": "Dienstleistung",
+        "collaboration": "Zusammenarbeit"
       },
       "button": "Angebot erstellen",
       "member_required": "Mitgliedschaft erforderlich",

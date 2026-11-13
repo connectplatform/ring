@@ -315,7 +315,9 @@
     "openSettings": "Open Settings",
     "quietHours": "Quiet Hours",
     "quietHoursDescription": "Silence non-urgent notifications during your quiet hours window",
-    "quietHoursActiveHint": "Quiet hours are active — notifications are muted in this window"
+    "quietHoursActiveHint": "Quiet hours are active — notifications are muted in this window",
+    "quietHoursStart": "Start",
+    "quietHoursEnd": "End"
   },
   "center": {
     "connection": {

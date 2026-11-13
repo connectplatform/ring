@@ -315,7 +315,9 @@
     "openSettings": "Открыть настройки",
     "quietHours": "Тихие часы",
     "quietHoursDescription": "Заглушайте несрочные уведомления в тихие часы",
-    "quietHoursActiveHint": "Тихие часы активны — уведомления заглушены в это окно"
+    "quietHoursActiveHint": "Тихие часы активны — уведомления заглушены в это окно",
+    "quietHoursStart": "Начало",
+    "quietHoursEnd": "Конец"
   },
   "center": {
     "connection": {

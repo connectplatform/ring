@@ -315,7 +315,9 @@
     "openSettings": "Einstellungen öffnen",
     "quietHours": "Ruhezeiten",
     "quietHoursDescription": "Stummschalten nicht dringender Benachrichtigungen während Ihrer Ruhezeiten",
-    "quietHoursActiveHint": "Ruhezeiten sind aktiv — Benachrichtigungen werden in diesem Zeitraum stummgeschaltet"
+    "quietHoursActiveHint": "Ruhezeiten sind aktiv — Benachrichtigungen werden in diesem Zeitraum stummgeschaltet",
+    "quietHoursStart": "Start",
+    "quietHoursEnd": "Ende"
   },
   "center": {
     "connection": {

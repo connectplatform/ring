@@ -165,7 +165,10 @@
       "examples": {
         "freelancer": "Busco freelancers para mi proyecto",
         "service": "Buscando servicios de consultoria",
-        "advice": "Evaluación profesional deseada"
+        "advice": "Evaluación profesional deseada",
+        "service_request": "Solicitud de servicio",
+        "help_wanted": "Se busca ayuda",
+        "community_need": "Necesidad de la comunidad"
       },
       "button": "Crear solicitud"
     },
@@ -175,7 +178,9 @@
       "examples": {
         "job": "Anuncio de empleo en nuestra empresa.",
         "contract": "Puesto de contrato disponible",
-        "internship": "Prácticas"
+        "internship": "Prácticas",
+        "service": "Servicio",
+        "collaboration": "Colaboración"
       },
       "button": "Crear oferta",
       "member_required": "Membresía requerida",

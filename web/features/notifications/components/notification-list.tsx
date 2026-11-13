@@ -9,12 +9,11 @@
 import React, { useState, useMemo, useTransition, useCallback } from 'react';
 import {
   Search,
-  Filter,
   Check,
   CheckCheck,
   Bell,
+  Moon,
   Settings,
-  ChevronDown,
   Trash2,
   X,
   Loader2
@@ -39,13 +38,7 @@ import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { davinciGlassSurface } from '@/lib/ui/davinci';
 
 interface NotificationListProps {
@@ -61,13 +54,12 @@ export function NotificationList({ className }: NotificationListProps) {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | NotificationType>('all');
   const [selectedPriority, setSelectedPriority] = useState<'all' | NotificationPriority>('all');
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set());
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority'>('newest');
 
   // i18n
   const t = useTranslations('modules.notifications.list');
   const tItem = useTranslations('modules.notifications.item');
   const tTitle = useTranslations('modules.notifications');
+  const tRail = useTranslations('modules.notifications.rail');
   const locale = useLocale();
 
   // Hooks — actions/stats from useNotifications; list pagination via useCursorFeed SSOT
@@ -81,6 +73,9 @@ export function NotificationList({ className }: NotificationListProps) {
     markAllAsRead,
     deleteNotification,
     restoreNotification,
+    preferences,
+    updatePreferences,
+    updatingPreferences,
     refresh,
   } = useNotifications({
     unreadOnly: selectedFilter === 'unread',
@@ -99,9 +94,8 @@ export function NotificationList({ className }: NotificationListProps) {
         types: typesParam?.join(',') || '',
         search: searchQuery,
         priority: selectedPriority,
-        sortBy,
       }),
-    [selectedFilter, typesParam, searchQuery, selectedPriority, sortBy],
+    [selectedFilter, typesParam, searchQuery, selectedPriority],
   );
 
   const fetchPage = useCallback(
@@ -206,12 +200,6 @@ export function NotificationList({ className }: NotificationListProps) {
     });
   }, [startTransition]);
 
-  const handleSortChange = useCallback((sort: 'newest' | 'oldest' | 'priority') => {
-    startTransition(() => {
-      setSortBy(sort);
-    });
-  }, [startTransition]);
-
   const handleClearFilters = useCallback(() => {
     startTransition(() => {
       setSearchQuery('');
@@ -220,7 +208,41 @@ export function NotificationList({ className }: NotificationListProps) {
     });
   }, [startTransition]);
 
-  // Filter and sort notifications
+  // Quiet Hours (SD — migrated from the removed right rail; persisted server-side)
+  const quietHoursPref = preferences?.quietHours;
+  const quietHoursEnabled = quietHoursPref?.enabled ?? false;
+  const quietHoursStart = quietHoursPref?.startTime || '22:00';
+  const quietHoursEnd = quietHoursPref?.endTime || '08:00';
+
+  const handleQuietHoursToggle = useCallback(
+    (value: boolean) => {
+      void updatePreferences({
+        quietHours: {
+          enabled: value,
+          startTime: quietHoursPref?.startTime || '22:00',
+          endTime: quietHoursPref?.endTime || '08:00',
+          timezone: quietHoursPref?.timezone || 'UTC',
+        },
+      });
+    },
+    [updatePreferences, quietHoursPref],
+  );
+
+  const handleQuietHoursTime = useCallback(
+    (field: 'startTime' | 'endTime', value: string) => {
+      void updatePreferences({
+        quietHours: {
+          enabled: quietHoursPref?.enabled ?? false,
+          startTime: field === 'startTime' ? value : quietHoursPref?.startTime || '22:00',
+          endTime: field === 'endTime' ? value : quietHoursPref?.endTime || '08:00',
+          timezone: quietHoursPref?.timezone || 'UTC',
+        },
+      });
+    },
+    [updatePreferences, quietHoursPref],
+  );
+
+  // Filter and sort notifications — single order: by time received (newest first)
   const filteredAndSortedNotifications = useMemo(() => {
     let filtered = notifications.filter(notification => {
       // Search filter (client-side over loaded pages)
@@ -240,24 +262,12 @@ export function NotificationList({ className }: NotificationListProps) {
       return true;
     });
 
-    // Sort notifications
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'priority': {
-          const priorityOrder: Record<string, number> = { urgent: 4, high: 3, normal: 2, low: 1 };
-          return (priorityOrder[b.priority] ?? 0) - (priorityOrder[a.priority] ?? 0);
-        }
-        default:
-          return 0;
-      }
-    });
+    filtered.sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
     return filtered;
-  }, [notifications, searchQuery, selectedPriority, sortBy]);
+  }, [notifications, searchQuery, selectedPriority]);
 
   // Selection handlers
   const handleSelectAll = () => {
@@ -347,12 +357,6 @@ export function NotificationList({ className }: NotificationListProps) {
     { value: NotificationPriority.LOW, label: t('priorities.low') },
   ];
 
-  const sortOptions: Array<{ value: 'newest' | 'oldest' | 'priority'; label: string }> = [
-    { value: 'newest', label: t('newestFirst') },
-    { value: 'oldest', label: t('oldestFirst') },
-    { value: 'priority', label: t('prioritySort') },
-  ];
-
   return (
     <NotificationErrorBoundary>
     <div className={cn('w-full min-w-0 max-w-4xl mx-auto', className)}>
@@ -395,49 +399,71 @@ export function NotificationList({ className }: NotificationListProps) {
 
       {/* Search and Filters */}
       <div className={cn(davinciGlassSurface, 'p-4 mb-4')}>
-        {/* Search bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden />
-          <Input
-            type="text"
-            placeholder={t('searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-9 pr-9"
-            aria-label={t('searchPlaceholder')}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => handleSearchChange('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={t('clearFilters')}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Filter toggles */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button
-              onClick={() => setShowFilters(!showFilters)}
-              variant={showFilters ? 'default' : 'outline'}
-              size="sm"
-              aria-expanded={showFilters}
-            >
-              <Filter className="w-4 h-4" />
-              <span>{t('filters')}</span>
-              <ChevronDown className={cn('w-4 h-4 transition-transform', showFilters && 'rotate-180')} />
-            </Button>
-
-            {/* Quick stats — honest loaded-count */}
-            <div className="text-sm text-muted-foreground tabular-nums">
-              {t('showing', { shown: filteredAndSortedNotifications.length, total: totalCount })}
-            </div>
+        {/* Search bar + quiet hours (migrated from the removed right rail) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden />
+            <Input
+              type="text"
+              placeholder={t('searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 pr-9"
+              aria-label={t('searchPlaceholder')}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => handleSearchChange('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={t('clearFilters')}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          {/* Bulk actions (working actions only) */}
+          {/* Quiet Hours — persisted via notification preferences (PUT /api/notifications/preferences) */}
+          <div className={cn(davinciGlassSurface, 'flex items-center gap-2 px-3 py-2 shrink-0')}>
+            <Moon className={cn('h-4 w-4', quietHoursEnabled ? 'text-primary' : 'text-muted-foreground')} aria-hidden />
+            <Switch
+              checked={quietHoursEnabled}
+              onCheckedChange={handleQuietHoursToggle}
+              disabled={updatingPreferences}
+              aria-label={tRail('quietHours')}
+            />
+            <span className="text-sm text-muted-foreground whitespace-nowrap hidden md:inline">
+              {tRail('quietHours')}
+            </span>
+            {quietHoursEnabled && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="time"
+                  value={quietHoursStart}
+                  onChange={(e) => handleQuietHoursTime('startTime', e.target.value)}
+                  disabled={updatingPreferences}
+                  className="border border-input rounded-md px-2 py-1 text-xs bg-transparent"
+                  aria-label={tRail('quietHoursStart')}
+                />
+                <span className="text-muted-foreground text-xs">–</span>
+                <input
+                  type="time"
+                  value={quietHoursEnd}
+                  onChange={(e) => handleQuietHoursTime('endTime', e.target.value)}
+                  disabled={updatingPreferences}
+                  className="border border-input rounded-md px-2 py-1 text-xs bg-transparent"
+                  aria-label={tRail('quietHoursEnd')}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick stats + bulk actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="text-sm text-muted-foreground tabular-nums">
+            {t('showing', { shown: filteredAndSortedNotifications.length, total: totalCount })}
+          </div>
+
           {selectedNotifications.size > 0 && (
             <div className="flex items-center space-x-2">
               <span className="text-sm text-muted-foreground tabular-nums">
@@ -464,79 +490,36 @@ export function NotificationList({ className }: NotificationListProps) {
           )}
         </div>
 
-        {/* Expanded filters */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Type filter */}
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  {t('type')}
-                </label>
-                <Select
-                  value={selectedFilter}
-                  onValueChange={(value) => handleFilterChange(value as 'all' | 'unread' | NotificationType)}
-                >
-                  <SelectTrigger className="w-full" aria-label={t('type')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                        {typeof option.count === 'number' && option.count > 0 ? ` (${option.count})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Type filter — tappable outlined labels (droplists retired) */}
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {filterOptions.map(option => (
+            <Button
+              key={option.value}
+              variant={selectedFilter === option.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleFilterChange(option.value)}
+              aria-pressed={selectedFilter === option.value}
+            >
+              {option.label}
+              {typeof option.count === 'number' && option.count > 0 ? ` (${option.count})` : ''}
+            </Button>
+          ))}
+        </div>
 
-              {/* Priority filter */}
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  {t('priority')}
-                </label>
-                <Select
-                  value={selectedPriority}
-                  onValueChange={(value) => handlePriorityChange(value as 'all' | NotificationPriority)}
-                >
-                  <SelectTrigger className="w-full" aria-label={t('priority')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorityOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sort filter */}
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  {t('sortBy')}
-                </label>
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => handleSortChange(value as 'newest' | 'oldest' | 'priority')}
-                >
-                  <SelectTrigger className="w-full" aria-label={t('sortBy')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Priority filter — tappable outlined labels */}
+        <div className="flex flex-wrap items-center gap-2">
+          {priorityOptions.map(option => (
+            <Button
+              key={option.value}
+              variant={selectedPriority === option.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handlePriorityChange(option.value)}
+              aria-pressed={selectedPriority === option.value}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Actions bar */}

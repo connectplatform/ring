@@ -315,7 +315,9 @@
     "openSettings": "Abrir configuración",
     "quietHours": "Horas de silencio",
     "quietHoursDescription": "Silencia notificaciones no urgentes durante tus horas de silencio",
-    "quietHoursActiveHint": "Horas de silencio activas — notificaciones silenciadas en esta ventana"
+    "quietHoursActiveHint": "Horas de silencio activas — notificaciones silenciadas en esta ventana",
+    "quietHoursStart": "Inicio",
+    "quietHoursEnd": "Fin"
   },
   "center": {
     "connection": {
