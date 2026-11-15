@@ -24,22 +24,29 @@ import {
 } from '@/lib/wallet/desk-order-db'
 import { createWalletTransaction } from '@/lib/wallet/wallet-transaction-db'
 import { getNativeWallet } from '@/lib/wallet/user-wallet-db'
-import { transferTokenFromTreasury } from '@/features/wallet/chains/solana/treasury-transfer-service'
+import {
+  getTreasuryNativeTokenBalanceRaw,
+  transferTokenFromTreasury,
+} from '@/features/wallet/chains/solana/treasury-transfer-service'
+import { logger } from '@/lib/logger'
 import type { DeskOrderSide } from '@/lib/zod/desk-schemas'
 import { db } from '@/lib/database'
 import { getClientMainCurrency } from '@/lib/ring-config-client'
+import {
+  DeskInsufficientCreditError,
+  DeskOutOfStockError,
+} from '@/features/wallet/chains/solana/desk-errors'
+
+export {
+  DeskInsufficientCreditError,
+  DeskOutOfStockError,
+  getDeskExecuteErrorCode,
+} from '@/features/wallet/chains/solana/desk-errors'
+export type { DeskExecuteErrorCode } from '@/features/wallet/chains/solana/desk-errors'
 
 /** Credit point → main currency multiplier (ring-config credit.creditBalanceUnitToMainCurrency). */
 function getPointFiatValue(): number {
   return Number(getMainCurrencyCreditAccountingRate()) || 1
-}
-
-export class DeskInsufficientCreditError extends Error {
-  readonly code = 'INSUFFICIENT_CREDIT' as const
-  constructor(message = 'INSUFFICIENT_CREDIT') {
-    super(message)
-    this.name = 'DeskInsufficientCreditError'
-  }
 }
 
 /**
@@ -150,6 +157,16 @@ export async function executeDesk(params: {
   )
   if (!hasEnough) {
     throw new DeskInsufficientCreditError('INSUFFICIENT_CREDIT')
+  }
+
+  const ringRaw = BigInt(payload.ringAmountRaw)
+  const treasuryRaw = await getTreasuryNativeTokenBalanceRaw()
+  if (treasuryRaw < ringRaw) {
+    logger.warn('Desk treasury ATA balance insufficient', {
+      neededRaw: ringRaw.toString(),
+      treasuryRaw: treasuryRaw.toString(),
+    })
+    throw new DeskOutOfStockError()
   }
 
   const order = await createDeskOrder({

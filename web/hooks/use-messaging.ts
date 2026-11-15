@@ -589,14 +589,19 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [session?.user?.id, conversationId, fetchMessages])
 
-  // Tunnel-down safety net — quiet catch-up merges latest page; never wipes loaded history
-  useEffect(() => {
-    if (!session?.user?.id || !conversationId || isTunnelConnected) return
-    const id = window.setInterval(() => {
-      void fetchMessages(false, { quiet: true })
-    }, 12_000)
-    return () => window.clearInterval(id)
-  }, [session?.user?.id, conversationId, isTunnelConnected, fetchMessages])
+    // Safety net — quiet catch-up merges latest page; never wipes loaded history.
+    // Tunnel down: 12s aggressive catch-up. Tunnel up: 30s defensive poll — a
+    // stuck transport (state says connected, hub never registered the socket,
+    // 2026-11-15 greenfood two-hub outage) must never permanently swallow
+    // messages; the poll is the guaranteed eventual-consistency floor.
+    useEffect(() => {
+      if (!session?.user?.id || !conversationId) return
+      const interval = isTunnelConnected ? 30_000 : 12_000
+      const id = window.setInterval(() => {
+        void fetchMessages(false, { quiet: true })
+      }, interval)
+      return () => window.clearInterval(id)
+    }, [session?.user?.id, conversationId, isTunnelConnected, fetchMessages])
 
   const sendMessage = useCallback(
     async (content: string, options?: Partial<SendMessageRequest>): Promise<Message | null> => {

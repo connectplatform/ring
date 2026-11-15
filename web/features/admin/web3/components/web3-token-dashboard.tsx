@@ -20,6 +20,7 @@ type TokenMintEventRow = {
   destination: string
   txSignature: string | null
   note: string | null
+  kind?: 'mint' | 'burn'
   status: 'pending' | 'confirmed' | 'failed'
   createdAt: string
   explorerUrl: string | null
@@ -35,6 +36,12 @@ type TokenSummary = {
     program: string
   }
   supply: { raw: string; ui: string }
+  holdings?: {
+    treasuryUi: string
+    treasuryRaw: string
+    circulatingUi: string
+    circulatingRaw: string
+  }
   holders: { estimated: number; note: string }
   gas: { sol: number; lamports: number; address: string; healthy: boolean } | null
   cluster?: string
@@ -221,7 +228,7 @@ export function Web3TokenDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{tw('onChainTotalSupply')}</CardTitle>
@@ -231,6 +238,19 @@ export function Web3TokenDashboard() {
               {data?.supply.ui ?? '0'} {symbol}
             </p>
             <p className="text-xs text-muted-foreground">{data?.supply.raw ?? '0'} raw</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{tw('treasuryHoldings')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {data?.holdings?.treasuryUi ?? '-'} {symbol}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {tw('treasuryHoldingsCirculating')}: {data?.holdings?.circulatingUi ?? '-'} {symbol}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -368,6 +388,7 @@ export function Web3TokenDashboard() {
                     <th className="py-2 pr-3 font-medium">{tw('mintEventTime')}</th>
                     <th className="py-2 pr-3 font-medium">{tw('mintEventProject')}</th>
                     <th className="py-2 pr-3 font-medium">{tw('mintEventWho')}</th>
+                    <th className="py-2 pr-3 font-medium">{tw('mintEventKind')}</th>
                     <th className="py-2 pr-3 font-medium">{tw('mintEventAmount')}</th>
                     <th className="py-2 pr-3 font-medium">{tw('mintEventDestination')}</th>
                     <th className="py-2 pr-3 font-medium">{tw('mintEventTx')}</th>
@@ -389,6 +410,14 @@ export function Web3TokenDashboard() {
                             {shortAddr(event.superadminUserId)}
                           </div>
                         ) : null}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <Badge
+                          variant={event.kind === 'burn' ? 'destructive' : 'secondary'}
+                          className="text-xs font-mono"
+                        >
+                          {event.kind === 'burn' ? tw('kindBurn') : tw('kindMint')}
+                        </Badge>
                       </td>
                       <td className="py-2 pr-3 whitespace-nowrap">
                         {event.amount} {symbol}

@@ -48,6 +48,7 @@
   "deskQuoteFailed": "Error en la cotización",
   "deskExecuteSuccess": "Orden del desk liquidada",
   "deskExecuteFailed": "Error en la orden del desk",
+  "deskOutOfStock": "El desk no tiene {symbol} en este momento, inténtalo más tarde",
   "deskInsufficientCredit": "El saldo de crédito es inferior al importe solicitado",
   "deskPurchaseCreditCertificate": "Comprar certificado de crédito",
   "loadMoreTransactions": "Cargar más",

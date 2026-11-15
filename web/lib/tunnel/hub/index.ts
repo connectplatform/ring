@@ -20,6 +20,11 @@ import type { TunnelHub } from './types';
 
 let hubInstance: TunnelHub | null = null;
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __RING_TUNNEL_HUB__: TunnelHub | undefined
+}
+
 function createTunnelHub(): TunnelHub {
   const mode = detectTunnelHubMode();
 
@@ -49,22 +54,33 @@ function createTunnelHub(): TunnelHub {
 /**
  * Returns the active hub implementation.
  * Gated backends (Redis, ConnectPlatform, Postgres fan-out) plug in here — no new connectors in app code.
+ *
+ * globalThis singleton (firebase-admin.server.ts pattern): the standalone
+ * custom server (node --import tsx server.ts → attachTunnelWss) and Next's
+ * compiled route-handler chunks hold SEPARATE module instances — a bare
+ * module-level `hubInstance` produced TWO hubs: WS connections registered in
+ * the server's hub, publishes from Server Actions/API routes went to the
+ * chunks' hub → "no live socket" on every publish, dead queue replay, offline
+ * presence (2026-11-15 greenfood live-chat outage). globalThis unifies both.
  */
 export function getTunnelHub(): TunnelHub {
-  if (!hubInstance) {
-    hubInstance = createTunnelHub();
+  if (!globalThis.__RING_TUNNEL_HUB__) {
+    globalThis.__RING_TUNNEL_HUB__ = createTunnelHub();
+    hubInstance = globalThis.__RING_TUNNEL_HUB__;
   }
-  return hubInstance;
+  return globalThis.__RING_TUNNEL_HUB__;
 }
 
 /** Test-only reset */
 export function resetTunnelHubForTests(): void {
   hubInstance = null;
+  globalThis.__RING_TUNNEL_HUB__ = undefined;
 }
 
 /** Test-only: clear fan-out singleton after toggling TUNNEL_POSTGRES_FANOUT. */
 export function resetPostgresFanoutForTests(): void {
   hubInstance = null;
+  globalThis.__RING_TUNNEL_HUB__ = undefined;
 }
 
 export function buildTunnelMessage(

@@ -15,7 +15,7 @@ import { getSolanaConnection, getTreasuryKeypair } from '@/features/wallet/chain
 import { nativeTokenRawToUi } from '@/lib/wallet/native-token-amount'
 import { getMint } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
-import { db } from '@/lib/database'
+import { getSharedPgPool } from '@/lib/database/shared-pg-pool'
 
 /**
  * GET /api/admin/web3/token
@@ -45,6 +45,10 @@ export async function GET() {
   let totalSupplyUi = '0'
   let decimals = configDecimals ?? 0
   let treasuryAddress = ''
+  let treasuryHoldingsUi = '0'
+  let treasuryHoldingsRaw = '0'
+  let circulatingUi = '0'
+  let circulatingRawStr = '0'
 
   const treasury = getTreasuryKeypair()
   if (treasury) {
@@ -65,17 +69,55 @@ export async function GET() {
     const [whole, frac] = ui.split('.')
     const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     totalSupplyUi = frac ? `${grouped}.${frac}` : grouped
+
+    // Treasury holdings (P0.3): sum treasury-owned token accounts for this mint.
+    if (treasuryAddress) {
+      const accounts = await connection.getParsedTokenAccountsByOwner(
+        new PublicKey(treasuryAddress),
+        { mint },
+      )
+      let treasuryRaw = 0n
+      for (const account of accounts.value) {
+        const parsed = account.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }
+        const amountRaw = parsed?.parsed?.info?.tokenAmount?.amount
+        if (typeof amountRaw === 'string' && /^\d+$/.test(amountRaw)) {
+          treasuryRaw += BigInt(amountRaw)
+        }
+      }
+      const holdingsUi = nativeTokenRawToUi(treasuryRaw, decimals)
+      const [hWhole, hFrac] = holdingsUi.split('.')
+      const hGrouped = hWhole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      treasuryHoldingsUi = hFrac ? `${hGrouped}.${hFrac}` : hGrouped
+      treasuryHoldingsRaw = treasuryRaw.toString()
+      try {
+        if (mintInfo.supply >= treasuryRaw) {
+          const circulatingRaw = mintInfo.supply - treasuryRaw
+          const cUi = nativeTokenRawToUi(circulatingRaw, decimals)
+          const [cWhole, cFrac] = cUi.split('.')
+          const cGrouped = cWhole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+          circulatingUi = cFrac ? `${cGrouped}.${cFrac}` : cGrouped
+          circulatingRawStr = circulatingRaw.toString()
+        }
+      } catch {
+        // Circulating breakdown unavailable — keep zeros
+      }
+    }
   } catch {
     // Token info unavailable on-chain, so return what we have from config
   }
 
   let holdersEstimate = 0
   try {
-    await db().queryDocs<{ wallets?: Array<{ chain?: string }> }>({
-      collection: 'users',
-      filters: [{ field: 'role', operator: 'in', value: 'member,subscriber,admin,superadmin,editor,moderator' }],
-      pagination: { limit: 1 },
-    })
+    // P0.1: real count — users with at least one provisioned wallet
+    // (custodial WalletConductor.ensureNativeWallet or connected).
+    const pool = await getSharedPgPool()
+    const result = await pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM public.users
+        WHERE jsonb_typeof(COALESCE(data->'wallets', '[]'::jsonb)) = 'array'
+          AND jsonb_array_length(data->'wallets') > 0`,
+    )
+    holdersEstimate = Number(result.rows[0]?.count ?? 0)
   } catch {
     // Holders count unavailable
   }
@@ -102,9 +144,15 @@ export async function GET() {
       raw: totalSupply,
       ui: totalSupplyUi,
     },
+    holdings: {
+      treasuryUi: treasuryHoldingsUi,
+      treasuryRaw: treasuryHoldingsRaw,
+      circulatingUi,
+      circulatingRaw: circulatingRawStr,
+    },
     holders: {
       estimated: holdersEstimate,
-      note: 'Count of member+ users who have a native wallet provisioned via WalletConductor.ensureNativeWallet',
+      note: 'Users with at least one provisioned wallet (custodial via WalletConductor.ensureNativeWallet, or connected)',
     },
     gas: gasReserve,
     cluster,

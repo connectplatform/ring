@@ -30,6 +30,7 @@ import {
   getClientMainCurrency,
   getClientEvmTreasuryAddress,
   getClientNativeTokenSymbol,
+  isClientEvmEnabled,
 } from '@/lib/ring-config-client'
 import {
   getNativeTokenSwapAllowlist,
@@ -76,7 +77,7 @@ function AllowlistTokenBalance({
   return null
 }
 
-export default function SignInWalletListItem({ className }: SignInWalletListItemProps) {
+function SignInWalletListItemInner({ className }: SignInWalletListItemProps) {
   const t = useTranslations('modules.wallet')
   const nativeSymbol = getClientNativeTokenSymbol()
   const treasuryAddress = getClientEvmTreasuryAddress()
@@ -484,4 +485,10 @@ export default function SignInWalletListItem({ className }: SignInWalletListItem
       </WalletFsModal>
     </>
   )
+}
+
+export default function SignInWalletListItem(props: SignInWalletListItemProps) {
+  // Keep wagmi hooks in the inner component so they never run when EVM is off.
+  if (!isClientEvmEnabled()) return null
+  return <SignInWalletListItemInner {...props} />
 }

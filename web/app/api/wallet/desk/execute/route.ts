@@ -2,7 +2,9 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
 import { DeskExecuteRequestSchema } from '@/lib/zod/desk-schemas'
 import { WalletConductor } from '@/features/wallet/conductor/wallet-conductor'
+import { getDeskExecuteErrorCode } from '@/features/wallet/chains/solana/desk-errors'
 import { readJsonBody } from '@/lib/server/request'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   await connection()
@@ -30,18 +32,21 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({ success: true, ...result })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Desk execution failed'
-    if (
-      message === 'INSUFFICIENT_CREDIT' ||
-      (error as { code?: string })?.code === 'INSUFFICIENT_CREDIT'
-    ) {
-      return NextResponse.json(
-        { error: 'INSUFFICIENT_CREDIT', code: 'INSUFFICIENT_CREDIT' },
-        { status: 400 },
-      )
+    const typed = getDeskExecuteErrorCode(error)
+    if (typed) {
+      return NextResponse.json({ error: typed, code: typed }, { status: 400 })
     }
+
+    const message = error instanceof Error ? error.message : 'Desk execution failed'
+    logger.error('Desk execution failed', { message })
+
     const status =
       message.includes('Compliance') || message.includes('subscriber') ? 403 : 400
-    return NextResponse.json({ error: message }, { status })
+    const clientError = message.includes('Compliance')
+      ? 'Compliance rejected'
+      : message.includes('subscriber')
+        ? 'Subscriber required'
+        : 'DESK_EXECUTE_FAILED'
+    return NextResponse.json({ error: clientError, code: clientError }, { status })
   }
 }

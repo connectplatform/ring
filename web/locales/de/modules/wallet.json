@@ -48,6 +48,7 @@
   "deskQuoteFailed": "Kursabruf fehlgeschlagen",
   "deskExecuteSuccess": "Desk-Auftrag abgewickelt",
   "deskExecuteFailed": "Desk-Auftrag fehlgeschlagen",
+  "deskOutOfStock": "Der Desk hat derzeit kein {symbol}, bitte später erneut versuchen",
   "deskInsufficientCredit": "Credit-Guthaben niedriger als gewünschter Betrag",
   "deskPurchaseCreditCertificate": "Credit-Zertifikat kaufen",
   "loadMoreTransactions": "Mehr laden",

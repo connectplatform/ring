@@ -76,6 +76,22 @@ export const getVendorByUserId = cache(async (userId: string, userEmail?: string
     const createResult = await db().createDoc('vendor_profiles', newVendorProfile, { id: newVendorId })
     
     if (!createResult.success) {
+      // Race: a concurrent request already created the deterministic
+      // vendor_user_{userId} row (pg 23505 on vendor_profiles_pkey) — re-read
+      // instead of failing (2026-11-14 greenfood log: repeated 23505 storms).
+      const raceResult = await db().readDoc<VendorProfile>('vendor_profiles', newVendorId)
+      if (raceResult.success && raceResult.data) {
+        const vendorProfile = raceResult.data
+        logger.info('Vendor profile created concurrently — reusing', { userId, vendorId: vendorProfile.id })
+        return {
+          found: true,
+          vendorProfile,
+          vendorId: vendorProfile.id,
+          vendorName: vendorProfile.storeName ?? vendorProfile.businessName ?? 'Vendor Store',
+          isApproved: vendorProfile.onboardingStatus === VendorOnboardingStatus.APPROVED,
+          isPending: vendorProfile.onboardingStatus === VendorOnboardingStatus.STARTED
+        }
+      }
       logger.error('Failed to auto-create vendor profile', { userId, error: createResult.error })
       return {
         found: false,

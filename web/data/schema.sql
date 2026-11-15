@@ -2048,12 +2048,14 @@ CREATE TABLE public.token_mint_events (
     tx_signature character varying(255),
     note text,
     cluster character varying(64),
+    kind character varying(16) DEFAULT 'mint'::character varying NOT NULL,
     status character varying(32) DEFAULT 'pending'::character varying NOT NULL,
     error text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT token_mint_events_pkey PRIMARY KEY (id),
     CONSTRAINT token_mint_events_tx_signature_key UNIQUE (tx_signature),
+    CONSTRAINT token_mint_events_kind_check CHECK (kind::text = ANY (ARRAY['mint'::character varying, 'burn'::character varying]::text[])),
     CONSTRAINT token_mint_events_status_check CHECK (status IN ('pending', 'confirmed', 'failed'))
 );
 
@@ -2064,6 +2066,8 @@ CREATE INDEX idx_token_mint_events_created_at ON public.token_mint_events USING 
 CREATE INDEX idx_token_mint_events_mint ON public.token_mint_events USING btree (mint_address);
 
 CREATE INDEX idx_token_mint_events_project_id ON public.token_mint_events USING btree (project_id);
+
+CREATE INDEX idx_token_mint_events_kind ON public.token_mint_events USING btree (kind, created_at DESC);
 
 
 --

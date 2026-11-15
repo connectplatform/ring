@@ -61,12 +61,17 @@ export function getConversationTitle(
   }
 
   if (conversation.type === 'direct') {
-    if (conversation.metadata.directUserName) {
-      return conversation.metadata.directUserName
-    }
+    // Server-truth first: participants are enriched at read time from the users
+    // table, so the peer name is correct for BOTH parties. metadata.directUserName
+    // is a single perspective-less snapshot (whoever created the chat wrote THEIR
+    // peer's name — the other viewer saw themselves/their own peer) — legacy
+    // fallback only.
     const other = conversation.participants.find((p) => p.userId !== currentUserId)
     if (other?.displayName) {
       return other.displayName
+    }
+    if (conversation.metadata.directUserName) {
+      return conversation.metadata.directUserName
     }
     return other ? other.userId : tr(t, 'titleDirect', 'Direct')
   }

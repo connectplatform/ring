@@ -19,6 +19,7 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
+import { getDeskExecuteErrorCode } from '@/features/wallet/chains/solana/desk-errors'
 import { getNativeTokenSymbol } from '@/lib/ring-config-chain'
 import { NativeChain } from '@/lib/ring-config-chain'
 import { getMainCurrencySymbol } from '@/lib/ring-config-core'
@@ -1800,6 +1801,7 @@ export async function executeDeskQuote(formData: FormData): Promise<WalletAction
   orderId?: string
   status?: string
   txHash?: string
+  code?: string
 }> {
   try {
     const session = await auth()
@@ -1833,14 +1835,18 @@ export async function executeDeskQuote(formData: FormData): Promise<WalletAction
     }
   } catch (error) {
     logger.error('executeDeskQuote failed', { error })
+    const typed = getDeskExecuteErrorCode(error)
+    if (typed) {
+      return { success: false, error: typed, code: typed }
+    }
     const message = error instanceof Error ? error.message : 'Desk execution failed'
     if (message.includes('Compliance')) {
       return { success: false, error: 'Compliance check failed' }
     }
     if (message.includes('Quote expired') || message.includes('signature mismatch')) {
-      return { success: false, error: 'Quote expired or invalid — request a new quote' }
+      return { success: false, error: 'Quote expired or invalid. Request a new quote' }
     }
-    return { success: false, error: message }
+    return { success: false, error: 'DESK_EXECUTE_FAILED' }
   }
 }
 

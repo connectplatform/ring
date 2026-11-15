@@ -26,13 +26,18 @@ import {
   isCreditRewardsEnabled,
 } from '@/lib/ring-config-core'
 import type { SupportedCurrencies } from '@/lib/ring-config-core'
-import { getNativeTokenSymbol, isNativeTokenOnrampEnabled as isNativeTokenOnrampEnabledServer } from '@/lib/ring-config-chain'
+import { getNativeTokenSymbol, isEvmChainEnabled, isNativeTokenOnrampEnabled as isNativeTokenOnrampEnabledServer } from '@/lib/ring-config-chain'
 
 /**
  * Returns the current native token symbol from config, or defaults to 'RING'
  */
 export function getClientNativeTokenSymbol(): string {
   return getNativeTokenSymbol()
+}
+
+/** Client-safe read of ring-config `chains.evm.enabled` (SSOT: isEvmChainEnabled). */
+export function isClientEvmEnabled(): boolean {
+  return isEvmChainEnabled()
 }
 
 /**

@@ -48,6 +48,7 @@
   "deskQuoteFailed": "Quote failed",
   "deskExecuteSuccess": "Desk order settled",
   "deskExecuteFailed": "Desk order failed",
+  "deskOutOfStock": "The desk is out of {symbol} right now, try again later",
   "deskInsufficientCredit": "Credit balance is lower than requested amount",
   "deskPurchaseCreditCertificate": "Purchase credit certificate",
   "loadMoreTransactions": "Load more",

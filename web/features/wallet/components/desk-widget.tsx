@@ -153,7 +153,18 @@ export default function DeskWidget({
           setInsufficientCredit(true)
           return
         }
-        throw new Error(data.error ?? 'Execution failed')
+        if (data.code === 'DESK_OUT_OF_STOCK' || data.error === 'DESK_OUT_OF_STOCK') {
+          toast({
+            title: t('deskExecuteFailed'),
+            description: t('deskOutOfStock', {
+              symbol: nativeSymbol,
+              defaultValue: 'The desk is out of {symbol} right now, try again later',
+            }),
+            variant: 'destructive',
+          })
+          return
+        }
+        throw new Error('DESK_EXECUTE_FAILED')
       }
       toast({
         title: t('deskExecuteSuccess'),
@@ -162,10 +173,9 @@ export default function DeskWidget({
       setQuote(null)
       setAmount('')
       onSuccess?.()
-    } catch (error) {
+    } catch {
       toast({
         title: t('deskExecuteFailed'),
-        description: error instanceof Error ? error.message : undefined,
         variant: 'destructive',
       })
     } finally {

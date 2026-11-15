@@ -340,6 +340,11 @@ export function isChainEnabled(chain: SupportedChains): boolean {
   return enabled?.includes(chain) ?? chain === 'evm'
 }
 
+/** Whether ring-config `chains.evm.enabled` is on after SSOT default merge. */
+export function isEvmChainEnabled(): boolean {
+  return getNativeChainConfig().evm?.enabled !== false
+}
+
 export function getNativeTokenDecimals(chain?: NativeChain): number {
   const active = chain ?? getNativeChain()
   const chains = getNativeChainConfig()

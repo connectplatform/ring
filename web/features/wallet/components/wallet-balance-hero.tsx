@@ -13,6 +13,7 @@ import WalletSendFsModal from '@/features/wallet/components/wallet-send-fs-modal
 import WalletRequestFsModal from '@/features/wallet/components/wallet-request-fs-modal'
 import WalletRechargeFsModal from '@/features/wallet/components/wallet-recharge-fs-modal'
 import type { Locale } from '@/i18n/shared'
+import { isClientEvmEnabled } from '@/lib/ring-config-client'
 
 export interface WalletBalanceHeroProps {
   locale: Locale
@@ -79,8 +80,9 @@ export function WalletBalanceHero({
           onRefresh={onRefresh}
         />
 
-        {/* Lane C: browser-connected sign-in EVM wallet (wagmi). Swap CTA when allowlisted. */}
-        <SignInWalletListItem />
+        {/* Lane C: browser-connected sign-in EVM wallet (wagmi). Hidden when EVM is off
+            so wagmi hooks inside the row never run without WagmiProvider. */}
+        {isClientEvmEnabled() ? <SignInWalletListItem /> : null}
 
         {walletsLoading ? (
           <p className="py-2 text-sm text-muted-foreground">{t('loadingWallets')}</p>

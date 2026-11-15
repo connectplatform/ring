@@ -116,6 +116,7 @@
   "deskQuoteFailed": "Не вдалося отримати котирування",
   "deskExecuteSuccess": "Операцію на desk завершено",
   "deskExecuteFailed": "Помилка операції на desk",
+  "deskOutOfStock": "На desk зараз немає {symbol}, спробуйте пізніше",
   "deskInsufficientCredit": "Баланс кредитів менший за запитану суму",
   "deskPurchaseCreditCertificate": "Придбати кредитний сертифікат",
   "activityAll": "Уся активність",

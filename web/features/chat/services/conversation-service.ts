@@ -390,21 +390,13 @@ export class ConversationService {
       }),
     );
 
-    const metadata = { ...conversation.metadata };
-    if (conversation.type === 'direct' && !metadata.directUserName) {
-      const other =
-        (metadata.directUserId
-          ? participants.find((p) => p.userId === metadata.directUserId)
-          : undefined) ||
-        (viewerUserId
-          ? participants.find((p) => p.userId !== viewerUserId)
-          : undefined);
-      if (other?.displayName) {
-        metadata.directUserName = other.displayName;
-      }
-    }
+    // NOTE: do NOT backfill shared metadata.directUserName per viewer — it is a
+    // single perspective-less field; a viewer-side backfill wrote THEIR peer's
+    // name into shared metadata and every other viewer saw the wrong title
+    // (2026-11-14 greenfood: both parties saw "Emperor Ray"). getConversationTitle
+    // now prefers enriched participant displayName; metadata stays legacy fallback.
 
-    return { ...conversation, participants, metadata };
+    return { ...conversation, participants, metadata: conversation.metadata };
   }
 
   async setArchived(

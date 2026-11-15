@@ -34,6 +34,7 @@ import { PublicKey, type Keypair } from '@solana/web3.js'
 import { revalidatePath } from 'next/cache'
 
 export type TokenMintEventStatus = 'pending' | 'confirmed' | 'failed'
+export type TokenMintEventKind = 'mint' | 'burn'
 
 export type TokenMintEventRow = {
   id: string
@@ -47,6 +48,7 @@ export type TokenMintEventRow = {
   txSignature: string | null
   note: string | null
   cluster: string | null
+  kind: TokenMintEventKind
   status: TokenMintEventStatus
   error: string | null
   createdAt: string
@@ -103,6 +105,7 @@ function mapMintEventRow(row: {
   tx_signature: string | null
   note: string | null
   cluster: string | null
+  kind?: string | null
   status: string
   error: string | null
   created_at: Date | string
@@ -121,6 +124,7 @@ function mapMintEventRow(row: {
     txSignature,
     note: row.note,
     cluster,
+    kind: row.kind === 'burn' ? 'burn' : 'mint',
     status: (row.status as TokenMintEventStatus) || 'pending',
     error: row.error,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
@@ -138,13 +142,14 @@ async function insertPendingMintEvent(params: {
   destination: string
   note: string
   cluster: string
+  kind?: TokenMintEventKind
 }): Promise<string> {
   const pool = await getSharedPgPool()
   const result = await pool.query<{ id: string }>(
     `INSERT INTO public.token_mint_events (
        project_id, superadmin_user_id, superadmin_email,
-       amount, amount_raw, mint_address, destination, note, cluster, status
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+       amount, amount_raw, mint_address, destination, note, cluster, kind, status
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
      RETURNING id`,
     [
       params.projectId,
@@ -156,6 +161,7 @@ async function insertPendingMintEvent(params: {
       params.destination,
       params.note,
       params.cluster,
+      params.kind ?? 'mint',
     ],
   )
   const id = result.rows[0]?.id
@@ -243,7 +249,7 @@ export async function listTokenMintEvents(limit = 25): Promise<{
     }>(
       `SELECT id, project_id, superadmin_user_id, superadmin_email,
               amount, amount_raw, mint_address, destination, tx_signature,
-              note, cluster, status, error, created_at
+              note, cluster, kind, status, error, created_at
          FROM public.token_mint_events
         ORDER BY created_at DESC
         LIMIT $1`,
@@ -316,6 +322,7 @@ export async function adminMintNativeToken(
       destination: treasuryAta.address.toBase58(),
       note: trimmedNote,
       cluster,
+      kind: 'mint',
     })
 
     const sig = await mintTo(
@@ -355,8 +362,9 @@ export async function adminMintRING(
 }
 
 export async function adminBurnRING(amountUi: string): Promise<AdminNativeTokenActionResult> {
+  let auditId: string | null = null
   try {
-    await assertSuperadmin()
+    const session = await assertSuperadmin()
 
     const mintAddress = getNativeTokenAddress()
     if (!mintAddress) throw new Error('Native token address not configured')
@@ -371,6 +379,7 @@ export async function adminBurnRING(amountUi: string): Promise<AdminNativeTokenA
     const treasury = resolveTreasuryAuthority()
     const mint = new PublicKey(mintAddress)
     const mintInfo = await getMint(connection, mint)
+    assertTreasuryIsMintAuthority(treasury, mintInfo.mintAuthority)
 
     const decimals = mintInfo.decimals
     const rawAmount = nativeTokenUiToRaw(amountUi.trim(), decimals)
@@ -385,6 +394,22 @@ export async function adminBurnRING(amountUi: string): Promise<AdminNativeTokenA
       treasury.publicKey,
     )
 
+    // P0.2: burns are audited like mints (pending → confirmed/failed).
+    const projectId = getMintAuditProjectId()
+    const cluster = getSolanaCluster()
+    auditId = await insertPendingMintEvent({
+      projectId,
+      superadminUserId: session.user.id,
+      superadminEmail: session.user.email ?? null,
+      amountUi: nativeTokenRawToUi(rawAmount, decimals),
+      amountRaw: rawAmount,
+      mintAddress,
+      destination: treasuryAta.address.toBase58(),
+      note: 'Burn from treasury token account',
+      cluster,
+      kind: 'burn',
+    })
+
     const sig = await burn(
       connection,
       feePayer,
@@ -394,12 +419,23 @@ export async function adminBurnRING(amountUi: string): Promise<AdminNativeTokenA
       rawAmount,
     )
 
+    if (auditId) {
+      await finalizeMintEvent(auditId, { status: 'confirmed', txSignature: sig })
+      auditId = null
+    }
+
     const supplyInfo = await getMint(connection, mint)
     const newSupply = formatSupply(supplyInfo.supply, supplyInfo.decimals)
 
     revalidatePath('/admin/web3')
     return { success: true, txHash: sig, newSupply }
   } catch (error) {
+    if (auditId) {
+      await finalizeMintEvent(auditId, {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Burn failed',
+      })
+    }
     const message = error instanceof Error ? error.message : 'Burn failed'
     return { success: false, error: message }
   }

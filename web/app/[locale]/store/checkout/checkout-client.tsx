@@ -19,6 +19,7 @@ import { isCheckoutSpecialOfferEnabledForVendors } from '@/app/_actions/vendor-a
 import { DEFAULT_STORE_SETTINGS, quoteFromSettings } from '@/features/store/types/store-settings'
 import { cartLineVendorId } from '@/features/store/lib/cart-pricing'
 import { followCheckoutResult } from '@/lib/payments/checkout-redirect'
+import CheckoutDeepLink from './checkout-deep-link'
 import { normalizePaymentRail } from '@/lib/payments/conductor/types'
 import {
   placeAndPayStoreOrder,
@@ -306,6 +307,9 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
           </div>
         </div>
       )}
+
+      {/* ?product=<id>&qty=<n> deep-link preload (marketing-site "Add to cart" CTAs) */}
+      <CheckoutDeepLink />
     </div>
   )
 }

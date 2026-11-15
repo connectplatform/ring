@@ -48,6 +48,7 @@
   "deskQuoteFailed": "Не удалось получить курс",
   "deskExecuteSuccess": "Заявка на Desk исполнена",
   "deskExecuteFailed": "Заявка на Desk не выполнена",
+  "deskOutOfStock": "Сейчас на Desk нет {symbol}, попробуйте позже",
   "deskInsufficientCredit": "Баланс кредитов меньше запрошенной суммы",
   "deskPurchaseCreditCertificate": "Приобрести кредитный сертификат",
   "loadMoreTransactions": "Загрузить ещё",

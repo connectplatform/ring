@@ -181,7 +181,7 @@ export function CallOverlay({ call, peerLabel, className }: CallOverlayProps) {
         {remoteAudio}
         <div
           className={cn(
-            'fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur',
+            'fixed bottom-4 right-4 z-[60] flex items-center gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur',
             className,
           )}
           role="dialog"
@@ -219,7 +219,7 @@ export function CallOverlay({ call, peerLabel, className }: CallOverlayProps) {
       {remoteAudio}
       <div
         className={cn(
-          'fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-50',
+          'fixed inset-0 z-[60] flex flex-col bg-zinc-950 text-zinc-50',
           className,
         )}
         role="dialog"
@@ -267,7 +267,8 @@ export function CallOverlay({ call, peerLabel, className }: CallOverlayProps) {
           )}
         </div>
 
-        <div className="shrink-0 space-y-3 px-4 pb-10 pt-4">
+        {/* Controllers above the overlay surface itself — never occluded. */}
+        <div className="relative z-[70] shrink-0 space-y-3 px-4 pb-10 pt-4">
           {error && (
             <p className="text-center text-sm text-red-400" role="alert">
               {error}

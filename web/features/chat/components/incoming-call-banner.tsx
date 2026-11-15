@@ -144,50 +144,65 @@ export function IncomingCallBanner({
 
   if (!invite) return null
 
+  // Live overlay widget — bottom-right corner (80px bottom padding clears the
+  // desktop menu zone), z-[55] above the z-40 desktop menu, below CallOverlay.
   return (
     <div
       className={cn(
-        'fixed inset-x-0 top-16 z-50 mx-auto flex max-w-md items-center gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur',
+        'fixed bottom-20 right-4 z-[55] w-[calc(100vw-2rem)] max-w-sm rounded-2xl border bg-background/95 p-4 shadow-2xl backdrop-blur-md',
         className,
       )}
       role="alertdialog"
       aria-label={t('callIncoming')}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-600">
-        {invite.media === 'video' ? (
-          <Video size={22} color="currentColor" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
-        ) : (
-          <Phone size={22} color="currentColor" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
-        )}
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            'flex h-12 w-12 shrink-0 animate-pulse items-center justify-center rounded-full',
+            invite.media === 'video'
+              ? 'bg-blue-600/15 text-blue-600'
+              : 'bg-emerald-600/15 text-emerald-600',
+          )}
+        >
+          {invite.media === 'video' ? (
+            <Video size={24} color="currentColor" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+          ) : (
+            <Phone size={24} color="currentColor" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">
+            {invite.fromUserName || t('callIncoming')}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {invite.media === 'video' ? t('callVideo') : t('callAudio')}
+          </p>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">
-          {invite.fromUserName || t('callIncoming')}
-        </p>
-        <p className="text-xs text-muted-foreground">{t('callIncoming')}</p>
+      <div className="mt-3 flex items-center justify-center gap-6">
+        <CallRoundButton
+          tone="end"
+          label={t('callReject')}
+          onClick={() => {
+            void apiClient.post('/api/calls/pending', { callId: invite.callId }).catch(() => {})
+            onDeclineAction(invite)
+            setInvite(null)
+          }}
+        >
+          <PhoneOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+        </CallRoundButton>
+        <CallRoundButton
+          tone="answer"
+          label={t('callAccept')}
+          onClick={() => {
+            void apiClient.post('/api/calls/pending', { callId: invite.callId }).catch(() => {})
+            onAcceptAction(invite)
+            setInvite(null)
+          }}
+        >
+          <Phone size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+        </CallRoundButton>
       </div>
-      <CallRoundButton
-        tone="end"
-        label={t('callReject')}
-        onClick={() => {
-          void apiClient.post('/api/calls/pending', { callId: invite.callId }).catch(() => {})
-          onDeclineAction(invite)
-          setInvite(null)
-        }}
-      >
-        <PhoneOff size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
-      </CallRoundButton>
-      <CallRoundButton
-        tone="answer"
-        label={t('callAccept')}
-        onClick={() => {
-          void apiClient.post('/api/calls/pending', { callId: invite.callId }).catch(() => {})
-          onAcceptAction(invite)
-          setInvite(null)
-        }}
-      >
-        <Phone size={22} color="#ffffff" strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
-      </CallRoundButton>
     </div>
   )
 }

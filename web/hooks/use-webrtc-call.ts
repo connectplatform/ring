@@ -258,7 +258,9 @@ export function useWebRtcCall(options: UseWebRtcCallOptions): UseWebRtcCallRetur
   const ensurePc = useCallback(
     async (iceServers: RTCIceServer[]) => {
       if (pcRef.current) return pcRef.current
-      const pc = new RTCPeerConnection({ iceServers })
+      // iceCandidatePoolSize: pre-allocate STUN/TURN candidates during the
+      // getUserMedia warmup — shaves seconds off ICE establishment.
+      const pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 4 })
       pcRef.current = pc
 
       pc.ontrack = (ev) => {

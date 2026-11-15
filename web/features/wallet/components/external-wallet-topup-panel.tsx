@@ -23,6 +23,7 @@ import {
   getClientEvmTreasuryAddress,
   getClientNativeTokenSymbol,
   getClientTreasurySwapAllowlist,
+  isClientEvmEnabled,
   previewNativeTokenFromCreditPoints,
 } from '@/lib/ring-config-client'
 import { getNativeTokenPerMainCurrencyRate } from '@/app/_actions/wallet'
@@ -55,7 +56,7 @@ function AllowlistBalanceProbe({
   return null
 }
 
-export default function ExternalWalletTopupPanel({
+function ExternalWalletTopupPanelInner({
   onOpenSwap,
 }: {
   /** Optional: open full swap modal on wallet page */
@@ -294,4 +295,13 @@ export default function ExternalWalletTopupPanel({
       </Button>
     </div>
   )
+}
+
+export default function ExternalWalletTopupPanel(props: {
+  /** Optional: open full swap modal on wallet page */
+  onOpenSwap?: () => void
+}) {
+  // Keep wagmi hooks in the inner component so they never run when EVM is off.
+  if (!isClientEvmEnabled()) return null
+  return <ExternalWalletTopupPanelInner {...props} />
 }

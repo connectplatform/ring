@@ -59,6 +59,34 @@ function requireTreasuryKeypair(): Keypair {
 }
 
 /**
+ * Raw native-token balance of the treasury ATA (same owner and mint as
+ * transferTokenFromTreasury). Missing ATA is treated as zero. Unexpected RPC
+ * failures are rethrown so callers can fail closed without debiting credits.
+ */
+export async function getTreasuryNativeTokenBalanceRaw(): Promise<bigint> {
+  const mintAddress = getNativeTokenAddress()
+  if (!mintAddress) {
+    return 0n
+  }
+
+  const treasury = requireTreasuryKeypair()
+  const connection = getSolanaConnection()
+  const mint = getMintPublicKey(mintAddress)
+  const treasuryAta = getAssociatedTokenAddressSync(mint, treasury.publicKey)
+
+  try {
+    const account = await connection.getTokenAccountBalance(treasuryAta)
+    return BigInt(account.value.amount)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (/could not find|not found|invalid param|account .* does not exist/i.test(message)) {
+      return 0n
+    }
+    throw error
+  }
+}
+
+/**
  * Generic utility to build and submit a Solana transaction with sponsored gas.
  * - Prepares and partially signs transaction with provided signers + fee payer.
  * - Adds all instructions (ATA create, transfers, etc).

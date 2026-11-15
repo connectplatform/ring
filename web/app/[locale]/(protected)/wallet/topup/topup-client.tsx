@@ -34,6 +34,7 @@ import {
   getClientCreditUnitLabel,
   getClientNativeTokenSymbol,
   getClientWalletTopupProcessorLabel,
+  isClientEvmEnabled,
   isClientFiatCardTopupEnabled,
   isClientFiatPaypalTopupEnabled,
 } from '@/lib/ring-config-client'
@@ -69,6 +70,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
   const router = useRouter()
   const showCard = isClientFiatCardTopupEnabled()
   const showPaypal = isClientFiatPaypalTopupEnabled()
+  const showExternalWallet = isClientEvmEnabled()
   const nativeSymbol = getClientNativeTokenSymbol()
   const creditUnit = getClientCreditUnitLabel()
   const processorLabel = getClientWalletTopupProcessorLabel()
@@ -96,7 +98,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
     FormData
   >(initiateCreditTopupPayment, null)
 
-  const tabCount = 2 + (showCard ? 1 : 0) + (showPaypal ? 1 : 0)
+  const tabCount = 1 + (showExternalWallet ? 1 : 0) + (showCard ? 1 : 0) + (showPaypal ? 1 : 0)
   const tabCols =
     tabCount >= 4 ? 'grid-cols-2 sm:grid-cols-4' : tabCount === 3 ? 'grid-cols-3' : 'grid-cols-2'
 
@@ -188,10 +190,12 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
             <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{nativeSymbol}</span>
           </TabsTrigger>
-          <TabsTrigger value="external" className="flex h-auto min-h-10 items-center gap-1.5 px-2 py-2 text-xs sm:text-sm">
-            <Wallet className="h-3.5 w-3.5 shrink-0" />
-            {t('topupTabs.otherWallet', { defaultValue: 'Other wallet' })}
-          </TabsTrigger>
+          {showExternalWallet ? (
+            <TabsTrigger value="external" className="flex h-auto min-h-10 items-center gap-1.5 px-2 py-2 text-xs sm:text-sm">
+              <Wallet className="h-3.5 w-3.5 shrink-0" />
+              {t('topupTabs.otherWallet', { defaultValue: 'Other wallet' })}
+            </TabsTrigger>
+          ) : null}
           {showCard ? (
             <TabsTrigger value="card" className="flex h-auto min-h-10 items-center gap-1.5 px-2 py-2 text-xs sm:text-sm">
               <CreditCard className="h-3.5 w-3.5 shrink-0" />
@@ -244,27 +248,29 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
           </Card>
         </TabsContent>
 
-        <TabsContent value="external" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                {t('topupTabs.otherWallet', { defaultValue: 'Other wallet' })}
-              </CardTitle>
-              <CardDescription>
-                {t('topup.externalDescription', {
-                  symbol: nativeSymbol,
-                  defaultValue: `Swap allowlisted tokens from your connected sign-in wallet into custodial ${nativeSymbol}.`,
-                })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ExternalWalletTopupPanel
-                onOpenSwap={() => router.push(`/${locale}/wallet`)}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {showExternalWallet ? (
+          <TabsContent value="external" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-primary" />
+                  {t('topupTabs.otherWallet', { defaultValue: 'Other wallet' })}
+                </CardTitle>
+                <CardDescription>
+                  {t('topup.externalDescription', {
+                    symbol: nativeSymbol,
+                    defaultValue: `Swap allowlisted tokens from your connected sign-in wallet into custodial ${nativeSymbol}.`,
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ExternalWalletTopupPanel
+                  onOpenSwap={() => router.push(`/${locale}/wallet`)}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ) : null}
 
         {showCard ? (
           <TabsContent value="card" className="space-y-6">
