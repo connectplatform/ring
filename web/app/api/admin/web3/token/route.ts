@@ -158,5 +158,6 @@ export async function GET() {
     cluster,
     recentMints: mintHistory.events,
     recentMintsUnavailable: mintHistory.unavailable === true,
+    recentMintsUnavailableReason: mintHistory.unavailableReason ?? null,
   })
 }

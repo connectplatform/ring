@@ -225,9 +225,41 @@ function assertTreasuryIsMintAuthority(
   }
 }
 
+export type TokenMintEventsUnavailableReason = 'migration_056' | 'migration_057' | 'error'
+
+/**
+ * Map a Postgres error from the token_mint_events read to the migration that is
+ * missing. 42P01 (undefined_table) on token_mint_events means 056 is missing;
+ * 42703 (undefined_column) on `kind` means 057 is missing. Anything else is a
+ * real error and must not be reported as a pending migration.
+ */
+function classifyMintEventsError(error: unknown): {
+  reason: TokenMintEventsUnavailableReason
+  code: string
+  message: string
+} {
+  const err = (error && typeof error === 'object' ? error : {}) as {
+    code?: unknown
+    message?: unknown
+  }
+  const code = typeof err.code === 'string' ? err.code : ''
+  const message = typeof err.message === 'string' ? err.message : ''
+  // Match the SQLSTATE; fall back to the message only if a wrapper dropped the code.
+  const missingTable = code === '42P01' || (!code && /relation .* does not exist/i.test(message))
+  const missingColumn = code === '42703' || (!code && /column .* does not exist/i.test(message))
+  if (missingTable && /token_mint_events/i.test(message)) {
+    return { reason: 'migration_056', code, message }
+  }
+  if (missingColumn && /\bkind\b/i.test(message)) {
+    return { reason: 'migration_057', code, message }
+  }
+  return { reason: 'error', code, message }
+}
+
 export async function listTokenMintEvents(limit = 25): Promise<{
   events: TokenMintEventRow[]
   unavailable?: boolean
+  unavailableReason?: TokenMintEventsUnavailableReason
 }> {
   try {
     const pool = await getSharedPgPool()
@@ -257,14 +289,22 @@ export async function listTokenMintEvents(limit = 25): Promise<{
     )
     return { events: result.rows.map(mapMintEventRow) }
   } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    if (/token_mint_events/i.test(message) && /does not exist|undefined table/i.test(message)) {
-      return { events: [], unavailable: true }
+    const { reason, code, message } = classifyMintEventsError(error)
+    if (reason === 'migration_056') {
+      logger.warn('token_mint_events is missing: apply migration 056_token_mint_events', {
+        code,
+      })
+    } else if (reason === 'migration_057') {
+      logger.warn('token_mint_events.kind is missing: apply migration 057_token_mint_kind', {
+        code,
+      })
+    } else {
+      logger.error('Failed to list token_mint_events', {
+        error: message || 'unknown',
+        code: code || undefined,
+      })
     }
-    logger.error('Failed to list token_mint_events', {
-      error: message || 'unknown',
-    })
-    return { events: [], unavailable: true }
+    return { events: [], unavailable: true, unavailableReason: reason }
   }
 }
 

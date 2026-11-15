@@ -1005,6 +1005,8 @@
     "recentMints": "Недавние mint",
     "recentMintsEmpty": "Событий mint пока нет.",
     "recentMintsUnavailable": "История mint недоступна, пока не применена миграция 056.",
+    "recentMintsUnavailable057": "История mint недоступна, пока не применена миграция 057 (token_mint_events.kind).",
+    "recentMintsUnavailableError": "Не удалось загрузить историю mint. Проверьте логи сервера.",
     "mintEventProject": "Проект",
     "mintEventWho": "Кто выполнил mint",
     "mintEventKind": "Тип",

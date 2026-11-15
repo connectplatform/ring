@@ -1006,6 +1006,8 @@
     "recentMints": "Recent mints",
     "recentMintsEmpty": "No mint events recorded yet.",
     "recentMintsUnavailable": "Mint history is unavailable until migration 056 is applied.",
+    "recentMintsUnavailable057": "Mint history is unavailable until migration 057 (token_mint_events.kind) is applied.",
+    "recentMintsUnavailableError": "Mint history could not be loaded. Check the server logs.",
     "mintEventProject": "Project",
     "mintEventWho": "Minted by",
     "mintEventKind": "Type",

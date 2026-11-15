@@ -1003,6 +1003,8 @@
     "recentMints": "Останні mint",
     "recentMintsEmpty": "Подій mint ще немає.",
     "recentMintsUnavailable": "Історія mint недоступна, доки не застосовано міграцію 056.",
+    "recentMintsUnavailable057": "Історія mint недоступна, доки не застосовано міграцію 057 (token_mint_events.kind).",
+    "recentMintsUnavailableError": "Не вдалося завантажити історію mint. Перевірте логи сервера.",
     "mintEventProject": "Проєкт",
     "mintEventWho": "Хто виконав mint",
     "mintEventKind": "Тип",

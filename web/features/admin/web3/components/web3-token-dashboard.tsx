@@ -47,6 +47,7 @@ type TokenSummary = {
   cluster?: string
   recentMints?: TokenMintEventRow[]
   recentMintsUnavailable?: boolean
+  recentMintsUnavailableReason?: 'migration_056' | 'migration_057' | 'error' | null
 }
 
 function shortAddr(addr: string) {
@@ -377,7 +378,15 @@ export function Web3TokenDashboard() {
         </CardHeader>
         <CardContent>
           {data?.recentMintsUnavailable ? (
-            <p className="text-sm text-muted-foreground">{tw('recentMintsUnavailable')}</p>
+            <p className="text-sm text-muted-foreground">
+              {tw(
+                data.recentMintsUnavailableReason === 'migration_057'
+                  ? 'recentMintsUnavailable057'
+                  : data.recentMintsUnavailableReason === 'error'
+                    ? 'recentMintsUnavailableError'
+                    : 'recentMintsUnavailable',
+              )}
+            </p>
           ) : recentMints.length === 0 ? (
             <p className="text-sm text-muted-foreground">{tw('recentMintsEmpty')}</p>
           ) : (

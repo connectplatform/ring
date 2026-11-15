@@ -4,7 +4,7 @@ import Script from 'next/script'
 import InstanceThemeStyle from '@/components/common/whitelabel/InstanceThemeStyle.server'
 import '@/styles/globals.css'
 import { SIDEBAR_ASIDE_DEFAULT, SIDEBAR_ASIDE_MAX, SIDEBAR_COOKIE_NAME } from '@/lib/sidebar-pref'
-import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
 import {
   AppClientShell,
   AppShellStaticFallback,
@@ -32,10 +32,19 @@ const LEGACY_BROWSER_GATE_JSON = JSON.stringify(LEGACY_BROWSER_GATE)
 const SUPPORTED_LOCALE_PATTERN = SUPPORTED_LOCALES.join('|')
 
 // --- Fonts ---
-const inter = Inter({
-  subsets: ['latin'],
+// Inter 4.0, Latin subset, vendored in public/fonts/inter-latin (same glyph range
+// next/font/google served with subsets: ['latin']). Vendored so the build never
+// fetches Google Fonts: Turbopack intermittently failed with
+// "Can't resolve @vercel/turbopack-next/internal/font/google/font" in CI.
+// Regenerate: pyftsubset public/fonts/Inter-<Weight>.woff2 with the Latin unicode range.
+const inter = localFont({
+  src: [
+    { path: '../public/fonts/inter-latin/Inter-Regular.woff2', weight: '400', style: 'normal' },
+    { path: '../public/fonts/inter-latin/Inter-Medium.woff2', weight: '500', style: 'normal' },
+    { path: '../public/fonts/inter-latin/Inter-SemiBold.woff2', weight: '600', style: 'normal' },
+    { path: '../public/fonts/inter-latin/Inter-Bold.woff2', weight: '700', style: 'normal' },
+  ],
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
   variable: '--font-inter',
   preload: true,
 })

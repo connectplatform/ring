@@ -22,7 +22,7 @@ export function setupResourcePreloading() {
   // Web3Auth connections only if crypto wallet is the primary feature
   // prefetchDNS('https://web3auth.io') // Disabled to reduce preload warnings
 
-  // Font preloading is now handled by next/font/google with explicit weight configuration
+  // Font preloading is now handled by next/font/local (vendored Inter, see app/layout.tsx)
   // This eliminates unnecessary font weight preloads
 
   // Script preloading removed - scripts should be loaded on-demand
